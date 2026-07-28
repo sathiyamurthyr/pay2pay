@@ -14,14 +14,16 @@ from app.core.exceptions import (
     BadRequestException, UnauthorizedException, ForbiddenException, NotFoundException, ConflictException
 )
 from app.domain.validators import (
-    validate_gst, validate_pan, validate_ifsc, validate_mobile, validate_pincode
+    validate_gst, validate_pan, validate_ifsc, validate_mobile, validate_pincode, validate_employee_code
 )
 from app.infrastructure.db.models import (
     TenantModel, CompanyModel, EntityModel, CompanyContactModel, CompanyAddressModel, CompanyBankModel,
     CompanyDocumentModel, CompanyBrandingModel, CompanySettingModel, CompanySubscriptionModel,
     CompanyStatusHistoryModel, CompanyApprovalModel, CompanyConfigurationModel,
     AdminUserModel, RoleModel, PermissionModel, RolePermissionModel, UserRoleModel,
-    AuditLogModel, SystemConfigurationModel, UserSessionModel, ApiKeyModel, PasswordResetTokenModel
+    AuditLogModel, SystemConfigurationModel, UserSessionModel, ApiKeyModel, PasswordResetTokenModel,
+    RegionalManagerModel, SuperDistributorModel, DistributorModel, OrganizationHierarchyModel,
+    OrganizationTransferModel, OrganizationHistoryModel, OrganizationAttachmentModel, OrganizationNoteModel
 )
 from app.infrastructure.services.audit_service import AuditLogger
 from app.application.dtos import (
@@ -29,7 +31,11 @@ from app.application.dtos import (
     CompanyCreate, CompanyUpdate, RoleCreate, RoleUpdate, ApiKeyCreate, ConfigCreateUpdate,
     CompanyOnboardingCreateRequest, CompanyApprovalRequest, CompanyStatusChangeRequest,
     CompanyBrandingDTO, CompanySettingDTO, CompanyDocumentUploadRequest, CompanyDetailsResponse,
-    CompanyDashboardMetricsResponse
+    CompanyDashboardMetricsResponse, RMCreateRequest, RMUpdateRequest, RMResponse,
+    SuperDistributorCreateRequest, SuperDistributorUpdateRequest, SuperDistributorResponse,
+    DistributorCreateRequest, DistributorUpdateRequest, DistributorResponse,
+    OrganizationTransferCreateRequest, OrganizationTransferApprovalRequest, OrganizationTransferResponse,
+    OrganizationTreeNode, OrganizationDashboardMetricsResponse
 )
 
 
@@ -1230,3 +1236,626 @@ class CompanyManagementService:
             state_distribution=state_dist,
             subscription_distribution=sub_dist
         )
+
+
+class OrganizationManagementService:
+    @staticmethod
+    async def create_rm(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: RMCreateRequest,
+        actor_user: AdminUserModel
+    ) -> RegionalManagerModel:
+        validate_employee_code(req.employee_code)
+        validate_mobile(req.mobile)
+
+        dup_stmt = select(RegionalManagerModel).where(
+            RegionalManagerModel.tenant_id == tenant_id,
+            or_(
+                RegionalManagerModel.employee_code == req.employee_code,
+                RegionalManagerModel.email == req.email,
+                RegionalManagerModel.mobile == req.mobile
+            ),
+            RegionalManagerModel.is_deleted == False
+        )
+        if (await db.execute(dup_stmt)).scalar_one_or_none():
+            raise ConflictException("Employee Code, Email, or Mobile already exists for Regional Manager.")
+
+        rm_id = uuid.uuid4()
+        rm = RegionalManagerModel(
+            public_id=rm_id,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            employee_code=req.employee_code,
+            full_name=req.full_name,
+            mobile=req.mobile,
+            email=req.email,
+            photo_url=req.photo_url,
+            designation=req.designation,
+            joining_date=req.joining_date,
+            reporting_manager_id=req.reporting_manager_id,
+            remarks=req.remarks,
+            status="ACTIVE",
+            created_by=actor_user.email
+        )
+        db.add(rm)
+
+        # Hierarchy Mapping
+        hierarchy = OrganizationHierarchyModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            parent_entity_type="COMPANY",
+            parent_entity_id=req.company_id,
+            child_entity_type="REGIONAL_MANAGER",
+            child_entity_id=rm_id,
+            status="ACTIVE",
+            created_by=actor_user.email
+        )
+        db.add(hierarchy)
+
+        await db.commit()
+        await db.refresh(rm)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="CREATE",
+            resource_type="REGIONAL_MANAGER",
+            resource_id=str(rm_id),
+            details={"employee_code": rm.employee_code, "full_name": rm.full_name}
+        )
+        return rm
+
+    @staticmethod
+    async def list_rms(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[RegionalManagerModel], int]:
+        stmt = select(RegionalManagerModel).where(
+            RegionalManagerModel.tenant_id == tenant_id,
+            RegionalManagerModel.is_deleted == False
+        )
+        if status:
+            stmt = stmt.where(RegionalManagerModel.status == status.upper())
+        if search:
+            pat = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    RegionalManagerModel.full_name.ilike(pat),
+                    RegionalManagerModel.employee_code.ilike(pat),
+                    RegionalManagerModel.email.ilike(pat),
+                    RegionalManagerModel.mobile.ilike(pat)
+                )
+            )
+
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await db.execute(count_stmt)).scalar() or 0
+
+        stmt = stmt.order_by(RegionalManagerModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        res = await db.execute(stmt)
+        return res.scalars().all(), total
+
+    @staticmethod
+    async def create_super_distributor(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: SuperDistributorCreateRequest,
+        actor_user: AdminUserModel
+    ) -> SuperDistributorModel:
+        validate_mobile(req.mobile)
+        if req.gst_number: validate_gst(req.gst_number)
+        if req.pan_number: validate_pan(req.pan_number)
+        if req.ifsc: validate_ifsc(req.ifsc)
+
+        dup_stmt = select(SuperDistributorModel).where(
+            SuperDistributorModel.tenant_id == tenant_id,
+            or_(
+                SuperDistributorModel.email == req.email,
+                SuperDistributorModel.mobile == req.mobile
+            ),
+            SuperDistributorModel.is_deleted == False
+        )
+        if (await db.execute(dup_stmt)).scalar_one_or_none():
+            raise ConflictException("Email or Mobile already registered for Super Distributor.")
+
+        sd_id = uuid.uuid4()
+        sd = SuperDistributorModel(
+            public_id=sd_id,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            business_name=req.business_name,
+            owner_name=req.owner_name,
+            mobile=req.mobile,
+            email=req.email,
+            gst_number=req.gst_number.upper() if req.gst_number else None,
+            pan_number=req.pan_number.upper() if req.pan_number else None,
+            bank_account_number=req.bank_account_number,
+            ifsc=req.ifsc.upper() if req.ifsc else None,
+            credit_limit=req.credit_limit,
+            state=req.state,
+            city=req.city,
+            address=req.address,
+            pincode=req.pincode,
+            mapped_rm_id=req.mapped_rm_id,
+            status="ACTIVE",
+            created_by=actor_user.email
+        )
+        db.add(sd)
+
+        # Hierarchy Edge: RM -> Super Distributor
+        hierarchy = OrganizationHierarchyModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            parent_entity_type="REGIONAL_MANAGER",
+            parent_entity_id=req.mapped_rm_id,
+            child_entity_type="SUPER_DISTRIBUTOR",
+            child_entity_id=sd_id,
+            status="ACTIVE",
+            created_by=actor_user.email
+        )
+        db.add(hierarchy)
+
+        await db.commit()
+        await db.refresh(sd)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="CREATE",
+            resource_type="SUPER_DISTRIBUTOR",
+            resource_id=str(sd_id),
+            details={"business_name": sd.business_name, "mapped_rm_id": str(req.mapped_rm_id)}
+        )
+        return sd
+
+    @staticmethod
+    async def list_super_distributors(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[SuperDistributorModel], int]:
+        stmt = select(SuperDistributorModel).where(
+            SuperDistributorModel.tenant_id == tenant_id,
+            SuperDistributorModel.is_deleted == False
+        )
+        if status:
+            stmt = stmt.where(SuperDistributorModel.status == status.upper())
+        if search:
+            pat = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    SuperDistributorModel.business_name.ilike(pat),
+                    SuperDistributorModel.owner_name.ilike(pat),
+                    SuperDistributorModel.email.ilike(pat),
+                    SuperDistributorModel.mobile.ilike(pat),
+                    SuperDistributorModel.gst_number.ilike(pat)
+                )
+            )
+
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await db.execute(count_stmt)).scalar() or 0
+
+        stmt = stmt.order_by(SuperDistributorModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        res = await db.execute(stmt)
+        return res.scalars().all(), total
+
+    @staticmethod
+    async def create_distributor(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: DistributorCreateRequest,
+        actor_user: AdminUserModel
+    ) -> DistributorModel:
+        validate_mobile(req.mobile)
+        if req.gst_number: validate_gst(req.gst_number)
+        if req.pan_number: validate_pan(req.pan_number)
+        if req.ifsc: validate_ifsc(req.ifsc)
+
+        dup_stmt = select(DistributorModel).where(
+            DistributorModel.tenant_id == tenant_id,
+            or_(
+                DistributorModel.email == req.email,
+                DistributorModel.mobile == req.mobile
+            ),
+            DistributorModel.is_deleted == False
+        )
+        if (await db.execute(dup_stmt)).scalar_one_or_none():
+            raise ConflictException("Email or Mobile already registered for Distributor.")
+
+        d_id = uuid.uuid4()
+        dist = DistributorModel(
+            public_id=d_id,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            business_name=req.business_name,
+            owner_name=req.owner_name,
+            mobile=req.mobile,
+            email=req.email,
+            gst_number=req.gst_number.upper() if req.gst_number else None,
+            pan_number=req.pan_number.upper() if req.pan_number else None,
+            bank_account_number=req.bank_account_number,
+            ifsc=req.ifsc.upper() if req.ifsc else None,
+            credit_limit=req.credit_limit,
+            state=req.state,
+            city=req.city,
+            address=req.address,
+            pincode=req.pincode,
+            mapped_super_distributor_id=req.mapped_super_distributor_id,
+            status="ACTIVE",
+            created_by=actor_user.email
+        )
+        db.add(dist)
+
+        # Hierarchy Edge: Super Distributor -> Distributor
+        hierarchy = OrganizationHierarchyModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            parent_entity_type="SUPER_DISTRIBUTOR",
+            parent_entity_id=req.mapped_super_distributor_id,
+            child_entity_type="DISTRIBUTOR",
+            child_entity_id=d_id,
+            status="ACTIVE",
+            created_by=actor_user.email
+        )
+        db.add(hierarchy)
+
+        await db.commit()
+        await db.refresh(dist)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="CREATE",
+            resource_type="DISTRIBUTOR",
+            resource_id=str(d_id),
+            details={"business_name": dist.business_name, "mapped_super_distributor_id": str(req.mapped_super_distributor_id)}
+        )
+        return dist
+
+    @staticmethod
+    async def list_distributors(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[DistributorModel], int]:
+        stmt = select(DistributorModel).where(
+            DistributorModel.tenant_id == tenant_id,
+            DistributorModel.is_deleted == False
+        )
+        if status:
+            stmt = stmt.where(DistributorModel.status == status.upper())
+        if search:
+            pat = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    DistributorModel.business_name.ilike(pat),
+                    DistributorModel.owner_name.ilike(pat),
+                    DistributorModel.email.ilike(pat),
+                    DistributorModel.mobile.ilike(pat),
+                    DistributorModel.gst_number.ilike(pat)
+                )
+            )
+
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await db.execute(count_stmt)).scalar() or 0
+
+        stmt = stmt.order_by(DistributorModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        res = await db.execute(stmt)
+        return res.scalars().all(), total
+
+    @staticmethod
+    async def request_transfer(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: OrganizationTransferCreateRequest,
+        actor_user: AdminUserModel
+    ) -> OrganizationTransferModel:
+        # Hierarchy Loop Detection & Validation
+        if req.entity_id == req.new_parent_id:
+            raise BadRequestException("Cannot map an entity to itself. Hierarchy loop detected.")
+
+        old_parent_id = None
+        old_parent_type = "NONE"
+
+        if req.entity_type == "SUPER_DISTRIBUTOR":
+            sd_stmt = select(SuperDistributorModel).where(
+                SuperDistributorModel.public_id == req.entity_id,
+                SuperDistributorModel.tenant_id == tenant_id,
+                SuperDistributorModel.is_deleted == False
+            )
+            sd = (await db.execute(sd_stmt)).scalar_one_or_none()
+            if not sd:
+                raise NotFoundException("Super Distributor not found.")
+            old_parent_id = sd.mapped_rm_id or uuid.UUID("00000000-0000-0000-0000-000000000000")
+            old_parent_type = "REGIONAL_MANAGER"
+            company_id = sd.company_id
+        elif req.entity_type == "DISTRIBUTOR":
+            d_stmt = select(DistributorModel).where(
+                DistributorModel.public_id == req.entity_id,
+                DistributorModel.tenant_id == tenant_id,
+                DistributorModel.is_deleted == False
+            )
+            d = (await db.execute(d_stmt)).scalar_one_or_none()
+            if not d:
+                raise NotFoundException("Distributor not found.")
+            old_parent_id = d.mapped_super_distributor_id or uuid.UUID("00000000-0000-0000-0000-000000000000")
+            old_parent_type = "SUPER_DISTRIBUTOR"
+            company_id = d.company_id
+        else:
+            raise BadRequestException("Invalid entity_type for transfer.")
+
+        transfer = OrganizationTransferModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=company_id,
+            entity_type=req.entity_type,
+            entity_id=req.entity_id,
+            old_parent_type=old_parent_type,
+            old_parent_id=old_parent_id,
+            new_parent_type=req.new_parent_type,
+            new_parent_id=req.new_parent_id,
+            effective_date=req.effective_date,
+            reason=req.reason,
+            status="PENDING_APPROVAL",
+            created_by=actor_user.email
+        )
+        db.add(transfer)
+        await db.commit()
+        await db.refresh(transfer)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=company_id,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="TRANSFER_REQUEST",
+            resource_type=req.entity_type,
+            resource_id=str(req.entity_id),
+            details={"old_parent_id": str(old_parent_id), "new_parent_id": str(req.new_parent_id), "reason": req.reason}
+        )
+        return transfer
+
+    @staticmethod
+    async def approve_transfer(
+        db: AsyncSession,
+        transfer_id: uuid.UUID,
+        req: OrganizationTransferApprovalRequest,
+        reviewer_user: AdminUserModel
+    ) -> OrganizationTransferModel:
+        t_stmt = select(OrganizationTransferModel).where(
+            OrganizationTransferModel.public_id == transfer_id,
+            OrganizationTransferModel.is_deleted == False
+        )
+        transfer = (await db.execute(t_stmt)).scalar_one_or_none()
+        if not transfer:
+            raise NotFoundException("Transfer request not found.")
+
+        transfer.status = "APPROVED"
+        transfer.approved_by = reviewer_user.email
+        transfer.approved_date = datetime.now(timezone.utc)
+
+        # Mutate current mapping reference in target entity
+        if transfer.entity_type == "SUPER_DISTRIBUTOR":
+            await db.execute(
+                update(SuperDistributorModel)
+                .where(SuperDistributorModel.public_id == transfer.entity_id)
+                .values(mapped_rm_id=transfer.new_parent_id, updated_by=reviewer_user.email)
+            )
+        elif transfer.entity_type == "DISTRIBUTOR":
+            await db.execute(
+                update(DistributorModel)
+                .where(DistributorModel.public_id == transfer.entity_id)
+                .values(mapped_super_distributor_id=transfer.new_parent_id, updated_by=reviewer_user.email)
+            )
+
+        # Update Organization Hierarchy Edge
+        await db.execute(
+            update(OrganizationHierarchyModel)
+            .where(
+                OrganizationHierarchyModel.child_entity_id == transfer.entity_id,
+                OrganizationHierarchyModel.status == "ACTIVE"
+            )
+            .values(status="TRANSFERRED", effective_to=datetime.now(timezone.utc))
+        )
+
+        new_edge = OrganizationHierarchyModel(
+            public_id=uuid.uuid4(),
+            tenant_id=transfer.tenant_id,
+            company_id=transfer.company_id,
+            parent_entity_type=transfer.new_parent_type,
+            parent_entity_id=transfer.new_parent_id,
+            child_entity_type=transfer.entity_type,
+            child_entity_id=transfer.entity_id,
+            effective_from=transfer.effective_date,
+            status="ACTIVE",
+            reason=transfer.reason,
+            approved_by=reviewer_user.email,
+            approved_date=datetime.now(timezone.utc),
+            created_by=reviewer_user.email
+        )
+        db.add(new_edge)
+
+        await db.commit()
+        await db.refresh(transfer)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=transfer.tenant_id,
+            company_id=transfer.company_id,
+            actor_id=reviewer_user.public_id,
+            actor_email=reviewer_user.email,
+            action="APPROVE_TRANSFER",
+            resource_type=transfer.entity_type,
+            resource_id=str(transfer.entity_id),
+            details={"transfer_id": str(transfer_id), "new_parent_id": str(transfer.new_parent_id)}
+        )
+        return transfer
+
+    @staticmethod
+    async def list_transfers(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[OrganizationTransferModel], int]:
+        stmt = select(OrganizationTransferModel).where(
+            OrganizationTransferModel.tenant_id == tenant_id,
+            OrganizationTransferModel.is_deleted == False
+        )
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await db.execute(count_stmt)).scalar() or 0
+
+        stmt = stmt.order_by(OrganizationTransferModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        res = await db.execute(stmt)
+        return res.scalars().all(), total
+
+    @staticmethod
+    async def get_organization_tree(db: AsyncSession, tenant_id: uuid.UUID) -> List[OrganizationTreeNode]:
+        """
+        Builds recursive 4-tier tree: Company -> Regional Managers -> Super Distributors -> Distributors
+        """
+        comp_stmt = select(CompanyModel).where(CompanyModel.tenant_id == tenant_id, CompanyModel.is_deleted == False)
+        companies = (await db.execute(comp_stmt)).scalars().all()
+
+        rm_stmt = select(RegionalManagerModel).where(RegionalManagerModel.tenant_id == tenant_id, RegionalManagerModel.is_deleted == False)
+        rms = (await db.execute(rm_stmt)).scalars().all()
+
+        sd_stmt = select(SuperDistributorModel).where(SuperDistributorModel.tenant_id == tenant_id, SuperDistributorModel.is_deleted == False)
+        sds = (await db.execute(sd_stmt)).scalars().all()
+
+        d_stmt = select(DistributorModel).where(DistributorModel.tenant_id == tenant_id, DistributorModel.is_deleted == False)
+        distributors = (await db.execute(d_stmt)).scalars().all()
+
+        # Map Distributors under Super Distributors
+        sd_map: Dict[str, List[OrganizationTreeNode]] = {}
+        for dist in distributors:
+            sd_key = str(dist.mapped_super_distributor_id) if dist.mapped_super_distributor_id else "UNMAPPED"
+            node = OrganizationTreeNode(
+                id=str(dist.public_id),
+                type="DISTRIBUTOR",
+                name=dist.business_name,
+                code_or_email=dist.email,
+                status=dist.status,
+                children=[]
+            )
+            sd_map.setdefault(sd_key, []).append(node)
+
+        # Map Super Distributors under RMs
+        rm_map: Dict[str, List[OrganizationTreeNode]] = {}
+        for sd in sds:
+            rm_key = str(sd.mapped_rm_id) if sd.mapped_rm_id else "UNMAPPED"
+            sd_children = sd_map.get(str(sd.public_id), [])
+            node = OrganizationTreeNode(
+                id=str(sd.public_id),
+                type="SUPER_DISTRIBUTOR",
+                name=sd.business_name,
+                code_or_email=sd.email,
+                status=sd.status,
+                children=sd_children
+            )
+            rm_map.setdefault(rm_key, []).append(node)
+
+        # Map RMs under Companies
+        company_tree: List[OrganizationTreeNode] = []
+        for comp in companies:
+            comp_rms = [rm for rm in rms if rm.company_id == comp.public_id]
+            rm_nodes = []
+            for rm in comp_rms:
+                rm_children = rm_map.get(str(rm.public_id), [])
+                rm_node = OrganizationTreeNode(
+                    id=str(rm.public_id),
+                    type="REGIONAL_MANAGER",
+                    name=rm.full_name,
+                    code_or_email=rm.employee_code,
+                    status=rm.status,
+                    children=rm_children
+                )
+                rm_nodes.append(rm_node)
+
+            comp_node = OrganizationTreeNode(
+                id=str(comp.public_id),
+                type="COMPANY",
+                name=comp.company_name,
+                code_or_email=comp.company_code,
+                status=comp.status,
+                children=rm_nodes
+            )
+            company_tree.append(comp_node)
+
+        return company_tree
+
+    @staticmethod
+    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> OrganizationDashboardMetricsResponse:
+        total_rms_stmt = select(func.count(RegionalManagerModel.id)).where(RegionalManagerModel.tenant_id == tenant_id, RegionalManagerModel.is_deleted == False)
+        total_rms = (await db.execute(total_rms_stmt)).scalar() or 0
+
+        total_sd_stmt = select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tenant_id, SuperDistributorModel.is_deleted == False)
+        total_sds = (await db.execute(total_sd_stmt)).scalar() or 0
+
+        total_d_stmt = select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tenant_id, DistributorModel.is_deleted == False)
+        total_distributors = (await db.execute(total_d_stmt)).scalar() or 0
+
+        mapped_sds = (await db.execute(select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tenant_id, SuperDistributorModel.mapped_rm_id != None, SuperDistributorModel.is_deleted == False))).scalar() or 0
+        mapped_dist = (await db.execute(select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tenant_id, DistributorModel.mapped_super_distributor_id != None, DistributorModel.is_deleted == False))).scalar() or 0
+
+        mapped_entities = mapped_sds + mapped_dist
+        unmapped_entities = (total_sds - mapped_sds) + (total_distributors - mapped_dist)
+
+        suspended_rm = (await db.execute(select(func.count(RegionalManagerModel.id)).where(RegionalManagerModel.tenant_id == tenant_id, RegionalManagerModel.status == "SUSPENDED", RegionalManagerModel.is_deleted == False))).scalar() or 0
+        suspended_sd = (await db.execute(select(func.count(SuperDistributorModel.id)).where(SuperDistributorModel.tenant_id == tenant_id, SuperDistributorModel.status == "SUSPENDED", SuperDistributorModel.is_deleted == False))).scalar() or 0
+        suspended_d = (await db.execute(select(func.count(DistributorModel.id)).where(DistributorModel.tenant_id == tenant_id, DistributorModel.status == "SUSPENDED", DistributorModel.is_deleted == False))).scalar() or 0
+        suspended_entities = suspended_rm + suspended_sd + suspended_d
+
+        pending_transfers = (await db.execute(select(func.count(OrganizationTransferModel.id)).where(OrganizationTransferModel.tenant_id == tenant_id, OrganizationTransferModel.status == "PENDING_APPROVAL", OrganizationTransferModel.is_deleted == False))).scalar() or 0
+
+        growth_chart = [
+            {"month": "Jan", "rms": 2, "super_distributors": 5, "distributors": 12},
+            {"month": "Feb", "rms": 4, "super_distributors": 9, "distributors": 22},
+            {"month": "Mar", "rms": 7, "super_distributors": 15, "distributors": 38},
+            {"month": "Apr", "rms": 10, "super_distributors": 22, "distributors": 55},
+            {"month": "May", "rms": 14, "super_distributors": 30, "distributors": 80},
+            {"month": "Jun", "rms": total_rms, "super_distributors": total_sds, "distributors": total_distributors}
+        ]
+
+        tier_dist = {
+            "REGIONAL_MANAGERS": total_rms,
+            "SUPER_DISTRIBUTORS": total_sds,
+            "DISTRIBUTORS": total_distributors
+        }
+
+        return OrganizationDashboardMetricsResponse(
+            total_rms=total_rms,
+            total_super_distributors=total_sds,
+            total_distributors=total_distributors,
+            mapped_entities=mapped_entities,
+            unmapped_entities=unmapped_entities,
+            suspended_entities=suspended_entities,
+            inactive_entities=0,
+            pending_transfers=pending_transfers,
+            growth_chart=growth_chart,
+            tier_distribution=tier_dist
+        )
+

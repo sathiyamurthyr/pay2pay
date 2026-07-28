@@ -365,3 +365,140 @@ class PasswordResetTokenModel(BaseEntity, EnterpriseBaseMixin):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     is_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+
+# EPIC-003 — Organization & Hierarchy Management Models
+class RegionalManagerModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "regional_manager"
+
+    employee_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    mobile: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    photo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    designation: Mapped[str] = mapped_column(String(100), default="Regional Manager", nullable=False)
+    joining_date: Mapped[Optional[Date]] = mapped_column(Date, nullable=True)
+    reporting_manager_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False, index=True)  # ACTIVE, SUSPENDED, INACTIVE
+    kyc_status: Mapped[str] = mapped_column(String(30), default="VERIFIED", nullable=False)
+    remarks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "employee_code", name="uq_rm_tenant_employee_code"),
+        UniqueConstraint("tenant_id", "email", name="uq_rm_tenant_email"),
+        UniqueConstraint("tenant_id", "mobile", name="uq_rm_tenant_mobile"),
+    )
+
+
+class SuperDistributorModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "super_distributor"
+
+    business_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    mobile: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    gst_number: Mapped[Optional[str]] = mapped_column(String(15), nullable=True, index=True)
+    pan_number: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
+    bank_account_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    ifsc: Mapped[Optional[str]] = mapped_column(String(11), nullable=True)
+    wallet_balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    credit_limit: Mapped[float] = mapped_column(Float, default=500000.0, nullable=False)
+    state: Mapped[str] = mapped_column(String(100), nullable=False)
+    city: Mapped[str] = mapped_column(String(100), nullable=False)
+    address: Mapped[Text] = mapped_column(Text, nullable=False)
+    pincode: Mapped[str] = mapped_column(String(10), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False, index=True)
+    mapped_rm_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("regional_manager.public_id", ondelete="SET NULL"), nullable=True, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "email", name="uq_sd_tenant_email"),
+        UniqueConstraint("tenant_id", "mobile", name="uq_sd_tenant_mobile"),
+    )
+
+
+class DistributorModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "distributor"
+
+    business_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    mobile: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    gst_number: Mapped[Optional[str]] = mapped_column(String(15), nullable=True, index=True)
+    pan_number: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
+    bank_account_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    ifsc: Mapped[Optional[str]] = mapped_column(String(11), nullable=True)
+    wallet_balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    credit_limit: Mapped[float] = mapped_column(Float, default=100000.0, nullable=False)
+    state: Mapped[str] = mapped_column(String(100), nullable=False)
+    city: Mapped[str] = mapped_column(String(100), nullable=False)
+    address: Mapped[Text] = mapped_column(Text, nullable=False)
+    pincode: Mapped[str] = mapped_column(String(10), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False, index=True)
+    mapped_super_distributor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("super_distributor.public_id", ondelete="SET NULL"), nullable=True, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "email", name="uq_distributor_tenant_email"),
+        UniqueConstraint("tenant_id", "mobile", name="uq_distributor_tenant_mobile"),
+    )
+
+
+class OrganizationHierarchyModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "organization_hierarchy"
+
+    parent_entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # COMPANY, REGIONAL_MANAGER, SUPER_DISTRIBUTOR
+    parent_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    child_entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)   # REGIONAL_MANAGER, SUPER_DISTRIBUTOR, DISTRIBUTOR
+    child_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    effective_to: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    approved_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    approved_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class OrganizationTransferModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "organization_transfer"
+
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    old_parent_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    old_parent_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    new_parent_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    new_parent_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    transfer_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    effective_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="PENDING_APPROVAL", nullable=False, index=True)  # PENDING_APPROVAL, APPROVED, REJECTED
+    approved_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    approved_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class OrganizationHistoryModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "organization_history"
+
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    snapshot_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    performed_by: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class OrganizationAttachmentModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "organization_attachment"
+
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    document_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_url: Mapped[str] = mapped_column(String(500), nullable=False)
+
+
+class OrganizationNoteModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "organization_note"
+
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    note_text: Mapped[str] = mapped_column(Text, nullable=False)
+    author_email: Mapped[str] = mapped_column(String(255), nullable=False)
+

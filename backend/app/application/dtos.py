@@ -448,3 +448,205 @@ class DashboardWidgetsResponse(BaseModel):
     failed_settlement: Dict[str, Any]
     pending_approvals: Dict[str, Any]
     recent_activities: List[Dict[str, Any]]
+
+
+# EPIC-003 Organization & Hierarchy DTOs
+class RMCreateRequest(BaseModel):
+    employee_code: str = Field(..., min_length=3, max_length=50)
+    full_name: str = Field(..., min_length=2, max_length=255)
+    mobile: str = Field(..., description="10-digit Mobile")
+    email: EmailStr
+    photo_url: Optional[str] = None
+    designation: str = "Regional Manager"
+    joining_date: Optional[date] = None
+    reporting_manager_id: Optional[uuid.UUID] = None
+    remarks: Optional[str] = None
+    company_id: uuid.UUID
+
+
+class RMUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    mobile: Optional[str] = None
+    designation: Optional[str] = None
+    status: Optional[str] = None
+    remarks: Optional[str] = None
+    version_no: int = Field(..., description="Optimistic locking version")
+
+
+class RMResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    employee_code: str
+    full_name: str
+    mobile: str
+    email: str
+    photo_url: Optional[str] = None
+    designation: str
+    joining_date: Optional[date] = None
+    reporting_manager_id: Optional[uuid.UUID] = None
+    status: str
+    kyc_status: str
+    remarks: Optional[str] = None
+    version_no: int
+    created_date: datetime
+
+
+class SuperDistributorCreateRequest(BaseModel):
+    business_name: str = Field(..., min_length=2, max_length=255)
+    owner_name: str = Field(..., min_length=2, max_length=255)
+    mobile: str = Field(..., description="10-digit Mobile")
+    email: EmailStr
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    credit_limit: float = 500000.0
+    state: str
+    city: str
+    address: str
+    pincode: str
+    mapped_rm_id: uuid.UUID
+    company_id: uuid.UUID
+
+
+class SuperDistributorUpdateRequest(BaseModel):
+    business_name: Optional[str] = None
+    owner_name: Optional[str] = None
+    mobile: Optional[str] = None
+    credit_limit: Optional[float] = None
+    status: Optional[str] = None
+    mapped_rm_id: Optional[uuid.UUID] = None
+    version_no: int = Field(..., description="Optimistic locking version")
+
+
+class SuperDistributorResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    business_name: str
+    owner_name: str
+    mobile: str
+    email: str
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    wallet_balance: float
+    credit_limit: float
+    state: str
+    city: str
+    address: str
+    pincode: str
+    status: str
+    mapped_rm_id: Optional[uuid.UUID] = None
+    version_no: int
+    created_date: datetime
+
+
+class DistributorCreateRequest(BaseModel):
+    business_name: str = Field(..., min_length=2, max_length=255)
+    owner_name: str = Field(..., min_length=2, max_length=255)
+    mobile: str = Field(..., description="10-digit Mobile")
+    email: EmailStr
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    credit_limit: float = 100000.0
+    state: str
+    city: str
+    address: str
+    pincode: str
+    mapped_super_distributor_id: uuid.UUID
+    company_id: uuid.UUID
+
+
+class DistributorUpdateRequest(BaseModel):
+    business_name: Optional[str] = None
+    owner_name: Optional[str] = None
+    mobile: Optional[str] = None
+    credit_limit: Optional[float] = None
+    status: Optional[str] = None
+    mapped_super_distributor_id: Optional[uuid.UUID] = None
+    version_no: int = Field(..., description="Optimistic locking version")
+
+
+class DistributorResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    business_name: str
+    owner_name: str
+    mobile: str
+    email: str
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    wallet_balance: float
+    credit_limit: float
+    state: str
+    city: str
+    address: str
+    pincode: str
+    status: str
+    mapped_super_distributor_id: Optional[uuid.UUID] = None
+    version_no: int
+    created_date: datetime
+
+
+class OrganizationTransferCreateRequest(BaseModel):
+    entity_type: str = Field(..., description="SUPER_DISTRIBUTOR or DISTRIBUTOR")
+    entity_id: uuid.UUID
+    new_parent_type: str = Field(..., description="REGIONAL_MANAGER or SUPER_DISTRIBUTOR")
+    new_parent_id: uuid.UUID
+    effective_date: datetime = Field(default_factory=datetime.utcnow)
+    reason: str = Field(..., min_length=5)
+
+
+class OrganizationTransferApprovalRequest(BaseModel):
+    comments: Optional[str] = None
+
+
+class OrganizationTransferResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    entity_type: str
+    entity_id: uuid.UUID
+    old_parent_type: str
+    old_parent_id: uuid.UUID
+    new_parent_type: str
+    new_parent_id: uuid.UUID
+    transfer_date: datetime
+    effective_date: datetime
+    reason: str
+    status: str
+    approved_by: Optional[str] = None
+    approved_date: Optional[datetime] = None
+    version_no: int
+    created_date: datetime
+
+
+class OrganizationTreeNode(BaseModel):
+    id: str
+    type: str  # COMPANY, REGIONAL_MANAGER, SUPER_DISTRIBUTOR, DISTRIBUTOR
+    name: str
+    code_or_email: str
+    status: str
+    children: List["OrganizationTreeNode"] = []
+
+
+class OrganizationDashboardMetricsResponse(BaseModel):
+    total_rms: int
+    total_super_distributors: int
+    total_distributors: int
+    mapped_entities: int
+    unmapped_entities: int
+    suspended_entities: int
+    inactive_entities: int
+    pending_transfers: int
+    growth_chart: List[Dict[str, Any]]
+    tier_distribution: Dict[str, int]
+

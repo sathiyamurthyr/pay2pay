@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, Building2, Users, ShieldCheck, Key,
-  ScrollText, Settings, UserCircle, CreditCard, ChevronRight
+  ScrollText, Settings, UserCircle, CreditCard, ChevronRight, Network, ArrowLeftRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,9 @@ const NAV_ITEMS = [
   { label: "Admin Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Company Telemetry", href: "/company-dashboard", icon: Building2 },
   { label: "Companies", href: "/companies", icon: Building2 },
+  { label: "Org Telemetry", href: "/organization-dashboard", icon: Network },
+  { label: "Hierarchy Tree", href: "/organization", icon: Network },
+  { label: "Entity Transfers", href: "/organization/transfers", icon: ArrowLeftRight },
   { label: "Users", href: "/users", icon: Users },
   { label: "Roles", href: "/roles", icon: ShieldCheck },
   { label: "Permissions", href: "/permissions", icon: Key },
