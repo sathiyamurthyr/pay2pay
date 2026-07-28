@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.core.exceptions import UnauthorizedException, ForbiddenException
-from app.infrastructure.db.models import AdminUserModel, UserSessionModel, RolePermissionModel, PermissionModel
+from app.infrastructure.db.models import AdminUserModel, UserSessionModel, UserRoleModel, RoleModel, RolePermissionModel, PermissionModel
 
 security_scheme = HTTPBearer(auto_error=True)
 
@@ -70,8 +70,8 @@ async def get_current_user(
         select(AdminUserModel)
         .options(
             selectinload(AdminUserModel.user_roles)
-            .selectinload(RolePermissionModel.role)
-            .selectinload(RolePermissionModel.role_permissions)
+            .selectinload(UserRoleModel.role)
+            .selectinload(RoleModel.role_permissions)
             .selectinload(RolePermissionModel.permission)
         )
         .where(

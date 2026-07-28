@@ -1,11 +1,14 @@
 import asyncio
 import uuid
+from datetime import datetime, timezone
 from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
 from app.infrastructure.db.models import (
     TenantModel, CompanyModel, AdminUserModel, RoleModel, PermissionModel,
-    RolePermissionModel, UserRoleModel, SystemConfigurationModel
+    RolePermissionModel, UserRoleModel, SystemConfigurationModel,
+    CompanyContactModel, CompanyAddressModel, CompanyBankModel,
+    CompanyBrandingModel, CompanySettingModel, CompanySubscriptionModel, CompanyConfigurationModel
 )
 
 
@@ -22,6 +25,8 @@ PERMISSIONS_DATA = [
     {"code": "read:company", "name": "Read Company", "module": "COMPANY", "action": "READ"},
     {"code": "update:company", "name": "Update Company", "module": "COMPANY", "action": "UPDATE"},
     {"code": "delete:company", "name": "Delete Company", "module": "COMPANY", "action": "DELETE"},
+    {"code": "approve:company", "name": "Approve Company Onboarding", "module": "COMPANY", "action": "APPROVE"},
+    {"code": "suspend:company", "name": "Suspend Company", "module": "COMPANY", "action": "UPDATE"},
     {"code": "manage:company", "name": "Manage Company", "module": "COMPANY", "action": "MANAGE"},
 
     # User Permissions
@@ -29,14 +34,12 @@ PERMISSIONS_DATA = [
     {"code": "read:user", "name": "Read User", "module": "USER", "action": "READ"},
     {"code": "update:user", "name": "Update User", "module": "USER", "action": "UPDATE"},
     {"code": "delete:user", "name": "Delete User", "module": "USER", "action": "DELETE"},
-    {"code": "manage:user", "name": "Manage User", "module": "USER", "action": "MANAGE"},
 
-    # Role Permissions
+    # Role & RBAC Permissions
     {"code": "create:role", "name": "Create Role", "module": "ROLE", "action": "CREATE"},
     {"code": "read:role", "name": "Read Role", "module": "ROLE", "action": "READ"},
     {"code": "update:role", "name": "Update Role", "module": "ROLE", "action": "UPDATE"},
     {"code": "delete:role", "name": "Delete Role", "module": "ROLE", "action": "DELETE"},
-    {"code": "manage:role", "name": "Manage Role", "module": "ROLE", "action": "MANAGE"},
 
     # Audit Log Permissions
     {"code": "read:audit_log", "name": "Read Audit Logs", "module": "AUDIT_LOG", "action": "READ"},
@@ -52,18 +55,18 @@ PERMISSIONS_DATA = [
 
 
 ROLES_DATA = [
-    {"code": "PLATFORM_ADMIN", "name": "Platform Admin", "description": "Full access to all platform resources"},
-    {"code": "COMPANY_ADMIN", "name": "Company Admin", "description": "Manage company level users and settings"},
+    {"code": "PLATFORM_ADMIN", "name": "Platform Admin", "description": "Full access to all platform resources and tenant onboarding"},
+    {"code": "COMPANY_ADMIN", "name": "Company Admin", "description": "Manage company level users, settings, and operations"},
     {"code": "FINANCE_ADMIN", "name": "Finance Admin", "description": "Financial operations, settlement approvals & reports"},
-    {"code": "OPERATIONS_ADMIN", "name": "Operations Admin", "description": "Day to day platform operation management"},
-    {"code": "AUDITOR", "name": "Auditor", "description": "Read only compliance & audit trail access"},
-    {"code": "READ_ONLY", "name": "Read Only", "description": "Basic read only access across platform"},
+    {"code": "OPERATIONS_ADMIN", "name": "Operations Admin", "description": "Day-to-day platform operation management"},
+    {"code": "AUDITOR", "name": "Auditor", "description": "Read-only compliance & audit trail access"},
+    {"code": "SUPPORT", "name": "Support", "description": "Customer support and operational helpdesk role"},
 ]
 
 
 async def seed_database():
     async with AsyncSessionLocal() as db:
-        print("--- SEEDING FOUNDATIONAL DATA ---")
+        print("--- SEEDING FOUNDATIONAL & EPIC-002 DATA ---")
 
         # 1. Seed Permissions
         perm_map = {}
@@ -73,6 +76,7 @@ async def seed_database():
             if not perm:
                 perm = PermissionModel(
                     public_id=uuid.uuid4(),
+                    tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
                     code=pdata["code"],
                     name=pdata["name"],
                     module=pdata["module"],
@@ -87,8 +91,10 @@ async def seed_database():
         tenant_stmt = select(TenantModel).where(TenantModel.code == "PLATFORM")
         tenant = (await db.execute(tenant_stmt)).scalar_one_or_none()
         if not tenant:
+            tenant_uuid = uuid.uuid4()
             tenant = TenantModel(
-                public_id=uuid.uuid4(),
+                public_id=tenant_uuid,
+                tenant_id=tenant_uuid,
                 name="Platform Root Tenant",
                 code="PLATFORM",
                 description="Root tenant for platform administration",
@@ -99,18 +105,85 @@ async def seed_database():
         print(f"Platform Tenant UUID: {tenant.public_id}")
 
         # 3. Seed Default Company
-        comp_stmt = select(CompanyModel).where(CompanyModel.tenant_id == tenant.public_id, CompanyModel.code == "HQ_COMP")
+        comp_stmt = select(CompanyModel).where(CompanyModel.tenant_id == tenant.public_id, CompanyModel.company_code == "HQ_COMP")
         company = (await db.execute(comp_stmt)).scalar_one_or_none()
         if not company:
+            comp_uuid = uuid.uuid4()
             company = CompanyModel(
-                public_id=uuid.uuid4(),
+                public_id=comp_uuid,
                 tenant_id=tenant.public_id,
-                name="Platform HQ Enterprise",
-                code="HQ_COMP",
-                tax_id="TAX-ENTERPRISE-001",
+                company_id=comp_uuid,
+                company_code="HQ_COMP",
+                company_name="Platform HQ Enterprise Ltd",
+                legal_name="Platform HQ Enterprise Private Limited",
+                display_name="Pay2Pay Enterprise HQ",
+                tenant_code="PLATFORM",
+                company_type="PRIVATE_LIMITED",
+                industry="Retail Technology",
+                business_category="Payment Aggregation",
+                gst_number="22AAAAA0000A1Z5",
+                pan_number="AAAAA0000A",
+                cin_number="U72900MH2026PTC123456",
                 status="ACTIVE"
             )
             db.add(company)
+            await db.flush()
+
+            # Add Contact & Address & Bank
+            contact = CompanyContactModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant.public_id,
+                company_id=comp_uuid,
+                primary_contact="Platform Super Admin",
+                designation="Managing Director",
+                mobile="9876543210",
+                email="admin@pay2pay.com"
+            )
+            address = CompanyAddressModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant.public_id,
+                company_id=comp_uuid,
+                address_type="REGISTERED",
+                country="India",
+                state="Maharashtra",
+                city="Mumbai",
+                address="Enterprise Tech Park, Bandra Kurla Complex",
+                pincode="400051"
+            )
+            bank = CompanyBankModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant.public_id,
+                company_id=comp_uuid,
+                settlement_bank_name="HDFC Bank Ltd",
+                account_holder="Platform HQ Enterprise Private Limited",
+                account_number="50200012345678",
+                ifsc="HDFC0000060",
+                verification_status="VERIFIED"
+            )
+            branding = CompanyBrandingModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant.public_id,
+                company_id=comp_uuid,
+                primary_colour="#3b82f6",
+                secondary_colour="#1e293b"
+            )
+            setting = CompanySettingModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant.public_id,
+                company_id=comp_uuid,
+                currency="INR",
+                timezone="Asia/Kolkata"
+            )
+            subscription = CompanySubscriptionModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant.public_id,
+                company_id=comp_uuid,
+                plan_name="ENTERPRISE",
+                maximum_retailers=10000,
+                maximum_machines=50000,
+                status="ACTIVE"
+            )
+            db.add_all([contact, address, bank, branding, setting, subscription])
             await db.flush()
 
         # 4. Seed Roles & Role-Permissions
@@ -130,7 +203,6 @@ async def seed_database():
                 db.add(role)
                 await db.flush()
 
-                # Assign permissions to role
                 for p_code, p_obj in perm_map.items():
                     if rdata["code"] == "PLATFORM_ADMIN":
                         rp = RolePermissionModel(
@@ -141,14 +213,6 @@ async def seed_database():
                         )
                         db.add(rp)
                     elif rdata["code"] in ("COMPANY_ADMIN", "OPERATIONS_ADMIN") and not p_code.startswith("manage:tenant"):
-                        rp = RolePermissionModel(
-                            public_id=uuid.uuid4(),
-                            tenant_id=tenant.public_id,
-                            role_id=role.id,
-                            permission_id=p_obj.id
-                        )
-                        db.add(rp)
-                    elif rdata["code"] == "READ_ONLY" and p_code.startswith("read:"):
                         rp = RolePermissionModel(
                             public_id=uuid.uuid4(),
                             tenant_id=tenant.public_id,
@@ -178,7 +242,6 @@ async def seed_database():
             db.add(user)
             await db.flush()
 
-            # Assign Platform Admin role to Root Super Admin
             platform_role = role_map["PLATFORM_ADMIN"]
             ur = UserRoleModel(
                 public_id=uuid.uuid4(),
@@ -188,23 +251,6 @@ async def seed_database():
             )
             db.add(ur)
             print("Seeded Root Super Admin: admin@pay2pay.com")
-
-        # 6. Seed System Configurations
-        config_stmt = select(SystemConfigurationModel).where(
-            SystemConfigurationModel.tenant_id == tenant.public_id,
-            SystemConfigurationModel.key == "SESSION_TIMEOUT_MINUTES"
-        )
-        conf = (await db.execute(config_stmt)).scalar_one_or_none()
-        if not conf:
-            conf = SystemConfigurationModel(
-                public_id=uuid.uuid4(),
-                tenant_id=tenant.public_id,
-                key="SESSION_TIMEOUT_MINUTES",
-                value="30",
-                category="SECURITY",
-                description="Session inactivity timeout duration in minutes"
-            )
-            db.add(conf)
 
         await db.commit()
         print("--- SEEDING COMPLETED SUCCESSFULLY ---")

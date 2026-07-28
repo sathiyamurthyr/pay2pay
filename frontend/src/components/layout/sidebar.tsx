@@ -10,7 +10,8 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Admin Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Company Telemetry", href: "/company-dashboard", icon: Building2 },
   { label: "Companies", href: "/companies", icon: Building2 },
   { label: "Users", href: "/users", icon: Users },
   { label: "Roles", href: "/roles", icon: ShieldCheck },

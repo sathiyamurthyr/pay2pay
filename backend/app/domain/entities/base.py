@@ -17,26 +17,44 @@ class BaseEntity(Base):
     )
 
 
-class AuditMixin:
-    created_at: Mapped[datetime] = mapped_column(
+class EnterpriseBaseMixin:
+    """
+    Mandatory Enterprise Base Entity fields adhering to enterprise standards.
+    """
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    business_unit_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    branch_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    # Date & Partition Keys
+    day_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    week_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    month_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    quarter_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    year_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    financial_year_key: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    financial_quarter_key: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    financial_month_key: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    date_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    time_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    partition_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    partition_month: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    partition_day: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Audit & Versioning
+    created_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at: Mapped[datetime] = mapped_column(
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
-    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     updated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-
-class BusinessMixin:
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
-
-
-class VersionedMixin:
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-
-
-class SoftDeleteMixin:
+    version_no: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    record_status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

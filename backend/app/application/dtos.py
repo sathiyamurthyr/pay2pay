@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, EmailStr, Field
 
@@ -27,9 +27,9 @@ class PaginatedResponse(BaseModel):
 
 # Authentication DTOs
 class LoginRequest(BaseModel):
-    email_or_username: str = Field(..., example="admin@pay2pay.com")
+    email_or_username: str = Field(...)
     password: str = Field(..., min_length=6)
-    mfa_code: Optional[str] = Field(default=None, example="123456")
+    mfa_code: Optional[str] = Field(default=None)
 
 
 class TokenResponse(BaseModel):
@@ -79,7 +79,7 @@ class TenantUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
     description: Optional[str] = None
-    version: int = Field(..., description="Optimistic locking version")
+    version_no: int = Field(..., description="Optimistic locking version")
 
 
 class TenantResponse(BaseModel):
@@ -88,41 +88,192 @@ class TenantResponse(BaseModel):
     code: str
     status: str
     description: Optional[str] = None
-    version: int
-    created_at: datetime
-    updated_at: datetime
+    version_no: int
+    created_date: datetime
+    updated_date: datetime
 
 
-# Company DTOs
-class CompanyCreate(BaseModel):
-    name: str = Field(..., min_length=2, max_length=255)
-    code: str = Field(..., min_length=2, max_length=50)
-    tax_id: Optional[str] = None
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
+# EPIC-002 Company Sub-Module DTOs
+class CompanyContactDTO(BaseModel):
+    primary_contact: str = Field(..., min_length=2)
+    designation: Optional[str] = "Director"
+    mobile: str = Field(..., description="10-digit Indian Mobile")
+    alternate_mobile: Optional[str] = None
+    email: EmailStr
+    support_email: Optional[EmailStr] = None
+    support_phone: Optional[str] = None
+    emergency_contact: Optional[str] = None
 
 
-class CompanyUpdate(BaseModel):
-    name: Optional[str] = None
-    tax_id: Optional[str] = None
-    status: Optional[str] = None
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-    version: int = Field(..., description="Optimistic locking version")
+class CompanyAddressDTO(BaseModel):
+    address_type: str = "REGISTERED"
+    country: str = "India"
+    state: str
+    district: Optional[str] = None
+    city: str
+    address: str
+    pincode: str = Field(..., description="6-digit Pincode")
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
-class CompanyResponse(BaseModel):
+class CompanyBankDTO(BaseModel):
+    settlement_bank_name: str
+    account_holder: str
+    account_number: str
+    ifsc: str = Field(..., description="11-character IFSC code")
+    branch: Optional[str] = None
+    cancelled_cheque_url: Optional[str] = None
+
+
+class CompanySubscriptionDTO(BaseModel):
+    plan_name: str = "ENTERPRISE_TRIAL"
+    maximum_retailers: int = 500
+    maximum_machines: int = 1000
+    maximum_admin_users: int = 25
+    storage_limit_gb: int = 50
+    api_limit_per_minute: int = 1000
+
+
+class CompanyBrandingDTO(BaseModel):
+    logo_url: Optional[str] = None
+    favicon_url: Optional[str] = None
+    primary_colour: str = "#3b82f6"
+    secondary_colour: str = "#1e293b"
+    email_template: Optional[str] = None
+    sms_template: Optional[str] = None
+    invoice_header: Optional[str] = None
+    receipt_footer: Optional[str] = None
+
+
+class CompanySettingDTO(BaseModel):
+    currency: str = "INR"
+    timezone: str = "Asia/Kolkata"
+    language: str = "en"
+    date_format: str = "DD/MM/YYYY"
+    number_format: str = "en-IN"
+    financial_year_start: str = "04-01"
+    gst_enabled: bool = True
+    tds_enabled: bool = True
+    auto_settlement: bool = True
+    auto_payout: bool = False
+    approval_workflow: bool = True
+    session_timeout_minutes: int = 30
+    otp_expiry_seconds: int = 300
+
+
+# EPIC-002 Full Onboarding Request
+class CompanyOnboardingCreateRequest(BaseModel):
+    # Basic Info
+    company_code: str = Field(..., min_length=2, max_length=50)
+    company_name: str = Field(..., min_length=2, max_length=255)
+    legal_name: str = Field(..., min_length=2, max_length=255)
+    display_name: Optional[str] = None
+    short_name: Optional[str] = None
+    tenant_code: str = Field(..., min_length=2, max_length=50)
+    company_type: str = "PRIVATE_LIMITED"
+    industry: Optional[str] = "Retail Technology"
+    business_category: Optional[str] = "Payment Aggregation"
+    website: Optional[str] = None
+    description: Optional[str] = None
+
+    # Registration Info
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    cin_number: Optional[str] = None
+    msme_number: Optional[str] = None
+    tan_number: Optional[str] = None
+    fssai_number: Optional[str] = None
+    business_registration_date: Optional[date] = None
+
+    # Nested Detail DTOs
+    contact: CompanyContactDTO
+    address: CompanyAddressDTO
+    bank: CompanyBankDTO
+    subscription: Optional[CompanySubscriptionDTO] = Field(default_factory=CompanySubscriptionDTO)
+    branding: Optional[CompanyBrandingDTO] = Field(default_factory=CompanyBrandingDTO)
+    settings: Optional[CompanySettingDTO] = Field(default_factory=CompanySettingDTO)
+
+    # Initial Admin User Credentials
+    admin_full_name: str = "Company Admin"
+    admin_email: EmailStr
+    admin_password: str = Field(..., min_length=8)
+
+
+
+
+
+class CompanyUpdateRequest(BaseModel):
+    company_name: Optional[str] = None
+    legal_name: Optional[str] = None
+    display_name: Optional[str] = None
+    short_name: Optional[str] = None
+    industry: Optional[str] = None
+    business_category: Optional[str] = None
+    website: Optional[str] = None
+    description: Optional[str] = None
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    cin_number: Optional[str] = None
+    version_no: int = Field(..., description="Optimistic locking version")
+
+
+class CompanyApprovalRequest(BaseModel):
+    comments: Optional[str] = None
+
+
+class CompanyStatusChangeRequest(BaseModel):
+    status: str  # PENDING_APPROVAL, APPROVED, ACTIVE, SUSPENDED, BLOCKED, EXPIRED, CLOSED, ARCHIVED
+    reason: Optional[str] = None
+
+
+class CompanyDocumentUploadRequest(BaseModel):
+    document_type: str  # GST_CERTIFICATE, PAN_CARD, COI, CANCELLED_CHEQUE, ADDRESS_PROOF, OTHER
+    document_name: str
+    file_url: str
+    file_size_bytes: Optional[int] = None
+
+
+class CompanyDetailsResponse(BaseModel):
     public_id: uuid.UUID
     tenant_id: uuid.UUID
-    name: str
-    code: str
-    tax_id: Optional[str] = None
+    company_code: str
+    company_name: str
+    legal_name: str
+    display_name: Optional[str] = None
+    short_name: Optional[str] = None
+    tenant_code: str
+    company_type: str
+    industry: Optional[str] = None
+    business_category: Optional[str] = None
+    website: Optional[str] = None
+    description: Optional[str] = None
+    gst_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    cin_number: Optional[str] = None
+    msme_number: Optional[str] = None
+    tan_number: Optional[str] = None
+    fssai_number: Optional[str] = None
+    business_registration_date: Optional[date] = None
     status: str
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    version: int
-    created_at: datetime
-    updated_at: datetime
+    version_no: int
+    created_date: datetime
+
+    contact: Optional[Dict[str, Any]] = None
+    address: Optional[Dict[str, Any]] = None
+    bank: Optional[Dict[str, Any]] = None
+    subscription: Optional[Dict[str, Any]] = None
+    branding: Optional[Dict[str, Any]] = None
+    settings: Optional[Dict[str, Any]] = None
+    documents: List[Dict[str, Any]] = []
+    status_history: List[Dict[str, Any]] = []
+    approvals: List[Dict[str, Any]] = []
+
+
+# Aliases for backward compatibility
+CompanyCreate = CompanyOnboardingCreateRequest
+CompanyUpdate = CompanyUpdateRequest
+CompanyResponse = CompanyDetailsResponse
 
 
 # Admin User DTOs
@@ -141,11 +292,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     status: Optional[str] = None
     company_id: Optional[uuid.UUID] = None
-    version: int = Field(..., description="Optimistic locking version")
-
-
-class UserRoleAssignRequest(BaseModel):
-    role_ids: List[uuid.UUID]
+    version_no: int = Field(..., description="Optimistic locking version")
 
 
 class UserResponse(BaseModel):
@@ -160,8 +307,8 @@ class UserResponse(BaseModel):
     mfa_enabled: bool
     last_login_at: Optional[datetime] = None
     roles: List[Dict[str, Any]] = []
-    version: int
-    created_at: datetime
+    version_no: int
+    created_date: datetime
 
 
 # Role & Permission DTOs
@@ -185,7 +332,7 @@ class RoleUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     permission_ids: Optional[List[uuid.UUID]] = None
-    version: int = Field(..., description="Optimistic locking version")
+    version_no: int = Field(..., description="Optimistic locking version")
 
 
 class RoleResponse(BaseModel):
@@ -195,23 +342,15 @@ class RoleResponse(BaseModel):
     code: str
     description: Optional[str] = None
     is_system: bool
-    version: int
+    version_no: int
     permissions: List[PermissionResponse] = []
-    created_at: datetime
-
-
-class PermissionMatrixItem(BaseModel):
-    permission_id: uuid.UUID
-    code: str
-    module: str
-    action: str
-    name: str
+    created_date: datetime
 
 
 class RolePermissionMatrixResponse(BaseModel):
     roles: List[RoleResponse]
     permissions: List[PermissionResponse]
-    matrix: Dict[str, List[str]]  # role_code -> list of permission codes
+    matrix: Dict[str, List[str]]
 
 
 # Audit Log DTOs
@@ -250,7 +389,6 @@ class SessionResponse(BaseModel):
 class ApiKeyCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     scopes: List[str] = ["read"]
-    expires_in_days: Optional[int] = 30
 
 
 class ApiKeyResponse(BaseModel):
@@ -261,11 +399,10 @@ class ApiKeyResponse(BaseModel):
     is_active: bool
     created_at: datetime
     expires_at: Optional[datetime] = None
-    last_used_at: Optional[datetime] = None
-    secret_key: Optional[str] = None  # Returned only on creation
+    secret_key: Optional[str] = None
 
 
-# System Configuration DTOs
+# System Config DTOs
 class ConfigCreateUpdate(BaseModel):
     key: str
     value: str
@@ -281,35 +418,33 @@ class ConfigResponse(BaseModel):
     category: str
     description: Optional[str] = None
     is_encrypted: bool
-    version: int
+    version_no: int
 
 
-# Admin Dashboard DTOs (10 Real-time Widgets)
-class WidgetMetric(BaseModel):
-    title: str
-    value: str
-    change: str
-    trend: str  # "up", "down", "neutral"
-    format: str = "number"  # "currency", "number", "percentage"
-
-
-class RecentActivityItem(BaseModel):
-    id: str
-    timestamp: datetime
-    actor: str
-    action: str
-    target: str
-    status: str
+# EPIC-002 Company Dashboard Metrics Response DTO
+class CompanyDashboardMetricsResponse(BaseModel):
+    total_companies: int
+    active_companies: int
+    inactive_companies: int
+    suspended_companies: int
+    created_today: int
+    expiring_soon: int
+    trial_companies: int
+    live_companies: int
+    growth_chart: List[Dict[str, Any]]
+    status_distribution: Dict[str, int]
+    state_distribution: Dict[str, int]
+    subscription_distribution: Dict[str, int]
 
 
 class DashboardWidgetsResponse(BaseModel):
-    total_companies: WidgetMetric
-    active_retailers: WidgetMetric
-    total_machines: WidgetMetric
-    todays_settlement: WidgetMetric
-    wallet_liability: WidgetMetric
-    pending_payouts: WidgetMetric
-    todays_profit: WidgetMetric
-    failed_settlement: WidgetMetric
-    pending_approvals: WidgetMetric
-    recent_activities: List[RecentActivityItem]
+    total_companies: Dict[str, Any]
+    active_retailers: Dict[str, Any]
+    total_machines: Dict[str, Any]
+    todays_settlement: Dict[str, Any]
+    wallet_liability: Dict[str, Any]
+    pending_payouts: Dict[str, Any]
+    todays_profit: Dict[str, Any]
+    failed_settlement: Dict[str, Any]
+    pending_approvals: Dict[str, Any]
+    recent_activities: List[Dict[str, Any]]

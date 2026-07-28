@@ -2,52 +2,234 @@ import uuid
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.entities.base import BaseEntity, AuditMixin, BusinessMixin, VersionedMixin, SoftDeleteMixin
+from app.domain.entities.base import BaseEntity, EnterpriseBaseMixin, Base
 
 
-class TenantModel(BaseEntity, AuditMixin, VersionedMixin, SoftDeleteMixin):
+class TenantModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "tenant"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     companies: Mapped[List["CompanyModel"]] = relationship("CompanyModel", back_populates="tenant")
 
 
-class CompanyModel(BaseEntity, AuditMixin, VersionedMixin, SoftDeleteMixin):
-    __tablename__ = "company"
-
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("tenant.public_id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    tax_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False)
-    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-
-    tenant: Mapped["TenantModel"] = relationship("TenantModel", back_populates="companies")
-    __table_args__ = (UniqueConstraint("tenant_id", "code", name="uq_company_tenant_code"),)
-
-
-class EntityModel(BaseEntity, AuditMixin, BusinessMixin, VersionedMixin, SoftDeleteMixin):
+class EntityModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "entity"
 
     entity_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., BRANCH, REGION, STORE
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False)
     attributes: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 
-class AdminUserModel(BaseEntity, AuditMixin, BusinessMixin, VersionedMixin, SoftDeleteMixin):
+class CompanyModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company"
+
+    # Core Identifiers & Names
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenant.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    company_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    company_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    legal_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    short_name: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    tenant_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+
+    company_type: Mapped[str] = mapped_column(String(50), default="PRIVATE_LIMITED", nullable=False)  # PRIVATE_LIMITED, PUBLIC_LIMITED, PROPRIETORSHIP, PARTNERSHIP, LL
+    industry: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    business_category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Registration & Tax Details
+    gst_number: Mapped[Optional[str]] = mapped_column(String(15), nullable=True, index=True)
+    pan_number: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
+    cin_number: Mapped[Optional[str]] = mapped_column(String(21), nullable=True, index=True)
+    msme_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    tan_number: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    fssai_number: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    business_registration_date: Mapped[Optional[Date]] = mapped_column(Date, nullable=True)
+
+    # Status & Workflow
+    status: Mapped[str] = mapped_column(String(30), default="DRAFT", nullable=False, index=True)  # DRAFT, PENDING_APPROVAL, APPROVED, ACTIVE, SUSPENDED, BLOCKED, EXPIRED, CLOSED, ARCHIVED
+
+    tenant: Mapped["TenantModel"] = relationship("TenantModel", back_populates="companies")
+    contacts: Mapped[List["CompanyContactModel"]] = relationship("CompanyContactModel", back_populates="company", cascade="all, delete-orphan")
+    addresses: Mapped[List["CompanyAddressModel"]] = relationship("CompanyAddressModel", back_populates="company", cascade="all, delete-orphan")
+    banks: Mapped[List["CompanyBankModel"]] = relationship("CompanyBankModel", back_populates="company", cascade="all, delete-orphan")
+    documents: Mapped[List["CompanyDocumentModel"]] = relationship("CompanyDocumentModel", back_populates="company", cascade="all, delete-orphan")
+    branding: Mapped[Optional["CompanyBrandingModel"]] = relationship("CompanyBrandingModel", back_populates="company", uselist=False, cascade="all, delete-orphan")
+    settings: Mapped[Optional["CompanySettingModel"]] = relationship("CompanySettingModel", back_populates="company", uselist=False, cascade="all, delete-orphan")
+    subscription: Mapped[Optional["CompanySubscriptionModel"]] = relationship("CompanySubscriptionModel", back_populates="company", uselist=False, cascade="all, delete-orphan")
+    status_history: Mapped[List["CompanyStatusHistoryModel"]] = relationship("CompanyStatusHistoryModel", back_populates="company", cascade="all, delete-orphan")
+    approvals: Mapped[List["CompanyApprovalModel"]] = relationship("CompanyApprovalModel", back_populates="company", cascade="all, delete-orphan")
+    configurations: Mapped[List["CompanyConfigurationModel"]] = relationship("CompanyConfigurationModel", back_populates="company", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "company_code", name="uq_company_tenant_code"),
+    )
+
+
+class CompanyContactModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_contact"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    primary_contact: Mapped[str] = mapped_column(String(255), nullable=False)
+    designation: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    mobile: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    alternate_mobile: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    support_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    support_phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    emergency_contact: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="contacts")
+
+
+class CompanyAddressModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_address"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    address_type: Mapped[str] = mapped_column(String(50), default="REGISTERED", nullable=False)  # REGISTERED, OPERATIONAL, BILLING, SHIPPING
+    country: Mapped[str] = mapped_column(String(100), default="India", nullable=False)
+    state: Mapped[str] = mapped_column(String(100), nullable=False)
+    district: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    city: Mapped[str] = mapped_column(String(100), nullable=False)
+    address: Mapped[str] = mapped_column(Text, nullable=False)
+    pincode: Mapped[str] = mapped_column(String(10), nullable=False)
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="addresses")
+
+
+class CompanyBankModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_bank"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    settlement_bank_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    account_holder: Mapped[str] = mapped_column(String(255), nullable=False)
+    account_number: Mapped[str] = mapped_column(String(50), nullable=False)
+    ifsc: Mapped[str] = mapped_column(String(11), nullable=False)
+    branch: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    cancelled_cheque_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    verification_status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)  # PENDING, VERIFIED, REJECTED
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="banks")
+
+
+class CompanyDocumentModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_document"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    document_type: Mapped[str] = mapped_column(String(50), nullable=False)  # GST_CERTIFICATE, PAN_CARD, COI, CANCELLED_CHEQUE, ADDRESS_PROOF, OTHER
+    document_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_size_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    verification_status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="documents")
+
+
+class CompanyBrandingModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_branding"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    logo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    favicon_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    primary_colour: Mapped[str] = mapped_column(String(20), default="#3b82f6", nullable=False)
+    secondary_colour: Mapped[str] = mapped_column(String(20), default="#1e293b", nullable=False)
+    email_template: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sms_template: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    invoice_header: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    receipt_footer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="branding")
+
+
+class CompanySettingModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_setting"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    currency: Mapped[str] = mapped_column(String(10), default="INR", nullable=False)
+    timezone: Mapped[str] = mapped_column(String(50), default="Asia/Kolkata", nullable=False)
+    language: Mapped[str] = mapped_column(String(10), default="en", nullable=False)
+    date_format: Mapped[str] = mapped_column(String(20), default="DD/MM/YYYY", nullable=False)
+    number_format: Mapped[str] = mapped_column(String(20), default="en-IN", nullable=False)
+    financial_year_start: Mapped[str] = mapped_column(String(10), default="04-01", nullable=False)
+    gst_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    tds_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    auto_settlement: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    auto_payout: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    approval_workflow: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    session_timeout_minutes: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    otp_expiry_seconds: Mapped[int] = mapped_column(Integer, default=300, nullable=False)
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="settings")
+
+
+class CompanySubscriptionModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_subscription"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    plan_name: Mapped[str] = mapped_column(String(50), default="ENTERPRISE_TRIAL", nullable=False)  # TRIAL, STARTER, PRO, ENTERPRISE
+    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    expiry_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    maximum_retailers: Mapped[int] = mapped_column(Integer, default=500, nullable=False)
+    maximum_machines: Mapped[int] = mapped_column(Integer, default=1000, nullable=False)
+    maximum_admin_users: Mapped[int] = mapped_column(Integer, default=25, nullable=False)
+    storage_limit_gb: Mapped[int] = mapped_column(Integer, default=50, nullable=False)
+    api_limit_per_minute: Mapped[int] = mapped_column(Integer, default=1000, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="subscription")
+
+
+class CompanyStatusHistoryModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_status_history"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    previous_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    new_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    changed_by_email: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="status_history")
+
+
+class CompanyApprovalModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_approval"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    request_type: Mapped[str] = mapped_column(String(50), default="ONBOARDING", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False, index=True)  # PENDING, APPROVED, REJECTED
+    comments: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reviewer_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="approvals")
+
+
+class CompanyConfigurationModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "company_configuration"
+
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("company.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    config_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    config_value: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    category: Mapped[str] = mapped_column(String(50), default="DEFAULT", nullable=False)
+
+    company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="configurations")
+
+
+class AdminUserModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "admin_user"
 
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -69,10 +251,9 @@ class AdminUserModel(BaseEntity, AuditMixin, BusinessMixin, VersionedMixin, Soft
     )
 
 
-class RoleModel(BaseEntity, AuditMixin, VersionedMixin, SoftDeleteMixin):
+class RoleModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "role"
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -84,22 +265,21 @@ class RoleModel(BaseEntity, AuditMixin, VersionedMixin, SoftDeleteMixin):
     __table_args__ = (UniqueConstraint("tenant_id", "code", name="uq_role_tenant_code"),)
 
 
-class PermissionModel(BaseEntity, AuditMixin):
+class PermissionModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "permission"
 
     code: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     module: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    action: Mapped[str] = mapped_column(String(50), nullable=False)  # CREATE, READ, UPDATE, DELETE, APPROVE, EXPORT, IMPORT, MANAGE
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     role_permissions: Mapped[List["RolePermissionModel"]] = relationship("RolePermissionModel", back_populates="permission", cascade="all, delete-orphan")
 
 
-class RolePermissionModel(BaseEntity, AuditMixin):
+class RolePermissionModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "role_permission"
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     role_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("role.id", ondelete="CASCADE"), nullable=False)
     permission_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("permission.id", ondelete="CASCADE"), nullable=False)
 
@@ -109,10 +289,9 @@ class RolePermissionModel(BaseEntity, AuditMixin):
     __table_args__ = (UniqueConstraint("role_id", "permission_id", name="uq_role_permission"),)
 
 
-class UserRoleModel(BaseEntity, AuditMixin):
+class UserRoleModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "user_role"
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("admin_user.id", ondelete="CASCADE"), nullable=False)
     role_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("role.id", ondelete="CASCADE"), nullable=False)
 
@@ -129,7 +308,7 @@ class AuditLogModel(BaseEntity):
     company_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     actor_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    action: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # LOGIN, LOGOUT, CREATE, UPDATE, DELETE, EXPORT, IMPORT, APPROVE, REJECT
+    action: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     resource_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     resource_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     details: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
@@ -138,10 +317,9 @@ class AuditLogModel(BaseEntity):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
 
 
-class SystemConfigurationModel(BaseEntity, AuditMixin, VersionedMixin):
+class SystemConfigurationModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "system_configuration"
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     key: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     value: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(50), default="GENERAL", nullable=False)
@@ -151,11 +329,10 @@ class SystemConfigurationModel(BaseEntity, AuditMixin, VersionedMixin):
     __table_args__ = (UniqueConstraint("tenant_id", "key", name="uq_system_config_tenant_key"),)
 
 
-class UserSessionModel(BaseEntity):
+class UserSessionModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "user_session"
 
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("admin_user.id", ondelete="CASCADE"), nullable=False)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     token_jti: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
@@ -167,11 +344,9 @@ class UserSessionModel(BaseEntity):
     user: Mapped["AdminUserModel"] = relationship("AdminUserModel", back_populates="sessions")
 
 
-class ApiKeyModel(BaseEntity, AuditMixin, SoftDeleteMixin):
+class ApiKeyModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "api_key"
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("admin_user.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     key_prefix: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
@@ -182,7 +357,7 @@ class ApiKeyModel(BaseEntity, AuditMixin, SoftDeleteMixin):
     last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class PasswordResetTokenModel(BaseEntity):
+class PasswordResetTokenModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "password_reset_token"
 
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("admin_user.id", ondelete="CASCADE"), nullable=False)
