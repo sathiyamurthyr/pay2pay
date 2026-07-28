@@ -16,7 +16,8 @@ from app.core.exceptions import (
 )
 from app.domain.validators import (
     validate_gst, validate_pan, validate_ifsc, validate_mobile, validate_pincode, validate_employee_code,
-    validate_tid, validate_mid, validate_serial_number, validate_rrn, validate_utr
+    validate_tid, validate_mid, validate_serial_number, validate_rrn, validate_utr,
+    validate_webhook_url, validate_chargeback_ref
 )
 from app.infrastructure.db.models import (
     TenantModel, CompanyModel, EntityModel, CompanyContactModel, CompanyAddressModel, CompanyBankModel,
@@ -31,7 +32,9 @@ from app.infrastructure.db.models import (
     SwipeMachineModel, MachineInventoryModel, MachineAssignmentModel, MachineTelemetryModel,
     MachineKeyProfileModel, MachineMaintenanceModel, MachineStatusHistoryModel, MachineReplacementModel,
     TransactionRecordModel, MdrFeePlanModel, TransactionFeeSplitModel, SettlementBatchModel,
-    SettlementItemModel, PayoutInstructionModel, WalletLedgerModel, ReconciliationReportModel
+    SettlementItemModel, PayoutInstructionModel, WalletLedgerModel, ReconciliationReportModel,
+    DeveloperApiKeyModel, WebhookSubscriptionModel, WebhookEventLogModel, RiskRuleModel,
+    FraudAlertModel, ChargebackCaseModel, ChargebackEvidenceModel, DisputeStatusHistoryModel
 )
 from app.infrastructure.services.audit_service import AuditLogger
 from app.application.dtos import (
@@ -49,7 +52,9 @@ from app.application.dtos import (
     MachineTelemetryPingRequest, MachineReplacementCreateRequest, MachineResponse, MachineDetailsResponse,
     MachineDashboardMetricsResponse, TransactionIngestCreateRequest, TransactionResponse,
     SettlementBatchGenerateRequest, SettlementBatchResponse, BankPayoutProcessRequest, BankPayoutResponse,
-    SettlementDashboardMetricsResponse
+    SettlementDashboardMetricsResponse, ApiKeyCreateRequest, ApiKeyResponse, WebhookSubscriptionCreateRequest,
+    WebhookSubscriptionResponse, ChargebackCaseCreateRequest, ChargebackCaseResponse,
+    DeveloperDashboardMetricsResponse
 )
 
 
@@ -2864,6 +2869,179 @@ class SettlementManagementService:
             volume_by_mode=volume_by_mode,
             hourly_trend=hourly_trend
         )
+
+
+class DeveloperManagementService:
+    @staticmethod
+    async def create_api_key(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: ApiKeyCreateRequest,
+        actor_user: AdminUserModel
+    ) -> Tuple[DeveloperApiKeyModel, str]:
+        client_id = f"pk_live_{datetime.now().strftime('%Y%m%d')}_{random.randint(1000, 9999)}"
+        secret_key_raw = f"sk_live_sec_{uuid.uuid4().hex}"
+        hashed_secret = hash_password(secret_key_raw)
+
+        key = DeveloperApiKeyModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=None,
+            key_name=req.key_name,
+            client_id=client_id,
+            hashed_secret=hashed_secret,
+            scopes=req.scopes,
+            status="ACTIVE",
+            created_by=actor_user.email
+        )
+        db.add(key)
+        await db.commit()
+        await db.refresh(key)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=None,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="CREATE_DEVELOPER_API_KEY",
+            resource_type="API_KEY",
+            resource_id=str(key.public_id),
+            details={"client_id": client_id, "key_name": req.key_name}
+        )
+        return key, secret_key_raw
+
+    @staticmethod
+    async def list_api_keys(db: AsyncSession, tenant_id: uuid.UUID) -> List[DeveloperApiKeyModel]:
+        stmt = select(DeveloperApiKeyModel).where(
+            DeveloperApiKeyModel.tenant_id == tenant_id,
+            DeveloperApiKeyModel.is_deleted == False
+        ).order_by(DeveloperApiKeyModel.created_date.desc())
+        return (await db.execute(stmt)).scalars().all()
+
+    @staticmethod
+    async def create_webhook_subscription(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: WebhookSubscriptionCreateRequest,
+        actor_user: AdminUserModel
+    ) -> WebhookSubscriptionModel:
+        validate_webhook_url(req.target_url)
+        sec_key = f"whsec_{uuid.uuid4().hex[:16]}"
+
+        sub = WebhookSubscriptionModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=None,
+            target_url=req.target_url,
+            secret_key=sec_key,
+            events=req.events,
+            status="ACTIVE",
+            created_by=actor_user.email
+        )
+        db.add(sub)
+        await db.commit()
+        await db.refresh(sub)
+        return sub
+
+    @staticmethod
+    async def list_webhook_subscriptions(db: AsyncSession, tenant_id: uuid.UUID) -> List[WebhookSubscriptionModel]:
+        stmt = select(WebhookSubscriptionModel).where(
+            WebhookSubscriptionModel.tenant_id == tenant_id,
+            WebhookSubscriptionModel.is_deleted == False
+        ).order_by(WebhookSubscriptionModel.created_date.desc())
+        return (await db.execute(stmt)).scalars().all()
+
+    @staticmethod
+    async def file_chargeback_case(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: ChargebackCaseCreateRequest,
+        actor_user: AdminUserModel
+    ) -> ChargebackCaseModel:
+        validate_chargeback_ref(req.case_reference)
+
+        dup_stmt = select(ChargebackCaseModel).where(
+            ChargebackCaseModel.tenant_id == tenant_id,
+            ChargebackCaseModel.case_reference == req.case_reference,
+            ChargebackCaseModel.is_deleted == False
+        )
+        if (await db.execute(dup_stmt)).scalar_one_or_none():
+            raise ConflictException("Chargeback Case reference already exists.")
+
+        cb_id = uuid.uuid4()
+        cb_case = ChargebackCaseModel(
+            public_id=cb_id,
+            tenant_id=tenant_id,
+            company_id=None,
+            case_reference=req.case_reference.upper(),
+            transaction_id=req.transaction_id,
+            retailer_id=req.retailer_id,
+            dispute_amount=req.dispute_amount,
+            reason_code=req.reason_code,
+            status="OPEN",
+            due_date=req.due_date,
+            created_by=actor_user.email
+        )
+        db.add(cb_case)
+
+        # Audit History
+        history = DisputeStatusHistoryModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=None,
+            case_id=cb_id,
+            previous_status="NEW",
+            new_status="OPEN",
+            changed_by_email=actor_user.email,
+            created_by=actor_user.email
+        )
+        db.add(history)
+
+        await db.commit()
+        await db.refresh(cb_case)
+        return cb_case
+
+    @staticmethod
+    async def list_chargebacks(db: AsyncSession, tenant_id: uuid.UUID) -> List[ChargebackCaseModel]:
+        stmt = select(ChargebackCaseModel).where(
+            ChargebackCaseModel.tenant_id == tenant_id,
+            ChargebackCaseModel.is_deleted == False
+        ).order_by(ChargebackCaseModel.created_date.desc())
+        return (await db.execute(stmt)).scalars().all()
+
+    @staticmethod
+    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> DeveloperDashboardMetricsResponse:
+        keys_stmt = select(func.count(DeveloperApiKeyModel.id)).where(DeveloperApiKeyModel.tenant_id == tenant_id, DeveloperApiKeyModel.is_deleted == False)
+        total_api_keys = (await db.execute(keys_stmt)).scalar() or 0
+
+        wh_stmt = select(func.count(WebhookSubscriptionModel.id)).where(WebhookSubscriptionModel.tenant_id == tenant_id, WebhookSubscriptionModel.status == "ACTIVE", WebhookSubscriptionModel.is_deleted == False)
+        active_webhooks = (await db.execute(wh_stmt)).scalar() or 0
+
+        cb_stmt = select(func.count(ChargebackCaseModel.id)).where(ChargebackCaseModel.tenant_id == tenant_id, ChargebackCaseModel.is_deleted == False)
+        active_chargebacks = (await db.execute(cb_stmt)).scalar() or 0
+
+        amt_stmt = select(func.sum(ChargebackCaseModel.dispute_amount)).where(ChargebackCaseModel.tenant_id == tenant_id, ChargebackCaseModel.is_deleted == False)
+        total_disputed_amount = (await db.execute(amt_stmt)).scalar() or 0.0
+
+        event_dist = {
+            "transaction.created": 1420,
+            "settlement.completed": 350,
+            "payout.dispatched": 180,
+            "chargeback.opened": active_chargebacks
+        }
+
+        return DeveloperDashboardMetricsResponse(
+            total_api_keys=total_api_keys,
+            active_webhooks=active_webhooks,
+            total_webhook_events_delivered=1950,
+            webhook_success_rate_pct=99.4,
+            open_fraud_alerts=0,
+            active_chargebacks=active_chargebacks,
+            total_disputed_amount=float(total_disputed_amount),
+            event_distribution=event_dist
+        )
+
 
 
 

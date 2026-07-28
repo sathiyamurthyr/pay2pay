@@ -13,6 +13,8 @@ MID_REGEX = re.compile(r"^[A-Z0-9_-]{8,30}$")
 SERIAL_REGEX = re.compile(r"^[A-Z0-9_-]{5,100}$")
 RRN_REGEX = re.compile(r"^[A-Z0-9_-]{12,30}$")
 UTR_REGEX = re.compile(r"^[A-Z0-9_-]{12,30}$")
+URL_REGEX = re.compile(r"^https?://[^\s/$.?#].[^\s]*$")
+CHARGEBACK_REGEX = re.compile(r"^[A-Z0-9_-]{8,30}$")
 
 
 def validate_gst(gst: str) -> bool:
@@ -101,4 +103,20 @@ def validate_utr(utr: str) -> bool:
         return True
     if not UTR_REGEX.match(utr.upper()):
         raise BadRequestException(f"Invalid UTR format: '{utr}'. Must be 12-30 alphanumeric characters.")
+    return True
+
+
+def validate_webhook_url(url: str) -> bool:
+    if not url:
+        return True
+    if not URL_REGEX.match(url):
+        raise BadRequestException(f"Invalid Webhook URL format: '{url}'. Must start with http:// or https://")
+    return True
+
+
+def validate_chargeback_ref(cb_ref: str) -> bool:
+    if not cb_ref:
+        return True
+    if not CHARGEBACK_REGEX.match(cb_ref.upper()):
+        raise BadRequestException(f"Invalid Chargeback Case Reference format: '{cb_ref}'. Must be 8-30 alphanumeric characters.")
     return True

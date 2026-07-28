@@ -864,5 +864,98 @@ class ReconciliationReportModel(BaseEntity, EnterpriseBaseMixin):
     status: Mapped[str] = mapped_column(String(30), default="MATCHED", nullable=False)  # MATCHED, DISCREPANCY
 
 
+# EPIC-007 — Developer API Gateway, Webhooks & Fraud Control Models
+class DeveloperApiKeyModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "developer_api_key"
+
+    key_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    client_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    hashed_secret: Mapped[str] = mapped_column(String(255), nullable=False)
+    scopes: Mapped[str] = mapped_column(String(255), default="transactions.read,settlements.write", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class WebhookSubscriptionModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "webhook_subscription"
+
+    target_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    secret_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    events: Mapped[str] = mapped_column(String(255), default="transaction.created,settlement.completed", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
+
+    logs: Mapped[List["WebhookEventLogModel"]] = relationship("WebhookEventLogModel", back_populates="subscription", cascade="all, delete-orphan")
+
+
+class WebhookEventLogModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "webhook_event_log"
+
+    subscription_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("webhook_subscription.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    response_code: Mapped[int] = mapped_column(Integer, default=200, nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="DELIVERED", nullable=False, index=True)  # DELIVERED, FAILED
+
+    subscription: Mapped["WebhookSubscriptionModel"] = relationship("WebhookSubscriptionModel", back_populates="logs")
+
+
+class RiskRuleModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "risk_rule"
+
+    rule_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    rule_code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    threshold_amount: Mapped[float] = mapped_column(Float, default=100000.0, nullable=False)
+    action: Mapped[str] = mapped_column(String(50), default="FLAG_FRAUD", nullable=False)  # FLAG_FRAUD, REJECT, HOLD
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class FraudAlertModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "fraud_alert"
+
+    transaction_ref: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    risk_level: Mapped[str] = mapped_column(String(30), default="HIGH", nullable=False, index=True)  # LOW, MEDIUM, HIGH, CRITICAL
+    reason: Mapped[Text] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="OPEN", nullable=False, index=True)  # OPEN, CLEARED, CONFIRMED_FRAUD
+
+
+class ChargebackCaseModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "chargeback_case"
+
+    case_reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    transaction_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    dispute_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(100), default="UNAUTHORIZED_TRANSACTION", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="OPEN", nullable=False, index=True)  # OPEN, UNDER_REVIEW, WON, LOST
+    due_date: Mapped[date] = mapped_column(Date, nullable=False)
+
+    evidences: Mapped[List["ChargebackEvidenceModel"]] = relationship("ChargebackEvidenceModel", back_populates="chargeback", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "case_reference", name="uq_cb_tenant_ref"),
+    )
+
+
+class ChargebackEvidenceModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "chargeback_evidence"
+
+    case_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chargeback_case.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    document_type: Mapped[str] = mapped_column(String(50), default="PROOF_OF_DELIVERY", nullable=False)
+    document_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    notes: Mapped[Optional[Text]] = mapped_column(Text, nullable=True)
+
+    chargeback: Mapped["ChargebackCaseModel"] = relationship("ChargebackCaseModel", back_populates="evidences")
+
+
+class DisputeStatusHistoryModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "dispute_status_history"
+
+    case_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chargeback_case.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    previous_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    new_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    changed_by_email: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+
 
 

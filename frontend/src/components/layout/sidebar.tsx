@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, Building2, Users, ShieldCheck, Key,
-  ScrollText, Settings, UserCircle, CreditCard, ChevronRight, Network, ArrowLeftRight, Store, TrendingUp, Receipt
+  ScrollText, Settings, UserCircle, CreditCard, ChevronRight, Network, ArrowLeftRight, Store, TrendingUp, Receipt,
+  Code, Webhook, ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,9 @@ const NAV_ITEMS = [
   { label: "Settlement Telemetry", href: "/settlement-dashboard", icon: TrendingUp },
   { label: "Swipe Ledger", href: "/settlements/transactions", icon: TrendingUp },
   { label: "Batches & Payouts", href: "/settlements/batches", icon: Receipt },
+  { label: "Developer Telemetry", href: "/developer-dashboard", icon: Code },
+  { label: "API Keys & Webhooks", href: "/developer/api-keys", icon: Webhook },
+  { label: "Dispute Resolution", href: "/developer/disputes", icon: ShieldAlert },
   { label: "Users", href: "/users", icon: Users },
   { label: "Roles", href: "/roles", icon: ShieldCheck },
   { label: "Permissions", href: "/permissions", icon: Key },

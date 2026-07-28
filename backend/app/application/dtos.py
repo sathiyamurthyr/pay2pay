@@ -900,5 +900,68 @@ class SettlementDashboardMetricsResponse(BaseModel):
     hourly_trend: List[Dict[str, Any]]
 
 
+# EPIC-007 Developer API Gateway & Risk DTOs
+class ApiKeyCreateRequest(BaseModel):
+    key_name: str = Field(..., min_length=3, max_length=100)
+    scopes: str = "transactions.read,settlements.write"
+
+
+class ApiKeyResponse(BaseModel):
+    public_id: uuid.UUID
+    key_name: str
+    client_id: str
+    secret_key_raw: Optional[str] = None  # Only returned upon creation
+    scopes: str
+    status: str
+    created_date: datetime
+
+
+class WebhookSubscriptionCreateRequest(BaseModel):
+    target_url: str = Field(..., min_length=10, max_length=500)
+    events: str = "transaction.created,settlement.completed,payout.dispatched"
+
+
+class WebhookSubscriptionResponse(BaseModel):
+    public_id: uuid.UUID
+    target_url: str
+    secret_key: str
+    events: str
+    status: str
+    created_date: datetime
+
+
+class ChargebackCaseCreateRequest(BaseModel):
+    case_reference: str = Field(..., min_length=5, max_length=50)
+    transaction_id: str = Field(..., min_length=5, max_length=100)
+    retailer_id: uuid.UUID
+    dispute_amount: float = Field(..., gt=0)
+    reason_code: str = "UNAUTHORIZED_TRANSACTION"
+    due_date: date
+
+
+class ChargebackCaseResponse(BaseModel):
+    public_id: uuid.UUID
+    case_reference: str
+    transaction_id: str
+    retailer_id: uuid.UUID
+    dispute_amount: float
+    reason_code: str
+    status: str
+    due_date: date
+    created_date: datetime
+
+
+class DeveloperDashboardMetricsResponse(BaseModel):
+    total_api_keys: int
+    active_webhooks: int
+    total_webhook_events_delivered: int
+    webhook_success_rate_pct: float
+    open_fraud_alerts: int
+    active_chargebacks: int
+    total_disputed_amount: float
+    event_distribution: Dict[str, int]
+
+
+
 
 
