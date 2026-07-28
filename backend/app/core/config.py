@@ -1,0 +1,51 @@
+from typing import List
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "Retailer Enterprise Platform — Admin Portal"
+    VERSION: str = "1.0.0"
+    API_V1_STR: str = "/api/v1"
+    
+    # Environment
+    ENVIRONMENT: str = Field(default="production")
+    DEBUG: bool = Field(default=False)
+    
+    # Database
+    DATABASE_URL: str = Field(
+        default="postgresql+asyncpg://postgres:AivioSathus!321@db.arkoolfygfqawyvwnldv.supabase.co:5432/postgres"
+    )
+    ALEMBIC_DATABASE_URL: str = Field(
+        default="postgresql+psycopg://postgres:AivioSathus!321@db.arkoolfygfqawyvwnldv.supabase.co:5432/postgres"
+    )
+    
+    # JWT Security
+    SECRET_KEY: str = Field(default="e674b934091a133f9dfca4b967a544c207908b8b8017c669145695029a73887c")
+    REFRESH_SECRET_KEY: str = Field(default="5f3a0937a098863f6696b997c6d66e7f12e8ad28b8577a111b154b5e6702c2e0")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7     # 7 days
+    
+    # CORS
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://pay2pay.vercel.app",
+    ]
+    
+    # Session Timeout (Minutes)
+    SESSION_TIMEOUT_MINUTES: int = 30
+    
+    # System Defaults
+    PLATFORM_TENANT_CODE: str = "PLATFORM"
+    DEFAULT_COMPANY_CODE: str = "HQ_COMP"
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+
+settings = Settings()

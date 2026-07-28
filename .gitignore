@@ -1,0 +1,16 @@
+# Python
+backend/venv/
+backend/.pytest_cache/
+backend/__pycache__/
+*.pyc
+.env
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# IDE / System
+.vscode/
+.idea/
+*.log
