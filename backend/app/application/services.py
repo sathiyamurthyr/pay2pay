@@ -117,7 +117,8 @@ class AuthService:
             subject=payload_sub,
             tenant_id=str(user.tenant_id),
             company_id=company_id_str,
-            roles=roles
+            roles=roles,
+            jti=jti
         )
 
         return TokenResponse(
@@ -155,11 +156,23 @@ class AuthService:
         roles = [ur.role.code for ur in user.user_roles]
         company_id_str = str(user.company_id) if user.company_id else None
 
+        jti = str(uuid.uuid4())
+        session = UserSessionModel(
+            public_id=uuid.uuid4(),
+            user_id=user.id,
+            tenant_id=user.tenant_id,
+            token_jti=jti,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        )
+        db.add(session)
+        await db.commit()
+
         new_access_token = create_access_token(
             subject=str(user.public_id),
             tenant_id=str(user.tenant_id),
             company_id=company_id_str,
-            roles=roles
+            roles=roles,
+            jti=jti
         )
         new_refresh_token = create_refresh_token(
             subject=str(user.public_id),

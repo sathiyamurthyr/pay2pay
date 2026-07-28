@@ -26,6 +26,7 @@ def create_access_token(
     tenant_id: str,
     company_id: Optional[str] = None,
     roles: list = [],
+    jti: Optional[str] = None,
     expires_delta: Optional[timedelta] = None
 ) -> str:
     if expires_delta:
@@ -33,7 +34,7 @@ def create_access_token(
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
-    jti = str(uuid.uuid4())
+    token_jti = jti or str(uuid.uuid4())
     payload = {
         "sub": subject,
         "tenant_id": tenant_id,
@@ -41,7 +42,7 @@ def create_access_token(
         "roles": roles,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
-        "jti": jti,
+        "jti": token_jti,
         "type": "access"
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
