@@ -956,6 +956,107 @@ class DisputeStatusHistoryModel(BaseEntity, EnterpriseBaseMixin):
     changed_by_email: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
+# EPIC-008 — Configuration, Audit & Compliance Reporting Models
+class TenantConfigurationModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "tenant_configuration"
+
+    config_key: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    config_value: Mapped[str] = mapped_column(Text, nullable=False)
+    data_type: Mapped[str] = mapped_column(String(30), default="STRING", nullable=False)
+    description: Mapped[Optional[Text]] = mapped_column(Text, nullable=True)
+    is_encrypted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "config_key", name="uq_tenant_config_key"),
+    )
+
+
+class AuditExportJobModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "audit_export_job"
+
+    export_reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    filter_criteria: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    format: Mapped[str] = mapped_column(String(20), default="CSV", nullable=False)
+    file_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="COMPLETED", nullable=False, index=True)
+
+
+class ComplianceReportModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "compliance_report"
+
+    report_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    report_type: Mapped[str] = mapped_column(String(50), default="GSTR_1_SUMMARY", nullable=False, index=True)  # GSTR_1_SUMMARY, GSTR_3B_SUMMARY, TDS_194O_STATEMENT, SETTLEMENT_AUDIT
+    tax_period: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # YYYY-MM
+    total_txns_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_taxable_value: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    total_gst_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    total_tds_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="FINALIZED", nullable=False, index=True)  # DRAFT, FINALIZED, FILED
+
+    items: Mapped[List["ComplianceReportItemModel"]] = relationship("ComplianceReportItemModel", back_populates="report", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "report_number", name="uq_rep_tenant_number"),
+    )
+
+
+class ComplianceReportItemModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "compliance_report_item"
+
+    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("compliance_report.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    entity_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    pan: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    gstin: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    gross_volume: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    mdr_value: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    gst_value: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    tds_value: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+
+    report: Mapped["ComplianceReportModel"] = relationship("ComplianceReportModel", back_populates="items")
+
+
+class TdsDeductionRecordModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "tds_deduction_record"
+
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    assessment_year: Mapped[str] = mapped_column(String(20), default="2026-2027", nullable=False)
+    section_code: Mapped[str] = mapped_column(String(30), default="194O", nullable=False)
+    gross_payment_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    tds_rate_pct: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)  # 1% Section 194O
+    tds_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    filing_status: Mapped[str] = mapped_column(String(30), default="FILED", nullable=False)
+
+
+class GstFilingSummaryModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "gst_filing_summary"
+
+    tax_period: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    state_code: Mapped[str] = mapped_column(String(10), default="33", nullable=False)
+    cgst_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    sgst_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    igst_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+
+
+class SystemAlertPolicyModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "system_alert_policy"
+
+    policy_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    metric_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    threshold_value: Mapped[float] = mapped_column(Float, nullable=False)
+    recipient_emails: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
+
+
+class SystemHealthLogModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "system_health_log"
+
+    component_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(30), default="HEALTHY", nullable=False)
+    response_time_ms: Mapped[int] = mapped_column(Integer, default=12, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+
+
 
 
 

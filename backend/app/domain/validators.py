@@ -15,6 +15,8 @@ RRN_REGEX = re.compile(r"^[A-Z0-9_-]{12,30}$")
 UTR_REGEX = re.compile(r"^[A-Z0-9_-]{12,30}$")
 URL_REGEX = re.compile(r"^https?://[^\s/$.?#].[^\s]*$")
 CHARGEBACK_REGEX = re.compile(r"^[A-Z0-9_-]{8,30}$")
+TAX_PERIOD_REGEX = re.compile(r"^\d{4}-\d{2}$")
+REPORT_NUM_REGEX = re.compile(r"^[A-Z0-9_-]{8,50}$")
 
 
 def validate_gst(gst: str) -> bool:
@@ -119,4 +121,20 @@ def validate_chargeback_ref(cb_ref: str) -> bool:
         return True
     if not CHARGEBACK_REGEX.match(cb_ref.upper()):
         raise BadRequestException(f"Invalid Chargeback Case Reference format: '{cb_ref}'. Must be 8-30 alphanumeric characters.")
+    return True
+
+
+def validate_tax_period(tax_period: str) -> bool:
+    if not tax_period:
+        return True
+    if not TAX_PERIOD_REGEX.match(tax_period):
+        raise BadRequestException(f"Invalid Tax Period format: '{tax_period}'. Example valid Tax Period: '2026-07'")
+    return True
+
+
+def validate_report_number(rep_num: str) -> bool:
+    if not rep_num:
+        return True
+    if not REPORT_NUM_REGEX.match(rep_num.upper()):
+        raise BadRequestException(f"Invalid Report Number format: '{rep_num}'. Must be 8-50 alphanumeric characters.")
     return True

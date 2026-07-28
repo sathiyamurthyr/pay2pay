@@ -962,6 +962,42 @@ class DeveloperDashboardMetricsResponse(BaseModel):
     event_distribution: Dict[str, int]
 
 
+# EPIC-008 Compliance & Audit DTOs
+class TenantConfigUpdateRequest(BaseModel):
+    config_key: str = Field(..., min_length=3, max_length=100)
+    config_value: str
+    data_type: str = "STRING"
+    description: Optional[str] = None
+
+
+class ComplianceReportGenerateRequest(BaseModel):
+    report_type: str = "GSTR_1_SUMMARY"
+    tax_period: str = Field(..., min_length=7, max_length=7, description="YYYY-MM")
+
+
+class ComplianceReportResponse(BaseModel):
+    public_id: uuid.UUID
+    report_number: str
+    report_type: str
+    tax_period: str
+    total_txns_count: int
+    total_taxable_value: float
+    total_gst_amount: float
+    total_tds_amount: float
+    status: str
+    created_date: datetime
+
+
+class ComplianceDashboardMetricsResponse(BaseModel):
+    total_taxable_volume: float
+    total_gst_collected: float
+    total_tds_deducted: float
+    generated_reports_count: int
+    system_health_status: str
+    component_latencies: Dict[str, int]
+
+
+
 
 
 

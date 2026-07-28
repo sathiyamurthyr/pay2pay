@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, Building2, Users, ShieldCheck, Key,
   ScrollText, Settings, UserCircle, CreditCard, ChevronRight, Network, ArrowLeftRight, Store, TrendingUp, Receipt,
-  Code, Webhook, ShieldAlert
+  Code, Webhook, ShieldAlert, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,9 @@ const NAV_ITEMS = [
   { label: "Developer Telemetry", href: "/developer-dashboard", icon: Code },
   { label: "API Keys & Webhooks", href: "/developer/api-keys", icon: Webhook },
   { label: "Dispute Resolution", href: "/developer/disputes", icon: ShieldAlert },
+  { label: "Compliance Telemetry", href: "/compliance-dashboard", icon: ShieldCheck },
+  { label: "Regulatory Reports", href: "/compliance/reports", icon: FileText },
+  { label: "Audit Explorer", href: "/compliance/audit-explorer", icon: ScrollText },
   { label: "Users", href: "/users", icon: Users },
   { label: "Roles", href: "/roles", icon: ShieldCheck },
   { label: "Permissions", href: "/permissions", icon: Key },
