@@ -8,6 +8,9 @@ IFSC_REGEX = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
 MOBILE_REGEX = re.compile(r"^[6-9]\d{9}$")
 PINCODE_REGEX = re.compile(r"^\d{6}$")
 EMP_CODE_REGEX = re.compile(r"^[A-Z0-9_-]{3,50}$")
+TID_REGEX = re.compile(r"^[A-Z0-9_-]{8,20}$")
+MID_REGEX = re.compile(r"^[A-Z0-9_-]{8,30}$")
+SERIAL_REGEX = re.compile(r"^[A-Z0-9_-]{5,100}$")
 
 
 def validate_gst(gst: str) -> bool:
@@ -56,4 +59,28 @@ def validate_employee_code(emp_code: str) -> bool:
         return True
     if not EMP_CODE_REGEX.match(emp_code.upper()):
         raise BadRequestException(f"Invalid Employee Code format: '{emp_code}'. Must be 3-50 alphanumeric characters.")
+    return True
+
+
+def validate_tid(tid: str) -> bool:
+    if not tid:
+        return True
+    if not TID_REGEX.match(tid.upper()):
+        raise BadRequestException(f"Invalid Terminal ID (TID) format: '{tid}'. Must be 8-20 alphanumeric characters.")
+    return True
+
+
+def validate_mid(mid: str) -> bool:
+    if not mid:
+        return True
+    if not MID_REGEX.match(mid.upper()):
+        raise BadRequestException(f"Invalid Merchant ID (MID) format: '{mid}'. Must be 8-30 alphanumeric characters.")
+    return True
+
+
+def validate_serial_number(serial: str) -> bool:
+    if not serial:
+        return True
+    if not SERIAL_REGEX.match(serial.upper()):
+        raise BadRequestException(f"Invalid Serial Number format: '{serial}'. Must be 5-100 alphanumeric characters.")
     return True

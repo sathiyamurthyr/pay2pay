@@ -746,3 +746,78 @@ class RetailerDashboardMetricsResponse(BaseModel):
     status_distribution: Dict[str, int]
 
 
+# EPIC-005 Swipe Machine DTOs
+class MachineCreateRequest(BaseModel):
+    serial_number: str = Field(..., min_length=5, max_length=100)
+    tid: str = Field(..., min_length=8, max_length=16, description="Terminal ID")
+    mid: str = Field(..., min_length=8, max_length=24, description="Merchant ID")
+    pos_model: str = "Pax A920"
+    machine_type: str = "ANDROID_POS"
+    os_version: Optional[str] = "Android 11"
+    firmware_version: Optional[str] = "v2.4.1"
+    sim_iccid: Optional[str] = None
+    telecom_provider: Optional[str] = "Airtel M2M"
+    mapped_retailer_id: uuid.UUID
+    company_id: uuid.UUID
+
+
+class MachineUpdateRequest(BaseModel):
+    pos_model: Optional[str] = None
+    status: Optional[str] = None
+    mapped_retailer_id: Optional[uuid.UUID] = None
+    version_no: int = Field(..., description="Optimistic locking version")
+
+
+class MachineTelemetryPingRequest(BaseModel):
+    battery_percentage: int = Field(..., ge=0, le=100)
+    network_type: str = "4G"
+    signal_strength: int = -75
+    app_version: str = "v1.8.0"
+    txns_processed: int = 0
+    volume_processed: float = 0.0
+
+
+class MachineReplacementCreateRequest(BaseModel):
+    old_serial_number: str
+    reason: str = Field(..., min_length=5)
+
+
+class MachineResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    serial_number: str
+    tid: str
+    mid: str
+    pos_model: str
+    machine_type: str
+    os_version: Optional[str] = None
+    firmware_version: Optional[str] = None
+    sim_iccid: Optional[str] = None
+    telecom_provider: Optional[str] = None
+    status: str
+    mapped_retailer_id: Optional[uuid.UUID] = None
+    version_no: int
+    created_date: datetime
+
+
+class MachineDetailsResponse(BaseModel):
+    machine: MachineResponse
+    telemetry: Optional[Dict[str, Any]] = None
+    key_profile: Optional[Dict[str, Any]] = None
+    maintenances: List[Dict[str, Any]]
+    status_history: List[Dict[str, Any]]
+
+
+class MachineDashboardMetricsResponse(BaseModel):
+    total_machines: int
+    active_machines: int
+    inventory_stock: int
+    faulty_machines: int
+    offline_24h: int
+    total_daily_volume: float
+    model_distribution: Dict[str, int]
+    network_distribution: Dict[str, int]
+
+
+

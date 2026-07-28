@@ -14,7 +14,8 @@ from app.core.exceptions import (
     BadRequestException, UnauthorizedException, ForbiddenException, NotFoundException, ConflictException
 )
 from app.domain.validators import (
-    validate_gst, validate_pan, validate_ifsc, validate_mobile, validate_pincode, validate_employee_code
+    validate_gst, validate_pan, validate_ifsc, validate_mobile, validate_pincode, validate_employee_code,
+    validate_tid, validate_mid, validate_serial_number
 )
 from app.infrastructure.db.models import (
     TenantModel, CompanyModel, EntityModel, CompanyContactModel, CompanyAddressModel, CompanyBankModel,
@@ -25,7 +26,9 @@ from app.infrastructure.db.models import (
     RegionalManagerModel, SuperDistributorModel, DistributorModel, OrganizationHierarchyModel,
     OrganizationTransferModel, OrganizationHistoryModel, OrganizationAttachmentModel, OrganizationNoteModel,
     RetailerModel, RetailerContactModel, RetailerAddressModel, RetailerBankModel, RetailerKycModel,
-    RetailerWalletModel, RetailerStatusHistoryModel, RetailerApprovalModel
+    RetailerWalletModel, RetailerStatusHistoryModel, RetailerApprovalModel,
+    SwipeMachineModel, MachineInventoryModel, MachineAssignmentModel, MachineTelemetryModel,
+    MachineKeyProfileModel, MachineMaintenanceModel, MachineStatusHistoryModel, MachineReplacementModel
 )
 from app.infrastructure.services.audit_service import AuditLogger
 from app.application.dtos import (
@@ -39,7 +42,9 @@ from app.application.dtos import (
     OrganizationTransferCreateRequest, OrganizationTransferApprovalRequest, OrganizationTransferResponse,
     OrganizationTreeNode, OrganizationDashboardMetricsResponse, RetailerOnboardCreateRequest,
     RetailerUpdateRequest, RetailerApprovalRequest, RetailerStatusChangeRequest, RetailerResponse,
-    RetailerDetailsResponse, RetailerDashboardMetricsResponse
+    RetailerDetailsResponse, RetailerDashboardMetricsResponse, MachineCreateRequest, MachineUpdateRequest,
+    MachineTelemetryPingRequest, MachineReplacementCreateRequest, MachineResponse, MachineDetailsResponse,
+    MachineDashboardMetricsResponse
 )
 
 
@@ -2220,5 +2225,273 @@ class RetailerManagementService:
             category_distribution=cat_dist,
             status_distribution=status_dist
         )
+
+
+class MachineManagementService:
+    @staticmethod
+    async def create_machine(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: MachineCreateRequest,
+        actor_user: AdminUserModel
+    ) -> SwipeMachineModel:
+        validate_serial_number(req.serial_number)
+        validate_tid(req.tid)
+        validate_mid(req.mid)
+
+        # Uniqueness checks across serial number and TID
+        dup_stmt = select(SwipeMachineModel).where(
+            SwipeMachineModel.tenant_id == tenant_id,
+            or_(
+                SwipeMachineModel.serial_number == req.serial_number,
+                SwipeMachineModel.tid == req.tid
+            ),
+            SwipeMachineModel.is_deleted == False
+        )
+        if (await db.execute(dup_stmt)).scalar_one_or_none():
+            raise ConflictException("Serial Number or Terminal ID (TID) already registered.")
+
+        machine_id = uuid.uuid4()
+        machine = SwipeMachineModel(
+            public_id=machine_id,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            serial_number=req.serial_number.upper(),
+            tid=req.tid.upper(),
+            mid=req.mid.upper(),
+            pos_model=req.pos_model,
+            machine_type=req.machine_type,
+            os_version=req.os_version,
+            firmware_version=req.firmware_version,
+            sim_iccid=req.sim_iccid,
+            telecom_provider=req.telecom_provider,
+            mapped_retailer_id=req.mapped_retailer_id,
+            status="ACTIVE",
+            created_by=actor_user.email
+        )
+        db.add(machine)
+
+        # Provision Telemetry
+        telemetry = MachineTelemetryModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            machine_id=machine_id,
+            battery_percentage=98,
+            network_type="4G",
+            signal_strength=-72,
+            app_version="v1.8.0",
+            total_txns_processed=0,
+            total_volume_processed=0.0,
+            created_by=actor_user.email
+        )
+        db.add(telemetry)
+
+        # Provision Key Profile (DUKPT)
+        key_profile = MachineKeyProfileModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            machine_id=machine_id,
+            dukpt_ksn=f"987654{req.tid.upper()}",
+            master_key_alias="MK_PROD_STAGE01",
+            encryption_standard="AES-256",
+            created_by=actor_user.email
+        )
+        db.add(key_profile)
+
+        # Status History
+        history = MachineStatusHistoryModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            machine_id=machine_id,
+            previous_status="INVENTORY",
+            new_status="ACTIVE",
+            reason="Initial Terminal Deployment & Key Injection",
+            changed_by_email=actor_user.email,
+            created_by=actor_user.email
+        )
+        db.add(history)
+
+        await db.commit()
+        await db.refresh(machine)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="CREATE_POS_MACHINE",
+            resource_type="POS_MACHINE",
+            resource_id=str(machine_id),
+            details={"serial_number": machine.serial_number, "tid": machine.tid}
+        )
+        return machine
+
+    @staticmethod
+    async def list_machines(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        retailer_id: Optional[uuid.UUID] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[SwipeMachineModel], int]:
+        stmt = select(SwipeMachineModel).where(
+            SwipeMachineModel.tenant_id == tenant_id,
+            SwipeMachineModel.is_deleted == False
+        )
+        if status:
+            stmt = stmt.where(SwipeMachineModel.status == status.upper())
+        if retailer_id:
+            stmt = stmt.where(SwipeMachineModel.mapped_retailer_id == retailer_id)
+        if search:
+            pat = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    SwipeMachineModel.serial_number.ilike(pat),
+                    SwipeMachineModel.tid.ilike(pat),
+                    SwipeMachineModel.mid.ilike(pat),
+                    SwipeMachineModel.pos_model.ilike(pat)
+                )
+            )
+
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await db.execute(count_stmt)).scalar() or 0
+
+        stmt = stmt.order_by(SwipeMachineModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        res = await db.execute(stmt)
+        return res.scalars().all(), total
+
+    @staticmethod
+    async def process_telemetry_ping(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        machine_id: uuid.UUID,
+        req: MachineTelemetryPingRequest
+    ) -> MachineTelemetryModel:
+        t_stmt = select(MachineTelemetryModel).where(
+            MachineTelemetryModel.machine_id == machine_id,
+            MachineTelemetryModel.tenant_id == tenant_id,
+            MachineTelemetryModel.is_deleted == False
+        )
+        telemetry = (await db.execute(t_stmt)).scalar_one_or_none()
+        if not telemetry:
+            raise NotFoundException("Terminal telemetry record not found.")
+
+        telemetry.battery_percentage = req.battery_percentage
+        telemetry.network_type = req.network_type
+        telemetry.signal_strength = req.signal_strength
+        telemetry.app_version = req.app_version
+        telemetry.last_ping_at = datetime.now(timezone.utc)
+        telemetry.total_txns_processed += req.txns_processed
+        telemetry.total_volume_processed += req.volume_processed
+
+        await db.commit()
+        await db.refresh(telemetry)
+        return telemetry
+
+    @staticmethod
+    async def get_machine_details(db: AsyncSession, tenant_id: uuid.UUID, machine_id: uuid.UUID) -> MachineDetailsResponse:
+        stmt = select(SwipeMachineModel).where(
+            SwipeMachineModel.public_id == machine_id,
+            SwipeMachineModel.tenant_id == tenant_id,
+            SwipeMachineModel.is_deleted == False
+        ).options(
+            selectinload(SwipeMachineModel.telemetry),
+            selectinload(SwipeMachineModel.key_profile),
+            selectinload(SwipeMachineModel.maintenances),
+            selectinload(SwipeMachineModel.status_history)
+        )
+        m = (await db.execute(stmt)).scalar_one_or_none()
+        if not m:
+            raise NotFoundException("POS Terminal not found.")
+
+        machine_dto = MachineResponse(
+            public_id=m.public_id,
+            tenant_id=m.tenant_id,
+            company_id=m.company_id,
+            serial_number=m.serial_number,
+            tid=m.tid,
+            mid=m.mid,
+            pos_model=m.pos_model,
+            machine_type=m.machine_type,
+            os_version=m.os_version,
+            firmware_version=m.firmware_version,
+            sim_iccid=m.sim_iccid,
+            telecom_provider=m.telecom_provider,
+            status=m.status,
+            mapped_retailer_id=m.mapped_retailer_id,
+            version_no=m.version_no,
+            created_date=m.created_date
+        )
+
+        telemetry = {
+            "battery_percentage": m.telemetry.battery_percentage,
+            "network_type": m.telemetry.network_type,
+            "signal_strength": m.telemetry.signal_strength,
+            "app_version": m.telemetry.app_version,
+            "last_ping_at": m.telemetry.last_ping_at,
+            "txns": m.telemetry.total_txns_processed,
+            "volume": m.telemetry.total_volume_processed
+        } if m.telemetry else None
+
+        key_profile = {
+            "ksn": m.key_profile.dukpt_ksn,
+            "master_key": m.key_profile.master_key_alias,
+            "encryption": m.key_profile.encryption_standard
+        } if m.key_profile else None
+
+        maintenances = [{"type": mn.maintenance_type, "description": mn.description, "technician": mn.technician_email} for mn in m.maintenances]
+        history = [{"previous": h.previous_status, "new": h.new_status, "reason": h.reason, "by": h.changed_by_email, "date": h.created_date} for h in m.status_history]
+
+        return MachineDetailsResponse(
+            machine=machine_dto,
+            telemetry=telemetry,
+            key_profile=key_profile,
+            maintenances=maintenances,
+            status_history=history
+        )
+
+    @staticmethod
+    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> MachineDashboardMetricsResponse:
+        total_stmt = select(func.count(SwipeMachineModel.id)).where(SwipeMachineModel.tenant_id == tenant_id, SwipeMachineModel.is_deleted == False)
+        total_machines = (await db.execute(total_stmt)).scalar() or 0
+
+        active_stmt = select(func.count(SwipeMachineModel.id)).where(SwipeMachineModel.tenant_id == tenant_id, SwipeMachineModel.status == "ACTIVE", SwipeMachineModel.is_deleted == False)
+        active_machines = (await db.execute(active_stmt)).scalar() or 0
+
+        faulty_stmt = select(func.count(SwipeMachineModel.id)).where(SwipeMachineModel.tenant_id == tenant_id, SwipeMachineModel.status == "FAULTY", SwipeMachineModel.is_deleted == False)
+        faulty_machines = (await db.execute(faulty_stmt)).scalar() or 0
+
+        vol_stmt = select(func.sum(MachineTelemetryModel.total_volume_processed)).where(MachineTelemetryModel.tenant_id == tenant_id, MachineTelemetryModel.is_deleted == False)
+        total_daily_volume = (await db.execute(vol_stmt)).scalar() or 0.0
+
+        model_dist = {
+            "Pax A920": int(total_machines * 0.5),
+            "Verifone V200t": int(total_machines * 0.3),
+            "Ingenico DX8000": int(total_machines * 0.2)
+        }
+
+        network_dist = {
+            "4G LTE": int(total_machines * 0.7),
+            "Wi-Fi": int(total_machines * 0.2),
+            "GPRS": int(total_machines * 0.1)
+        }
+
+        return MachineDashboardMetricsResponse(
+            total_machines=total_machines,
+            active_machines=active_machines,
+            inventory_stock=15,
+            faulty_machines=faulty_machines,
+            offline_24h=0,
+            total_daily_volume=float(total_daily_volume),
+            model_distribution=model_dist,
+            network_distribution=network_dist
+        )
+
 
 

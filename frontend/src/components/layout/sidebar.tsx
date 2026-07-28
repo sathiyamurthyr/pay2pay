@@ -18,6 +18,8 @@ const NAV_ITEMS = [
   { label: "Entity Transfers", href: "/organization/transfers", icon: ArrowLeftRight },
   { label: "Retailer Telemetry", href: "/retailer-dashboard", icon: Store },
   { label: "Retailers Directory", href: "/retailers", icon: Store },
+  { label: "Machine Telemetry", href: "/machine-dashboard", icon: CreditCard },
+  { label: "POS Terminals", href: "/machines", icon: CreditCard },
   { label: "Users", href: "/users", icon: Users },
   { label: "Roles", href: "/roles", icon: ShieldCheck },
   { label: "Permissions", href: "/permissions", icon: Key },

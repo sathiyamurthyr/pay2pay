@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List
 from sqlalchemy import (
     BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float
@@ -627,5 +627,119 @@ class RetailerApprovalModel(BaseEntity, EnterpriseBaseMixin):
     reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="approvals")
+
+
+# EPIC-005 — Swipe Machine (POS/EDC Terminal) Management Models
+class SwipeMachineModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "swipe_machine"
+
+    serial_number: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    tid: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # Terminal ID
+    mid: Mapped[str] = mapped_column(String(30), nullable=False, index=True)  # Merchant ID
+    pos_model: Mapped[str] = mapped_column(String(100), default="Pax A920", nullable=False)
+    machine_type: Mapped[str] = mapped_column(String(50), default="ANDROID_POS", nullable=False)
+    os_version: Mapped[Optional[str]] = mapped_column(String(50), default="Android 11", nullable=True)
+    firmware_version: Mapped[Optional[str]] = mapped_column(String(50), default="v2.4.1", nullable=True)
+    sim_iccid: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    telecom_provider: Mapped[Optional[str]] = mapped_column(String(50), default="Airtel M2M", nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False, index=True)  # INVENTORY, ALLOCATED, ACTIVE, SUSPENDED, FAULTY, REPLACED, DECOMMISSIONED
+    mapped_retailer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="SET NULL"), nullable=True, index=True)
+
+    telemetry: Mapped[Optional["MachineTelemetryModel"]] = relationship("MachineTelemetryModel", back_populates="machine", uselist=False, cascade="all, delete-orphan")
+    key_profile: Mapped[Optional["MachineKeyProfileModel"]] = relationship("MachineKeyProfileModel", back_populates="machine", uselist=False, cascade="all, delete-orphan")
+    maintenances: Mapped[List["MachineMaintenanceModel"]] = relationship("MachineMaintenanceModel", back_populates="machine", cascade="all, delete-orphan")
+    status_history: Mapped[List["MachineStatusHistoryModel"]] = relationship("MachineStatusHistoryModel", back_populates="machine", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "serial_number", name="uq_machine_tenant_serial"),
+        UniqueConstraint("tenant_id", "tid", name="uq_machine_tenant_tid"),
+    )
+
+
+class MachineInventoryModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "machine_inventory"
+
+    batch_stock_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    manufacturer: Mapped[str] = mapped_column(String(100), nullable=False)
+    model_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    quantity_received: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    received_date: Mapped[date] = mapped_column(Date, default=date.today, nullable=False)
+    warranty_expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    warehouse_location: Mapped[str] = mapped_column(String(150), default="Central Warehouse", nullable=False)
+
+
+class MachineAssignmentModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "machine_assignment"
+
+    machine_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("swipe_machine.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    assigned_type: Mapped[str] = mapped_column(String(50), nullable=False)  # DISTRIBUTOR or RETAILER
+    assigned_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    unassigned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class MachineTelemetryModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "machine_telemetry"
+
+    machine_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("swipe_machine.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    battery_percentage: Mapped[int] = mapped_column(Integer, default=95, nullable=False)
+    network_type: Mapped[str] = mapped_column(String(20), default="4G", nullable=False)
+    signal_strength: Mapped[int] = mapped_column(Integer, default=-75, nullable=False)
+    app_version: Mapped[str] = mapped_column(String(50), default="v1.8.0", nullable=False)
+    last_ping_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
+    total_txns_processed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_volume_processed: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+
+    machine: Mapped["SwipeMachineModel"] = relationship("SwipeMachineModel", back_populates="telemetry")
+
+
+class MachineKeyProfileModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "machine_key_profile"
+
+    machine_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("swipe_machine.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    dukpt_ksn: Mapped[str] = mapped_column(String(100), nullable=False)
+    master_key_alias: Mapped[str] = mapped_column(String(100), default="MK_STAGE_01", nullable=False)
+    encryption_standard: Mapped[str] = mapped_column(String(50), default="AES-256", nullable=False)
+    injected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    machine: Mapped["SwipeMachineModel"] = relationship("SwipeMachineModel", back_populates="key_profile")
+
+
+class MachineMaintenanceModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "machine_maintenance"
+
+    machine_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("swipe_machine.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    maintenance_type: Mapped[str] = mapped_column(String(50), nullable=False)  # REPAIR, SIM_SWAP, FIRMWARE_UPDATE, KEY_RESET
+    description: Mapped[Text] = mapped_column(Text, nullable=False)
+    technician_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+
+    machine: Mapped["SwipeMachineModel"] = relationship("SwipeMachineModel", back_populates="maintenances")
+
+
+class MachineStatusHistoryModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "machine_status_history"
+
+    machine_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("swipe_machine.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    previous_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    new_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    changed_by_email: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    machine: Mapped["SwipeMachineModel"] = relationship("SwipeMachineModel", back_populates="status_history")
+
+
+class MachineReplacementModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "machine_replacement"
+
+    old_machine_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    old_serial_number: Mapped[str] = mapped_column(String(100), nullable=False)
+    new_machine_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    new_serial_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    reason: Mapped[Text] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False, index=True)  # PENDING, APPROVED, REJECTED
+    requested_by_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    approved_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
 
 
