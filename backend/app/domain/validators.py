@@ -11,6 +11,8 @@ EMP_CODE_REGEX = re.compile(r"^[A-Z0-9_-]{3,50}$")
 TID_REGEX = re.compile(r"^[A-Z0-9_-]{8,20}$")
 MID_REGEX = re.compile(r"^[A-Z0-9_-]{8,30}$")
 SERIAL_REGEX = re.compile(r"^[A-Z0-9_-]{5,100}$")
+RRN_REGEX = re.compile(r"^[A-Z0-9_-]{12,30}$")
+UTR_REGEX = re.compile(r"^[A-Z0-9_-]{12,30}$")
 
 
 def validate_gst(gst: str) -> bool:
@@ -83,4 +85,20 @@ def validate_serial_number(serial: str) -> bool:
         return True
     if not SERIAL_REGEX.match(serial.upper()):
         raise BadRequestException(f"Invalid Serial Number format: '{serial}'. Must be 5-100 alphanumeric characters.")
+    return True
+
+
+def validate_rrn(rrn: str) -> bool:
+    if not rrn:
+        return True
+    if not RRN_REGEX.match(rrn.upper()):
+        raise BadRequestException(f"Invalid RRN format: '{rrn}'. Must be 12-30 alphanumeric characters.")
+    return True
+
+
+def validate_utr(utr: str) -> bool:
+    if not utr:
+        return True
+    if not UTR_REGEX.match(utr.upper()):
+        raise BadRequestException(f"Invalid UTR format: '{utr}'. Must be 12-30 alphanumeric characters.")
     return True

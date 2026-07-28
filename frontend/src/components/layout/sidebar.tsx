@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, Building2, Users, ShieldCheck, Key,
-  ScrollText, Settings, UserCircle, CreditCard, ChevronRight, Network, ArrowLeftRight, Store
+  ScrollText, Settings, UserCircle, CreditCard, ChevronRight, Network, ArrowLeftRight, Store, TrendingUp, Receipt
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,9 @@ const NAV_ITEMS = [
   { label: "Retailers Directory", href: "/retailers", icon: Store },
   { label: "Machine Telemetry", href: "/machine-dashboard", icon: CreditCard },
   { label: "POS Terminals", href: "/machines", icon: CreditCard },
+  { label: "Settlement Telemetry", href: "/settlement-dashboard", icon: TrendingUp },
+  { label: "Swipe Ledger", href: "/settlements/transactions", icon: TrendingUp },
+  { label: "Batches & Payouts", href: "/settlements/batches", icon: Receipt },
   { label: "Users", href: "/users", icon: Users },
   { label: "Roles", href: "/roles", icon: ShieldCheck },
   { label: "Permissions", href: "/permissions", icon: Key },

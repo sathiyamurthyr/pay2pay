@@ -742,4 +742,127 @@ class MachineReplacementModel(BaseEntity, EnterpriseBaseMixin):
     approved_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
 
+# EPIC-006 — Settlement Engine, MDR Split & Payout Models
+class TransactionRecordModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "transaction_record"
+
+    transaction_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    rrn: Mapped[str] = mapped_column(String(30), nullable=False, index=True)  # Retrieval Reference Number
+    auth_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    payment_mode: Mapped[str] = mapped_column(String(50), default="VISA_CREDIT", nullable=False)  # VISA_CREDIT, VISA_DEBIT, MASTERCARD_CREDIT, RUPAY_DEBIT, UPI
+    card_number_masked: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="SUCCESS", nullable=False, index=True)  # SUCCESS, FAILED, PENDING
+    settlement_status: Mapped[str] = mapped_column(String(30), default="UNSETTLED", nullable=False, index=True)  # UNSETTLED, IN_BATCH, SETTLED
+    mapped_tid: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    mapped_retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+
+    fee_split: Mapped[Optional["TransactionFeeSplitModel"]] = relationship("TransactionFeeSplitModel", back_populates="transaction", uselist=False, cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "transaction_id", name="uq_txn_tenant_txnid"),
+        UniqueConstraint("tenant_id", "rrn", name="uq_txn_tenant_rrn"),
+    )
+
+
+class MdrFeePlanModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "mdr_fee_plan"
+
+    plan_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    payment_mode: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    mdr_percentage: Mapped[float] = mapped_column(Float, default=1.5, nullable=False)  # e.g. 1.5%
+    fixed_fee: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    gst_percentage: Mapped[float] = mapped_column(Float, default=18.0, nullable=False)  # 18% GST on MDR
+    distributor_share_pct: Mapped[float] = mapped_column(Float, default=10.0, nullable=False)  # 10% of MDR to Distributor
+    sd_share_pct: Mapped[float] = mapped_column(Float, default=5.0, nullable=False)  # 5% of MDR to Super Distributor
+
+
+class TransactionFeeSplitModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "transaction_fee_split"
+
+    transaction_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transaction_record.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    gross_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    mdr_fee: Mapped[float] = mapped_column(Float, nullable=False)
+    gst_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    total_deduction: Mapped[float] = mapped_column(Float, nullable=False)
+    net_retailer_payout: Mapped[float] = mapped_column(Float, nullable=False)
+    platform_retention: Mapped[float] = mapped_column(Float, nullable=False)
+    distributor_commission: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    sd_commission: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    rm_commission: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+
+    transaction: Mapped["TransactionRecordModel"] = relationship("TransactionRecordModel", back_populates="fee_split")
+
+
+class SettlementBatchModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "settlement_batch"
+
+    batch_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    batch_date: Mapped[date] = mapped_column(Date, default=date.today, nullable=False)
+    gross_volume: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    total_mdr: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    total_gst: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    net_payout_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    transaction_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="SETTLED", nullable=False, index=True)  # OPEN, PROCESSING, SETTLED, FAILED
+    settled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=True)
+
+    items: Mapped[List["SettlementItemModel"]] = relationship("SettlementItemModel", back_populates="batch", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "batch_number", name="uq_batch_tenant_number"),
+    )
+
+
+class SettlementItemModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "settlement_item"
+
+    batch_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("settlement_batch.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    transaction_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transaction_record.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    net_amount: Mapped[float] = mapped_column(Float, nullable=False)
+
+    batch: Mapped["SettlementBatchModel"] = relationship("SettlementBatchModel", back_populates="items")
+
+
+class PayoutInstructionModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "payout_instruction"
+
+    payout_reference: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    bank_account_number: Mapped[str] = mapped_column(String(50), nullable=False)
+    ifsc: Mapped[str] = mapped_column(String(11), nullable=False)
+    payout_method: Mapped[str] = mapped_column(String(30), default="IMPS", nullable=False)  # IMPS, NEFT, WALLET_FLOAT
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    utr_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(30), default="SUCCESS", nullable=False, index=True)  # PENDING, PROCESSING, SUCCESS, FAILED
+    dispatched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "payout_reference", name="uq_payout_tenant_reference"),
+    )
+
+
+class WalletLedgerModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "wallet_ledger"
+
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)  # SWIPE_CREDIT, BANK_PAYOUT, ADJUSTMENT
+    credit_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    debit_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    balance_before: Mapped[float] = mapped_column(Float, nullable=False)
+    balance_after: Mapped[float] = mapped_column(Float, nullable=False)
+    reference_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+
+class ReconciliationReportModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "reconciliation_report"
+
+    report_date: Mapped[date] = mapped_column(Date, default=date.today, nullable=False, index=True)
+    gateway_volume: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    settled_volume: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    discrepancy_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="MATCHED", nullable=False)  # MATCHED, DISCREPANCY
+
+
+
 

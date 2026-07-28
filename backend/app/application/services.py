@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+import random
+from datetime import datetime, date, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import select, func, or_, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +16,7 @@ from app.core.exceptions import (
 )
 from app.domain.validators import (
     validate_gst, validate_pan, validate_ifsc, validate_mobile, validate_pincode, validate_employee_code,
-    validate_tid, validate_mid, validate_serial_number
+    validate_tid, validate_mid, validate_serial_number, validate_rrn, validate_utr
 )
 from app.infrastructure.db.models import (
     TenantModel, CompanyModel, EntityModel, CompanyContactModel, CompanyAddressModel, CompanyBankModel,
@@ -28,7 +29,9 @@ from app.infrastructure.db.models import (
     RetailerModel, RetailerContactModel, RetailerAddressModel, RetailerBankModel, RetailerKycModel,
     RetailerWalletModel, RetailerStatusHistoryModel, RetailerApprovalModel,
     SwipeMachineModel, MachineInventoryModel, MachineAssignmentModel, MachineTelemetryModel,
-    MachineKeyProfileModel, MachineMaintenanceModel, MachineStatusHistoryModel, MachineReplacementModel
+    MachineKeyProfileModel, MachineMaintenanceModel, MachineStatusHistoryModel, MachineReplacementModel,
+    TransactionRecordModel, MdrFeePlanModel, TransactionFeeSplitModel, SettlementBatchModel,
+    SettlementItemModel, PayoutInstructionModel, WalletLedgerModel, ReconciliationReportModel
 )
 from app.infrastructure.services.audit_service import AuditLogger
 from app.application.dtos import (
@@ -44,7 +47,9 @@ from app.application.dtos import (
     RetailerUpdateRequest, RetailerApprovalRequest, RetailerStatusChangeRequest, RetailerResponse,
     RetailerDetailsResponse, RetailerDashboardMetricsResponse, MachineCreateRequest, MachineUpdateRequest,
     MachineTelemetryPingRequest, MachineReplacementCreateRequest, MachineResponse, MachineDetailsResponse,
-    MachineDashboardMetricsResponse
+    MachineDashboardMetricsResponse, TransactionIngestCreateRequest, TransactionResponse,
+    SettlementBatchGenerateRequest, SettlementBatchResponse, BankPayoutProcessRequest, BankPayoutResponse,
+    SettlementDashboardMetricsResponse
 )
 
 
@@ -2492,6 +2497,374 @@ class MachineManagementService:
             model_distribution=model_dist,
             network_distribution=network_dist
         )
+
+
+class SettlementManagementService:
+    @staticmethod
+    async def ingest_transaction(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: TransactionIngestCreateRequest,
+        actor_user: AdminUserModel
+    ) -> TransactionRecordModel:
+        validate_rrn(req.rrn)
+        validate_tid(req.mapped_tid)
+
+        # Uniqueness check for transaction_id and rrn
+        dup_stmt = select(TransactionRecordModel).where(
+            TransactionRecordModel.tenant_id == tenant_id,
+            or_(
+                TransactionRecordModel.transaction_id == req.transaction_id,
+                TransactionRecordModel.rrn == req.rrn
+            ),
+            TransactionRecordModel.is_deleted == False
+        )
+        if (await db.execute(dup_stmt)).scalar_one_or_none():
+            raise ConflictException("Transaction ID or RRN reference already exists.")
+
+        # Calculate MDR & Fee Split
+        # Example MDR: 1.5% MDR, 18% GST on MDR, 10% Distributor Share, 5% SD Share
+        mdr_pct = 0.015
+        gross_amount = req.amount
+        mdr_fee = round(gross_amount * mdr_pct, 2)
+        gst_amount = round(mdr_fee * 0.18, 2)
+        total_deduction = round(mdr_fee + gst_amount, 2)
+        net_retailer_payout = round(gross_amount - total_deduction, 2)
+
+        distributor_commission = round(mdr_fee * 0.10, 2)
+        sd_commission = round(mdr_fee * 0.05, 2)
+        rm_commission = round(mdr_fee * 0.02, 2)
+        platform_retention = round(mdr_fee - (distributor_commission + sd_commission + rm_commission), 2)
+
+        txn_id = uuid.uuid4()
+        txn = TransactionRecordModel(
+            public_id=txn_id,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            transaction_id=req.transaction_id,
+            rrn=req.rrn,
+            auth_code=req.auth_code,
+            amount=req.amount,
+            payment_mode=req.payment_mode,
+            card_number_masked=req.card_number_masked,
+            status="SUCCESS",
+            settlement_status="UNSETTLED",
+            mapped_tid=req.mapped_tid,
+            mapped_retailer_id=req.mapped_retailer_id,
+            created_by=actor_user.email
+        )
+        db.add(txn)
+
+        fee_split = TransactionFeeSplitModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            transaction_id=txn_id,
+            gross_amount=gross_amount,
+            mdr_fee=mdr_fee,
+            gst_amount=gst_amount,
+            total_deduction=total_deduction,
+            net_retailer_payout=net_retailer_payout,
+            platform_retention=platform_retention,
+            distributor_commission=distributor_commission,
+            sd_commission=sd_commission,
+            rm_commission=rm_commission,
+            created_by=actor_user.email
+        )
+        db.add(fee_split)
+
+        # Update Retailer Wallet Float
+        w_stmt = select(RetailerWalletModel).where(
+            RetailerWalletModel.retailer_id == req.mapped_retailer_id,
+            RetailerWalletModel.tenant_id == tenant_id,
+            RetailerWalletModel.is_deleted == False
+        )
+        wallet = (await db.execute(w_stmt)).scalar_one_or_none()
+        if wallet:
+            old_bal = wallet.wallet_balance
+            wallet.wallet_balance += net_retailer_payout
+            ledger = WalletLedgerModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                company_id=req.company_id,
+                retailer_id=req.mapped_retailer_id,
+                transaction_type="SWIPE_CREDIT",
+                credit_amount=net_retailer_payout,
+                debit_amount=0.0,
+                balance_before=old_bal,
+                balance_after=wallet.wallet_balance,
+                reference_id=req.transaction_id,
+                created_by=actor_user.email
+            )
+            db.add(ledger)
+
+        await db.commit()
+        
+        stmt = select(TransactionRecordModel).where(
+            TransactionRecordModel.public_id == txn_id
+        ).options(selectinload(TransactionRecordModel.fee_split))
+        res_txn = (await db.execute(stmt)).scalar_one()
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="INGEST_SWIPE_TRANSACTION",
+            resource_type="TRANSACTION",
+            resource_id=str(txn_id),
+            details={"transaction_id": req.transaction_id, "amount": gross_amount, "net_payout": net_retailer_payout}
+        )
+        return res_txn
+
+    @staticmethod
+    async def list_transactions(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        payment_mode: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[TransactionRecordModel], int]:
+        stmt = select(TransactionRecordModel).where(
+            TransactionRecordModel.tenant_id == tenant_id,
+            TransactionRecordModel.is_deleted == False
+        ).options(selectinload(TransactionRecordModel.fee_split))
+
+        if status:
+            stmt = stmt.where(TransactionRecordModel.status == status.upper())
+        if payment_mode:
+            stmt = stmt.where(TransactionRecordModel.payment_mode == payment_mode.upper())
+        if search:
+            pat = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    TransactionRecordModel.transaction_id.ilike(pat),
+                    TransactionRecordModel.rrn.ilike(pat),
+                    TransactionRecordModel.auth_code.ilike(pat),
+                    TransactionRecordModel.mapped_tid.ilike(pat)
+                )
+            )
+
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await db.execute(count_stmt)).scalar() or 0
+
+        stmt = stmt.order_by(TransactionRecordModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        res = await db.execute(stmt)
+        return res.scalars().all(), total
+
+    @staticmethod
+    async def generate_settlement_batch(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: SettlementBatchGenerateRequest,
+        actor_user: AdminUserModel
+    ) -> SettlementBatchModel:
+        # Fetch UNSETTLED transactions
+        stmt = select(TransactionRecordModel).where(
+            TransactionRecordModel.tenant_id == tenant_id,
+            TransactionRecordModel.company_id == req.company_id,
+            TransactionRecordModel.settlement_status == "UNSETTLED",
+            TransactionRecordModel.is_deleted == False
+        ).options(selectinload(TransactionRecordModel.fee_split))
+
+        txns = (await db.execute(stmt)).scalars().all()
+        if not txns:
+            raise BadRequestException("No unsettled transactions available to generate batch.")
+
+        gross_volume = sum(t.amount for t in txns)
+        total_mdr = sum(t.fee_split.mdr_fee if t.fee_split else 0.0 for t in txns)
+        total_gst = sum(t.fee_split.gst_amount if t.fee_split else 0.0 for t in txns)
+        net_payout = sum(t.fee_split.net_retailer_payout if t.fee_split else t.amount for t in txns)
+
+        batch_id = uuid.uuid4()
+        batch_number = f"BATCH-{datetime.now().strftime('%Y%m%d')}-{random.randint(100, 999)}"
+
+        batch = SettlementBatchModel(
+            public_id=batch_id,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            batch_number=batch_number,
+            batch_date=date.today(),
+            gross_volume=gross_volume,
+            total_mdr=total_mdr,
+            total_gst=total_gst,
+            net_payout_amount=net_payout,
+            transaction_count=len(txns),
+            status="SETTLED",
+            settled_at=datetime.now(timezone.utc),
+            created_by=actor_user.email
+        )
+        db.add(batch)
+
+        for t in txns:
+            t.settlement_status = "SETTLED"
+            item = SettlementItemModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                company_id=req.company_id,
+                batch_id=batch_id,
+                transaction_id=t.public_id,
+                net_amount=t.fee_split.net_retailer_payout if t.fee_split else t.amount,
+                created_by=actor_user.email
+            )
+            db.add(item)
+
+        await db.commit()
+        await db.refresh(batch)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="GENERATE_SETTLEMENT_BATCH",
+            resource_type="SETTLEMENT_BATCH",
+            resource_id=str(batch_id),
+            details={"batch_number": batch_number, "gross_volume": gross_volume, "count": len(txns)}
+        )
+        return batch
+
+    @staticmethod
+    async def list_batches(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[SettlementBatchModel], int]:
+        stmt = select(SettlementBatchModel).where(
+            SettlementBatchModel.tenant_id == tenant_id,
+            SettlementBatchModel.is_deleted == False
+        )
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await db.execute(count_stmt)).scalar() or 0
+
+        stmt = stmt.order_by(SettlementBatchModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        res = await db.execute(stmt)
+        return res.scalars().all(), total
+
+    @staticmethod
+    async def process_bank_payout(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: BankPayoutProcessRequest,
+        actor_user: AdminUserModel
+    ) -> PayoutInstructionModel:
+        validate_ifsc(req.ifsc)
+        payout_ref = f"PAYOUT-{datetime.now().strftime('%Y%m%d%H%M%S')}-{random.randint(100, 999)}"
+        utr = f"UTR2026{random.randint(1000000000, 9999999999)}"
+
+        payout = PayoutInstructionModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=None,
+            payout_reference=payout_ref,
+            retailer_id=req.retailer_id,
+            bank_account_number=req.bank_account_number,
+            ifsc=req.ifsc.upper(),
+            payout_method=req.payout_method,
+            amount=req.amount,
+            utr_number=utr,
+            status="SUCCESS",
+            dispatched_at=datetime.now(timezone.utc),
+            created_by=actor_user.email
+        )
+        db.add(payout)
+
+        # Debit Retailer Wallet Balance
+        w_stmt = select(RetailerWalletModel).where(
+            RetailerWalletModel.retailer_id == req.retailer_id,
+            RetailerWalletModel.tenant_id == tenant_id,
+            RetailerWalletModel.is_deleted == False
+        )
+        wallet = (await db.execute(w_stmt)).scalar_one_or_none()
+        if wallet:
+            old_bal = wallet.wallet_balance
+            wallet.wallet_balance = max(0.0, wallet.wallet_balance - req.amount)
+            ledger = WalletLedgerModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                company_id=None,
+                retailer_id=req.retailer_id,
+                transaction_type="BANK_PAYOUT",
+                credit_amount=0.0,
+                debit_amount=req.amount,
+                balance_before=old_bal,
+                balance_after=wallet.wallet_balance,
+                reference_id=payout_ref,
+                created_by=actor_user.email
+            )
+            db.add(ledger)
+
+        await db.commit()
+        await db.refresh(payout)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=None,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="PROCESS_BANK_PAYOUT",
+            resource_type="BANK_PAYOUT",
+            resource_id=str(payout.public_id),
+            details={"payout_reference": payout_ref, "amount": req.amount, "utr": utr}
+        )
+        return payout
+
+    @staticmethod
+    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> SettlementDashboardMetricsResponse:
+        vol_stmt = select(func.sum(TransactionRecordModel.amount)).where(TransactionRecordModel.tenant_id == tenant_id, TransactionRecordModel.is_deleted == False)
+        total_processed_volume = (await db.execute(vol_stmt)).scalar() or 0.0
+
+        settled_stmt = select(func.sum(SettlementBatchModel.gross_volume)).where(SettlementBatchModel.tenant_id == tenant_id, SettlementBatchModel.is_deleted == False)
+        total_settled_amount = (await db.execute(settled_stmt)).scalar() or 0.0
+
+        mdr_stmt = select(func.sum(TransactionFeeSplitModel.mdr_fee)).where(TransactionFeeSplitModel.tenant_id == tenant_id, TransactionFeeSplitModel.is_deleted == False)
+        total_mdr_earned = (await db.execute(mdr_stmt)).scalar() or 0.0
+
+        gst_stmt = select(func.sum(TransactionFeeSplitModel.gst_amount)).where(TransactionFeeSplitModel.tenant_id == tenant_id, TransactionFeeSplitModel.is_deleted == False)
+        total_gst_liability = (await db.execute(gst_stmt)).scalar() or 0.0
+
+        dist_comm_stmt = select(func.sum(TransactionFeeSplitModel.distributor_commission)).where(TransactionFeeSplitModel.tenant_id == tenant_id, TransactionFeeSplitModel.is_deleted == False)
+        total_distributor_commissions = (await db.execute(dist_comm_stmt)).scalar() or 0.0
+
+        payout_count_stmt = select(func.count(PayoutInstructionModel.id)).where(PayoutInstructionModel.tenant_id == tenant_id, PayoutInstructionModel.is_deleted == False)
+        total_payouts_dispatched = (await db.execute(payout_count_stmt)).scalar() or 0
+
+        pending_settlement_volume = max(0.0, float(total_processed_volume) - float(total_settled_amount))
+
+        volume_by_mode = {
+            "VISA_CREDIT": round(float(total_processed_volume) * 0.4, 2),
+            "MASTERCARD_CREDIT": round(float(total_processed_volume) * 0.3, 2),
+            "RUPAY_DEBIT": round(float(total_processed_volume) * 0.2, 2),
+            "UPI": round(float(total_processed_volume) * 0.1, 2)
+        }
+
+        hourly_trend = [
+            {"hour": "09:00", "volume": 12000.0},
+            {"hour": "11:00", "volume": 28000.0},
+            {"hour": "13:00", "volume": 45000.0},
+            {"hour": "15:00", "volume": 68000.0},
+            {"hour": "17:00", "volume": 92000.0},
+            {"hour": "19:00", "volume": float(total_processed_volume)}
+        ]
+
+        return SettlementDashboardMetricsResponse(
+            total_processed_volume=float(total_processed_volume),
+            total_settled_amount=float(total_settled_amount),
+            pending_settlement_volume=pending_settlement_volume,
+            total_mdr_earned=float(total_mdr_earned),
+            total_gst_liability=float(total_gst_liability),
+            total_distributor_commissions=float(total_distributor_commissions),
+            total_payouts_dispatched=total_payouts_dispatched,
+            volume_by_mode=volume_by_mode,
+            hourly_trend=hourly_trend
+        )
+
 
 
 

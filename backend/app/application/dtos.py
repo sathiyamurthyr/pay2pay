@@ -820,4 +820,85 @@ class MachineDashboardMetricsResponse(BaseModel):
     network_distribution: Dict[str, int]
 
 
+# EPIC-006 Settlement Engine DTOs
+class TransactionIngestCreateRequest(BaseModel):
+    transaction_id: str = Field(..., min_length=5, max_length=100)
+    rrn: str = Field(..., min_length=12, max_length=30)
+    auth_code: str = Field(..., min_length=4, max_length=20)
+    amount: float = Field(..., gt=0)
+    payment_mode: str = "VISA_CREDIT"
+    card_number_masked: Optional[str] = "4111xxxxxx1111"
+    mapped_tid: str = Field(..., min_length=8, max_length=20)
+    mapped_retailer_id: uuid.UUID
+    company_id: uuid.UUID
+
+
+class TransactionResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    transaction_id: str
+    rrn: str
+    auth_code: str
+    amount: float
+    payment_mode: str
+    card_number_masked: Optional[str] = None
+    status: str
+    settlement_status: str
+    mapped_tid: str
+    mapped_retailer_id: uuid.UUID
+    created_date: datetime
+    fee_split: Optional[Dict[str, Any]] = None
+
+
+class SettlementBatchGenerateRequest(BaseModel):
+    company_id: uuid.UUID
+
+
+class SettlementBatchResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    batch_number: str
+    batch_date: date
+    gross_volume: float
+    total_mdr: float
+    total_gst: float
+    net_payout_amount: float
+    transaction_count: int
+    status: str
+    created_date: datetime
+
+
+class BankPayoutProcessRequest(BaseModel):
+    retailer_id: uuid.UUID
+    amount: float = Field(..., gt=0)
+    payout_method: str = "IMPS"
+    bank_account_number: str
+    ifsc: str
+
+
+class BankPayoutResponse(BaseModel):
+    public_id: uuid.UUID
+    payout_reference: str
+    retailer_id: uuid.UUID
+    amount: float
+    utr_number: Optional[str] = None
+    status: str
+    dispatched_at: datetime
+
+
+class SettlementDashboardMetricsResponse(BaseModel):
+    total_processed_volume: float
+    total_settled_amount: float
+    pending_settlement_volume: float
+    total_mdr_earned: float
+    total_gst_liability: float
+    total_distributor_commissions: float
+    total_payouts_dispatched: int
+    volume_by_mode: Dict[str, float]
+    hourly_trend: List[Dict[str, Any]]
+
+
+
 

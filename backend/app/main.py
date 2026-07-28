@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.exceptions import DomainException
 from app.presentation.api.v1 import (
-    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines
+    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements
 )
 
 app = FastAPI(
@@ -58,6 +58,7 @@ app.include_router(dashboard.router, prefix=settings.API_V1_STR)
 app.include_router(organization.router, prefix=settings.API_V1_STR)
 app.include_router(retailers.router, prefix=settings.API_V1_STR)
 app.include_router(machines.router, prefix=settings.API_V1_STR)
+app.include_router(settlements.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])
