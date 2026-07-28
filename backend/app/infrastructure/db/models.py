@@ -502,3 +502,130 @@ class OrganizationNoteModel(BaseEntity, EnterpriseBaseMixin):
     note_text: Mapped[str] = mapped_column(Text, nullable=False)
     author_email: Mapped[str] = mapped_column(String(255), nullable=False)
 
+
+# EPIC-004 — Retailer Management Models
+class RetailerModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "retailer"
+
+    retailer_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    store_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    legal_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    business_category: Mapped[str] = mapped_column(String(100), default="General Store", nullable=False)
+    store_type: Mapped[str] = mapped_column(String(50), default="BRICK_AND_MORTAR", nullable=False)
+    website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="PENDING_APPROVAL", nullable=False, index=True)  # DRAFT, PENDING_KYC, PENDING_APPROVAL, ACTIVE, SUSPENDED, BLOCKED, CLOSED
+    mapped_distributor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("distributor.public_id", ondelete="SET NULL"), nullable=True, index=True)
+
+    contacts: Mapped[List["RetailerContactModel"]] = relationship("RetailerContactModel", back_populates="retailer", cascade="all, delete-orphan")
+    addresses: Mapped[List["RetailerAddressModel"]] = relationship("RetailerAddressModel", back_populates="retailer", cascade="all, delete-orphan")
+    banks: Mapped[List["RetailerBankModel"]] = relationship("RetailerBankModel", back_populates="retailer", cascade="all, delete-orphan")
+    kyc: Mapped[Optional["RetailerKycModel"]] = relationship("RetailerKycModel", back_populates="retailer", uselist=False, cascade="all, delete-orphan")
+    wallet: Mapped[Optional["RetailerWalletModel"]] = relationship("RetailerWalletModel", back_populates="retailer", uselist=False, cascade="all, delete-orphan")
+    status_history: Mapped[List["RetailerStatusHistoryModel"]] = relationship("RetailerStatusHistoryModel", back_populates="retailer", cascade="all, delete-orphan")
+    approvals: Mapped[List["RetailerApprovalModel"]] = relationship("RetailerApprovalModel", back_populates="retailer", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "retailer_code", name="uq_retailer_tenant_code"),
+    )
+
+
+class RetailerContactModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "retailer_contact"
+
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    primary_contact: Mapped[str] = mapped_column(String(255), nullable=False)
+    designation: Mapped[Optional[str]] = mapped_column(String(100), default="Owner", nullable=True)
+    mobile: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    alternate_mobile: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    support_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="contacts")
+
+
+class RetailerAddressModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "retailer_address"
+
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    address_type: Mapped[str] = mapped_column(String(50), default="STORE", nullable=False)
+    country: Mapped[str] = mapped_column(String(100), default="India", nullable=False)
+    state: Mapped[str] = mapped_column(String(100), nullable=False)
+    district: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    city: Mapped[str] = mapped_column(String(100), nullable=False)
+    address: Mapped[Text] = mapped_column(Text, nullable=False)
+    pincode: Mapped[str] = mapped_column(String(10), nullable=False)
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="addresses")
+
+
+class RetailerBankModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "retailer_bank"
+
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    settlement_bank_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    account_holder: Mapped[str] = mapped_column(String(255), nullable=False)
+    account_number: Mapped[str] = mapped_column(String(50), nullable=False)
+    ifsc: Mapped[str] = mapped_column(String(11), nullable=False)
+    branch: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    verification_status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)
+
+    retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="banks")
+
+
+class RetailerKycModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "retailer_kyc"
+
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    aadhaar_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    pan_number: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
+    gst_number: Mapped[Optional[str]] = mapped_column(String(15), nullable=True, index=True)
+    business_proof_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    aadhaar_front_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    aadhaar_back_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    verification_status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)  # PENDING, VERIFIED, REJECTED
+    rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="kyc")
+
+
+class RetailerWalletModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "retailer_wallet"
+
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    wallet_balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    daily_transaction_limit: Mapped[float] = mapped_column(Float, default=100000.0, nullable=False)
+    single_transaction_limit: Mapped[float] = mapped_column(Float, default=25000.0, nullable=False)
+    is_frozen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    freeze_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="wallet")
+
+
+class RetailerStatusHistoryModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "retailer_status_history"
+
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    previous_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    new_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    changed_by_email: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="status_history")
+
+
+class RetailerApprovalModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "retailer_approval"
+
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    request_type: Mapped[str] = mapped_column(String(50), default="ONBOARDING", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False, index=True)
+    comments: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reviewer_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="approvals")
+
+

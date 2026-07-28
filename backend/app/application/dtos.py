@@ -650,3 +650,99 @@ class OrganizationDashboardMetricsResponse(BaseModel):
     growth_chart: List[Dict[str, Any]]
     tier_distribution: Dict[str, int]
 
+
+# EPIC-004 Retailer DTOs
+class RetailerOnboardCreateRequest(BaseModel):
+    retailer_code: str = Field(..., min_length=3, max_length=50)
+    store_name: str = Field(..., min_length=2, max_length=255)
+    legal_name: str = Field(..., min_length=2, max_length=255)
+    owner_name: str = Field(..., min_length=2, max_length=255)
+    business_category: str = "General Store"
+    store_type: str = "BRICK_AND_MORTAR"
+    website: Optional[str] = None
+    mapped_distributor_id: uuid.UUID
+    company_id: uuid.UUID
+
+    # Contact & Address
+    primary_contact: str = Field(..., min_length=2, max_length=255)
+    mobile: str = Field(..., description="10-digit mobile")
+    email: EmailStr
+    state: str
+    city: str
+    address: str
+    pincode: str
+
+    # Bank Details
+    settlement_bank_name: str
+    account_holder: str
+    account_number: str
+    ifsc: str
+
+    # KYC Info
+    pan_number: Optional[str] = None
+    gst_number: Optional[str] = None
+    aadhaar_number: Optional[str] = None
+
+    # Wallet & Limits
+    daily_transaction_limit: float = 100000.0
+    single_transaction_limit: float = 25000.0
+
+
+class RetailerUpdateRequest(BaseModel):
+    store_name: Optional[str] = None
+    owner_name: Optional[str] = None
+    business_category: Optional[str] = None
+    status: Optional[str] = None
+    mapped_distributor_id: Optional[uuid.UUID] = None
+    version_no: int = Field(..., description="Optimistic locking version")
+
+
+class RetailerApprovalRequest(BaseModel):
+    action: str = Field(..., description="APPROVE or REJECT")
+    comments: Optional[str] = None
+
+
+class RetailerStatusChangeRequest(BaseModel):
+    new_status: str = Field(..., description="ACTIVE, SUSPENDED, BLOCKED, CLOSED")
+    reason: str = Field(..., min_length=3)
+
+
+class RetailerResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    retailer_code: str
+    store_name: str
+    legal_name: str
+    owner_name: str
+    business_category: str
+    store_type: str
+    status: str
+    mapped_distributor_id: Optional[uuid.UUID] = None
+    version_no: int
+    created_date: datetime
+
+
+class RetailerDetailsResponse(BaseModel):
+    retailer: RetailerResponse
+    contacts: List[Dict[str, Any]]
+    addresses: List[Dict[str, Any]]
+    banks: List[Dict[str, Any]]
+    kyc: Optional[Dict[str, Any]] = None
+    wallet: Optional[Dict[str, Any]] = None
+    status_history: List[Dict[str, Any]]
+    approvals: List[Dict[str, Any]]
+
+
+class RetailerDashboardMetricsResponse(BaseModel):
+    total_retailers: int
+    active_retailers: int
+    pending_kyc: int
+    suspended_retailers: int
+    created_today: int
+    total_wallet_balance: float
+    growth_chart: List[Dict[str, Any]]
+    category_distribution: Dict[str, int]
+    status_distribution: Dict[str, int]
+
+

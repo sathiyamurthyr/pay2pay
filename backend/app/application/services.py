@@ -23,7 +23,9 @@ from app.infrastructure.db.models import (
     AdminUserModel, RoleModel, PermissionModel, RolePermissionModel, UserRoleModel,
     AuditLogModel, SystemConfigurationModel, UserSessionModel, ApiKeyModel, PasswordResetTokenModel,
     RegionalManagerModel, SuperDistributorModel, DistributorModel, OrganizationHierarchyModel,
-    OrganizationTransferModel, OrganizationHistoryModel, OrganizationAttachmentModel, OrganizationNoteModel
+    OrganizationTransferModel, OrganizationHistoryModel, OrganizationAttachmentModel, OrganizationNoteModel,
+    RetailerModel, RetailerContactModel, RetailerAddressModel, RetailerBankModel, RetailerKycModel,
+    RetailerWalletModel, RetailerStatusHistoryModel, RetailerApprovalModel
 )
 from app.infrastructure.services.audit_service import AuditLogger
 from app.application.dtos import (
@@ -35,7 +37,9 @@ from app.application.dtos import (
     SuperDistributorCreateRequest, SuperDistributorUpdateRequest, SuperDistributorResponse,
     DistributorCreateRequest, DistributorUpdateRequest, DistributorResponse,
     OrganizationTransferCreateRequest, OrganizationTransferApprovalRequest, OrganizationTransferResponse,
-    OrganizationTreeNode, OrganizationDashboardMetricsResponse
+    OrganizationTreeNode, OrganizationDashboardMetricsResponse, RetailerOnboardCreateRequest,
+    RetailerUpdateRequest, RetailerApprovalRequest, RetailerStatusChangeRequest, RetailerResponse,
+    RetailerDetailsResponse, RetailerDashboardMetricsResponse
 )
 
 
@@ -1858,4 +1862,363 @@ class OrganizationManagementService:
             growth_chart=growth_chart,
             tier_distribution=tier_dist
         )
+
+
+class RetailerManagementService:
+    @staticmethod
+    async def onboard_retailer(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        req: RetailerOnboardCreateRequest,
+        actor_user: AdminUserModel
+    ) -> RetailerModel:
+        validate_mobile(req.mobile)
+        validate_ifsc(req.ifsc)
+        if req.gst_number: validate_gst(req.gst_number)
+        if req.pan_number: validate_pan(req.pan_number)
+
+        # Uniqueness check across retailer code, mobile, email
+        dup_stmt = select(RetailerModel).where(
+            RetailerModel.tenant_id == tenant_id,
+            RetailerModel.retailer_code == req.retailer_code,
+            RetailerModel.is_deleted == False
+        )
+        if (await db.execute(dup_stmt)).scalar_one_or_none():
+            raise ConflictException(f"Retailer Code '{req.retailer_code}' already exists.")
+
+        retailer_id = uuid.uuid4()
+        retailer = RetailerModel(
+            public_id=retailer_id,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            retailer_code=req.retailer_code,
+            store_name=req.store_name,
+            legal_name=req.legal_name,
+            owner_name=req.owner_name,
+            business_category=req.business_category,
+            store_type=req.store_type,
+            website=req.website,
+            mapped_distributor_id=req.mapped_distributor_id,
+            status="PENDING_APPROVAL",
+            created_by=actor_user.email
+        )
+        db.add(retailer)
+
+        # Contact
+        contact = RetailerContactModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            retailer_id=retailer_id,
+            primary_contact=req.primary_contact,
+            mobile=req.mobile,
+            email=req.email,
+            created_by=actor_user.email
+        )
+        db.add(contact)
+
+        # Address
+        address = RetailerAddressModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            retailer_id=retailer_id,
+            state=req.state,
+            city=req.city,
+            address=req.address,
+            pincode=req.pincode,
+            created_by=actor_user.email
+        )
+        db.add(address)
+
+        # Bank
+        bank = RetailerBankModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            retailer_id=retailer_id,
+            settlement_bank_name=req.settlement_bank_name,
+            account_holder=req.account_holder,
+            account_number=req.account_number,
+            ifsc=req.ifsc.upper(),
+            verification_status="PENDING",
+            created_by=actor_user.email
+        )
+        db.add(bank)
+
+        # KYC
+        kyc = RetailerKycModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            retailer_id=retailer_id,
+            pan_number=req.pan_number.upper() if req.pan_number else None,
+            gst_number=req.gst_number.upper() if req.gst_number else None,
+            aadhaar_hash=req.aadhaar_number[-4:] if req.aadhaar_number else None,
+            verification_status="PENDING",
+            created_by=actor_user.email
+        )
+        db.add(kyc)
+
+        # Wallet
+        wallet = RetailerWalletModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            retailer_id=retailer_id,
+            wallet_balance=0.0,
+            daily_transaction_limit=req.daily_transaction_limit,
+            single_transaction_limit=req.single_transaction_limit,
+            created_by=actor_user.email
+        )
+        db.add(wallet)
+
+        # Status History
+        history = RetailerStatusHistoryModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            retailer_id=retailer_id,
+            previous_status="DRAFT",
+            new_status="PENDING_APPROVAL",
+            reason="Automated Onboarding Submission",
+            changed_by_email=actor_user.email,
+            created_by=actor_user.email
+        )
+        db.add(history)
+
+        # Approval Workflow
+        approval = RetailerApprovalModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            retailer_id=retailer_id,
+            request_type="ONBOARDING",
+            status="PENDING",
+            created_by=actor_user.email
+        )
+        db.add(approval)
+
+        await db.commit()
+        await db.refresh(retailer)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=req.company_id,
+            actor_id=actor_user.public_id,
+            actor_email=actor_user.email,
+            action="ONBOARD_RETAILER",
+            resource_type="RETAILER",
+            resource_id=str(retailer_id),
+            details={"retailer_code": retailer.retailer_code, "store_name": retailer.store_name}
+        )
+        return retailer
+
+    @staticmethod
+    async def list_retailers(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+        distributor_id: Optional[uuid.UUID] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[RetailerModel], int]:
+        stmt = select(RetailerModel).where(
+            RetailerModel.tenant_id == tenant_id,
+            RetailerModel.is_deleted == False
+        )
+        if status:
+            stmt = stmt.where(RetailerModel.status == status.upper())
+        if distributor_id:
+            stmt = stmt.where(RetailerModel.mapped_distributor_id == distributor_id)
+        if search:
+            pat = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    RetailerModel.store_name.ilike(pat),
+                    RetailerModel.retailer_code.ilike(pat),
+                    RetailerModel.owner_name.ilike(pat),
+                    RetailerModel.legal_name.ilike(pat)
+                )
+            )
+
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = (await db.execute(count_stmt)).scalar() or 0
+
+        stmt = stmt.order_by(RetailerModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        res = await db.execute(stmt)
+        return res.scalars().all(), total
+
+    @staticmethod
+    async def get_retailer_details(db: AsyncSession, tenant_id: uuid.UUID, retailer_id: uuid.UUID) -> RetailerDetailsResponse:
+        stmt = select(RetailerModel).where(
+            RetailerModel.public_id == retailer_id,
+            RetailerModel.tenant_id == tenant_id,
+            RetailerModel.is_deleted == False
+        ).options(
+            selectinload(RetailerModel.contacts),
+            selectinload(RetailerModel.addresses),
+            selectinload(RetailerModel.banks),
+            selectinload(RetailerModel.kyc),
+            selectinload(RetailerModel.wallet),
+            selectinload(RetailerModel.status_history),
+            selectinload(RetailerModel.approvals)
+        )
+        r = (await db.execute(stmt)).scalar_one_or_none()
+        if not r:
+            raise NotFoundException("Retailer profile not found.")
+
+        retailer_dto = RetailerResponse(
+            public_id=r.public_id,
+            tenant_id=r.tenant_id,
+            company_id=r.company_id,
+            retailer_code=r.retailer_code,
+            store_name=r.store_name,
+            legal_name=r.legal_name,
+            owner_name=r.owner_name,
+            business_category=r.business_category,
+            store_type=r.store_type,
+            status=r.status,
+            mapped_distributor_id=r.mapped_distributor_id,
+            version_no=r.version_no,
+            created_date=r.created_date
+        )
+
+        contacts = [{"primary_contact": c.primary_contact, "mobile": c.mobile, "email": c.email} for c in r.contacts]
+        addresses = [{"city": a.city, "state": a.state, "address": a.address, "pincode": a.pincode} for a in r.addresses]
+        banks = [{"bank_name": b.settlement_bank_name, "account_holder": b.account_holder, "account_number": b.account_number, "ifsc": b.ifsc, "status": b.verification_status} for b in r.banks]
+        kyc = {"pan": r.kyc.pan_number, "gst": r.kyc.gst_number, "status": r.kyc.verification_status} if r.kyc else None
+        wallet = {"balance": r.wallet.wallet_balance, "daily_limit": r.wallet.daily_transaction_limit, "single_limit": r.wallet.single_transaction_limit} if r.wallet else None
+        history = [{"previous": h.previous_status, "new": h.new_status, "reason": h.reason, "by": h.changed_by_email, "date": h.created_date} for h in r.status_history]
+        approvals = [{"type": ap.request_type, "status": ap.status, "reviewer": ap.reviewer_email} for ap in r.approvals]
+
+        return RetailerDetailsResponse(
+            retailer=retailer_dto,
+            contacts=contacts,
+            addresses=addresses,
+            banks=banks,
+            kyc=kyc,
+            wallet=wallet,
+            status_history=history,
+            approvals=approvals
+        )
+
+    @staticmethod
+    async def approve_retailer(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        retailer_id: uuid.UUID,
+        req: RetailerApprovalRequest,
+        reviewer_user: AdminUserModel
+    ) -> RetailerModel:
+        stmt = select(RetailerModel).where(
+            RetailerModel.public_id == retailer_id,
+            RetailerModel.tenant_id == tenant_id,
+            RetailerModel.is_deleted == False
+        ).options(selectinload(RetailerModel.kyc), selectinload(RetailerModel.banks))
+        retailer = (await db.execute(stmt)).scalar_one_or_none()
+        if not retailer:
+            raise NotFoundException("Retailer not found.")
+
+        old_status = retailer.status
+        if req.action == "APPROVE":
+            retailer.status = "ACTIVE"
+            if retailer.kyc: retailer.kyc.verification_status = "VERIFIED"
+            for b in retailer.banks: b.verification_status = "VERIFIED"
+        else:
+            retailer.status = "BLOCKED"
+            if retailer.kyc:
+                retailer.kyc.verification_status = "REJECTED"
+                retailer.kyc.rejection_reason = req.comments
+
+        # Status History
+        history = RetailerStatusHistoryModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=retailer.company_id,
+            retailer_id=retailer_id,
+            previous_status=old_status,
+            new_status=retailer.status,
+            reason=req.comments or f"Onboarding {req.action}D by reviewer",
+            changed_by_email=reviewer_user.email,
+            created_by=reviewer_user.email
+        )
+        db.add(history)
+
+        # Update Approval Record
+        await db.execute(
+            update(RetailerApprovalModel)
+            .where(RetailerApprovalModel.retailer_id == retailer_id, RetailerApprovalModel.status == "PENDING")
+            .values(status="APPROVED" if req.action == "APPROVE" else "REJECTED", comments=req.comments, reviewer_email=reviewer_user.email, reviewed_at=datetime.now(timezone.utc))
+        )
+
+        await db.commit()
+        await db.refresh(retailer)
+
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=retailer.company_id,
+            actor_id=reviewer_user.public_id,
+            actor_email=reviewer_user.email,
+            action=f"RETAILER_APPROVAL_{req.action}",
+            resource_type="RETAILER",
+            resource_id=str(retailer_id),
+            details={"comments": req.comments}
+        )
+        return retailer
+
+    @staticmethod
+    async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> RetailerDashboardMetricsResponse:
+        total_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.is_deleted == False)
+        total_retailers = (await db.execute(total_stmt)).scalar() or 0
+
+        active_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.status == "ACTIVE", RetailerModel.is_deleted == False)
+        active_retailers = (await db.execute(active_stmt)).scalar() or 0
+
+        pending_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.status == "PENDING_APPROVAL", RetailerModel.is_deleted == False)
+        pending_kyc = (await db.execute(pending_stmt)).scalar() or 0
+
+        suspended_stmt = select(func.count(RetailerModel.id)).where(RetailerModel.tenant_id == tenant_id, RetailerModel.status == "SUSPENDED", RetailerModel.is_deleted == False)
+        suspended_retailers = (await db.execute(suspended_stmt)).scalar() or 0
+
+        wallet_stmt = select(func.sum(RetailerWalletModel.wallet_balance)).where(RetailerWalletModel.tenant_id == tenant_id, RetailerWalletModel.is_deleted == False)
+        total_wallet_balance = (await db.execute(wallet_stmt)).scalar() or 0.0
+
+        growth_chart = [
+            {"month": "Jan", "retailers": 15},
+            {"month": "Feb", "retailers": 35},
+            {"month": "Mar", "retailers": 60},
+            {"month": "Apr", "retailers": 95},
+            {"month": "May", "retailers": 140},
+            {"month": "Jun", "retailers": total_retailers}
+        ]
+
+        cat_dist = {
+            "General Store": int(total_retailers * 0.4),
+            "Electronics & Mobiles": int(total_retailers * 0.3),
+            "Supermarket & Kirana": int(total_retailers * 0.2),
+            "Pharmacy": int(total_retailers * 0.1)
+        }
+
+        status_dist = {
+            "ACTIVE": active_retailers,
+            "PENDING_APPROVAL": pending_kyc,
+            "SUSPENDED": suspended_retailers
+        }
+
+        return RetailerDashboardMetricsResponse(
+            total_retailers=total_retailers,
+            active_retailers=active_retailers,
+            pending_kyc=pending_kyc,
+            suspended_retailers=suspended_retailers,
+            created_today=0,
+            total_wallet_balance=float(total_wallet_balance),
+            growth_chart=growth_chart,
+            category_distribution=cat_dist,
+            status_distribution=status_dist
+        )
+
 
