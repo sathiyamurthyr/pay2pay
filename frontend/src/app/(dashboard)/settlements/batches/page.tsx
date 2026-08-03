@@ -93,25 +93,25 @@ export default function BatchesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
-            <Receipt className="h-8 w-8 text-emerald-400" />
+          <h1 className="text-2xl font-bold text-[#111827] flex items-center gap-3">
+            <Receipt className="h-7 w-7 text-[#2563EB]" />
             Settlement Batches & Bank Payouts
           </h1>
-          <p className="mt-1 text-slate-400">
+          <p className="mt-1 text-xs text-[#64748B] font-semibold">
             Daily merchant batch settlements, net payout aggregation, and IMPS/NEFT bank dispatches
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowBatchModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500 transition-all"
+            className="flex items-center gap-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Generate Settlement Batch
           </button>
           <button
             onClick={() => setShowPayoutModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-500 transition-all"
+            className="flex items-center gap-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
           >
             <ArrowUpRight className="h-4 w-4" />
             Dispatch Bank Payout
@@ -120,45 +120,45 @@ export default function BatchesPage() {
       </div>
 
       {/* Grid Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+      <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 uppercase font-mono text-xs text-slate-400 border-b border-slate-800">
+          <table className="w-full text-left text-sm text-[#0F172A]">
+            <thead className="bg-[#F8FAFC] uppercase font-mono text-xs text-[#111827] border-b border-[#E2E8F0]">
               <tr>
-                <th className="px-5 py-4">Batch Number & Date</th>
-                <th className="px-5 py-4">Gross Volume</th>
-                <th className="px-5 py-4">Total MDR & GST</th>
-                <th className="px-5 py-4">Net Payout Amount</th>
-                <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4 font-extrabold text-[#111827]">Batch Number & Date</th>
+                <th className="px-5 py-4 font-extrabold text-[#111827]">Gross Volume</th>
+                <th className="px-5 py-4 font-extrabold text-[#111827]">Total MDR & GST</th>
+                <th className="px-5 py-4 font-extrabold text-[#111827]">Net Payout Amount</th>
+                <th className="px-5 py-4 font-extrabold text-[#111827]">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-[#E2E8F0]">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-slate-400">
+                  <td colSpan={5} className="px-5 py-12 text-center text-[#64748B] font-medium">
                     Loading Settlement Batches...
                   </td>
                 </tr>
               ) : batches.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-slate-400">
+                  <td colSpan={5} className="px-5 py-12 text-center text-[#64748B] font-medium">
                     No settlement batches generated yet. Click 'Generate Settlement Batch' to process.
                   </td>
                 </tr>
               ) : (
                 batches.map((b) => (
-                  <tr key={b.public_id} className="hover:bg-slate-800/40 transition-colors">
+                  <tr key={b.public_id} className="hover:bg-[#F8FAFC] transition-colors">
                     <td className="px-5 py-4">
-                      <div className="font-mono text-xs text-emerald-400 font-semibold">{b.batch_number}</div>
-                      <div className="text-[10px] text-slate-400">{b.batch_date} ({b.transaction_count} txns)</div>
+                      <div className="font-mono text-xs text-[#2563EB] font-extrabold">{b.batch_number}</div>
+                      <div className="text-[10px] text-[#64748B] font-semibold">{b.batch_date} ({b.transaction_count} txns)</div>
                     </td>
-                    <td className="px-5 py-4 font-mono font-bold text-slate-100">₹{b.gross_volume.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-4 font-mono font-bold text-[#0F172A]">₹{b.gross_volume.toLocaleString("en-IN")}</td>
                     <td className="px-5 py-4 font-mono text-xs">
-                      <span className="text-purple-400">MDR: ₹{b.total_mdr}</span> | <span className="text-cyan-400">GST: ₹{b.total_gst}</span>
+                      <span className="text-[#7C3AED] font-bold">MDR: ₹{b.total_mdr}</span> | <span className="text-[#0284C7] font-bold">GST: ₹{b.total_gst}</span>
                     </td>
-                    <td className="px-5 py-4 font-mono font-bold text-emerald-400">₹{b.net_payout_amount.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-4 font-mono font-extrabold text-[#15803D]">₹{b.net_payout_amount.toLocaleString("en-IN")}</td>
                     <td className="px-5 py-4">
-                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold bg-[#F0FDF4] text-[#15803D] border border-[#BBF7D0]">
                         {b.status}
                       </span>
                     </td>
@@ -172,38 +172,57 @@ export default function BatchesPage() {
 
       {/* Generate Batch Modal */}
       {showBatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 overflow-y-auto">
-          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4 my-8">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-emerald-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="w-full max-w-md rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
+              <h2 className="text-lg font-bold text-[#111827] flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-[#2563EB]" />
                 Generate Settlement Batch
               </h2>
-              <button onClick={() => setShowBatchModal(false)} className="text-slate-400 hover:text-slate-200">
+              <button
+                onClick={() => setShowBatchModal(false)}
+                className="text-[#64748B] hover:text-[#111827] transition-colors"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleGenerateBatch} className="space-y-4 text-xs">
+            <form onSubmit={handleGenerateBatch} className="space-y-4">
               <div>
-                <label className="font-medium text-slate-300">Target Company (Tenant) *</label>
-                <select
-                  value={batchCompanyId}
-                  onChange={(e) => setBatchCompanyId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-slate-100 focus:border-emerald-500 focus:outline-none"
-                >
-                  {companies.map((c) => (
-                    <option key={c.public_id} value={c.public_id}>{c.name} ({c.code})</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-bold text-[#374151] mb-1">Company / Merchant ID</label>
+                <input
+                  type="text"
+                  required
+                  value={batchForm.company_id}
+                  onChange={(e) => setBatchForm({ ...batchForm, company_id: e.target.value })}
+                  placeholder="Enter target tenant public_id"
+                  className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#374151] mb-1">Target Cutoff Settlement Date</label>
+                <input
+                  type="date"
+                  required
+                  value={batchForm.batch_date}
+                  onChange={(e) => setBatchForm({ ...batchForm, batch_date: e.target.value })}
+                  className="w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none"
+                />
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-800">
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#E2E8F0]">
+                <button
+                  type="button"
+                  onClick={() => setShowBatchModal(false)}
+                  className="rounded-lg border border-[#CBD5E1] bg-white px-4 py-2 text-xs font-bold text-[#374151] hover:bg-[#F8FAFC]"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 shadow-lg"
+                  className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-bold text-white hover:bg-[#15803D] shadow-xs"
                 >
-                  Run Batch Aggregator
+                  Aggregate & Create Batch
                 </button>
               </div>
             </form>

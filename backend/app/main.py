@@ -2,11 +2,12 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.core.config import settings
+from app.core.database import settings, engine, Base
 from app.core.exceptions import DomainException
 from app.presentation.api.v1 import (
-    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements, developer, compliance
+    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements, developer, compliance, financial_config, settlement_intake, settlement_processing, wallet_ledger, payouts, reporting, operations, crm, fraud, finance_accounting, bpm, eip, notifications, customer, beneficiary, policy, dmt, aeps, audio, secrets, upload, verification
 )
+import app.infrastructure.db.models  # Register all models with Base.metadata
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -15,6 +16,11 @@ app = FastAPI(
     docs_url=f"{settings.API_V1_STR}/docs",
     redoc_url=f"{settings.API_V1_STR}/redoc",
 )
+
+@app.on_event("startup")
+async def startup_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 # Enterprise CORS Configuration
 app.add_middleware(
@@ -61,6 +67,28 @@ app.include_router(machines.router, prefix=settings.API_V1_STR)
 app.include_router(settlements.router, prefix=settings.API_V1_STR)
 app.include_router(developer.router, prefix=settings.API_V1_STR)
 app.include_router(compliance.router, prefix=settings.API_V1_STR)
+app.include_router(financial_config.router, prefix=settings.API_V1_STR)
+app.include_router(settlement_intake.router, prefix=settings.API_V1_STR)
+app.include_router(settlement_processing.router, prefix=settings.API_V1_STR)
+app.include_router(wallet_ledger.router, prefix=settings.API_V1_STR)
+app.include_router(payouts.router, prefix=settings.API_V1_STR)
+app.include_router(reporting.router, prefix=settings.API_V1_STR)
+app.include_router(operations.router, prefix=settings.API_V1_STR)
+app.include_router(crm.router, prefix=settings.API_V1_STR)
+app.include_router(fraud.router, prefix=settings.API_V1_STR)
+app.include_router(finance_accounting.router, prefix=settings.API_V1_STR)
+app.include_router(bpm.router, prefix=settings.API_V1_STR)
+app.include_router(eip.router, prefix=settings.API_V1_STR)
+app.include_router(notifications.router, prefix=settings.API_V1_STR)
+app.include_router(customer.router, prefix=settings.API_V1_STR)
+app.include_router(beneficiary.router, prefix=settings.API_V1_STR)
+app.include_router(policy.router, prefix=settings.API_V1_STR)
+app.include_router(dmt.router, prefix=settings.API_V1_STR)
+app.include_router(aeps.router, prefix=settings.API_V1_STR)
+app.include_router(audio.router, prefix=settings.API_V1_STR)
+app.include_router(secrets.router, prefix=settings.API_V1_STR)
+app.include_router(upload.router, prefix=settings.API_V1_STR)
+app.include_router(verification.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])

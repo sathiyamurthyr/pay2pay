@@ -71,7 +71,9 @@ export default function ProfilePage() {
       setTimeout(() => setPasswordSuccess(false), 3000);
     },
     onError: (err: any) => {
-      setPasswordError(err.response?.data?.detail || "Failed to change password.");
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail : (Array.isArray(detail) ? detail.map((d: any) => d?.msg || String(d)).join("; ") : (detail?.msg || err.message || "Failed to change password."));
+      setPasswordError(msg);
     },
   });
 

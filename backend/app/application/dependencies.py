@@ -55,17 +55,6 @@ async def get_current_user(
     except ValueError:
         raise UnauthorizedException("Invalid User ID format")
 
-    # Verify session token JTI is active and not revoked
-    if jti:
-        session_stmt = select(UserSessionModel).where(
-            UserSessionModel.token_jti == jti,
-            UserSessionModel.is_revoked == False
-        )
-        session_res = await db.execute(session_stmt)
-        session_obj = session_res.scalar_one_or_none()
-        if not session_obj:
-            raise UnauthorizedException("Session has been revoked or logged out")
-
     stmt = (
         select(AdminUserModel)
         .options(
@@ -84,6 +73,28 @@ async def get_current_user(
 
     if not user or user.status != "ACTIVE":
         raise UnauthorizedException("User account is inactive or disabled")
+
+    # Enforce Single Active Machine Session Policy:
+    # Verify session token JTI is active and not revoked for this user
+    if jti:
+        session_stmt = select(UserSessionModel).where(
+            UserSessionModel.token_jti == jti,
+            UserSessionModel.user_id == user.id,
+            UserSessionModel.is_revoked == False
+        )
+        session_res = await db.execute(session_stmt)
+        session_obj = session_res.scalar_one_or_none()
+        if not session_obj:
+            raise UnauthorizedException("Session terminated. Account logged in on another machine/device.")
+    else:
+        # If no JTI in token payload, verify user has at least one active non-revoked session
+        active_sess_stmt = select(UserSessionModel).where(
+            UserSessionModel.user_id == user.id,
+            UserSessionModel.is_revoked == False
+        )
+        active_sess = (await db.execute(active_sess_stmt)).scalars().first()
+        if not active_sess:
+            raise UnauthorizedException("Session terminated. Account logged in on another machine/device.")
 
     return user
 

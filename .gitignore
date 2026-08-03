@@ -14,3 +14,6 @@ frontend/out/
 .vscode/
 .idea/
 *.log
+*.exe
+bw.exe
+

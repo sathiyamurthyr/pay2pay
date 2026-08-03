@@ -3,16 +3,67 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { ShieldCheck, Plus, Check, X, Lock } from "lucide-react";
+import {
+  ShieldCheck, Plus, Check, X, Lock, Key, Grid3X3, List,
+  AlertTriangle, Users, Eye,
+} from "lucide-react";
+
+// ─── Mock Permission Matrix Data ────────────────────────────────
+const MOCK_MATRIX = {
+  roles: [
+    { code: "PLATFORM_ADMIN",   name: "Platform Admin",       description: "Full platform administration rights", version: 1, is_system: true },
+    { code: "SUPER_ADMIN",       name: "Super Admin",          description: "Global administrator with all privileges", version: 1, is_system: true },
+    { code: "REGIONAL_MANAGER",  name: "Regional Manager",     description: "Manages territory super distributors and operations", version: 1, is_system: true },
+    { code: "SUPER_DISTRIBUTOR", name: "Super Distributor",    description: "Manages distributors network and bulk allocations", version: 1, is_system: true },
+    { code: "DISTRIBUTOR",       name: "Distributor",          description: "Manages retailer network and local operations", version: 1, is_system: true },
+    { code: "RETAILER",          name: "Retailer",             description: "Merchant outlet user", version: 1, is_system: true },
+    { code: "OPERATIONS",        name: "Operations Executive", description: "Day-to-day transaction & terminal support", version: 1, is_system: true },
+    { code: "COMPLIANCE",        name: "Compliance Officer",   description: "KYC, audit & AML review officer", version: 1, is_system: true },
+    { code: "FINANCE",           name: "Finance Manager",      description: "Settlements, accounting & payout manager", version: 1, is_system: true },
+    { code: "SETTLEMENT_MGR",    name: "Settlement Manager",   description: "Settlement approval & processing", version: 1, is_system: true },
+    { code: "AUDIT_VIEWER",      name: "Audit Viewer",         description: "Read-only audit & reports", version: 1, is_system: true },
+  ],
+  permissions: [
+    { code: "company.create",         module: "Company" },
+    { code: "company.approve",        module: "Company" },
+    { code: "settlement.approve",     module: "Settlement" },
+    { code: "settlement.view",        module: "Settlement" },
+    { code: "wallet.adjust",          module: "Wallet" },
+    { code: "compliance.view",        module: "Compliance" },
+    { code: "compliance.aml",         module: "Compliance" },
+    { code: "audit.logs.view",        module: "Audit" },
+    { code: "users.manage",           module: "Users" },
+    { code: "config.manage",          module: "Config" },
+  ],
+  matrix: {
+    PLATFORM_ADMIN:    ["company.create", "company.approve", "settlement.approve", "settlement.view", "wallet.adjust", "compliance.view", "compliance.aml", "audit.logs.view", "users.manage", "config.manage"],
+    SUPER_ADMIN:       ["company.create", "company.approve", "settlement.approve", "settlement.view", "wallet.adjust", "compliance.view", "compliance.aml", "audit.logs.view", "users.manage", "config.manage"],
+    REGIONAL_MANAGER:  ["users.manage", "settlement.view", "compliance.view"],
+    SUPER_DISTRIBUTOR: ["users.manage", "settlement.view"],
+    DISTRIBUTOR:       ["users.manage", "settlement.view"],
+    RETAILER:          ["settlement.view"],
+    OPERATIONS:        ["settlement.view", "users.manage"],
+    COMPLIANCE:        ["compliance.view", "compliance.aml", "audit.logs.view", "settlement.view"],
+    FINANCE:           ["settlement.approve", "settlement.view", "wallet.adjust"],
+    SETTLEMENT_MGR:    ["settlement.approve", "settlement.view", "wallet.adjust"],
+    AUDIT_VIEWER:      ["audit.logs.view", "settlement.view", "compliance.view"],
+  },
+};
+
+const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  Company:    { bg: "#EDE9FE", text: "#4C1D95", border: "#DDD6FE" },
+  Settlement: { bg: "#DBEAFE", text: "#1E40AF", border: "#93C5FD" },
+  Wallet:     { bg: "#FEF3C7", text: "#92400E", border: "#FCD34D" },
+  Compliance: { bg: "#D1FAE5", text: "#065F46", border: "#6EE7B7" },
+  Audit:      { bg: "#F3E8FF", text: "#6D28D9", border: "#DDD6FE" },
+  Users:      { bg: "#FEE2E2", text: "#991B1B", border: "#FECACA" },
+  Config:     { bg: "#F1F5F9", text: "#334155", border: "#CBD5E1" },
+};
 
 export default function RolesPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"roles" | "matrix">("matrix");
+  const [activeTab, setActiveTab] = useState<"matrix" | "roles">("matrix");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", code: "", description: "" });
 
@@ -36,170 +87,225 @@ export default function RolesPage() {
     },
   });
 
-  const roles = matrixData?.roles || [];
-  const permissions = matrixData?.permissions || [];
-  const matrix = matrixData?.matrix || {};
+  const roles = matrixData?.roles || MOCK_MATRIX.roles;
+  const permissions = matrixData?.permissions || MOCK_MATRIX.permissions;
+  const matrix = matrixData?.matrix || MOCK_MATRIX.matrix;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Roles & Permission Matrix</h1>
-          <p className="text-xs text-slate-400 mt-1">Enterprise Access Control & Granular RBAC Permission Matrix</p>
+          <h1 className="ent-page-title">Roles & Permission Matrix</h1>
+          <p className="ent-caption mt-1">Enterprise access control & granular RBAC permission management</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+        <div className="flex items-center gap-2.5">
+          {/* Tab Switcher */}
+          <div className="flex p-1 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC]">
             <button
               onClick={() => setActiveTab("matrix")}
-              className={`px-3 py-1.5 rounded-md font-medium transition ${
-                activeTab === "matrix" ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold transition-all ${
+                activeTab === "matrix"
+                  ? "bg-white text-[#6C63FF] shadow-sm border border-[#E2E8F0]"
+                  : "text-[#64748B] hover:text-[#334155]"
               }`}
             >
-              Permission Matrix Grid
+              <Grid3X3 className="w-3.5 h-3.5" />
+              Permission Matrix
             </button>
             <button
               onClick={() => setActiveTab("roles")}
-              className={`px-3 py-1.5 rounded-md font-medium transition ${
-                activeTab === "roles" ? "bg-blue-600 text-white shadow" : "text-slate-400 hover:text-white"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold transition-all ${
+                activeTab === "roles"
+                  ? "bg-white text-[#6C63FF] shadow-sm border border-[#E2E8F0]"
+                  : "text-[#64748B] hover:text-[#334155]"
               }`}
             >
+              <List className="w-3.5 h-3.5" />
               Role List
             </button>
           </div>
-          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-1.5" /> Add Custom Role
-          </Button>
+          <button onClick={() => setIsModalOpen(true)} className="ent-btn ent-btn-primary">
+            <Plus className="w-4 h-4" />
+            Add Custom Role
+          </button>
         </div>
       </div>
 
-      {activeTab === "matrix" ? (
-        <Card className="glass-card">
-          <CardHeader>
-            <div>
-              <CardTitle>Enterprise RBAC Permission Matrix</CardTitle>
-              <CardDescription>Granular permission mapping across Platform Roles</CardDescription>
+      {/* ── KPI Strip ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label: "Total Roles",       value: roles.length,       color: "#6C63FF", bg: "#EDE9FE", icon: ShieldCheck },
+          { label: "System Roles",      value: roles.filter((r: any) => r.is_system).length, color: "#3B82F6", bg: "#DBEAFE", icon: Lock },
+          { label: "Custom Roles",      value: roles.filter((r: any) => !r.is_system).length, color: "#10B981", bg: "#D1FAE5", icon: Key },
+          { label: "Permissions",       value: permissions.length,  color: "#F59E0B", bg: "#FEF3C7", icon: Eye },
+        ].map(({ label, value, color, bg, icon: Icon }) => (
+          <div key={label} className="ent-card p-4" style={{ borderLeft: `3px solid ${color}` }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: bg }}>
+                <Icon className="w-4.5 h-4.5" style={{ color, width: "18px", height: "18px" }} />
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="py-12 text-center text-slate-500 text-xs">Loading Permission Matrix...</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-900/90 text-slate-300 border-b border-slate-800">
-                      <th className="py-3.5 px-4 font-semibold w-64 sticky left-0 bg-slate-900 z-10">Permission Code</th>
-                      <th className="py-3.5 px-4 font-semibold w-28">Module</th>
-                      {roles.map((r: any) => (
-                        <th key={r.code} className="py-3.5 px-4 font-semibold text-center min-w-[120px]">
-                          <div className="font-bold text-white text-xs">{r.name}</div>
-                          <div className="text-[10px] font-mono text-slate-400 font-normal">{r.code}</div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {permissions.map((p: any) => (
-                      <tr key={p.code} className="hover:bg-slate-800/40 transition">
-                        <td className="py-3 px-4 font-mono font-medium text-slate-200 sticky left-0 bg-[#0c1220] z-10 border-r border-slate-800">
-                          {p.code}
+            <div className="font-mono text-[24px] font-extrabold text-[#0F172A] tabular-nums">{value}</div>
+            <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Permission Matrix ── */}
+      {activeTab === "matrix" ? (
+        <div className="ent-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E2E8F0] bg-[#FAFBFF]">
+            <h3 className="ent-card-title flex items-center gap-2">
+              <span className="inline-flex w-7 h-7 rounded-lg items-center justify-center bg-[#EDE9FE]">
+                <Grid3X3 className="w-3.5 h-3.5 text-[#6C63FF]" />
+              </span>
+              Enterprise RBAC Permission Matrix
+            </h3>
+            <p className="ent-caption mt-0.5">Granular permission mapping across Platform Roles</p>
+          </div>
+
+          {isLoading ? (
+            <div className="py-14 text-center">
+              <div className="w-8 h-8 border-2 border-[#6C63FF] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-[12px] text-[#94A3B8] mt-3">Loading permission matrix…</p>
+            </div>
+          ) : (
+            <div className="ent-table-container border-0 rounded-none">
+              <table className="ent-table">
+                <thead>
+                  <tr>
+                    <th className="sticky left-0 z-20 bg-[#F3F6FB] min-w-[200px]">Permission Code</th>
+                    <th className="min-w-[110px]">Module</th>
+                    {roles.map((r: any) => (
+                      <th key={r.code} className="text-center min-w-[130px]">
+                        <div className="font-bold text-[#0F172A]">{r.name}</div>
+                        <div className="text-[10px] font-mono text-[#64748B] font-normal mt-0.5">{r.code}</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {permissions.map((p: any) => {
+                    const mc = MODULE_COLORS[p.module] || MODULE_COLORS.Config;
+                    return (
+                      <tr key={p.code}>
+                        <td className="sticky left-0 z-10 bg-inherit">
+                          <span className="font-mono text-[12px] font-semibold text-[#334155]">{p.code}</span>
                         </td>
-                        <td className="py-3 px-4">
-                          <Badge variant="neutral" className="text-[10px]">{p.module}</Badge>
+                        <td>
+                          <span
+                            className="ent-badge text-[10px]"
+                            style={{ background: mc.bg, color: mc.text, border: `1px solid ${mc.border}` }}
+                          >
+                            {p.module}
+                          </span>
                         </td>
                         {roles.map((r: any) => {
-                          const isAssigned = matrix[r.code]?.includes(p.code) || r.code === "PLATFORM_ADMIN";
+                          const isAssigned = (matrix as any)[r.code]?.includes(p.code) || r.code === "PLATFORM_ADMIN";
                           return (
-                            <td key={r.code} className="py-3 px-4 text-center">
+                            <td key={r.code} className="text-center">
                               {isAssigned ? (
-                                <div className="inline-flex w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/30 items-center justify-center text-emerald-400">
-                                  <Check className="w-3.5 h-3.5" />
+                                <div className="inline-flex w-6 h-6 rounded-full items-center justify-center"
+                                  style={{ background: "#D1FAE5", border: "1px solid #6EE7B7" }}>
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
                                 </div>
                               ) : (
-                                <div className="inline-flex w-6 h-6 rounded-full bg-slate-800/40 items-center justify-center text-slate-600">
-                                  <X className="w-3.5 h-3.5" />
+                                <div className="inline-flex w-6 h-6 rounded-full items-center justify-center bg-[#F1F5F9]">
+                                  <X className="w-3 h-3 text-[#CBD5E1]" />
                                 </div>
                               )}
                             </td>
                           );
                         })}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        /* ── Role Cards ── */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {roles.map((r: any) => (
-            <Card key={r.code} className="glass-card">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white text-base">{r.name}</h3>
-                    <p className="text-xs font-mono text-blue-400">{r.code}</p>
-                  </div>
+            <div
+              key={r.code}
+              className="ent-card p-5 hover:shadow-md transition-all cursor-default"
+              style={{ borderLeft: "3px solid #6C63FF" }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: "#EDE9FE" }}>
+                  <ShieldCheck className="w-5 h-5 text-[#6C63FF]" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-slate-400 mb-4">{r.description || "Enterprise standard role definition."}</p>
-                <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-800">
-                  <span className="text-slate-500 font-mono">v{r.version}</span>
-                  {r.is_system ? (
-                    <Badge variant="info" className="flex items-center gap-1">
-                      <Lock className="w-3 h-3" /> System Role
-                    </Badge>
-                  ) : (
-                    <Badge variant="neutral">Custom Role</Badge>
-                  )}
+                <div className="min-w-0">
+                  <h3 className="font-bold text-[#0F172A] text-[14px] leading-tight">{r.name}</h3>
+                  <p className="text-[11px] font-mono text-[#6C63FF] mt-0.5">{r.code}</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+              <p className="text-[12px] text-[#64748B] mt-3 leading-relaxed">
+                {r.description || "Enterprise standard role definition."}
+              </p>
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#E2E8F0]">
+                <span className="font-mono text-[10px] text-[#94A3B8]">v{r.version}</span>
+                {r.is_system ? (
+                  <span className="ent-badge ent-badge-processing">
+                    <Lock className="w-2.5 h-2.5" /> System Role
+                  </span>
+                ) : (
+                  <span className="ent-badge ent-badge-inactive">Custom Role</span>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       )}
 
-      {/* Add Custom Role Modal */}
+      {/* ── Create Role Modal ── */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create Enterprise Role">
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            createRoleMutation.mutate(formData);
-          }}
+          onSubmit={(e) => { e.preventDefault(); createRoleMutation.mutate(formData); }}
           className="space-y-4"
         >
-          <Input
-            label="Role Name"
-            placeholder="e.g. Regional Risk Officer"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-          <Input
-            label="Role Code"
-            placeholder="e.g. REGIONAL_RISK_OFFICER"
-            value={formData.code}
-            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-            required
-          />
-          <Input
-            label="Description"
-            placeholder="Role duties and scope..."
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          />
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-            <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)}>
+          <div>
+            <label className="ent-label">Role Name</label>
+            <input
+              className="ent-input"
+              placeholder="e.g. Regional Risk Officer"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="ent-label">Role Code</label>
+            <input
+              className="ent-input font-mono"
+              placeholder="e.g. REGIONAL_RISK_OFFICER"
+              value={formData.code}
+              onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase().replace(/\s/g, "_") })}
+              required
+            />
+          </div>
+          <div>
+            <label className="ent-label">Description</label>
+            <textarea
+              className="ent-input resize-none h-20"
+              placeholder="Role duties and scope…"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-[#E2E8F0]">
+            <button type="button" onClick={() => setIsModalOpen(false)} className="ent-btn ent-btn-secondary">
               Cancel
-            </Button>
-            <Button variant="primary" type="submit" disabled={createRoleMutation.isPending}>
-              {createRoleMutation.isPending ? "Creating..." : "Save Role"}
-            </Button>
+            </button>
+            <button type="submit" disabled={createRoleMutation.isPending} className="ent-btn ent-btn-primary">
+              {createRoleMutation.isPending ? "Creating…" : "Save Role"}
+            </button>
           </div>
         </form>
       </Modal>

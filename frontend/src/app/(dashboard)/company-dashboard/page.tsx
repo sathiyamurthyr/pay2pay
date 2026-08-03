@@ -125,32 +125,32 @@ export default function CompanyDashboardPage() {
       {/* 4 Analytics Visualizers Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Growth Chart Visualizer */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#111827]">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-emerald-400" />
-              <h3 className="font-semibold text-slate-200 text-lg">Company Growth Trend</h3>
+              <TrendingUp className="h-5 w-5 text-[#166534]" />
+              <h3 className="font-extrabold text-[#111827] text-lg">Company Growth Trend</h3>
             </div>
-            <span className="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-1 rounded">2026 Telemetry</span>
+            <span className="text-xs font-mono text-[#6B7280] font-bold bg-[#FAFBFC] px-2.5 py-1 rounded border border-[#E5E7EB]">2026 Telemetry</span>
           </div>
-          <div className="flex h-48 items-end gap-3 pt-6 border-b border-slate-800 pb-2">
+          <div className="flex h-48 items-end gap-3 pt-6 border-b border-[#E5E7EB] pb-2">
             {metrics.growth_chart.map((item, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-2">
                 <div
                   style={{ height: `${Math.max(15, (item.companies / (metrics.total_companies || 1)) * 100)}%` }}
-                  className="w-full rounded-t bg-gradient-to-t from-emerald-600 to-teal-400 transition-all duration-500 hover:brightness-125"
+                  className="w-full rounded-t bg-[#2563EB] transition-all duration-500 hover:brightness-125"
                 />
-                <span className="text-xs font-mono text-slate-400">{item.month}</span>
+                <span className="text-xs font-mono font-bold text-[#6B7280]">{item.month}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Status Distribution */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#111827]">
           <div className="flex items-center gap-2 mb-6">
-            <PieIcon className="h-5 w-5 text-blue-400" />
-            <h3 className="font-semibold text-slate-200 text-lg">Status Distribution</h3>
+            <PieIcon className="h-5 w-5 text-[#2563EB]" />
+            <h3 className="font-extrabold text-[#111827] text-lg">Status Distribution</h3>
           </div>
           <div className="space-y-4">
             {Object.entries(metrics.status_distribution).map(([status, count]) => {
@@ -158,15 +158,15 @@ export default function CompanyDashboardPage() {
               return (
                 <div key={status} className="space-y-1.5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-300 font-medium">{status.replace("_", " ")}</span>
-                    <span className="font-mono text-slate-400">{count} ({pct}%)</span>
+                    <span className="text-[#111827] font-bold">{status.replace("_", " ")}</span>
+                    <span className="font-mono font-bold text-[#6B7280]">{count} ({pct}%)</span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div className="h-2 w-full rounded-full bg-[#F3F4F6] overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
-                        status === "ACTIVE" ? "bg-emerald-400" :
-                        status === "PENDING_APPROVAL" ? "bg-amber-400" :
-                        status === "SUSPENDED" ? "bg-rose-500" : "bg-slate-500"
+                        status === "ACTIVE" ? "bg-[#16A34A]" :
+                        status === "PENDING_APPROVAL" ? "bg-[#D97706]" :
+                        status === "SUSPENDED" ? "bg-[#DC2626]" : "bg-[#6B7280]"
                       }`}
                       style={{ width: `${pct}%` }}
                     />
@@ -178,32 +178,32 @@ export default function CompanyDashboardPage() {
         </div>
 
         {/* State-wise Distribution */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#111827]">
           <div className="flex items-center gap-2 mb-6">
-            <MapPin className="h-5 w-5 text-cyan-400" />
-            <h3 className="font-semibold text-slate-200 text-lg">State-wise Regional Presence</h3>
+            <MapPin className="h-5 w-5 text-[#2563EB]" />
+            <h3 className="font-extrabold text-[#111827] text-lg">State-wise Regional Presence</h3>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {Object.entries(metrics.state_distribution).map(([state, count]) => (
-              <div key={state} className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
-                <div className="text-xs text-slate-400 uppercase font-mono">{state}</div>
-                <div className="text-2xl font-bold text-slate-100 mt-1">{count}</div>
+              <div key={state} className="rounded-lg border border-[#E5E7EB] bg-[#FAFBFC] p-4">
+                <div className="text-xs text-[#6B7280] uppercase font-mono font-bold">{state}</div>
+                <div className="text-2xl font-extrabold text-[#111827] mt-1">{count}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Subscription Distribution */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-6 shadow-2xs text-[#111827]">
           <div className="flex items-center gap-2 mb-6">
-            <CreditCard className="h-5 w-5 text-purple-400" />
-            <h3 className="font-semibold text-slate-200 text-lg">Subscription Tier Distribution</h3>
+            <CreditCard className="h-5 w-5 text-[#2563EB]" />
+            <h3 className="font-extrabold text-[#111827] text-lg">Subscription Tier Distribution</h3>
           </div>
           <div className="space-y-4">
             {Object.entries(metrics.subscription_distribution).map(([plan, count]) => (
-              <div key={plan} className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/40 px-4 py-3">
-                <span className="font-medium text-slate-200">{plan.replace("_", " ")}</span>
-                <span className="font-mono text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full text-xs font-semibold">
+              <div key={plan} className="flex items-center justify-between rounded-lg border border-[#E5E7EB] bg-[#FAFBFC] px-4 py-3">
+                <span className="font-bold text-[#111827]">{plan.replace("_", " ")}</span>
+                <span className="font-mono text-[#166534] bg-[#DCFCE7] border border-[#BBF7D0] px-3 py-1 rounded-full text-xs font-bold">
                   {count} Companies
                 </span>
               </div>

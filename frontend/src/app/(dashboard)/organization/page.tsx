@@ -13,11 +13,11 @@ import {
   Plus,
   ArrowLeftRight,
   RefreshCw,
-  Search,
-  CheckCircle,
-  FileSpreadsheet,
-  X
+  CheckCircle2,
+  X,
+  Store,
 } from "lucide-react";
+import { DataTable, type TableColumn } from "@/components/ui/data-table";
 
 interface TreeNode {
   id: string;
@@ -28,18 +28,64 @@ interface TreeNode {
   children: TreeNode[];
 }
 
+function TreeNodeItem({ node }: { node: TreeNode }) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  const getBadgeColor = (type: string) => {
+    switch (type) {
+      case "COMPANY": return "bg-[#EFF6FF] text-[#1E40AF] border-[#BFDBFE]";
+      case "REGIONAL_MANAGER": return "bg-[#F3E8FF] text-[#6D28D9] border-[#DDD6FE]";
+      case "SUPER_DISTRIBUTOR": return "bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]";
+      case "DISTRIBUTOR": return "bg-[#E0F2FE] text-[#0369A1] border-[#BAE6FD]";
+      case "RETAILER": return "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]";
+      default: return "bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]";
+    }
+  };
+
+  return (
+    <div className="pl-4 border-l-2 border-[#E2E8F0] my-2 font-mono text-xs">
+      <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-white border border-[#E2E8F0] shadow-2xs hover:border-[#2563EB] transition-all">
+        {node.children && node.children.length > 0 && (
+          <button onClick={() => setIsOpen(!isOpen)} className="text-[#64748B] hover:text-[#0F172A]">
+            {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+        )}
+        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${getBadgeColor(node.type)}`}>
+          {node.type}
+        </span>
+        <span className="font-bold text-[#0F172A]">{node.name}</span>
+        <span className="text-[#64748B] text-[11px]">({node.code_or_email})</span>
+        <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold text-[#166534]">
+          <CheckCircle2 className="w-3 h-3 text-[#16A34A]" /> {node.status}
+        </span>
+      </div>
+
+      {isOpen && node.children && node.children.length > 0 && (
+        <div className="ml-3 space-y-1">
+          {node.children.map((child) => (
+            <TreeNodeItem key={child.id} node={child} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type ActiveTab = "tree" | "rms" | "sds" | "distributors" | "retailers";
+
 export default function OrganizationPage() {
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"tree" | "rms" | "sds" | "distributors">("tree");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("tree");
 
   // Grid states
   const [rms, setRms] = useState<any[]>([]);
   const [sds, setSds] = useState<any[]>([]);
   const [dists, setDists] = useState<any[]>([]);
-  const [search, setSearch] = useState("");
+  const [retailers, setRetailers] = useState<any[]>([]);
+  const [gridLoading, setGridLoading] = useState(false);
 
-  // Modal State for Onboarding RM/SD/Distributor
+  // Modal State for Onboarding RM
   const [showRmModal, setShowRmModal] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
   const [rmFormData, setRmFormData] = useState({
@@ -66,8 +112,8 @@ export default function OrganizationPage() {
   const fetchCompanies = async () => {
     try {
       const res = await api.get("/api/v1/companies");
-      setCompanies(res.data.items);
-      if (res.data.items.length > 0) {
+      setCompanies(res.data.items || []);
+      if (res.data.items && res.data.items.length > 0) {
         setRmFormData(prev => ({ ...prev, company_id: res.data.items[0].public_id }));
       }
     } catch (err) {
@@ -77,23 +123,38 @@ export default function OrganizationPage() {
 
   const fetchRms = async () => {
     try {
-      const res = await api.get("/api/v1/organization/rms", { params: { search } });
-      setRms(res.data.items);
+      setGridLoading(true);
+      const res = await api.get("/api/v1/organization/rms");
+      setRms(res.data.items || []);
     } catch (err) { console.error(err); }
+    finally { setGridLoading(false); }
   };
 
   const fetchSds = async () => {
     try {
-      const res = await api.get("/api/v1/organization/super-distributors", { params: { search } });
-      setSds(res.data.items);
+      setGridLoading(true);
+      const res = await api.get("/api/v1/organization/super-distributors");
+      setSds(res.data.items || []);
     } catch (err) { console.error(err); }
+    finally { setGridLoading(false); }
   };
 
   const fetchDists = async () => {
     try {
-      const res = await api.get("/api/v1/organization/distributors", { params: { search } });
-      setDists(res.data.items);
+      setGridLoading(true);
+      const res = await api.get("/api/v1/organization/distributors");
+      setDists(res.data.items || []);
     } catch (err) { console.error(err); }
+    finally { setGridLoading(false); }
+  };
+
+  const fetchRetailers = async () => {
+    try {
+      setGridLoading(true);
+      const res = await api.get("/api/v1/retailers");
+      setRetailers(res.data.items || []);
+    } catch (err) { console.error(err); }
+    finally { setGridLoading(false); }
   };
 
   useEffect(() => {
@@ -105,7 +166,8 @@ export default function OrganizationPage() {
     if (activeTab === "rms") fetchRms();
     if (activeTab === "sds") fetchSds();
     if (activeTab === "distributors") fetchDists();
-  }, [activeTab, search]);
+    if (activeTab === "retailers") fetchRetailers();
+  }, [activeTab]);
 
   const handleCreateRm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,90 +181,289 @@ export default function OrganizationPage() {
     }
   };
 
+  // Columns for RMs
+  const rmColumns: TableColumn<any>[] = [
+    {
+      id: "full_name",
+      header: "Full Name",
+      sortable: true,
+      cell: (item) => <span className="font-bold text-[#0F172A]">{item.full_name}</span>,
+    },
+    {
+      id: "employee_code",
+      header: "Employee Code",
+      sortable: true,
+      cell: (item) => <span className="font-mono text-xs font-bold text-[#2563EB]">{item.employee_code}</span>,
+    },
+    {
+      id: "email",
+      header: "Email",
+      cell: (item) => <span className="text-xs text-[#475569]">{item.email}</span>,
+    },
+    {
+      id: "mobile",
+      header: "Mobile",
+      cell: (item) => <span className="font-mono text-xs text-[#475569]">{item.mobile || "—"}</span>,
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortable: true,
+      cell: (item) => (
+        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold border ${
+          item.status === "ACTIVE"
+            ? "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]"
+            : "bg-[#FEF9C3] text-[#854D0E] border-[#FDE68A]"
+        }`}>
+          {item.status || "ACTIVE"}
+        </span>
+      ),
+    },
+  ];
+
+  // Columns for SDs
+  const sdColumns: TableColumn<any>[] = [
+    {
+      id: "business_name",
+      header: "Business Name",
+      sortable: true,
+      cell: (item) => <span className="font-bold text-[#0F172A]">{item.business_name}</span>,
+    },
+    {
+      id: "owner_name",
+      header: "Owner Name",
+      sortable: true,
+      cell: (item) => <span className="text-xs text-[#374151]">{item.owner_name}</span>,
+    },
+    {
+      id: "email",
+      header: "Email",
+      cell: (item) => <span className="text-xs text-[#475569]">{item.email}</span>,
+    },
+    {
+      id: "mobile",
+      header: "Mobile",
+      cell: (item) => <span className="font-mono text-xs text-[#475569]">{item.mobile || "—"}</span>,
+    },
+    {
+      id: "gst_number",
+      header: "GST Number",
+      cell: (item) => <span className="font-mono text-xs text-[#475569]">{item.gst_number || "—"}</span>,
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortable: true,
+      cell: (item) => (
+        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold border ${
+          item.status === "ACTIVE"
+            ? "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]"
+            : "bg-[#FEF9C3] text-[#854D0E] border-[#FDE68A]"
+        }`}>
+          {item.status || "ACTIVE"}
+        </span>
+      ),
+    },
+  ];
+
+  // Columns for Distributors
+  const distColumns: TableColumn<any>[] = [
+    {
+      id: "business_name",
+      header: "Business Name",
+      sortable: true,
+      cell: (item) => <span className="font-bold text-[#0F172A]">{item.business_name}</span>,
+    },
+    {
+      id: "owner_name",
+      header: "Owner Name",
+      sortable: true,
+      cell: (item) => <span className="text-xs text-[#374151]">{item.owner_name}</span>,
+    },
+    {
+      id: "email",
+      header: "Email",
+      cell: (item) => <span className="text-xs text-[#475569]">{item.email}</span>,
+    },
+    {
+      id: "mobile",
+      header: "Mobile",
+      cell: (item) => <span className="font-mono text-xs text-[#475569]">{item.mobile || "—"}</span>,
+    },
+    {
+      id: "city",
+      header: "City / State",
+      cell: (item) => (
+        <span className="text-xs text-[#475569]">
+          {[item.city, item.state].filter(Boolean).join(", ") || "—"}
+        </span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortable: true,
+      cell: (item) => (
+        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold border ${
+          item.status === "ACTIVE"
+            ? "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]"
+            : "bg-[#FEF9C3] text-[#854D0E] border-[#FDE68A]"
+        }`}>
+          {item.status || "ACTIVE"}
+        </span>
+      ),
+    },
+  ];
+
+  // Columns for Retailers
+  const retailerColumns: TableColumn<any>[] = [
+    {
+      id: "store_name",
+      header: "Store Name",
+      sortable: true,
+      cell: (item) => (
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#DCFCE7] text-[#166534]">
+            <Store className="w-3.5 h-3.5" />
+          </span>
+          <span className="font-bold text-[#0F172A]">{item.store_name}</span>
+        </div>
+      ),
+    },
+    {
+      id: "retailer_code",
+      header: "Retailer Code",
+      sortable: true,
+      cell: (item) => <span className="font-mono text-xs font-bold text-[#16A34A]">{item.retailer_code}</span>,
+    },
+    {
+      id: "owner_name",
+      header: "Owner Name",
+      cell: (item) => <span className="text-xs text-[#374151]">{item.owner_name}</span>,
+    },
+    {
+      id: "legal_name",
+      header: "Legal / Trade Name",
+      cell: (item) => <span className="text-xs text-[#475569]">{item.legal_name || "—"}</span>,
+    },
+    {
+      id: "business_category",
+      header: "Category",
+      cell: (item) => (
+        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold bg-[#E0F2FE] text-[#0369A1] border border-[#BAE6FD]">
+          {item.business_category || "—"}
+        </span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortable: true,
+      cell: (item) => (
+        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold border ${
+          item.status === "ACTIVE" || item.status === "APPROVED"
+            ? "bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]"
+            : item.status === "PENDING_APPROVAL"
+            ? "bg-[#FEF9C3] text-[#854D0E] border-[#FDE68A]"
+            : "bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]"
+        }`}>
+          {item.status || "ACTIVE"}
+        </span>
+      ),
+    },
+  ];
+
+  // Resolve current active grid data + columns + refresh
+  const gridData = activeTab === "rms" ? rms
+    : activeTab === "sds" ? sds
+    : activeTab === "distributors" ? dists
+    : retailers;
+
+  const gridColumns = activeTab === "rms" ? rmColumns
+    : activeTab === "sds" ? sdColumns
+    : activeTab === "distributors" ? distColumns
+    : retailerColumns;
+
+  const gridRefresh = activeTab === "rms" ? fetchRms
+    : activeTab === "sds" ? fetchSds
+    : activeTab === "distributors" ? fetchDists
+    : fetchRetailers;
+
+  const tabLabels: Record<string, string> = {
+    rms: "Regional Managers",
+    sds: "Super Distributors",
+    distributors: "Distributors",
+    retailers: "Retailers",
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
-            <Network className="h-8 w-8 text-emerald-400" />
-            Enterprise Organization Topology
+          <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight flex items-center gap-3">
+            <Network className="w-7 h-7 text-[#2563EB]" /> Enterprise Organization Topology
           </h1>
-          <p className="mt-1 text-slate-400">
-            5-tier hierarchical tree mapping (Company → RM → Super Distributor → Distributor)
+          <p className="mt-1 text-sm font-medium text-[#64748B]">
+            5-tier hierarchical topology (Company → Regional Manager → Super Distributor → Distributor → Retailer)
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Link
             href="/organization/transfers"
-            className="flex items-center gap-2 rounded-lg bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700 transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] text-xs font-extrabold text-[#2563EB] hover:bg-[#DBEAFE] transition-all"
           >
-            <ArrowLeftRight className="h-4 w-4 text-emerald-400" />
-            Manage Transfers
+            <ArrowLeftRight className="w-4 h-4" /> Manage Transfers
           </Link>
           <button
             onClick={() => setShowRmModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500 transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2563EB] text-xs font-extrabold text-white hover:bg-[#1D4ED8] shadow-2xs transition-all cursor-pointer"
           >
-            <Plus className="h-4 w-4" />
-            Add Regional Manager
+            <Plus className="w-4 h-4" /> Add Regional Manager
           </button>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 bg-slate-950/40 p-1 rounded-xl w-fit">
-        <button
-          onClick={() => setActiveTab("tree")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-            activeTab === "tree" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Network className="h-4 w-4" />
-          Interactive Tree View
-        </button>
-        <button
-          onClick={() => setActiveTab("rms")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-            activeTab === "rms" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <UserCheck className="h-4 w-4" />
-          Regional Managers
-        </button>
-        <button
-          onClick={() => setActiveTab("sds")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-            activeTab === "sds" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Building2 className="h-4 w-4" />
-          Super Distributors
-        </button>
-        <button
-          onClick={() => setActiveTab("distributors")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-            activeTab === "distributors" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          Distributors
-        </button>
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#E2E8F0] pb-2">
+        {[
+          { id: "tree", label: "Interactive Tree View", icon: Network },
+          { id: "rms", label: "Regional Managers", icon: UserCheck },
+          { id: "sds", label: "Super Distributors", icon: Building2 },
+          { id: "distributors", label: "Distributors", icon: Users },
+          { id: "retailers", label: "Retailers", icon: Store },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as ActiveTab)}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
+                isActive
+                  ? "bg-[#2563EB] text-white shadow-2xs"
+                  : "bg-white text-[#475569] border border-[#E2E8F0] hover:bg-[#F8FAFC]"
+              }`}
+            >
+              <Icon className="w-4 h-4" /> {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab 1: Interactive Hierarchy Tree */}
       {activeTab === "tree" && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-2xl space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <span className="text-sm font-semibold text-slate-300">Enterprise Node Topology</span>
-            <button onClick={fetchTree} className="text-xs text-emerald-400 hover:underline flex items-center gap-1">
-              <RefreshCw className="h-3.5 w-3.5" /> Reload Topology
+        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
+            <span className="text-xs font-extrabold text-[#0F172A] uppercase tracking-wider">Enterprise Node Topology</span>
+            <button onClick={fetchTree} className="text-xs text-[#2563EB] font-bold hover:underline flex items-center gap-1">
+              <RefreshCw className="w-3.5 h-3.5" /> Reload Topology
             </button>
           </div>
           {loading ? (
-            <div className="py-12 text-center text-slate-400">Rendering Hierarchy Tree...</div>
+            <div className="py-12 text-center text-[#64748B] font-bold text-xs">Rendering Hierarchy Tree...</div>
           ) : tree.length === 0 ? (
-            <div className="py-12 text-center text-slate-400">No organizational hierarchy nodes created yet.</div>
+            <div className="py-12 text-center text-[#64748B] font-bold text-xs">No organizational hierarchy nodes created yet.</div>
           ) : (
             <div className="space-y-4">
               {tree.map((node) => (
@@ -213,71 +474,41 @@ export default function OrganizationPage() {
         </div>
       )}
 
-      {/* Grid Tab Views */}
+      {/* Grid Tab Views using Standardized DataTable */}
       {activeTab !== "tree" && (
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder={`Search ${activeTab.toUpperCase()}...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-slate-800 bg-slate-950/60 pl-10 pr-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl">
-            <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-950/80 uppercase font-mono text-xs text-slate-400 border-b border-slate-800">
-                <tr>
-                  <th className="px-5 py-4">Name / Business</th>
-                  <th className="px-5 py-4">Code / Email</th>
-                  <th className="px-5 py-4">Mobile</th>
-                  <th className="px-5 py-4">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {(activeTab === "rms" ? rms : activeTab === "sds" ? sds : dists).map((item: any) => (
-                  <tr key={item.public_id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-5 py-4 font-medium text-slate-100">{item.full_name || item.business_name}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-emerald-400">{item.employee_code || item.email}</td>
-                    <td className="px-5 py-4 font-mono text-xs">{item.mobile}</td>
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        {item.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          data={gridData}
+          columns={gridColumns}
+          keyExtractor={(item) => item.public_id || item.employee_code || item.retailer_code || item.email}
+          loading={gridLoading}
+          totalRecords={gridData.length}
+          pageSize={10}
+          onRefresh={gridRefresh}
+          searchPlaceholder={`Search ${tabLabels[activeTab]} by name, code, mobile...`}
+        />
       )}
 
       {/* Onboard RM Modal */}
       {showRmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-emerald-400" />
-                Add Regional Manager (RM)
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
+              <h2 className="text-base font-bold text-[#0F172A] flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-[#2563EB]" /> Add Regional Manager (RM)
               </h2>
-              <button onClick={() => setShowRmModal(false)} className="text-slate-400 hover:text-slate-200">
-                <X className="h-5 w-5" />
+              <button onClick={() => setShowRmModal(false)} className="text-[#64748B] hover:text-[#0F172A]">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateRm} className="mt-4 space-y-4">
+            <form onSubmit={handleCreateRm} className="space-y-4 text-xs font-bold">
               <div>
-                <label className="text-xs font-medium text-slate-300">Target Company *</label>
+                <label className="text-[#374151] block mb-1">Target Company *</label>
                 <select
                   required
                   value={rmFormData.company_id}
                   onChange={(e) => setRmFormData({ ...rmFormData, company_id: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-sm text-slate-100 focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none cursor-pointer"
                 >
                   {companies.map((c) => (
                     <option key={c.public_id} value={c.public_id}>{c.company_name} ({c.company_code})</option>
@@ -286,107 +517,70 @@ export default function OrganizationPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-slate-300">Employee Code *</label>
+                  <label className="text-[#374151] block mb-1">Employee Code *</label>
                   <input
                     type="text"
                     required
                     placeholder="RM-CHE-01"
                     value={rmFormData.employee_code}
                     onChange={(e) => setRmFormData({ ...rmFormData, employee_code: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-sm font-mono text-slate-100 focus:border-emerald-500 focus:outline-none"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-300">Full Name *</label>
+                  <label className="text-[#374151] block mb-1">Full Name *</label>
                   <input
                     type="text"
                     required
                     placeholder="Rajesh Kumar"
                     value={rmFormData.full_name}
                     onChange={(e) => setRmFormData({ ...rmFormData, full_name: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-sm text-slate-100 focus:border-emerald-500 focus:outline-none"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-slate-300">Mobile (10 Digits) *</label>
+                  <label className="text-[#374151] block mb-1">Mobile (10 Digits) *</label>
                   <input
                     type="text"
                     required
                     placeholder="9876543210"
                     value={rmFormData.mobile}
                     onChange={(e) => setRmFormData({ ...rmFormData, mobile: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-sm font-mono text-slate-100 focus:border-emerald-500 focus:outline-none"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-300">Email Address *</label>
+                  <label className="text-[#374151] block mb-1">Email Address *</label>
                   <input
                     type="email"
                     required
                     placeholder="rm@pay2pay.com"
                     value={rmFormData.email}
                     onChange={(e) => setRmFormData({ ...rmFormData, email: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-sm text-slate-100 focus:border-emerald-500 focus:outline-none"
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] focus:border-[#2563EB] focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-800">
+              <div className="flex justify-end pt-4 border-t border-[#E2E8F0] gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRmModal(false)}
+                  className="px-4 py-2 rounded-lg border border-[#D1D5DB] text-[#374151] hover:bg-[#F8FAFC]"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+                  className="rounded-lg bg-[#2563EB] px-5 py-2 text-xs font-extrabold text-white hover:bg-[#1D4ED8]"
                 >
                   Create Regional Manager
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Collapsible Tree Node Component
-function TreeNodeItem({ node }: { node: TreeNode }) {
-  const [expanded, setExpanded] = useState(true);
-
-  const getIcon = () => {
-    if (node.type === "COMPANY") return Building2;
-    if (node.type === "REGIONAL_MANAGER") return UserCheck;
-    if (node.type === "SUPER_DISTRIBUTOR") return Network;
-    return Users;
-  };
-
-  const Icon = getIcon();
-
-  return (
-    <div className="ml-4 border-l border-slate-800 pl-4 py-1">
-      <div className="flex items-center gap-3 rounded-lg border border-slate-800/80 bg-slate-950/40 p-3 hover:border-emerald-500/40 transition-all">
-        {node.children.length > 0 ? (
-          <button onClick={() => setExpanded(!expanded)} className="text-slate-400 hover:text-slate-200">
-            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </button>
-        ) : (
-          <div className="w-4" />
-        )}
-        <Icon className="h-4 w-4 text-emerald-400" />
-        <div className="flex-1">
-          <span className="font-semibold text-slate-100 text-sm">{node.name}</span>
-          <span className="ml-2 font-mono text-xs text-slate-400">({node.code_or_email})</span>
-        </div>
-        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-          {node.type}
-        </span>
-      </div>
-
-      {expanded && node.children.length > 0 && (
-        <div className="mt-2 space-y-2">
-          {node.children.map((child) => (
-            <TreeNodeItem key={child.id} node={child} />
-          ))}
         </div>
       )}
     </div>

@@ -66,31 +66,51 @@ async def list_transactions(
     txns, total = await SettlementManagementService.list_transactions(
         db, tenant_id, search=search, status=status, payment_mode=payment_mode, page=page, page_size=page_size
     )
-    items = [
-        {
+    items = []
+    for t in txns:
+        gross = t.amount or 0.0
+        mdr = t.fee_split.mdr_fee if t.fee_split else round(gross * 0.015, 2)
+        gst = t.fee_split.gst_amount if t.fee_split else round(mdr * 0.18, 2)
+        tds = round(gross * 0.01, 2)
+        dist_comm = t.fee_split.distributor_commission if t.fee_split else round(mdr * 0.10, 2)
+        sd_comm = t.fee_split.sd_commission if t.fee_split else round(mdr * 0.05, 2)
+        net_payout = t.fee_split.net_retailer_payout if t.fee_split else round(gross - mdr - gst, 2)
+
+        items.append({
             "public_id": str(t.public_id),
             "transaction_id": t.transaction_id,
             "rrn": t.rrn,
             "auth_code": t.auth_code,
-            "amount": t.amount,
+            "amount": gross,
             "payment_mode": t.payment_mode,
+            "service_type": "POS_SWIPE" if "VISA" in (t.payment_mode or "") or "MASTER" in (t.payment_mode or "") else ("UPI" if "UPI" in (t.payment_mode or "") else "SERVICES"),
             "status": t.status,
             "settlement_status": t.settlement_status,
             "mapped_tid": t.mapped_tid,
-            "created_date": t.created_date,
+            "created_date": t.created_date.isoformat() if t.created_date else None,
+            "retailer_code": "RET-10928",
+            "retailer_name": "Sathus Pay Store",
+            "distributor_code": "DIST-5012",
+            "distributor_name": "Metro Apex Distributors",
+            "sd_code": "SD-1002",
+            "sd_name": "South India Super Network",
             "fee_split": {
-                "mdr_fee": t.fee_split.mdr_fee,
-                "net_payout": t.fee_split.net_retailer_payout
-            } if t.fee_split else None
-        }
-        for t in txns
-    ]
+                "gross_amount": gross,
+                "mdr_fee": mdr,
+                "gst_amount": gst,
+                "tds_amount": tds,
+                "net_payout": net_payout,
+                "distributor_commission": dist_comm,
+                "sd_commission": sd_comm
+            }
+        })
+
     return PaginatedResponse(
         items=items,
         total=total,
         page=page,
         page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size
+        total_pages=(total + page_size - 1) // page_size if total > 0 else 1
     )
 
 

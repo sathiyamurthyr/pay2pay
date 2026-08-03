@@ -1,0 +1,116 @@
+"""
+KYC Document Upload API — Backblaze B2
+POST /api/v1/upload/kyc  — Upload a single KYC document for an entity
+"""
+import uuid
+from typing import Optional
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import JSONResponse
+
+from app.application.dependencies import get_current_user
+from app.application.storage_service import BackblazeStorageService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES
+from app.infrastructure.db.models import AdminUserModel
+
+router = APIRouter(prefix="/upload", tags=["Document Upload & KYC Storage"])
+
+ALLOWED_ENTITY_TYPES = {
+    "SD", "DIST", "RET", "CMP", "SERVICE",
+    "SUPER_DISTRIBUTOR", "DISTRIBUTOR", "RETAILER", "COMPANY",
+}
+
+
+@router.post("/kyc", summary="Upload KYC / Compliance Document to Backblaze B2")
+async def upload_kyc_document(
+    file: UploadFile = File(..., description="Document file — PDF, JPG, PNG (max 10 MB)"),
+    entity_type: str = Form(..., description="Entity type: SD | DIST | RET | CMP | SERVICE"),
+    entity_id: Optional[str] = Form(None, description="Optional entity public_id for audit"),
+    doc_type: Optional[str] = Form(None, description="Document type label, e.g. PAN, AADHAAR, GST, BANK_PROOF"),
+    current_user: AdminUserModel = Depends(get_current_user),
+):
+    """
+    Upload a KYC or compliance document to Backblaze B2.
+
+    **Path structure in B2:**
+    - `cmp/{year}/{month}/{day}/...` — Company
+    - `cmp/sd/{year}/{month}/{day}/...` — Super Distributor
+    - `cmp/dist/{year}/{month}/{day}/...` — Distributor
+    - `cmp/ret/{year}/{month}/{day}/...` — Retailer
+    - `cmp/service/{year}/{month}/{day}/...` — Service / General
+
+    Returns the permanent download URL and path.
+    """
+    # Validate entity type
+    if entity_type.upper() not in ALLOWED_ENTITY_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid entity_type '{entity_type}'. Must be one of: {', '.join(sorted(ALLOWED_ENTITY_TYPES))}",
+        )
+
+    # Validate filename
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No filename provided.",
+        )
+
+    # Validate content type
+    content_type = file.content_type or ""
+    if content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"File type '{content_type}' is not allowed. Upload PDF, JPEG, or PNG files only.",
+        )
+
+    # Read file bytes
+    file_bytes = await file.read()
+
+    # Validate file size
+    if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size {len(file_bytes) // 1024} KB exceeds the 10 MB limit.",
+        )
+
+    try:
+        result = await BackblazeStorageService.upload_document(
+            file_bytes=file_bytes,
+            original_filename=file.filename,
+            entity_type=entity_type,
+            content_type=content_type,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Upload failed: {str(e)}",
+        )
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "success": True,
+            "message": "Document uploaded successfully",
+            "data": {
+                **result,
+                "entity_id": entity_id,
+                "doc_type": doc_type,
+                "uploaded_by": current_user.email,
+            },
+        },
+    )
+
+
+@router.get("/kyc/allowed-types", summary="Get allowed file types and size limits")
+async def get_upload_constraints(
+    current_user: AdminUserModel = Depends(get_current_user),
+):
+    """Returns allowed MIME types and the maximum file size for document uploads."""
+    return {
+        "allowed_mime_types": sorted(ALLOWED_MIME_TYPES),
+        "max_file_size_bytes": MAX_FILE_SIZE_BYTES,
+        "max_file_size_mb": MAX_FILE_SIZE_BYTES // (1024 * 1024),
+        "entity_types": sorted(ALLOWED_ENTITY_TYPES),
+    }

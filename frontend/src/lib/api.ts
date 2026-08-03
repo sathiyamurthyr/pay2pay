@@ -12,6 +12,9 @@ export const apiClient = axios.create({
 // Interceptor to attach Access Token to all requests
 apiClient.interceptors.request.use(
   (config) => {
+    if (config.url && config.url.startsWith("/api/v1")) {
+      config.url = config.url.replace(/^\/api\/v1/, "");
+    }
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("access_token");
       if (token) {

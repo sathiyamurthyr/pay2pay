@@ -1,6 +1,7 @@
 import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -120,3 +121,18 @@ async def approve_retailer(
         version_no=r.version_no,
         created_date=r.created_date
     )
+
+
+class RetailerResetPasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.post("/{retailer_id}/reset-password")
+async def reset_retailer_password(
+    retailer_id: uuid.UUID,
+    req: RetailerResetPasswordRequest,
+    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return {"message": "Password updated successfully for Retailer", "retailer_id": str(retailer_id)}

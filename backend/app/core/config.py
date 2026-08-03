@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:3005",
+        "http://127.0.0.1:3005",
         "https://pay2pay.vercel.app",
     ]
     
@@ -40,6 +44,18 @@ class Settings(BaseSettings):
     # System Defaults
     PLATFORM_TENANT_CODE: str = "PLATFORM"
     DEFAULT_COMPANY_CODE: str = "HQ_COMP"
+
+    # ── Backblaze B2 Storage ──────────────────────────────────────────────────
+    # These are overridden by .env (which is populated by secrets_bootstrap.py)
+    B2_KEY_ID:      str = Field(default="008e0d1d842b")
+    B2_APP_KEY:     str = Field(default="0030f1320724707dc33f380426ddf3371c3fedb37a")
+    B2_BUCKET_NAME: str = Field(default="sathus-pay2pay")
+
+    # ── Bitwarden (used by secrets_bootstrap.py only) ─────────────────────────
+    BITWARDEN_SERVER:          str = Field(default="https://vault.bitwarden.com")
+    BITWARDEN_CLIENT_ID:       str = Field(default="")
+    BITWARDEN_CLIENT_SECRET:   str = Field(default="")
+    BITWARDEN_MASTER_PASSWORD: str = Field(default="")
     
     model_config = SettingsConfigDict(
         env_file=".env",

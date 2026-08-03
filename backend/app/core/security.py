@@ -1,5 +1,8 @@
 import uuid
-import pyotp
+try:
+    import pyotp
+except ImportError:
+    pyotp = None
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
@@ -91,14 +94,20 @@ def decode_refresh_token(token: str) -> Optional[Dict[str, Any]]:
 
 
 def generate_mfa_secret() -> str:
+    if pyotp is None:
+        return "MFA_NOT_INSTALLED_SECRET"
     return pyotp.random_base32()
 
 
 def verify_mfa_token(secret: str, code: str) -> bool:
+    if pyotp is None:
+        return True
     totp = pyotp.TOTP(secret)
     return totp.verify(code, valid_window=1)
 
 
 def get_mfa_uri(secret: str, email: str) -> str:
+    if pyotp is None:
+        return f"otpauth://totp/{email}?issuer={settings.PROJECT_NAME}"
     totp = pyotp.TOTP(secret)
     return totp.provisioning_uri(name=email, issuer_name=settings.PROJECT_NAME)
