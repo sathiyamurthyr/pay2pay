@@ -11,6 +11,7 @@ import app.infrastructure.db.audio_models
 import app.infrastructure.db.beneficiary_models
 import app.infrastructure.db.customer_models
 import app.infrastructure.db.policy_models
+import app.infrastructure.db.payout_workflow_models
 
 async def create_all_tables_fast():
     print(f"Discovered {len(Base.metadata.tables)} total ORM tables.", flush=True)

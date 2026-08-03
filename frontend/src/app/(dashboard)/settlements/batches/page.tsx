@@ -26,6 +26,10 @@ export default function BatchesPage() {
   const [retailers, setRetailers] = useState<any[]>([]);
 
   const [batchCompanyId, setBatchCompanyId] = useState("");
+  const [batchForm, setBatchForm] = useState({
+    company_id: "",
+    batch_date: new Date().toISOString().split("T")[0],
+  });
   const [payoutForm, setPayoutForm] = useState({
     retailer_id: "",
     amount: 5000.0,

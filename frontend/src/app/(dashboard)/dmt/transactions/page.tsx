@@ -169,7 +169,7 @@ export default function DmtTransactionsPage() {
           {
             label: "Reverse Selected Transactions",
             variant: "danger",
-            action: (selected) => {
+            action: (selected: any[]) => {
               alert(`Initiating reversal request for ${selected.length} transactions.`);
             }
           }

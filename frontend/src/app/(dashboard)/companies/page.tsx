@@ -1413,7 +1413,7 @@ export default function CompanyListPage() {
                           <input
                             type="text"
                             placeholder={placeholder}
-                            value={(formData as Record<string, string>)[field]}
+                            value={(formData as unknown as Record<string, string>)[field]}
                             onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
                             className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] transition-colors"
                           />
@@ -1441,7 +1441,7 @@ export default function CompanyListPage() {
                           <input
                             type="text"
                             placeholder={placeholder}
-                            value={(formData as Record<string, string>)[field]}
+                            value={(formData as unknown as Record<string, string>)[field]}
                             onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
                             className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] font-mono"
                           />
@@ -1467,7 +1467,7 @@ export default function CompanyListPage() {
                         <input
                           type="text"
                           placeholder={placeholder}
-                          value={(formData as Record<string, string>)[field]}
+                          value={(formData as unknown as Record<string, string>)[field]}
                           onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
                           className="w-full px-3 py-2 text-[13px] border border-[#CBD5E1] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB]"
                         />

@@ -50,6 +50,7 @@ export default function AdminApprovalsPage() {
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [actionRemarks, setActionRemarks] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
 
   // DataGrid toolbar state
   const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);

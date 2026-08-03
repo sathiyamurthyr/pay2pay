@@ -11,7 +11,7 @@ interface Lang {
   language_code: string;
   language_name: string;
   native_name: string;
-  is_supported: bool;
+  is_supported: boolean;
 }
 
 export default function AudioLanguagesPage() {

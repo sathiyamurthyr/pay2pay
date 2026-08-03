@@ -5,9 +5,10 @@ from fastapi.responses import JSONResponse
 from app.core.database import settings, engine, Base
 from app.core.exceptions import DomainException
 from app.presentation.api.v1 import (
-    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements, developer, compliance, financial_config, settlement_intake, settlement_processing, wallet_ledger, payouts, reporting, operations, crm, fraud, finance_accounting, bpm, eip, notifications, customer, beneficiary, policy, dmt, aeps, audio, secrets, upload, verification
+    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements, developer, compliance, financial_config, settlement_intake, settlement_processing, wallet_ledger, payouts, reporting, operations, crm, fraud, finance_accounting, bpm, eip, notifications, customer, beneficiary, policy, dmt, aeps, audio, secrets, upload, verification, retailer_services, payout_workflow
 )
 import app.infrastructure.db.models  # Register all models with Base.metadata
+import app.infrastructure.db.payout_workflow_models
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -89,6 +90,8 @@ app.include_router(audio.router, prefix=settings.API_V1_STR)
 app.include_router(secrets.router, prefix=settings.API_V1_STR)
 app.include_router(upload.router, prefix=settings.API_V1_STR)
 app.include_router(verification.router, prefix=settings.API_V1_STR)
+app.include_router(retailer_services.router, prefix=settings.API_V1_STR)
+app.include_router(payout_workflow.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])

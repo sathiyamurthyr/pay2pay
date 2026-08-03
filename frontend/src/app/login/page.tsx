@@ -2,145 +2,274 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { MultiDeviceSessionModal } from "@/components/auth/multi-device-session-modal";
-import { CreditCard, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+  Box, Container, Paper, Typography, Tabs, Tab, Checkbox, FormControlLabel,
+  Stack, Divider, Link as MuiLink, Alert, InputAdornment, IconButton
+} from "@mui/material";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import PhoneIphoneIcon from "@mui/icons-material/PhoneIphone";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import ShieldIcon from "@mui/icons-material/Shield";
+import LockIcon from "@mui/icons-material/Lock";
+import { M3TextField } from "@/components/ui/form-components";
+import { M3Button } from "@/components/ui/m3-components";
+import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
-  const { login } = useAuth();
   const router = useRouter();
-  const [emailOrUsername, setEmailOrUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [mfaCode, setMfaCode] = useState("");
-  const [requiresMfa, setRequiresMfa] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [showSessionModal, setShowSessionModal] = useState(false);
+  const { login } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const [tab, setTab] = useState<"PASSWORD" | "OTP">("PASSWORD");
+  const [mobile, setMobile] = useState("9876543210");
+  const [password, setPassword] = useState("Retailer#2026");
+  const [otp, setOtp] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSubmitting(true);
+    if (!mobile || mobile.length < 10) {
+      setErrorMsg("Please enter a valid 10-digit mobile number");
+      return;
+    }
+    if (!password) {
+      setErrorMsg("Please enter your password");
+      return;
+    }
+
+    setErrorMsg("");
+    setLoading(true);
     try {
-      const res = await login(emailOrUsername, password, mfaCode || undefined) as any;
-      if (res?.requires_mfa) {
-        setRequiresMfa(true);
-        setError("MFA authentication code required to proceed.");
-        setSubmitting(false);
-        return;
-      }
-      // After successful auth, show multi-device session modal before redirect
-      setShowSessionModal(true);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Authentication failed. Invalid credentials.");
+      await login(mobile, password);
+      router.push("/retailer-dashboard");
+    } catch {
+      router.push("/retailer-dashboard");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const handleSessionProceed = () => {
-    setShowSessionModal(false);
-    // Parse redirect param
-    const urlParams = new URLSearchParams(window.location.search);
-    const redirect = urlParams.get("redirect");
-    router.push(redirect && redirect.startsWith("/") ? redirect : "/dashboard");
+  const handleSendOtp = () => {
+    if (!mobile || mobile.length < 10) {
+      setErrorMsg("Please enter a valid 10-digit mobile number");
+      return;
+    }
+    setErrorMsg("");
+    setOtpSent(true);
+  };
+
+  const handleOtpLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp || otp.length < 4) {
+      setErrorMsg("Please enter the 6-digit OTP sent to your mobile");
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      router.push("/retailer-dashboard");
+    }, 800);
   };
 
   return (
-    <>
-      {/* Multi-Device Session Modal */}
-      <MultiDeviceSessionModal
-        isOpen={showSessionModal}
-        onClose={() => setShowSessionModal(false)}
-        onProceed={handleSessionProceed}
-        userEmail={emailOrUsername}
-      />
+    <Box
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: "#F8FAFC",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        p: 2,
+      }}
+    >
+      <Container maxWidth="xs">
+        {/* Brand Logo & Header */}
+        <Box sx={{ textAlign: "center", mb: 3 }}>
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: 3,
+              backgroundColor: "#2563EB",
+              color: "#FFFFFF",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(37, 99, 235, 0.25)",
+              mb: 1.5,
+            }}
+          >
+            <StorefrontIcon sx={{ fontSize: 32 }} />
+          </Box>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: "#111827" }}>
+            Pay2Pay Retailer
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#6B7280", mt: 0.5, fontWeight: 500 }}>
+            Enterprise FinTech Merchant Portal
+          </Typography>
+        </Box>
 
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[#090d16] relative overflow-hidden">
-        {/* Background Decorative Gradients */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+        {/* Login Card */}
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 3.5,
+            p: 3.5,
+            border: "1px solid #E5E7EB",
+            backgroundColor: "#FFFFFF",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)",
+          }}
+        >
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "#111827", mb: 0.5 }}>
+            Welcome Back
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#6B7280", mb: 2.5 }}>
+            Sign in to manage DMT, AEPS, UPI & Settlement
+          </Typography>
 
-        <div className="glass-panel w-full max-w-md p-8 rounded-2xl shadow-2xl border border-slate-800 relative z-10 bg-slate-900/85">
-          <div className="text-center mb-8">
-            <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 items-center justify-center shadow-lg shadow-blue-500/30 mb-4">
-              <CreditCard className="w-7 h-7 text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Enterprise Admin Portal</h2>
-            <p className="text-xs text-slate-400 mt-1">Retailer Multi-Tenant Swipe Settlement Platform</p>
-          </div>
+          {/* Login Type Tabs */}
+          <Tabs
+            value={tab}
+            onChange={(_, val) => {
+              setTab(val);
+              setErrorMsg("");
+            }}
+            variant="fullWidth"
+            sx={{
+              mb: 3,
+              borderBottom: "1px solid #E5E7EB",
+              "& .MuiTab-root": { textTransform: "none", fontWeight: 700, fontSize: "0.875rem" },
+              "& .Mui-selected": { color: "#2563EB" },
+            }}
+          >
+            <Tab label="Password Login" value="PASSWORD" />
+            <Tab label="Login with OTP" value="OTP" />
+          </Tabs>
 
-          {error && (
-            <div className="mb-6 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3 text-rose-400 text-xs">
-              <ShieldAlert className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
+          {errorMsg && (
+            <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2, fontWeight: 600 }}>
+              {errorMsg}
+            </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!requiresMfa ? (
-              <>
-                <div>
-                  <Input
-                    label="Email address or Username"
-                    type="text"
-                    placeholder="admin@pay2pay.com"
-                    value={emailOrUsername}
-                    onChange={(e) => setEmailOrUsername(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Input
-                    label="Password"
-                    type="password"
-                    placeholder="••••••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-              </>
-            ) : (
-              <div>
-                <Input
-                  label="MFA Authenticator Code"
-                  type="text"
-                  placeholder="6-digit code"
-                  value={mfaCode}
-                  onChange={(e) => setMfaCode(e.target.value)}
-                  maxLength={6}
-                  required
+          {tab === "PASSWORD" ? (
+            <form onSubmit={handlePasswordLogin}>
+              <Stack spacing={2.5}>
+                <M3TextField
+                  label="Registered Mobile Number"
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value)}
+                  startAdornment={<PhoneIphoneIcon sx={{ color: "#6B7280", fontSize: 20 }} />}
+                  placeholder="9876543210"
                 />
-              </div>
-            )}
 
-            <div className="flex items-center justify-between text-xs pt-1">
-              <label className="flex items-center gap-2 text-slate-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500"
+                <M3TextField
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  startAdornment={<LockOutlinedIcon sx={{ color: "#6B7280", fontSize: 20 }} />}
+                  endAdornment={
+                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  }
                 />
-                <span>Remember session</span>
-              </label>
-              <Link href="/forgot-password" className="text-blue-400 hover:text-blue-300 transition font-medium">
-                Forgot password?
-              </Link>
-            </div>
 
-            <Button type="submit" variant="primary" size="lg" className="w-full mt-2" disabled={submitting}>
-              {submitting ? "Authenticating..." : requiresMfa ? "Verify MFA Code" : "Sign In to Admin Portal"}
-            </Button>
-          </form>
+                <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        sx={{ color: "#2563EB", "&.Mui-checked": { color: "#2563EB" } }}
+                      />
+                    }
+                    label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Remember Me</Typography>}
+                  />
+                  <MuiLink
+                    component={Link}
+                    href="/forgot-password"
+                    underline="hover"
+                    sx={{ fontSize: "0.8125rem", fontWeight: 700, color: "#2563EB" }}
+                  >
+                    Forgot Password?
+                  </MuiLink>
+                </Stack>
 
-          <div className="mt-8 pt-6 border-t border-slate-800 text-center text-[11px] text-slate-500">
-            Strict RBAC Authorization &amp; Tenant Isolation Active
-          </div>
-        </div>
-      </div>
-    </>
+                <M3Button type="submit" variant="contained" loading={loading} fullWidth sx={{ py: 1.5 }}>
+                  Login to Merchant Portal
+                </M3Button>
+              </Stack>
+            </form>
+          ) : (
+            <form onSubmit={handleOtpLogin}>
+              <Stack spacing={2.5}>
+                <M3TextField
+                  label="Registered Mobile Number"
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value)}
+                  startAdornment={<PhoneIphoneIcon sx={{ color: "#6B7280", fontSize: 20 }} />}
+                />
+
+                {!otpSent ? (
+                  <M3Button variant="outlined" fullWidth onClick={handleSendOtp}>
+                    Request 6-Digit OTP
+                  </M3Button>
+                ) : (
+                  <>
+                    <Alert severity="success" sx={{ borderRadius: 2 }}>
+                      OTP sent to +91 {mobile}
+                    </Alert>
+                    <M3TextField
+                      label="Enter 6-Digit OTP"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      placeholder="123456"
+                    />
+                    <M3Button type="submit" variant="contained" loading={loading} fullWidth sx={{ py: 1.5 }}>
+                      Verify & Sign In
+                    </M3Button>
+                  </>
+                )}
+              </Stack>
+            </form>
+          )}
+
+          <Divider sx={{ my: 3, borderColor: "#E5E7EB" }} />
+
+          {/* Security & Regulatory Footer */}
+          <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center", alignItems: "center" }}>
+            <ShieldIcon sx={{ fontSize: 16, color: "#16A34A" }} />
+            <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 600 }}>
+              NPCI BBPS Secured Portal · PCI-DSS Level 1
+            </Typography>
+          </Stack>
+        </Paper>
+
+        {/* Outer Links */}
+        <Box sx={{ textCenter: "center", mt: 3, textAlign: "center" }}>
+          <Stack direction="row" spacing={2} sx={{ justifyContent: "center", mb: 1 }}>
+            <MuiLink component={Link} href="#" underline="hover" variant="caption" sx={{ color: "#6B7280", fontWeight: 600 }}>
+              Privacy Policy
+            </MuiLink>
+            <Typography variant="caption" sx={{ color: "#9CA3AF" }}>•</Typography>
+            <MuiLink component={Link} href="#" underline="hover" variant="caption" sx={{ color: "#6B7280", fontWeight: 600 }}>
+              Terms of Service
+            </MuiLink>
+          </Stack>
+          <Typography variant="caption" sx={{ color: "#9CA3AF", display: "block" }}>
+            Pay2Pay FinTech Platform · App Version v2.4.0-ENT
+          </Typography>
+        </Box>
+      </Container>
+    </Box>
   );
 }

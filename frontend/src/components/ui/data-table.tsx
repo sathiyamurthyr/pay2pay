@@ -161,7 +161,7 @@ const EmptyState: React.FC<{ message?: string; icon?: ReactNode; onClear?: () =>
 // ──────────────────────────────────────────────────────────────────
 // Main DataTable Component
 // ──────────────────────────────────────────────────────────────────
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T = any>({
   data,
   columns,
   keyExtractor,
@@ -277,7 +277,7 @@ export function DataTable<T extends Record<string, unknown>>({
         }
         return String(val).toLowerCase().includes(q);
       };
-      rows = rows.filter((row) => Object.values(row).some(matchValue));
+      rows = rows.filter((row) => Object.values(row as any).some(matchValue));
     }
 
     // Active filters

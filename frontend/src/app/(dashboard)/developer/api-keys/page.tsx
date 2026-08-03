@@ -470,7 +470,7 @@ export default function ApiKeysPage() {
           </div>
           {testResult?.id === w.public_id && (
             <p className="text-[10px] font-extrabold text-[#16A34A] animate-in fade-in">
-              {testResult.msg}
+              {testResult?.msg}
             </p>
           )}
         </div>

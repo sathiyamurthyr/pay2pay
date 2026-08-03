@@ -1,600 +1,571 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import {
-  Send, Fingerprint, Users, Building2, CreditCard, Wallet,
-  Receipt, Volume2, ArrowUpRight, ArrowDownLeft, CheckCircle2,
-  Clock, XCircle, ChevronRight, Copy, Check, Search, X,
-  ShieldCheck, RefreshCw, Sparkles, AlertCircle, Download, Share2, Phone,
-} from "lucide-react";
+  Box, Paper, Typography, Button, Chip, IconButton, Avatar, Divider, Stack
+} from "@mui/material";
+import SendIcon from "@mui/icons-material/Send";
+import CreditCardIcon from "@mui/icons-material/CreditCard";
+import QrCodeIcon from "@mui/icons-material/QrCode";
+import FingerprintIcon from "@mui/icons-material/Fingerprint";
+import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
+import ReceiptIcon from "@mui/icons-material/Receipt";
+import AddIcon from "@mui/icons-material/Add";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import SpeedIcon from "@mui/icons-material/Speed";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import HistoryIcon from "@mui/icons-material/History";
+import CallIcon from "@mui/icons-material/Call";
+import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 
-// ─── Mock Retailer Transactions ───
-const MOCK_RETAILER_TXNS = [
-  { id: "TXN-88219", type: "DMT Transfer", recipient: "Kavitha Sharma (HDFC ****", amount: 5000, fee: 10, margin: 6.50, status: "SUCCESS", utr: "UTR-20260730-8812", time: "12:42 PM" },
-  { id: "TXN-88218", type: "AEPS Cash Out", recipient: "Ramesh Kumar (Aadhaar **4412)", amount: 2000, fee: 0, margin: 5.00, status: "SUCCESS", utr: "UTR-20260730-7719", time: "12:15 PM" },
-  { id: "TXN-88217", type: "Wallet Top-up", recipient: "UPI Cash Load", amount: 10000, fee: 0, margin: 0, status: "SUCCESS", utr: "UTR-20260730-6601", time: "11:30 AM" },
-  { id: "TXN-88216", type: "DMT Transfer", recipient: "Suresh Patel (SBI ****", amount: 12000, fee: 20, margin: 14.00, status: "PENDING", utr: "UTR-20260730-5412", time: "10:50 AM" },
+import { useRetailerStore } from "@/stores/use-retailer-store";
+import { EnterpriseDataGrid, DataGridColumn } from "@/components/ui/enterprise-data-grid";
+import { M3StatusChip } from "@/components/ui/m3-components";
+import { KpiCardCarousel } from "@/components/ui/kpi-card-carousel";
+
+interface TransactionRecord {
+  id: string;
+  type: string;
+  recipient: string;
+  amount: number;
+  charge: number;
+  margin: number;
+  status: string;
+  utr: string;
+  time: string;
+}
+
+const MOCK_RECENT_TXNS: TransactionRecord[] = [
+  { id: "TXN-90124", type: "DMT Transfer", recipient: "Kavitha Sharma (HDFC - 501009)", amount: 5000, charge: 10, margin: 6.50, status: "SUCCESS", utr: "UTR202608039012", time: "18:24 PM" },
+  { id: "TXN-90123", type: "AEPS Cash Out", recipient: "Ramesh Kumar (Aadhaar **4412)", amount: 2000, charge: 0, margin: 5.00, status: "SUCCESS", utr: "RRN202608037719", time: "18:10 PM" },
+  { id: "TXN-90122", type: "UPI QR Load", recipient: "Direct Wallet Top-up", amount: 10000, charge: 0, margin: 0.00, status: "SUCCESS", utr: "UPI202608036601", time: "17:45 PM" },
+  { id: "TXN-90121", type: "BBPS Bill Pay", recipient: "TNEB Electricity (049281)", amount: 1450, charge: 0, margin: 3.50, status: "SUCCESS", utr: "BBPS202608034412", time: "17:15 PM" },
+  { id: "TXN-90120", type: "Mobile Recharge", recipient: "Airtel Prepaid (9840192837)", amount: 299, charge: 0, margin: 7.45, status: "SUCCESS", utr: "OP8839201", time: "16:50 PM" },
+  { id: "TXN-90119", type: "DMT Transfer", recipient: "Suresh Patel (SBI - 204918)", amount: 12000, charge: 20, margin: 14.00, status: "PENDING", utr: "UTR202608033321", time: "16:20 PM" },
 ];
 
-export default function RetailerMobileDashboardPage() {
-  const [activeModal, setActiveModal] = useState<"dmt" | "aeps" | "receipt" | null>(null);
-  const [selectedTxn, setSelectedTxn] = useState<any | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+const RECENT_ACTIVITIES = [
+  { text: "DMT ₹5,000 to Kavitha (HDFC)", time: "18:24 PM", type: "SUCCESS" },
+  { text: "AEPS Cash Out ₹2,000", time: "18:10 PM", type: "SUCCESS" },
+  { text: "Dynamic UPI QR Generated", time: "17:45 PM", type: "INFO" },
+  { text: "Soundbox Voice Alert Enabled", time: "16:30 PM", type: "SYSTEM" },
+];
 
-  // ── DMT Form State ──
-  const [dmtMobile, setDmtMobile] = useState("9876543210");
-  const [dmtAmount, setDmtAmount] = useState("5000");
-  const [dmtBeneficiary, setDmtBeneficiary] = useState("Kavitha Sharma (HDFC - 50100998822)");
-  const [dmtTransferring, setDmtTransferring] = useState(false);
-  const [dmtSuccess, setDmtSuccess] = useState<any | null>(null);
+const now = new Date();
 
-  // ── AEPS Form State ──
-  const [aepsAadhaar, setAepsAadhaar] = useState("998877664412");
-  const [aepsBank, setAepsBank] = useState("State Bank of India");
-  const [aepsService, setAepsService] = useState<"WITHDRAWAL" | "BALANCE" | "STATEMENT">("WITHDRAWAL");
-  const [aepsAmount, setAepsAmount] = useState("2000");
-  const [aepsScanning, setAepsScanning] = useState(false);
-  const [aepsScanSuccess, setAepsScanSuccess] = useState(false);
-
-  const handleCopy = (utr: string) => {
-    navigator.clipboard.writeText(utr);
-    setCopiedId(utr);
-    setTimeout(() => setCopiedId(null), 2000);
+export default function RetailerDashboardPage() {
+  const getGreeting = () => {
+    const hour = now.getHours();
+    if (hour < 12) return "Good Morning 👋";
+    if (hour < 17) return "Good Afternoon 👋";
+    return "Good Evening 👋";
   };
 
-  const handleDmtSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setDmtTransferring(true);
-    setTimeout(() => {
-      setDmtTransferring(false);
-      const newTxn = {
-        id: `TXN-${Math.floor(10000 + Math.random() * 90000)}`,
-        type: "DMT Transfer",
-        recipient: dmtBeneficiary,
-        amount: parseFloat(dmtAmount),
-        fee: 10,
-        margin: 6.50,
-        status: "SUCCESS",
-        utr: `UTR-20260730-${Math.floor(1000 + Math.random() * 9000)}`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setDmtSuccess(newTxn);
-    }, 1200);
-  };
+  const quickServices = [
+    { title: "Money Transfer", sub: "Instant DMT via IMPS / NEFT", icon: SendIcon, path: "/retailer/dmt", color: "#2563EB", bg: "#EFF6FF" },
+    { title: "Card To Cash", sub: "Micro-ATM & POS Swipe", icon: CreditCardIcon, path: "/retailer/card-to-cash", color: "#7C3AED", bg: "#F3E8FF" },
+    { title: "UPI Services", sub: "Dynamic QR & Collect", icon: QrCodeIcon, path: "/retailer/upi", color: "#16A34A", bg: "#DCFCE7" },
+    { title: "AEPS Cash Out", sub: "Aadhaar Biometric Withdrawal", icon: FingerprintIcon, path: "/retailer/aeps", color: "#D97706", bg: "#FEF3C7" },
+    { title: "Recharge", sub: "Mobile & DTH Instant Top-Up", icon: PhoneAndroidIcon, path: "/retailer/recharge", color: "#0EA5E9", bg: "#E0F2FE" },
+    { title: "Bill Payment", sub: "BBPS All Utilities & Gas", icon: ReceiptIcon, path: "/retailer/bbps", color: "#DC2626", bg: "#FEE2E2" },
+  ];
 
-  const handleAepsScan = () => {
-    setAepsScanning(true);
-    setTimeout(() => {
-      setAepsScanning(false);
-      setAepsScanSuccess(true);
-    }, 1500);
-  };
+  const serviceGateways = [
+    { name: "DMT Gateway", status: "ONLINE", latency: "18ms" },
+    { name: "AEPS NPCI", status: "ONLINE", latency: "24ms" },
+    { name: "UPI QR Clear", status: "ONLINE", latency: "12ms" },
+    { name: "BBPS Switch", status: "ONLINE", latency: "35ms" },
+    { name: "Settlement Engine", status: "ONLINE", latency: "15ms" },
+  ];
+
+  const columns: DataGridColumn<TransactionRecord>[] = [
+    {
+      id: "id", label: "Txn ID", minWidth: 110,
+      format: (val) => <Typography variant="caption" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#2563EB" }}>{val}</Typography>
+    },
+    {
+      id: "type", label: "Service", minWidth: 130,
+      format: (val) => <Typography variant="body2" sx={{ fontWeight: 600, color: "#111827", fontSize: "14px" }}>{val}</Typography>
+    },
+    { id: "recipient", label: "Recipient / Details", minWidth: 220 },
+    {
+      id: "amount", label: "Amount", align: "right",
+      format: (val) => <Typography variant="body2" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#111827", fontSize: "14px" }}>₹{(val as number).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
+    },
+    {
+      id: "margin", label: "Commission", align: "right",
+      format: (val) => <Typography variant="body2" sx={{ fontWeight: 700, color: "#16A34A", fontSize: "14px" }}>+₹{(val as number).toFixed(2)}</Typography>
+    },
+    { id: "status", label: "Status", align: "center", format: (val) => <M3StatusChip status={val as string} /> },
+    {
+      id: "utr", label: "Bank UTR", minWidth: 160,
+      format: (val) => <Typography variant="caption" sx={{ fontFamily: "monospace", color: "#4B5563", fontSize: "12px" }}>{val}</Typography>
+    },
+    { id: "time", label: "Time", align: "right" },
+  ];
 
   return (
-    <div className="min-h-screen space-y-4 pb-16" style={{ background:"linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)", margin:"-20px -24px", padding:"24px" }}>
-      {/* Ambient glow blobs */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
-        <div className="absolute top-[-80px] left-[5%]   w-[380px] h-[380px] rounded-full bg-indigo-600/10  blur-3xl" />
-        <div className="absolute top-[25%]  right-[-50px] w-[320px] h-[320px] rounded-full bg-purple-600/8   blur-3xl" />
-        <div className="absolute bottom-[10%] left-[30%] w-[280px] h-[280px] rounded-full bg-violet-600/7   blur-3xl" />
-      </div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "24px", pb: 2 }}>
 
-      {/* ── Page Header Card ── */}
-      <div className="relative z-10 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 shadow-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/8 via-transparent to-transparent pointer-events-none rounded-2xl" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="relative w-12 h-12 shrink-0">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 opacity-80 blur-sm animate-pulse" />
-              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/80 to-purple-600/80 border border-white/20 flex items-center justify-center">
-                <Send className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-extrabold text-white tracking-tight">Retailer Banking Terminal</h1>
-                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-extrabold text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping absolute" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 relative" />
-                  LIVE
-                </span>
-              </div>
-              <p className="text-sm text-slate-400 mt-0.5">DMT · AEPS · POS Swipe · Passbook · Soundbox</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="px-3 py-2 rounded-xl bg-white/8 border border-white/15 text-center">
-              <p className="text-[10px] font-bold text-slate-400">Wallet Balance</p>
-              <p className="text-lg font-extrabold text-emerald-400 font-mono">₹28,450</p>
-            </div>
-            <div className="px-3 py-2 rounded-xl bg-white/8 border border-white/15 text-center">
-              <p className="text-[10px] font-bold text-slate-400">Today Margin</p>
-              <p className="text-lg font-extrabold text-violet-400 font-mono">₹1,480</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* ── Welcome Section (Height Under 90px, 32px Title) ──────── */}
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, minHeight: 60, maxHeight: 88 }}>
+        <Box>
+          <Typography variant="h1" sx={{ fontSize: "32px", fontWeight: 800, color: "#111827", lineHeight: 1.15, mb: 0.25 }}>
+            {getGreeting()}
+          </Typography>
+          <Typography variant="body1" sx={{ fontSize: "14px", color: "#6B7280", fontWeight: 500 }}>
+            Today's Business Summary
+          </Typography>
+        </Box>
 
-      <div className="relative z-10 space-y-4">
-
-      {/* ── Quick Action Grid ── */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[12px] font-bold text-[#0F172A] uppercase tracking-wider">
-            Banking Services
-          </span>
-          <span className="text-[10px] font-mono font-bold text-[#6C63FF] bg-[#EDE9FE] px-2 py-0.5 rounded-full">
-            IMPS &amp; NPCI Live
-          </span>
-        </div>
-
-        <div className="grid grid-cols-4 gap-2.5">
-          {/* DMT Action */}
-          <button
-            onClick={() => { setActiveModal("dmt"); setDmtSuccess(null); }}
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#6C63FF] transition-all group active:scale-95"
+        <Stack direction="row" spacing={1.5}>
+          <Button
+            component={Link}
+            href="/retailer/wallet"
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              borderRadius: "12px",
+              fontWeight: 700,
+              height: 40,
+              px: 2.5,
+              backgroundColor: "#2563EB",
+              "&:hover": { backgroundColor: "#1D4ED8" },
+              fontSize: "13px",
+            }}
           >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-sm mb-1.5 group-hover:scale-105 transition-transform">
-              <Send className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-extrabold text-[#0F172A] text-center leading-tight">
-              DMT Transfer
-            </span>
-            <span className="text-[9px] text-[#10B981] font-bold mt-0.5">Instant IMPS</span>
-          </button>
-
-          {/* AEPS Action */}
-          <button
-            onClick={() => { setActiveModal("aeps"); setAepsScanSuccess(false); }}
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#6C63FF] transition-all group active:scale-95"
+            Add Wallet Funds
+          </Button>
+          <Button
+            component={Link}
+            href="/retailer/settlement"
+            variant="outlined"
+            size="small"
+            startIcon={<AccountBalanceIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              borderRadius: "12px",
+              fontWeight: 700,
+              height: 40,
+              px: 2.5,
+              borderColor: "#E5E7EB",
+              color: "#374151",
+              "&:hover": { borderColor: "#D1D5DB", backgroundColor: "#F8FAFC" },
+              fontSize: "13px",
+            }}
           >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-sm mb-1.5 group-hover:scale-105 transition-transform">
-              <Fingerprint className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-extrabold text-[#0F172A] text-center leading-tight">
-              AEPS Banking
-            </span>
-            <span className="text-[9px] text-[#6C63FF] font-bold mt-0.5">Biometric</span>
-          </button>
+            Move To Bank
+          </Button>
+        </Stack>
+      </Box>
 
-          {/* Customer Intake */}
-          <Link
-            href="/customers"
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#6C63FF] transition-all group active:scale-95"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-sm mb-1.5 group-hover:scale-105 transition-transform">
-              <Users className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-extrabold text-[#0F172A] text-center leading-tight">
-              Customer Intake
-            </span>
-            <span className="text-[9px] text-[#64748B] font-bold mt-0.5">KYC Registration</span>
-          </Link>
+      {/* ── KPI Cards Section (Height: 170px, Gap: 16px, Padding: 20px) ── */}
+      <KpiCardCarousel />
 
-          {/* Beneficiary Intake */}
-          <Link
-            href="/beneficiaries"
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#6C63FF] transition-all group active:scale-95"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-sm mb-1.5 group-hover:scale-105 transition-transform">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-extrabold text-[#0F172A] text-center leading-tight">
-              Beneficiary
-            </span>
-            <span className="text-[9px] text-[#64748B] font-bold mt-0.5">Link Bank</span>
-          </Link>
+      {/* ── Main Workspace Split (Left Main Grid + Right Panel) ───── */}
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", xl: "row" }, gap: "24px" }}>
 
-          {/* POS Terminal */}
-          <Link
-            href="/machines"
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#6C63FF] transition-all group active:scale-95"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white shadow-sm mb-1.5 group-hover:scale-105 transition-transform">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-extrabold text-[#0F172A] text-center leading-tight">
-              POS Swipe
-            </span>
-            <span className="text-[9px] text-[#64748B] font-bold mt-0.5">Bluetooth Terminal</span>
-          </Link>
+        {/* ── LEFT MAIN COLUMN ───────────────────────────────────── */}
+        <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "24px" }}>
 
-          {/* Wallet Passbook */}
-          <Link
-            href="/wallet-ledger/wallets"
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#6C63FF] transition-all group active:scale-95"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-sm mb-1.5 group-hover:scale-105 transition-transform">
-              <Wallet className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-extrabold text-[#0F172A] text-center leading-tight">
-              Passbook
-            </span>
-            <span className="text-[9px] text-[#64748B] font-bold mt-0.5">Daily Ledger</span>
-          </Link>
+          {/* Quick Services Grid (4 per row on Desktop, 2 per row on Tablet) */}
+          <Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: "16px" }}>
+              <Box>
+                <Typography variant="h2" sx={{ fontSize: "24px", fontWeight: 800, color: "#111827" }}>
+                  Quick Services
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 500, fontSize: "12px" }}>
+                  Financial operations & transaction services
+                </Typography>
+              </Box>
+            </Box>
 
-          {/* Bank Dispatches */}
-          <Link
-            href="/payouts/requests"
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#6C63FF] transition-all group active:scale-95"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-600 to-green-700 flex items-center justify-center text-white shadow-sm mb-1.5 group-hover:scale-105 transition-transform">
-              <Receipt className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-extrabold text-[#0F172A] text-center leading-tight">
-              Dispatches
-            </span>
-            <span className="text-[9px] text-[#64748B] font-bold mt-0.5">Bank Payouts</span>
-          </Link>
-
-          {/* Soundbox Alerts */}
-          <button
-            onClick={() => alert("🔊 Soundbox Test: 'Payment of ₹5,000 received on Pay2Pay Merchant Wallet!'")}
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md hover:border-[#6C63FF] transition-all group active:scale-95"
-          >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-white shadow-sm mb-1.5 group-hover:scale-105 transition-transform">
-              <Volume2 className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] font-extrabold text-[#0F172A] text-center leading-tight">
-              Soundbox
-            </span>
-            <span className="text-[9px] text-[#10B981] font-bold mt-0.5">Audio Alert</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ── Today's Margin & Target Progress Card ── */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0 shadow-sm">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="text-[12px] font-extrabold text-emerald-900">Today Retailer Margin</h4>
-            <p className="text-[11px] text-emerald-700 font-medium">Earned +₹1,480.00 from 18 transactions</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <span className="text-[10px] font-bold text-emerald-700 uppercase font-mono block">SLA Target</span>
-          <span className="text-[13px] font-extrabold text-emerald-900 font-mono">92% Met</span>
-        </div>
-      </div>
-
-      {/* ── Recent Mobile Passbook Feed ── */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0]">
-          <h3 className="text-[13px] font-bold text-[#0F172A] flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-[#6C63FF]" />
-            Recent Mobile Transactions
-          </h3>
-          <Link href="/dmt/transactions" className="text-[11px] font-extrabold text-[#6C63FF] hover:underline flex items-center gap-0.5">
-            View All <ChevronRight className="w-3 h-3" />
-          </Link>
-        </div>
-
-        <div className="space-y-2.5">
-          {MOCK_RETAILER_TXNS.map((txn) => (
-            <div
-              key={txn.id}
-              onClick={() => setSelectedTxn(txn)}
-              className="p-3 rounded-xl border border-[#F1F5F9] bg-[#FAFBFD] hover:bg-[#EEF6FF] transition-all cursor-pointer flex items-center justify-between gap-3"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 font-bold ${
-                  txn.type.includes("DMT") ? "bg-indigo-500" : txn.type.includes("AEPS") ? "bg-emerald-500" : "bg-blue-500"
-                }`}>
-                  {txn.type.includes("DMT") ? <Send className="w-4 h-4" /> : <Fingerprint className="w-4 h-4" />}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[12px] font-bold text-[#0F172A] truncate">{txn.recipient}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-mono font-semibold text-[#6C63FF]">{txn.id}</span>
-                    <span className="text-[10px] text-[#94A3B8]">• {txn.time}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-right shrink-0">
-                <span className="text-[13px] font-extrabold text-[#0F172A] font-mono block">
-                  ₹{txn.amount.toLocaleString("en-IN")}
-                </span>
-                <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                  +₹{txn.margin.toFixed(2)} Margin
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── DMT Money Transfer Modal ── */}
-      {activeModal === "dmt" && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl border border-[#E2E8F0]">
-            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-500 text-white flex items-center justify-center">
-                  <Send className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[#0F172A]">DMT Money Transfer</h3>
-                  <p className="text-[10px] text-[#64748B]">Instant IMPS Bank Remittance</p>
-                </div>
-              </div>
-              <button onClick={() => setActiveModal(null)} className="text-[#94A3B8] hover:text-[#0F172A]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {dmtSuccess ? (
-              <div className="text-center py-4 space-y-3">
-                <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-[#0F172A]">Transfer Successful!</h4>
-                  <p className="text-xs text-[#64748B] mt-0.5">Amount remitted to recipient bank account</p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-left space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-[#64748B]">Transaction ID:</span>
-                    <span className="font-mono font-bold text-[#6C63FF]">{dmtSuccess.id}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#64748B]">UTR Number:</span>
-                    <span className="font-mono font-bold text-[#0F172A]">{dmtSuccess.utr}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#64748B]">Amount Transferred:</span>
-                    <span className="font-mono font-extrabold text-[#0F172A]">₹{dmtSuccess.amount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-emerald-600 font-bold pt-1 border-t border-[#E2E8F0]">
-                    <span>Agent Commission Earned:</span>
-                    <span>+₹{dmtSuccess.margin.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setActiveModal(null)}
-                  className="w-full py-2.5 rounded-xl bg-[#6C63FF] text-white font-bold text-xs hover:bg-[#5B52E5] transition-all shadow-md"
-                >
-                  Done &amp; Close Receipt
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleDmtSubmit} className="space-y-3 text-xs">
-                <div>
-                  <label className="ent-label">Sender Mobile Number</label>
-                  <div className="relative">
-                    <Phone className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-                    <input
-                      type="text"
-                      required
-                      value={dmtMobile}
-                      onChange={(e) => setDmtMobile(e.target.value)}
-                      className="ent-input pl-9 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="ent-label">Select Beneficiary Account</label>
-                  <select
-                    value={dmtBeneficiary}
-                    onChange={(e) => setDmtBeneficiary(e.target.value)}
-                    className="ent-input pr-8"
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }, gap: "16px" }}>
+              {quickServices.map((service) => {
+                const Icon = service.icon;
+                return (
+                  <Paper
+                    key={service.title}
+                    component={Link}
+                    href={service.path}
+                    elevation={0}
+                    sx={{
+                      p: "16px",
+                      borderRadius: "16px",
+                      backgroundColor: "#FFFFFF",
+                      border: "1px solid #E5E7EB",
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.03)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      textDecoration: "none",
+                      cursor: "pointer",
+                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                      "&:hover": {
+                        borderColor: service.color,
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+                        transform: "translateY(-2px)",
+                      },
+                    }}
                   >
-                    <option value="Kavitha Sharma (HDFC - 50100998822)">Kavitha Sharma (HDFC - 50100998822)</option>
-                    <option value="Ramesh Patel (SBI - 30441199228)">Ramesh Patel (SBI - 30441199228)</option>
-                    <option value="Anand Kumar (ICICI - 00119922334)">Anand Kumar (ICICI - 00119922334)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="ent-label">Transfer Amount (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    value={dmtAmount}
-                    onChange={(e) => setDmtAmount(e.target.value)}
-                    className="ent-input font-mono font-bold text-sm"
-                  />
-                </div>
-
-                {/* Calculation breakdown */}
-                <div className="p-3 rounded-xl bg-[#EDE9FE] border border-[#DDD6FE] text-[#4338CA] space-y-1 text-[11px]">
-                  <div className="flex justify-between">
-                    <span>IMPS Customer Charge:</span>
-                    <span className="font-bold">₹10.00</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-emerald-700">
-                    <span>Retailer Agent Commission:</span>
-                    <span>+₹6.50</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setActiveModal(null)} className="ent-btn ent-btn-secondary">
-                    Cancel
-                  </button>
-                  <button type="submit" disabled={dmtTransferring} className="ent-btn ent-btn-primary flex-1">
-                    {dmtTransferring ? "Remitting..." : `Send ₹${dmtAmount} Now`}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── AEPS Biometric Banking Modal ── */}
-      {activeModal === "aeps" && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl border border-[#E2E8F0]">
-            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center">
-                  <Fingerprint className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[#0F172A]">AEPS Aadhaar Banking</h3>
-                  <p className="text-[10px] text-[#64748B]">Biometric Micro-ATM &amp; Balance</p>
-                </div>
-              </div>
-              <button onClick={() => setActiveModal(null)} className="text-[#94A3B8] hover:text-[#0F172A]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {aepsScanSuccess ? (
-              <div className="text-center py-4 space-y-3">
-                <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-[#0F172A]">Biometric Match Verified!</h4>
-                  <p className="text-xs text-[#64748B] mt-0.5">Cash Dispatched: ₹{aepsAmount}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs text-left space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-[#64748B]">Bank Response:</span>
-                    <span className="font-bold text-[#10B981]">NPCI 00 — SUCCESS</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#64748B]">Remaining Balance:</span>
-                    <span className="font-mono font-bold">₹14,250.00</span>
-                  </div>
-                </div>
-                <button onClick={() => setActiveModal(null)} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs">
-                  Print Slip &amp; Close
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="ent-label">Customer Aadhaar Number (12 Digits)</label>
-                  <input
-                    type="text"
-                    value={aepsAadhaar}
-                    onChange={(e) => setAepsAadhaar(e.target.value)}
-                    className="ent-input font-mono tracking-widest font-bold"
-                  />
-                </div>
-
-                <div>
-                  <label className="ent-label">Select Customer Bank</label>
-                  <select
-                    value={aepsBank}
-                    onChange={(e) => setAepsBank(e.target.value)}
-                    className="ent-input pr-8"
-                  >
-                    <option value="State Bank of India">State Bank of India</option>
-                    <option value="HDFC Bank">HDFC Bank</option>
-                    <option value="ICICI Bank">ICICI Bank</option>
-                    <option value="Bank of Baroda">Bank of Baroda</option>
-                    <option value="Punjab National Bank">Punjab National Bank</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="ent-label">Service Type</label>
-                    <select
-                      value={aepsService}
-                      onChange={(e) => setAepsService(e.target.value as any)}
-                      className="ent-input pr-8"
+                    {/* Icon */}
+                    <Box
+                      sx={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 3,
+                        backgroundColor: service.bg,
+                        color: service.color,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
                     >
-                      <option value="WITHDRAWAL">Cash Withdrawal</option>
-                      <option value="BALANCE">Balance Enquiry</option>
-                      <option value="STATEMENT">Mini Statement</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="ent-label">Amount (₹)</label>
-                    <input
-                      type="number"
-                      value={aepsAmount}
-                      onChange={(e) => setAepsAmount(e.target.value)}
-                      className="ent-input font-mono font-bold"
-                    />
-                  </div>
-                </div>
+                      <Icon sx={{ fontSize: 24 }} />
+                    </Box>
 
-                {/* Fingerprint Sensor Trigger Area */}
-                <div
-                  onClick={handleAepsScan}
-                  className="p-4 rounded-2xl border-2 border-dashed border-[#6C63FF] bg-[#EDE9FE]/50 text-center cursor-pointer hover:bg-[#EDE9FE] transition-all space-y-2"
-                >
-                  <Fingerprint className={`w-10 h-10 mx-auto text-[#6C63FF] ${aepsScanning ? "animate-pulse" : ""}`} />
-                  <p className="text-[11px] font-bold text-[#4338CA]">
-                    {aepsScanning ? "Scanning Fingerprint on Mantra/Morpho…" : "Tap to Scan Customer Fingerprint"}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+                    {/* Label */}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#111827", fontSize: "14px" }}>
+                        {service.title}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 500, display: "block", fontSize: "12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {service.sub}
+                      </Typography>
+                    </Box>
 
-      {/* ── Transaction Receipt Modal ── */}
-      {selectedTxn && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl border border-[#E2E8F0]">
-            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-              <h3 className="text-sm font-bold text-[#0F172A]">Transaction Receipt Slip</h3>
-              <button onClick={() => setSelectedTxn(null)} className="text-[#94A3B8] hover:text-[#0F172A]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+                    {/* Arrow */}
+                    <ArrowForwardIcon sx={{ color: "#9CA3AF", fontSize: 18, flexShrink: 0 }} />
+                  </Paper>
+                );
+              })}
+            </Box>
+          </Box>
 
-            <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-2 text-xs">
-              <div className="text-center pb-3 border-b border-[#E2E8F0]">
-                <p className="text-[10px] text-[#64748B] uppercase font-bold tracking-wider">Pay2Pay Merchant Receipt</p>
-                <p className="text-lg font-extrabold text-[#0F172A] font-mono mt-1">₹{selectedTxn.amount.toLocaleString()}</p>
-                <span className="ent-badge ent-badge-success mt-1">{selectedTxn.status}</span>
-              </div>
-
-              <div className="flex justify-between pt-1">
-                <span className="text-[#64748B]">Txn ID:</span>
-                <span className="font-mono font-bold text-[#6C63FF]">{selectedTxn.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#64748B]">UTR Ref:</span>
-                <span className="font-mono font-bold text-[#0F172A]">{selectedTxn.utr}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#64748B]">Service:</span>
-                <span className="font-semibold text-[#0F172A]">{selectedTxn.type}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#64748B]">Recipient:</span>
-                <span className="font-semibold text-[#0F172A] truncate max-w-[160px]">{selectedTxn.recipient}</span>
-              </div>
-              <div className="flex justify-between font-bold text-emerald-700 pt-1 border-t border-[#E2E8F0]">
-                <span>Retailer Commission:</span>
-                <span>+₹{selectedTxn.margin.toFixed(2)}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleCopy(selectedTxn.utr)}
-                className="flex-1 ent-btn ent-btn-secondary text-[11px]"
+          {/* Recent Transactions Data Grid */}
+          <Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: "16px" }}>
+              <Box>
+                <Typography variant="h2" sx={{ fontSize: "24px", fontWeight: 800, color: "#111827" }}>
+                  Recent Transactions
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 500, fontSize: "12px" }}>
+                  Live audit ledger &bull; auto-refreshes every 30s
+                </Typography>
+              </Box>
+              <Button
+                component={Link}
+                href="/retailer/transactions"
+                variant="outlined"
+                size="small"
+                endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
+                sx={{ borderRadius: "10px", fontWeight: 700, height: 36, borderColor: "#E5E7EB", color: "#374151", display: { xs: "none", sm: "inline-flex" }, fontSize: "13px" }}
               >
-                {copiedId === selectedTxn.utr ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedId === selectedTxn.utr ? "Copied" : "Copy UTR"}
-              </button>
-              <button onClick={() => setSelectedTxn(null)} className="flex-1 ent-btn ent-btn-primary text-[11px]">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                View All
+              </Button>
+            </Box>
+            <EnterpriseDataGrid
+              title=""
+              columns={columns}
+              rows={MOCK_RECENT_TXNS}
+              keyExtractor={(r) => r.id}
+              searchPlaceholder="Search by Txn ID, Recipient, UTR…"
+              actionButton={
+                <Button
+                  component={Link}
+                  href="/retailer/transactions"
+                  size="small"
+                  variant="contained"
+                  sx={{ borderRadius: 2, fontWeight: 700, display: { xs: "flex", sm: "none" }, fontSize: "12px" }}
+                >
+                  View All
+                </Button>
+              }
+            />
+          </Box>
 
-      </div>{/* end relative z-10 space-y-4 */}
-    </div>
+          {/* Gateway Health Status */}
+          <Paper elevation={0} sx={{ p: "20px", borderRadius: "16px", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 4px 16px rgba(0,0,0,0.04)" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: "16px", flexWrap: "wrap", gap: 1.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                <Box sx={{ p: 1, borderRadius: 2, backgroundColor: "#DCFCE7" }}>
+                  <SpeedIcon sx={{ color: "#16A34A", fontSize: 20 }} />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#111827", fontSize: "14px" }}>
+                    Bank Gateways & NPCI Switch Status
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "12px" }}>Live system health</Typography>
+                </Box>
+              </Box>
+              <Chip
+                label="100% Operational"
+                sx={{ backgroundColor: "#DCFCE7", color: "#16A34A", fontWeight: 800, height: 24, fontSize: "0.72rem" }}
+              />
+            </Box>
+
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(5, 1fr)" }, gap: 1.5 }}>
+              {serviceGateways.map((gw) => (
+                <Box
+                  key={gw.name}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2.5,
+                    backgroundColor: "#F8FAFC",
+                    border: "1px solid #E5E7EB",
+                  }}
+                >
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", display: "block", mb: 0.5, fontSize: "12px" }}>
+                    {gw.name}
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Box sx={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#16A34A", flexShrink: 0 }} />
+                    <Typography variant="caption" sx={{ color: "#16A34A", fontWeight: 800, fontSize: "11px" }}>
+                      {gw.status}
+                    </Typography>
+                    <Divider orientation="vertical" flexItem sx={{ height: 10, my: "auto", mx: 0.25 }} />
+                    <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 600, fontSize: "11px" }}>
+                      {gw.latency}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Paper>
+
+        </Box>
+
+        {/* ── RIGHT PANEL (340px) ─────────────────────────────────── */}
+        <Box sx={{ width: { xs: "100%", xl: 340 }, flexShrink: 0, display: "flex", flexDirection: "column", gap: "24px" }}>
+
+          {/* 1. Premium Retailer Banner with Gold Ribbon */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: "20px",
+              borderRadius: "16px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E5E7EB",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            {/* Gold Ribbon Tag */}
+            <Box
+              sx={{
+                position: "absolute",
+                top: 14,
+                right: -32,
+                transform: "rotate(45deg)",
+                backgroundColor: "#D4AF37",
+                color: "#1E3A8A",
+                fontWeight: 900,
+                fontSize: "0.65rem",
+                letterSpacing: "0.08em",
+                py: 0.25,
+                px: 3.5,
+                boxShadow: "0 2px 6px rgba(212, 175, 55, 0.3)",
+              }}
+            >
+              GOLD
+            </Box>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 1.5 }}>
+              <Avatar sx={{ backgroundColor: "#FEF9C3", color: "#D4AF37", border: "1px solid #FDE047", width: 38, height: 38 }}>
+                <WorkspacePremiumIcon sx={{ fontSize: 22 }} />
+              </Avatar>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#111827", fontSize: "14px" }}>
+                  VIP Retailer Club
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 600, fontSize: "12px" }}>
+                  Tier Gold Merchant
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ p: 1.5, borderRadius: 2.5, backgroundColor: "#F8FAFC", border: "1px solid #E5E7EB", mb: 1.5 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                <Typography variant="caption" sx={{ color: "#4B5563", fontWeight: 700, fontSize: "12px" }}>
+                  Rewards Balance
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <MonetizationOnIcon sx={{ color: "#D4AF37", fontSize: 16 }} />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#B45309", fontSize: "13px" }}>
+                    8,450 Coins
+                  </Typography>
+                </Box>
+              </Box>
+              <Typography variant="caption" sx={{ color: "#6B7280", display: "block", fontSize: "12px" }}>
+                Commission Bonus: <strong style={{ color: "#16A34A" }}>+1.2x Extra Margin</strong>
+              </Typography>
+            </Box>
+
+            <Button
+              component={Link}
+              href="/retailer/reports"
+              fullWidth
+              size="small"
+              variant="outlined"
+              sx={{
+                borderRadius: "10px",
+                height: 38,
+                fontWeight: 700,
+                color: "#1E3A8A",
+                borderColor: "#D4AF37",
+                "&:hover": { borderColor: "#B45309", backgroundColor: "#FEF9C3" },
+                textTransform: "none",
+                fontSize: "12px",
+              }}
+            >
+              View VIP Commission Slab
+            </Button>
+          </Paper>
+
+          {/* 2. Important Notifications */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: "20px",
+              borderRadius: "16px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E5E7EB",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <NotificationsActiveIcon sx={{ color: "#2563EB", fontSize: 20 }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#111827", fontSize: "14px" }}>
+                  Important Alerts
+                </Typography>
+              </Box>
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#DC2626" }} />
+            </Box>
+
+            <Stack spacing={1.25}>
+              <Box sx={{ p: 1.25, borderRadius: 2, backgroundColor: "#EFF6FF", borderLeft: "3px solid #2563EB" }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: "#1E3A8A", display: "block", fontSize: "12px" }}>
+                  NPCI IMPS Switch Status
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#374151", fontSize: "11px" }}>
+                  100% instant settlement operational across 140+ banks.
+                </Typography>
+              </Box>
+              <Box sx={{ p: 1.25, borderRadius: 2, backgroundColor: "#DCFCE7", borderLeft: "3px solid #16A34A" }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: "#14532D", display: "block", fontSize: "12px" }}>
+                  TDS Certificate Ready
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#374151", fontSize: "11px" }}>
+                  Section 194O TDS form for Q1 FY26 ready to download.
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+
+          {/* 3. Dedicated Relationship Manager & Support */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: "20px",
+              borderRadius: "16px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E5E7EB",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 1.5 }}>
+              <Box sx={{ p: 1, borderRadius: 2.5, backgroundColor: "#EFF6FF" }}>
+                <SupportAgentIcon sx={{ color: "#2563EB", fontSize: 22 }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#111827", fontSize: "14px" }}>
+                  24x7 Retailer Support
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 600, fontSize: "12px" }}>
+                  Assigned Account Lead
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ p: 1.5, borderRadius: 2.5, backgroundColor: "#F8FAFC", border: "1px solid #E5E7EB", mb: 1.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 800, color: "#111827", fontSize: "14px" }}>
+                Anand Sharma
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#6B7280", display: "block", fontSize: "12px" }}>
+                Senior Lead Specialist &bull; Retailer Desk
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#2563EB", fontWeight: 700, mt: 0.25, display: "block", fontSize: "12px" }}>
+                Toll Free: 1800-200-9988
+              </Typography>
+            </Box>
+
+            <Button
+              fullWidth
+              size="small"
+              variant="contained"
+              startIcon={<CallIcon sx={{ fontSize: 16 }} />}
+              sx={{
+                borderRadius: "10px",
+                height: 38,
+                fontWeight: 700,
+                backgroundColor: "#16A34A",
+                "&:hover": { backgroundColor: "#15803D" },
+                textTransform: "none",
+                fontSize: "12px",
+              }}
+              onClick={() => alert("Connecting to Retailer Helpline: 1800-200-9988")}
+            >
+              Call Relationship Manager
+            </Button>
+          </Paper>
+
+          {/* 4. Recent Activity Stream */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: "20px",
+              borderRadius: "16px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E5E7EB",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+              <HistoryIcon sx={{ color: "#4B5563", fontSize: 20 }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#111827", fontSize: "14px" }}>
+                Terminal Audit Stream
+              </Typography>
+            </Box>
+
+            <Stack spacing={1.5}>
+              {RECENT_ACTIVITIES.map((act, i) => (
+                <Box key={i} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Box sx={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: act.type === "SUCCESS" ? "#16A34A" : "#2563EB" }} />
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: "#374151", fontSize: "12px" }}>
+                      {act.text}
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" sx={{ color: "#9CA3AF", fontSize: "0.68rem", fontFamily: "monospace" }}>
+                    {act.time}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Paper>
+
+        </Box>
+
+      </Box>
+
+    </Box>
   );
 }
