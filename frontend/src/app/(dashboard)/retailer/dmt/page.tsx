@@ -50,6 +50,8 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckIcon from "@mui/icons-material/Check";
 import AddIcon from "@mui/icons-material/Add";
+import ShieldIcon from "@mui/icons-material/Shield";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 
 import { M3TextField, M3CurrencyInput } from "@/components/ui/form-components";
 import { M3Button } from "@/components/ui/m3-components";
@@ -234,6 +236,7 @@ export default function DmtPage() {
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [shareDrawerOpen, setShareDrawerOpen] = useState(false);
   const [copiedUtr, setCopiedUtr] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
   // Load initial customer
   useEffect(() => {
@@ -1039,7 +1042,7 @@ export default function DmtPage() {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <SlideToSend
                   disabled={!isAllValid}
-                  onConfirm={handleExecutePayout}
+                  onConfirm={() => setConfirmModalOpen(true)}
                   label={`Slide to Execute Payout ₹${numAmount.toLocaleString("en-IN")} →`}
                 />
               </Grid>
@@ -1048,43 +1051,272 @@ export default function DmtPage() {
         </Paper>
       )}
 
+      {/* ── 1. CONFIRM TRANSFER MODAL (MATCHING USER MOCKUP SCREEN 1) ── */}
+      <Dialog
+        open={confirmModalOpen}
+        onClose={() => setConfirmModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 4, p: 3, backgroundColor: "#FFFFFF" } } }}
+      >
+        {/* Header */}
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+            <IconButton size="small" onClick={() => setConfirmModalOpen(false)}>
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+            <Typography variant="h6" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+              Confirm Transfer
+            </Typography>
+          </Stack>
+          <Avatar sx={{ bgcolor: "#2563EB", width: 36, height: 36, fontWeight: 800, fontSize: "0.85rem" }}>
+            {((selectedCustomer?.full_name || "") as string).charAt(0).toUpperCase() || "C"}
+          </Avatar>
+        </Stack>
 
+        {/* Transfer Amount Card */}
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF", mb: 2 }}>
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+            <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", letterSpacing: "0.5px" }}>
+              TRANSFER AMOUNT
+            </Typography>
+            <Chip
+              label={`🟢 ₹${commission || 80} Earned`}
+              size="small"
+              sx={{ bgcolor: "#DCFCE7", color: "#15803D", fontWeight: 800, fontSize: "0.7rem", height: 22 }}
+            />
+          </Stack>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+            ₹{numAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </Typography>
+        </Paper>
 
-      {/* ── REAL-TIME PROCESSING OVERLAY ── */}
-      <Dialog open={processingOpen} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: 4, p: 3, textAlign: "center" } } }}>
+        {/* Sender Details Box */}
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 2 }}>
+          <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", letterSpacing: "0.5px", display: "block", mb: 1 }}>
+            SENDER
+          </Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+            {selectedCustomer?.full_name || "Ravi Kumar"}
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
+            📱 +91 {selectedCustomer?.mobile_number || "9876543210"}
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#2563EB", fontWeight: 700, display: "block", mt: 0.5 }}>
+            💳 Pay2Pay Main Wallet (Balance: ₹{walletBefore.toLocaleString("en-IN")})
+          </Typography>
+        </Paper>
+
+        {/* Beneficiary Details Box */}
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 2 }}>
+          <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", letterSpacing: "0.5px", display: "block", mb: 1 }}>
+            BENEFICIARY
+          </Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+            {selectedBeneficiary?.account_holder_name || "Priya S"}
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 1 }}>
+            {selectedBeneficiary?.bank_name || "HDFC Bank"}
+          </Typography>
+          <Chip
+            label={`ACC NO. XXXX${selectedBeneficiary?.account_number.slice(-4) || "4521"}`}
+            size="small"
+            sx={{ bgcolor: "#FFFFFF", border: "1px solid #E2E8F0", fontWeight: 800, color: "#1E1B4B", fontSize: "0.72rem" }}
+          />
+        </Paper>
+
+        {/* Transaction Charges & Final Credit Amount */}
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF", mb: 2 }}>
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+            <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 600 }}>
+              Transaction Charges
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#DC2626", fontWeight: 800 }}>
+              + ₹{totalFee.toFixed(2)}
+            </Typography>
+          </Stack>
+
+          <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2, bgcolor: "#F0FDF4", border: "1px solid #BBF7D0", textAlign: "center" }}>
+            <Typography variant="caption" sx={{ color: "#16A34A", fontWeight: 800, letterSpacing: "0.5px" }}>
+              FINAL CREDIT AMOUNT
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900, color: "#15803D" }}>
+              ₹{Math.max(0, numAmount - totalFee).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </Typography>
+          </Paper>
+        </Paper>
+
+        {/* Security Badges Row */}
+        <Grid container spacing={1.5} sx={{ mb: 2 }}>
+          <Grid size={{ xs: 6 }}>
+            <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2.5, border: "1px solid #DCFCE7", bgcolor: "#F0FDF4", textAlign: "center" }}>
+              <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 20, mb: 0.5 }} />
+              <Typography variant="caption" sx={{ fontWeight: 800, color: "#15803D", display: "block", fontSize: "0.7rem" }}>
+                Verified Beneficiary
+              </Typography>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 6 }}>
+            <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2.5, border: "1px solid #DCFCE7", bgcolor: "#F0FDF4", textAlign: "center" }}>
+              <VerifiedUserIcon sx={{ color: "#16A34A", fontSize: 20, mb: 0.5 }} />
+              <Typography variant="caption" sx={{ fontWeight: 800, color: "#15803D", display: "block", fontSize: "0.7rem" }}>
+                Fraud Scan Completed
+              </Typography>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {/* High Transaction Alert (if amount >= 10000) */}
+        {numAmount >= 10000 && (
+          <Alert severity="warning" icon={<WarningAmberIcon sx={{ color: "#DC2626" }} />} sx={{ mb: 2.5, borderRadius: 3, borderLeft: "5px solid #DC2626", bgcolor: "#FEF2F2" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#991B1B" }}>
+              High transaction amount
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#991B1B" }}>
+              Please verify customer identity before proceeding to prevent money laundering or unauthorized access.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Action Buttons */}
+        <Stack spacing={1.5}>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={() => {
+              setConfirmModalOpen(false);
+              handleExecutePayout();
+            }}
+            startIcon={<FlashOnIcon />}
+            sx={{
+              bgcolor: "#1E1B4B",
+              color: "#FFFFFF",
+              fontWeight: 900,
+              py: 1.4,
+              borderRadius: 3,
+              fontSize: "1rem",
+              textTransform: "none",
+              boxShadow: "0 4px 14px rgba(30, 27, 75, 0.3)",
+              "&:hover": { bgcolor: "#2563EB" },
+            }}
+          >
+            ⚡ Confirm & Process
+          </Button>
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={() => setConfirmModalOpen(false)}
+            sx={{
+              borderColor: "#CBD5E1",
+              color: "#64748B",
+              fontWeight: 800,
+              py: 1.2,
+              borderRadius: 3,
+              textTransform: "none",
+            }}
+          >
+            Cancel
+          </Button>
+        </Stack>
+      </Dialog>
+
+      {/* ── 2. REAL-TIME TRANSFER PROCESSING OVERLAY (MATCHING USER MOCKUP SCREEN 2) ── */}
+      <Dialog
+        open={processingOpen}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 4, p: 3, textAlign: "center", backgroundColor: "#FFFFFF" } } }}
+      >
         <Box sx={{ py: 2 }}>
-          <SpeedIcon sx={{ fontSize: 56, color: "#4F46E5", mb: 1.5 }} />
-          <Typography variant="h6" sx={{ fontWeight: 900 }}>Real-time Processing Payout...</Typography>
+          {/* Header Bar */}
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+            <Typography variant="caption" sx={{ fontWeight: 900, color: "#1E1B4B", letterSpacing: "0.5px" }}>
+              ≡ Pay2Pay Retailer Platform
+            </Typography>
+            <Avatar sx={{ bgcolor: "#2563EB", width: 32, height: 32, fontWeight: 800, fontSize: "0.75rem" }}>
+              {((selectedCustomer?.full_name || "") as string).charAt(0).toUpperCase() || "C"}
+            </Avatar>
+          </Stack>
+
+          {/* Animated Circular Green Shield Icon Logo */}
+          <Box sx={{ position: "relative", width: 90, height: 90, mx: "auto", mb: 2 }}>
+            <Box
+              sx={{
+                width: 90,
+                height: 90,
+                borderRadius: "50%",
+                border: "4px solid #16A34A",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#F0FDF4",
+                boxShadow: "0 0 20px rgba(22, 163, 74, 0.25)",
+              }}
+            >
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  backgroundColor: "#1E1B4B",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <ShieldIcon sx={{ fontSize: 36, color: "#FFFFFF" }} />
+              </Box>
+            </Box>
+          </Box>
+
+          <Typography variant="h5" sx={{ fontWeight: 900, color: "#1E1B4B", mb: 0.5 }}>
+            {processingStep >= 5 ? "Payment Successful" : "Processing Transfer..."}
+          </Typography>
           <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 3 }}>
-            Amount: ₹{numAmount.toLocaleString("en-IN")} • Mode: {mode}
+            Securing your transaction • ₹{numAmount.toLocaleString("en-IN")} ({mode})
           </Typography>
 
-          <Stack spacing={2} sx={{ textAlign: "left" }}>
+          {/* Live Step Checklist */}
+          <Stack spacing={1.5} sx={{ textAlign: "left", px: 1, mb: 3 }}>
             {[
-              "1. Encrypted Customer PIN & Risk Validation",
-              `2. Destination ${selectedBeneficiary?.bank_name || "Bank"} Handshake`,
-              "3. Cashfree Gateway UTR Reservation",
-              "4. Double-Entry Wallet Ledger & Commission Update",
-              "5. Digital Receipt & Immutable Audit Logging",
+              "Validating Card & Customer PIN",
+              "Processing Payment",
+              "Verifying Bank Account",
+              "Initiating Transfer",
+              "Completing Settlement",
             ].map((stepText, idx) => {
               const stepNum = idx + 1;
               const isDone = processingStep > stepNum;
+              const isActive = processingStep === stepNum;
               return (
-                <Stack key={idx} direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                  {isDone ? (
-                    <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 24 }} />
-                  ) : (
-                    <Box sx={{ width: 24, height: 24, borderRadius: "50%", border: "2px solid #CBD5E1" }} />
-                  )}
-                  <Typography variant="body2" sx={{ fontWeight: isDone ? 700 : 400, color: isDone ? "#16A34A" : "#64748B" }}>
-                    {stepText}
+                <Stack key={idx} direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                    {isDone ? (
+                      <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 20 }} />
+                    ) : (
+                      <Box sx={{ width: 20, height: 20, borderRadius: "50%", border: isActive ? "2px solid #2563EB" : "2px solid #CBD5E1" }} />
+                    )}
+                    <Typography variant="body2" sx={{ fontWeight: isDone || isActive ? 800 : 500, color: isDone ? "#16A34A" : isActive ? "#1E1B4B" : "#64748B" }}>
+                      {stepText}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: isDone ? "#16A34A" : isActive ? "#2563EB" : "#94A3B8" }}>
+                    {isDone ? "Completed" : isActive ? "Active" : "Pending"}
                   </Typography>
                 </Stack>
               );
             })}
           </Stack>
 
-          <LinearProgress sx={{ mt: 3, borderRadius: 2, height: 8 }} />
+          <LinearProgress sx={{ borderRadius: 2, height: 6, mb: 2 }} />
+
+          {/* Encrypted Gateway Footer */}
+          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block", fontSize: "0.7rem" }}>
+            🔒 End-to-End Encrypted Gateway
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", fontSize: "0.68rem" }}>
+            Pay2Pay Retailer Network (ID: VEL-99281)
+          </Typography>
         </Box>
       </Dialog>
 
