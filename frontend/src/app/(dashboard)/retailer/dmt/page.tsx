@@ -167,6 +167,22 @@ interface Beneficiary {
   penny_drop_status: string;
 }
 
+function numberToWords(num: number): string {
+  if (!num || num <= 0) return "Zero Rupees";
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  
+  function inWords(n: number): string {
+    if (n < 20) return a[n];
+    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+    if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + inWords(n % 100) : '');
+    if (n < 100000) return inWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + inWords(n % 1000) : '');
+    if (n < 10000000) return inWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + inWords(n % 100000) : '');
+    return inWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + inWords(n % 10000000) : '');
+  }
+  return inWords(Math.floor(num)) + " Rupees Only";
+}
+
 export default function DmtPage() {
   const { wallet, updateWallet } = useRetailerStore();
 
@@ -241,6 +257,33 @@ export default function DmtPage() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [payoutFailed, setPayoutFailed] = useState<any | null>(null);
   const [receiptDrawerOpen, setReceiptDrawerOpen] = useState(false);
+  const [selectedWalletType, setSelectedWalletType] = useState<"MAIN" | "TOPUP" | "UPI" | "AEPS">("MAIN");
+
+  const handleKeypadPress = (val: string) => {
+    if (val === "⌫") {
+      setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : ""));
+    } else if (val === "CLR") {
+      setAmount("");
+    } else if (val.startsWith("+")) {
+      const addVal = parseInt(val.replace("+", ""), 10);
+      const curr = parseFloat(amount) || 0;
+      setAmount((curr + addVal).toString());
+    } else {
+      setAmount((prev) => (prev === "0" ? val : prev + val));
+    }
+  };
+
+  const handlePinKeypadPress = (val: string) => {
+    if (val === "⌫") {
+      setCustomerPin((prev) => prev.slice(0, -1));
+    } else if (val === "CLR") {
+      setCustomerPin("");
+    } else {
+      if (customerPin.length < 4) {
+        setCustomerPin((prev) => prev + val);
+      }
+    }
+  };
 
   // Load initial customer
   useEffect(() => {
@@ -893,30 +936,164 @@ export default function DmtPage() {
                 </Grid>
               </Paper>
 
-              {/* Payout Amount & PIN Inputs */}
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 3.5, border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2, color: "#1E1B4B" }}>
-                  Payout Amount & Customer PIN
-                </Typography>
+              {/* ── 6. ADVANCED TRANSFER AMOUNT & NUMERIC KEYPAD CARD (MATCHING USER MOCKUP & IMAGE 1 MOCKUP 3) ── */}
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+                
+                {/* Receiver Info Header */}
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 3 }}>
+                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                      <Avatar sx={{ bgcolor: "#2563EB", color: "#FFFFFF", width: 40, height: 40, fontWeight: 800, fontSize: "0.85rem" }}>
+                        {((selectedBeneficiary?.account_holder_name || "P") as string).charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                          {selectedBeneficiary?.account_holder_name || "Priya S"}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>
+                          {selectedBeneficiary?.bank_name || "HDFC Bank"} • ****{selectedBeneficiary?.account_number.slice(-4) || "4521"}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <IconButton size="small" onClick={() => setBeneficiaryExpanded(true)}>
+                      <EditIcon sx={{ fontSize: 18, color: "#2563EB" }} />
+                    </IconButton>
+                  </Stack>
+                </Paper>
 
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 7 }}>
-                    <M3CurrencyInput
-                      label="Payout Amount (INR)"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 5 }}>
-                    <M3TextField
-                      label="Customer PIN"
-                      type="password"
-                      value={customerPin}
-                      onChange={(e) => setCustomerPin(e.target.value)}
-                      placeholder="••••"
-                    />
-                  </Grid>
+                {/* Amount Display & In Words */}
+                <Box sx={{ textAlign: "center", mb: 3 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", letterSpacing: "1px" }}>
+                    ENTER TRANSFER AMOUNT
+                  </Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 900, color: "#1E1B4B", my: 0.5 }}>
+                    ₹{numAmount ? numAmount.toLocaleString("en-IN") : "0"}
+                  </Typography>
+                  <Typography variant="caption" sx={{ fontStyle: "italic", color: "#2563EB", fontWeight: 700, display: "block" }}>
+                    {numberToWords(numAmount)}
+                  </Typography>
+                </Box>
+
+                {/* Wallet Selection Tabs */}
+                <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", display: "block", mb: 1, letterSpacing: "0.5px" }}>
+                  SELECT WALLET
+                </Typography>
+                <Grid container spacing={1.5} sx={{ mb: 3 }}>
+                  {[
+                    { id: "MAIN", label: "MAIN", balance: walletBefore, icon: "💳" },
+                    { id: "TOPUP", label: "TOPUP", balance: 12200, icon: "💵" },
+                    { id: "UPI", label: "UPI", balance: 5400, icon: "📱" },
+                    { id: "AEPS", label: "AEPS", balance: 18500, icon: "🖐️" },
+                  ].map((w) => {
+                    const isSel = selectedWalletType === w.id;
+                    return (
+                      <Grid size={{ xs: 3 }} key={w.id}>
+                        <Paper
+                          elevation={0}
+                          onClick={() => setSelectedWalletType(w.id as any)}
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 3,
+                            border: isSel ? "2px solid #2563EB" : "1px solid #E2E8F0",
+                            bgcolor: isSel ? "#EFF6FF" : "#FFFFFF",
+                            textAlign: "center",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          <Typography variant="caption" sx={{ fontWeight: 900, color: isSel ? "#2563EB" : "#64748B", display: "block", fontSize: "0.7rem" }}>
+                            {w.label}
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: "#1E1B4B", display: "block", fontSize: "0.68rem", mt: 0.25 }}>
+                            ₹{w.balance.toLocaleString("en-IN")}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    );
+                  })}
                 </Grid>
+
+                {/* Fee & Instant Credit Margin Banner */}
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "#F0FDF4", border: "1px solid #BBF7D0", mb: 3 }}>
+                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block", fontSize: "0.7rem" }}>
+                        NET DEBIT (DR)
+                      </Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#DC2626" }}>
+                        - ₹{netDebit.toFixed(2)} <span style={{ fontSize: "0.7rem", fontWeight: 600 }}>(+₹{totalFee.toFixed(2)} fee)</span>
+                      </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: "right" }}>
+                      <Typography variant="caption" sx={{ color: "#16A34A", fontWeight: 800, display: "block", fontSize: "0.7rem" }}>
+                        EARNINGS (CR) 🎉
+                      </Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#16A34A" }}>
+                        + ₹{commission.toFixed(2)} INSTANT CREDIT
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Paper>
+
+                {/* Quick Amount Chips */}
+                <Stack direction="row" spacing={1} sx={{ mb: 2.5, justifyContent: "center" }}>
+                  {["+500", "+1000", "+2000", "+5000"].map((quickVal) => (
+                    <Chip
+                      key={quickVal}
+                      label={`₹${quickVal}`}
+                      onClick={() => handleKeypadPress(quickVal)}
+                      sx={{
+                        fontWeight: 800,
+                        bgcolor: "#F1F5F9",
+                        color: "#1E1B4B",
+                        borderRadius: "12px",
+                        fontSize: "0.78rem",
+                        "&:hover": { bgcolor: "#2563EB", color: "#FFFFFF" },
+                      }}
+                    />
+                  ))}
+                </Stack>
+
+                {/* Interactive On-Screen Numeric Keypad */}
+                <Grid container spacing={1.5} sx={{ maxWidth: 360, mx: "auto", mb: 3 }}>
+                  {["1", "2", "3", "4", "5", "6", "7", "8", "9", "CLR", "0", "⌫"].map((btnKey) => (
+                    <Grid size={{ xs: 4 }} key={btnKey}>
+                      <Paper
+                        elevation={0}
+                        onClick={() => handleKeypadPress(btnKey)}
+                        sx={{
+                          py: 1.8,
+                          borderRadius: 3,
+                          border: "1px solid #E2E8F0",
+                          bgcolor: btnKey === "CLR" ? "#FEF2F2" : btnKey === "⌫" ? "#FEF2F2" : "#FFFFFF",
+                          color: btnKey === "CLR" ? "#DC2626" : btnKey === "⌫" ? "#DC2626" : "#1E1B4B",
+                          fontWeight: 900,
+                          fontSize: "1.1rem",
+                          textAlign: "center",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                          "&:active": { transform: "scale(0.95)", bgcolor: "#EFF6FF" },
+                          "&:hover": { bgcolor: "#F8FAFC" },
+                        }}
+                      >
+                        {btnKey}
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                {/* Customer Transaction PIN Input */}
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#F8FAFC" }}>
+                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography variant="body2" sx={{ fontWeight: 800, color: "#1E1B4B" }}>
+                      Customer 4-Digit Security PIN
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 900, letterSpacing: "4px", color: "#2563EB" }}>
+                      {customerPin ? "●".repeat(customerPin.length) + "○".repeat(4 - customerPin.length) : "○○○○"}
+                    </Typography>
+                  </Stack>
+                </Paper>
+
               </Paper>
             </Stack>
           </Grid>
