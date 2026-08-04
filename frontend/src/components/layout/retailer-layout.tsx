@@ -42,6 +42,8 @@ import { useAuth } from "@/lib/auth";
 import { useRetailerStore, KpiTheme } from "@/stores/use-retailer-store";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
+import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
+import { RightContextPanel } from "./right-context-panel";
 
 const FULL_DRAWER_WIDTH = 260;
 const COLLAPSED_DRAWER_WIDTH = 72;
@@ -66,6 +68,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
   const [kpiThemeAnchor, setKpiThemeAnchor] = useState<null | HTMLElement>(null);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [universalSearchOpen, setUniversalSearchOpen] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
 
   // Auto-close mobile drawer on route change
   useEffect(() => {
@@ -331,25 +335,28 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               {activeMenuItem?.label || "Retailer Terminal"}
             </Typography>
 
-            {/* Search Input Bar */}
+            {/* Universal Search Input Bar */}
             <Paper
               elevation={0}
+              onClick={() => setUniversalSearchOpen(true)}
               sx={{
                 p: "2px 10px",
                 display: { xs: "none", md: "flex" },
                 alignItems: "center",
-                width: 240,
+                width: 260,
                 height: 36,
                 borderRadius: "10px",
                 backgroundColor: "#F8FAFC",
                 border: "1px solid #E5E7EB",
+                cursor: "pointer",
+                "&:hover": { backgroundColor: "#F1F5F9", borderColor: "#CBD5E1" },
               }}
             >
-              <SearchIcon sx={{ color: "#9CA3AF", fontSize: 18, mr: 0.75 }} />
-              <InputBase
-                placeholder="Search services, txns, UTR..."
-                sx={{ fontSize: "13px", color: "#111827", flex: 1 }}
-              />
+              <SearchIcon sx={{ color: "#0284C7", fontSize: 18, mr: 0.75 }} />
+              <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", flex: 1, fontWeight: 700 }}>
+                Universal Search...
+              </Typography>
+              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "#E2E8F0", color: "#334155" }} />
             </Paper>
           </Stack>
 
@@ -698,7 +705,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflowX: "hidden" }}>{children}</Box>
+        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflowX: "hidden", display: "flex" }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
+          <Box sx={{ display: { xs: "none", xl: "block" } }}>
+            <RightContextPanel collapsed={rightPanelCollapsed} onToggleCollapse={() => setRightPanelCollapsed(!rightPanelCollapsed)} />
+          </Box>
+        </Box>
 
         {/* Enterprise Footer */}
         <Box
@@ -748,6 +760,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
     {/* ── Mobile FAB + Quick Actions Sheet (xs / sm only) ─────────────────── */}
     <MobileQuickActionsFAB bottomOffset={36} />
+
+    {/* ── Universal Search Dialog (Ctrl+K) ────────────────────────────────── */}
+    <UniversalSearchDialog open={universalSearchOpen} onClose={() => setUniversalSearchOpen(false)} />
   </Box>
   );
 };
