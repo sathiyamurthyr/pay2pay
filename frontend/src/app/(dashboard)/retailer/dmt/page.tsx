@@ -183,6 +183,59 @@ function numberToWords(num: number): string {
   return inWords(Math.floor(num)) + " Rupees Only";
 }
 
+function playAudioFeedback(type: 'select' | 'wallet' | 'bank' | 'success' | 'fail') {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'select') {
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.1);
+    } else if (type === 'wallet' || type === 'bank') {
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    } else if (type === 'success') {
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08);
+      osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.16);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    } else if (type === 'fail') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, ctx.currentTime);
+      osc.frequency.setValueAtTime(174.61, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.35);
+    }
+  } catch (e) {}
+}
+
+function triggerHaptic(type: 'light' | 'medium' | 'heavy' | 'success') {
+  if (typeof window === 'undefined' || !navigator.vibrate) return;
+  try {
+    if (type === 'light') navigator.vibrate(15);
+    else if (type === 'medium') navigator.vibrate(40);
+    else if (type === 'heavy') navigator.vibrate([60, 30, 60]);
+    else if (type === 'success') navigator.vibrate([20, 40, 20, 40, 80]);
+  } catch (e) {}
+}
+
 export default function DmtPage() {
   const { wallet, updateWallet } = useRetailerStore();
 
@@ -260,6 +313,8 @@ export default function DmtPage() {
   const [selectedWalletType, setSelectedWalletType] = useState<"MAIN" | "TOPUP" | "UPI" | "AEPS">("MAIN");
 
   const handleKeypadPress = (val: string) => {
+    playAudioFeedback("select");
+    triggerHaptic("light");
     if (val === "⌫") {
       setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : ""));
     } else if (val === "CLR") {
@@ -274,6 +329,8 @@ export default function DmtPage() {
   };
 
   const handlePinKeypadPress = (val: string) => {
+    playAudioFeedback("select");
+    triggerHaptic("light");
     if (val === "⌫") {
       setCustomerPin((prev) => prev.slice(0, -1));
     } else if (val === "CLR") {
@@ -360,6 +417,8 @@ export default function DmtPage() {
     setProcessingStep(5);
 
     if (res.status === "SUCCESS") {
+      playAudioFeedback("success");
+      triggerHaptic("success");
       setPayoutReceipt(res.data);
       updateWallet({
         mainBalance: res.data.wallet_after,
@@ -370,6 +429,8 @@ export default function DmtPage() {
         setProcessingOpen(false);
       }, 700);
     } else {
+      playAudioFeedback("fail");
+      triggerHaptic("heavy");
       setProcessingOpen(false);
       alert(res.detail || "Payout failed");
     }
@@ -467,47 +528,54 @@ export default function DmtPage() {
         </Stack>
       </Paper>
 
-      {/* ── 5. LIVE VALIDATION TIMELINE CHECKLIST BAR ── */}
-      <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 3, border: "1px solid #E2E8F0", backgroundColor: "#F8FAFC" }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between", overflowX: "auto" }}>
+      {/* ── 5. LIVE 10-STEP ENTERPRISE PROGRESS WORKFLOW TIMELINE ── */}
+      <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF", boxShadow: "0 4px 14px rgba(0,0,0,0.03)" }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between", overflowX: "auto", py: 0.5, px: 0.5 }}>
           {[
-            { label: "Customer", ok: isCustomerValid },
-            { label: "Mobile OTP", ok: isMobileOtpValid },
-            { label: "Aadhaar eKYC", ok: isAadhaarValid },
-            { label: "Beneficiary", ok: isBeneficiaryValid },
-            { label: "Wallet", ok: isWalletValid },
-            { label: "Limits", ok: isLimitValid },
-            { label: "PIN", ok: isPinValid },
-            { label: "Bank Health", ok: isBankHealthValid },
-            { label: "Payout", ok: isAllValid },
-          ].map((item, idx, arr) => (
-            <React.Fragment key={idx}>
-              <Stack direction="row" spacing={0.8} sx={{ alignItems: "center", flexShrink: 0 }}>
-                <Chip
-                  icon={item.ok ? <CheckCircleIcon sx={{ fontSize: "16px !important", color: "#16A34A !important" }} /> : undefined}
-                  label={item.label}
-                  size="small"
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: "0.75rem",
-                    backgroundColor: item.ok ? "#DCFCE7" : "#F1F5F9",
-                    color: item.ok ? "#15803D" : "#64748B",
-                    border: item.ok ? "1px solid #86EFAC" : "1px solid #CBD5E1",
-                  }}
-                />
-              </Stack>
-              {idx < arr.length - 1 && (
-                <Typography key={`sep-${idx}`} variant="caption" sx={{ color: "#CBD5E1", fontWeight: 700 }}>
-                  →
-                </Typography>
-              )}
-            </React.Fragment>
-          ))}
+            { label: "1. Customer", ok: isCustomerValid, current: !isCustomerValid },
+            { label: "2. Verification", ok: isCustomerValid, current: false },
+            { label: "3. Mobile OTP", ok: isMobileOtpValid, current: false },
+            { label: "4. Aadhaar eKYC", ok: isAadhaarValid, current: false },
+            { label: "5. Beneficiary", ok: isBeneficiaryValid, current: isCustomerValid && !isBeneficiaryValid },
+            { label: "6. Wallet", ok: isWalletValid, current: false },
+            { label: "7. Limits", ok: isLimitValid, current: false },
+            { label: "8. PIN", ok: isPinValid, current: isBeneficiaryValid && !isPinValid },
+            { label: "9. Bank Health", ok: isBankHealthValid, current: false },
+            { label: "10. Execute Payout", ok: isAllValid, current: isAllValid },
+          ].map((item, idx, arr) => {
+            const isGlowing = item.current;
+            return (
+              <React.Fragment key={idx}>
+                <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
+                  <Chip
+                    icon={item.ok ? <CheckCircleIcon sx={{ fontSize: "16px !important", color: "#16A34A !important" }} /> : undefined}
+                    label={item.label}
+                    size="small"
+                    sx={{
+                      fontWeight: 800,
+                      fontSize: "0.72rem",
+                      backgroundColor: item.ok ? "#DCFCE7" : isGlowing ? "#EFF6FF" : "#F8FAFC",
+                      color: item.ok ? "#15803D" : isGlowing ? "#2563EB" : "#64748B",
+                      border: item.ok ? "1px solid #86EFAC" : isGlowing ? "2px solid #2563EB" : "1px solid #E2E8F0",
+                      boxShadow: isGlowing ? "0 0 10px rgba(37,99,235,0.4)" : "none",
+                      transition: "all 0.3s ease",
+                    }}
+                  />
+                </Stack>
+                {idx < arr.length - 1 && (
+                  <Typography variant="caption" sx={{ color: item.ok ? "#16A34A" : "#CBD5E1", fontWeight: 800, flexShrink: 0 }}>
+                    →
+                  </Typography>
+                )}
+              </React.Fragment>
+            );
+          })}
         </Stack>
       </Paper>
 
       {!payoutReceipt ? (
-        <Grid container spacing={3}>
+        <Box>
+          <Grid container spacing={3}>
           {/* ── LEFT COLUMN: CARDS & MODAL TRIGGERS ── */}
           <Grid size={{ xs: 12, md: 7 }}>
             <Stack spacing={2.5}>
@@ -1112,6 +1180,81 @@ export default function DmtPage() {
             </Box>
           </Grid>
         </Grid>
+
+        {/* ── STICKY BOTTOM EXECUTE BAR (MATCHING ENTERPRISE UX REQUIREMENTS) ── */}
+        <Paper
+          elevation={8}
+          sx={{
+            position: "sticky",
+            bottom: 12,
+            zIndex: 1050,
+            mt: 3,
+            p: 2,
+            borderRadius: 4,
+            border: "1px solid #E2E8F0",
+            backgroundColor: "rgba(255, 255, 255, 0.96)",
+            backdropFilter: "blur(16px)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+          }}
+        >
+          <Grid container spacing={2} sx={{ alignItems: "center" }}>
+            <Grid size={{ xs: 12, sm: 6, md: 7 }}>
+              <Stack direction="row" spacing={3} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                <Box>
+                  <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block" }}>
+                    TRANSFER AMOUNT
+                  </Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                    ₹{numAmount.toLocaleString("en-IN")}
+                  </Typography>
+                </Box>
+                <Divider orientation="vertical" flexItem />
+                <Box>
+                  <Typography variant="caption" sx={{ color: "#DC2626", fontWeight: 700, display: "block" }}>
+                    NET WALLET DEBIT
+                  </Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#DC2626" }}>
+                    - ₹{netDebit.toFixed(2)}
+                  </Typography>
+                </Box>
+                <Divider orientation="vertical" flexItem />
+                <Box>
+                  <Typography variant="caption" sx={{ color: "#16A34A", fontWeight: 800, display: "block" }}>
+                    EARNINGS (CR)
+                  </Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#16A34A" }}>
+                    + ₹{commission.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6, md: 5 }}>
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", justifyContent: "flex-end" }}>
+                <Tooltip title="Voice Confirmation Command">
+                  <IconButton
+                    onClick={() => {
+                      playAudioFeedback("select");
+                      triggerHaptic("light");
+                    }}
+                    sx={{ bgcolor: "#F1F5F9", color: "#1E1B4B", "&:hover": { bgcolor: "#2563EB", color: "#FFF" } }}
+                  >
+                    <VolumeUpIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+
+                <Box sx={{ flexGrow: 1, maxWidth: 280 }}>
+                  <SlideToSend
+                    disabled={!isAllValid}
+                    onConfirm={handleExecutePayout}
+                    label={isAllValid ? "Slide to Execute Payout →" : "Complete Validation to Send"}
+                  />
+                </Box>
+              </Stack>
+            </Grid>
+          </Grid>
+        </Paper>
+      </Box>
       ) : (
         /* ── 1. TRANSFER SUCCESSFUL VIEW (MATCHING USER MOCKUP SCREEN 1) ── */
         <Paper
