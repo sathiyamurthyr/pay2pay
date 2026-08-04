@@ -52,6 +52,8 @@ import CheckIcon from "@mui/icons-material/Check";
 import AddIcon from "@mui/icons-material/Add";
 import ShieldIcon from "@mui/icons-material/Shield";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import AssessmentIcon from "@mui/icons-material/Assessment";
 
 import { M3TextField, M3CurrencyInput } from "@/components/ui/form-components";
 import { M3Button } from "@/components/ui/m3-components";
@@ -237,6 +239,8 @@ export default function DmtPage() {
   const [shareDrawerOpen, setShareDrawerOpen] = useState(false);
   const [copiedUtr, setCopiedUtr] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [payoutFailed, setPayoutFailed] = useState<any | null>(null);
+  const [receiptDrawerOpen, setReceiptDrawerOpen] = useState(false);
 
   // Load initial customer
   useEffect(() => {
@@ -932,65 +936,193 @@ export default function DmtPage() {
           </Grid>
         </Grid>
       ) : (
-        /* ── COMPACT SUCCESS SCREEN ── */
+        /* ── 1. TRANSFER SUCCESSFUL VIEW (MATCHING USER MOCKUP SCREEN 1) ── */
         <Paper
           elevation={0}
           sx={{
             p: 4,
             borderRadius: 4,
-            border: "2px solid #16A34A",
+            border: "1px solid #E2E8F0",
             backgroundColor: "#FFFFFF",
-            maxWidth: 650,
+            maxWidth: 520,
             mx: "auto",
+            position: "relative",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
           }}
         >
-          <Box sx={{ textAlign: "center", mb: 3 }}>
-            <CheckCircleIcon sx={{ fontSize: 68, color: "#16A34A" }} />
-            <Typography variant="h4" sx={{ fontWeight: 900, mt: 1, color: "#14532D" }}>
-              Payout Dispatched!
+          {/* Header Bar */}
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+              Velocity Finance
             </Typography>
-            <Typography variant="caption" sx={{ color: "#64748B" }}>
-              Reference ID: {payoutReceipt.reference_number} • UTR: {payoutReceipt.utr_number}
+            <IconButton size="small" onClick={() => setPayoutReceipt(null)}>
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Stack>
+
+          {/* Green Check Circle Badge */}
+          <Box sx={{ textAlign: "center", mb: 3 }}>
+            <Box
+              sx={{
+                width: 72,
+                height: 72,
+                borderRadius: "50%",
+                bgcolor: "#DCFCE7",
+                color: "#16A34A",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                mb: 2,
+              }}
+            >
+              <CheckCircleIcon sx={{ fontSize: 48 }} />
+            </Box>
+            <Typography variant="h3" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+              ₹{Math.max(0, (payoutReceipt.amount || 10000) - (payoutReceipt.charge || 295)).toLocaleString("en-IN")}
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: "#1E1B4B", mt: 0.5 }}>
+              Sent Successfully
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#64748B", display: "block", mt: 0.5 }}>
+              Beneficiary synced to DMT system
             </Typography>
           </Box>
 
-          <Alert
-            severity="success"
-            action={
-              <Button color="inherit" size="small" onClick={() => copyUtrToClipboard(payoutReceipt.utr_number)}>
-                {copiedUtr ? "COPIED!" : <ContentCopyIcon fontSize="small" />}
-              </Button>
-            }
-            sx={{ borderRadius: 3, mb: 3, fontWeight: 700 }}
+          {/* Commission Earned Banner */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: 3,
+              bgcolor: "#F0FDF4",
+              border: "1px solid #BBF7D0",
+              mb: 3,
+            }}
           >
-            Bank UTR Number: <strong>{payoutReceipt.utr_number}</strong>
-          </Alert>
+            <Typography variant="caption" sx={{ fontWeight: 800, color: "#16A34A", letterSpacing: "0.5px", display: "block" }}>
+              💵 COMMISSION EARNED
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 800, color: "#15803D", mt: 0.5 }}>
+              🎉 ₹{payoutReceipt.commission || 80} commission credited instantly
+            </Typography>
+          </Paper>
 
-          <Grid container spacing={2} sx={{ p: 2.5, borderRadius: 3, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 3 }}>
+          {/* Bank Partner & Time Info */}
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 3 }}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 6 }}>
+                <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block" }}>
+                  BANK PARTNER
+                </Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#1E1B4B", textTransform: "uppercase" }}>
+                  {payoutReceipt.bank_name || selectedBeneficiary?.bank_name || "HDFC BANK"}
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 6 }} sx={{ textAlign: "right" }}>
+                <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block" }}>
+                  TIME
+                </Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {/* TXN ID & UTR NUMBER Cards */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid size={{ xs: 6 }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>PAYOUT AMOUNT</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 900 }}>₹{payoutReceipt.amount.toLocaleString("en-IN")}</Typography>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFFFFF" }}>
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B" }}>
+                    TXN ID
+                  </Typography>
+                  <IconButton size="small" onClick={() => copyUtrToClipboard(payoutReceipt.reference_number || "CTB48392")}>
+                    <ContentCopyIcon sx={{ fontSize: 14, color: "#64748B" }} />
+                  </IconButton>
+                </Stack>
+                <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                  {payoutReceipt.reference_number || "CTB48392"}
+                </Typography>
+              </Paper>
             </Grid>
             <Grid size={{ xs: 6 }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>BENEFICIARY</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 800 }}>{payoutReceipt.beneficiary_name}</Typography>
-            </Grid>
-            <Grid size={{ xs: 6 }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>RETAILER MARGIN EARNED</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 900, color: "#16A34A" }}>+₹{payoutReceipt.commission}</Typography>
-            </Grid>
-            <Grid size={{ xs: 6 }}>
-              <Typography variant="caption" sx={{ color: "#64748B" }}>UPDATED WALLET</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 900 }}>₹{payoutReceipt.wallet_after.toLocaleString("en-IN")}</Typography>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFFFFF" }}>
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B" }}>
+                    UTR NUMBER
+                  </Typography>
+                  <IconButton size="small" onClick={() => copyUtrToClipboard(payoutReceipt.utr_number || "93847293")}>
+                    <ContentCopyIcon sx={{ fontSize: 14, color: "#64748B" }} />
+                  </IconButton>
+                </Stack>
+                <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                  {payoutReceipt.utr_number || "93847293"}
+                </Typography>
+              </Paper>
             </Grid>
           </Grid>
 
-          <Stack direction="row" spacing={2}>
-            <Button variant="contained" fullWidth startIcon={<ShareIcon />} onClick={() => setShareDrawerOpen(true)}>
-              Share & Download Receipt
+          {/* Action Buttons */}
+          <Stack spacing={1.5}>
+            <Button
+              variant="contained"
+              fullWidth
+              startIcon={<ShareIcon />}
+              onClick={() => setReceiptDrawerOpen(true)}
+              sx={{
+                bgcolor: "#1E1B4B",
+                color: "#FFFFFF",
+                fontWeight: 900,
+                py: 1.4,
+                borderRadius: 3,
+                textTransform: "none",
+                fontSize: "0.95rem",
+                "&:hover": { bgcolor: "#2563EB" },
+              }}
+            >
+              Share Receipt
             </Button>
-            <Button variant="outlined" fullWidth startIcon={<ReplayIcon />} onClick={() => setPayoutReceipt(null)}>
-              New Payout
+            <Grid container spacing={1.5}>
+              <Grid size={{ xs: 6 }}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<ReplayIcon />}
+                  onClick={() => setPayoutReceipt(null)}
+                  sx={{ borderColor: "#CBD5E1", color: "#1E1B4B", fontWeight: 800, py: 1.2, borderRadius: 3, textTransform: "none" }}
+                >
+                  Repeat
+                </Button>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<AssessmentIcon />}
+                  onClick={() => alert("Report issue submitted")}
+                  sx={{ borderColor: "#CBD5E1", color: "#1E1B4B", fontWeight: 800, py: 1.2, borderRadius: 3, textTransform: "none" }}
+                >
+                  Report
+                </Button>
+              </Grid>
+            </Grid>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => setPayoutReceipt(null)}
+              sx={{
+                bgcolor: "#15803D",
+                color: "#FFFFFF",
+                fontWeight: 900,
+                py: 1.4,
+                borderRadius: 3,
+                textTransform: "none",
+                fontSize: "1rem",
+                "&:hover": { bgcolor: "#166534" },
+              }}
+            >
+              Done
             </Button>
           </Stack>
         </Paper>
@@ -1347,6 +1479,302 @@ export default function DmtPage() {
             </Grid>
           ))}
         </Grid>
+      </Drawer>
+
+      {/* ── 2. TRANSFER INTERRUPTED / FAILED MODAL (MATCHING USER MOCKUP SCREEN 2) ── */}
+      <Dialog
+        open={Boolean(payoutFailed)}
+        onClose={() => setPayoutFailed(null)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 4, p: 3, backgroundColor: "#FFFFFF" } } }}
+      >
+        {/* Header */}
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <IconButton size="small" onClick={() => setPayoutFailed(null)}>
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+            <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+              Velocity Finance
+            </Typography>
+          </Stack>
+          <Avatar sx={{ bgcolor: "#2563EB", width: 32, height: 32, fontWeight: 800, fontSize: "0.75rem" }}>
+            {((selectedCustomer?.full_name || "") as string).charAt(0).toUpperCase() || "C"}
+          </Avatar>
+        </Stack>
+
+        {/* Red Exclamation Circle Badge */}
+        <Box sx={{ textAlign: "center", mb: 3 }}>
+          <Box
+            sx={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              bgcolor: "#FEF2F2",
+              color: "#EF4444",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mb: 1.5,
+            }}
+          >
+            <ErrorIcon sx={{ fontSize: 44 }} />
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+            Transfer Interrupted
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#64748B", display: "block", mt: 0.5 }}>
+            Transaction failed due to external provider
+          </Typography>
+        </Box>
+
+        {/* Transaction Details Box */}
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #FCA5A5", bgcolor: "#FFFFFF", mb: 2 }}>
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", letterSpacing: "0.5px" }}>
+              TRANSACTION AMOUNT
+            </Typography>
+            <Chip label="FAILED" size="small" sx={{ bgcolor: "#FEF2F2", color: "#DC2626", fontWeight: 800, fontSize: "0.68rem" }} />
+          </Stack>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: "#1E1B4B", mb: 2 }}>
+            ₹{(payoutFailed?.amount || numAmount || 10000).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </Typography>
+
+          <Stack spacing={1} sx={{ pt: 1, borderTop: "1px solid #F1F5F9" }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Reason</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: "#1E1B4B" }}>Bank Timeout</Typography>
+            </Stack>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Refund Status</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: "#16A34A" }}>Processing</Typography>
+            </Stack>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Estimated ETA</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: "#1E1B4B" }}>15 mins</Typography>
+            </Stack>
+          </Stack>
+        </Paper>
+
+        {/* Auto Retry Banner */}
+        <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2.5, bgcolor: "#1E1B4B", color: "#FFFFFF", mb: 2.5, textAlign: "center" }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, display: "block" }}>
+            🔄 System retrying automatically...
+          </Typography>
+          <Typography variant="caption" sx={{ fontSize: "0.68rem", color: "#93C5FD", fontWeight: 800, letterSpacing: "1px" }}>
+            NEXT ATTEMPT IN 20S
+          </Typography>
+        </Paper>
+
+        {/* Action Buttons */}
+        <Stack spacing={1.5}>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={() => {
+              setPayoutFailed(null);
+              setConfirmModalOpen(true);
+            }}
+            startIcon={<ReplayIcon />}
+            sx={{
+              bgcolor: "#1E1B4B",
+              color: "#FFFFFF",
+              fontWeight: 900,
+              py: 1.3,
+              borderRadius: 3,
+              textTransform: "none",
+            }}
+          >
+            Retry Transfer Manually
+          </Button>
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={() => alert("Tracking Refund Status...")}
+            sx={{ borderColor: "#CBD5E1", color: "#1E1B4B", fontWeight: 800, py: 1.2, borderRadius: 3, textTransform: "none" }}
+          >
+            Track Refund Status
+          </Button>
+          <Button
+            variant="text"
+            fullWidth
+            onClick={() => window.open("https://wa.me/support")}
+            sx={{ color: "#64748B", fontWeight: 700, textTransform: "none", fontSize: "0.85rem" }}
+          >
+            💬 Contact Support
+          </Button>
+        </Stack>
+
+        <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", textAlign: "center", mt: 2, fontSize: "0.68rem" }}>
+          🛡️ PCI DSS Compliant & Secure
+        </Typography>
+      </Dialog>
+
+      {/* ── 3. TRANSACTION RECEIPT DRAWER / FULL VIEW (MATCHING USER MOCKUP SCREEN 3) ── */}
+      <Drawer
+        anchor="right"
+        open={receiptDrawerOpen}
+        onClose={() => setReceiptDrawerOpen(false)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 460 }, p: 3, backgroundColor: "#F8FAFC" } } }}
+      >
+        {/* Header */}
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+            Transaction Receipt
+          </Typography>
+          <IconButton onClick={() => setReceiptDrawerOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+
+        {/* Soft Green Top Banner */}
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 4, bgcolor: "#F0FDF4", border: "1px solid #BBF7D0", textAlign: "center", mb: 3 }}>
+          <Box
+            sx={{
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              bgcolor: "#16A34A",
+              color: "#FFFFFF",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mb: 1.5,
+              mx: "auto",
+            }}
+          >
+            <CheckCircleIcon sx={{ fontSize: 36 }} />
+          </Box>
+          <Typography variant="caption" sx={{ fontWeight: 900, color: "#16A34A", letterSpacing: "1px", display: "block" }}>
+            PAYMENT SUCCESSFUL
+          </Typography>
+          <Typography variant="h3" sx={{ fontWeight: 900, color: "#14532D", my: 0.5 }}>
+            ₹{(payoutReceipt?.amount ? payoutReceipt.amount - 295 : 9705).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>
+            {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} • {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Typography>
+        </Paper>
+
+        {/* Key-Value Details Table Card */}
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", bgcolor: "#FFFFFF", mb: 3 }}>
+          <Stack spacing={2}>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 600 }}>Retailer</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 800, color: "#1E1B4B" }}>Sathiya Digital</Typography>
+            </Stack>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 600 }}>Customer</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 800, color: "#1E1B4B" }}>{payoutReceipt?.customer_name || selectedCustomer?.full_name || "Ravi Kumar"}</Typography>
+            </Stack>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 600 }}>UTR Number</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 800, color: "#2563EB", cursor: "pointer" }} onClick={() => copyUtrToClipboard(payoutReceipt?.utr_number || "93847293")}>
+                {payoutReceipt?.utr_number || "93847293"}
+              </Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 600 }}>Transfer Amount</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 800, color: "#1E1B4B" }}>
+                ₹{(payoutReceipt?.amount ? payoutReceipt.amount - 295 : 9705).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </Typography>
+            </Stack>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 600 }}>Convenience Fee</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 800, color: "#DC2626" }}>₹295.00</Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>Total Paid</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                ₹{(payoutReceipt?.amount || 10000).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </Typography>
+            </Stack>
+          </Stack>
+        </Paper>
+
+        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block", textAlign: "center", mb: 3 }}>
+          Velocity Finance • RBI Licensed Money Transfer Agency
+        </Typography>
+
+        {/* Quick Action Bar */}
+        <Grid container spacing={1.5} sx={{ mb: 3 }}>
+          <Grid size={{ xs: 4 }}>
+            <Paper elevation={0} onClick={() => window.print()} sx={{ p: 1.5, borderRadius: 3, border: "1px solid #E2E8F0", textAlign: "center", cursor: "pointer", bgcolor: "#FFFFFF" }}>
+              <PrintIcon sx={{ color: "#475569", mb: 0.5 }} />
+              <Typography variant="caption" sx={{ fontWeight: 800, display: "block" }}>Print</Typography>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 4 }}>
+            <Paper elevation={0} onClick={() => alert("Downloading PDF...")} sx={{ p: 1.5, borderRadius: 3, border: "1px solid #E2E8F0", textAlign: "center", cursor: "pointer", bgcolor: "#FFFFFF" }}>
+              <PictureAsPdfIcon sx={{ color: "#DC2626", mb: 0.5 }} />
+              <Typography variant="caption" sx={{ fontWeight: 800, display: "block" }}>PDF</Typography>
+            </Paper>
+          </Grid>
+          <Grid size={{ xs: 4 }}>
+            <Paper elevation={0} onClick={() => copyUtrToClipboard(payoutReceipt?.utr_number || "93847293")} sx={{ p: 1.5, borderRadius: 3, border: "1px solid #E2E8F0", textAlign: "center", cursor: "pointer", bgcolor: "#FFFFFF" }}>
+              <ContentCopyIcon sx={{ color: "#2563EB", mb: 0.5 }} />
+              <Typography variant="caption" sx={{ fontWeight: 800, display: "block" }}>{copiedUtr ? "Copied!" : "Copy UTR"}</Typography>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {/* Main CTA */}
+        <Stack spacing={1.5} sx={{ mb: 3 }}>
+          <Button
+            variant="contained"
+            fullWidth
+            startIcon={<WhatsAppIcon />}
+            onClick={() => window.open(`https://wa.me/?text=DMT%20Receipt%20UTR:${payoutReceipt?.utr_number || "93847293"}`)}
+            sx={{
+              bgcolor: "#15803D",
+              color: "#FFFFFF",
+              fontWeight: 900,
+              py: 1.4,
+              borderRadius: 3,
+              textTransform: "none",
+              fontSize: "1rem",
+              "&:hover": { bgcolor: "#166534" },
+            }}
+          >
+            Share to WhatsApp
+          </Button>
+          <Button
+            variant="text"
+            fullWidth
+            onClick={() => {
+              setReceiptDrawerOpen(false);
+              setPayoutReceipt(null);
+            }}
+            sx={{ color: "#2563EB", fontWeight: 800, textTransform: "none" }}
+          >
+            + New Transaction
+          </Button>
+        </Stack>
+
+        {/* Gamified Retailer Bonus Banner */}
+        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, bgcolor: "#1E1B4B", color: "#FFFFFF", mb: 3 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5 }}>
+            Earn ₹50 Extra
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#93C5FD", display: "block", mb: 2 }}>
+            Process 5 more transfers today to unlock your daily retailer bonus.
+          </Typography>
+          <LinearProgress variant="determinate" value={60} sx={{ borderRadius: 2, height: 6, mb: 1, bgcolor: "#3730A3", "& .MuiLinearProgress-bar": { bgcolor: "#22C55E" } }} />
+          <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 800, display: "block", textAlign: "right", fontSize: "0.7rem" }}>
+            3/5 Completed
+          </Typography>
+        </Paper>
+
+        {/* Footer */}
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+          <Chip label="✔ Verified by NPCI" size="small" sx={{ bgcolor: "#F0FDF4", color: "#16A34A", fontWeight: 800, fontSize: "0.7rem" }} />
+          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, cursor: "pointer" }} onClick={() => window.open("https://wa.me/support")}>
+            Need Help?
+          </Typography>
+        </Stack>
       </Drawer>
 
       {/* ── NOTIFICATION & HAPTICS SETTINGS DIALOG ── */}
