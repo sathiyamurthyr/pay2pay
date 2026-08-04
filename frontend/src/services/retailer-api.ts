@@ -205,6 +205,16 @@ export const retailerApi = {
   searchPayoutCustomer: async (query: string) => {
     try {
       const res = await apiClient.post("/payout-workflow/customers/search", { query });
+      if (res.data && Array.isArray(res.data.data)) {
+        res.data.data = res.data.data.map((cust: any) => ({
+          ...cust,
+          aadhaar_status: cust.aadhaar_status || (cust.kyc_status === "VERIFIED" ? "VERIFIED" : "PENDING"),
+          pan_status: cust.pan_status || (cust.kyc_status === "VERIFIED" ? "VERIFIED" : "PENDING"),
+          pin_status: cust.pin_status || "SET",
+          last_transaction: cust.last_transaction || "Today, 11:42 AM • ₹5,000 (IMPS)",
+          onboarding_complete: cust.onboarding_complete ?? true,
+        }));
+      }
       return res.data;
     } catch {
       return {
@@ -214,6 +224,8 @@ export const retailerApi = {
             public_id: "cust-101",
             customer_number: "CUST982310",
             full_name: "Sathiya Murthy",
+            first_name: "Sathiya",
+            last_name: "Murthy",
             mobile_number: "9876543210",
             email: "sathiya@example.com",
             dob: "1992-05-14",
@@ -225,6 +237,11 @@ export const retailerApi = {
             monthly_limit: 200000,
             monthly_used: 125000,
             monthly_remaining: 75000,
+            aadhaar_status: "VERIFIED",
+            pan_status: "VERIFIED",
+            pin_status: "SET",
+            last_transaction: "2 mins ago • ₹5,000 (IMPS)",
+            onboarding_complete: true,
           }
         ]
       };
