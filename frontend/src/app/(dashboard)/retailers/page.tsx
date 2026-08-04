@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import api from "@/lib/api";
@@ -55,7 +55,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export default function OnboardingHubPage() {
+function OnboardingHubContent() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab");
 
@@ -628,5 +628,13 @@ export default function OnboardingHubPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function OnboardingHubPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Onboarding Hub...</div>}>
+      <OnboardingHubContent />
+    </Suspense>
   );
 }

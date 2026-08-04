@@ -1,24 +1,32 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Navbar } from "@/components/layout/navbar";
 import { RetailerLayout } from "@/components/layout/retailer-layout";
 
 const DEV_BYPASS = process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, isRetailer } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (DEV_BYPASS) return;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (DEV_BYPASS || !mounted) return;
     if (!loading && !user) {
       router.push("/login");
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, mounted]);
+
+  // Render RetailerLayout during SSR & pre-hydration to guarantee 100% server/client HTML tree match
+  if (!mounted) {
+    return <RetailerLayout>{children}</RetailerLayout>;
+  }
 
   if (!DEV_BYPASS && loading) {
     return (
@@ -36,12 +44,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!DEV_BYPASS && !user) return null;
 
-  // Render M3 Enterprise Retailer Layout for Retailer Session
-  if (isRetailer) {
-    return <RetailerLayout>{children}</RetailerLayout>;
-  }
-
-  return (
-    <RetailerLayout>{children}</RetailerLayout>
-  );
+  return <RetailerLayout>{children}</RetailerLayout>;
 }

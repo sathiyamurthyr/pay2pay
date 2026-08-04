@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { 
   User, ShieldCheck, FileText, Sliders, ShieldAlert, Users, 
@@ -10,7 +10,7 @@ import Link from "next/link";
 import apiClient from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
-export default function Customer360Page() {
+function Customer360Content() {
   const { isRetailer, isAdmin, activeRole } = useAuth();
   const searchParams = useSearchParams();
   const customerId = searchParams.get("id");
@@ -452,5 +452,13 @@ export default function Customer360Page() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function Customer360Page() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Customer 360...</div>}>
+      <Customer360Content />
+    </Suspense>
   );
 }

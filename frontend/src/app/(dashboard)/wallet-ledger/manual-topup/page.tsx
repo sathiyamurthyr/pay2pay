@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { DataTable, type TableColumn } from "@/components/ui/data-table";
@@ -237,7 +237,7 @@ function SearchableEntitySelect({
 }
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
-export default function ManualTopupPage() {
+function ManualTopupContent() {
   const [mockEntities, setMockEntities] = useState<Record<string, { id: string; name: string; code: string; currentBal: number }[]>>(INITIAL_MOCK_ENTITIES);
   const [topupLedger, setTopupLedger] = useState<any[]>(INITIAL_TOPUPS);
   const [loading, setLoading] = useState(false);
@@ -1441,5 +1441,13 @@ Thank you for using Pay2Pay Enterprise Portal!`;
         </div>
       )}
     </div>
+  );
+}
+
+export default function ManualTopupPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Manual Topup...</div>}>
+      <ManualTopupContent />
+    </Suspense>
   );
 }

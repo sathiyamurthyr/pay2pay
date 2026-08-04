@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { 
   Building2, ShieldCheck, FileText, Sliders, ShieldAlert, Users, 
@@ -9,7 +9,7 @@ import {
 import Link from "next/link";
 import apiClient from "@/lib/api";
 
-export default function Beneficiary360Page() {
+function Beneficiary360Content() {
   const searchParams = useSearchParams();
   const beneficiaryId = searchParams.get("id");
 
@@ -288,5 +288,13 @@ export default function Beneficiary360Page() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function Beneficiary360Page() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Beneficiary 360...</div>}>
+      <Beneficiary360Content />
+    </Suspense>
   );
 }
