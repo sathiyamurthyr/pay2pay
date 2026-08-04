@@ -56,10 +56,12 @@ import { M3Button } from "@/components/ui/m3-components";
 import { retailerApi } from "@/services/retailer-api";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import { BeneficiarySummaryCard } from "@/components/payout/beneficiary-summary-card";
-import { CustomerOnboardingStepper } from "@/components/payout/customer-onboarding-stepper";
+import { CustomerMasterSlideOver } from "@/components/master/customer-master-slide-over";
+import { BeneficiaryMasterSlideOver } from "@/components/master/beneficiary-master-slide-over";
 import { TransactionIntelligencePanel } from "@/components/payout/transaction-intelligence-panel";
 import { notificationEngine } from "@/services/notification-engine";
 import { NotificationSettingsDialog } from "@/components/payout/notification-settings-dialog";
+import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 
 // Custom Draggable Slide to Send Component
@@ -175,21 +177,21 @@ export default function DmtPage() {
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState<Beneficiary | null>(null);
 
-  // Modals for Register Customer & Add Beneficiary
-  const [registerOpen, setRegisterOpen] = useState(false);
-  const [regFirstName, setRegFirstName] = useState("");
-  const [regLastName, setRegLastName] = useState("");
-  const [regMobile, setRegMobile] = useState("9840192837");
-  const [regEmail, setRegEmail] = useState("");
-  const [regLoading, setRegLoading] = useState(false);
+  // Transaction Memory Store (Preserves context across navigation & slide-over returns)
+  const memoryStore = useTransactionMemoryStore();
 
-  const [addBenOpen, setAddBenOpen] = useState(false);
-  const [accHolder, setAccHolder] = useState("");
-  const [accNum, setAccNum] = useState("");
-  const [confirmAccNum, setConfirmAccNum] = useState("");
-  const [ifscCode, setIfscCode] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [addBenLoading, setAddBenLoading] = useState(false);
+  const [customerMasterSlideOverOpen, setCustomerMasterSlideOverOpen] = useState(false);
+  const [beneficiaryMasterSlideOverOpen, setBeneficiaryMasterSlideOverOpen] = useState(false);
+
+  // Restore transaction memory state if present
+  useEffect(() => {
+    if (memoryStore.selectedCustomer && !selectedCustomer) {
+      setSelectedCustomer(memoryStore.selectedCustomer);
+    }
+    if (memoryStore.selectedBeneficiary && !selectedBeneficiary) {
+      setSelectedBeneficiary(memoryStore.selectedBeneficiary);
+    }
+  }, [memoryStore.selectedCustomer, memoryStore.selectedBeneficiary]);
 
   // Bank Master Search & Dynamic IFSC Binding State
   const [bankMasterList, setBankMasterList] = useState<Array<{ bank_id: number; bank_name: string; ifsc: string; ifsc_prefix: string }>>([]);
@@ -197,10 +199,10 @@ export default function DmtPage() {
   const [selectedBankObj, setSelectedBankObj] = useState<{ bank_id: number; bank_name: string; ifsc: string; ifsc_prefix: string } | null>(null);
 
   useEffect(() => {
-    if (addBenOpen && bankMasterList.length === 0) {
+    if (beneficiaryMasterSlideOverOpen && bankMasterList.length === 0) {
       fetchBankMasterList();
     }
-  }, [addBenOpen]);
+  }, [beneficiaryMasterSlideOverOpen]);
 
   const fetchBankMasterList = async (query?: string) => {
     setBankSearchLoading(true);
@@ -254,75 +256,6 @@ export default function DmtPage() {
     if (res.status === "SUCCESS" && res.data.length > 0) {
       setBeneficiaries(res.data);
       setSelectedBeneficiary(res.data[0]);
-    }
-  };
-
-  // Register New Customer Form Submit
-  const handleRegisterCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRegLoading(true);
-    const res = await retailerApi.registerPayoutCustomer({
-      first_name: regFirstName,
-      last_name: regLastName,
-      mobile_number: regMobile,
-      email: regEmail,
-    });
-    setRegLoading(false);
-    if (res.status === "SUCCESS") {
-      const newCust: Customer = {
-        public_id: res.data.public_id || `cust-${Date.now()}`,
-        customer_number: res.data.customer_number || `CUST${Math.floor(100000 + Math.random() * 900000)}`,
-        full_name: `${regFirstName} ${regLastName}`,
-        mobile_number: regMobile,
-        kyc_status: "VERIFIED",
-        monthly_limit: 200000,
-        monthly_used: 0,
-        monthly_remaining: 200000,
-        risk_score: 10,
-      };
-      setSelectedCustomer(newCust);
-      setRegisterOpen(false);
-      setCustomerExpanded(false);
-      alert("New Customer Registered & Verified!");
-    }
-  };
-
-  // Add Beneficiary Form Submit (Penny Drop)
-  const handleAddBeneficiary = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (accNum !== confirmAccNum) {
-      alert("Account numbers do not match!");
-      return;
-    }
-    if (!selectedCustomer) {
-      alert("Please select or register a customer first!");
-      return;
-    }
-    setAddBenLoading(true);
-    const res = await retailerApi.addPayoutBeneficiary({
-      customer_id: selectedCustomer.public_id,
-      account_holder: accHolder,
-      account_number: accNum,
-      confirm_account_number: confirmAccNum,
-      ifsc: ifscCode,
-      bank_name: bankName,
-    });
-    setAddBenLoading(false);
-    if (res.status === "SUCCESS") {
-      const newBen: Beneficiary = {
-        beneficiary_id: res.data.beneficiary_id || `ben-${Date.now()}`,
-        account_holder_name: accHolder,
-        account_number: accNum,
-        ifsc_code: ifscCode,
-        bank_name: bankName,
-        is_verified: true,
-        penny_drop_status: "SUCCESS",
-      };
-      setBeneficiaries((prev) => [newBen, ...prev]);
-      setSelectedBeneficiary(newBen);
-      setAddBenOpen(false);
-      setBeneficiaryExpanded(false);
-      alert("Beneficiary Bank Account Added & Verified via Penny Drop!");
     }
   };
 
@@ -567,7 +500,7 @@ export default function DmtPage() {
                       startIcon={<PersonAddIcon />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setRegisterOpen(true);
+                        setCustomerMasterSlideOverOpen(true);
                       }}
                       sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}
                     >
@@ -595,7 +528,7 @@ export default function DmtPage() {
                           variant="outlined"
                           fullWidth
                           startIcon={<PersonAddIcon />}
-                          onClick={() => setRegisterOpen(true)}
+                          onClick={() => setCustomerMasterSlideOverOpen(true)}
                           sx={{ py: 1.2, borderRadius: 2.5, fontWeight: 800 }}
                         >
                           + Register New Customer
@@ -667,7 +600,7 @@ export default function DmtPage() {
                         startIcon={<AddIcon />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setAddBenOpen(true);
+                          setBeneficiaryMasterSlideOverOpen(true);
                         }}
                         sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}
                       >
@@ -689,7 +622,7 @@ export default function DmtPage() {
                           variant="contained"
                           size="small"
                           startIcon={<AddIcon />}
-                          onClick={() => setAddBenOpen(true)}
+                          onClick={() => setBeneficiaryMasterSlideOverOpen(true)}
                           sx={{ borderRadius: 2, fontWeight: 700 }}
                         >
                           + Add New Beneficiary
@@ -948,108 +881,7 @@ export default function DmtPage() {
         </Paper>
       )}
 
-      {/* ── GUIDED ONBOARDING STEPPER MODAL ── */}
-      <CustomerOnboardingStepper
-        open={registerOpen}
-        onClose={() => setRegisterOpen(false)}
-        onCustomerCompleted={(cust) => {
-          setSelectedCustomer(cust);
-          fetchBeneficiaries(cust.public_id || cust.customer_number);
-          setCustomerExpanded(false);
-        }}
-      />
 
-      {/* ── MODAL 2: ADD NEW BENEFICIARY DIALOG ── */}
-      <Dialog open={addBenOpen} onClose={() => setAddBenOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: 3.5, p: 2.5 } } }}>
-        <form onSubmit={handleAddBeneficiary}>
-          <Box sx={{ p: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 900, mb: 1, color: "#1E1B4B" }}>
-              Add New Beneficiary Bank Account
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 2.5 }}>
-              Penny Drop verification will run via Cashfree to validate account holder name before saving.
-            </Typography>
-
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12 }}>
-                <M3TextField label="Account Holder Name *" value={accHolder} onChange={(e) => setAccHolder(e.target.value)} required />
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <M3TextField label="Account Number *" value={accNum} onChange={(e) => setAccNum(e.target.value)} required />
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <M3TextField label="Confirm Account Number *" value={confirmAccNum} onChange={(e) => setConfirmAccNum(e.target.value)} required />
-              </Grid>
-
-              {/* Searchable Bank Autocomplete with Auto IFSC Binding */}
-              <Grid size={{ xs: 12 }}>
-                <Autocomplete
-                  options={bankMasterList}
-                  getOptionLabel={(option) => typeof option === "string" ? option : `${option.bank_name} (${option.ifsc})`}
-                  value={selectedBankObj}
-                  onChange={(event, newValue) => {
-                    if (newValue && typeof newValue !== "string") {
-                      setSelectedBankObj(newValue);
-                      setBankName(newValue.bank_name);
-                      setIfscCode(newValue.ifsc); // AUTOMATICALLY BINDS IFSC CODE!
-                    } else {
-                      setSelectedBankObj(null);
-                      setBankName("");
-                      setIfscCode("");
-                    }
-                  }}
-                  onInputChange={(event, newInputValue) => {
-                    if (newInputValue.length > 1) {
-                      fetchBankMasterList(newInputValue);
-                    }
-                  }}
-                  loading={bankSearchLoading}
-                  renderInput={(params) => (
-                    <M3TextField
-                      {...params}
-                      label="Search & Select Bank Name *"
-                      placeholder="Type Bank Name (e.g. HDFC, State Bank, ICICI, Axis...)"
-                      required
-                    />
-                  )}
-                  renderOption={(props, option) => (
-                    <Box component="li" {...props} key={option.bank_id}>
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", width: "100%", py: 0.5 }}>
-                        <Avatar sx={{ width: 28, height: 28, bgcolor: "#4F46E5", fontSize: "0.75rem", fontWeight: 800 }}>
-                          {option.ifsc_prefix ? option.ifsc_prefix.slice(0, 2) : "BK"}
-                        </Avatar>
-                        <Box sx={{ flexGrow: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
-                            {option.bank_name}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
-                            Default IFSC: {option.ifsc} • IMPS Operational
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
-                  )}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12 }}>
-                <M3TextField
-                  label="IFSC Code *"
-                  value={ifscCode}
-                  onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. HDFC0000001"
-                  required
-                  helperText={ifscCode ? `✓ Auto-bound to ${bankName || 'Selected Bank'}` : "Auto-populated upon selecting bank from search list"}
-                />
-              </Grid>
-            </Grid>
-
-            <M3Button type="submit" variant="contained" fullWidth loading={addBenLoading} sx={{ mt: 3, py: 1.5 }}>
-              Run Penny Drop & Save Beneficiary
-            </M3Button>
-          </Box>
-        </form>
-      </Dialog>
 
       {/* ── REAL-TIME PROCESSING OVERLAY ── */}
       <Dialog open={processingOpen} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: 4, p: 3, textAlign: "center" } } }}>
@@ -1122,6 +954,27 @@ export default function DmtPage() {
       <NotificationSettingsDialog
         open={notificationSettingsOpen}
         onClose={() => setNotificationSettingsOpen(false)}
+      />
+
+      {/* ── ENTERPRISE CUSTOMER MASTER SLIDE-OVER PANEL ── */}
+      <CustomerMasterSlideOver
+        open={customerMasterSlideOverOpen}
+        onClose={() => setCustomerMasterSlideOverOpen(false)}
+        onSuccess={(customer) => {
+          setSelectedCustomer(customer);
+          setCustomerExpanded(false);
+        }}
+      />
+
+      {/* ── ENTERPRISE BENEFICIARY MASTER SLIDE-OVER PANEL ── */}
+      <BeneficiaryMasterSlideOver
+        open={beneficiaryMasterSlideOverOpen}
+        onClose={() => setBeneficiaryMasterSlideOverOpen(false)}
+        customerId={selectedCustomer?.customer_number}
+        onSuccess={(beneficiary) => {
+          setSelectedBeneficiary(beneficiary);
+          setBeneficiaryExpanded(false);
+        }}
       />
     </Box>
   );
