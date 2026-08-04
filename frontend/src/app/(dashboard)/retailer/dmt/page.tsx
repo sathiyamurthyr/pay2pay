@@ -461,201 +461,368 @@ export default function DmtPage() {
           {/* ── LEFT COLUMN: CARDS & MODAL TRIGGERS ── */}
           <Grid size={{ xs: 12, md: 7 }}>
             <Stack spacing={2.5}>
-              {/* ── 2. COLLAPSIBLE CUSTOMER SUMMARY CARD WITH ADD OPTION ── */}
-              <Paper elevation={0} sx={{ borderRadius: 3.5, border: "1px solid #E2E8F0", overflow: "hidden", backgroundColor: "#FFFFFF" }}>
-                <Box
-                  onClick={() => setCustomerExpanded(!customerExpanded)}
-                  sx={{
-                    p: 2.5,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    cursor: "pointer",
-                    backgroundColor: "#F8FAFC",
-                    "&:hover": { backgroundColor: "#F1F5F9" },
-                  }}
-                >
-                  <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                    <Avatar sx={{ bgcolor: "#4F46E5", width: 40, height: 40, fontWeight: 800 }}>
-                      {((selectedCustomer?.full_name || (selectedCustomer as any)?.name || "") as string).charAt(0).toUpperCase() || "C"}
-                    </Avatar>
-                    <Box>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                          {selectedCustomer?.full_name || (selectedCustomer as any)?.name || "Select Customer"}
-                        </Typography>
-                        <Chip label="KYC Verified" color="success" size="small" sx={{ height: 20, fontSize: "0.68rem" }} />
-                      </Stack>
-                      <Typography variant="caption" sx={{ color: "#64748B" }}>
-                        {selectedCustomer ? `+91 ${selectedCustomer.mobile_number || ""} • ID: ${selectedCustomer.customer_number || selectedCustomer.public_id || ""}` : "Click to search customer"}
-                      </Typography>
-                    </Box>
-                  </Stack>
+              {/* ── 1. SELECT CUSTOMER CARD (DESIGN MATCHING USER MOCKUP) ── */}
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 3.5, border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", letterSpacing: "0.5px", display: "block", mb: 1.5 }}>
+                  SELECT CUSTOMER
+                </Typography>
 
-                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    {/* ADD NEW CUSTOMER BUTTON */}
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<PersonAddIcon />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCustomerMasterSlideOverOpen(true);
-                      }}
-                      sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}
-                    >
-                      + Add New Customer
-                    </Button>
-                    <IconButton size="small">
-                      {customerExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    </IconButton>
-                  </Stack>
+                {/* Search Box */}
+                <Box sx={{ mb: 2.5 }}>
+                  <M3TextField
+                    label="Search Customer"
+                    placeholder="Search by mobile or name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    startAdornment={<SearchIcon sx={{ color: "#64748B" }} />}
+                  />
                 </Box>
 
-                <Collapse in={customerExpanded}>
-                  <Box sx={{ p: 3, borderTop: "1px solid #E2E8F0" }}>
-                    <Stack spacing={2}>
-                      <M3TextField
-                        label="Mobile / Customer ID"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                      <Stack direction="row" spacing={2}>
-                        <M3Button variant="contained" fullWidth loading={searchLoading} onClick={handleCustomerSearch}>
-                          Search & Select Customer
-                        </M3Button>
-                        <Button
-                          variant="outlined"
-                          fullWidth
-                          startIcon={<PersonAddIcon />}
-                          onClick={() => setCustomerMasterSlideOverOpen(true)}
-                          sx={{ py: 1.2, borderRadius: 2.5, fontWeight: 800 }}
+                {/* Recent Customers Section */}
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", letterSpacing: "0.5px" }}>
+                    RECENT CUSTOMERS
+                  </Typography>
+                  <Button
+                    size="small"
+                    onClick={handleCustomerSearch}
+                    sx={{ fontSize: "0.75rem", fontWeight: 800, color: "#2563EB", textTransform: "none", p: 0 }}
+                  >
+                    VIEW ALL
+                  </Button>
+                </Stack>
+
+                {/* Recent Customers Avatars Row */}
+                <Stack direction="row" spacing={2.5} sx={{ overflowX: "auto", pb: 1, alignItems: "center" }}>
+                  {[
+                    { initials: "SK", name: "Sathiya M.", mobile: "9876543210", id: "cust-101", full_name: "Sathiya Murthy" },
+                    { initials: "AK", name: "Amit K.", mobile: "9876543211", id: "cust-102", full_name: "Amit Kumar" },
+                    { initials: "SM", name: "Sanjay M.", mobile: "9876543212", id: "cust-103", full_name: "Sanjay Mehta" },
+                    { initials: "RJ", name: "Rahul J.", mobile: "9876543213", id: "cust-104", full_name: "Rahul Joshi" },
+                  ].map((cust, idx) => {
+                    const isSelected = selectedCustomer?.mobile_number === cust.mobile || (idx === 0 && !selectedCustomer);
+                    return (
+                      <Stack
+                        key={idx}
+                        spacing={0.5}
+                        onClick={() => {
+                          setSelectedCustomer({
+                            public_id: cust.id,
+                            customer_number: `CUST982${idx}`,
+                            full_name: cust.full_name,
+                            mobile_number: cust.mobile,
+                            kyc_status: "VERIFIED",
+                            monthly_limit: 200000,
+                            monthly_used: 125000,
+                            monthly_remaining: 75000,
+                            risk_score: 10,
+                          });
+                          fetchBeneficiaries(cust.id);
+                        }}
+                        sx={{ cursor: "pointer", flexShrink: 0, alignItems: "center" }}
+                      >
+                        <Avatar
+                          sx={{
+                            bgcolor: isSelected ? "#2563EB" : "#DBEAFE",
+                            color: isSelected ? "#FFFFFF" : "#1E40AF",
+                            width: 48,
+                            height: 48,
+                            fontWeight: 800,
+                            fontSize: "0.9rem",
+                            border: isSelected ? "3px solid #2563EB" : "2px solid transparent",
+                            boxShadow: isSelected ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
+                            transition: "all 0.2s ease",
+                            "&:hover": { transform: "scale(1.08)" },
+                          }}
                         >
-                          + Register New Customer
-                        </Button>
+                          {cust.initials}
+                        </Avatar>
+                        <Typography variant="caption" sx={{ fontWeight: isSelected ? 800 : 600, color: isSelected ? "#1E1B4B" : "#64748B", fontSize: "0.75rem" }}>
+                          {cust.name}
+                        </Typography>
                       </Stack>
-                    </Stack>
-                  </Box>
-                </Collapse>
+                    );
+                  })}
+
+                  {/* + New Customer Button */}
+                  <Stack
+                    spacing={0.5}
+                    onClick={() => setCustomerMasterSlideOverOpen(true)}
+                    sx={{ cursor: "pointer", flexShrink: 0, alignItems: "center" }}
+                  >
+                    <Avatar
+                      sx={{
+                        bgcolor: "#1E1B4B",
+                        color: "#FFFFFF",
+                        width: 48,
+                        height: 48,
+                        fontWeight: 800,
+                        transition: "all 0.2s ease",
+                        "&:hover": { transform: "scale(1.08)", bgcolor: "#2563EB" },
+                      }}
+                    >
+                      <AddIcon />
+                    </Avatar>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#1E1B4B", fontSize: "0.75rem" }}>
+                      New
+                    </Typography>
+                  </Stack>
+                </Stack>
               </Paper>
 
-              {/* ── 2. ENHANCED BENEFICIARY SUMMARY CARD WITH ADD OPTION ── */}
-              {selectedBeneficiary && !beneficiaryExpanded ? (
-                <BeneficiarySummaryCard
-                  beneficiary={{
-                    beneficiary_id: selectedBeneficiary.beneficiary_id || "",
-                    account_holder_name: selectedBeneficiary.account_holder_name || (selectedBeneficiary as any).name || "Beneficiary",
-                    account_number: selectedBeneficiary.account_number || "",
-                    account_number_masked: selectedBeneficiary.account_number ? `••••••••${selectedBeneficiary.account_number.slice(-4)}` : "••••••••",
-                    ifsc_code: selectedBeneficiary.ifsc_code || "",
-                    bank_name: selectedBeneficiary.bank_name || "Bank",
-                    branch_name: "Fort Branch, Mumbai",
-                    account_type: "SAVINGS",
-                    is_verified: true,
-                    penny_drop_status: "SUCCESS",
-                    bank_status: bankHealth.is_down ? "DOWN" : "ONLINE",
-                    imps_available: true,
-                    estimated_settlement_sec: bankHealth.estimated_delay_sec || 1.2,
-                    last_transaction_amount: 25000,
-                    last_transaction_date: "02 Aug 2026",
-                  }}
-                  onEdit={() => setBeneficiaryExpanded(true)}
-                />
-              ) : (
-                <Paper elevation={0} sx={{ borderRadius: 3.5, border: "1px solid #E2E8F0", overflow: "hidden", backgroundColor: "#FFFFFF" }}>
-                  <Box
-                    onClick={() => setBeneficiaryExpanded(!beneficiaryExpanded)}
+              {/* ── 2. RECEIVER (DMT BENEFICIARIES) SECTION (DESIGN MATCHING USER MOCKUP) ── */}
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 3.5, border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}>
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", letterSpacing: "0.5px" }}>
+                    RECEIVER (DMT BENEFICIARIES)
+                  </Typography>
+                  <Chip label="ACTIVE DMT" color="success" size="small" sx={{ height: 22, fontWeight: 800, fontSize: "0.68rem", backgroundColor: "#DCFCE7", color: "#15803D" }} />
+                </Stack>
+
+                <Stack spacing={2}>
+                  {/* Beneficiary Card 1 (LAST USED / ACTIVE) */}
+                  {(() => {
+                    const activeBen = selectedBeneficiary || (beneficiaries.length > 0 ? beneficiaries[0] : {
+                      beneficiary_id: "ben-101",
+                      account_holder_name: "Priya S",
+                      account_number: "5010099884521",
+                      bank_name: "HDFC Bank",
+                      ifsc_code: "HDFC0000123",
+                      is_verified: true,
+                      penny_drop_status: "SUCCESS"
+                    });
+
+                    return (
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3.5,
+                          border: "1px solid #E2E8F0",
+                          borderLeft: "5px solid #16A34A",
+                          backgroundColor: "#FFFFFF",
+                          boxShadow: "0 4px 14px rgba(0,0,0,0.03)",
+                        }}
+                      >
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                            <Box sx={{ width: 44, height: 44, borderRadius: 2.5, bgcolor: "#EEF2FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <AccountBalanceIcon sx={{ color: "#2563EB", fontSize: 24 }} />
+                            </Box>
+                            <Box>
+                              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                                  {activeBen.account_holder_name || "Priya S"}
+                                </Typography>
+                                <Chip label="LAST USED" size="small" sx={{ height: 20, bgcolor: "#16A34A", color: "#FFFFFF", fontWeight: 800, fontSize: "0.65rem" }} />
+                              </Stack>
+                              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
+                                {activeBen.bank_name || "HDFC Bank"} • XXXX{activeBen.account_number.slice(-4)}
+                              </Typography>
+                            </Box>
+                          </Stack>
+
+                          <IconButton size="small" onClick={() => setBeneficiaryMasterSlideOverOpen(true)}>
+                            <EditIcon sx={{ color: "#64748B", fontSize: 20 }} />
+                          </IconButton>
+                        </Stack>
+
+                        <Divider sx={{ my: 1.5, borderColor: "#F1F5F9" }} />
+
+                        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                          <Typography variant="caption" sx={{ color: "#16A34A", fontWeight: 700 }}>
+                            Last transfer ₹5000 on Jun 10
+                          </Typography>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => setSelectedBeneficiary(activeBen as any)}
+                            sx={{
+                              bgcolor: "#1E1B4B",
+                              color: "#FFFFFF",
+                              fontWeight: 900,
+                              px: 3,
+                              py: 0.8,
+                              borderRadius: 2.5,
+                              textTransform: "none",
+                              "&:hover": { bgcolor: "#2563EB" },
+                            }}
+                          >
+                            {selectedBeneficiary?.beneficiary_id === activeBen.beneficiary_id ? "SELECTED ✓" : "SELECT"}
+                          </Button>
+                        </Stack>
+                      </Paper>
+                    );
+                  })()}
+
+                  {/* Beneficiary Card 2 (Vikram Rathore) */}
+                  <Paper
+                    elevation={0}
                     sx={{
                       p: 2.5,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      cursor: "pointer",
-                      backgroundColor: "#F8FAFC",
-                      "&:hover": { backgroundColor: "#F1F5F9" },
+                      borderRadius: 3.5,
+                      border: "1px solid #E2E8F0",
+                      backgroundColor: "#FFFFFF",
                     }}
                   >
-                    <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                      <Avatar sx={{ bgcolor: "#0284C7", width: 40, height: 40 }}>
-                        <AccountBalanceIcon />
-                      </Avatar>
-                      <Box>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                            {selectedBeneficiary ? (selectedBeneficiary.account_holder_name || (selectedBeneficiary as any).name || "Beneficiary") : "Select Beneficiary"}
+                    <Stack direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                      <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                        <Box sx={{ width: 44, height: 44, borderRadius: 2.5, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <AccountBalanceIcon sx={{ color: "#64748B", fontSize: 24 }} />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                            Vikram Rathore
                           </Typography>
-                          <Chip label="Penny Drop Verified" color="success" size="small" sx={{ height: 20, fontSize: "0.68rem" }} />
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: "#64748B" }}>
-                          {selectedBeneficiary ? `${selectedBeneficiary.bank_name || "Bank"} • Account: ${selectedBeneficiary.account_number || ""}` : "Click to select bank account"}
-                        </Typography>
-                      </Box>
-                    </Stack>
+                          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, display: "block" }}>
+                            ICICI Bank • XXXX8892
+                          </Typography>
+                        </Box>
+                      </Stack>
 
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                      {/* ADD NEW BENEFICIARY BUTTON */}
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<AddIcon />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setBeneficiaryMasterSlideOverOpen(true);
-                        }}
-                        sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}
-                      >
-                        + Add Beneficiary
-                      </Button>
-                      <IconButton size="small">
-                        {beneficiaryExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                      </IconButton>
-                    </Stack>
-                  </Box>
-
-                  <Collapse in={beneficiaryExpanded}>
-                    <Box sx={{ p: 3, borderTop: "1px solid #E2E8F0" }}>
-                      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                          Select Saved Beneficiary Bank Account
-                        </Typography>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => setBeneficiaryMasterSlideOverOpen(true)}
+                          sx={{
+                            borderColor: "#1E1B4B",
+                            color: "#1E1B4B",
+                            fontWeight: 800,
+                            px: 2,
+                            borderRadius: 2,
+                            textTransform: "none",
+                          }}
+                        >
+                          EDIT
+                        </Button>
                         <Button
                           variant="contained"
                           size="small"
-                          startIcon={<AddIcon />}
-                          onClick={() => setBeneficiaryMasterSlideOverOpen(true)}
-                          sx={{ borderRadius: 2, fontWeight: 700 }}
+                          onClick={() => {
+                            const b = {
+                              beneficiary_id: "ben-102",
+                              account_holder_name: "Vikram Rathore",
+                              account_number: "918238128892",
+                              bank_name: "ICICI Bank",
+                              ifsc_code: "ICIC0000293",
+                              is_verified: true,
+                              penny_drop_status: "SUCCESS"
+                            };
+                            setSelectedBeneficiary(b as any);
+                          }}
+                          sx={{
+                            bgcolor: "#1E1B4B",
+                            color: "#FFFFFF",
+                            fontWeight: 900,
+                            px: 2.5,
+                            borderRadius: 2,
+                            textTransform: "none",
+                            "&:hover": { bgcolor: "#2563EB" },
+                          }}
                         >
-                          + Add New Beneficiary
+                          SELECT
                         </Button>
                       </Stack>
+                    </Stack>
+                  </Paper>
 
-                      <Grid container spacing={2}>
-                        {beneficiaries.map((b) => (
-                          <Grid size={{ xs: 12, sm: 6 }} key={b.beneficiary_id}>
-                            <Card
-                              elevation={0}
-                              onClick={() => {
-                                setSelectedBeneficiary(b);
-                                setBeneficiaryExpanded(false);
-                              }}
-                              sx={{
-                                p: 2,
-                                cursor: "pointer",
-                                borderRadius: 3,
-                                border: selectedBeneficiary?.beneficiary_id === b.beneficiary_id ? "2px solid #4F46E5" : "1px solid #E2E8F0",
-                                backgroundColor: selectedBeneficiary?.beneficiary_id === b.beneficiary_id ? "#EEF2FF" : "#FFF",
-                              }}
-                            >
-                              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{b.account_holder_name}</Typography>
-                              <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>{b.bank_name} ({b.account_number})</Typography>
-                            </Card>
-                          </Grid>
-                        ))}
-                      </Grid>
-                    </Box>
-                  </Collapse>
-                </Paper>
-              )}
+                  {/* Beneficiary Card 3 (Meena Kumari) */}
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 3.5,
+                      border: "1px solid #E2E8F0",
+                      backgroundColor: "#FFFFFF",
+                    }}
+                  >
+                    <Stack direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                      <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                        <Box sx={{ width: 44, height: 44, borderRadius: 2.5, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <AccountBalanceIcon sx={{ color: "#64748B", fontSize: 24 }} />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                            Meena Kumari
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, display: "block" }}>
+                            SBI Bank • XXXX1102
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => setBeneficiaryMasterSlideOverOpen(true)}
+                          sx={{
+                            borderColor: "#1E1B4B",
+                            color: "#1E1B4B",
+                            fontWeight: 800,
+                            px: 2,
+                            borderRadius: 2,
+                            textTransform: "none",
+                          }}
+                        >
+                          EDIT
+                        </Button>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => {
+                            const b = {
+                              beneficiary_id: "ben-103",
+                              account_holder_name: "Meena Kumari",
+                              account_number: "309182381102",
+                              bank_name: "SBI Bank",
+                              ifsc_code: "SBIN0001092",
+                              is_verified: true,
+                              penny_drop_status: "SUCCESS"
+                            };
+                            setSelectedBeneficiary(b as any);
+                          }}
+                          sx={{
+                            bgcolor: "#1E1B4B",
+                            color: "#FFFFFF",
+                            fontWeight: 900,
+                            px: 2.5,
+                            borderRadius: 2,
+                            textTransform: "none",
+                            "&:hover": { bgcolor: "#2563EB" },
+                          }}
+                        >
+                          SELECT
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+
+                  {/* ── 3. ADD NEW BENEFICIARY DOTTED BOX ── */}
+                  <Paper
+                    elevation={0}
+                    onClick={() => setBeneficiaryMasterSlideOverOpen(true)}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 3.5,
+                      border: "2px dashed #CBD5E1",
+                      backgroundColor: "#F8FAFC",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      "&:hover": { backgroundColor: "#EEF2FF", borderColor: "#4F46E5" },
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "center" }}>
+                      <PersonAddIcon sx={{ color: "#1E1B4B", fontSize: 20 }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#1E1B4B", letterSpacing: "0.5px" }}>
+                        + ADD NEW BENEFICIARY
+                      </Typography>
+                    </Stack>
+                  </Paper>
+                </Stack>
+              </Paper>
 
               {/* ── 4. SELECTABLE SERVICE CARDS FOR IMPS vs NEFT ── */}
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3.5, border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}>
