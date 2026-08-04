@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import {
   Box,
   Paper,
@@ -165,7 +164,6 @@ interface Beneficiary {
 }
 
 export default function DmtPage() {
-  const router = useRouter();
   const { wallet, updateWallet } = useRetailerStore();
 
   // Collapsible Card States
@@ -179,18 +177,11 @@ export default function DmtPage() {
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState<Beneficiary | null>(null);
 
-  // Transaction Memory Store (Preserves context across navigation & workspace returns)
+  // Transaction Memory Store (Preserves context across navigation & slide-over returns)
   const memoryStore = useTransactionMemoryStore();
 
-  const handleOpenCustomerWorkspace = () => {
-    memoryStore.setReferrerUrl("/retailer/dmt");
-    router.push("/retailer/customers/new");
-  };
-
-  const handleOpenBeneficiaryWorkspace = () => {
-    memoryStore.setReferrerUrl("/retailer/dmt");
-    router.push("/retailer/beneficiary/new");
-  };
+  const [customerMasterSlideOverOpen, setCustomerMasterSlideOverOpen] = useState(false);
+  const [beneficiaryMasterSlideOverOpen, setBeneficiaryMasterSlideOverOpen] = useState(false);
 
   // Restore transaction memory state if present
   useEffect(() => {
@@ -208,10 +199,10 @@ export default function DmtPage() {
   const [selectedBankObj, setSelectedBankObj] = useState<{ bank_id: number; bank_name: string; ifsc: string; ifsc_prefix: string } | null>(null);
 
   useEffect(() => {
-    if (bankMasterList.length === 0) {
+    if (beneficiaryMasterSlideOverOpen && bankMasterList.length === 0) {
       fetchBankMasterList();
     }
-  }, []);
+  }, [beneficiaryMasterSlideOverOpen]);
 
   const fetchBankMasterList = async (query?: string) => {
     setBankSearchLoading(true);
@@ -509,7 +500,7 @@ export default function DmtPage() {
                       startIcon={<PersonAddIcon />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenCustomerWorkspace();
+                        setCustomerMasterSlideOverOpen(true);
                       }}
                       sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}
                     >
@@ -537,10 +528,10 @@ export default function DmtPage() {
                           variant="outlined"
                           fullWidth
                           startIcon={<PersonAddIcon />}
-                          onClick={() => handleOpenCustomerWorkspace()}
+                          onClick={() => setCustomerMasterSlideOverOpen(true)}
                           sx={{ py: 1.2, borderRadius: 2.5, fontWeight: 800 }}
                         >
-                          + Register New Customer Workspace
+                          + Register New Customer
                         </Button>
                       </Stack>
                     </Stack>
@@ -609,7 +600,7 @@ export default function DmtPage() {
                         startIcon={<AddIcon />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleOpenBeneficiaryWorkspace();
+                          setBeneficiaryMasterSlideOverOpen(true);
                         }}
                         sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}
                       >
@@ -631,7 +622,7 @@ export default function DmtPage() {
                           variant="contained"
                           size="small"
                           startIcon={<AddIcon />}
-                          onClick={() => handleOpenBeneficiaryWorkspace()}
+                          onClick={() => setBeneficiaryMasterSlideOverOpen(true)}
                           sx={{ borderRadius: 2, fontWeight: 700 }}
                         >
                           + Add New Beneficiary
@@ -965,6 +956,26 @@ export default function DmtPage() {
         onClose={() => setNotificationSettingsOpen(false)}
       />
 
+      {/* ── ENTERPRISE CUSTOMER MASTER SLIDE-OVER PANEL ── */}
+      <CustomerMasterSlideOver
+        open={customerMasterSlideOverOpen}
+        onClose={() => setCustomerMasterSlideOverOpen(false)}
+        onSuccess={(customer) => {
+          setSelectedCustomer(customer);
+          setCustomerExpanded(false);
+        }}
+      />
+
+      {/* ── ENTERPRISE BENEFICIARY MASTER SLIDE-OVER PANEL ── */}
+      <BeneficiaryMasterSlideOver
+        open={beneficiaryMasterSlideOverOpen}
+        onClose={() => setBeneficiaryMasterSlideOverOpen(false)}
+        customerId={selectedCustomer?.customer_number}
+        onSuccess={(beneficiary) => {
+          setSelectedBeneficiary(beneficiary);
+          setBeneficiaryExpanded(false);
+        }}
+      />
     </Box>
   );
 }
