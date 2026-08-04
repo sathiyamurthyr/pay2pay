@@ -477,17 +477,17 @@ export default function DmtPage() {
                 >
                   <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                     <Avatar sx={{ bgcolor: "#4F46E5", width: 40, height: 40, fontWeight: 800 }}>
-                      {selectedCustomer ? selectedCustomer.full_name.charAt(0) : "C"}
+                      {((selectedCustomer?.full_name || (selectedCustomer as any)?.name || "") as string).charAt(0).toUpperCase() || "C"}
                     </Avatar>
                     <Box>
                       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                          {selectedCustomer ? selectedCustomer.full_name : "Select Customer"}
+                          {selectedCustomer?.full_name || (selectedCustomer as any)?.name || "Select Customer"}
                         </Typography>
                         <Chip label="KYC Verified" color="success" size="small" sx={{ height: 20, fontSize: "0.68rem" }} />
                       </Stack>
                       <Typography variant="caption" sx={{ color: "#64748B" }}>
-                        {selectedCustomer ? `+91 ${selectedCustomer.mobile_number} • ID: ${selectedCustomer.customer_number}` : "Click to search customer"}
+                        {selectedCustomer ? `+91 ${selectedCustomer.mobile_number || ""} • ID: ${selectedCustomer.customer_number || selectedCustomer.public_id || ""}` : "Click to search customer"}
                       </Typography>
                     </Box>
                   </Stack>
@@ -543,12 +543,12 @@ export default function DmtPage() {
               {selectedBeneficiary && !beneficiaryExpanded ? (
                 <BeneficiarySummaryCard
                   beneficiary={{
-                    beneficiary_id: selectedBeneficiary.beneficiary_id,
-                    account_holder_name: selectedBeneficiary.account_holder_name,
-                    account_number: selectedBeneficiary.account_number,
-                    account_number_masked: `••••••••${selectedBeneficiary.account_number.slice(-4)}`,
-                    ifsc_code: selectedBeneficiary.ifsc_code,
-                    bank_name: selectedBeneficiary.bank_name,
+                    beneficiary_id: selectedBeneficiary.beneficiary_id || "",
+                    account_holder_name: selectedBeneficiary.account_holder_name || (selectedBeneficiary as any).name || "Beneficiary",
+                    account_number: selectedBeneficiary.account_number || "",
+                    account_number_masked: selectedBeneficiary.account_number ? `••••••••${selectedBeneficiary.account_number.slice(-4)}` : "••••••••",
+                    ifsc_code: selectedBeneficiary.ifsc_code || "",
+                    bank_name: selectedBeneficiary.bank_name || "Bank",
                     branch_name: "Fort Branch, Mumbai",
                     account_type: "SAVINGS",
                     is_verified: true,
@@ -582,12 +582,12 @@ export default function DmtPage() {
                       <Box>
                         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                           <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                            {selectedBeneficiary ? selectedBeneficiary.account_holder_name : "Select Beneficiary"}
+                            {selectedBeneficiary ? (selectedBeneficiary.account_holder_name || (selectedBeneficiary as any).name || "Beneficiary") : "Select Beneficiary"}
                           </Typography>
                           <Chip label="Penny Drop Verified" color="success" size="small" sx={{ height: 20, fontSize: "0.68rem" }} />
                         </Stack>
                         <Typography variant="caption" sx={{ color: "#64748B" }}>
-                          {selectedBeneficiary ? `${selectedBeneficiary.bank_name} • Account: ${selectedBeneficiary.account_number}` : "Click to select bank account"}
+                          {selectedBeneficiary ? `${selectedBeneficiary.bank_name || "Bank"} • Account: ${selectedBeneficiary.account_number || ""}` : "Click to select bank account"}
                         </Typography>
                       </Box>
                     </Stack>
