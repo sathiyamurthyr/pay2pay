@@ -128,7 +128,6 @@ export default function CustomersPage() {
   const { setSelectedCustomer } = useTransactionMemoryStore();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [slideOverOpen, setSlideOverOpen] = useState(false);
 
   const filteredCustomers = MOCK_CUSTOMERS.filter(
     (c) =>
@@ -184,7 +183,10 @@ export default function CustomersPage() {
           variant="contained"
           size="large"
           startIcon={<PersonAddIcon />}
-          onClick={() => setSlideOverOpen(true)}
+          onClick={() => {
+            useTransactionMemoryStore.getState().setReferrerUrl("/retailer/customers");
+            router.push("/retailer/customers/new");
+          }}
           sx={{
             borderRadius: 3,
             fontWeight: 800,
@@ -194,7 +196,7 @@ export default function CustomersPage() {
             "&:hover": { backgroundColor: "#16A34A" },
           }}
         >
-          + Add New Customer
+          + Add New Customer Workspace
         </Button>
       </Paper>
 
@@ -319,14 +321,6 @@ export default function CustomersPage() {
         </Table>
       </Paper>
 
-      {/* Enterprise Customer Master Slide-Over Panel */}
-      <CustomerMasterSlideOver
-        open={slideOverOpen}
-        onClose={() => setSlideOverOpen(false)}
-        onSuccess={(newCust) => {
-          handleSelectCustomerForPayout(newCust);
-        }}
-      />
     </Box>
   );
 }

@@ -13,6 +13,7 @@ export interface TransactionMemoryContext {
 
 interface TransactionMemoryState extends TransactionMemoryContext {
   setTransactionContext: (context: Partial<TransactionMemoryContext>) => void;
+  setReferrerUrl: (url: string) => void;
   setSelectedCustomer: (customer: any) => void;
   setSelectedBeneficiary: (beneficiary: any) => void;
   setAmount: (amount: string) => void;
@@ -27,7 +28,7 @@ const initialContext: TransactionMemoryContext = {
   amount: "10000",
   transferMode: "IMPS",
   customerPin: "1234",
-  referrerUrl: null,
+  referrerUrl: "/retailer/dmt",
 };
 
 export const useTransactionMemoryStore = create<TransactionMemoryState>()(
@@ -37,6 +38,8 @@ export const useTransactionMemoryStore = create<TransactionMemoryState>()(
 
       setTransactionContext: (context) =>
         set((state) => ({ ...state, ...context })),
+
+      setReferrerUrl: (url) => set(() => ({ referrerUrl: url })),
 
       setSelectedCustomer: (customer) =>
         set(() => ({ selectedCustomer: customer, selectedBeneficiary: null })),

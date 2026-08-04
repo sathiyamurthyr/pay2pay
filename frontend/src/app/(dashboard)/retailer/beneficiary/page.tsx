@@ -79,7 +79,6 @@ export default function BeneficiaryPage() {
   const { setSelectedBeneficiary } = useTransactionMemoryStore();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [slideOverOpen, setSlideOverOpen] = useState(false);
 
   const filteredBeneficiaries = MOCK_BENEFICIARIES.filter(
     (b) =>
@@ -136,7 +135,10 @@ export default function BeneficiaryPage() {
           variant="contained"
           size="large"
           startIcon={<PersonAddIcon />}
-          onClick={() => setSlideOverOpen(true)}
+          onClick={() => {
+            useTransactionMemoryStore.getState().setReferrerUrl("/retailer/beneficiary");
+            router.push("/retailer/beneficiary/new");
+          }}
           sx={{
             borderRadius: 3,
             fontWeight: 800,
@@ -146,7 +148,7 @@ export default function BeneficiaryPage() {
             "&:hover": { backgroundColor: "#16A34A" },
           }}
         >
-          + Add New Beneficiary
+          + Add New Beneficiary Workspace
         </Button>
       </Paper>
 
@@ -254,14 +256,6 @@ export default function BeneficiaryPage() {
         ))}
       </Grid>
 
-      {/* Enterprise Beneficiary Master Slide-Over Panel */}
-      <BeneficiaryMasterSlideOver
-        open={slideOverOpen}
-        onClose={() => setSlideOverOpen(false)}
-        onSuccess={(newBene) => {
-          handleSelectBeneficiaryForPayout(newBene);
-        }}
-      />
     </Box>
   );
 }
