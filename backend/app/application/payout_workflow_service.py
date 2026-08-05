@@ -25,7 +25,7 @@ from app.infrastructure.db.beneficiary_models import BeneficiaryModel, Beneficia
 from app.infrastructure.db.models import AdminUserModel, CompanyModel
 from app.infrastructure.db.payout_workflow_models import (
     CustomerOtpModel, CustomerPinModel, CustomerMonthlyLimitModel,
-    BeneficiaryBankModel, BankHealthModel, PayoutTransactionModel,
+    BeneficiaryBankModel, BankHealthModel, PayoutWorkflowTransactionModel,
     PayoutAuditModel, TransactionPinAttemptModel
 )
 from app.infrastructure.db.bank_master_models import BankMasterModel
@@ -716,7 +716,7 @@ class PayoutWorkflowService:
         wallet_after = wallet_before - net_debit + commission
 
         # Save Payout Transaction Record
-        payout = PayoutTransactionModel(
+        payout = PayoutWorkflowTransactionModel(
             public_id=uuid.uuid4(),
             tenant_id=tenant_id,
             created_by="RETAILER",

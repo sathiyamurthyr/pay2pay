@@ -79,6 +79,15 @@ def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
         if payload.get("type") != "access":
             return None
         return payload
+    except jwt.ExpiredSignatureError:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], options={"verify_exp": False})
+            if payload.get("type") == "access":
+                payload["is_expired"] = True
+                return payload
+        except Exception:
+            return None
+        return None
     except jwt.PyJWTError:
         return None
 

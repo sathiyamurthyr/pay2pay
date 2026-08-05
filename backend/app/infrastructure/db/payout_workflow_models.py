@@ -93,8 +93,8 @@ class BankHealthModel(BaseEntity, EnterpriseBaseMixin):
     last_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class PayoutTransactionModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "payout_transaction"
+class PayoutWorkflowTransactionModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "payout_workflow_transactions"
     __table_args__ = {'extend_existing': True}
 
     transaction_number: Mapped[str] = mapped_column(String(40), nullable=False, index=True)

@@ -70,6 +70,19 @@ async def list_customers(
     return APIResponse(data=[c.model_dump(mode="json") for c in customers])
 
 
+@router.post("/search", response_model=APIResponse)
+async def search_customers_post(
+    req: CustomerSearchReq if "CustomerSearchReq" in globals() else dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: AdminUserModel = Depends(get_current_user)
+):
+    """POST customer search endpoint."""
+    q_str = req.get("query") if isinstance(req, dict) else getattr(req, "query", "")
+    search_req = CustomerSearchRequest(query=q_str, mobile_number=q_str)
+    customers = await CustomerService.list_customers(db, search_req)
+    return APIResponse(status="SUCCESS", data=[c.model_dump(mode="json") for c in customers])
+
+
 @router.get("/{customer_id}", response_model=APIResponse)
 async def get_customer(
     customer_id: uuid.UUID,

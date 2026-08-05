@@ -5,6 +5,7 @@ import string
 from datetime import datetime, timezone, date
 from typing import Any, Dict, List, Optional
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, and_, or_
@@ -109,7 +110,17 @@ class CustomerService:
 
     @staticmethod
     async def register_customer(db: AsyncSession, req: CustomerRegisterRequest) -> CustomerResponse:
+        # Prevent duplicate registrations by mobile number
+        stmt = select(CustomerModel).where(CustomerModel.mobile_number == req.mobile_number)
+        existing = (await db.execute(stmt)).scalar_one_or_none()
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Customer with mobile number {req.mobile_number} already exists"
+            )
+
         full_name = f"{req.first_name} {req.middle_name + ' ' if req.middle_name else ''}{req.last_name}".strip()
+        default_tenant_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
         customer = CustomerModel(
             public_id=uuid.uuid4(),
             customer_number=_generate_customer_number(),
@@ -136,7 +147,7 @@ class CustomerService:
             registration_date=_now(),
             is_active=True,
             is_deleted=False,
-            tenant_id=uuid.uuid4(),  # placeholder — use auth context in production
+            tenant_id=default_tenant_id,
             date_key=int(datetime.now().strftime("%Y%m%d")),
             created_by="system",
             created_date=_now(),

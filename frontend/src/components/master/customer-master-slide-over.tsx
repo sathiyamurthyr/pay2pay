@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Drawer,
   Box,
@@ -16,21 +17,20 @@ import {
   Divider,
   Paper,
   Avatar,
-  LinearProgress,
   Grid,
+  Button,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ShieldIcon from "@mui/icons-material/Shield";
 import LockIcon from "@mui/icons-material/Lock";
-import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
 import VerifiedIcon from "@mui/icons-material/Verified";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import SmsIcon from "@mui/icons-material/Sms";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import ReplayIcon from "@mui/icons-material/Replay";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { M3TextField } from "@/components/ui/form-components";
@@ -46,12 +46,13 @@ interface CustomerMasterSlideOverProps {
   initialMobile?: string;
 }
 
+// Requirement 4: Shorten stepper labels: Mobile → OTP → eKYC → PIN → Finish
 const STEPS = [
-  "Registration",
-  "Mobile OTP",
-  "Aadhaar eKYC",
-  "Transaction PIN",
-  "Complete",
+  "Mobile",
+  "OTP",
+  "eKYC",
+  "PIN",
+  "Finish",
 ];
 
 export function CustomerMasterSlideOver({
@@ -60,6 +61,7 @@ export function CustomerMasterSlideOver({
   onSuccess,
   initialMobile = "",
 }: CustomerMasterSlideOverProps) {
+  const router = useRouter();
   const { setSelectedCustomer } = useTransactionMemoryStore();
 
   const [activeStep, setActiveStep] = useState(0);
@@ -92,13 +94,20 @@ export function CustomerMasterSlideOver({
   const [aadhaarRefNum, setAadhaarRefNum] = useState("");
   const [maskedAadhaar, setMaskedAadhaar] = useState("");
   const [step3Loading, setStep3Loading] = useState(false);
-  const [ekycComplete, setEkycComplete] = useState(false);
 
   // PIN State
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [step4Loading, setStep4Loading] = useState(false);
+  const [serviceHealth, setServiceHealth] = useState<{ healthy: boolean; message: string; api_status?: string; db_status?: string } | null>(null);
+
+  // Initial Health Check on mount
+  useEffect(() => {
+    retailerApi.checkPayoutWorkflowHealth().then((res) => {
+      setServiceHealth(res);
+    });
+  }, []);
 
   useEffect(() => {
     if (initialMobile) {
@@ -106,28 +115,7 @@ export function CustomerMasterSlideOver({
     }
   }, [initialMobile]);
 
-  const resetForm = () => {
-    setActiveStep(0);
-    setFirstName("");
-    setLastName("");
-    setMobileNumber("");
-    setEmail("");
-    setMobileStatusState("IDLE");
-    setMobileStatusMessage("");
-    setDuplicateCustomer(null);
-    setMobileOtp("");
-    setCreatedCustomer(null);
-    setAadhaarNumber("");
-    setAadhaarOtpSent(false);
-    setAadhaarOtp("");
-    setMaskedAadhaar("");
-    setEkycComplete(false);
-    setPin("");
-    setConfirmPin("");
-    setPinError("");
-  };
-
-  // Real-Time Mobile Input Validation
+  // Requirement 7: Real-Time Mobile Input Validation (numeric-only, 10-digit counter, auto search after 10 digits)
   const handleMobileChange = (val: string) => {
     const clean = val.replace(/\D/g, "").slice(0, 10);
     setMobileNumber(clean);
@@ -135,7 +123,7 @@ export function CustomerMasterSlideOver({
 
     if (clean.length === 0) {
       setMobileStatusState("IDLE");
-      setMobileStatusMessage("");
+      setMobileStatusMessage("Enter 10-digit mobile number starting with 6, 7, 8, or 9");
       return;
     }
 
@@ -151,20 +139,45 @@ export function CustomerMasterSlideOver({
       return;
     }
 
-    // Exactly 10 digits & valid prefix -> Trigger Auto Duplicate Check
+    // Exactly 10 digits & valid prefix -> Trigger Health Check then Auto Customer Search
     setMobileStatusState("CHECKING");
-    setMobileStatusMessage("Checking database (tenant_id + company_id + mobile_number)...");
+    setMobileStatusMessage("Searching customer...");
 
-    retailerApi.searchPayoutCustomer(clean).then((res) => {
-      if (res.status === "SUCCESS" && res.data.length > 0) {
-        setMobileStatusState("EXISTING_CUSTOMER");
-        setMobileStatusMessage("Existing Customer Found in Database");
-        setDuplicateCustomer(res.data[0]);
-      } else {
-        setMobileStatusState("NEW_CUSTOMER");
-        setMobileStatusMessage("✓ New Customer: Valid & Available for Registration");
-        setDuplicateCustomer(null);
+    retailerApi.checkPayoutWorkflowHealth().then((health) => {
+      setServiceHealth(health);
+      if (!health.healthy) {
+        setMobileStatusState("INVALID");
+        setMobileStatusMessage(health.message || "Customer service is currently offline.");
+        return;
       }
+
+      retailerApi.searchPayoutCustomer(clean).then((res) => {
+        if (res.status === "SUCCESS" && Array.isArray(res.data)) {
+          if (res.data.length > 0) {
+            const match = res.data.find((c: any) => c.mobile_number === clean) || res.data[0];
+            const verifiedMatch = { ...match, mobile_number: match.mobile_number || clean };
+            setMobileStatusState("EXISTING_CUSTOMER");
+            setMobileStatusMessage("✓ Existing customer profile identified");
+            setDuplicateCustomer(verifiedMatch);
+          } else {
+            setMobileStatusState("NEW_CUSTOMER");
+            setMobileStatusMessage("No customer found.");
+            setDuplicateCustomer(null);
+          }
+        } else {
+          setMobileStatusState("INVALID");
+          setMobileStatusMessage(res.message || "Customer search failed due to a server error.");
+          setDuplicateCustomer(null);
+        }
+      }).catch((err) => {
+        setMobileStatusState("INVALID");
+        setMobileStatusMessage("Customer search failed due to a server error.");
+        setDuplicateCustomer(null);
+      });
+    }).catch((err) => {
+      setMobileStatusState("INVALID");
+      setMobileStatusMessage("Unable to reach the server.");
+      setDuplicateCustomer(null);
     });
   };
 
@@ -211,6 +224,7 @@ export function CustomerMasterSlideOver({
     } else {
       setOtpAttemptsLeft((prev) => prev - 1);
       notificationEngine.notify("TRANSACTION_FAILED", "Invalid Mobile OTP code");
+      alert(res.detail || "Invalid Mobile OTP code");
     }
   };
 
@@ -233,7 +247,7 @@ export function CustomerMasterSlideOver({
     }
   };
 
-  // Step 3: Verify Aadhaar OTP (Cashfree eKYC)
+  // Step 3: Verify Aadhaar OTP
   const handleVerifyAadhaarOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (aadhaarOtp.length < 4 || !createdCustomer) return;
@@ -248,11 +262,11 @@ export function CustomerMasterSlideOver({
     setStep3Loading(false);
 
     if (res.status === "SUCCESS") {
-      setEkycComplete(true);
       notificationEngine.notify("AADHAAR_EKYC_COMPLETED");
       setActiveStep(3);
     } else {
       notificationEngine.notify("TRANSACTION_FAILED", "Invalid Aadhaar OTP code");
+      alert("Invalid Aadhaar OTP code");
     }
   };
 
@@ -260,7 +274,7 @@ export function CustomerMasterSlideOver({
   const handleStep4Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pin.length < 4) {
-      setPinError("PIN must be 4 or 6 digits");
+      setPinError("PIN must be 4 digits");
       return;
     }
     if (pin !== confirmPin) {
@@ -279,46 +293,13 @@ export function CustomerMasterSlideOver({
     }
   };
 
-  // Auto Return & Complete
   const handleCompleteAndReturn = (custToSelect: any) => {
     setSelectedCustomer(custToSelect);
-    if (onSuccess) {
-      onSuccess(custToSelect);
-    }
+    if (onSuccess) onSuccess(custToSelect);
     onClose();
-    resetForm();
   };
 
-  // Resume Incomplete Onboarding
-  const handleResumeOnboarding = (cust: any) => {
-    setCreatedCustomer(cust);
-    setFirstName(cust.first_name || cust.full_name?.split(" ")[0] || "");
-    setLastName(cust.last_name || cust.full_name?.split(" ")[1] || "");
-    setEmail(cust.email || "");
-
-    // Resume at first incomplete step
-    if (cust.mobile_otp_verified === false) {
-      triggerMobileOtp("WHATSAPP");
-      setActiveStep(1);
-    } else if (cust.aadhaar_status === "PENDING" || cust.kyc_status !== "VERIFIED") {
-      setActiveStep(2);
-    } else if (cust.pin_status === "NOT_SET") {
-      setActiveStep(3);
-    } else {
-      setActiveStep(2);
-    }
-  };
-
-  // Reset Mobile & Search Another
-  const handleSearchAnother = () => {
-    setMobileNumber("");
-    setDuplicateCustomer(null);
-    setMobileStatusState("IDLE");
-    setMobileStatusMessage("");
-    setFirstName("");
-    setLastName("");
-    setEmail("");
-  };
+  const isStep1Valid = firstName.trim() !== "" && lastName.trim() !== "" && mobileNumber.length === 10 && mobileStatusState === "NEW_CUSTOMER";
 
   return (
     <Drawer
@@ -326,21 +307,22 @@ export function CustomerMasterSlideOver({
       open={open}
       onClose={onClose}
       slotProps={{
+        backdrop: { sx: { backgroundColor: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)" } },
         paper: {
           sx: {
-            width: { xs: "100%", sm: 560 },
-            borderTopLeftRadius: { xs: 0, sm: 24 },
-            borderBottomLeftRadius: { xs: 0, sm: 24 },
+            width: { xs: "100%", sm: 540 },
             backgroundColor: "#F8FAFC",
+            display: "flex",
+            flexDirection: "column",
           },
         },
       }}
     >
-      {/* Header Bar */}
+      {/* Requirement 5: Header Title "Customer Registration" */}
       <Box
         sx={{
           p: 3,
-          background: "linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)",
+          background: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)",
           color: "#FFFFFF",
           display: "flex",
           alignItems: "center",
@@ -351,10 +333,10 @@ export function CustomerMasterSlideOver({
           <PersonAddIcon sx={{ color: "#4ADE80", fontSize: 28 }} />
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: "-0.3px" }}>
-              Customer Master Module
+              Customer Registration
             </Typography>
             <Typography variant="caption" sx={{ opacity: 0.8, fontWeight: 700 }}>
-              Single Source of Truth Registration & eKYC
+              Enterprise Guided Customer Onboarding & eKYC
             </Typography>
           </Box>
         </Stack>
@@ -364,13 +346,13 @@ export function CustomerMasterSlideOver({
         </IconButton>
       </Box>
 
-      {/* Stepper Header */}
+      {/* Requirement 4: Stepper with Shortened labels */}
       <Box sx={{ p: 2.5, backgroundColor: "#FFFFFF", borderBottom: "1px solid #E2E8F0" }}>
         <Stepper activeStep={activeStep} alternativeLabel>
           {STEPS.map((label, idx) => (
             <Step key={label} completed={activeStep > idx}>
               <StepLabel>
-                <Typography variant="caption" sx={{ fontWeight: 700, fontSize: "0.7rem" }}>
+                <Typography variant="caption" sx={{ fontWeight: activeStep === idx ? 900 : 700, fontSize: "0.7rem", color: activeStep === idx ? "#0F172A" : undefined }}>
                   {label}
                 </Typography>
               </StepLabel>
@@ -382,7 +364,7 @@ export function CustomerMasterSlideOver({
       {/* Drawer Main Form Body */}
       <Box sx={{ p: 3, flex: 1, overflowY: "auto" }}>
         <AnimatePresence mode="wait">
-          {/* ── STEP 0: REGISTRATION & SMART IDENTIFICATION ── */}
+          {/* ── STEP 0: REGISTRATION & IDENTIFICATION ── */}
           {activeStep === 0 && (
             <motion.div
               key="step0"
@@ -391,293 +373,285 @@ export function CustomerMasterSlideOver({
               exit={{ opacity: 0, x: -20 }}
             >
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#1E1B4B" }}>
-                  Step 1 — Smart Customer Identification
+                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#0F172A" }}>
+                  Customer Registration
                 </Typography>
                 <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
-                  Enter 10-digit mobile number for instant tenant & company duplicate lookup.
+                  Enter 10-digit mobile number for real-time customer identification.
                 </Typography>
 
                 <Stack spacing={2.5}>
-                  {/* Always Visible Mobile Input Field */}
+                  {/* Requirement 6: Backend Health Check Indicator Badge */}
+                  <Box>
+                    {serviceHealth?.healthy ? (
+                      <Chip
+                        icon={<CheckCircleIcon sx={{ fontSize: "14px !important", color: "#16A34A !important" }} />}
+                        label="Backend: Online | DB: Healthy"
+                        size="small"
+                        sx={{ bgcolor: "#DCFCE7", color: "#15803D", fontWeight: 800, fontSize: "0.72rem" }}
+                      />
+                    ) : serviceHealth ? (
+                      <Chip
+                        label={`Service Health: ${serviceHealth.message}`}
+                        size="small"
+                        sx={{ bgcolor: "#FEE2E2", color: "#991B1B", fontWeight: 800, fontSize: "0.72rem" }}
+                      />
+                    ) : (
+                      <Chip
+                        label="Checking Service Health..."
+                        size="small"
+                        sx={{ bgcolor: "#F1F5F9", color: "#64748B", fontWeight: 800, fontSize: "0.72rem" }}
+                      />
+                    )}
+                  </Box>
+
+                  {/* Requirement 7: Real-time mobile validation with 10-digit counter and loading spinner */}
                   <M3TextField
-                    label="Mobile Number *"
+                    label="10-Digit Mobile Number *"
                     value={mobileNumber}
                     onChange={(e) => handleMobileChange(e.target.value)}
-                    placeholder="e.g. 98765 43210"
-                    helperText={`${mobileNumber.length}/10 Digits`}
+                    placeholder="e.g. 9876543210"
+                    helperText={
+                      <Box component="span" sx={{ display: "flex", justifyContent: "space-between", width: "100%", mt: 0.5 }}>
+                        <span style={{ color: mobileStatusState === "INVALID" ? "#DC2626" : mobileStatusState === "NEW_CUSTOMER" ? "#16A34A" : mobileStatusState === "EXISTING_CUSTOMER" ? "#15803D" : "#64748B", fontWeight: 700 }}>
+                          {mobileStatusMessage || "Numeric 10 digits starting with 6, 7, 8, or 9"}
+                        </span>
+                        <span style={{ fontWeight: 800, color: mobileNumber.length === 10 ? "#16A34A" : "#64748B" }}>
+                          {mobileNumber.length}/10 Digits
+                        </span>
+                      </Box>
+                    }
                     endAdornment={
                       mobileStatusState === "CHECKING" ? (
-                        <CircularProgress size={20} />
+                        <CircularProgress size={20} sx={{ color: "#0284C7" }} />
                       ) : mobileStatusState === "NEW_CUSTOMER" ? (
                         <CheckCircleIcon sx={{ color: "#16A34A" }} />
                       ) : mobileStatusState === "EXISTING_CUSTOMER" ? (
-                        <VerifiedIcon sx={{ color: "#2563EB" }} />
+                        <VerifiedUserIcon sx={{ color: "#16A34A" }} />
                       ) : undefined
                     }
                   />
 
-                  {/* Inline Error Helper Message if Invalid */}
-                  {mobileStatusState === "INVALID" && mobileStatusMessage && (
-                    <Alert severity="error" sx={{ borderRadius: 2.5, fontWeight: 700, py: 0.5 }}>
+                  {/* Error Banner with Retry button if backend or search fails */}
+                  {mobileStatusState === "INVALID" && mobileNumber.length === 10 && (
+                    <Alert
+                      severity="error"
+                      action={
+                        <Button
+                          color="inherit"
+                          size="small"
+                          startIcon={<ReplayIcon />}
+                          onClick={() => handleMobileChange(mobileNumber)}
+                          sx={{ fontWeight: 800, textTransform: "none" }}
+                        >
+                          Retry
+                        </Button>
+                      }
+                      sx={{ mt: 2, borderRadius: 3, fontWeight: 700, alignItems: "center" }}
+                    >
                       {mobileStatusMessage}
                     </Alert>
                   )}
 
-                  {/* Dynamic Animated Layout Switcher */}
-                  <AnimatePresence mode="wait">
-                    {/* STATE 1: CHECKING DATABASE */}
-                    {mobileStatusState === "CHECKING" && (
-                      <motion.div
-                        key="checking"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
+                  {/* Requirements 1, 3, 9: Green Success Card for Existing Customer */}
+                  {mobileStatusState === "EXISTING_CUSTOMER" && duplicateCustomer && (
+                    <motion.div
+                      key="existing-summary"
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3.5,
+                          border: "1px solid #BBF7D0",
+                          backgroundColor: "#F0FDF4",
+                        }}
                       >
-                        <Paper
-                          elevation={0}
-                          sx={{
-                            p: 2.5,
-                            textAlign: "center",
-                            borderRadius: 3,
-                            border: "1px solid #E2E8F0",
-                            backgroundColor: "#F8FAFC",
-                          }}
-                        >
-                          <CircularProgress size={24} sx={{ mb: 1, color: "#312E81" }} />
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: "#334155" }}>
-                            Searching customer database for +91 {mobileNumber}...
-                          </Typography>
-                        </Paper>
-                      </motion.div>
-                    )}
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 2 }}>
+                          <Avatar
+                            sx={{
+                              width: 48,
+                              height: 48,
+                              bgcolor: "#16A34A",
+                              fontWeight: 900,
+                              fontSize: "1.1rem",
+                              color: "#FFF",
+                            }}
+                          >
+                            <VerifiedUserIcon />
+                          </Avatar>
 
-                    {/* STATE 2: EXISTING CUSTOMER SUMMARY CARD */}
-                    {mobileStatusState === "EXISTING_CUSTOMER" && duplicateCustomer && (
-                      <motion.div
-                        key="existing-summary"
-                        initial={{ opacity: 0, scale: 0.96 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.96 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Paper
-                          elevation={0}
-                          sx={{
-                            p: 2.5,
-                            borderRadius: 3.5,
-                            border: "1px solid #C7D2FE",
-                            background: "linear-gradient(180deg, #EEF2FF 0%, #FFFFFF 100%)",
-                            boxShadow: "0 4px 16px rgba(49, 46, 129, 0.06)",
-                          }}
-                        >
-                          {/* Header Row */}
-                          <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 2 }}>
-                            <Avatar
-                              sx={{
-                                width: 52,
-                                height: 52,
-                                background: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)",
-                                fontWeight: 900,
-                                fontSize: "1.2rem",
-                                boxShadow: "0 4px 12px rgba(79, 70, 229, 0.3)",
-                              }}
-                            >
-                              {(duplicateCustomer.first_name || duplicateCustomer.full_name || "C")[0]}
-                              {(duplicateCustomer.last_name || "")[0]}
-                            </Avatar>
-
-                            <Box sx={{ flexGrow: 1 }}>
-                              <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
-                                  {duplicateCustomer.full_name || `${duplicateCustomer.first_name} ${duplicateCustomer.last_name}`}
-                                </Typography>
-                                <Chip
-                                  label={`Risk ${duplicateCustomer.risk_score || 12}`}
-                                  size="small"
-                                  sx={{
-                                    height: 20,
-                                    fontSize: "0.65rem",
-                                    fontWeight: 800,
-                                    bgcolor: (duplicateCustomer.risk_score || 12) < 30 ? "#DCFCE7" : "#FEF3C7",
-                                    color: (duplicateCustomer.risk_score || 12) < 30 ? "#15803D" : "#B45309",
-                                  }}
-                                />
-                              </Stack>
-                              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block" }}>
-                                ID: {duplicateCustomer.customer_number || duplicateCustomer.public_id} • +91 {duplicateCustomer.mobile_number}
+                          <Box sx={{ flexGrow: 1 }}>
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#14532D" }}>
+                                Existing Customer Found
                               </Typography>
-                            </Box>
-                          </Stack>
-
-                          <Divider sx={{ my: 1.5, borderColor: "#E0E7FF" }} />
-
-                          {/* 4 Status Pill Badges Grid */}
-                          <Grid container spacing={1} sx={{ mb: 2 }}>
-                            <Grid size={{ xs: 6 }}>
                               <Chip
-                                icon={<CheckCircleIcon sx={{ fontSize: "14px !important", color: "#16A34A !important" }} />}
-                                label={`KYC: ${duplicateCustomer.kyc_status || 'VERIFIED'}`}
-                                size="small"
-                                sx={{ width: "100%", justifyContent: "flex-start", bgcolor: "#DCFCE7", color: "#15803D", fontWeight: 800, fontSize: "0.7rem" }}
-                              />
-                            </Grid>
-                            <Grid size={{ xs: 6 }}>
-                              <Chip
-                                icon={<ShieldIcon sx={{ fontSize: "14px !important", color: "#0284C7 !important" }} />}
-                                label={`Aadhaar: ${duplicateCustomer.aadhaar_status || 'VERIFIED'}`}
-                                size="small"
-                                sx={{ width: "100%", justifyContent: "flex-start", bgcolor: "#E0F2FE", color: "#0369A1", fontWeight: 800, fontSize: "0.7rem" }}
-                              />
-                            </Grid>
-                            <Grid size={{ xs: 6 }}>
-                              <Chip
-                                icon={<VerifiedIcon sx={{ fontSize: "14px !important", color: "#4F46E5 !important" }} />}
-                                label={`PAN: ${duplicateCustomer.pan_status || 'VERIFIED'}`}
-                                size="small"
-                                sx={{ width: "100%", justifyContent: "flex-start", bgcolor: "#EEF2FF", color: "#4338CA", fontWeight: 800, fontSize: "0.7rem" }}
-                              />
-                            </Grid>
-                            <Grid size={{ xs: 6 }}>
-                              <Chip
-                                icon={<LockIcon sx={{ fontSize: "14px !important", color: duplicateCustomer.pin_status === 'SET' ? "#16A34A !important" : "#D97706 !important" }} />}
-                                label={`PIN: ${duplicateCustomer.pin_status || 'SET'}`}
+                                label="Match Confirmed"
                                 size="small"
                                 sx={{
-                                  width: "100%",
-                                  justifyContent: "flex-start",
-                                  bgcolor: duplicateCustomer.pin_status === 'SET' ? "#F0FDF4" : "#FEF3C7",
-                                  color: duplicateCustomer.pin_status === 'SET' ? "#16A34A" : "#B45309",
+                                  height: 20,
+                                  fontSize: "0.65rem",
                                   fontWeight: 800,
-                                  fontSize: "0.7rem",
+                                  bgcolor: "#DCFCE7",
+                                  color: "#15803D",
                                 }}
                               />
-                            </Grid>
-                          </Grid>
-
-                          {/* Monthly Limit Progress */}
-                          <Box sx={{ mb: 2, p: 1.5, borderRadius: 2.5, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                            <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.75 }}>
-                              <Typography variant="caption" sx={{ fontWeight: 800, color: "#475569" }}>
-                                Monthly Limit Remaining
-                              </Typography>
-                              <Typography variant="caption" sx={{ fontWeight: 900, color: "#16A34A" }}>
-                                ₹{(duplicateCustomer.monthly_remaining || 75000).toLocaleString("en-IN")}
-                              </Typography>
                             </Stack>
-                            <LinearProgress
-                              variant="determinate"
-                              value={((duplicateCustomer.monthly_used || 125000) / (duplicateCustomer.monthly_limit || 200000)) * 100}
-                              sx={{ height: 6, borderRadius: 3, bgcolor: "#E2E8F0", "& .MuiLinearProgress-bar": { bgcolor: "#16A34A" } }}
-                            />
+                            <Typography variant="caption" sx={{ color: "#166534", fontWeight: 600, display: "block" }}>
+                              Verified customer profile in database
+                            </Typography>
                           </Box>
+                        </Stack>
 
-                          {/* Last Transaction Metadata */}
-                          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, display: "block", mb: 2.5, textAlign: "center" }}>
-                            Last Transaction: {duplicateCustomer.last_transaction || "2 mins ago • ₹5,000 (IMPS)"}
+                        {/* Customer Details: Name, Mobile, Customer ID, KYC Status, Risk Score, Monthly Limit */}
+                        <Grid container spacing={1.5} sx={{ mb: 2.5, p: 2, bgcolor: "#FFFFFF", borderRadius: 2.5, border: "1px solid #DCFCE7" }}>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700 }}>
+                              Customer Name
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                              {duplicateCustomer.full_name || `${duplicateCustomer.first_name || ""} ${duplicateCustomer.last_name || ""}`.trim() || "Existing Customer"}
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700 }}>
+                              Mobile Number
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                              +91 {duplicateCustomer.mobile_number || mobileNumber}
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                              Customer ID
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                              {duplicateCustomer.customer_number || duplicateCustomer.public_id || "N/A"}
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                              KYC Status
+                            </Typography>
+                            <Chip
+                              icon={<CheckCircleIcon sx={{ fontSize: "14px !important", color: "#16A34A !important" }} />}
+                              label={duplicateCustomer.kyc_status || "VERIFIED"}
+                              size="small"
+                              sx={{ bgcolor: "#DCFCE7", color: "#15803D", fontWeight: 800, fontSize: "0.7rem", mt: 0.5 }}
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                              Risk Score
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#15803D" }}>
+                              {duplicateCustomer.risk_score ?? 15} / 100 (Low Risk)
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontWeight: 700, mt: 1 }}>
+                              Monthly Limit
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                              ₹{(duplicateCustomer.monthly_limit || 200000).toLocaleString('en-IN')}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+
+                        {/* Requirement 3: Replace Continue button with "Use Customer" & "View Profile" */}
+                        <Stack spacing={1.5}>
+                          <M3Button
+                            variant="contained"
+                            fullWidth
+                            onClick={() => handleCompleteAndReturn(duplicateCustomer)}
+                            sx={{ py: 1.25, fontWeight: 800, bgcolor: "#16A34A", "&:hover": { bgcolor: "#15803D" } }}
+                          >
+                            Use Customer →
+                          </M3Button>
+
+                          <M3Button
+                            variant="outlined"
+                            fullWidth
+                            startIcon={<VisibilityIcon />}
+                            onClick={() => {
+                              router.push(`/customers/customer-360?id=${duplicateCustomer.public_id || duplicateCustomer.id}`);
+                              onClose();
+                            }}
+                            sx={{ py: 1.25, fontWeight: 800, borderColor: "#16A34A", color: "#15803D" }}
+                          >
+                            View Profile
+                          </M3Button>
+                        </Stack>
+                      </Paper>
+                    </motion.div>
+                  )}
+
+                  {/* Requirements 2 & 5: Display registration form ONLY when no existing customer is found */}
+                  {mobileStatusState !== "EXISTING_CUSTOMER" && (
+                    <Box sx={{ pt: 1 }}>
+                      {mobileNumber.length === 10 && (
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
+                          <Chip label="No customer found" size="small" sx={{ bgcolor: "#F1F5F9", color: "#475569", fontWeight: 800 }} />
+                          <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F172A" }}>
+                            Add New Customer
                           </Typography>
-
-                          {/* Incomplete Banner if Onboarding Pending */}
-                          {(!duplicateCustomer.onboarding_complete || duplicateCustomer.pin_status === "NOT_SET" || duplicateCustomer.aadhaar_status === "PENDING") && (
-                            <Alert severity="warning" icon={<WarningAmberIcon />} sx={{ mb: 2, borderRadius: 2.5, fontWeight: 700, fontSize: "0.75rem" }}>
-                              Incomplete Onboarding: Aadhaar eKYC or PIN setup pending. You can resume now.
-                            </Alert>
-                          )}
-
-                          {/* Action Buttons */}
-                          <Stack spacing={1.5}>
-                            <M3Button
-                              variant="contained"
-                              fullWidth
-                              onClick={() => handleCompleteAndReturn(duplicateCustomer)}
-                              sx={{ py: 1.25, fontWeight: 800, bgcolor: "#312E81", "&:hover": { bgcolor: "#1E1B4B" } }}
-                            >
-                              Continue with Customer →
-                            </M3Button>
-
-                            {(!duplicateCustomer.onboarding_complete || duplicateCustomer.pin_status === "NOT_SET" || duplicateCustomer.aadhaar_status === "PENDING") && (
-                              <M3Button
-                                variant="outlined"
-                                color="warning"
-                                fullWidth
-                                onClick={() => handleResumeOnboarding(duplicateCustomer)}
-                                sx={{ py: 1, fontWeight: 800 }}
-                              >
-                                Resume Onboarding →
-                              </M3Button>
-                            )}
-
-                            <M3Button
-                              variant="text"
-                              fullWidth
-                              onClick={handleSearchAnother}
-                              startIcon={<RestartAltIcon />}
-                              sx={{ color: "#64748B", fontWeight: 700 }}
-                            >
-                              Search Another Mobile
-                            </M3Button>
-                          </Stack>
-                        </Paper>
-                      </motion.div>
-                    )}
-
-                    {/* STATE 3: NEW CUSTOMER REGISTRATION FORM */}
-                    {mobileStatusState === "NEW_CUSTOMER" && (
+                        </Stack>
+                      )}
                       <motion.div
-                        key="new-form"
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -15 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3.5, border: "1px solid #BBF7D0", bgcolor: "#F0FDF4", mb: 2.5 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#166534", display: "flex", alignItems: "center", gap: 1 }}>
-                            <CheckCircleIcon sx={{ fontSize: 18 }} />
-                            New Customer — Start Guided Onboarding
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#15803D", display: "block" }}>
-                            Mobile number available. Fill details to generate Mobile OTP & eKYC.
-                          </Typography>
-                        </Paper>
-
-                        <form onSubmit={handleStep1Submit}>
-                          <Stack spacing={2}>
-                            <Stack direction="row" spacing={2}>
+                      key="new-form"
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <form onSubmit={handleStep1Submit}>
+                        <Stack spacing={2.5}>
+                          <Grid container spacing={2}>
+                            <Grid size={{ xs: 6 }}>
                               <M3TextField
                                 label="First Name *"
                                 value={firstName}
                                 onChange={(e) => setFirstName(e.target.value)}
                                 required
                               />
+                            </Grid>
+                            <Grid size={{ xs: 6 }}>
                               <M3TextField
                                 label="Last Name *"
                                 value={lastName}
                                 onChange={(e) => setLastName(e.target.value)}
                                 required
                               />
-                            </Stack>
+                            </Grid>
+                          </Grid>
 
-                            <M3TextField
-                              label="Email Address (Optional)"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              type="email"
-                            />
+                          <M3TextField
+                            label="Email Address (Optional)"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            type="email"
+                          />
 
-                            <M3Button
-                              type="submit"
-                              variant="contained"
-                              loading={step1Loading}
-                              disabled={!firstName || !lastName}
-                              sx={{ py: 1.5, fontSize: "0.95rem" }}
-                            >
-                              Continue to Mobile OTP Verification →
-                            </M3Button>
-                          </Stack>
-                        </form>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                          {/* Requirements 2 & 8: Enable Continue button only when mandatory fields are valid */}
+                          <M3Button
+                            type="submit"
+                            variant="contained"
+                            loading={step1Loading}
+                            disabled={!isStep1Valid}
+                            sx={{ py: 1.5, fontSize: "0.95rem", bgcolor: isStep1Valid ? "#0F172A" : "#94A3B8" }}
+                          >
+                            Send Mobile OTP & Proceed →
+                          </M3Button>
+                        </Stack>
+                      </form>
+                    </motion.div>
+                    </Box>
+                  )}
                 </Stack>
               </Paper>
             </motion.div>
@@ -692,7 +666,7 @@ export function CustomerMasterSlideOver({
               exit={{ opacity: 0, x: -20 }}
             >
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#1E1B4B" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 0.5, color: "#0F172A" }}>
                   Step 2 — Mobile OTP Verification
                 </Typography>
                 <Typography variant="body2" sx={{ color: "#64748B", mb: 2 }}>
@@ -702,7 +676,7 @@ export function CustomerMasterSlideOver({
                 <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
                   <Chip
                     icon={<WhatsAppIcon sx={{ color: "#25D366 !important" }} />}
-                    label="WhatsApp OTP First"
+                    label="WhatsApp OTP"
                     size="small"
                     sx={{ backgroundColor: "#DCFCE7", color: "#15803D", fontWeight: 700 }}
                   />
@@ -738,7 +712,7 @@ export function CustomerMasterSlideOver({
                       </M3Button>
                     </Stack>
 
-                    <M3Button type="submit" variant="contained" loading={step2Loading} disabled={mobileOtp.length < 4}>
+                    <M3Button type="submit" variant="contained" loading={step2Loading} disabled={mobileOtp.length < 4} sx={{ bgcolor: "#0F172A" }}>
                       Verify OTP & Continue →
                     </M3Button>
                   </Stack>
@@ -758,7 +732,7 @@ export function CustomerMasterSlideOver({
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
                   <ShieldIcon sx={{ color: "#2563EB" }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#0F172A" }}>
                     Step 3 — Cashfree Aadhaar eKYC
                   </Typography>
                 </Stack>
@@ -779,6 +753,7 @@ export function CustomerMasterSlideOver({
                       loading={step3Loading}
                       disabled={aadhaarNumber.length !== 12}
                       onClick={handleGenerateAadhaarOtp}
+                      sx={{ bgcolor: "#0F172A" }}
                     >
                       Generate Aadhaar OTP →
                     </M3Button>
@@ -798,7 +773,7 @@ export function CustomerMasterSlideOver({
                         required
                       />
 
-                      <M3Button type="submit" variant="contained" loading={step3Loading} disabled={aadhaarOtp.length < 4}>
+                      <M3Button type="submit" variant="contained" loading={step3Loading} disabled={aadhaarOtp.length < 4} sx={{ bgcolor: "#0F172A" }}>
                         Verify Cashfree eKYC →
                       </M3Button>
                     </Stack>
@@ -818,8 +793,8 @@ export function CustomerMasterSlideOver({
             >
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                  <LockIcon sx={{ color: "#312E81" }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#1E1B4B" }}>
+                  <LockIcon sx={{ color: "#0F172A" }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#0F172A" }}>
                     Step 4 — Set Transaction Security PIN
                   </Typography>
                 </Stack>
@@ -850,7 +825,7 @@ export function CustomerMasterSlideOver({
                       required
                     />
 
-                    <M3Button type="submit" variant="contained" loading={step4Loading} disabled={pin.length < 4}>
+                    <M3Button type="submit" variant="contained" loading={step4Loading} disabled={pin.length < 4} sx={{ bgcolor: "#0F172A" }}>
                       Save PIN & Finalize Customer →
                     </M3Button>
                   </Stack>
@@ -878,10 +853,10 @@ export function CustomerMasterSlideOver({
               >
                 <VerifiedIcon sx={{ fontSize: 64, color: "#16A34A", mb: 1.5 }} />
                 <Typography variant="h5" sx={{ fontWeight: 900, color: "#14532D", mb: 1 }}>
-                  Customer Master Onboarded!
+                  Customer Registration Complete!
                 </Typography>
                 <Typography variant="body2" sx={{ color: "#166534", mb: 3 }}>
-                  {createdCustomer?.first_name} {createdCustomer?.last_name} ({createdCustomer?.mobile_number}) is verified & registered as Enterprise Master Data.
+                  {createdCustomer?.first_name} {createdCustomer?.last_name} ({createdCustomer?.mobile_number}) is verified & registered.
                 </Typography>
 
                 <M3Button
@@ -896,7 +871,7 @@ export function CustomerMasterSlideOver({
                     fontSize: "1rem",
                   }}
                 >
-                  Auto Return & Select Customer →
+                  Select Customer →
                 </M3Button>
               </Paper>
             </motion.div>

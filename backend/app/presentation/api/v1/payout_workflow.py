@@ -70,7 +70,50 @@ class PayoutExecuteReq(BaseModel):
     wallet_balance: float = 50000.0
 
 
+import logging
+from datetime import datetime
+from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@router.get("/health")
+async def payout_workflow_health(
+    db: AsyncSession = Depends(get_db)
+):
+    """Verify backend API status, database connection, and customer search availability."""
+    db_status = "UNKNOWN"
+    try:
+        res = await db.execute(text("SELECT 1"))
+        if res.scalar() == 1:
+            db_status = "HEALTHY"
+        else:
+            db_status = "UNHEALTHY"
+    except Exception as e:
+        logger.error(f"[PayoutWorkflow HealthCheck] Database connection error: {str(e)}")
+        db_status = "UNHEALTHY"
+
+    if db_status != "HEALTHY":
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "SERVICE_UNAVAILABLE",
+                "error_type": "DB_OFFLINE",
+                "message": "Customer database is unavailable.",
+                "db_status": db_status
+            }
+        )
+
+    return {
+        "status": "HEALTHY",
+        "api_status": "ONLINE",
+        "db_status": db_status,
+        "auth_required": True,
+        "search_endpoint": "/api/v1/payout-workflow/customers/search",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 
 @router.post("/customers/search")
 async def search_customers(
@@ -79,8 +122,15 @@ async def search_customers(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    results = await PayoutWorkflowService.search_customer(db, tenant_id, req.query)
-    return {"status": "SUCCESS", "data": results}
+    try:
+        results = await PayoutWorkflowService.search_customer(db, tenant_id, req.query)
+        logger.info(f"[CustomerSearch] Successfully queried '{req.query}' for tenant '{tenant_id}'. Returned {len(results)} matches.")
+        return {"status": "SUCCESS", "data": results}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[CustomerSearch Exception] Query '{req.query}' failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Customer lookup failed.")
 
 
 @router.post("/customers/register")

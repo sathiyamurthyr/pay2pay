@@ -89,7 +89,6 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     { label: "AEPS Cash Out", path: "/retailer/aeps", icon: FingerprintIcon, badge: "Biometric" },
     { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon },
     { label: "Bill Payment (BBPS)", path: "/retailer/bbps", icon: ReceiptIcon },
-    { label: "Beneficiary Directory", path: "/retailer/beneficiary", icon: ContactsIcon },
     { label: "Customer Directory", path: "/retailer/customers", icon: PersonIcon },
     { label: "Commission Slabs", path: "/retailer/commission", icon: AssessmentIcon },
     { label: "Move To Bank", path: "/retailer/settlement", icon: AccountBalanceIcon },

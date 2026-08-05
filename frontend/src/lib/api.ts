@@ -16,7 +16,18 @@ apiClient.interceptors.request.use(
       config.url = config.url.replace(/^\/api\/v1/, "");
     }
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("access_token");
+      const token =
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("pay2pay_auth_token") ||
+        document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("p2p_access_token="))
+          ?.split("=")[1] ||
+        document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("pay2pay_auth_token="))
+          ?.split("=")[1];
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
