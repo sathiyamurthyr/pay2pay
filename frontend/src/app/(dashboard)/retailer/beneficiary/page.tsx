@@ -25,6 +25,7 @@ import FlashOnIcon from "@mui/icons-material/FlashOn";
 import { BeneficiaryMasterSlideOver } from "@/components/master/beneficiary-master-slide-over";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 import { useRouter } from "next/navigation";
+import { isNormalizedMatch } from "@/lib/utils";
 
 interface BeneficiaryRecord {
   id: string;
@@ -81,11 +82,7 @@ export default function BeneficiaryPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredBeneficiaries = MOCK_BENEFICIARIES.filter(
-    (b) =>
-      b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.accountNumber.includes(searchTerm) ||
-      b.bankName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.ifsc.toLowerCase().includes(searchTerm.toLowerCase())
+    (b) => isNormalizedMatch(searchTerm, b.name, b.accountNumber, b.bankName, b.ifsc, b.id)
   );
 
   const handleSelectBeneficiaryForPayout = (bene: BeneficiaryRecord) => {
