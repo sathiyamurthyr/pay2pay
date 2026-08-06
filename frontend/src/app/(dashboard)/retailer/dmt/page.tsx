@@ -534,86 +534,98 @@ function TransactionSuccessReceipt({
 
       <Box sx={{ width: "100%", maxWidth: 680, zIndex: 1 }}>
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25 }}>
-          <Paper elevation={0} sx={{ p: 4, mb: 3, borderRadius: "18px", border: "1px solid #DCFCE7", bgcolor: "#FFFFFF", textAlign: "center", boxShadow: "0 4px 20px rgba(22,163,74,0.12)" }}>
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 220, damping: 15 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 4,
+              mb: 3,
+              borderRadius: "28px",
+              border: "1px solid rgba(212, 175, 55, 0.35)",
+              background: "radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.12) 0%, #FFFFFF 75%)",
+              textAlign: "center",
+              boxShadow: "0 20px 60px rgba(15, 44, 89, 0.12)",
+            }}
+          >
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
               <Box
                 sx={{
                   width: 80,
                   height: 80,
                   borderRadius: "50%",
                   bgcolor: "#DCFCE7",
-                  boxShadow: "0 0 0 10px rgba(22,163,74,0.15)",
+                  border: "2px solid #16A34A",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   mx: "auto",
-                  mb: 2,
+                  mb: 2.5,
+                  boxShadow: "0 10px 25px rgba(22, 163, 74, 0.25)",
                 }}
               >
-                <CheckCircleIcon sx={{ color: SUCCESS_GREEN, fontSize: 50 }} />
+                <CheckCircleIcon sx={{ color: SUCCESS_GREEN, fontSize: 56 }} />
               </Box>
             </motion.div>
 
-            <Typography sx={{ fontWeight: 800, color: SUCCESS_GREEN, fontSize: "24px", mb: 0.5, letterSpacing: "-0.5px" }}>
+            <Typography sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "26px", mb: 0.5, letterSpacing: "-0.5px" }}>
               Transfer Successful
             </Typography>
 
-            <Typography sx={{ fontWeight: 800, color: BANK_GOLD, fontSize: "36px", letterSpacing: "-1px", mb: 0.5 }}>
+            <Typography sx={{ fontWeight: 900, color: BANK_GOLD, fontSize: "42px", letterSpacing: "-1px", mb: 0.5 }}>
               <AnimatedCountUp value={amount} />
             </Typography>
 
-            <Typography sx={{ fontSize: "13px", color: "#64748B", fontWeight: 600, mb: 2 }}>
-              {numberToWords(amount)}
+            <Typography sx={{ fontSize: "14px", color: "#64748B", fontWeight: 700, fontStyle: "italic", mb: 2.5 }}>
+              "{numberToWords(amount)}"
             </Typography>
 
             <Stack direction="row" spacing={1} sx={{ justifyContent: "center", flexWrap: "wrap", gap: 1 }}>
-              <Chip label={`UTR: ${utr}`} size="small" icon={<ContentCopyIcon sx={{ fontSize: 13 }} />} onClick={() => copyToClipboard(utr, "UTR")} sx={{ height: 26, fontSize: "12px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#0F172A", cursor: "pointer" }} />
-              <Chip label={`Ref: ${refId}`} size="small" icon={<ContentCopyIcon sx={{ fontSize: 13 }} />} onClick={() => copyToClipboard(refId, "Reference Number")} sx={{ height: 26, fontSize: "12px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#0F172A", cursor: "pointer" }} />
-              <Chip label="IMPS Instant (< 2s)" size="small" sx={{ height: 26, fontSize: "12px", fontWeight: 700, bgcolor: BANK_BLUE_LIGHT, color: BANK_BLUE }} />
+              <Chip label={`UTR: ${utr}`} size="small" icon={<ContentCopyIcon sx={{ fontSize: 13 }} />} onClick={() => copyToClipboard(utr, "UTR")} sx={{ height: 28, fontSize: "12px", fontWeight: 800, bgcolor: "rgba(212, 175, 55, 0.15)", color: BANK_BLUE, border: `1px solid ${BANK_GOLD_BORDER}`, cursor: "pointer" }} />
+              <Chip label={`Ref: ${refId}`} size="small" icon={<ContentCopyIcon sx={{ fontSize: 13 }} />} onClick={() => copyToClipboard(refId, "Reference Number")} sx={{ height: 28, fontSize: "12px", fontWeight: 800, bgcolor: "#F1F5F9", color: "#0F172A", cursor: "pointer" }} />
+              <Chip label="IMPS Instant (< 2s)" size="small" sx={{ height: 28, fontSize: "12px", fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
             </Stack>
           </Paper>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.2 }}>
-          <Paper elevation={0} sx={{ borderRadius: "18px", border: "1px solid #E2E8F0", bgcolor: "#FFFFFF", overflow: "hidden", mb: 3, boxShadow: "0 2px 8px rgba(15,23,42,0.06)" }}>
-            <Box sx={{ p: 2.5, borderBottom: "1px solid #F1F5F9" }}>
+          <Paper elevation={0} sx={{ borderRadius: "24px", border: "1px solid #E8EBF3", bgcolor: "#FFFFFF", overflow: "hidden", mb: 3, boxShadow: "0 8px 32px rgba(15, 44, 89, 0.06)" }}>
+            <Box sx={{ p: 3, borderBottom: "1px solid #F1F5F9", bgcolor: "#F8FAFC" }}>
               <Grid container spacing={2}>
                 <Grid size={{ xs: 6 }}>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: BANK_BLUE, textTransform: "uppercase", letterSpacing: "0.5px" }}>SENDER</Typography>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#0F172A" }}>{customer?.full_name || "—"}</Typography>
-                  <Typography sx={{ fontSize: "12px", color: "#64748B" }}>+91 {customer?.mobile_number}</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 800, color: BANK_BLUE, textTransform: "uppercase", letterSpacing: "1px" }}>SENDER (CUSTOMER)</Typography>
+                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mt: 0.5 }}>{customer?.full_name || "—"}</Typography>
+                  <Typography sx={{ fontSize: "13px", color: "#64748B", fontWeight: 600 }}>+91 {customer?.mobile_number}</Typography>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: BANK_GOLD, textTransform: "uppercase", letterSpacing: "0.5px" }}>BENEFICIARY</Typography>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#0F172A" }}>{beneficiaryName}</Typography>
-                  <Typography sx={{ fontSize: "12px", color: "#64748B" }}>{beneficiary?.bank_name} • {maskedAccount}</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 800, color: BANK_GOLD, textTransform: "uppercase", letterSpacing: "1px" }}>BENEFICIARY (RECEIVER)</Typography>
+                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mt: 0.5 }}>{beneficiaryName}</Typography>
+                  <Typography sx={{ fontSize: "13px", color: "#64748B", fontWeight: 600 }}>{beneficiary?.bank_name} • {maskedAccount}</Typography>
                 </Grid>
               </Grid>
             </Box>
 
-            <Box sx={{ p: 2.5, borderBottom: "1px solid #F1F5F9" }}>
-              <Typography sx={{ fontSize: "11px", fontWeight: 700, color: BANK_MAROON, textTransform: "uppercase", letterSpacing: "0.5px", mb: 1.5 }}>FINANCIAL SUMMARY</Typography>
-              <Stack spacing={1}>
+            <Box sx={{ p: 3 }}>
+              <Typography sx={{ fontSize: "11px", fontWeight: 800, color: BANK_MAROON, textTransform: "uppercase", letterSpacing: "1px", mb: 1.5 }}>FINANCIAL SUMMARY</Typography>
+              <Stack spacing={1.2}>
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: "13px", color: "#64748B", fontWeight: 600 }}>Transfer Amount</Typography>
-                  <Typography sx={{ fontSize: "18px", fontWeight: 800, color: BANK_GOLD }}>₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
+                  <Typography sx={{ fontSize: "14px", color: "#64748B", fontWeight: 600 }}>Transfer Amount</Typography>
+                  <Typography sx={{ fontSize: "18px", fontWeight: 900, color: BANK_GOLD }}>₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "13px", color: "#64748B", fontWeight: 600 }}>Service Charge &amp; GST</Typography>
-                  <Typography sx={{ fontSize: "13px", fontWeight: 700, color: "#0F172A" }}>₹{(charges + gst).toFixed(2)}</Typography>
+                  <Typography sx={{ fontSize: "14px", color: "#64748B", fontWeight: 600 }}>Service Charge &amp; GST</Typography>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A" }}>₹{(charges + gst).toFixed(2)}</Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "13px", color: SUCCESS_GREEN, fontWeight: 600 }}>Retailer Commission</Typography>
-                  <Typography sx={{ fontSize: "13px", fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹{commission.toFixed(2)}</Typography>
+                  <Typography sx={{ fontSize: "14px", color: SUCCESS_GREEN, fontWeight: 700 }}>Retailer Commission</Typography>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹{commission.toFixed(2)}</Typography>
                 </Stack>
-                <Divider sx={{ my: 0.5 }} />
+                <Divider sx={{ my: 0.8 }} />
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#0F172A" }}>Net Wallet Debit</Typography>
-                  <Typography sx={{ fontSize: "20px", fontWeight: 800, color: BANK_MAROON }}>₹{netDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
+                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A" }}>Net Wallet Debit</Typography>
+                  <Typography sx={{ fontSize: "22px", fontWeight: 900, color: BANK_MAROON }}>₹{netDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "12px", color: SUCCESS_GREEN, fontWeight: 600 }}>Wallet After</Typography>
-                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: SUCCESS_GREEN }}>₹{walletAfter.toLocaleString()}</Typography>
+                  <Typography sx={{ fontSize: "13px", color: SUCCESS_GREEN, fontWeight: 700 }}>Wallet Balance After</Typography>
+                  <Typography sx={{ fontSize: "16px", fontWeight: 800, color: SUCCESS_GREEN }}>₹{walletAfter.toLocaleString()}</Typography>
                 </Stack>
               </Stack>
             </Box>
@@ -625,18 +637,18 @@ function TransactionSuccessReceipt({
             variant="contained"
             fullWidth
             onClick={onNewTransfer}
-            sx={{ ...PRIMARY_BTN_SX, mb: 2 }}
+            sx={{ ...PRIMARY_BTN_SX, mb: 2.5 }}
           >
             + Start New Transfer
           </Button>
 
-          <Paper elevation={0} sx={{ borderRadius: "18px", border: "1px solid #E2E8F0", bgcolor: "#FFFFFF", overflow: "hidden" }}>
+          <Paper elevation={0} sx={{ borderRadius: "20px", border: "1px solid #E8EBF3", bgcolor: "#FFFFFF", overflow: "hidden" }}>
             {[
-              { icon: <WhatsAppIcon sx={{ color: SUCCESS_GREEN, fontSize: 20 }} />, label: "Share via WhatsApp", onClick: () => window.open(`https://wa.me/?text=✅ Transfer Successful!%0AAmount: ₹${amount.toLocaleString("en-IN")}%0AUTR: ${utr}`) },
-              { icon: <DownloadIcon sx={{ color: BANK_BLUE, fontSize: 20 }} />, label: "Download PDF Receipt", onClick: () => window.print() },
-              { icon: <PrintIcon sx={{ color: "#64748B", fontSize: 20 }} />, label: "Print Receipt", onClick: () => window.print() },
+              { icon: <WhatsAppIcon sx={{ color: SUCCESS_GREEN, fontSize: 22 }} />, label: "Share via WhatsApp", onClick: () => window.open(`https://wa.me/?text=✅ Transfer Successful!%0AAmount: ₹${amount.toLocaleString("en-IN")}%0AUTR: ${utr}`) },
+              { icon: <DownloadIcon sx={{ color: BANK_BLUE, fontSize: 22 }} />, label: "Download PDF Receipt", onClick: () => window.print() },
+              { icon: <PrintIcon sx={{ color: "#64748B", fontSize: 22 }} />, label: "Print Receipt", onClick: () => window.print() },
             ].map((action, i, arr) => (
-              <Box key={action.label} onClick={action.onClick} sx={{ px: 2.5, py: 1.5, display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", borderBottom: i < arr.length - 1 ? "1px solid #F1F5F9" : "none", "&:hover": { bgcolor: "#F8FAFC" } }}>
+              <Box key={action.label} onClick={action.onClick} sx={{ px: 3, py: 1.8, display: "flex", alignItems: "center", gap: 2, cursor: "pointer", borderBottom: i < arr.length - 1 ? "1px solid #F1F5F9" : "none", "&:hover": { bgcolor: "#F8FAFC" } }}>
                 {action.icon}
                 <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", flex: 1 }}>{action.label}</Typography>
                 <OpenInNewIcon sx={{ color: "#CBD5E1", fontSize: 16 }} />
