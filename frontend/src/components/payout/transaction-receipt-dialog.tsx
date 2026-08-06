@@ -52,25 +52,25 @@ export const TransactionReceiptDialog: React.FC<TransactionReceiptProps> = ({ op
   if (!data) return null;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" slotProps={{ paper: { sx: { borderRadius: 4, overflow: "hidden" } } }}>
-      <Box sx={{ background: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)", color: "#FFF", p: 3, textAlign: "center", position: "relative" }}>
-        <IconButton onClick={onClose} sx={{ position: "absolute", right: 12, top: 12, color: "#FFF" }}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" slotProps={{ paper: { sx: { borderRadius: "24px", overflow: "hidden", border: "1px solid rgba(212, 175, 55, 0.3)", boxShadow: "0 20px 50px rgba(15, 44, 89, 0.25)" } } }}>
+      <Box sx={{ background: "linear-gradient(135deg, #0F2C59 0%, #1A407B 50%, #7B1E3A 100%)", color: "#FFF", p: 3.5, textAlign: "center", position: "relative" }}>
+        <IconButton onClick={onClose} sx={{ position: "absolute", right: 14, top: 14, color: "#FFF", "&:hover": { bgcolor: "rgba(255, 255, 255, 0.15)" } }}>
           <CloseIcon />
         </IconButton>
 
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 20 }}>
-          <CheckCircleIcon sx={{ fontSize: 64, color: "#4ADE80", mb: 1 }} />
+          <CheckCircleIcon sx={{ fontSize: 68, color: "#4ADE80", mb: 1, filter: "drop-shadow(0 4px 12px rgba(74, 222, 128, 0.4))" }} />
         </motion.div>
 
-        <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5 }}>
+        <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5, letterSpacing: "-0.3px" }}>
           Payout Successful!
         </Typography>
-        <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
+        <Typography variant="caption" sx={{ color: "#F7E7B6", display: "block", fontWeight: 700 }}>
           UTR: {data.utr} • Ref: {data.reference_id}
         </Typography>
 
-        <Typography variant="h3" sx={{ fontWeight: 900, color: "#4ADE80", my: 2 }}>
-          ₹{data.amount.toLocaleString("en-IN")}
+        <Typography variant="h3" sx={{ fontWeight: 900, color: "#D4AF37", my: 2, fontSize: "38px" }}>
+          ₹{data.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
         </Typography>
         <Typography variant="caption" sx={{ color: "#E2E8F0", fontStyle: "italic", fontWeight: 700 }}>
           "{data.amount_in_words}"

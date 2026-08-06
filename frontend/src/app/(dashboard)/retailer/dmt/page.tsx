@@ -72,48 +72,49 @@ import { BeneficiaryMasterSlideOver } from "@/components/master/beneficiary-mast
 // ─────────────────────────────────────────────────────────────────────────────
 // ENTERPRISE BANKING DESIGN SYSTEM TOKENS & BUTTON STYLES
 // ─────────────────────────────────────────────────────────────────────────────
-const BANK_BLUE = "#123A72";
-const BANK_BLUE_HOVER = "#0F2F5D";
-const BANK_BLUE_LIGHT = "#EAF3FF";
+const BANK_BLUE = "#0F2C59";
+const BANK_BLUE_HOVER = "#0A2042";
+const BANK_BLUE_LIGHT = "#F4F7FC";
 
-const BANK_GOLD = "#D4A017";
-const BANK_GOLD_LIGHT = "#FFF8E6";
-const BANK_GOLD_BORDER = "#F0C75E";
+const BANK_GOLD = "#D4AF37";
+const BANK_GOLD_LIGHT = "#FFF8E8";
+const BANK_GOLD_BORDER = "#F7E7B6";
 
 const BANK_MAROON = "#7B1E3A";
+const BANK_BURGUNDY = "#8D1B3D";
 const BANK_MAROON_DARK = "#5C132B";
 const BANK_MAROON_LIGHT = "#F8EEF2";
 
-const PRIMARY_GRADIENT = "linear-gradient(135deg, #7B1E3A 0%, #912544 45%, #C99819 100%)";
-const SEARCH_BLUE_GRADIENT = "linear-gradient(135deg, #0F3D91 0%, #2457C5 100%)";
+const PRIMARY_GRADIENT = "linear-gradient(135deg, #7B1E3A 0%, #8D1B3D 45%, #D4AF37 100%)";
+const SEARCH_BLUE_GRADIENT = "linear-gradient(135deg, #0F2C59 0%, #1A407B 100%)";
 
 const SUCCESS_GREEN = "#16A34A";
-const SUCCESS_LIGHT = "#ECFDF3";
+const SUCCESS_LIGHT = "#ECFDF5";
 
 const ERROR_RED = "#DC2626";
 const ERROR_LIGHT = "#FEF2F2";
 
 const CARD_STYLE = {
-  borderRadius: "18px",
-  border: "1px solid #E2E8F0",
-  boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
+  borderRadius: "24px",
+  border: "1px solid #E8EBF3",
+  boxShadow: "0 8px 32px rgba(15, 44, 89, 0.06)",
   backgroundColor: "#FFFFFF",
 };
 
 const PRIMARY_BTN_SX = {
   background: PRIMARY_GRADIENT,
   color: "#FFFFFF",
-  fontWeight: 700,
+  fontWeight: 800,
   fontSize: "18px",
-  borderRadius: "16px",
-  height: "56px",
+  borderRadius: "18px",
+  height: "60px",
   px: 4,
   textTransform: "none",
-  boxShadow: "0 4px 16px rgba(123, 30, 58, 0.25)",
-  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+  boxShadow: "0 6px 24px rgba(123, 30, 58, 0.28), 0 2px 8px rgba(212, 175, 55, 0.25)",
+  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
   "&:hover": {
     background: PRIMARY_GRADIENT,
-    boxShadow: "0 8px 24px rgba(201, 152, 25, 0.4), 0 4px 12px rgba(123, 30, 58, 0.3)",
+    boxShadow: "0 10px 30px rgba(212, 175, 55, 0.45), 0 6px 16px rgba(123, 30, 58, 0.35)",
     transform: "translateY(-2px)",
   },
   "&:disabled": {
@@ -128,17 +129,17 @@ const PRIMARY_BTN_SX = {
 const SEARCH_BTN_SX = {
   background: SEARCH_BLUE_GRADIENT,
   color: "#FFFFFF",
-  fontWeight: 700,
-  fontSize: "16px",
-  borderRadius: "16px",
-  height: "56px",
+  fontWeight: 800,
+  fontSize: "18px",
+  borderRadius: "18px",
+  height: "60px",
   px: 4,
   textTransform: "none",
-  boxShadow: "0 4px 14px rgba(15, 61, 145, 0.25)",
-  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+  boxShadow: "0 6px 20px rgba(15, 44, 89, 0.25)",
+  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
   "&:hover": {
     background: SEARCH_BLUE_GRADIENT,
-    boxShadow: "0 8px 22px rgba(15, 61, 145, 0.38)",
+    boxShadow: "0 10px 28px rgba(15, 44, 89, 0.38)",
     transform: "translateY(-2px)",
   },
   "&:disabled": {
@@ -152,20 +153,23 @@ const SEARCH_BTN_SX = {
 
 const SEARCH_INPUT_SX = {
   "& .MuiOutlinedInput-root": {
-    borderRadius: "14px",
+    height: "64px",
+    borderRadius: "18px",
     backgroundColor: "#FFFFFF",
-    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
-    transition: "all 0.2s ease",
-    "& fieldset": { borderColor: "#CBD5E1", borderWidth: "1.5px" },
-    "&:hover fieldset": { borderColor: "#C99819" },
-    "&.Mui-focused fieldset": { borderColor: "#C99819", borderWidth: "2px" },
+    boxShadow: "0 4px 14px rgba(15, 44, 89, 0.05)",
+    transition: "all 0.25s ease",
+    fontSize: "18px",
+    fontWeight: 600,
+    "& fieldset": { borderColor: "#E8EBF3", borderWidth: "1.5px" },
+    "&:hover fieldset": { borderColor: "#D4AF37" },
+    "&.Mui-focused fieldset": { borderColor: "#D4AF37", borderWidth: "2px" },
     "&.Mui-focused": {
-      boxShadow: "0 0 0 4px rgba(201, 152, 25, 0.15), 0 4px 12px rgba(15, 23, 42, 0.08)",
+      boxShadow: "0 0 0 4px rgba(212, 175, 55, 0.18), 0 6px 16px rgba(15, 44, 89, 0.08)",
     },
   },
-  "& .MuiInputLabel-root": { color: "#475569", fontWeight: 600 },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#C99819", fontWeight: 700 },
-  "& .MuiInputBase-input::placeholder": { color: "#64748B", opacity: 1, fontSize: "14px" },
+  "& .MuiInputLabel-root": { color: "#475569", fontWeight: 600, fontSize: "16px" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#7B1E3A", fontWeight: 700 },
+  "& .MuiInputBase-input::placeholder": { color: "#64748B", opacity: 1, fontSize: "16px" },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

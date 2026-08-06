@@ -322,21 +322,22 @@ export function CustomerMasterSlideOver({
       <Box
         sx={{
           p: 3,
-          background: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)",
+          background: "linear-gradient(135deg, #0F2C59 0%, #1A407B 60%, #7B1E3A 100%)",
           color: "#FFFFFF",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          borderBottom: "1px solid rgba(212, 175, 55, 0.3)",
         }}
       >
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-          <PersonAddIcon sx={{ color: "#4ADE80", fontSize: 28 }} />
+          <PersonAddIcon sx={{ color: "#D4AF37", fontSize: 28 }} />
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: "-0.3px" }}>
+            <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: "-0.3px", color: "#FFFFFF" }}>
               Customer Registration
             </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, fontWeight: 700 }}>
-              Enterprise Guided Customer Onboarding & eKYC
+            <Typography variant="caption" sx={{ color: "#F7E7B6", fontWeight: 700 }}>
+              Enterprise Guided Customer Onboarding &amp; eKYC
             </Typography>
           </Box>
         </Stack>
