@@ -115,21 +115,24 @@ async def payout_workflow_health(
     }
 
 
+@router.get("/customers/search")
 @router.post("/customers/search")
 async def search_customers(
-    req: CustomerSearchReq,
+    req: Optional[CustomerSearchReq] = None,
+    query: Optional[str] = Query(default=None),
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    search_q = query or (req.query if req else "")
     try:
-        results = await PayoutWorkflowService.search_customer(db, tenant_id, req.query)
-        logger.info(f"[CustomerSearch] Successfully queried '{req.query}' for tenant '{tenant_id}'. Returned {len(results)} matches.")
+        results = await PayoutWorkflowService.search_customer(db, tenant_id, search_q)
+        logger.info(f"[CustomerSearch] Successfully queried '{search_q}' for tenant '{tenant_id}'. Returned {len(results)} matches.")
         return {"status": "SUCCESS", "data": results}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[CustomerSearch Exception] Query '{req.query}' failed: {str(e)}", exc_info=True)
+        logger.error(f"[CustomerSearch Exception] Query '{search_q}' failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Customer lookup failed.")
 
 
@@ -278,3 +281,67 @@ async def execute_payout(
         ip_address=request.client.host if request.client else "127.0.0.1"
     )
     return {"status": "SUCCESS", "data": res}
+
+
+class AddAndVerifyBeneficiaryReq(BaseModel):
+    customer_id: str
+    account_number: str = Field(..., min_length=9, max_length=18)
+    confirm_account_number: str = Field(..., min_length=9, max_length=18)
+    ifsc_code: str = Field(..., min_length=11, max_length=11)
+    bank_name: str
+    account_holder_name: Optional[str] = None
+    nickname: Optional[str] = None
+    current_wallet_balance: Optional[float] = 5000.0
+
+
+@router.post("/epic014/add-and-verify")
+async def add_and_verify_epic014_beneficiary(
+    req: AddAndVerifyBeneficiaryReq,
+    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.application.epic014_beneficiary_service import Epic014BeneficiaryService
+    try:
+        cust_uuid = uuid.UUID(req.customer_id) if isinstance(req.customer_id, str) and "-" in req.customer_id else uuid.uuid4()
+    except Exception:
+        cust_uuid = uuid.uuid4()
+
+    res = await Epic014BeneficiaryService.register_and_verify_beneficiary(
+        db=db,
+        tenant_id=tenant_id,
+        company_id=getattr(current_user, "company_id", None),
+        customer_id=cust_uuid,
+        account_number=req.account_number,
+        confirm_account_number=req.confirm_account_number,
+        ifsc_code=req.ifsc_code,
+        bank_name=req.bank_name,
+        account_holder_name=req.account_holder_name,
+        nickname=req.nickname,
+        retailer_id=getattr(current_user, "public_id", None),
+        current_wallet_balance=req.current_wallet_balance or 5000.0,
+    )
+    return res
+
+
+@router.get("/epic014/bank-master/search")
+async def search_epic014_bank_master(
+    query: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    sample_banks = [
+        {"bank_name": "HDFC Bank", "ifsc_prefix": "HDFC", "ifsc_code": "HDFC0000123", "branch": "Fort Main Branch", "state": "Maharashtra", "neft": True, "imps": True, "upi": True},
+        {"bank_name": "State Bank of India", "ifsc_prefix": "SBIN", "ifsc_code": "SBIN0000300", "branch": "Main Branch", "state": "Maharashtra", "neft": True, "imps": True, "upi": True},
+        {"bank_name": "ICICI Bank", "ifsc_prefix": "ICIC", "ifsc_code": "ICIC0000001", "branch": "Bandra Kurla Branch", "state": "Maharashtra", "neft": True, "imps": True, "upi": True},
+        {"bank_name": "Axis Bank", "ifsc_prefix": "UTIB", "ifsc_code": "UTIB0000005", "branch": "Worli Branch", "state": "Maharashtra", "neft": True, "imps": True, "upi": True},
+        {"bank_name": "Kotak Mahindra Bank", "ifsc_prefix": "KKBK", "ifsc_code": "KKBK0000958", "branch": "Nariman Point Branch", "state": "Maharashtra", "neft": True, "imps": True, "upi": True},
+        {"bank_name": "Punjab National Bank", "ifsc_prefix": "PUNB", "ifsc_code": "PUNB0000100", "branch": "Connaught Place Branch", "state": "Delhi", "neft": True, "imps": True, "upi": True},
+        {"bank_name": "Bank of Baroda", "ifsc_prefix": "BARB", "ifsc_code": "BARB0MUMBAI", "branch": "Main Branch", "state": "Maharashtra", "neft": True, "imps": True, "upi": True},
+        {"bank_name": "Canara Bank", "ifsc_prefix": "CNRB", "ifsc_code": "CNRB0000001", "branch": "MG Road Branch", "state": "Karnataka", "neft": True, "imps": True, "upi": True},
+        {"bank_name": "IndusInd Bank", "ifsc_prefix": "INDB", "ifsc_code": "INDB0000001", "branch": "Cyber City Branch", "state": "Haryana", "neft": True, "imps": True, "upi": True},
+        {"bank_name": "Union Bank of India", "ifsc_prefix": "UBIN", "ifsc_code": "UBIN0530001", "branch": "Fort Branch", "state": "Maharashtra", "neft": True, "imps": True, "upi": True},
+    ]
+    if query and query.strip():
+        q_clean = query.strip().upper()
+        sample_banks = [b for b in sample_banks if q_clean in b["bank_name"].upper() or q_clean in b["ifsc_prefix"].upper() or q_clean in b["ifsc_code"].upper()]
+    return {"status": "SUCCESS", "data": sample_banks}

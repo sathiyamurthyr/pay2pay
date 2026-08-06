@@ -8,6 +8,8 @@ import Link from "next/link";
 import apiClient from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
+import { DmtEnterpriseHeader } from "@/components/dmt/dmt-enterprise-header";
+
 export default function DmtTransferPage() {
   const { isRetailer, activeRole } = useAuth();
   const [form, setForm] = useState({
@@ -77,19 +79,7 @@ export default function DmtTransferPage() {
   return (
     <div className="space-y-5">
       {/* Navigation Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/retailer-dashboard" className="p-2 bg-white hover:bg-[#F8FAFC] text-[#334155] rounded-xl border border-[#E2E8F0] shadow-sm">
-          <ArrowLeft className="w-4 h-4" />
-        </Link>
-        <div>
-          <h1 className="ent-page-title flex items-center gap-2">
-            <Send className="w-5 h-5 text-[#6C63FF]" /> Domestic Money Transfer (DMT)
-          </h1>
-          <p className="ent-caption mt-0.5">
-            Instant IMPS / NEFT fund remittance with live charge &amp; commission calculation
-          </p>
-        </div>
-      </div>
+      <DmtEnterpriseHeader />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Form Card */}

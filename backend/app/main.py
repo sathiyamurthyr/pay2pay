@@ -5,11 +5,12 @@ from fastapi.responses import JSONResponse
 from app.core.database import settings, engine, Base
 from app.core.exceptions import DomainException
 from app.presentation.api.v1 import (
-    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements, developer, compliance, financial_config, settlement_intake, settlement_processing, wallet_ledger, payouts, reporting, operations, crm, fraud, finance_accounting, bpm, eip, notifications, customer, beneficiary, policy, dmt, aeps, audio, secrets, upload, verification, retailer_services, payout_workflow, ekyc
+    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements, developer, compliance, financial_config, settlement_intake, settlement_processing, wallet_ledger, payouts, reporting, operations, crm, fraud, finance_accounting, bpm, eip, notifications, customer, beneficiary, policy, dmt, aeps, audio, secrets, upload, verification, retailer_services, payout_workflow, ekyc, epic014_beneficiary_router
 )
 import app.infrastructure.db.models  # Register all models with Base.metadata
 import app.infrastructure.db.payout_workflow_models
 import app.infrastructure.db.ekyc_models
+import app.infrastructure.db.epic014_models
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -21,6 +22,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_db():
+    print("ALL REGISTERED ROUTES:", [r.path for r in app.routes if hasattr(r, 'path')])
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -94,6 +96,7 @@ app.include_router(verification.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_services.router, prefix=settings.API_V1_STR)
 app.include_router(payout_workflow.router, prefix=settings.API_V1_STR)
 app.include_router(ekyc.router, prefix=settings.API_V1_STR)
+app.include_router(epic014_beneficiary_router.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])

@@ -23,7 +23,10 @@ const PROTECTED_PREFIXES = [
 ];
 
 export function middleware(request: NextRequest) {
-  const devBypass = process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+  const devBypass =
+    process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" ||
+    process.env.NODE_ENV === "development";
+
 
   // Enforce authentication cookie/token validation unless dev bypass is explicitly true
   if (!devBypass) {

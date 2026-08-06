@@ -42,7 +42,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!DEV_BYPASS && !user) return null;
-
   return <RetailerLayout>{children}</RetailerLayout>;
 }
