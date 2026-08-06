@@ -1136,13 +1136,33 @@ export default function DmtPage() {
             <MenuIcon />
           </IconButton>
 
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "20px", letterSpacing: "-0.4px", lineHeight: 1.1 }}>
-              Money Transfer (DMT)
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "12px" }}>
-              Velocity Domestic Payout &amp; IMPS Switch
-            </Typography>
+          {/* BRAND LOGO BADGE */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                px: 1.8,
+                py: 0.6,
+                borderRadius: "10px",
+                background: "linear-gradient(135deg, #0F2C59 0%, #7B1E3A 100%)",
+                border: "1px solid #D4AF37",
+                color: "#FFFFFF",
+                fontWeight: 900,
+                fontSize: "14px",
+                letterSpacing: "1px",
+                boxShadow: "0 2px 8px rgba(15, 44, 89, 0.2)",
+              }}
+            >
+              PAY2PAY
+            </Paper>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "18px", letterSpacing: "-0.4px", lineHeight: 1.1 }}>
+                Domestic Money Transfer (DMT)
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "11px" }}>
+                PAY2PAY Enterprise Retail Banking Platform
+              </Typography>
+            </Box>
           </Box>
 
           <Chip
