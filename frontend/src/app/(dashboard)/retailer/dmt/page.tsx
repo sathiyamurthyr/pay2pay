@@ -1100,82 +1100,111 @@ export default function DmtPage() {
   }
 
   return (
-    <Box sx={{ pb: 14, minHeight: "100vh", bgcolor: "#F8FAFC", color: "#0F172A" }}>
-      {/* ── HEADER ── */}
+    <Box sx={{ pb: 14, minHeight: "100vh", bgcolor: "#F6F8FC", color: "#0F172A" }}>
+      {/* ── ZONE 1: SIGNATURE VELOCITY GLASS HEADER (NO LOGO) ── */}
       <Paper
         elevation={0}
         sx={{
-          px: 3,
-          py: 1.5,
-          borderBottom: "1px solid #E2E8F0",
-          backgroundColor: "#FFFFFF",
+          px: 3.5,
+          py: 1.8,
+          borderBottom: "1px solid #E8EBF3",
+          background: "rgba(255, 255, 255, 0.88)",
+          backdropFilter: "blur(16px)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           position: "sticky",
           top: 0,
           zIndex: 1100,
-          boxShadow: "0 1px 4px rgba(15,23,42,0.04)",
+          boxShadow: "0 4px 20px rgba(15, 44, 89, 0.04)",
         }}
       >
-        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <IconButton size="small" sx={{ color: BANK_BLUE }}>
+        <Stack direction="row" spacing={2.5} sx={{ alignItems: "center" }}>
+          <IconButton size="small" sx={{ color: BANK_BLUE, bgcolor: "#F4F7FC", p: 1, "&:hover": { bgcolor: BANK_GOLD_LIGHT } }}>
             <MenuIcon />
           </IconButton>
 
-          <Typography variant="h6" sx={{ fontWeight: 800, color: BANK_BLUE, fontSize: "20px", letterSpacing: "-0.4px" }}>
-            Money Transfer (DMT)
-          </Typography>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "20px", letterSpacing: "-0.4px", lineHeight: 1.1 }}>
+              Money Transfer (DMT)
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "12px" }}>
+              Velocity Domestic Payout &amp; IMPS Switch
+            </Typography>
+          </Box>
 
           <Chip
             label="⚡ Live Intelligence"
             size="small"
             onClick={() => setSystemDrawerOpen(true)}
             sx={{
-              height: 28,
+              height: 30,
               fontSize: "12px",
               fontWeight: 800,
               bgcolor: "rgba(212, 175, 55, 0.15)",
               color: BANK_BLUE,
               border: `1px solid ${BANK_GOLD_BORDER}`,
               cursor: "pointer",
-              transition: "all 0.2s ease",
+              px: 0.5,
+              transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
               "&:hover": {
                 bgcolor: BANK_GOLD,
                 color: "#FFFFFF",
                 transform: "translateY(-1px)",
+                boxShadow: "0 4px 12px rgba(212, 175, 55, 0.3)",
               },
             }}
           />
         </Stack>
 
         <Stack direction="row" spacing={2.5} sx={{ alignItems: "center" }}>
-          <IconButton size="small" onClick={() => setSoundEnabled(!soundEnabled)} sx={{ color: soundEnabled ? BANK_BLUE : "#94A3B8" }}>
+          <IconButton size="small" onClick={() => setSoundEnabled(!soundEnabled)} sx={{ color: soundEnabled ? BANK_GOLD : "#94A3B8", bgcolor: soundEnabled ? BANK_GOLD_LIGHT : "transparent" }}>
             {soundEnabled ? <VolumeUpIcon sx={{ fontSize: 20 }} /> : <VolumeOffIcon sx={{ fontSize: 20 }} />}
           </IconButton>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 0.8, bgcolor: BANK_GOLD_LIGHT, borderRadius: "10px", border: `1px solid ${BANK_GOLD_BORDER}` }}>
-            <AccountBalanceWalletIcon sx={{ color: BANK_GOLD, fontSize: 20 }} />
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "11px", textTransform: "uppercase" }}>Wallet:</Typography>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "17px" }}>
-              ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Typography>
+          {/* SIGNATURE VELOCITY WALLET CARD */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              px: 2.5,
+              py: 1,
+              background: "linear-gradient(135deg, #FFF8E8 0%, #FFFFFF 100%)",
+              borderRadius: "16px",
+              border: `1.5px solid ${BANK_GOLD_BORDER}`,
+              boxShadow: "0 4px 16px rgba(212, 175, 55, 0.12)",
+            }}
+          >
+            <AccountBalanceWalletIcon sx={{ color: BANK_GOLD, fontSize: 24, filter: "drop-shadow(0 2px 4px rgba(212, 175, 55, 0.3))" }} />
+            <Box>
+              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
+                WALLET BALANCE
+              </Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "18px", lineHeight: 1.1 }}>
+                ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </Typography>
+            </Box>
+            <Chip label={`+₹${wallet.todayMargin.toFixed(2)}`} size="small" sx={{ bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN, fontWeight: 800, height: 22, fontSize: "11px" }} />
           </Box>
 
           <IconButton size="small" sx={{ color: "#64748B" }}>
             <NotificationsIcon sx={{ fontSize: 20 }} />
           </IconButton>
 
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", pl: 1, borderLeft: "1px solid #E2E8F0" }}>
-            <Avatar sx={{ width: 34, height: 34, bgcolor: BANK_BLUE, color: "#FFFFFF", fontSize: "13px", fontWeight: 700 }}>RK</Avatar>
-            <Typography variant="caption" sx={{ fontWeight: 700, color: "#0F172A", fontSize: "13px" }}>Ramesh Kumar</Typography>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", pl: 1.5, borderLeft: "1px solid #E2E8F0" }}>
+            <Avatar sx={{ width: 38, height: 38, background: PRIMARY_GRADIENT, color: "#FFFFFF", fontSize: "14px", fontWeight: 800, boxShadow: "0 2px 8px rgba(123, 30, 58, 0.25)" }}>RK</Avatar>
+            <Box sx={{ display: { xs: "none", md: "block" } }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "14px", lineHeight: 1.1 }}>Ramesh Kumar</Typography>
+              <Typography variant="caption" sx={{ color: BANK_GOLD, fontWeight: 700, fontSize: "11px" }}>Retailer Console</Typography>
+            </Box>
           </Stack>
         </Stack>
       </Paper>
 
-      {/* ── STEPPER ── */}
-      <Paper elevation={0} sx={{ py: 1.5, px: 3, bgcolor: "#FFFFFF", borderBottom: "1px solid #E2E8F0", mb: 3 }}>
-        <Box sx={{ maxWidth: 840, mx: "auto" }}>
+      {/* ── ZONE 2: SIGNATURE VELOCITY STEPPER ── */}
+      <Paper elevation={0} sx={{ py: 2, px: 3, bgcolor: "#FFFFFF", borderBottom: "1px solid #E8EBF3", mb: 4, boxShadow: "0 2px 10px rgba(15, 44, 89, 0.03)" }}>
+        <Box sx={{ maxWidth: 1100, mx: "auto" }}>
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
             {[
               { step: 1, title: "Customer", ok: isCustomerValid },
@@ -1193,36 +1222,44 @@ export default function DmtPage() {
                 <React.Fragment key={st.step}>
                   <Stack
                     direction="row"
-                    spacing={1}
+                    spacing={1.2}
                     onClick={() => canClick && setActiveStep(st.step)}
                     sx={{
                       alignItems: "center",
                       cursor: canClick ? "pointer" : "not-allowed",
-                      opacity: canClick || isCurrent ? 1 : 0.55,
+                      opacity: canClick || isCurrent ? 1 : 0.5,
+                      transition: "all 0.2s ease",
                     }}
                   >
                     <Box
                       sx={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: "50%",
-                        bgcolor: isCompleted ? SUCCESS_LIGHT : isCurrent ? BANK_BLUE : "#F1F5F9",
+                        width: 34,
+                        height: 34,
+                        borderRadius: "10px",
+                        background: isCompleted
+                          ? SUCCESS_LIGHT
+                          : isCurrent
+                          ? PRIMARY_GRADIENT
+                          : "#F1F5F9",
                         color: isCompleted ? SUCCESS_GREEN : isCurrent ? "#FFFFFF" : "#64748B",
+                        border: isCurrent ? `2px solid ${BANK_GOLD}` : "1px solid transparent",
+                        boxShadow: isCurrent ? "0 0 16px rgba(212, 175, 55, 0.4), 0 4px 12px rgba(123, 30, 58, 0.25)" : "none",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         fontSize: "13px",
-                        fontWeight: 800,
+                        fontWeight: 900,
                       }}
                     >
-                      {isCompleted ? <CheckIcon sx={{ fontSize: 18 }} /> : st.step}
+                      {isCompleted ? <CheckIcon sx={{ fontSize: 18 }} /> : `0${st.step}`}
                     </Box>
                     <Typography
                       variant="caption"
                       sx={{
-                        fontWeight: isCurrent ? 800 : 600,
-                        color: isCurrent ? BANK_BLUE : isCompleted ? SUCCESS_GREEN : "#64748B",
-                        fontSize: "13px",
+                        fontWeight: isCurrent ? 900 : 700,
+                        color: isCurrent ? BANK_MAROON : isCompleted ? SUCCESS_GREEN : "#64748B",
+                        fontSize: "14px",
+                        letterSpacing: "-0.2px",
                         display: { xs: isCurrent ? "block" : "none", sm: "block" },
                       }}
                     >
@@ -1231,7 +1268,7 @@ export default function DmtPage() {
                   </Stack>
 
                   {i < arr.length - 1 && (
-                    <Box sx={{ flex: 1, height: 2, bgcolor: isCompleted ? SUCCESS_LIGHT : "#E2E8F0", mx: 1 }} />
+                    <Box sx={{ flex: 1, height: 2, bgcolor: isCompleted ? SUCCESS_GREEN : "#E2E8F0", mx: 1.5, borderRadius: "2px" }} />
                   )}
                 </React.Fragment>
               );
