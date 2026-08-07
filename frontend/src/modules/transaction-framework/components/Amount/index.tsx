@@ -7,6 +7,7 @@ import { TransferSummary } from "./TransferSummary";
 import { AIRouteRecommendation } from "./AIRouteRecommendation";
 import { TransferPreview } from "./TransferPreview";
 import { AmountValidation } from "./AmountValidation";
+import { RuleEngineService } from "../../services/RuleEngineAdapter";
 
 export interface EnterpriseAmountWorkspaceProps {
   amount: number;
@@ -67,7 +68,7 @@ export const EnterpriseAmountWorkspace: React.FC<EnterpriseAmountWorkspaceProps>
         <QuickAmountSelector amount={amount} onSelect={onAmountChange} />
 
         {/* 4. Live Validation & Risk Alerts */}
-        <AmountValidation amount={amount} totalPayable={totalPayable} />
+        <AmountValidation validationResult={RuleEngineService.evaluatePricing({ service: "DMT", amount })} />
 
         {/* 5. Compact Financial KPI Summary Cards */}
         <TransferSummary amount={amount} charges={charges} totalPayable={totalPayable} />

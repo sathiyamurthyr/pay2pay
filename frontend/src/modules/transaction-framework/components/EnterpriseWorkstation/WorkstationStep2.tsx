@@ -12,6 +12,7 @@ import {
   Divider,
   MenuItem,
   Select,
+  Tooltip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
@@ -22,7 +23,7 @@ import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
-import { AmountValidation, validateTransactionAmount } from "../Amount/AmountValidation";
+import { AmountValidation } from "../Amount/AmountValidation";
 import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
 
 export interface WorkstationStep2Props {
@@ -74,18 +75,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const totalPayable = pricingResult.totalPayable;
   const balanceAfter = pricingResult.walletBalanceAfter;
 
-  // Realtime Pre-Transaction Wallet & Limit Validation
-  const validationStatus = validateTransactionAmount(
-    amount,
-    totalPayable,
-    pricingResult.walletBalance,
-    pricingResult.dailyLimitRemaining,
-    pricingResult.monthlyLimitRemaining,
-    pricingResult.minLimit,
-    pricingResult.maxLimit
-  );
-
-  const isProceedDisabled = amount <= 0 || !selectedBeneficiary || !validationStatus.isValid;
+  // Realtime 20-Point Rule Engine Validation Allowed Check
+  const isProceedDisabled = amount <= 0 || !selectedBeneficiary || !pricingResult.allowed;
 
   return (
     <Box
@@ -272,16 +263,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
           <AmountInWords amount={amount} />
 
-          {/* Realtime Wallet Balance & Limits Pre-Transaction Validation Alert */}
-          <AmountValidation
-            amount={amount}
-            totalPayable={totalPayable}
-            walletBalance={pricingResult.walletBalance}
-            dailyRemaining={pricingResult.dailyLimitRemaining}
-            monthlyRemaining={pricingResult.monthlyLimitRemaining}
-            minLimit={pricingResult.minLimit}
-            maxLimit={pricingResult.maxLimit}
-          />
+          {/* Realtime 20-Point Wallet Balance & Limits Pre-Transaction Validation Engine */}
+          <AmountValidation validationResult={pricingResult} />
 
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
 
@@ -311,14 +294,14 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "13px" }}>NET WALLET DEBIT</Typography>
-              <Typography sx={{ fontWeight: 900, color: validationStatus.isInsufficientWallet ? "#EF4444" : "#3B82F6", fontSize: "16px" }}>
+              <Typography sx={{ fontWeight: 900, color: !pricingResult.allowed ? "#EF4444" : "#3B82F6", fontSize: "16px" }}>
                 ₹{totalPayable.toLocaleString()}
               </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet After Transfer</Typography>
-              <Typography sx={{ fontWeight: 800, color: validationStatus.isInsufficientWallet ? "#EF4444" : "#FBBF24", fontSize: "14px" }}>
+              <Typography sx={{ fontWeight: 800, color: !pricingResult.allowed ? "#EF4444" : "#FBBF24", fontSize: "14px" }}>
                 ₹{balanceAfter.toLocaleString()}
               </Typography>
             </Stack>
@@ -337,28 +320,34 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
         {/* Action Buttons */}
         <Stack spacing={1} sx={{ pt: 1.5 }}>
-          <Button
-            fullWidth
-            variant="contained"
-            disabled={isProceedDisabled}
-            onClick={onContinue}
-            endIcon={<ArrowForwardIcon />}
-            sx={{
-              height: 46,
-              borderRadius: "10px",
-              fontWeight: 900,
-              fontSize: "14px",
-              bgcolor: "#2563EB",
-              color: "#FFFFFF",
-              boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
-              "&.Mui-disabled": {
-                bgcolor: "rgba(255, 255, 255, 0.12)",
-                color: "rgba(255, 255, 255, 0.4)",
-              },
-            }}
-          >
-            Proceed to Authorization →
-          </Button>
+          <Tooltip title={isProceedDisabled ? "Resolve validation errors before continuing" : ""} arrow placement="top">
+            <Box component="span" sx={{ width: "100%" }}>
+              <Button
+                fullWidth
+                variant="contained"
+                disabled={isProceedDisabled}
+                onClick={onContinue}
+                endIcon={<ArrowForwardIcon />}
+                sx={{
+                  height: 46,
+                  borderRadius: "10px",
+                  fontWeight: 900,
+                  fontSize: "14px",
+                  bgcolor: "#2563EB",
+                  color: "#FFFFFF",
+                  boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
+                  "&.Mui-disabled": {
+                    bgcolor: "rgba(255, 255, 255, 0.12)",
+                    color: "rgba(255, 255, 255, 0.4)",
+                    cursor: "not-allowed",
+                    pointerEvents: "auto",
+                  },
+                }}
+              >
+                Proceed to Authorization →
+              </Button>
+            </Box>
+          </Tooltip>
 
           <Button
             fullWidth
