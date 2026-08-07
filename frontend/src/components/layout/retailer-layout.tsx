@@ -213,7 +213,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         {navCategories.map((cat) => (
           <Box key={cat.title} sx={{ mb: 2.5 }}>
             {!isCollapsed && (
-              <Typography variant="caption" sx={{ color: "#3B82F6", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "20px", display: "block", mb: 0.8 }}>
+              <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "20px", display: "block", mb: 0.8 }}>
                 {cat.title}
               </Typography>
             )}
@@ -236,10 +236,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                         borderRadius: "12px",
                         px: isCollapsed ? 0 : "20px",
                         justifyContent: isCollapsed ? "center" : "space-between",
-                        backgroundColor: isActive ? "rgba(37, 99, 235, 0.18)" : "transparent",
-                        color: isActive ? "#FFFFFF" : "#CBD5E1",
+                        backgroundColor: isActive ? "rgba(37, 99, 235, 0.25)" : "transparent",
+                        color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
                         textDecoration: "none",
-                        boxShadow: isActive ? "0 4px 16px rgba(37, 99, 235, 0.25)" : "none",
+                        boxShadow: isActive ? "0 4px 16px rgba(37, 99, 235, 0.35)" : "none",
                         transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
                         "&::before": isActive
                           ? {
@@ -254,15 +254,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             }
                           : {},
                         "&:hover": {
-                          backgroundColor: isActive ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                          backgroundColor: isActive ? "rgba(37, 99, 235, 0.35)" : "rgba(255, 255, 255, 0.08)",
                           color: "#FFFFFF",
                         },
                       }}
                     >
                       <Stack direction="row" spacing={2} sx={{ alignItems: "center", minWidth: 0 }}>
-                        <IconComponent sx={{ fontSize: 22, color: isActive ? "#3B82F6" : "#94A3B8" }} />
+                        <IconComponent sx={{ fontSize: 22, color: isActive ? "#60A5FA" : "rgba(255, 255, 255, 0.88)" }} />
                         {!isCollapsed && (
-                          <Typography sx={{ fontSize: "16px", fontWeight: isActive ? 700 : 600, lineHeight: "24px", whiteSpace: "nowrap" }}>
+                          <Typography sx={{ fontSize: "16px", fontWeight: isActive ? 700 : 600, lineHeight: "24px", whiteSpace: "nowrap", color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)" }}>
                             {item.label}
                           </Typography>
                         )}
@@ -276,8 +276,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             height: 20,
                             fontSize: "10px",
                             fontWeight: 800,
-                            backgroundColor: isActive ? "#2563EB" : "rgba(255,255,255,0.08)",
-                            color: isActive ? "#FFFFFF" : "#94A3B8",
+                            backgroundColor: isActive ? "#2563EB" : "rgba(255,255,255,0.12)",
+                            color: "#FFFFFF",
                           }}
                         />
                       )}
