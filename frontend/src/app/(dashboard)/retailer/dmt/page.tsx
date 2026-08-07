@@ -29,6 +29,7 @@ import {
   InputLabel,
   Zoom,
 } from "@mui/material";
+import { EnterpriseAppShell } from "@/components/layout/enterprise-app-shell";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Icons
@@ -179,7 +180,7 @@ const SEARCH_BTN_SX = {
 
 const SEARCH_INPUT_SX = {
   width: "100%",
-  minWidth: { sm: "500px", md: "700px" },
+  minWidth: 0,
   "& .MuiOutlinedInput-root": {
     height: "56px",
     borderRadius: "12px",
@@ -1163,11 +1164,25 @@ export default function DmtPage() {
   return (
     <Box sx={{ pb: 16, minHeight: "100vh", bgcolor: BG_DARK, color: TEXT_PRIMARY }}>
 
-      {/* ── 4-REGION ENTERPRISE OPERATING WORKSPACE (240px LEFT | FLEX CENTER | 340px RIGHT) ── */}
-      <Box sx={{ width: "100%", px: 3, pt: 2 }}>
-        <Stack direction={{ xs: "column", lg: "row" }} spacing={3} sx={{ alignItems: "flex-start" }}>
-          {/* ── REGION 2: LEFT OPERATIONS TOOLBOX (240px FIXED) ── */}
-          <Box sx={{ width: { xs: "100%", lg: 240 }, flexShrink: 0 }}>
+      {/* ── 4-REGION ENTERPRISE OPERATING WORKSPACE WITH RESPONSIVE CSS GRID ENGINE ── */}
+      <Box sx={{ width: "100%", px: 3, pt: 1, pb: 12 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "1fr",
+              md: "220px minmax(650px, 1fr) 300px",
+              lg: "240px minmax(800px, 1fr) 340px",
+              xl: "260px minmax(900px, 1fr) 360px",
+            },
+            gap: 3,
+            width: "100%",
+            alignItems: "start",
+          }}
+        >
+          {/* ── REGION 2: LEFT OPERATIONS TOOLBOX (260px FIXED GRID COLUMN) ── */}
+          <Box sx={{ width: "100%", minWidth: 0 }}>
             <Stack spacing={2}>
               <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, borderTop: `4px solid ${PRIMARY_BLUE}` }}>
                 <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
@@ -1316,9 +1331,18 @@ export default function DmtPage() {
                       </Button>
                     </Stack>
 
-                    {/* UNIFIED SEARCH FIELD */}
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2 }}>
-                      <Box sx={{ flex: 1 }}>
+                    {/* UNIFIED SEARCH FIELD GRID ROW */}
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "1fr auto" },
+                        gap: 2,
+                        alignItems: "center",
+                        mb: 2,
+                        width: "100%",
+                      }}
+                    >
+                      <Box sx={{ width: "100%", minWidth: 0 }}>
                         <M3TextField
                           inputRef={customerSearchRef}
                           label="Unified Search (Mobile / Aadhaar / Customer ID)"
@@ -1335,11 +1359,11 @@ export default function DmtPage() {
                         onClick={handleCustomerSearch}
                         disabled={searchLoading || !searchQuery.trim()}
                         startIcon={!searchLoading ? <SearchIcon sx={{ color: "#FFFFFF", fontSize: 22 }} /> : undefined}
-                        sx={{ ...SEARCH_BTN_SX }}
+                        sx={{ ...SEARCH_BTN_SX, width: "fit-content" }}
                       >
                         {searchLoading ? <CircularProgress size={22} sx={{ color: "#FFF" }} /> : "Search"}
                       </Button>
-                    </Stack>
+                    </Box>
 
                     {/* QUICK ACTION CHIPS */}
                     <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: "wrap", gap: 0.8 }}>
@@ -1954,8 +1978,8 @@ export default function DmtPage() {
         </AnimatePresence>
       </Box>
 
-      {/* ── REGION 4: RIGHT OPERATION CENTER (340px FIXED) ── */}
-      <Box sx={{ width: { xs: "100%", lg: 340 }, flexShrink: 0 }}>
+      {/* ── REGION 4: RIGHT OPERATION CENTER (360px FIXED GRID COLUMN) ── */}
+      <Box sx={{ width: "100%", minWidth: 0 }}>
         <Stack spacing={2}>
           {/* SECTION 1: LIVE SYSTEM STATUS */}
           <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, bgcolor: SURFACE_DARK, borderTop: `4px solid ${PRIMARY_BLUE}` }}>
@@ -2037,7 +2061,7 @@ export default function DmtPage() {
           </Paper>
         </Stack>
       </Box>
-    </Stack>
+    </Box>
   </Box>
 
       {/* ── STICKY FOOTER BAR (56px) ── */}
