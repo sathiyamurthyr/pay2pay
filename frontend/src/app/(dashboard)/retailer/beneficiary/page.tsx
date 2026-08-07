@@ -303,6 +303,10 @@ export default function BeneficiaryWorkspacePage() {
 
   const handleStep1Submit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (accNum.length < 9) {
+      setAccMismatchError(`Account number must be at least 9 digits (entered: ${accNum.length})`);
+      return;
+    }
     if (accNum !== confirmAccNum) {
       setAccMismatchError("Account numbers do not match! Please re-enter carefully.");
       return;
@@ -732,21 +736,88 @@ export default function BeneficiaryWorkspacePage() {
 
                         <Grid container spacing={2}>
                           <Grid size={{ xs: 12, sm: 6 }}>
-                            <M3TextField
-                              label="Account Number *"
-                              value={accNum}
-                              onChange={e => { setAccNum(e.target.value); setAccMismatchError(""); }}
-                              required
-                            />
+                            {/* Account Number with live digit counter */}
+                            <Box sx={{ position: "relative" }}>
+                              <M3TextField
+                                label="Account Number *"
+                                value={accNum}
+                                onChange={e => {
+                                  // Only allow digits
+                                  const digits = e.target.value.replace(/\D/g, "").slice(0, 18);
+                                  setAccNum(digits);
+                                  setAccMismatchError("");
+                                }}
+                                required
+                                error={accNum.length > 0 && accNum.length < 9}
+                                helperText={
+                                  accNum.length === 0
+                                    ? "9 – 18 digit bank account number"
+                                    : accNum.length < 9
+                                    ? `${accNum.length} / 18 digits entered — min 9 required`
+                                    : `${accNum.length} / 18 digits ✓ valid length`
+                                }
+                              />
+                              {/* Character count badge */}
+                              <Box sx={{
+                                position: "absolute", top: 8, right: 10,
+                                bgcolor: accNum.length === 0 ? "#F1F5F9"
+                                  : accNum.length < 9 ? "#FEF3C7"
+                                  : accNum.length <= 18 ? "#DCFCE7"
+                                  : "#FEE2E2",
+                                color: accNum.length === 0 ? "#64748B"
+                                  : accNum.length < 9 ? "#92400E"
+                                  : "#166534",
+                                px: 1, py: 0.25, borderRadius: "6px",
+                                fontSize: "11px", fontWeight: 800,
+                                border: `1px solid ${accNum.length === 0 ? "#E2E8F0" : accNum.length < 9 ? "#FDE68A" : "#86EFAC"}`,
+                                lineHeight: 1.6, minWidth: 44, textAlign: "center",
+                                pointerEvents: "none",
+                                zIndex: 1,
+                              }}>
+                                {accNum.length}<span style={{ opacity: 0.55, fontWeight: 600 }}>/18</span>
+                              </Box>
+                            </Box>
                           </Grid>
                           <Grid size={{ xs: 12, sm: 6 }}>
-                            <M3TextField
-                              label="Confirm Account Number *"
-                              value={confirmAccNum}
-                              onChange={e => { setConfirmAccNum(e.target.value); setAccMismatchError(""); }}
-                              required
-                              error={Boolean(accMismatchError && confirmAccNum)}
-                            />
+                            {/* Confirm Account Number with live match indicator */}
+                            <Box sx={{ position: "relative" }}>
+                              <M3TextField
+                                label="Confirm Account Number *"
+                                value={confirmAccNum}
+                                onChange={e => {
+                                  const digits = e.target.value.replace(/\D/g, "").slice(0, 18);
+                                  setConfirmAccNum(digits);
+                                  setAccMismatchError("");
+                                }}
+                                required
+                                error={Boolean(accMismatchError && confirmAccNum) || (confirmAccNum.length > 0 && confirmAccNum !== accNum)}
+                                helperText={
+                                  confirmAccNum.length === 0
+                                    ? "Re-enter account number to confirm"
+                                    : confirmAccNum === accNum
+                                    ? "✓ Matches"
+                                    : `${confirmAccNum.length} / 18 — does not match`
+                                }
+                              />
+                              {/* Character count badge */}
+                              <Box sx={{
+                                position: "absolute", top: 8, right: 10,
+                                bgcolor: confirmAccNum.length === 0 ? "#F1F5F9"
+                                  : confirmAccNum === accNum ? "#DCFCE7"
+                                  : "#FEE2E2",
+                                color: confirmAccNum.length === 0 ? "#64748B"
+                                  : confirmAccNum === accNum ? "#166534"
+                                  : "#991B1B",
+                                px: 1, py: 0.25, borderRadius: "6px",
+                                fontSize: "11px", fontWeight: 800,
+                                border: `1px solid ${confirmAccNum.length === 0 ? "#E2E8F0" : confirmAccNum === accNum ? "#86EFAC" : "#FECACA"}`,
+                                lineHeight: 1.6, minWidth: 44, textAlign: "center",
+                                pointerEvents: "none",
+                                zIndex: 1,
+                              }}>
+                                {confirmAccNum.length}<span style={{ opacity: 0.55, fontWeight: 600 }}>/18</span>
+                              </Box>
+                            </Box>
                           </Grid>
                           {accNum && confirmAccNum && (
                             <Grid size={{ xs: 12 }}>
@@ -875,7 +946,14 @@ export default function BeneficiaryWorkspacePage() {
                       <M3Button
                         type="submit"
                         variant="contained"
-                        disabled={!benName || !relationship || !accNum || !confirmAccNum || !bankName || !ifscCode}
+                        disabled={
+                          !benName ||
+                          !relationship ||
+                          accNum.length < 9 ||
+                          confirmAccNum !== accNum ||
+                          !bankName ||
+                          !ifscCode
+                        }
                         sx={{ py: 1.75, bgcolor: "#0F172A", "&:hover": { bgcolor: "#1E293B" }, fontWeight: 800, borderRadius: 3 }}
                       >
                         Continue to Verification →
