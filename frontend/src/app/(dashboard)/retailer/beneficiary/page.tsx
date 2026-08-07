@@ -305,15 +305,25 @@ function BeneficiaryWorkspaceContent() {
     } else if (reason === "clear" || !val) {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
       fetchBankMasterList("");
+      setSelectedBankObj(null);
+      setBankName("");
+      setIfscCode("");
     }
   };
 
   const handleBankSelect = (bankObj: any) => {
-    if (!bankObj || typeof bankObj === "string") return;
+    if (!bankObj) {
+      setSelectedBankObj(null);
+      setBankName("");
+      setIfscCode("");
+      return;
+    }
+    if (typeof bankObj === "string") return;
+
     setSelectedBankObj(bankObj);
     setBankName(bankObj.bank_name || "");
 
-    // Auto-fill IFSC Code directly from Bank Master object
+    // Automatically store bank_id, bank_name, and ifsc_code internally
     const autoIfsc = bankObj.ifsc_code || bankObj.ifsc || (bankObj.ifsc_prefix ? bankObj.ifsc_prefix + "0000001" : "");
     setIfscCode(autoIfsc);
     setMicrCode(bankObj.micr || "");
@@ -928,10 +938,10 @@ function BeneficiaryWorkspaceContent() {
                               loading={bankSearchLoading}
                               noOptionsText={
                                 bankSearchLoading
-                                  ? "Searching bank directory…"
-                                  : bankSearchQuery.length === 1
-                                  ? "Type at least 2 characters to search…"
-                                  : "No bank found"
+                                  ? "Searching..."
+                                  : bankSearchQuery.length < 2
+                                  ? "Type at least 2 characters to search..."
+                                  : "No banks found"
                               }
                               getOptionLabel={opt => typeof opt === "string" ? opt : (opt.bank_name || "")}
                               isOptionEqualToValue={(opt, val) => {
