@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+export const dynamic = "force-dynamic";
+
+import React, { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -229,7 +231,7 @@ const INITIAL_CUSTOMERS: CustomerRecord[] = [
 // COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function CustomersPage() {
+function CustomersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setSelectedCustomer, setReferrerUrl } = useTransactionMemoryStore();
@@ -357,7 +359,7 @@ export default function CustomersPage() {
     };
     setSelectedCustomer(formatted);
     setReferrerUrl("/retailer/customers");
-    router.push(`/retailer/dmt?customerMobile=${cleanMobile}`);
+    router.push("/retailer/dmt");
   };
 
   // ── Filter & Search Logic (With Phone Normalization) ──
@@ -920,8 +922,8 @@ export default function CustomersPage() {
         onEditCustomer={() => {
           alert("Editing Customer details");
         }}
-        onTransferHistory={(cust) => {
-          router.push(`/retailer/dmt?customerMobile=${cust?.mobile || ""}`);
+        onTransferHistory={() => {
+          router.push("/retailer/dmt");
         }}
       />
 
@@ -973,5 +975,13 @@ function VerifiedIcon(props: React.SVGProps<SVGSVGElement>) {
     <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
     </svg>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-slate-500 font-medium">Loading customer catalog…</div>}>
+      <CustomersContent />
+    </Suspense>
   );
 }

@@ -18,6 +18,8 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
+import { retailerApi } from "@/services/retailer-api";
+
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -272,11 +274,16 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               size="small"
               variant="contained"
               startIcon={<PersonAddIcon sx={{ fontSize: 16 }} />}
-              onClick={() => {
-                const cName = encodeURIComponent(customer?.name || "");
-                const cMob = encodeURIComponent(customer?.mobile || "");
-                const cId = encodeURIComponent(customer?.id || (customer as any)?.public_id || "");
-                window.location.href = `/retailer/beneficiary?customerName=${cName}&customerMobile=${cMob}&customerId=${cId}&referrer=/retailer/dmt`;
+              onClick={async () => {
+                try {
+                  await retailerApi.createBeneficiarySession({
+                    customer_id: customer?.id || (customer as any)?.public_id || "",
+                    customer_mobile: customer?.mobile || "",
+                    customer_name: customer?.name || "",
+                    referrer: "/retailer/dmt",
+                  });
+                } catch {}
+                window.location.href = "/retailer/beneficiary";
               }}
               sx={{
                 height: 32,
@@ -398,12 +405,17 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               <Button
                 variant="contained"
                 startIcon={<PersonAddIcon />}
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  const cName = encodeURIComponent(customer?.name || "");
-                  const cMob = encodeURIComponent(customer?.mobile || "");
-                  const cId = encodeURIComponent(customer?.id || (customer as any)?.public_id || "");
-                  window.location.href = `/retailer/beneficiary?customerName=${cName}&customerMobile=${cMob}&customerId=${cId}&referrer=/retailer/dmt`;
+                  try {
+                    await retailerApi.createBeneficiarySession({
+                      customer_id: customer?.id || (customer as any)?.public_id || "",
+                      customer_mobile: customer?.mobile || "",
+                      customer_name: customer?.name || "",
+                      referrer: "/retailer/dmt",
+                    });
+                  } catch {}
+                  window.location.href = "/retailer/beneficiary";
                 }}
                 sx={{
                   height: 44,

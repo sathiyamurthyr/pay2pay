@@ -360,3 +360,24 @@ class BeneficiaryAuditModel(BaseEntity, EnterpriseBaseMixin):
     audit_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     beneficiary: Mapped["BeneficiaryModel"] = orm_relationship("BeneficiaryModel", back_populates="ben_audits")
+
+
+class BeneficiarySessionModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "beneficiary_session"
+
+    session_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    session_token: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    customer_mobile: Mapped[Optional[str]] = mapped_column(String(30), nullable=True, index=True)
+    customer_name: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    customer_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="ACTIVE", index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_accessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    device_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    browser: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    correlation_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    trace_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    request_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    session_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)

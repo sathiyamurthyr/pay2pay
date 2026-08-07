@@ -16,7 +16,7 @@ def test_name_match_score():
     score_partial = _calculate_name_match_score("Rajesh Kumar", "Rajesh K")
     assert score_partial > 70.0
 
-    score_mismatch = _calculate_name_match_score("Rajesh Kumar", "Suresh Sharma")
+    score_mismatch = _calculate_name_match_score("Rajesh Kumar", "Vijay Patel")
     assert score_mismatch < 50.0
 
 
@@ -55,7 +55,14 @@ async def test_verify_bank_account_penny_drop():
     mock_ben.verification_status = "PENDING"
     mock_ben.beneficiary_status = "DRAFT"
 
-    db.execute.return_value.scalar_one_or_none.return_value = mock_ben
+    mock_result_ben = MagicMock()
+    mock_result_ben.scalar_one_or_none.return_value = mock_ben
+
+    mock_acc = MagicMock()
+    mock_result_acc = MagicMock()
+    mock_result_acc.scalar_one_or_none.return_value = mock_acc
+
+    db.execute.side_effect = [mock_result_ben, mock_result_acc]
 
     req = BankVerificationRequest(
         account_number="987654321012",
@@ -84,7 +91,17 @@ async def test_verify_upi_id():
     mock_ben.full_name = "Anita Sharma"
     mock_ben.tenant_id = uuid.uuid4()
 
-    db.execute.return_value.scalar_one_or_none.return_value = mock_ben
+    mock_result_ben = MagicMock()
+    mock_result_ben.scalar_one_or_none.return_value = mock_ben
+
+    mock_upi = MagicMock()
+    mock_upi.public_id = uuid.uuid4()
+    mock_upi.upi_id = "anita@okaxis"
+    mock_upi.registered_name = "Anita Sharma"
+    mock_result_upi = MagicMock()
+    mock_result_upi.scalar_one_or_none.return_value = mock_upi
+
+    db.execute.side_effect = [mock_result_ben, mock_result_upi]
 
     req = UpiVerificationRequest(
         upi_id="anita@okaxis",

@@ -1041,7 +1041,7 @@ export default function EnterpriseCustomerDirectoryPage() {
               <button
                 onClick={() => {
                   if (selectedCustomer) {
-                    router.push(`/dmt?customerMobile=${selectedCustomer.mobile}`);
+                    router.push(`/retailer/dmt`);
                   } else {
                     alert("Please select a customer first.");
                   }
@@ -1315,8 +1315,8 @@ export default function EnterpriseCustomerDirectoryPage() {
                                   {/* Action 1: Use For DMT */}
                                   <button
                                     onClick={() => {
-                                      setActiveActionMenuId(null);
-                                      router.push(`/dmt?customerMobile=${cust.mobile}`);
+                                       setActiveActionMenuId(null);
+                                       router.push(`/retailer/dmt`);
                                     }}
                                     className="w-full min-h-[40px] px-4 py-2.5 hover:bg-blue-50 text-blue-700 flex items-center gap-2.5 transition-colors"
                                   >
@@ -1585,8 +1585,8 @@ export default function EnterpriseCustomerDirectoryPage() {
         isOpen={showProfileDrawer}
         onClose={() => setShowProfileDrawer(false)}
         customer={selectedCustomer}
-        onStartPayout={(cust) => {
-          router.push(`/dmt?customerMobile=${cust?.mobile || ""}`);
+        onStartPayout={() => {
+          router.push(`/retailer/dmt`);
         }}
         onEditCustomer={(cust) => {
           setCustomerToEdit(cust);

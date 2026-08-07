@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+export const dynamic = "force-dynamic";
+
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -8,6 +10,7 @@ import {
   IconButton,
   Stack,
   Chip,
+  Button,
   Alert,
   CircularProgress,
   Divider,
@@ -69,21 +72,7 @@ const RELATIONSHIP_OPTIONS = [
   "Business Partner", "Employee", "Vendor", "Other",
 ];
 
-const DEFAULT_BANK_LIST = [
-  { bank_id: 1, bank_name: "HDFC BANK LTD", ifsc_code: "HDFC0000001", ifsc_prefix: "HDFC", imps_status: "ACTIVE" },
-  { bank_id: 2, bank_name: "STATE BANK OF INDIA", ifsc_code: "SBIN0000001", ifsc_prefix: "SBIN", imps_status: "ACTIVE" },
-  { bank_id: 3, bank_name: "ICICI BANK LTD", ifsc_code: "ICIC0000001", ifsc_prefix: "ICIC", imps_status: "ACTIVE" },
-  { bank_id: 4, bank_name: "AXIS BANK LTD", ifsc_code: "UTIB0000001", ifsc_prefix: "UTIB", imps_status: "ACTIVE" },
-  { bank_id: 5, bank_name: "KOTAK MAHINDRA BANK LTD", ifsc_code: "KKBK0000001", ifsc_prefix: "KKBK", imps_status: "ACTIVE" },
-  { bank_id: 6, bank_name: "PUNJAB NATIONAL BANK", ifsc_code: "PUNB0000001", ifsc_prefix: "PUNB", imps_status: "ACTIVE" },
-  { bank_id: 7, bank_name: "BANK OF BARODA", ifsc_code: "BARB0000001", ifsc_prefix: "BARB", imps_status: "ACTIVE" },
-  { bank_id: 8, bank_name: "CANARA BANK", ifsc_code: "CNRB0000001", ifsc_prefix: "CNRB", imps_status: "ACTIVE" },
-  { bank_id: 9, bank_name: "UNION BANK OF INDIA", ifsc_code: "UBIN0000001", ifsc_prefix: "UBIN", imps_status: "ACTIVE" },
-  { bank_id: 10, bank_name: "INDUSIND BANK LTD", ifsc_code: "INDB0000001", ifsc_prefix: "INDB", imps_status: "ACTIVE" },
-  { bank_id: 11, bank_name: "YES BANK LTD", ifsc_code: "YESB0000001", ifsc_prefix: "YESB", imps_status: "ACTIVE" },
-  { bank_id: 12, bank_name: "IDFC FIRST BANK LTD", ifsc_code: "IDFB0000001", ifsc_prefix: "IDFB", imps_status: "ACTIVE" },
-  { bank_id: 13, bank_name: "FEDERAL BANK LTD", ifsc_code: "FDRL0000001", ifsc_prefix: "FDRL", imps_status: "ACTIVE" },
-];
+
 
 const BRANCH_MAP: Record<string, { branch: string; city: string; ifsc: string; micr: string }[]> = {
   HDFC: [
@@ -149,19 +138,31 @@ function playFailureSound() {
 
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
 
-export default function BeneficiaryWorkspacePage() {
+function BeneficiaryWorkspaceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { selectedCustomer, setSelectedBeneficiary, referrerUrl } = useTransactionMemoryStore();
 
-  const paramName    = searchParams?.get("customerName") || searchParams?.get("name") || "";
-  const paramMobile  = searchParams?.get("customerMobile") || searchParams?.get("mobile") || "";
-  const paramId      = searchParams?.get("customerId") || searchParams?.get("id") || "";
-  const paramReferrer = searchParams?.get("referrer") || searchParams?.get("from") || "";
+  const [sessionCustomer, setSessionCustomer] = useState<any | null>(null);
 
-  const activeCustomerName   = selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || paramName;
-  const activeCustomerMobile = selectedCustomer?.mobile || selectedCustomer?.mobile_number || paramMobile;
-  const rawId                = selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || paramId;
+  useEffect(() => {
+    loadCustomerContext();
+  }, []);
+
+  const loadCustomerContext = async () => {
+    try {
+      const res = await retailerApi.getBeneficiaryContext();
+      if (res?.data?.customer) {
+        setSessionCustomer(res.data.customer);
+      }
+    } catch (err) {
+      console.error("Failed to load secure beneficiary context:", err);
+    }
+  };
+
+  const activeCustomerName   = sessionCustomer?.full_name || selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || "Ramesh Kumar";
+  const activeCustomerMobile = sessionCustomer?.mobile_number || selectedCustomer?.mobile || selectedCustomer?.mobile_number || "9176669426";
+  const rawId                = sessionCustomer?.customer_id || selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || "cust-8f64d450-9176669426";
   const activeCustomerId     = formatShortCustomerId(rawId);
 
   // ── Step ──────────────────────────────────────────────────────────────────
@@ -176,7 +177,7 @@ export default function BeneficiaryWorkspacePage() {
   const [accMismatchError, setAccMismatchError] = useState("");
 
   // ── Bank & Branch ─────────────────────────────────────────────────────────
-  const [bankMasterList, setBankMasterList] = useState<any[]>(DEFAULT_BANK_LIST);
+  const [bankMasterList, setBankMasterList] = useState<any[]>([]);
   const [bankSearchLoading, setBankSearchLoading] = useState(false);
   const [selectedBankObj, setSelectedBankObj] = useState<any | null>(null);
   const [bankName, setBankName]             = useState("");
@@ -233,29 +234,88 @@ export default function BeneficiaryWorkspacePage() {
     }
   };
 
+  const searchTimeoutRef = useRef<any>(null);
+  const searchCacheRef = useRef<Map<string, any[]>>(new Map());
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const [bankSearchError, setBankSearchError] = useState<boolean>(false);
+  const [bankSearchQuery, setBankSearchQuery] = useState<string>("");
+
+  // Audit Logs State
+  const [auditLogs, setAuditLogs] = useState<{ timestamp: string; action: string; details: any }[]>([]);
+
+  const addAuditLog = (action: string, details: any) => {
+    const entry = {
+      timestamp: new Date().toISOString(),
+      action,
+      details,
+    };
+    setAuditLogs(prev => [entry, ...prev.slice(0, 19)]);
+    console.log(`[AUDIT LOG] ${action}:`, details);
+  };
+
   const fetchBankMasterList = async (query: string = "") => {
+    const q = query.trim();
+    setBankSearchQuery(q);
+    setBankSearchError(false);
+
+    // Minimum 2 characters requirement when searching query (q.length === 1 does not trigger API search)
+    if (q.length === 1) {
+      setBankSearchLoading(false);
+      return;
+    }
+
+    // Check In-Memory Cache first
+    const cacheKey = q.toLowerCase();
+    if (searchCacheRef.current.has(cacheKey)) {
+      setBankMasterList(searchCacheRef.current.get(cacheKey)!);
+      setBankSearchLoading(false);
+      return;
+    }
+
+    // Cancel previous pending API request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setBankSearchLoading(true);
+    addAuditLog("Bank Search", { query: q });
+
     try {
-      const res = await retailerApi.getBankMasterList(query);
+      const res = await retailerApi.getBankMasterList(q, undefined, controller.signal);
       let list: any[] = [];
       if (Array.isArray(res)) list = res;
       else if (res?.data && Array.isArray(res.data)) list = res.data;
       else if (res?.data?.data && Array.isArray(res.data.data)) list = res.data.data;
-      if (list.length > 0) {
-        setBankMasterList(list);
-      } else {
-        const q = query.toLowerCase();
-        const filtered = DEFAULT_BANK_LIST.filter(
-          b => b.bank_name.toLowerCase().includes(q) || (b.ifsc_code || "").toLowerCase().includes(q)
-        );
-        setBankMasterList(filtered.length > 0 ? filtered : DEFAULT_BANK_LIST);
+
+      setBankMasterList(list);
+      searchCacheRef.current.set(cacheKey, list);
+    } catch (err: any) {
+      if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED" || err?.message === "canceled") {
+        return; // Ignore aborted requests
       }
-    } catch {
-      setBankMasterList(DEFAULT_BANK_LIST);
+      console.error("Bank search API error:", err);
+      setBankSearchError(true);
     } finally {
       setBankSearchLoading(false);
     }
   };
+
+  const handleBankInputChange = (val: string, reason: string) => {
+    if (reason === "input") {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = setTimeout(() => {
+        fetchBankMasterList(val);
+      }, 300); // 300ms debounce
+    } else if (reason === "clear" || !val) {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      fetchBankMasterList("");
+    }
+  };
+
+
 
   const loadBranches = async (bankObj: any) => {
     setBranchLoading(true);
@@ -303,13 +363,30 @@ export default function BeneficiaryWorkspacePage() {
     setIfscCode("");
     setMicrCode("");
     setSelectedBranch(null);
+
+    addAuditLog("Bank Selected", {
+      bank_id: bankObj.bank_id,
+      bank_name: bankObj.bank_name,
+      bank_code: bankObj.ifsc_prefix || bankObj.ifsc_code,
+      short_name: bankObj.short_name || bankObj.bank_name,
+    });
   };
 
   const handleBranchSelect = (branchObj: any) => {
     if (!branchObj) return;
     setSelectedBranch(branchObj);
-    setIfscCode(branchObj.ifsc || "");
+    const ifsc = branchObj.ifsc || "";
+    setIfscCode(ifsc);
     setMicrCode(branchObj.micr || "");
+
+    addAuditLog("Branch Selected & IFSC Bound", {
+      branch_id: branchObj.branch_id || branchObj.branch,
+      branch_name: branchObj.branch,
+      ifsc: ifsc,
+      micr: branchObj.micr,
+      district: branchObj.city || branchObj.district || "Chennai",
+      state: branchObj.state || "Tamil Nadu",
+    });
   };
 
   // ─── Step 1 Submit ────────────────────────────────────────────────────────
@@ -483,20 +560,23 @@ export default function BeneficiaryWorkspacePage() {
   // ─── Navigation ───────────────────────────────────────────────────────────
 
   const getReturnUrl = () => {
-    const target = referrerUrl || paramReferrer || "/retailer/dmt";
-    const mob    = activeCustomerMobile ? activeCustomerMobile.replace(/\D/g, "").slice(-10) : "";
-    const joiner = target.includes("?") ? "&" : "?";
-    return mob
-      ? `${target}${joiner}customerMobile=${mob}&customerId=${encodeURIComponent(activeCustomerId || "")}`
-      : target;
+    return referrerUrl || "/retailer/dmt";
   };
 
-  const handleCompleteAndReturn = () => {
+  const handleCompleteAndReturn = async () => {
     localStorage.removeItem("pay2pay_beneficiary_workspace_draft");
+    try {
+      await retailerApi.invalidateBeneficiarySession();
+    } catch {}
     router.push(getReturnUrl());
   };
 
-  const handleCancel = () => router.push(getReturnUrl());
+  const handleCancel = async () => {
+    try {
+      await retailerApi.invalidateBeneficiarySession();
+    } catch {}
+    router.push(getReturnUrl());
+  };
 
   const saveDraft = () => {
     try {
@@ -865,54 +945,144 @@ export default function BeneficiaryWorkspacePage() {
                             <Autocomplete
                               options={bankMasterList}
                               openOnFocus
+                              autoHighlight
+                              forcePopupIcon
                               loading={bankSearchLoading}
+                              noOptionsText={
+                                bankSearchLoading
+                                  ? "Searching bank directory…"
+                                  : bankSearchQuery.length === 1
+                                  ? "Type at least 2 characters to search…"
+                                  : "No bank found"
+                              }
                               getOptionLabel={opt => typeof opt === "string" ? opt : (opt.bank_name || "")}
+                              isOptionEqualToValue={(opt, val) => {
+                                if (!opt || !val) return false;
+                                if (typeof opt === "string" || typeof val === "string") return opt === val;
+                                return (opt.bank_name || "").toUpperCase() === (val.bank_name || "").toUpperCase();
+                              }}
                               value={selectedBankObj}
                               onChange={(_, val) => handleBankSelect(val)}
-                              onInputChange={(_, val) => fetchBankMasterList(val || "")}
-                              renderOption={(props, opt) => (
-                                <Box component="li" {...props} key={opt.bank_id || opt.bank_name}>
-                                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                                    <Avatar sx={{ width: 24, height: 24, fontSize: "11px", bgcolor: "#312E81" }}>
-                                      {(opt.bank_name || "B").charAt(0)}
-                                    </Avatar>
-                                    <Box>
-                                      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px" }}>{opt.bank_name}</Typography>
-                                      <Typography variant="caption" sx={{ color: "#64748B" }}>{opt.ifsc_code || opt.ifsc_prefix}</Typography>
-                                    </Box>
-                                  </Stack>
-                                </Box>
+                              onInputChange={(_, val, reason) => handleBankInputChange(val || "", reason)}
+                              filterOptions={(options, state) => {
+                                const q = state.inputValue.trim().toLowerCase();
+                                if (!q) return options;
+                                return options.filter(opt => {
+                                  if (!opt || typeof opt === "string") return false;
+                                  const name = (opt.bank_name || "").toLowerCase();
+                                  const ifsc = (opt.ifsc_prefix || opt.ifsc_code || "").toLowerCase();
+                                  const shortName = (opt.short_name || "").toLowerCase();
+                                  return name.includes(q) || ifsc.includes(q) || shortName.includes(q);
+                                });
+                              }}
+                              slotProps={{
+                                popper: {
+                                  sx: { zIndex: 99999 },
+                                },
+                              }}
+                              renderOption={(props, opt) => {
+                                const { key, ...optionProps } = props;
+                                return (
+                                  <Box component="li" key={key || (opt.bank_name + (opt.ifsc_prefix || ""))} {...optionProps}>
+                                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", width: "100%", py: 0.5 }}>
+                                      <Avatar src={opt.logo} sx={{ width: 28, height: 28, fontSize: "11px", bgcolor: "#312E81", fontWeight: 800 }}>
+                                        🏦
+                                      </Avatar>
+                                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                                          <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px", color: "#0F172A" }}>
+                                            {opt.bank_name}
+                                          </Typography>
+                                        </Stack>
+                                        <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
+                                          IFSC Prefix: {opt.ifsc_prefix || opt.ifsc_code} • {opt.short_name || "Bank"}
+                                        </Typography>
+                                      </Box>
+                                      <Stack direction="row" spacing={0.5}>
+                                        {opt.imps !== false && <Chip label="IMPS" size="small" sx={{ height: 16, fontSize: "9px", bgcolor: "#DCFCE7", color: "#166534", fontWeight: 700 }} />}
+                                        {opt.neft !== false && <Chip label="NEFT" size="small" sx={{ height: 16, fontSize: "9px", bgcolor: "#E0F2FE", color: "#075985", fontWeight: 700 }} />}
+                                      </Stack>
+                                    </Stack>
+                                  </Box>
+                                );
+                              }}
+                              renderInput={(params: any) => (
+                                <TextField
+                                  {...params}
+                                  label="Select Bank *"
+                                  size="small"
+                                  required
+                                  placeholder="Search Bank..."
+                                  slotProps={{
+                                    input: {
+                                      ...(params.InputProps || {}),
+                                      endAdornment: (
+                                        <>
+                                          {bankSearchLoading ? <CircularProgress color="primary" size={16} /> : null}
+                                          {params.InputProps?.endAdornment}
+                                        </>
+                                      ),
+                                    },
+                                  }}
+                                />
                               )}
-                              renderInput={params => <TextField {...params} label="Select Bank *" size="small" required />}
                             />
+
+                            {/* Error State with Retry Button */}
+                            {bankSearchError && (
+                              <Alert
+                                severity="error"
+                                action={
+                                  <Button color="inherit" size="small" onClick={() => fetchBankMasterList(bankSearchQuery)}>
+                                    Retry
+                                  </Button>
+                                }
+                                sx={{ mt: 1, py: 0.5, borderRadius: 2 }}
+                              >
+                                Unable to load banks from bank master directory.
+                              </Alert>
+                            )}
                           </Grid>
 
                           {/* Branch Select */}
                           <Grid size={{ xs: 12, sm: 6 }}>
-                            {selectedBankObj && (
-                              branchLoading ? (
-                                <Stack direction="row" spacing={1} sx={{ alignItems: "center", height: "100%", pt: 1 }}>
-                                  <CircularProgress size={16} />
-                                  <Typography variant="caption" sx={{ color: "#64748B" }}>Loading branches…</Typography>
-                                </Stack>
-                              ) : (
-                                <Autocomplete
-                                  options={branchList}
-                                  getOptionLabel={opt => typeof opt === "string" ? opt : `${opt.branch} — ${opt.city}`}
-                                  value={selectedBranch}
-                                  onChange={(_, val) => handleBranchSelect(val)}
-                                  renderOption={(props, opt) => (
-                                    <Box component="li" {...props} key={opt.ifsc}>
-                                      <Box>
-                                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px" }}>{opt.branch}</Typography>
-                                        <Typography variant="caption" sx={{ color: "#64748B" }}>{opt.city} • {opt.ifsc}</Typography>
-                                      </Box>
-                                    </Box>
-                                  )}
-                                  renderInput={params => <TextField {...params} label="Select Branch *" size="small" required />}
+                            <Autocomplete
+                              options={branchList}
+                              disabled={!selectedBankObj}
+                              loading={branchLoading}
+                              getOptionLabel={opt => typeof opt === "string" ? opt : `${opt.branch} — ${opt.city}`}
+                              value={selectedBranch}
+                              onChange={(_, val) => handleBranchSelect(val)}
+                              noOptionsText={branchLoading ? "Loading branches..." : (!selectedBankObj ? "Select Bank First" : "No branch found")}
+                              renderOption={(props, opt) => (
+                                <Box component="li" {...props} key={opt.ifsc}>
+                                  <Box>
+                                    <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px" }}>{opt.branch}</Typography>
+                                    <Typography variant="caption" sx={{ color: "#64748B" }}>{opt.city} • {opt.ifsc}</Typography>
+                                  </Box>
+                                </Box>
+                              )}
+                              renderInput={(params: any) => (
+                                <TextField
+                                  {...params}
+                                  label="Select Branch *"
+                                  size="small"
+                                  required
+                                  placeholder={selectedBankObj ? "Search Branch..." : "Select Bank First"}
+                                  slotProps={{
+                                    input: {
+                                      ...(params.InputProps || {}),
+                                      endAdornment: (
+                                        <>
+                                          {branchLoading ? <CircularProgress color="primary" size={16} /> : null}
+                                          {params.InputProps?.endAdornment}
+                                        </>
+                                      ),
+                                    },
+                                  }}
                                 />
-                              )
-                            )}
+                              )}
+                            />
                           </Grid>
 
                           {/* Auto-bound display */}
@@ -1390,5 +1560,13 @@ export default function BeneficiaryWorkspacePage() {
       </Dialog>
 
     </Box>
+  );
+}
+
+export default function BeneficiaryWorkspacePage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-slate-500 font-medium">Loading beneficiary onboarding workspace…</div>}>
+      <BeneficiaryWorkspaceContent />
+    </Suspense>
   );
 }

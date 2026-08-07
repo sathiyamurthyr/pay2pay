@@ -914,38 +914,7 @@ export function BeneficiaryMasterSlideOver({
                             </Box>
                           )}
                         </Box>
-                      ) : (
-                        /* TOP / RECENT BANKS QUICK SELECTION CARDS */
-                        <Box sx={{ mt: 2 }}>
-                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                            <StarIcon sx={{ color: "#F59E0B", fontSize: 18 }} />
-                            <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F2C59", letterSpacing: "0.3px" }}>
-                              TOP / RECENTLY USED BANKS
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
-                            {(apiTopBanks.length > 0 ? apiTopBanks.filter((b) => b.is_top || true).slice(0, 6) : BANK_CATALOG.filter((b) => b.is_top)).map((bank) => (
-                              <Chip
-                                key={bank.ifsc_prefix + bank.bank_name}
-                                avatar={<Avatar src={bank.logo} sx={{ width: 20, height: 20 }}>{bank.bank_name.charAt(0)}</Avatar>}
-                                label={bank.bank_name}
-                                onClick={() => handleBankSelect(bank)}
-                                sx={{
-                                  fontWeight: 800,
-                                  fontSize: "0.78rem",
-                                  borderRadius: 2.5,
-                                  borderColor: "#CBD5E1",
-                                  bgcolor: "#FFF",
-                                  color: "#0F2C59",
-                                  py: 2,
-                                  px: 0.5,
-                                  "&:hover": { bgcolor: "#EFF6FF", borderColor: "#2563EB" },
-                                }}
-                              />
-                            ))}
-                          </Stack>
-                        </Box>
-                      )}
+                      ) : null}
                     </Box>
                   ) : (
                     /* SELECTED BANK SUMMARY CARD */

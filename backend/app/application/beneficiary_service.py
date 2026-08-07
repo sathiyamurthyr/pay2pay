@@ -71,7 +71,7 @@ def _to_beneficiary_response(b: BeneficiaryModel) -> BeneficiaryResponse:
         risk_category=b.risk_category,
         beneficiary_status=b.beneficiary_status,
         cooling_period_ends_at=b.cooling_period_ends_at,
-        is_favourite=b.is_favourite,
+        is_favourite=b.is_favourite if b.is_favourite is not None else False,
         registration_date=b.registration_date,
         activation_date=b.activation_date,
     )
@@ -140,6 +140,7 @@ class BeneficiaryService:
             risk_category="LOW",
             beneficiary_status="COOLING_PERIOD",
             cooling_period_ends_at=cooling_end,
+            is_favourite=False,
             registration_date=_now(),
             is_active=True,
             is_deleted=False,
