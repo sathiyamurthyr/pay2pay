@@ -17,6 +17,14 @@ import {
   Grid,
   Autocomplete,
   TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
@@ -83,6 +91,7 @@ export default function BeneficiaryWorkspacePage() {
 
   // Verification & Loading State
   const [pennyDropLoading, setPennyDropLoading] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [createdBeneficiary, setCreatedBeneficiary] = useState<any | null>(null);
   const [accMismatchError, setAccMismatchError] = useState("");
 
@@ -503,12 +512,99 @@ export default function BeneficiaryWorkspacePage() {
                       </Typography>
                     </Paper>
 
-                    <M3Button variant="contained" loading={pennyDropLoading} onClick={handleRunPennyDrop} sx={{ py: 1.75, bgcolor: "#0284C7", "&:hover": { bgcolor: "#0369A1" } }}>
-                      Run ₹1 Penny Drop & Verify Account →
+                    <M3Button
+                      variant="contained"
+                      loading={pennyDropLoading}
+                      onClick={() => setConfirmModalOpen(true)}
+                      sx={{ py: 1.75, width: "100%", bgcolor: "#0284C7", "&:hover": { bgcolor: "#0369A1" } }}
+                    >
+                      Verify Bank Account
                     </M3Button>
+
+                    {/* BELOW-THE-BUTTON FINANCIAL DISCLOSURE */}
+                    <Box sx={{ mt: 2.5, textAlign: "center", p: 2.5, borderRadius: 3, bgcolor: "#F0F9FF", border: "1px solid #BAE6FD" }}>
+                      <Typography sx={{ color: "#0C4A6E", fontWeight: 800, fontSize: "14px", mb: 0.5 }}>
+                        Verification Charge: <span style={{ color: "#0284C7" }}>₹3.00 + 18% GST (₹3.54 Total Debit)</span>
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#0369A1", display: "block", fontSize: "12px", fontWeight: 600 }}>
+                        Amount will be debited from your retailer wallet.
+                        If verification fails due to a system/vendor failure, the amount will be automatically refunded.
+                      </Typography>
+                    </Box>
                   </Paper>
                 </motion.div>
               )}
+
+              {/* ENTERPRISE FINANCIAL DEBIT CONFIRMATION DIALOG */}
+              <Dialog
+                open={confirmModalOpen}
+                onClose={() => setConfirmModalOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                slotProps={{
+                  paper: { sx: { borderRadius: 4, p: 1 } },
+                }}
+              >
+                <DialogTitle sx={{ fontWeight: 900, color: "#0F172A", pb: 1 }}>
+                  Confirm Bank Account Verification
+                </DialogTitle>
+                <DialogContent>
+                  <Typography variant="body2" sx={{ color: "#64748B", mb: 2 }}>
+                    Please review the account details and financial debit breakdown before confirming.
+                  </Typography>
+
+                  <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 2 }}>
+                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>ACCOUNT TO VERIFY</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
+                      {accHolder}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "#475569", display: "block" }}>
+                      {bankName} • XXXX{accNum.slice(-4)} • {ifscCode}
+                    </Typography>
+                  </Paper>
+
+                  <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "#F0F9FF", border: "1px solid #BAE6FD", mb: 2 }}>
+                    <Typography variant="caption" sx={{ color: "#0C4A6E", fontWeight: 800, display: "block", mb: 1 }}>
+                      FINANCIAL DEBIT BREAKDOWN
+                    </Typography>
+                    <Table size="small">
+                      <TableBody>
+                        <TableRow>
+                          <TableCell sx={{ border: 0, p: 0.5, color: "#475569", fontSize: "12px" }}>Verification Charge</TableCell>
+                          <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, fontSize: "12px" }}>₹3.00</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ border: 0, p: 0.5, color: "#475569", fontSize: "12px" }}>GST (18%)</TableCell>
+                          <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, fontSize: "12px" }}>₹0.54</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ borderTop: "1px solid #BAE6FD", p: 0.5, fontWeight: 900, color: "#0F172A", fontSize: "13px" }}>Total Debit Amount</TableCell>
+                          <TableCell align="right" sx={{ borderTop: "1px solid #BAE6FD", p: 0.5, fontWeight: 900, color: "#0284C7", fontSize: "13px" }}>₹3.54</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </Paper>
+
+                  <Alert severity="info" sx={{ borderRadius: 2.5, fontSize: "11px", fontWeight: 600 }}>
+                    Amount will be debited from Retailer Wallet. Automatic refund guaranteed upon vendor/system failure.
+                  </Alert>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, pt: 0 }}>
+                  <M3Button variant="text" onClick={() => setConfirmModalOpen(false)} sx={{ color: "#64748B" }}>
+                    Cancel
+                  </M3Button>
+                  <M3Button
+                    variant="contained"
+                    onClick={() => {
+                      setConfirmModalOpen(false);
+                      handleRunPennyDrop();
+                    }}
+                    sx={{ bgcolor: "#0284C7", px: 3, fontWeight: 800 }}
+                  >
+                    Confirm & Debit ₹3.54 →
+                  </M3Button>
+                </DialogActions>
+              </Dialog>
 
               {/* STEP 3: COMPLETE */}
               {activeStep === 3 && (
