@@ -13,6 +13,7 @@ import {
   TextField,
   IconButton,
   Chip,
+  Tooltip,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -27,11 +28,13 @@ import TelegramIcon from "@mui/icons-material/Telegram";
 import EmailIcon from "@mui/icons-material/Email";
 import SmsIcon from "@mui/icons-material/Sms";
 import DashboardIcon from "@mui/icons-material/Dashboard";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
 import { AuthEngine, AuthorizeResponsePayload } from "../../services/AuthEngineAdapter";
 import { FinancialAccounting } from "../../services/FinancialAccountingAdapter";
+import { ReceiptShare, ReceiptShareRecord } from "../../services/ReceiptShareAdapter";
 
 export interface WorkstationStep4Props {
   customer: CustomerData | null;
@@ -92,6 +95,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [supervisorPin, setSupervisorPin] = useState<string>("");
   const [supervisorError, setSupervisorError] = useState<string | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
+  const [shareRecord, setShareRecord] = useState<ReceiptShareRecord | null>(null);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   // Animated Counter States for Wallet & Beneficiary Limit
   const [animatedWallet, setAnimatedWallet] = useState<number>(customer?.walletBalance ?? 124500);
@@ -300,6 +305,11 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         if (currentStepIdx >= LIVE_PROCESSING_STEPS.length) {
           clearInterval(interval);
           bankingSounds.playSuccess();
+
+          // Generate EPIC-036 Secure Public Receipt Share Record
+          const share = ReceiptShare.createShareToken(finResult.transactionId, finResult.referenceNo);
+          setShareRecord(share);
+
           setTimeout(() => {
             setViewState("SUCCESS_RECEIPT");
           }, 300);
@@ -363,6 +373,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const refNo = "REF-89120412";
   const txnId = "TXN-98124012";
   const timestamp = "07-Aug-2026 06:08 PM";
+  const publicShareUrl = shareRecord ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken) : `https://receipt.pay2pay.in/r/P2P-4F8A9B2C`;
+
+  const copyShareUrlToClipboard = () => {
+    navigator.clipboard.writeText(publicShareUrl);
+    setCopiedLink(true);
+    if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "SHARE");
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   return (
     <Box
@@ -404,7 +422,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       {/* ── PROFESSIONAL PAGE HEADER ── */}
       <Box sx={{ mb: 1.5, textAlign: "left", width: "100%" }}>
         <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "22px", letterSpacing: "-0.2px" }}>
-          Transaction Authorization & Receipt
+          Transaction Authorization & Receipt Share Portal
         </Typography>
         <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>
           Verify transaction details before securely authorizing this transfer.
@@ -544,7 +562,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             </Paper>
           </Paper>
 
-          {/* ── RIGHT PANEL (50%): OPERATOR PIN / LIVE TIMELINE / PREMIUM BANKING RECEIPT ── */}
+          {/* ── RIGHT PANEL (50%): OPERATOR PIN / LIVE TIMELINE / RECEIPT SHARE PORTAL ── */}
           <Paper
             elevation={0}
             sx={{
@@ -749,7 +767,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               </Box>
             )}
 
-            {/* VIEW 3: PREMIUM WHITE PRINTABLE BANKING RECEIPT */}
+            {/* VIEW 3: PREMIUM WHITE BANKING RECEIPT WITH WATERMARK & SECURE SHARE PORTAL */}
             {viewState === "SUCCESS_RECEIPT" && (
               <Box
                 id="printable-banking-receipt"
@@ -766,9 +784,29 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   borderRadius: "12px",
                   boxShadow: "0 10px 30px rgba(0, 0, 0, 0.2)",
                   animation: "slideUp 0.4s ease-out",
+                  position: "relative",
                 }}
               >
-                <Box sx={{ overflow: "hidden" }}>
+                {/* 3% OPACITY BRANDING WATERMARK */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%) rotate(-30deg)",
+                    opacity: 0.03,
+                    pointerEvents: "none",
+                    fontWeight: 900,
+                    fontSize: "44px",
+                    color: "#000000",
+                    whiteSpace: "nowrap",
+                    userSelect: "none",
+                  }}
+                >
+                  Pay2Pay Enterprise
+                </Box>
+
+                <Box sx={{ overflow: "hidden", position: "relative", zIndex: 1 }}>
                   {/* HEADER */}
                   <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
                     <Box>
@@ -781,7 +819,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     </Box>
                     <Box sx={{ textAlign: "right" }}>
                       <Typography sx={{ fontWeight: 800, color: "#111827", fontSize: "10px" }}>
-                        Receipt No: REC-891204
+                        Token: {shareRecord?.receiptToken || "P2P-4F8A9B2C"}
                       </Typography>
                       <Typography sx={{ color: "#4B5563", fontSize: "9px" }}>
                         Version: v2.4-ENT
@@ -851,7 +889,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     </Stack>
                   </Paper>
 
-                  {/* STATUS BOX & CENTER ALIGNED QR CODE */}
+                  {/* STATUS BOX & CENTER ALIGNED QR CODE (CONTAINING PUBLIC URL) */}
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between" }}>
                     <Paper elevation={0} sx={{ p: 0.75, flex: 1, borderRadius: "6px", bgcolor: "rgba(22, 163, 74, 0.08)", border: "1px solid rgba(22, 163, 74, 0.2)" }}>
                       <Typography sx={{ fontSize: "9px", fontWeight: 800, color: "#16A34A" }}>✔ Transaction Successful</Typography>
@@ -861,18 +899,18 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
                     <Box sx={{ textAlign: "center" }}>
                       <QrCode2Icon sx={{ fontSize: 38, color: "#111827" }} />
-                      <Typography sx={{ color: "#4B5563", fontSize: "8px", display: "block" }}>Scan to Verify</Typography>
+                      <Typography sx={{ color: "#4B5563", fontSize: "8px", display: "block" }}>Scan Public Receipt URL</Typography>
                     </Box>
                   </Stack>
 
                   {/* FOOTER */}
                   <Typography sx={{ color: "#6B7280", fontSize: "8px", textAlign: "center", mt: 0.5 }}>
-                    Thank You For Using Pay2Pay Enterprise · Customer Care: 1800-123-4567 · support@pay2pay.com · Powered By Pay2Pay FinTech Platform
+                    Thank You For Using Pay2Pay Enterprise · Support: 1800-123-4567 · support@pay2pay.com · Powered By Pay2Pay FinTech Platform
                   </Typography>
                 </Box>
 
                 {/* 5 ACTION BUTTONS */}
-                <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                <Stack spacing={0.5} sx={{ mt: 0.5, position: "relative", zIndex: 1 }}>
                   <Stack direction="row" spacing={0.5}>
                     <Button
                       fullWidth
@@ -880,6 +918,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       startIcon={<DownloadIcon sx={{ fontSize: 13 }} />}
                       onClick={() => {
                         bankingSounds.playSuccess();
+                        if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "DOWNLOAD");
                         alert(`Banking Receipt PNG/PDF Downloaded successfully for UTR: ${utr}`);
                       }}
                       sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "10.5px", bgcolor: "#2563EB" }}
@@ -891,7 +930,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       fullWidth
                       variant="outlined"
                       startIcon={<PrintIcon sx={{ fontSize: 13 }} />}
-                      onClick={() => window.print()}
+                      onClick={() => {
+                        if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "PRINT");
+                        window.print();
+                      }}
                       sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "10.5px", color: "#111827", borderColor: "#D1D5DB" }}
                     >
                       Print
@@ -901,10 +943,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       fullWidth
                       variant="outlined"
                       startIcon={<ShareIcon sx={{ fontSize: 13 }} />}
-                      onClick={() => setShareModalOpen(true)}
+                      onClick={() => {
+                        if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "SHARE");
+                        setShareModalOpen(true);
+                      }}
                       sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "10.5px", color: "#111827", borderColor: "#D1D5DB" }}
                     >
-                      Share
+                      Share Portal
                     </Button>
                   </Stack>
 
@@ -974,12 +1019,43 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         </DialogActions>
       </Dialog>
 
-      {/* SHARE HIGH-RES BANKING RECEIPT IMAGE MODAL (1080x1920 PNG) */}
+      {/* SECURE PUBLIC RECEIPT SHARE PORTAL MODAL (EPIC-036) */}
       <Dialog open={shareModalOpen} onClose={() => setShareModalOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 900 }}>
-          📱 Share High-Res Receipt Image (1080x1920)
+          🌐 Enterprise Receipt Share Portal
         </DialogTitle>
         <DialogContent sx={{ bgcolor: "#0F172A", pt: 2, textAlign: "center" }}>
+          {/* Public Receipt Share Link Card */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 1.5,
+              mb: 2,
+              borderRadius: "8px",
+              bgcolor: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography sx={{ color: "#60A5FA", fontFamily: "monospace", fontSize: "11px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {publicShareUrl}
+            </Typography>
+            <Tooltip title={copiedLink ? "Copied!" : "Copy Public Link"}>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={copyShareUrlToClipboard}
+                startIcon={<ContentCopyIcon sx={{ fontSize: 12 }} />}
+                sx={{ height: 28, fontSize: "10px", fontWeight: 800, bgcolor: "#2563EB", ml: 1 }}
+              >
+                {copiedLink ? "Copied!" : "Copy"}
+              </Button>
+            </Tooltip>
+          </Paper>
+
+          {/* High-Res 1080x1920 PNG Receipt Card Preview */}
           <Paper
             elevation={0}
             sx={{
@@ -995,9 +1071,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             <Typography sx={{ fontWeight: 800, fontSize: "10.5px", color: "#4B5563" }}>Domestic Money Transfer (DMT)</Typography>
             <Typography sx={{ fontWeight: 900, fontSize: "13px", color: "#16A34A", mt: 0.5 }}>SUCCESS · Money Transferred</Typography>
             <Divider sx={{ my: 1 }} />
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Txn ID: {txnId}</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>UTR: {utr}</Typography>
+            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Token: {shareRecord?.receiptToken || "P2P-4F8A9B2C"}</Typography>
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Ref: {refNo}</Typography>
+            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>UTR: {utr}</Typography>
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Mode: {transactionMode}</Typography>
             <Divider sx={{ my: 1 }} />
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Retailer: Rajesh Sharma (+91 98765 43210)</Typography>
@@ -1014,17 +1090,18 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             </Box>
           </Paper>
 
+          {/* Direct Share Options */}
           <Stack direction="row" spacing={1} sx={{ justifyContent: "center" }}>
-            <IconButton onClick={() => alert("Shared Receipt Image via WhatsApp")} sx={{ color: "#25D366" }}>
+            <IconButton onClick={() => alert(`Shared Link (${publicShareUrl}) via WhatsApp`)} sx={{ color: "#25D366" }}>
               <WhatsAppIcon />
             </IconButton>
-            <IconButton onClick={() => alert("Shared Receipt Image via Telegram")} sx={{ color: "#0088cc" }}>
+            <IconButton onClick={() => alert(`Shared Link (${publicShareUrl}) via Telegram`)} sx={{ color: "#0088cc" }}>
               <TelegramIcon />
             </IconButton>
-            <IconButton onClick={() => alert("Shared Receipt Image via Email")} sx={{ color: "#EA4335" }}>
+            <IconButton onClick={() => alert(`Shared Link (${publicShareUrl}) via Email`)} sx={{ color: "#EA4335" }}>
               <EmailIcon />
             </IconButton>
-            <IconButton onClick={() => alert("Shared Receipt Image via SMS")} sx={{ color: "#34A853" }}>
+            <IconButton onClick={() => alert(`Shared Link (${publicShareUrl}) via SMS`)} sx={{ color: "#34A853" }}>
               <SmsIcon />
             </IconButton>
           </Stack>
