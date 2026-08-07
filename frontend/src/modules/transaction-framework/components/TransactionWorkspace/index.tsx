@@ -12,7 +12,7 @@ import { ChargesPanel } from "../ChargesPanel";
 import { RecentTransactions } from "../RecentTransactions";
 import { PageHeader } from "@/design-system/components";
 
-import { EnterpriseWizardModule } from "../EnterpriseWizard";
+import { EnterpriseWorkstationModule } from "../EnterpriseWorkstation";
 
 export interface TransactionWorkspaceProps {
   service: ServiceType;
@@ -25,8 +25,8 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
 
   return (
     <Box sx={{ width: "100%", minWidth: 0, pt: 0 }}>
-      {/* 4-Step Enterprise Transaction Wizard (Step 1: Search → Step 2: Beneficiary & Amount → Step 3: Authorize → Step 4: Live Settlement) */}
-      <EnterpriseWizardModule
+      {/* Enterprise Banking Workstation (CBS / Temenos / Finacle / RazorpayX Zero Browser Scroll Workstation) */}
+      <EnterpriseWorkstationModule
         amount={amount}
         onAmountChange={setAmount}
         charges={charges}
