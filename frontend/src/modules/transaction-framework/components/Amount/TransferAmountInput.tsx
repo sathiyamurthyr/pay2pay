@@ -136,40 +136,6 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
         }}
       />
 
-      {/* Validation & Limits Bar Below Input */}
-      <Box
-        sx={{
-          mt: 1.25,
-          p: 1.25,
-          borderRadius: "10px",
-          bgcolor: "rgba(255, 255, 255, 0.04)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 1,
-          textAlign: "center",
-        }}
-      >
-        <Box>
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10px", fontWeight: 700 }}>MINIMUM</Typography>
-          <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "12px" }}>₹{minLimit.toLocaleString()}</Typography>
-        </Box>
-
-        <Box>
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10px", fontWeight: 700 }}>MAXIMUM</Typography>
-          <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "12px" }}>₹{maxLimit.toLocaleString()}</Typography>
-        </Box>
-
-        <Box>
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10px", fontWeight: 700 }}>REMAINING DAILY</Typography>
-          <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>₹{remainingDaily.toLocaleString()}</Typography>
-        </Box>
-
-        <Box>
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10px", fontWeight: 700 }}>WALLET</Typography>
-          <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "12px" }}>₹{walletBalance.toLocaleString()}</Typography>
-        </Box>
-      </Box>
     </Box>
   );
 };

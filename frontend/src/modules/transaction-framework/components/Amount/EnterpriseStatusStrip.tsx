@@ -133,31 +133,25 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
         </Stack>
       ) : (
         /* ── 3. READY STATE (COMPACT STATUS STRIP) ── */
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", width: "100%", justifyContent: "space-between" }}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-            <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 20 }} />
-            <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "13px" }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", width: "100%", justifyContent: "space-between", overflow: "hidden" }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", overflow: "hidden" }}>
+            <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 18, flexShrink: 0 }} />
+            <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "12px", whiteSpace: "nowrap" }}>
               🟢 Ready
             </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>•</Typography>
-            <Typography sx={{ color: "#FFFFFF", fontSize: "12px", fontWeight: 600 }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>•</Typography>
+            <Typography sx={{ color: "#FFFFFF", fontSize: "11.5px", fontWeight: 600, whiteSpace: "nowrap" }}>
               Wallet <strong style={{ color: "#FBBF24" }}>₹{walletBalance.toLocaleString()}</strong>
             </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>•</Typography>
-            <Typography sx={{ color: "#FFFFFF", fontSize: "12px", fontWeight: 600 }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>•</Typography>
+            <Typography sx={{ color: "#FFFFFF", fontSize: "11.5px", fontWeight: 600, whiteSpace: "nowrap" }}>
               Daily Left <strong style={{ color: "#60A5FA" }}>₹{dailyRemaining.toLocaleString()}</strong>
-            </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>•</Typography>
-            <Typography sx={{ color: "#FFFFFF", fontSize: "12px", fontWeight: 600 }}>
-              Monthly Left <strong style={{ color: "#34D399" }}>₹{monthlyRemaining.toLocaleString()}</strong>
             </Typography>
           </Stack>
 
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            <Typography sx={{ color: "#93C5FD", fontSize: "11px", fontWeight: 700 }}>
-              Route: HDFC Direct (1.2 sec)
-            </Typography>
-          </Stack>
+          <Typography sx={{ color: "#93C5FD", fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+            HDFC Direct (1.2s)
+          </Typography>
         </Stack>
       )}
     </Paper>
