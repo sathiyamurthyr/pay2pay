@@ -125,6 +125,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
             amount={amount}
             charges={pricingResult.convenienceFee}
             totalPayable={pricingResult.totalPayable}
+            transactionMode={selectedMode}
             onBack={() => setCurrentStep(2)}
             onAuthorize={() => {
               onAmountChange(0);
