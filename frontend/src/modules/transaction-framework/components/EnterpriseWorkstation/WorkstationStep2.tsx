@@ -37,6 +37,7 @@ import {
   TransactionModeRecord,
 } from "../../services/RuleEngineAdapter";
 import { BeneficiaryInlineDrawer } from "../Beneficiary/BeneficiaryInlineDrawer";
+import { CustomerSummaryHeader } from "@/components/customers/customer-summary-header";
 import apiClient from "@/lib/api";
 
 export interface WorkstationStep2Props {
@@ -242,18 +243,30 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           boxSizing: "border-box",
         }}
       >
-        {/* Header Console */}
-        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
-          <Box>
-            <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", letterSpacing: "-0.2px" }}>
-              Beneficiary Selection Console
-            </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>
-              Customer: <strong>{customer?.name}</strong> ({customer?.mobile})
-            </Typography>
-          </Box>
+        {/* PROMINENT ENTERPRISE CUSTOMER SUMMARY HEADER */}
+        <CustomerSummaryHeader
+          customer={customer}
+          onChangeCustomer={onBack}
+          onEditCustomer={() => {
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("draftCustomerMobile", customer?.mobile || "");
+            }
+            window.location.href = "/retailer/customers";
+          }}
+          onViewCustomerProfile={() => {
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("draftCustomerMobile", customer?.mobile || "");
+            }
+            window.location.href = "/retailer/customers";
+          }}
+        />
 
-          {/* Quick Filters */}
+        {/* Quick Filters & Actions Bar */}
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
+          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "15px", letterSpacing: "-0.2px" }}>
+            Beneficiary Selection Console
+          </Typography>
+
           <Stack direction="row" spacing={1}>
             <Button
               size="small"

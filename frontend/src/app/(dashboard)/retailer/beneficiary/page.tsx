@@ -33,6 +33,7 @@ import { M3Button } from "@/components/ui/m3-components";
 import { retailerApi } from "@/services/retailer-api";
 import { notificationEngine } from "@/services/notification-engine";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
+import { CustomerSummaryHeader } from "@/components/customers/customer-summary-header";
 
 const STEPS = [
   { label: "Account Info", est: "20s" },
@@ -289,6 +290,15 @@ export default function BeneficiaryWorkspacePage() {
 
           {/* MAIN CONTENT */}
           <Grid size={{ xs: 12, md: 8, lg: 9 }}>
+            {/* PROMINENT CUSTOMER SUMMARY HEADER */}
+            <CustomerSummaryHeader
+              customer={selectedCustomer}
+              darkTheme={false}
+              onChangeCustomer={() => router.push("/retailer/dmt")}
+              onEditCustomer={() => router.push("/retailer/customers")}
+              onViewCustomerProfile={() => router.push("/retailer/customers")}
+            />
+
             <AnimatePresence mode="wait">
               {/* STEP 0: ACCOUNT INFO */}
               {activeStep === 0 && (
