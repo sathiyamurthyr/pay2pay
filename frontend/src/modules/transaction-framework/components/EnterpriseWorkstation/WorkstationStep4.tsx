@@ -29,12 +29,15 @@ import EmailIcon from "@mui/icons-material/Email";
 import SmsIcon from "@mui/icons-material/Sms";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import SecurityIcon from "@mui/icons-material/Security";
+import GppBadIcon from "@mui/icons-material/GppBad";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
 import { AuthEngine, AuthorizeResponsePayload } from "../../services/AuthEngineAdapter";
 import { FinancialAccounting } from "../../services/FinancialAccountingAdapter";
-import { ReceiptShare, ReceiptShareRecord } from "../../services/ReceiptShareAdapter";
+import { ReceiptShare, ReceiptShareRecord, VerificationResult } from "../../services/ReceiptShareAdapter";
 
 export interface WorkstationStep4Props {
   customer: CustomerData | null;
@@ -94,8 +97,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [supervisorModalOpen, setSupervisorModalOpen] = useState<boolean>(false);
   const [supervisorPin, setSupervisorPin] = useState<string>("");
   const [supervisorError, setSupervisorError] = useState<string | null>(null);
+
+  // EPIC-036 & EPIC-037 States
   const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
+  const [verifyModalOpen, setVerifyModalOpen] = useState<boolean>(false);
   const [shareRecord, setShareRecord] = useState<ReceiptShareRecord | null>(null);
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   // Animated Counter States for Wallet & Beneficiary Limit
@@ -306,9 +313,11 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           clearInterval(interval);
           bankingSounds.playSuccess();
 
-          // Generate EPIC-036 Secure Public Receipt Share Record
-          const share = ReceiptShare.createShareToken(finResult.transactionId, finResult.referenceNo);
+          // Generate EPIC-036 Secure Token & EPIC-037 Cryptographic Signature
+          const share = ReceiptShare.createShareToken(finResult.transactionId, finResult.referenceNo, amount);
           setShareRecord(share);
+          const verify = ReceiptShare.verifyReceipt(share.receiptToken);
+          setVerificationResult(verify);
 
           setTimeout(() => {
             setViewState("SUCCESS_RECEIPT");
@@ -331,6 +340,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       inputRefs.current[0]?.focus();
     } else {
       setSupervisorError("Invalid Supervisor PIN. Enter '9999' to override.");
+    }
+  };
+
+  const triggerVerificationCheck = () => {
+    if (shareRecord) {
+      const result = ReceiptShare.verifyReceipt(shareRecord.receiptToken);
+      setVerificationResult(result);
+      setVerifyModalOpen(true);
     }
   };
 
@@ -422,7 +439,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       {/* ── PROFESSIONAL PAGE HEADER ── */}
       <Box sx={{ mb: 1.5, textAlign: "left", width: "100%" }}>
         <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "22px", letterSpacing: "-0.2px" }}>
-          Transaction Authorization & Receipt Share Portal
+          Transaction Authorization & Verification Portal
         </Typography>
         <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>
           Verify transaction details before securely authorizing this transfer.
@@ -562,7 +579,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             </Paper>
           </Paper>
 
-          {/* ── RIGHT PANEL (50%): OPERATOR PIN / LIVE TIMELINE / RECEIPT SHARE PORTAL ── */}
+          {/* ── RIGHT PANEL (50%): OPERATOR PIN / LIVE TIMELINE / RECEIPT & VERIFICATION PORTAL ── */}
           <Paper
             elevation={0}
             sx={{
@@ -767,7 +784,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               </Box>
             )}
 
-            {/* VIEW 3: PREMIUM WHITE BANKING RECEIPT WITH WATERMARK & SECURE SHARE PORTAL */}
+            {/* VIEW 3: DIGITALLY VERIFIED WHITE BANKING RECEIPT */}
             {viewState === "SUCCESS_RECEIPT" && (
               <Box
                 id="printable-banking-receipt"
@@ -807,83 +824,90 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 </Box>
 
                 <Box sx={{ overflow: "hidden", position: "relative", zIndex: 1 }}>
-                  {/* HEADER */}
-                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                  {/* HEADER WITH GREEN VERIFIED SHIELD BADGE */}
+                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start", mb: 0.75 }}>
                     <Box>
-                      <Typography sx={{ fontWeight: 900, color: "#2563EB", fontSize: "15px", letterSpacing: "-0.3px" }}>
-                        Pay2Pay Enterprise
-                      </Typography>
-                      <Typography sx={{ color: "#4B5563", fontWeight: 700, fontSize: "10px" }}>
+                      <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                        <Typography sx={{ fontWeight: 900, color: "#2563EB", fontSize: "15px", letterSpacing: "-0.3px" }}>
+                          Pay2Pay Enterprise
+                        </Typography>
+                        <Tooltip title="Digitally Verified by Pay2Pay Verification Engine">
+                          <Chip
+                            icon={<VerifiedUserIcon sx={{ fontSize: "12px !important", color: "#16A34A" }} />}
+                            label="Verified"
+                            size="small"
+                            onClick={triggerVerificationCheck}
+                            sx={{ height: 18, fontSize: "9px", fontWeight: 800, bgcolor: "rgba(22, 163, 74, 0.1)", color: "#16A34A", border: "1px solid rgba(22, 163, 74, 0.3)" }}
+                          />
+                        </Tooltip>
+                      </Stack>
+                      <Typography sx={{ color: "#4B5563", fontWeight: 700, fontSize: "9.5px" }}>
                         Domestic Money Transfer (DMT)
                       </Typography>
                     </Box>
                     <Box sx={{ textAlign: "right" }}>
-                      <Typography sx={{ fontWeight: 800, color: "#111827", fontSize: "10px" }}>
+                      <Typography sx={{ fontWeight: 800, color: "#111827", fontSize: "9.5px" }}>
                         Token: {shareRecord?.receiptToken || "P2P-4F8A9B2C"}
                       </Typography>
-                      <Typography sx={{ color: "#4B5563", fontSize: "9px" }}>
-                        Version: v2.4-ENT
-                      </Typography>
-                      <Typography sx={{ color: "#4B5563", fontSize: "9px" }}>
+                      <Typography sx={{ color: "#4B5563", fontSize: "8.5px" }}>
                         {timestamp}
                       </Typography>
                     </Box>
                   </Stack>
 
-                  <Divider sx={{ borderColor: "#E5E7EB", mb: 1 }} />
+                  <Divider sx={{ borderColor: "#E5E7EB", mb: 0.75 }} />
 
                   {/* SUCCESS BANNER */}
-                  <Box sx={{ textAlign: "center", bgcolor: "rgba(22, 163, 74, 0.08)", p: 1, borderRadius: "8px", mb: 1, border: "1px solid rgba(22, 163, 74, 0.2)" }}>
+                  <Box sx={{ textAlign: "center", bgcolor: "rgba(22, 163, 74, 0.08)", p: 0.75, borderRadius: "6px", mb: 0.75, border: "1px solid rgba(22, 163, 74, 0.2)" }}>
                     <Stack direction="row" spacing={0.5} sx={{ justifyContent: "center", alignItems: "center" }}>
-                      <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 20 }} />
-                      <Typography sx={{ fontWeight: 900, color: "#16A34A", fontSize: "13px" }}>
+                      <CheckCircleIcon sx={{ color: "#16A34A", fontSize: 18 }} />
+                      <Typography sx={{ fontWeight: 900, color: "#16A34A", fontSize: "12.5px" }}>
                         SUCCESS · Money Transferred Successfully
                       </Typography>
                     </Stack>
-                    <Typography sx={{ fontWeight: 900, color: "#111827", fontSize: "18px", mt: 0.25 }}>
+                    <Typography sx={{ fontWeight: 900, color: "#111827", fontSize: "17px", mt: 0.25 }}>
                       ₹{amount.toLocaleString()}.00
                     </Typography>
                   </Box>
 
                   {/* TRANSACTION INFORMATION & RETAILER DETAILS GRID */}
-                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mb: 1 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75, mb: 0.75 }}>
                     <Paper elevation={0} sx={{ p: 0.75, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
-                      <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "9px", textTransform: "uppercase", mb: 0.25 }}>TRANSACTION INFO</Typography>
-                      <Typography sx={{ fontSize: "9.5px", color: "#4B5563" }}>Txn ID: <span style={{ color: "#111827", fontWeight: 700 }}>{txnId}</span></Typography>
-                      <Typography sx={{ fontSize: "9.5px", color: "#4B5563" }}>Ref No: <span style={{ color: "#2563EB", fontWeight: 700 }}>{refNo}</span></Typography>
-                      <Typography sx={{ fontSize: "9.5px", color: "#4B5563" }}>UTR: <span style={{ color: "#16A34A", fontWeight: 800 }}>{utr}</span></Typography>
-                      <Typography sx={{ fontSize: "9.5px", color: "#4B5563" }}>Mode: <span style={{ color: "#111827", fontWeight: 700 }}>{modeDisplay}</span></Typography>
+                      <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>TRANSACTION INFO</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Txn ID: <span style={{ color: "#111827", fontWeight: 700 }}>{txnId}</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Ref No: <span style={{ color: "#2563EB", fontWeight: 700 }}>{refNo}</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>UTR: <span style={{ color: "#16A34A", fontWeight: 800 }}>{utr}</span></Typography>
                     </Paper>
 
                     <Paper elevation={0} sx={{ p: 0.75, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
-                      <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "9px", textTransform: "uppercase", mb: 0.25 }}>RETAILER DETAILS</Typography>
-                      <Typography sx={{ fontSize: "9.5px", color: "#4B5563" }}>Name: <span style={{ color: "#111827", fontWeight: 700 }}>Rajesh Sharma</span></Typography>
-                      <Typography sx={{ fontSize: "9.5px", color: "#4B5563" }}>Mobile: <span style={{ color: "#111827", fontWeight: 700 }}>+91 98765 43210</span></Typography>
-                      <Typography sx={{ fontSize: "9.5px", color: "#4B5563" }}>ID: <span style={{ color: "#2563EB", fontWeight: 700 }}>RET-DELHI-001</span></Typography>
+                      <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>RETAILER DETAILS</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Name: <span style={{ color: "#111827", fontWeight: 700 }}>Rajesh Sharma</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Mobile: <span style={{ color: "#111827", fontWeight: 700 }}>+91 98765 43210</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>ID: <span style={{ color: "#2563EB", fontWeight: 700 }}>RET-DELHI-001</span></Typography>
                     </Paper>
                   </Box>
 
                   {/* BENEFICIARY DETAILS */}
-                  <Paper elevation={0} sx={{ p: 0.75, mb: 1, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
-                    <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "9px", textTransform: "uppercase", mb: 0.25 }}>BENEFICIARY DETAILS</Typography>
+                  <Paper elevation={0} sx={{ p: 0.75, mb: 0.75, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                    <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>BENEFICIARY DETAILS</Typography>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography sx={{ fontSize: "9.5px", color: "#111827", fontWeight: 700 }}>{beneficiary?.name || "Aman Ramesh"}</Typography>
-                      <Typography sx={{ fontSize: "9.5px", color: "#2563EB", fontWeight: 700 }}>{beneficiary?.bankName || "Axis Bank"}</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#111827", fontWeight: 700 }}>{beneficiary?.name || "Aman Ramesh"}</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#2563EB", fontWeight: 700 }}>{beneficiary?.bankName || "Axis Bank"}</Typography>
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between", mt: 0.25 }}>
-                      <Typography sx={{ fontSize: "9.5px", color: "#4B5563", fontFamily: "monospace" }}>XXXX XXXX 3210</Typography>
-                      <Typography sx={{ fontSize: "9.5px", color: "#4B5563" }}>IFSC: {beneficiary?.ifsc || "UTIB0000123"}</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563", fontFamily: "monospace" }}>XXXX XXXX 3210</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>IFSC: {beneficiary?.ifsc || "UTIB0000123"}</Typography>
                     </Stack>
                   </Paper>
 
                   {/* PAYMENT SUMMARY & TOTAL PAID */}
-                  <Paper elevation={0} sx={{ p: 0.75, mb: 1, borderRadius: "6px", bgcolor: "rgba(37, 99, 235, 0.05)", border: "1px solid rgba(37, 99, 235, 0.2)" }}>
+                  <Paper elevation={0} sx={{ p: 0.75, mb: 0.75, borderRadius: "6px", bgcolor: "rgba(37, 99, 235, 0.05)", border: "1px solid rgba(37, 99, 235, 0.2)" }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                       <Box>
-                        <Typography sx={{ color: "#4B5563", fontSize: "9px" }}>Transfer: ₹{amount.toLocaleString()}.00 | Fee: ₹{charges}.00 | GST: ₹{gst}.00</Typography>
-                        <Typography sx={{ color: "#4B5563", fontWeight: 800, fontSize: "10px" }}>TOTAL AMOUNT PAID</Typography>
+                        <Typography sx={{ color: "#4B5563", fontSize: "8.5px" }}>Transfer: ₹{amount.toLocaleString()}.00 | Fee: ₹{charges}.00 | GST: ₹{gst}.00</Typography>
+                        <Typography sx={{ color: "#4B5563", fontWeight: 800, fontSize: "9.5px" }}>TOTAL AMOUNT PAID</Typography>
                       </Box>
-                      <Typography sx={{ fontWeight: 900, color: "#2563EB", fontSize: "17px" }}>
+                      <Typography sx={{ fontWeight: 900, color: "#2563EB", fontSize: "16px" }}>
                         ₹{totalAmountPaid.toLocaleString()}.00
                       </Typography>
                     </Stack>
@@ -891,25 +915,24 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
                   {/* STATUS BOX & CENTER ALIGNED QR CODE (CONTAINING PUBLIC URL) */}
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between" }}>
-                    <Paper elevation={0} sx={{ p: 0.75, flex: 1, borderRadius: "6px", bgcolor: "rgba(22, 163, 74, 0.08)", border: "1px solid rgba(22, 163, 74, 0.2)" }}>
-                      <Typography sx={{ fontSize: "9px", fontWeight: 800, color: "#16A34A" }}>✔ Transaction Successful</Typography>
-                      <Typography sx={{ fontSize: "9px", fontWeight: 800, color: "#16A34A" }}>✔ Amount Credited</Typography>
-                      <Typography sx={{ fontSize: "9px", fontWeight: 800, color: "#16A34A" }}>✔ Bank Accepted</Typography>
+                    <Paper elevation={0} sx={{ p: 0.5, flex: 1, borderRadius: "6px", bgcolor: "rgba(22, 163, 74, 0.08)", border: "1px solid rgba(22, 163, 74, 0.2)" }}>
+                      <Typography sx={{ fontSize: "8.5px", fontWeight: 800, color: "#16A34A" }}>✔ Digitally Verified</Typography>
+                      <Typography sx={{ fontSize: "8.5px", fontWeight: 800, color: "#16A34A" }}>✔ Amount Credited</Typography>
                     </Paper>
 
                     <Box sx={{ textAlign: "center" }}>
-                      <QrCode2Icon sx={{ fontSize: 38, color: "#111827" }} />
-                      <Typography sx={{ color: "#4B5563", fontSize: "8px", display: "block" }}>Scan Public Receipt URL</Typography>
+                      <QrCode2Icon sx={{ fontSize: 34, color: "#111827" }} />
+                      <Typography sx={{ color: "#4B5563", fontSize: "7.5px", display: "block" }}>Scan to Verify</Typography>
                     </Box>
                   </Stack>
 
-                  {/* FOOTER */}
-                  <Typography sx={{ color: "#6B7280", fontSize: "8px", textAlign: "center", mt: 0.5 }}>
-                    Thank You For Using Pay2Pay Enterprise · Support: 1800-123-4567 · support@pay2pay.com · Powered By Pay2Pay FinTech Platform
+                  {/* FOOTER WITH DIGITAL SIGNATURE NARRATION */}
+                  <Typography sx={{ color: "#6B7280", fontSize: "7.5px", textAlign: "center", mt: 0.5 }}>
+                    Digitally Signed by Pay2Pay Enterprise Verification Engine · Version: v2.4-ENT · Support: 1800-123-4567
                   </Typography>
                 </Box>
 
-                {/* 5 ACTION BUTTONS */}
+                {/* 5 ACTION BUTTONS: DOWNLOAD, PRINT, SHARE, VERIFY, NEW TRANSFER */}
                 <Stack spacing={0.5} sx={{ mt: 0.5, position: "relative", zIndex: 1 }}>
                   <Stack direction="row" spacing={0.5}>
                     <Button
@@ -921,7 +944,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "DOWNLOAD");
                         alert(`Banking Receipt PNG/PDF Downloaded successfully for UTR: ${utr}`);
                       }}
-                      sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "10.5px", bgcolor: "#2563EB" }}
+                      sx={{ height: 30, borderRadius: "6px", fontWeight: 800, fontSize: "10px", bgcolor: "#2563EB" }}
                     >
                       Download
                     </Button>
@@ -934,7 +957,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "PRINT");
                         window.print();
                       }}
-                      sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "10.5px", color: "#111827", borderColor: "#D1D5DB" }}
+                      sx={{ height: 30, borderRadius: "6px", fontWeight: 800, fontSize: "10px", color: "#111827", borderColor: "#D1D5DB" }}
                     >
                       Print
                     </Button>
@@ -942,14 +965,11 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     <Button
                       fullWidth
                       variant="outlined"
-                      startIcon={<ShareIcon sx={{ fontSize: 13 }} />}
-                      onClick={() => {
-                        if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "SHARE");
-                        setShareModalOpen(true);
-                      }}
-                      sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "10.5px", color: "#111827", borderColor: "#D1D5DB" }}
+                      startIcon={<VerifiedUserIcon sx={{ fontSize: 13, color: "#16A34A" }} />}
+                      onClick={triggerVerificationCheck}
+                      sx={{ height: 30, borderRadius: "6px", fontWeight: 800, fontSize: "10px", color: "#16A34A", borderColor: "rgba(22, 163, 74, 0.4)" }}
                     >
-                      Share Portal
+                      Verify
                     </Button>
                   </Stack>
 
@@ -960,7 +980,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       color="success"
                       startIcon={<AddIcon sx={{ fontSize: 13 }} />}
                       onClick={onAuthorize}
-                      sx={{ height: 34, borderRadius: "6px", fontWeight: 900, fontSize: "11.5px", bgcolor: "#16A34A" }}
+                      sx={{ height: 32, borderRadius: "6px", fontWeight: 900, fontSize: "11px", bgcolor: "#16A34A" }}
                     >
                       + New Transfer
                     </Button>
@@ -968,11 +988,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     <Button
                       fullWidth
                       variant="outlined"
-                      startIcon={<DashboardIcon sx={{ fontSize: 13 }} />}
-                      onClick={onAuthorize}
-                      sx={{ height: 34, borderRadius: "6px", fontWeight: 800, fontSize: "11.5px", color: "#2563EB", borderColor: "rgba(37, 99, 235, 0.3)" }}
+                      startIcon={<ShareIcon sx={{ fontSize: 13 }} />}
+                      onClick={() => {
+                        if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "SHARE");
+                        setShareModalOpen(true);
+                      }}
+                      sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "11px", color: "#2563EB", borderColor: "rgba(37, 99, 235, 0.3)" }}
                     >
-                      Go Dashboard
+                      Share Portal
                     </Button>
                   </Stack>
                 </Stack>
@@ -981,6 +1004,66 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           </Paper>
         </Box>
       </Paper>
+
+      {/* DIGITAL RECEIPT VERIFICATION INSPECTOR MODAL (EPIC-037) */}
+      <Dialog open={verifyModalOpen} onClose={() => setVerifyModalOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 900, display: "flex", alignItems: "center", gap: 1 }}>
+          <SecurityIcon sx={{ color: "#4ADE80" }} /> Digital Receipt Verification
+        </DialogTitle>
+        <DialogContent sx={{ bgcolor: "#0F172A", pt: 2, textAlign: "center" }}>
+          {verificationResult?.isValid ? (
+            <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "rgba(34, 197, 94, 0.15)", border: "1px solid #16A34A", color: "#FFFFFF", mb: 2 }}>
+              <VerifiedUserIcon sx={{ fontSize: 44, color: "#4ADE80", mb: 0.5 }} />
+              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#4ADE80" }}>Verified by Pay2Pay</Typography>
+              <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", mt: 0.5 }}>
+                {verificationResult.message}
+              </Typography>
+              <Divider sx={{ my: 1, borderColor: "rgba(255, 255, 255, 0.1)" }} />
+              <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.6)", fontFamily: "monospace" }}>
+                Signature: {shareRecord?.receiptSignature || "SIG-SHA256-4F8A9B2C"}
+              </Typography>
+              <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.5)", mt: 0.25 }}>
+                Verification Time: {verificationResult.verifiedAt}
+              </Typography>
+            </Paper>
+          ) : (
+            <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "rgba(239, 68, 68, 0.15)", border: "1px solid #EF4444", color: "#FFFFFF", mb: 2 }}>
+              <GppBadIcon sx={{ fontSize: 44, color: "#EF4444", mb: 0.5 }} />
+              <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#EF4444" }}>Receipt Invalid / Tampered</Typography>
+              <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", mt: 0.5 }}>
+                {verificationResult?.message || "Possible Tampering Detected"}
+              </Typography>
+            </Paper>
+          )}
+
+          <Stack spacing={1}>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={triggerVerificationCheck}
+              startIcon={<SyncIcon />}
+              sx={{ bgcolor: "#2563EB", fontWeight: 800 }}
+            >
+              Refresh Verification
+            </Button>
+
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={copyShareUrlToClipboard}
+              startIcon={<ContentCopyIcon />}
+              sx={{ color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}
+            >
+              {copiedLink ? "Link Copied!" : "Copy Verification URL"}
+            </Button>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ bgcolor: "#0F172A", p: 2 }}>
+          <Button onClick={() => setVerifyModalOpen(false)} sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* SUPERVISOR OVERRIDE MODAL */}
       <Dialog open={supervisorModalOpen} onClose={() => setSupervisorModalOpen(false)}>
