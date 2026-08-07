@@ -1160,125 +1160,89 @@ export default function DmtPage() {
   return (
     <Box sx={{ pb: 16, minHeight: "100vh", bgcolor: BG_DARK, color: TEXT_PRIMARY }}>
 
-      {/* ── 3-COLUMN RESPONSIVE ENTERPRISE OPERATING PLATFORM (20% LEFT | 58% CENTER | 22% RIGHT) ── */}
-      <Box sx={{ maxWidth: 1780, mx: "auto", px: 3, pt: 2 }}>
+      {/* ── 3-COLUMN RESPONSIVE ENTERPRISE OPERATING PLATFORM (18% LEFT | 60% CENTER | 22% RIGHT) ── */}
+      <Box sx={{ width: "100%", px: 3, pt: 2 }}>
         <Grid container spacing={2.5}>
-          {/* ── LEFT PANEL (20% WIDTH): ENTERPRISE WORKFLOW NAVIGATOR ── */}
-          <Grid size={{ xs: 12, lg: 2.4 }}>
-            <Stack spacing={2.5}>
-              {/* WORKFLOW PROGRESS NAVIGATOR */}
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, borderTop: `4px solid ${BANK_BLUE}` }}>
-                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-                  <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                    WORKFLOW PROGRESS
-                  </Typography>
-                  <Chip
-                    label={`${Math.round(((activeStep - 1) / 5) * 100)}% Complete`}
-                    size="small"
-                    sx={{ height: 22, fontSize: "11px", fontWeight: 800, bgcolor: BANK_GOLD_LIGHT, color: BANK_BLUE, border: `1px solid ${BANK_GOLD_BORDER}` }}
-                  />
+          {/* ── LEFT PANEL (18% WIDTH): ENTERPRISE OPERATIONS NAVIGATION ── */}
+          <Grid size={{ xs: 12, lg: 2.16 }}>
+            <Stack spacing={2}>
+              {/* OPERATIONS NAVIGATION PANEL */}
+              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, borderTop: `4px solid ${PRIMARY_BLUE}` }}>
+                <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
+                  ENTERPRISE OPERATIONS
+                </Typography>
+
+                <Stack spacing={0.6}>
+                  {[
+                    { label: "Money Transfer (DMT)", active: true },
+                    { label: "Card to Cash", active: false },
+                    { label: "AEPS Cash Out", active: false },
+                    { label: "Wallet & Top-Up", active: false },
+                    { label: "Wallet Statement", active: false },
+                    { label: "UPI Services", active: false },
+                    { label: "Recharge", active: false },
+                    { label: "Bill Payment (BBPS)", active: false },
+                    { label: "Customer Directory", active: false },
+                    { label: "Reports & Tax Forms", active: false },
+                    { label: "Move To Bank", active: false },
+                    { label: "Support Desk", active: false },
+                    { label: "Settings", active: false },
+                  ].map((nav) => (
+                    <Box
+                      key={nav.label}
+                      sx={{
+                        px: 1.5,
+                        py: 1,
+                        borderRadius: "10px",
+                        bgcolor: nav.active ? "rgba(37, 99, 235, 0.15)" : "transparent",
+                        color: nav.active ? PRIMARY_BLUE : TEXT_PRIMARY,
+                        border: nav.active ? `1px solid ${PRIMARY_BLUE}` : "1px solid transparent",
+                        fontWeight: nav.active ? 800 : 600,
+                        fontSize: "13px",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.05)" },
+                      }}
+                    >
+                      {nav.label}
+                    </Box>
+                  ))}
                 </Stack>
-
-                <Box sx={{ position: "relative", my: 2 }}>
-                  {/* PROGRESS BAR TRACK */}
-                  <Box sx={{ height: 6, bgcolor: "#E2E8F0", borderRadius: "3px", overflow: "hidden", mb: 2 }}>
-                    <Box sx={{ width: `${Math.round(((activeStep - 1) / 5) * 100)}%`, height: "100%", background: PRIMARY_GRADIENT, transition: "width 0.3s ease" }} />
-                  </Box>
-
-                  <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "12px", display: "block", mb: 2 }}>
-                    Est. Remaining: <strong>35 Seconds</strong> • Step {activeStep} of 6
-                  </Typography>
-
-                  {/* VERTICAL STEP TIMELINE */}
-                  <Stack spacing={1.5}>
-                    {[
-                      { step: 1, title: "Customer Identification", ok: isCustomerValid, subtitle: "Mobile / Aadhaar / ID" },
-                      { step: 2, title: "Beneficiary Selection", ok: isBeneficiaryValid, subtitle: "Account & IFSC Verification" },
-                      { step: 3, title: "Transfer Amount", ok: numAmount > 0, subtitle: "IMPS / NEFT Settlement" },
-                      { step: 4, title: "Review Summary", ok: numAmount > 0 && isCustomerValid && isBeneficiaryValid, subtitle: "Fee & Net Debit Audit" },
-                      { step: 5, title: "Authentication MPIN", ok: isPinValid, subtitle: "256-bit Retailer Auth" },
-                      { step: 6, title: "Receipt Dispatch", ok: !!payoutReceipt, subtitle: "PDF & WhatsApp Print" },
-                    ].map((st) => {
-                      const isCurrent = activeStep === st.step;
-                      const isCompleted = st.ok && activeStep > st.step;
-                      const canClick = isCompleted || activeStep === st.step;
-
-                      return (
-                        <Paper
-                          key={st.step}
-                          elevation={0}
-                          onClick={() => canClick && setActiveStep(st.step)}
-                          sx={{
-                            p: 1.5,
-                            borderRadius: "14px",
-                            border: isCurrent ? `2px solid ${BANK_GOLD}` : isCompleted ? `1px solid ${SUCCESS_GREEN}` : "1px solid #E8EBF3",
-                            bgcolor: isCurrent ? BANK_GOLD_LIGHT : isCompleted ? "#F0FDF4" : "#F8FAFC",
-                            cursor: canClick ? "pointer" : "not-allowed",
-                            opacity: canClick || isCurrent ? 1 : 0.6,
-                            transition: "all 0.2s ease",
-                            "&:hover": canClick ? { transform: "translateX(3px)" } : {},
-                          }}
-                        >
-                          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                            <Box
-                              sx={{
-                                width: 30,
-                                height: 30,
-                                borderRadius: "8px",
-                                background: isCompleted ? SUCCESS_GREEN : isCurrent ? PRIMARY_GRADIENT : "#CBD5E1",
-                                color: "#FFFFFF",
-                                fontWeight: 900,
-                                fontSize: "12px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                boxShadow: isCurrent ? "0 2px 8px rgba(123, 30, 58, 0.3)" : "none",
-                              }}
-                            >
-                              {isCompleted ? <CheckIcon sx={{ fontSize: 16 }} /> : `0${st.step}`}
-                            </Box>
-
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: isCurrent ? 900 : 700, color: isCurrent ? BANK_MAROON : isCompleted ? SUCCESS_GREEN : "#0F172A", fontSize: "13px", lineHeight: 1.2, wordBreak: "break-word" }}>
-                                {st.title}
-                              </Typography>
-                              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px", display: "block", wordBreak: "break-word" }}>
-                                {st.subtitle}
-                              </Typography>
-                            </Box>
-                          </Stack>
-                        </Paper>
-                      );
-                    })}
-                  </Stack>
-                </Box>
               </Paper>
 
-              {/* OPERATOR SESSION METRICS */}
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, bgcolor: "linear-gradient(135deg, #0F2C59 0%, #1A407B 100%)", color: "#FFFFFF" }}>
-                <Typography variant="caption" sx={{ color: BANK_GOLD, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
-                  OPERATOR DAILY TELEMETRY
+              {/* BELOW NAVIGATION SUMMARY */}
+              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, bgcolor: SURFACE_DARK }}>
+                <Typography variant="caption" sx={{ color: ACCENT_BLUE, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
+                  TODAY'S SUMMARY
                 </Typography>
-                <Stack spacing={1.2}>
+                <Stack spacing={1}>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Transfers Executed Today</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>24 Txns</Typography>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Today's Txns</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: TEXT_PRIMARY }}>24 Executed</Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Daily Volume</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_GOLD }}>₹1,24,500.00</Typography>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Pending</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>0 Pending</Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Operator Margin Earned</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#4ADE80" }}>+ ₹450.00</Typography>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Failed</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>0 Failed</Typography>
+                  </Stack>
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Commission</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹450.00</Typography>
+                  </Stack>
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Wallet Balance</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 900, color: ACCENT_BLUE }}>₹48,250.75</Typography>
                   </Stack>
                 </Stack>
               </Paper>
             </Stack>
           </Grid>
 
-          {/* ── CENTER PANEL (58% WIDTH): CUSTOMER OPERATIONS WORKSPACE ── */}
-          <Grid size={{ xs: 12, lg: 7.0 }}>
+          {/* ── CENTER PANEL (60% WIDTH): TRANSACTION WORKSPACE ── */}
+          <Grid size={{ xs: 12, lg: 7.2 }}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeStep}
@@ -1956,8 +1920,8 @@ export default function DmtPage() {
         </AnimatePresence>
       </Grid>
 
-      {/* ZONE 4: CONTEXTUAL INTELLIGENCE PANEL (30% WIDTH) */}
-      <Grid size={{ xs: 12, md: 3.5 }}>
+      {/* ── RIGHT PANEL (22% WIDTH): OPERATIONAL INTELLIGENCE PANEL ── */}
+      <Grid size={{ xs: 12, lg: 2.64 }}>
         <Stack spacing={2.5}>
           {/* ROTATING LIVE INTELLIGENCE TICKER */}
           <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, background: "linear-gradient(135deg, #0F2C59 0%, #1A407B 100%)", color: "#FFFFFF" }}>
@@ -2042,26 +2006,26 @@ export default function DmtPage() {
               </Paper>
 
               {/* CARD 4: OPERATIONAL ALERTS */}
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
+              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, bgcolor: SURFACE_DARK, border: `1px solid ${BORDER_GLASS}` }}>
+                <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
                   OPERATIONAL ALERTS &amp; HEALTH
                 </Typography>
                 <Stack spacing={1.2}>
                   <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Failed Transactions Today</Typography>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Failed Transactions Today</Typography>
                     <Chip label="0 Failed" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Pending Approvals</Typography>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Pending Approvals</Typography>
                     <Chip label="0 Pending" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Settlement Delays</Typography>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Settlement Delays</Typography>
                     <Chip label="None" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Bank Maintenance</Typography>
-                    <Chip label="None Scheduled" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: "#F1F5F9", color: "#475569" }} />
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Bank Maintenance</Typography>
+                    <Chip label="None Scheduled" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: "rgba(255,255,255,0.05)", color: TEXT_SECONDARY }} />
                   </Stack>
                 </Stack>
               </Paper>
@@ -2070,7 +2034,7 @@ export default function DmtPage() {
         </Grid>
       </Box>
 
-      {/* ── STICKY BOTTOM ACTION BAR & KEYBOARD SHORTCUTS STATUS FOOTER ── */}
+      {/* ── STICKY FOOTER BAR (56px) ── */}
       <Paper
         elevation={0}
         sx={{
@@ -2078,82 +2042,85 @@ export default function DmtPage() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 72,
-          bgcolor: "#FFFFFF",
-          borderTop: "1px solid #E2E8F0",
-          zIndex: 1100,
+          height: 56,
+          bgcolor: CARD_GLASS,
+          backdropFilter: "blur(20px)",
+          borderTop: `1px solid ${BORDER_GLASS}`,
+          zIndex: 1200,
           px: 3,
           display: "flex",
           alignItems: "center",
-          boxShadow: "0 -4px 20px rgba(15, 23, 42, 0.08)",
+          boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.3)",
         }}
       >
-        <Box sx={{ maxWidth: 1400, width: "100%", mx: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {/* KEYBOARD SHORTCUTS HINTS */}
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", display: { xs: "none", lg: "flex" } }}>
-            <Chip label="F1 Help" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
-            <Chip label="Ctrl+K Search" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
-            <Chip label="ESC Cancel" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
-            <Chip label="F9 Refresh" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
-          </Stack>
+        <Box sx={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {/* LEFT: PREVIOUS BUTTON */}
+          <Button
+            variant="outlined"
+            disabled={activeStep <= 1 || activeStep >= 6}
+            onClick={handlePrevStep}
+            sx={{
+              color: TEXT_PRIMARY,
+              borderColor: BORDER_GLASS,
+              fontWeight: 700,
+              px: 2.5,
+              borderRadius: "10px",
+              textTransform: "none",
+              height: 38,
+              fontSize: "13px",
+              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.05)", borderColor: PRIMARY_BLUE },
+              "&.Mui-disabled": { borderColor: "rgba(255, 255, 255, 0.05)", color: "#64748B" },
+            }}
+          >
+            ← Previous
+          </Button>
 
-          {/* ACTION BUTTONS */}
-          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+          {/* CENTER: CURRENT STEP */}
+          <Typography variant="subtitle2" sx={{ color: TEXT_PRIMARY, fontWeight: 800, fontSize: "14px" }}>
+            Step {Math.min(activeStep, 6)} of 6
+          </Typography>
+
+          {/* RIGHT: CONTINUE BUTTON */}
+          {activeStep < 5 ? (
             <Button
-              variant="outlined"
-              disabled={activeStep <= 1 || activeStep >= 6}
-              onClick={handlePrevStep}
+              variant="contained"
+              disabled={!canAdvanceCurrentStep()}
+              onClick={handleNextStep}
               sx={{
-                color: "#0F3D91",
-                borderColor: "#0F3D91",
-                fontWeight: 700,
+                bgcolor: PRIMARY_BLUE,
+                color: "#FFFFFF",
+                fontWeight: 800,
                 px: 3,
-                borderRadius: "12px",
+                borderRadius: "10px",
                 textTransform: "none",
-                height: 44,
+                height: 38,
                 fontSize: "14px",
-                borderWidth: "1.5px",
-                "&:hover": { bgcolor: BANK_BLUE_LIGHT, borderWidth: "1.5px", borderColor: "#0F3D91" },
+                boxShadow: "0 4px 14px rgba(37, 99, 235, 0.3)",
+                "&:hover": { bgcolor: PRIMARY_BLUE_HOVER },
               }}
             >
-              ← Previous
+              Continue →
             </Button>
-
-            <Typography variant="subtitle2" sx={{ color: "#0F172A", fontWeight: 800, fontSize: "15px" }}>
-              Step {Math.min(activeStep, 6)} of 6
-            </Typography>
-
-            {activeStep < 5 ? (
-              <Button
-                variant="contained"
-                disabled={!canAdvanceCurrentStep()}
-                onClick={handleNextStep}
-                endIcon={<ArrowForwardIcon sx={{ color: "#FFFFFF" }} />}
-                sx={{
-                  ...PRIMARY_BTN_SX,
-                  height: "46px",
-                  fontSize: "15px",
-                  px: 3.5,
-                }}
-              >
-                {getStepButtonLabel()}
-              </Button>
-            ) : activeStep === 5 ? (
-              <Box sx={{ width: 260 }}>
-                <SlideToSend disabled={!isAllValid} onConfirm={handleExecutePayout} label="Slide to Transfer →" />
-              </Box>
-            ) : (
-              <Box sx={{ width: 140 }} />
-            )}
-          </Stack>
-
-          {/* NODE STATUS & LAST SYNC */}
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: SUCCESS_GREEN, boxShadow: `0 0 8px ${SUCCESS_GREEN}` }} />
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "12px" }}>
-              Live Banking Switch 100% • Sync Just now
-            </Typography>
-          </Stack>
+          ) : (
+            <Button
+              variant="contained"
+              disabled={!isAllValid}
+              onClick={handleExecutePayout}
+              sx={{
+                bgcolor: SUCCESS_GREEN,
+                color: "#FFFFFF",
+                fontWeight: 800,
+                px: 3,
+                borderRadius: "10px",
+                textTransform: "none",
+                height: 38,
+                fontSize: "14px",
+                "&:hover": { bgcolor: "#16A34A" },
+              }}
+            >
+              Confirm Dispatch →
+            </Button>
+          )}
         </Box>
       </Paper>
 
