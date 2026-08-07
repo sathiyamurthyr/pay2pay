@@ -22,6 +22,7 @@ import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
+import { AmountValidation, validateTransactionAmount } from "../Amount/AmountValidation";
 import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
 
 export interface WorkstationStep2Props {
@@ -66,12 +67,25 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
       return 0;
     });
 
-  // Dynamic Rule Engine Financial Parameters (ZERO Hardcoded Math in React UI)
+  // Dynamic Rule Engine Financial Parameters
   const fee = pricingResult.convenienceFee;
   const gst = pricingResult.gstAmount;
   const commission = pricingResult.commission;
   const totalPayable = pricingResult.totalPayable;
   const balanceAfter = pricingResult.walletBalanceAfter;
+
+  // Realtime Pre-Transaction Wallet & Limit Validation
+  const validationStatus = validateTransactionAmount(
+    amount,
+    totalPayable,
+    pricingResult.walletBalance,
+    pricingResult.dailyLimitRemaining,
+    pricingResult.monthlyLimitRemaining,
+    pricingResult.minLimit,
+    pricingResult.maxLimit
+  );
+
+  const isProceedDisabled = amount <= 0 || !selectedBeneficiary || !validationStatus.isValid;
 
   return (
     <Box
@@ -246,7 +260,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         }}
       >
         <Box>
-          {/* Redesigned Enterprise Transfer Amount Component (Evaluated Dynamically by Backend Rule Engine) */}
+          {/* Transfer Amount Component */}
           <TransferAmountInput
             amount={amount}
             onAmountChange={onAmountChange}
@@ -258,9 +272,20 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
           <AmountInWords amount={amount} />
 
+          {/* Realtime Wallet Balance & Limits Pre-Transaction Validation Alert */}
+          <AmountValidation
+            amount={amount}
+            totalPayable={totalPayable}
+            walletBalance={pricingResult.walletBalance}
+            dailyRemaining={pricingResult.dailyLimitRemaining}
+            monthlyRemaining={pricingResult.monthlyLimitRemaining}
+            minLimit={pricingResult.minLimit}
+            maxLimit={pricingResult.maxLimit}
+          />
+
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
 
-          {/* KPI Summary Table (Backend Dynamic Evaluation Output) */}
+          {/* KPI Summary Table */}
           <Stack spacing={1}>
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Transfer Amount</Typography>
@@ -286,12 +311,16 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "13px" }}>NET WALLET DEBIT</Typography>
-              <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "16px" }}>₹{totalPayable.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 900, color: validationStatus.isInsufficientWallet ? "#EF4444" : "#3B82F6", fontSize: "16px" }}>
+                ₹{totalPayable.toLocaleString()}
+              </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet After Transfer</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "14px" }}>₹{balanceAfter.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: validationStatus.isInsufficientWallet ? "#EF4444" : "#FBBF24", fontSize: "14px" }}>
+                ₹{balanceAfter.toLocaleString()}
+              </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
@@ -311,7 +340,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           <Button
             fullWidth
             variant="contained"
-            disabled={amount <= 0 || !selectedBeneficiary}
+            disabled={isProceedDisabled}
             onClick={onContinue}
             endIcon={<ArrowForwardIcon />}
             sx={{
@@ -322,6 +351,10 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               bgcolor: "#2563EB",
               color: "#FFFFFF",
               boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
+              "&.Mui-disabled": {
+                bgcolor: "rgba(255, 255, 255, 0.12)",
+                color: "rgba(255, 255, 255, 0.4)",
+              },
             }}
           >
             Proceed to Authorization →
