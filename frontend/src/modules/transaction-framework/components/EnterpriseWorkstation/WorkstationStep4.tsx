@@ -34,6 +34,7 @@ import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
 import { AuthEngine, AuthorizeResponsePayload } from "../../services/AuthEngineAdapter";
+import { FinancialAccounting } from "../../services/FinancialAccountingAdapter";
 
 export interface WorkstationStep4Props {
   customer: CustomerData | null;
@@ -162,26 +163,32 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     }
   };
 
-  // Live Backend Event Driven Pipeline Execution
+  // Live Backend Event Driven Pipeline Execution & ACID Double-Entry Accounting
   const executeAuthorizationPipeline = async (pinValue: string) => {
     if (isLocked || viewState !== "PIN_ENTRY") return;
 
-    const response: AuthorizeResponsePayload = await AuthEngine.authorizeTransaction({
+    // Execute Pre-validation & Financial Accounting Engine
+    const finResult = await FinancialAccounting.executeACIDTransaction({
       customerId: customer?.id,
       beneficiaryId: beneficiary?.id,
+      beneficiaryName: beneficiary?.name,
+      bankName: beneficiary?.bankName,
+      maskedAccount: beneficiary?.maskedAccountNumber,
+      amount,
+      mode: transactionMode,
       pin: pinValue,
-      deviceId: "DESKTOP-CBS-01",
-      terminalId: "TERM-DELHI-01",
-      ip: "10.0.4.15",
+      walletBalance: customer?.walletBalance,
+      beneficiaryMonthlyRemaining: beneficiary?.monthlyRemaining,
     });
 
-    if (!response.success) {
+    if (!finResult.success) {
       bankingSounds.playError();
       setIsShaking(true);
-      setAttemptsLeft(response.attemptsLeft ?? 0);
-      setErrorMessage(response.errorMessage || "Authorization Failed");
+      const remaining = attemptsLeft - 1;
+      setAttemptsLeft(remaining);
+      setErrorMessage(finResult.errorMessage || "Authorization Failed");
 
-      if (response.transactionStatus === "LOCKED") {
+      if (remaining <= 0) {
         setIsLocked(true);
       }
 
@@ -189,7 +196,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         setIsShaking(false);
         setPinDigits(Array(pinLength).fill(""));
         setRevealedIndex(null);
-        if (response.transactionStatus !== "LOCKED") {
+        if (remaining > 0) {
           inputRefs.current[0]?.focus();
         }
       }, 600);
