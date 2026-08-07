@@ -375,7 +375,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 Enter Transaction PIN
               </Typography>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13.5px", mb: 3 }}>
-                Enter your secure 4-digit operator PIN.
+                Use your physical keyboard to enter the 4-digit Operator PIN.
               </Typography>
 
               {/* Error Callout */}
