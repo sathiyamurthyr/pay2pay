@@ -704,11 +704,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflowX: "hidden", display: "flex" }}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
-          <Box sx={{ display: { xs: "none", xl: "block" } }}>
-            <RightContextPanel collapsed={rightPanelCollapsed} onToggleCollapse={() => setRightPanelCollapsed(!rightPanelCollapsed)} />
-          </Box>
+        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+          {children}
         </Box>
 
         {/* Enterprise Footer */}
