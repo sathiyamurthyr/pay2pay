@@ -155,7 +155,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                       }}
                     >
                       <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                        <IconComp sx={{ fontSize: 22, color: isActive ? tokens.colors.brand.secondary : tokens.colors.neutral.dark.textSecondary }} />
+                        <IconComp sx={{ fontSize: 22, color: isActive ? tokens.colors.brand.secondary : "rgba(255,255,255,0.88)" }} />
                         {!isCollapsed && (
                           <Typography sx={{ fontSize: "16px", fontWeight: isActive ? 700 : 600, lineHeight: "24px" }}>
                             {item.label}

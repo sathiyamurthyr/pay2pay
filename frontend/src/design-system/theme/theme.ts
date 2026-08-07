@@ -38,10 +38,39 @@ const baseOptions: ThemeOptions = {
         },
         contained: {
           background: tokens.colors.gradients.brand,
+          color: "#FFFFFF",
           boxShadow: tokens.shadows.glow,
           "&:hover": {
             boxShadow: "0 6px 20px rgba(37, 99, 235, 0.5)",
+            color: "#FFFFFF",
           },
+        },
+        outlined: {
+          color: "#FFFFFF",
+          borderColor: "rgba(255, 255, 255, 0.25)",
+          "&:hover": {
+            backgroundColor: "rgba(255, 255, 255, 0.08)",
+            borderColor: "rgba(255, 255, 255, 0.40)",
+            color: "#FFFFFF",
+          },
+        },
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        input: {
+          color: "#FFFFFF",
+          "&::placeholder": {
+            color: "rgba(255, 255, 255, 0.70)",
+            opacity: 1,
+          },
+        },
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: "rgba(255, 255, 255, 0.85)",
         },
       },
     },
