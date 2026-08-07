@@ -13,10 +13,7 @@ import { RecentTransactions } from "../RecentTransactions";
 import { PageHeader } from "@/design-system/components";
 
 import { EnterpriseBeneficiaryModule } from "../Beneficiary";
-
-import { EnterpriseAmountWorkspace } from "../Amount";
-
-import { IntelligentBankingWorkspace } from "../IntelligentBanking";
+import { EnterpriseBankingCockpit } from "../Cockpit";
 
 export interface TransactionWorkspaceProps {
   service: ServiceType;
@@ -43,26 +40,16 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
         />
       )}
 
-      {/* Enterprise Transfer Amount & Settlement Workspace (Sprint 5) */}
-      <EnterpriseAmountWorkspace
+      {/* Intelligent Transaction Cockpit (Left Panel 25% | Center Panel 50% | Right Panel 25% + Sticky Bottom Dock) */}
+      <EnterpriseBankingCockpit
         amount={amount}
         onAmountChange={setAmount}
         charges={charges}
         totalPayable={totalPayable}
-        customerName={selectedCustomer?.name}
-        customerMobile={selectedCustomer?.mobile}
-        beneficiaryName={selectedBeneficiary?.name}
-        beneficiaryAccount={selectedBeneficiary?.accountNumber}
-        bankName={selectedBeneficiary?.bankName}
-      />
-
-      {/* Intelligent Banking Workspace Console (Sprint 6 - 10 Expandable Intelligence Panels) */}
-      <IntelligentBankingWorkspace
-        amount={amount}
-        charges={charges}
-        totalPayable={totalPayable}
-        customerCode={selectedCustomer?.customerCode}
-        beneficiaryCode={selectedBeneficiary?.beneficiaryCode}
+        customer={selectedCustomer}
+        beneficiaries={beneficiaries}
+        selectedBeneficiary={selectedBeneficiary}
+        onSelectBeneficiary={setSelectedBeneficiary}
       />
 
       {/* Audit Ledger Data Grid */}
