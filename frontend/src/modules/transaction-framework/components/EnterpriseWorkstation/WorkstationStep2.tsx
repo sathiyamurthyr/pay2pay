@@ -22,6 +22,7 @@ import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
+import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
 
 export interface WorkstationStep2Props {
   customer: CustomerData | null;
@@ -30,8 +31,7 @@ export interface WorkstationStep2Props {
   onSelectBeneficiary: (b: BeneficiaryData) => void;
   amount: number;
   onAmountChange: (val: number) => void;
-  charges: number;
-  totalPayable: number;
+  pricingResult: PricingEvaluationResult;
   onBack: () => void;
   onContinue: () => void;
 }
@@ -43,16 +43,13 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   onSelectBeneficiary,
   amount,
   onAmountChange,
-  charges,
-  totalPayable,
+  pricingResult,
   onBack,
   onContinue,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "favorite">("all");
   const [sortBy, setSortBy] = useState<"recent" | "used" | "alphabetical">("recent");
-
-  const quickAmounts = [500, 1000, 2000, 5000, 10000, 25000, 50000, 100000];
 
   const filteredBeneficiaries = beneficiaries
     .filter((b) => {
@@ -69,11 +66,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
       return 0;
     });
 
-  const gst = Math.round(charges * 0.18);
-  const fee = charges - gst;
-  const commission = Math.round(amount * 0.0035);
-  const walletBalance = customer?.walletBalance ?? 124500;
-  const balanceAfter = Math.max(0, walletBalance - totalPayable);
+  // Dynamic Rule Engine Financial Parameters (ZERO Hardcoded Math in React UI)
+  const fee = pricingResult.convenienceFee;
+  const gst = pricingResult.gstAmount;
+  const commission = pricingResult.commission;
+  const totalPayable = pricingResult.totalPayable;
+  const balanceAfter = pricingResult.walletBalanceAfter;
 
   return (
     <Box
@@ -85,7 +83,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           xl: "minmax(0, 70fr) minmax(360px, 30fr)",
         },
         gap: 1.5,
-        height: "100%", // 100% of parent container height
+        height: "100%",
         maxHeight: "100%",
         overflow: "hidden",
       }}
@@ -153,7 +151,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           </Select>
         </Stack>
 
-        {/* Responsive Beneficiary Card Grid (Internal Scroll Only) */}
+        {/* Responsive Beneficiary Card Grid */}
         <Box
           sx={{
             flex: 1,
@@ -183,7 +181,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 onClick={() => onSelectBeneficiary(b)}
                 sx={{
                   width: "100%",
-                  height: 180, // Identical 180px height
+                  height: 180,
                   p: 1.75,
                   borderRadius: "12px",
                   bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.04)",
@@ -248,21 +246,21 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         }}
       >
         <Box>
-          {/* Redesigned Enterprise Transfer Amount Component (No Spinners, Text Input, Validation Limits Bar) */}
+          {/* Redesigned Enterprise Transfer Amount Component (Evaluated Dynamically by Backend Rule Engine) */}
           <TransferAmountInput
             amount={amount}
             onAmountChange={onAmountChange}
-            minLimit={100}
-            maxLimit={50000}
-            remainingDaily={customer?.dailyLimitRemaining ?? 25000}
-            walletBalance={customer?.walletBalance ?? 124500}
+            minLimit={pricingResult.minLimit}
+            maxLimit={pricingResult.maxLimit}
+            remainingDaily={pricingResult.dailyLimitRemaining}
+            walletBalance={pricingResult.walletBalance}
           />
 
           <AmountInWords amount={amount} />
 
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
 
-          {/* KPI Summary Table */}
+          {/* KPI Summary Table (Backend Dynamic Evaluation Output) */}
           <Stack spacing={1}>
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Transfer Amount</Typography>
@@ -270,12 +268,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Convenience Fee</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Convenience Fee ({pricingResult.slabId})</Typography>
               <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "13px" }}>+ ₹{fee.toLocaleString()}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST (18%)</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST ({pricingResult.gstPercentage}%)</Typography>
               <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "13px" }}>+ ₹{gst.toLocaleString()}</Typography>
             </Stack>
 
@@ -302,8 +300,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Recommended Route</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>HDFC DirectSwitch</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Rule Version</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>{pricingResult.pricingVersion}</Typography>
             </Stack>
           </Stack>
         </Box>

@@ -19,8 +19,8 @@ export interface TransactionWorkspaceProps {
 }
 
 export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ service }) => {
-  const { config, amount, setAmount, charges, totalPayable } = useTransaction(service);
   const { selectedCustomer, isSearching, searchCustomer } = useCustomer();
+  const { config, amount, setAmount, charges, totalPayable, pricingResult } = useTransaction(service, selectedCustomer);
   const { beneficiaries, selectedBeneficiary, setSelectedBeneficiary } = useBeneficiary(selectedCustomer);
 
   return (
@@ -38,6 +38,7 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
         onSelectBeneficiary={setSelectedBeneficiary}
         onSearchCustomer={searchCustomer}
         isSearching={isSearching}
+        pricingResult={pricingResult}
       />
     </Box>
   );

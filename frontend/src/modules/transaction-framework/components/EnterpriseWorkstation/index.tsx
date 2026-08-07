@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Box } from "@mui/material";
-import { WorkstationHeader } from "./WorkstationHeader";
 import { WorkstationStep1 } from "./WorkstationStep1";
 import { WorkstationStep2 } from "./WorkstationStep2";
 import { WorkstationStep3 } from "./WorkstationStep3";
 import { WorkstationStep4 } from "./WorkstationStep4";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
+import { PricingEvaluationResult, RuleEngineService } from "../../services/RuleEngineAdapter";
 
 export interface EnterpriseWorkstationProps {
   amount: number;
@@ -20,6 +20,7 @@ export interface EnterpriseWorkstationProps {
   onSelectBeneficiary: (b: BeneficiaryData) => void;
   onSearchCustomer: (q: string) => void;
   isSearching?: boolean;
+  pricingResult?: PricingEvaluationResult;
 }
 
 export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> = ({
@@ -34,8 +35,19 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
   onSelectBeneficiary,
   onSearchCustomer,
   isSearching = false,
+  pricingResult: propsPricingResult,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
+
+  // Dynamic Rule Engine Evaluation
+  const pricingResult =
+    propsPricingResult ||
+    RuleEngineService.evaluatePricing({
+      service: "DMT",
+      amount,
+      customerId: customer?.id,
+      walletBalance: customer?.walletBalance ?? 124500,
+    });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -65,11 +77,11 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
     <Box
       sx={{
         width: "100%",
-        height: "calc(100vh - 56px)", // Exact height matching RetailerLayout main area
+        height: "calc(100vh - 56px)",
         maxHeight: "calc(100vh - 56px)",
         bgcolor: "#0B132B",
         color: "#FFFFFF",
-        overflow: "hidden", // ZERO BROWSER SCROLLBAR
+        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         p: 1.5,
@@ -98,8 +110,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
             onSelectBeneficiary={onSelectBeneficiary}
             amount={amount}
             onAmountChange={onAmountChange}
-            charges={charges}
-            totalPayable={totalPayable}
+            pricingResult={pricingResult}
             onBack={() => setCurrentStep(1)}
             onContinue={() => setCurrentStep(3)}
           />
@@ -110,8 +121,8 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
             customer={customer}
             beneficiary={selectedBeneficiary}
             amount={amount}
-            charges={charges}
-            totalPayable={totalPayable}
+            charges={pricingResult.convenienceFee}
+            totalPayable={pricingResult.totalPayable}
             onBack={() => setCurrentStep(2)}
             onAuthorize={() => setCurrentStep(4)}
           />
@@ -122,8 +133,8 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
             customer={customer}
             beneficiary={selectedBeneficiary}
             amount={amount}
-            charges={charges}
-            totalPayable={totalPayable}
+            charges={pricingResult.convenienceFee}
+            totalPayable={pricingResult.totalPayable}
             onNewTransfer={() => {
               onAmountChange(0);
               setCurrentStep(1);
