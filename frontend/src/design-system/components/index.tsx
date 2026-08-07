@@ -140,11 +140,10 @@ export const GlassCard: React.FC<{ children: React.ReactNode; sx?: object }> = (
     elevation={0}
     sx={{
       p: 3,
-      borderRadius: tokens.radii.lg,
-      bgcolor: "rgba(18, 27, 48, 0.65)",
-      backdropFilter: "blur(20px)",
-      border: `1px solid ${tokens.colors.neutral.dark.border}`,
-      boxShadow: tokens.shadows.md,
+      borderRadius: "16px",
+      bgcolor: "#FFFFFF",
+      border: "1px solid #E2E8F0",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
       ...sx,
     }}
   >
@@ -153,11 +152,11 @@ export const GlassCard: React.FC<{ children: React.ReactNode; sx?: object }> = (
 );
 
 export const InfoCard: React.FC<{ title: string; description: string; type?: "info" | "warning" }> = ({ title, description }) => (
-  <GlassCard sx={{ borderLeft: `4px solid ${tokens.colors.brand.primary}` }}>
-    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: tokens.colors.brand.secondary }}>
+  <GlassCard sx={{ borderLeft: "4px solid #2563EB" }}>
+    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#2563EB" }}>
       {title}
     </Typography>
-    <Typography variant="body2" sx={{ color: tokens.colors.neutral.dark.textSecondary, mt: 0.5 }}>
+    <Typography variant="body2" sx={{ color: "#475569", mt: 0.5 }}>
       {description}
     </Typography>
   </GlassCard>
@@ -168,10 +167,10 @@ export const CustomerCard: React.FC<{ name: string; mobile: string; status: stri
   <GlassCard>
     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
       <Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: tokens.colors.neutral.dark.textPrimary }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0F172A" }}>
           {name}
         </Typography>
-        <Typography variant="body2" sx={{ color: tokens.colors.neutral.dark.textSecondary }}>
+        <Typography variant="body2" sx={{ color: "#475569", fontWeight: 600 }}>
           Mobile: {mobile}
         </Typography>
       </Box>
@@ -245,12 +244,12 @@ export const SectionHeader: React.FC<{ title: string; subtitle?: string; action?
 );
 
 export const PageHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
-  <Box sx={{ mb: 3 }}>
-    <Typography variant="h3" sx={{ fontWeight: 900, color: tokens.colors.neutral.dark.textPrimary }}>
+  <Box sx={{ mb: 2 }}>
+    <Typography variant="h4" sx={{ fontWeight: 900, color: "#0F172A" }}>
       {title}
     </Typography>
     {subtitle && (
-      <Typography variant="body2" sx={{ color: tokens.colors.neutral.dark.textSecondary, mt: 0.5 }}>
+      <Typography variant="body2" sx={{ color: "#475569", fontWeight: 600, mt: 0.5 }}>
         {subtitle}
       </Typography>
     )}

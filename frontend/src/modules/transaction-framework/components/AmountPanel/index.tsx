@@ -1,7 +1,6 @@
 import React from "react";
 import { Box, Typography, Stack, TextField, Chip } from "@mui/material";
 import { GlassCard } from "@/design-system/components";
-import { tokens } from "@/design-system/tokens/design-tokens";
 
 export interface AmountPanelProps {
   amount: number;
@@ -10,7 +9,17 @@ export interface AmountPanelProps {
 
 export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange }) => (
   <GlassCard>
-    <Typography variant="caption" sx={{ color: tokens.colors.brand.secondary, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", mb: 1.5, display: "block" }}>
+    <Typography
+      variant="caption"
+      sx={{
+        color: "#2563EB",
+        fontWeight: 800,
+        textTransform: "uppercase",
+        letterSpacing: "1px",
+        mb: 1.5,
+        display: "block",
+      }}
+    >
       ENTER TRANSFER AMOUNT (₹)
     </Typography>
 
@@ -25,14 +34,16 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
             sx: {
               fontSize: "24px",
               fontWeight: 900,
-              color: tokens.colors.brand.primary,
-              borderRadius: tokens.radii.md,
-              bgcolor: tokens.colors.neutral.dark.bg,
+              color: "#0F172A",
+              borderRadius: "12px",
+              bgcolor: "#F8FAFC",
+              "& fieldset": { borderColor: "#CBD5E1" },
+              "&:hover fieldset": { borderColor: "#2563EB" },
             },
           },
         }}
       />
-      <Stack direction="row" spacing={1}>
+      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
         {[1000, 2000, 5000, 10000, 25000].map((quickVal) => (
           <Chip
             key={quickVal}
@@ -40,10 +51,11 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
             onClick={() => onAmountChange(quickVal)}
             sx={{
               fontWeight: 800,
-              bgcolor: amount === quickVal ? tokens.colors.brand.primary : tokens.colors.neutral.dark.surface,
-              color: amount === quickVal ? "#FFFFFF" : tokens.colors.neutral.dark.textPrimary,
-              border: `1px solid ${tokens.colors.neutral.dark.border}`,
+              bgcolor: amount === quickVal ? "#2563EB" : "#F1F5F9",
+              color: amount === quickVal ? "#FFFFFF" : "#1E293B",
+              border: amount === quickVal ? "1px solid #2563EB" : "1px solid #CBD5E1",
               cursor: "pointer",
+              "&:hover": { bgcolor: amount === quickVal ? "#1D4ED8" : "#E2E8F0" },
             }}
           />
         ))}

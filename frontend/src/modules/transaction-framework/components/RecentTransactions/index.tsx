@@ -1,7 +1,6 @@
 import React from "react";
 import { Box, Typography, Table, TableBody, TableCell, TableHead, TableRow, Paper } from "@mui/material";
 import { StatusChip } from "@/design-system/components";
-import { tokens } from "@/design-system/tokens/design-tokens";
 
 export const RecentTransactions: React.FC = () => {
   const rows = [
@@ -15,18 +14,29 @@ export const RecentTransactions: React.FC = () => {
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: tokens.radii.lg,
-        bgcolor: tokens.colors.neutral.dark.surface,
-        border: `1px solid ${tokens.colors.neutral.dark.border}`,
+        borderRadius: "16px",
+        bgcolor: "#FFFFFF",
+        border: "1px solid #E2E8F0",
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
       }}
     >
-      <Typography variant="caption" sx={{ color: tokens.colors.brand.secondary, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", mb: 2, display: "block" }}>
+      <Typography
+        variant="caption"
+        sx={{
+          color: "#2563EB",
+          fontWeight: 800,
+          textTransform: "uppercase",
+          letterSpacing: "1px",
+          mb: 2,
+          display: "block",
+        }}
+      >
         RECENT TRANSACTION AUDIT LEDGER
       </Typography>
 
       <Table size="small">
         <TableHead>
-          <TableRow sx={{ "& th": { borderColor: tokens.colors.neutral.dark.border, color: tokens.colors.neutral.dark.textSecondary, fontWeight: 700 } }}>
+          <TableRow sx={{ "& th": { borderColor: "#E2E8F0", color: "#64748B", fontWeight: 700 } }}>
             <TableCell>Transaction ID</TableCell>
             <TableCell>Customer</TableCell>
             <TableCell>Amount</TableCell>
@@ -36,12 +46,12 @@ export const RecentTransactions: React.FC = () => {
         </TableHead>
         <TableBody>
           {rows.map((r) => (
-            <TableRow key={r.id} sx={{ "& td": { borderColor: tokens.colors.neutral.dark.border, color: tokens.colors.neutral.dark.textPrimary } }}>
+            <TableRow key={r.id} sx={{ "& td": { borderColor: "#E2E8F0", color: "#0F172A" } }}>
               <TableCell sx={{ fontWeight: 800 }}>{r.id}</TableCell>
               <TableCell>{r.customer}</TableCell>
-              <TableCell sx={{ fontWeight: 900, color: tokens.colors.brand.primary }}>{r.amount}</TableCell>
+              <TableCell sx={{ fontWeight: 900, color: "#2563EB" }}>{r.amount}</TableCell>
               <TableCell><StatusChip status="success" label="SUCCESS" /></TableCell>
-              <TableCell sx={{ color: tokens.colors.neutral.dark.textMuted }}>{r.date}</TableCell>
+              <TableCell sx={{ color: "#64748B" }}>{r.date}</TableCell>
             </TableRow>
           ))}
         </TableBody>
