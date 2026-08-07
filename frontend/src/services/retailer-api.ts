@@ -977,7 +977,7 @@ export const retailerApi = {
   getBankMasterList: async (query?: string, is_credit_card?: boolean) => {
     try {
       const res = await apiClient.get("/beneficiaries/epic014/bank-master/search", {
-        params: query ? { query } : {}
+        params: query ? { query, limit: 100 } : { limit: 100 }
       });
       return res.data;
     } catch {
@@ -1006,6 +1006,17 @@ export const retailerApi = {
         }
         return { status: "SUCCESS", data: mockBanks };
       }
+    }
+  },
+
+  getBankBranches: async (ifscPrefix: string, limit = 50) => {
+    try {
+      const res = await apiClient.get("/beneficiaries/epic014/bank-master/branches", {
+        params: { ifsc_prefix: ifscPrefix.toUpperCase(), limit }
+      });
+      return res.data;
+    } catch {
+      return { status: "FALLBACK", data: [] };
     }
   },
 };

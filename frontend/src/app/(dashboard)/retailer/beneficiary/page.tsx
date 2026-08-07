@@ -263,16 +263,29 @@ export default function BeneficiaryWorkspacePage() {
     setIfscCode("");
     setMicrCode("");
     try {
-      const prefix = bankObj.ifsc_prefix || (bankObj.ifsc_code || "").slice(0, 4);
+      const prefix = (bankObj.ifsc_prefix || (bankObj.ifsc_code || "").slice(0, 4)).toUpperCase();
+
+      // ── Try DB API first ──────────────────────────────────────────────────
+      try {
+        const res = await retailerApi.getBankBranches(prefix, 50);
+        const branches: any[] = res?.data || [];
+        if (branches.length > 0) {
+          setBranchList(branches);
+          setBranchLoading(false);
+          return;
+        }
+      } catch { /* fall through to local map */ }
+
+      // ── Fallback: static BRANCH_MAP ───────────────────────────────────────
       const mapped = BRANCH_MAP[prefix] || [];
       if (mapped.length > 0) {
         setBranchList(mapped);
       } else {
-        // Build generic branches from bank IFSC prefix
+        // Generic synthetic branches from IFSC prefix
         const generic = [
-          { branch: "Main Branch", city: "Mumbai", ifsc: `${prefix}0000001`, micr: `400${Math.floor(1000 + Math.random() * 9000)}` },
-          { branch: "Metro Branch", city: "Delhi", ifsc: `${prefix}0000002`, micr: `110${Math.floor(1000 + Math.random() * 9000)}` },
-          { branch: "Anna Nagar", city: "Chennai", ifsc: `${prefix}0000003`, micr: `600${Math.floor(1000 + Math.random() * 9000)}` },
+          { branch: `${prefix}0000001`, ifsc: `${prefix}0000001`, micr: "" },
+          { branch: `${prefix}0000002`, ifsc: `${prefix}0000002`, micr: "" },
+          { branch: `${prefix}0000003`, ifsc: `${prefix}0000003`, micr: "" },
         ];
         setBranchList(generic);
       }
