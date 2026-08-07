@@ -12,18 +12,12 @@ import {
   Divider,
   CircularProgress,
   Skeleton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  MenuItem,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ShieldIcon from "@mui/icons-material/Shield";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { CustomerData } from "../../hooks/useCustomer";
-import apiClient from "@/lib/api";
 
 export interface WorkstationStep1Props {
   customer: CustomerData | null;
@@ -48,17 +42,6 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
 }) => {
   const [searchInput, setSearchInput] = useState("");
   const [localHasSearched, setLocalHasSearched] = useState(false);
-  const [registerModalOpen, setRegisterModalOpen] = useState(false);
-
-  // Registration Form State
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [mobileNumber, setMobileNumber] = useState("");
-  const [gender, setGender] = useState("MALE");
-  const [dob, setDob] = useState("1995-05-15");
-  const [category, setCategory] = useState("REGULAR");
-  const [isSubmittingReg, setIsSubmittingReg] = useState(false);
-  const [regError, setRegError] = useState<string | null>(null);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,83 +51,12 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
     }
   };
 
-  const handleOpenRegister = () => {
+  const handleNavigateToRegister = () => {
     if (onRegisterCustomer) {
       onRegisterCustomer();
     } else {
-      setMobileNumber(searchInput.replace(/\D/g, "").slice(0, 10));
-      setRegError(null);
-      setRegisterModalOpen(true);
-    }
-  };
-
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!firstName.trim() || !lastName.trim() || !mobileNumber.trim()) {
-      setRegError("First Name, Last Name, and Mobile Number are required.");
-      return;
-    }
-
-    setIsSubmittingReg(true);
-    setRegError(null);
-
-    try {
-      // 1. Submit Registration API Call to Backend
-      const payload = {
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        mobile_number: mobileNumber.trim(),
-        gender,
-        dob,
-        customer_category: category,
-        kyc_level: "MIN_KYC",
-        kyc_status: "VERIFIED",
-      };
-
-      const res = await apiClient.post("/customers", payload);
-      const created = res.data?.data || res.data;
-
-      const newCustomer: CustomerData = {
-        id: created?.public_id || created?.id || `CUST-${mobileNumber.slice(-4)}`,
-        customerCode: created?.customer_number || `CUS-${mobileNumber.slice(-4)}`,
-        name: `${firstName.trim()} ${lastName.trim()}`,
-        mobile: mobileNumber.trim(),
-        kycStatus: "VERIFIED",
-        dailyLimitRemaining: 25000,
-        monthlyLimitRemaining: 200000,
-        preferredBank: "HDFC Bank",
-        riskRating: "LOW",
-        walletBalance: 124500,
-        relationshipManager: "Vikram Singh",
-      };
-
-      // 2. Select Newly Created Customer
-      onSelectCustomer(newCustomer);
-      setRegisterModalOpen(false);
-
-      // 3. Auto-search newly created mobile number
-      onSearchCustomer(mobileNumber.trim());
-    } catch (err: any) {
-      console.warn("Customer registration API warning:", err);
-      // Fallback local registration object creation
-      const newCustomer: CustomerData = {
-        id: `CUST-${mobileNumber.slice(-4)}`,
-        customerCode: `CUS-${mobileNumber.slice(-4)}`,
-        name: `${firstName.trim()} ${lastName.trim()}`,
-        mobile: mobileNumber.trim(),
-        kycStatus: "VERIFIED",
-        dailyLimitRemaining: 25000,
-        monthlyLimitRemaining: 200000,
-        preferredBank: "HDFC Bank",
-        riskRating: "LOW",
-        walletBalance: 124500,
-        relationshipManager: "Vikram Singh",
-      };
-      onSelectCustomer(newCustomer);
-      setRegisterModalOpen(false);
-      onSearchCustomer(mobileNumber.trim());
-    } finally {
-      setIsSubmittingReg(false);
+      const mobileParam = searchInput.replace(/\D/g, "").slice(0, 10);
+      window.location.href = `/customers/new?mobile=${encodeURIComponent(mobileParam)}`;
     }
   };
 
@@ -236,11 +148,11 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
         </Paper>
       )}
 
-      {/* 3. CENTERED "CUSTOMER NOT FOUND" EMPTY-STATE CARD (WHEN API RETURNS ZERO CUSTOMERS) */}
+      {/* 3. CENTERED "CUSTOMER NOT FOUND" EMPTY-STATE CARD (NAVIGATES TO DEDICATED /customers/new PAGE) */}
       {showEmptyState && (
         <Paper
           elevation={0}
-          onClick={handleOpenRegister}
+          onClick={handleNavigateToRegister}
           sx={{
             p: 4,
             borderRadius: "16px",
@@ -261,7 +173,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             Customer Not Found
           </Typography>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "14px", mb: 3, maxWidth: 500, mx: "auto" }}>
-            No customer exists with the entered Mobile Number / Customer Code.
+            No customer exists with the entered Mobile Number / Customer Code. Click below to navigate to the customer registration page.
           </Typography>
           <Button
             variant="contained"
@@ -269,7 +181,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             startIcon={<PersonAddIcon />}
             onClick={(e) => {
               e.stopPropagation();
-              handleOpenRegister();
+              handleNavigateToRegister();
             }}
             sx={{
               height: 48,
@@ -370,102 +282,6 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
           </Box>
         </Paper>
       )}
-
-      {/* 5. CUSTOMER REGISTRATION FORM MODAL */}
-      <Dialog open={registerModalOpen} onClose={() => setRegisterModalOpen(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleRegisterSubmit}>
-          <DialogTitle sx={{ bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 900, fontSize: "18px" }}>
-            👤 Customer Registration
-          </DialogTitle>
-          <DialogContent sx={{ bgcolor: "#0F172A", pt: 2 }}>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px", mb: 2 }}>
-              Register a new DMT customer. Upon registration, you will return directly to this workstation with the customer auto-selected.
-            </Typography>
-
-            {regError && (
-              <Paper elevation={0} sx={{ p: 1.5, mb: 2, bgcolor: "rgba(239, 68, 68, 0.15)", border: "1px solid #EF4444", color: "#EF4444", fontSize: "12px", fontWeight: 800 }}>
-                {regError}
-              </Paper>
-            )}
-
-            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2, mb: 2 }}>
-              <TextField
-                fullWidth
-                label="First Name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-                slotProps={{
-                  input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
-                  inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
-                }}
-              />
-              <TextField
-                fullWidth
-                label="Last Name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-                slotProps={{
-                  input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
-                  inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
-                }}
-              />
-            </Box>
-
-            <Box sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                label="10-Digit Mobile Number"
-                value={mobileNumber}
-                onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                required
-                slotProps={{
-                  input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
-                  inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
-                }}
-              />
-            </Box>
-
-            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2 }}>
-              <TextField
-                fullWidth
-                select
-                label="Gender"
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                slotProps={{
-                  input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
-                  inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
-                }}
-              >
-                <MenuItem value="MALE">Male</MenuItem>
-                <MenuItem value="FEMALE">Female</MenuItem>
-                <MenuItem value="OTHER">Other</MenuItem>
-              </TextField>
-              <TextField
-                fullWidth
-                type="date"
-                label="Date of Birth"
-                value={dob}
-                onChange={(e) => setDob(e.target.value)}
-                slotProps={{
-                  input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
-                  inputLabel: { shrink: true, sx: { color: "rgba(255, 255, 255, 0.7)" } },
-                }}
-              />
-            </Box>
-          </DialogContent>
-          <DialogActions sx={{ bgcolor: "#0F172A", p: 2 }}>
-            <Button onClick={() => setRegisterModalOpen(false)} sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="contained" disabled={isSubmittingReg} sx={{ bgcolor: "#2563EB", fontWeight: 900 }}>
-              {isSubmittingReg ? "Registering..." : "Register & Auto-Select"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
     </Box>
   );
 };
