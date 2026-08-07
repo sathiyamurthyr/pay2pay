@@ -59,7 +59,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
       if (typeof window !== "undefined" && mobileParam) {
         sessionStorage.setItem("draftCustomerMobile", mobileParam);
       }
-      window.location.href = "/customers/new";
+      window.location.href = "/retailer/customers";
     }
   };
 

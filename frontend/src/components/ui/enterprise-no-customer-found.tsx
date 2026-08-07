@@ -161,7 +161,7 @@ export function EnterpriseNoCustomerFound({
       if (typeof window !== "undefined") {
         sessionStorage.setItem("draftCustomerMobile", mobileInput);
       }
-      router.push("/customers/new");
+      router.push("/retailer/customers");
     }, 280);
   }, [isCtaEnabled, mobileInput, router]);
 
