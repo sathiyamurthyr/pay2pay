@@ -21,6 +21,9 @@ class AddAndVerifyBeneficiaryReq(BaseModel):
     confirm_account_number: str = Field(..., min_length=9, max_length=18)
     ifsc_code: str = Field(..., min_length=11, max_length=11)
     bank_name: str
+    bank_id: Optional[str] = None
+    bank_code: Optional[str] = None
+    bank_short_name: Optional[str] = None
     account_holder_name: Optional[str] = None
     nickname: Optional[str] = None
     current_wallet_balance: Optional[float] = 5000.0

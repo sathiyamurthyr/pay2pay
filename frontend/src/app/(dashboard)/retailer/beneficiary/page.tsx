@@ -184,6 +184,9 @@ function BeneficiaryWorkspaceContent() {
   const [bankSearchLoading, setBankSearchLoading] = useState(false);
   const [selectedBankObj, setSelectedBankObj] = useState<any | null>(null);
   const [bankName, setBankName]             = useState("");
+  const [bankId, setBankId]                 = useState<string | number>("");
+  const [bankCode, setBankCode]             = useState<string>("");
+  const [bankShortName, setBankShortName]   = useState<string>("");
 
   const [ifscCode, setIfscCode]             = useState("");
   const [micrCode, setMicrCode]             = useState("");
@@ -275,6 +278,9 @@ function BeneficiaryWorkspaceContent() {
       setBankMasterList(fullBankMasterList);
       setSelectedBankObj(null);
       setBankName("");
+      setBankId("");
+      setBankCode("");
+      setBankShortName("");
       setIfscCode("");
       return;
     }
@@ -290,7 +296,7 @@ function BeneficiaryWorkspaceContent() {
           const filtered = fullBankMasterList.filter(b => {
             const name = (b.bank_name || "").toLowerCase();
             const ifsc = (b.ifsc_prefix || b.ifsc_code || b.ifsc || "").toLowerCase();
-            const shortName = (b.short_code || b.short_name || "").toLowerCase();
+            const shortName = (b.short_code || b.short_name || b.bank_short_name || "").toLowerCase();
             return name.includes(qLower) || ifsc.includes(qLower) || shortName.includes(qLower);
           });
           setBankMasterList(filtered);
@@ -303,27 +309,37 @@ function BeneficiaryWorkspaceContent() {
     if (!bankObj) {
       setSelectedBankObj(null);
       setBankName("");
+      setBankId("");
+      setBankCode("");
+      setBankShortName("");
       setIfscCode("");
       return;
     }
     if (typeof bankObj === "string") return;
 
     setSelectedBankObj(bankObj);
-    setBankName(bankObj.bank_name || "");
+    const bName  = bankObj.bank_name || "";
+    const bCode  = bankObj.bank_code || bankObj.ifsc_prefix || bankObj.ifsc_code || "";
+    const bId    = bankObj.bank_id || bankObj.bank_ifsc_ref_id || bCode;
+    const autoIfsc = bankObj.ifsc_code || bankObj.ifsc || (bCode ? bCode + "0000001" : "");
+    const bShort = bankObj.bank_short_name || bankObj.short_code || bankObj.short_name || bName;
 
-    // Automatically store bank_id, bank_name, bank_code, bank_short_name, and ifsc_code internally
-    const autoIfsc = bankObj.ifsc_code || bankObj.ifsc || (bankObj.ifsc_prefix ? bankObj.ifsc_prefix + "0000001" : "");
+    setBankName(bName);
+    setBankId(bId);
+    setBankCode(bCode);
+    setBankShortName(bShort);
     setIfscCode(autoIfsc);
     setMicrCode(bankObj.micr || "");
 
     addAuditLog("Bank Selected", {
-      bank_id: bankObj.bank_id,
-      bank_name: bankObj.bank_name,
-      bank_code: bankObj.ifsc_prefix || bankObj.ifsc_code,
+      bank_id: bId,
+      bank_name: bName,
+      bank_code: bCode,
       ifsc_code: autoIfsc,
-      short_name: bankObj.short_code || bankObj.short_name || bankObj.bank_name,
+      bank_short_name: bShort,
     });
   };
+
 
   // ─── Step 1 Submit ────────────────────────────────────────────────────────
 
@@ -396,22 +412,27 @@ function BeneficiaryWorkspaceContent() {
 
     try {
       const custId = rawId && rawId.includes("-") ? rawId : "011b2d7f-9426-4444-8888-000000000001";
-      const res = await retailerApi.addPayoutBeneficiary({
+      const res = await retailerApi.addAndVerifyEpic014Beneficiary({
         customer_id: custId,
-        account_holder: benName,
         account_number: accNum,
         confirm_account_number: confirmAccNum,
-        ifsc: ifscCode,
+        ifsc_code: ifscCode,
         bank_name: bankName,
+        bank_id: String(bankId),
+        bank_code: bankCode,
+        bank_short_name: bankShortName,
+        account_holder_name: benName,
         nickname: nickName || undefined,
+        current_wallet_balance: walletBalance,
       });
 
-      if (res.status === "SUCCESS") {
-        const officialName = res.data?.registered_name_in_bank || res.data?.name_at_bank || benName.toUpperCase();
-        const shortBenId   = `BEN-${(res.data?.beneficiary_id || Date.now()).toString().slice(-8).toUpperCase()}`;
+      if (res.status === "SUCCESS" || res.verification_status === "VERIFIED") {
+        const beneData = res.beneficiary || res.data || {};
+        const officialName = beneData.registered_name_in_bank || beneData.name_at_bank || beneData.account_holder_name || benName.toUpperCase();
+        const shortBenId   = `BEN-${(beneData.beneficiary_id || Date.now()).toString().slice(-8).toUpperCase()}`;
         const txnId        = `TXN-${Date.now().toString().slice(-10)}`;
-        const utr          = res.data?.utr || `UTR-CF-${Date.now()}`;
-        const vendorRef    = res.data?.vendor_ref_id || `CF-PENNY-${Date.now()}`;
+        const utr          = beneData.utr || `UTR-CF-${Date.now()}`;
+        const vendorRef    = beneData.verification_reference || beneData.vendor_ref_id || `CF-PENNY-${Date.now()}`;
 
         const newBen = {
           beneficiary_id: res.data?.beneficiary_id || `ben-${Date.now()}`,

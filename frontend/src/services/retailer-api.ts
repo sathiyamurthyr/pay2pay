@@ -921,10 +921,14 @@ export const retailerApi = {
     confirm_account_number: string;
     ifsc_code: string;
     bank_name: string;
+    bank_id?: string;
+    bank_code?: string;
+    bank_short_name?: string;
     account_holder_name?: string;
     nickname?: string;
     current_wallet_balance?: number;
   }) => {
+
     try {
       const res = await apiClient.post("/beneficiaries/epic014/add-and-verify", payload);
       const resData = res.data;
