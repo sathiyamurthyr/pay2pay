@@ -53,6 +53,7 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, UserPlus, ArrowLeft, ShieldCheck, CheckCircle2, Wallet, HelpCircle, Save } from "lucide-react";
 
 import { M3TextField } from "@/components/ui/form-components";
 import { M3Button } from "@/components/ui/m3-components";
@@ -536,67 +537,107 @@ function BeneficiaryWorkspaceContent() {
   // ─── RENDER ───────────────────────────────────────────────────────────────
 
   return (
-    <Box sx={{ height: "100vh", maxHeight: "100vh", backgroundColor: "#F1F5F9", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans pb-24 transition-colors">
 
-      {/* ── HEADER ────────────────────────────────────────────────────────── */}
-      <Paper square elevation={0} sx={{
-        zIndex: 1100, px: 3, py: 1.25,
-        background: "linear-gradient(90deg, #0F172A 0%, #1E293B 60%, #0C4A6E 100%)",
-        color: "#FFF", display: "flex", alignItems: "center", justifyContent: "space-between",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.25)",
-      }}>
-        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <IconButton onClick={handleCancel} sx={{ color: "#F8FAFC", bgcolor: "rgba(255,255,255,0.08)", "&:hover": { bgcolor: "rgba(255,255,255,0.16)" } }}>
-            <ArrowBackIcon fontSize="small" />
-          </IconButton>
-          <Box>
-            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-              <Typography sx={{ fontWeight: 800, fontSize: { xs: "16px", md: "20px" }, color: "#F8FAFC", letterSpacing: "-0.3px" }}>
+      {/* ─────────────────────────────────────────────────────────────────────
+          1. TOP APP BAR (Matching /retailer/customers theme)
+      ───────────────────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+          
+          {/* Left: Back Button & Title */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleCancel}
+              aria-label="Back to Customer / DMT"
+              className="p-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:ring-2 focus:ring-blue-600 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center"
+            >
+              <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
+            </button>
+
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white">
                 Add Beneficiary
-              </Typography>
-              <Chip label="Penny Drop" size="small" sx={{ height: 18, bgcolor: "rgba(56,189,248,0.15)", color: "#38BDF8", border: "1px solid rgba(56,189,248,0.3)", fontSize: "0.6rem", fontWeight: 700 }} />
-            </Stack>
-            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 0.2 }}>
-              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
-                Step {activeStep + 1}/{STEPS.length} — {STEPS[activeStep]?.label}
-              </Typography>
-              {(activeCustomerName || activeCustomerMobile) && (
-                <Chip
-                  size="small"
-                  label={
-                    <Typography variant="caption" sx={{ color: "#F8FAFC", fontWeight: 600, fontSize: "10.5px" }}>
-                      <span style={{ color: "#94A3B8" }}>For:</span>{" "}
-                      <strong style={{ color: "#38BDF8" }}>{activeCustomerName || "Customer"}</strong>
-                      {activeCustomerMobile && <span style={{ color: "#64748B" }}> • {activeCustomerMobile}</span>}
-                      {activeCustomerId && <span style={{ color: "#475569" }}> • {activeCustomerId}</span>}
-                    </Typography>
-                  }
-                  sx={{ bgcolor: "rgba(15,23,42,0.7)", border: "1px solid rgba(56,189,248,0.25)", height: 20, borderRadius: "5px", px: 0.5 }}
-                />
-              )}
-            </Stack>
-          </Box>
-        </Stack>
+              </h1>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hidden sm:inline-block">
+                Penny Drop Verified
+              </span>
+            </div>
+          </div>
 
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-          <Typography variant="caption" sx={{ color: "#38BDF8", fontWeight: 700, display: { xs: "none", md: "block" } }}>
-            Saved {lastSaved}
-          </Typography>
-          <M3Button variant="outlined" size="small" onClick={saveDraft} startIcon={<SaveIcon sx={{ fontSize: 14 }} />}
-            sx={{ color: "#94A3B8", borderColor: "rgba(148,163,184,0.3)", fontSize: "12px", py: 0.5 }}>
-            Draft
-          </M3Button>
-          <IconButton onClick={handleCancel} sx={{ color: "#64748B" }}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Stack>
-      </Paper>
+          {/* Right: Draft Save & Customer Context */}
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 hidden md:inline-block">
+              Saved {lastSaved}
+            </span>
 
-      {/* ── BODY ──────────────────────────────────────────────────────────── */}
-      <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 1.5, md: 2.5 }, pb: 3 }}>
-        <Grid container spacing={2.5} sx={{ maxWidth: 1280, mx: "auto" }}>
+            <button
+              onClick={saveDraft}
+              className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 font-extrabold text-xs flex items-center gap-1.5 transition-colors"
+            >
+              <Save className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>Draft</span>
+            </button>
 
-          {/* ── LEFT SIDEBAR ────────────────────────────────────────────── */}
+            <button
+              onClick={handleCancel}
+              aria-label="Cancel"
+              className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            >
+              <CloseIcon fontSize="small" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ─────────────────────────────────────────────────────────────────────
+          MAIN BODY CONTAINER
+      ───────────────────────────────────────────────────────────────────── */}
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-5 space-y-5">
+
+        {/* ── 2. HERO CARD (Matching /retailer/customers: 110px Height, Gradient #243B7D to #2E3E8C) ── */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="w-full h-[110px] rounded-[24px] bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] text-white px-5 sm:px-7 flex items-center justify-between shadow-lg relative overflow-hidden shrink-0 border border-blue-900/50"
+        >
+          {/* Subtle Background Accent Pattern */}
+          <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-white/5 pointer-events-none blur-xl" />
+          <div className="absolute right-32 -top-10 w-32 h-32 rounded-full bg-blue-400/10 pointer-events-none blur-lg" />
+
+          <div className="relative z-10 space-y-1 max-w-xl">
+            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+              Beneficiary Registration
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+            </h2>
+            <p className="text-xs sm:text-sm font-medium text-blue-100/90 line-clamp-1">
+              Step {activeStep + 1} of {STEPS.length}: {STEPS[activeStep]?.label} • Verify bank account instantly via Penny Drop.
+            </p>
+          </div>
+
+          {/* Right Customer Badge Pill */}
+          {(activeCustomerName || activeCustomerMobile) && (
+            <div className="relative z-10 shrink-0 hidden sm:flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20">
+              <div className="w-8 h-8 rounded-full bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
+                {(activeCustomerName || "C").charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="text-xs font-extrabold text-white leading-tight">
+                  {activeCustomerName}
+                </div>
+                <div className="text-[11px] font-medium text-blue-200">
+                  {activeCustomerMobile} {activeCustomerId ? `• ${activeCustomerId}` : ""}
+                </div>
+              </div>
+            </div>
+          )}
+        </motion.div>
+
+        {/* ── 3. WORKSPACE GRID ── */}
+        <Grid container spacing={2.5}>
+
+          {/* ── LEFT SIDEBAR ── */}
           <Grid size={{ xs: 12, md: 3.5 }}>
             <Stack spacing={2}>
               {/* Progress Card */}
@@ -1035,9 +1076,8 @@ function BeneficiaryWorkspaceContent() {
                       )}
 
                       {/* Continue Button */}
-                      <M3Button
+                      <button
                         type="submit"
-                        variant="contained"
                         disabled={
                           !benName ||
                           !relationship ||
@@ -1046,10 +1086,10 @@ function BeneficiaryWorkspaceContent() {
                           !bankName ||
                           !ifscCode
                         }
-                        sx={{ py: 1.75, bgcolor: "#0F172A", "&:hover": { bgcolor: "#1E293B" }, fontWeight: 800, borderRadius: 3 }}
+                        className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] hover:from-[#1d3066] hover:to-[#243374] text-white font-extrabold text-sm shadow-md shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed min-h-[50px]"
                       >
-                        Continue to Verification →
-                      </M3Button>
+                        <span>Continue to Verification →</span>
+                      </button>
                     </Stack>
                   </form>
                 </motion.div>
@@ -1162,15 +1202,14 @@ function BeneficiaryWorkspaceContent() {
                       <M3Button variant="outlined" onClick={() => setActiveStep(0)} sx={{ fontWeight: 700 }}>
                         ← Back
                       </M3Button>
-                      <M3Button
-                        variant="contained"
+                      <button
                         disabled={!precheckResult?.passed || precheckLoading || pennyDropLoading}
                         onClick={() => setConfirmModalOpen(true)}
-                        sx={{ flex: 1, py: 1.75, bgcolor: "#0284C7", "&:hover": { bgcolor: "#0369A1" }, fontWeight: 800, borderRadius: 3 }}
+                        className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] hover:from-[#1d3066] hover:to-[#243374] text-white font-extrabold text-sm shadow-md shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px]"
                       >
                         {pennyDropLoading ? <CircularProgress size={18} sx={{ color: "#FFF", mr: 1 }} /> : null}
-                        {pennyDropLoading ? "Verifying…" : "Verify Bank Account"}
-                      </M3Button>
+                        <span>{pennyDropLoading ? "Verifying…" : "Verify Bank Account"}</span>
+                      </button>
                     </Stack>
                   </Stack>
                 </motion.div>
@@ -1275,13 +1314,12 @@ function BeneficiaryWorkspaceContent() {
                       <M3Button variant="outlined" onClick={() => setResultModalOpen(true)} sx={{ fontWeight: 700 }}>
                         <VolumeUpIcon sx={{ fontSize: 16, mr: 0.5 }} /> View Result
                       </M3Button>
-                      <M3Button
-                        variant="contained"
+                      <button
                         onClick={handleCompleteAndReturn}
-                        sx={{ flex: 1, py: 1.75, bgcolor: "#0284C7", "&:hover": { bgcolor: "#0369A1" }, fontWeight: 800, borderRadius: 3 }}
+                        className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] hover:from-[#1d3066] hover:to-[#243374] text-white font-extrabold text-sm shadow-md shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] min-h-[48px]"
                       >
-                        Return to DMT Transaction →
-                      </M3Button>
+                        <span>Return to DMT Transaction →</span>
+                      </button>
                     </Stack>
                   </Stack>
                 </motion.div>
@@ -1290,7 +1328,6 @@ function BeneficiaryWorkspaceContent() {
             </AnimatePresence>
           </Grid>
         </Grid>
-      </Box>
 
       {/* ══════════════════════════════════════════════════════════════════════
           CONFIRM DEBIT MODAL
@@ -1467,7 +1504,8 @@ function BeneficiaryWorkspaceContent() {
         </DialogActions>
       </Dialog>
 
-    </Box>
+      </main>
+    </div>
   );
 }
 
