@@ -11,6 +11,8 @@ import app.infrastructure.db.models  # Register all models with Base.metadata
 import app.infrastructure.db.payout_workflow_models
 import app.infrastructure.db.ekyc_models
 import app.infrastructure.db.epic014_models
+import app.infrastructure.db.beneficiary_verification_models
+from app.presentation.api.v1 import beneficiary_verification
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -97,6 +99,7 @@ app.include_router(retailer_services.router, prefix=settings.API_V1_STR)
 app.include_router(payout_workflow.router, prefix=settings.API_V1_STR)
 app.include_router(ekyc.router, prefix=settings.API_V1_STR)
 app.include_router(epic014_beneficiary_router.router, prefix=settings.API_V1_STR)
+app.include_router(beneficiary_verification.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])
