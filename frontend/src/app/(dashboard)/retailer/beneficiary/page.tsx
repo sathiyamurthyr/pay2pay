@@ -227,23 +227,50 @@ export default function BeneficiaryWorkspacePage() {
         }}
       >
         <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <IconButton onClick={handleCancel} sx={{ color: "#FFF", bgcolor: "rgba(255,255,255,0.1)" }}>
+          <IconButton onClick={handleCancel} sx={{ color: "#F8FAFC", bgcolor: "rgba(255,255,255,0.1)", "&:hover": { bgcolor: "rgba(255,255,255,0.2)" } }}>
             <ArrowBackIcon />
           </IconButton>
           <Box>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-              <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: "-0.3px" }}>
-                Enterprise Beneficiary Onboarding Workspace
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: "20px", sm: "26px", md: "30px" }, color: "#F8FAFC", letterSpacing: "-0.5px" }}>
+                Beneficiary Onboarding Workspace
               </Typography>
               <Chip
                 label="Penny Drop Verified"
                 size="small"
-                sx={{ bgcolor: "#38BDF8", color: "#0C4A6E", fontWeight: 800, fontSize: "0.65rem" }}
+                sx={{
+                  height: 22,
+                  bgcolor: "rgba(56, 189, 248, 0.12)",
+                  color: "#38BDF8",
+                  border: "1px solid rgba(56, 189, 248, 0.3)",
+                  fontWeight: 700,
+                  fontSize: "0.68rem",
+                }}
               />
             </Stack>
-            <Typography variant="caption" sx={{ opacity: 0.85, fontWeight: 600 }}>
+
+            <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "13px", fontWeight: 500, mt: 0.25 }}>
               Bank Master Lookup • Auto IFSC Binding • Returns to transaction
             </Typography>
+
+            {/* DIRECT CUSTOMER IDENTITY DISPLAY BENEATH TITLE */}
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 0.75, flexWrap: "wrap" }}>
+              <Avatar
+                src={selectedCustomer?.photo_url || selectedCustomer?.photoUrl}
+                sx={{ width: 22, height: 22, fontSize: "0.65rem", fontWeight: 800, bgcolor: "#2563EB", color: "#FFF" }}
+              >
+                {selectedCustomer?.name ? selectedCustomer.name.charAt(0).toUpperCase() : (selectedCustomer?.full_name ? selectedCustomer.full_name.charAt(0).toUpperCase() : "C")}
+              </Avatar>
+              <Typography sx={{ color: "#F8FAFC", fontWeight: 700, fontSize: "13px" }}>
+                {selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || "Active Customer"}
+              </Typography>
+              <Typography sx={{ color: "#CBD5E1", fontSize: "13px" }}>
+                · 📱 +91 {selectedCustomer?.mobile || selectedCustomer?.mobile_number || "N/A"}
+              </Typography>
+              <Typography sx={{ color: "#94A3B8", fontSize: "12px" }}>
+                · ID: <span style={{ color: "#38BDF8", fontWeight: 700 }}>{selectedCustomer?.customerCode || selectedCustomer?.public_id || selectedCustomer?.id || "N/A"}</span>
+              </Typography>
+            </Stack>
           </Box>
         </Stack>
 
@@ -254,11 +281,11 @@ export default function BeneficiaryWorkspacePage() {
             </Typography>
           </Box>
 
-          <M3Button variant="outlined" size="small" onClick={saveDraft} startIcon={<SaveIcon />} sx={{ color: "#FFF", borderColor: "rgba(255,255,255,0.3)" }}>
+          <M3Button variant="outlined" size="small" onClick={saveDraft} startIcon={<SaveIcon />} sx={{ color: "#F8FAFC", borderColor: "rgba(248,250,252,0.3)" }}>
             Save Draft
           </M3Button>
 
-          <IconButton onClick={handleCancel} sx={{ color: "#FFF" }}>
+          <IconButton onClick={handleCancel} sx={{ color: "#F8FAFC" }}>
             <CloseIcon />
           </IconButton>
         </Stack>
