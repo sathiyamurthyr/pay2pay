@@ -342,6 +342,7 @@ class BeneficiaryVerificationService:
                 wallet_balance_before=wallet_before,
                 wallet_balance_after=wallet_after if vendor_res.account_exists else wallet_before,
                 latency_ms=latency_ms,
+                raw_vendor_response=vendor_res.raw_response,
                 message="Bank Account Verified Successfully" if vendor_res.account_exists else "Account Verification Failed. Wallet refunded."
             )
 

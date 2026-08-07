@@ -94,4 +94,5 @@ class BeneficiaryVerifyResponse(BaseModel):
     wallet_balance_after: float
     
     latency_ms: float = 0.0
+    raw_vendor_response: Optional[Dict[str, Any]] = None
     message: str

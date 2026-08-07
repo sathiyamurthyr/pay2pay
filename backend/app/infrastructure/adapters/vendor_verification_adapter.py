@@ -156,9 +156,18 @@ class CashfreeVerificationAdapter(BaseVerificationVendorAdapter):
     def _generate_fallback_response(self, account_number: str, ifsc: str, name: str, ref_id: str, latency_ms: float) -> VerificationVendorResult:
         # Check invalid account pattern (accounts ending with 0000 are treated as non-existent)
         account_valid = not account_number.endswith("0000")
-        name_returned = name.upper() if account_valid else None
+        if account_valid:
+            clean_name = name.strip().upper()
+            tokens = clean_name.split()
+            if len(tokens) == 1:
+                name_returned = f"{clean_name} MURTHY R"
+            else:
+                name_returned = f"{clean_name} R"
+        else:
+            name_returned = None
+
         score = calculate_name_similarity(name, name_returned) if name_returned else 0.0
-        match_status = "EXACT_MATCH" if score >= 80 else "MISMATCH"
+        match_status = "EXACT_MATCH" if score >= 70 else "PARTIAL_MATCH" if score >= 40 else "MISMATCH"
 
         raw_resp = {
           "status": "SUCCESS" if account_valid else "FAILED",
