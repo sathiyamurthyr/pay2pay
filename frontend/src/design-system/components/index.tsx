@@ -246,12 +246,12 @@ export const SectionHeader: React.FC<{ title: string; subtitle?: string; action?
 );
 
 export const PageHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
-  <Box sx={{ mb: 2 }}>
-    <Typography variant="h4" sx={{ fontWeight: 900, color: "#FFFFFF" }}>
+  <Box sx={{ mb: 3 }}>
+    <Typography sx={{ fontSize: "40px", fontWeight: 900, color: "#FFFFFF", lineHeight: 1.15, letterSpacing: "-0.5px" }}>
       {title}
     </Typography>
     {subtitle && (
-      <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.88)", fontWeight: 600, mt: 0.5 }}>
+      <Typography sx={{ fontSize: "16px", color: "rgba(255, 255, 255, 0.70)", fontWeight: 500, mt: 1, lineHeight: "24px" }}>
         {subtitle}
       </Typography>
     )}

@@ -4,60 +4,91 @@ import { StatusChip } from "@/design-system/components";
 
 export const RecentTransactions: React.FC = () => {
   const rows = [
-    { id: "TXN-98124012", customer: "Ramesh Kumar", amount: "₹25,000.00", status: "success", date: "Today, 12:45 PM" },
-    { id: "TXN-98124011", customer: "Suresh Kumar", amount: "₹10,000.00", status: "success", date: "Today, 11:30 AM" },
-    { id: "TXN-98124010", customer: "Anita Devi", amount: "₹5,000.00", status: "success", date: "Today, 10:15 AM" },
+    { id: "TXN-98124012", customer: "Ramesh Kumar", mobile: "9876543210", beneficiary: "Sarah Chen", bank: "HDFC Bank", channel: "IMPS", amount: "₹25,000.00", fee: "₹125.00", status: "success", date: "Today, 13:45:12" },
+    { id: "TXN-98124011", customer: "Suresh Kumar", mobile: "9876543211", beneficiary: "Vertex Solutions", bank: "ICICI Bank", channel: "IMPS", amount: "₹10,000.00", fee: "₹50.00", status: "success", date: "Today, 13:30:05" },
+    { id: "TXN-98124010", customer: "Anita Devi", mobile: "9876543212", beneficiary: "Marcus Rodriguez", bank: "SBI", channel: "NEFT", amount: "₹5,000.00", fee: "₹25.00", status: "success", date: "Today, 13:15:44" },
   ];
 
   return (
     <Paper
       elevation={0}
       sx={{
-        p: 2.5,
+        p: 3, // 24px padding
         borderRadius: "16px",
         bgcolor: "rgba(18, 27, 48, 0.75)",
         backdropFilter: "blur(20px)",
         border: "1px solid rgba(255, 255, 255, 0.12)",
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.37)",
         color: "#FFFFFF",
+        width: "100%",
+        overflowX: "auto",
       }}
     >
       <Typography
-        variant="caption"
         sx={{
           color: "#60A5FA",
           fontWeight: 800,
-          textTransform: "uppercase",
-          letterSpacing: "1px",
-          mb: 2,
+          fontSize: "24px", // Section Title 24px
+          letterSpacing: "-0.2px",
+          mb: 2, // 16px spacing
           display: "block",
         }}
       >
-        RECENT TRANSACTION AUDIT LEDGER
+        RECENT TRANSACTIONS AUDIT LEDGER
       </Typography>
 
-      <Table size="small">
-        <TableHead>
-          <TableRow sx={{ "& th": { borderColor: "rgba(255, 255, 255, 0.12)", color: "rgba(255, 255, 255, 0.88)", fontWeight: 700 } }}>
-            <TableCell>Transaction ID</TableCell>
-            <TableCell>Customer</TableCell>
-            <TableCell>Amount</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Date</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((r) => (
-            <TableRow key={r.id} sx={{ "& td": { borderColor: "rgba(255, 255, 255, 0.08)", color: "#FFFFFF" } }}>
-              <TableCell sx={{ fontWeight: 800 }}>{r.id}</TableCell>
-              <TableCell>{r.customer}</TableCell>
-              <TableCell sx={{ fontWeight: 900, color: "#60A5FA" }}>{r.amount}</TableCell>
-              <TableCell><StatusChip status="success" label="SUCCESS" /></TableCell>
-              <TableCell sx={{ color: "rgba(255, 255, 255, 0.65)" }}>{r.date}</TableCell>
+      <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+        <Table size="small" stickyHeader sx={{ minWidth: 800 }}>
+          <TableHead>
+            <TableRow
+              sx={{
+                "& th": {
+                  bgcolor: "rgba(15, 23, 42, 0.95)",
+                  borderColor: "rgba(255, 255, 255, 0.12)",
+                  color: "rgba(255, 255, 255, 0.70)",
+                  fontWeight: 800,
+                  fontSize: "12px",
+                  py: 1.5,
+                },
+              }}
+            >
+              <TableCell>TRANSACTION ID</TableCell>
+              <TableCell>CUSTOMER</TableCell>
+              <TableCell>MOBILE</TableCell>
+              <TableCell>BENEFICIARY</TableCell>
+              <TableCell>BANK NAME</TableCell>
+              <TableCell>CHANNEL</TableCell>
+              <TableCell>AMOUNT</TableCell>
+              <TableCell>FEE</TableCell>
+              <TableCell>STATUS</TableCell>
+              <TableCell>TIMESTAMP</TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHead>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow
+                key={r.id}
+                sx={{
+                  "& td": { borderColor: "rgba(255, 255, 255, 0.08)", color: "#FFFFFF", fontSize: "14px", py: 1.25 },
+                  "&:hover": { bgcolor: "rgba(255, 255, 255, 0.04)" },
+                  transition: "all 150ms ease",
+                }}
+              >
+                <TableCell sx={{ fontWeight: 800, fontFamily: "monospace" }}>{r.id}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{r.customer}</TableCell>
+                <TableCell sx={{ color: "rgba(255, 255, 255, 0.70)" }}>{r.mobile}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{r.beneficiary}</TableCell>
+                <TableCell>{r.bank}</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#60A5FA" }}>{r.channel}</TableCell>
+                <TableCell sx={{ fontWeight: 900, color: "#FFFFFF" }}>{r.amount}</TableCell>
+                <TableCell sx={{ color: "#60A5FA" }}>{r.fee}</TableCell>
+                <TableCell><StatusChip status="success" label="SUCCESS" /></TableCell>
+                <TableCell sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "12px" }}>{r.date}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Box>
     </Paper>
   );
 };

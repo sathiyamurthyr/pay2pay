@@ -1,5 +1,5 @@
 import React from "react";
-import { Paper, Box, Typography, Stack, Button, Chip } from "@mui/material";
+import { Paper, Typography, Stack, Button, Chip } from "@mui/material";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -18,8 +18,8 @@ export const StickyFooter: React.FC<StickyFooterProps> = ({
   <Paper
     elevation={0}
     sx={{
-      height: 64,
-      px: 3,
+      height: 64, // Exact 64px height constraint
+      px: 3, // 24px padding
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
@@ -27,9 +27,12 @@ export const StickyFooter: React.FC<StickyFooterProps> = ({
       backdropFilter: "blur(20px)",
       borderTop: "1px solid rgba(255, 255, 255, 0.12)",
       width: "100%",
+      position: "sticky",
+      bottom: 0,
+      zIndex: 1100,
     }}
   >
-    {/* Left Zone: Back Button */}
+    {/* Left Zone: Previous Button */}
     <Button
       variant="outlined"
       startIcon={<ArrowBackIcon />}
@@ -37,40 +40,41 @@ export const StickyFooter: React.FC<StickyFooterProps> = ({
       sx={{
         height: 44,
         borderRadius: "12px",
-        px: 2.5,
-        fontSize: "14px",
-        fontWeight: 700,
+        px: 3,
+        fontSize: "16px",
+        fontWeight: 600,
         color: "#FFFFFF",
         borderColor: "rgba(255, 255, 255, 0.25)",
         bgcolor: "rgba(255, 255, 255, 0.05)",
-        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", borderColor: "#60A5FA" },
+        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", borderColor: "#60A5FA", transform: "translateY(-2px)" },
         "&:active": { transform: "scale(0.98)" },
+        transition: "all 150ms ease",
       }}
     >
       Previous Step
     </Button>
 
     {/* Center Zone: Workflow Progress & Keyboard Shortcuts */}
-    <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-      <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "14px" }}>
+    <Stack direction="row" spacing={3} sx={{ alignItems: "center" }}>
+      <Typography sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "16px" }}>
         {stepText}
       </Typography>
       <Chip
-        icon={<KeyboardIcon sx={{ "&&": { fontSize: 14, color: "#60A5FA" } }} />}
-        label="Ctrl+Enter (Fast Submit)"
+        icon={<KeyboardIcon sx={{ "&&": { fontSize: 16, color: "#60A5FA" } }} />}
+        label="Ctrl+Enter (Submit)"
         size="small"
         sx={{
           bgcolor: "rgba(255, 255, 255, 0.08)",
-          color: "rgba(255, 255, 255, 0.88)",
+          color: "rgba(255, 255, 255, 0.90)",
           fontWeight: 700,
-          fontSize: "11px",
-          height: 24,
+          fontSize: "13px",
+          height: 28,
           border: "1px solid rgba(255, 255, 255, 0.12)",
         }}
       />
     </Stack>
 
-    {/* Right Zone: Large Fixed Primary Action Button */}
+    {/* Right Zone: Large Primary Action Button */}
     <Button
       variant="contained"
       endIcon={<ArrowForwardIcon />}
@@ -78,14 +82,15 @@ export const StickyFooter: React.FC<StickyFooterProps> = ({
       sx={{
         height: 44,
         borderRadius: "12px",
-        px: 3.5,
-        fontSize: "15px",
+        px: 4,
+        fontSize: "16px",
         fontWeight: 800,
         color: "#FFFFFF",
         bgcolor: "#2563EB",
         boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
-        "&:hover": { bgcolor: "#1D4ED8" },
+        "&:hover": { bgcolor: "#1D4ED8", transform: "translateY(-2px)" },
         "&:active": { transform: "scale(0.98)" },
+        transition: "all 150ms ease",
       }}
     >
       Continue to Transfer

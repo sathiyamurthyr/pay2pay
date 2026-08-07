@@ -18,20 +18,29 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
 }) => (
   <Box sx={{ width: "100%" }}>
     <Typography
-      variant="caption"
       sx={{
         color: "#60A5FA",
         fontWeight: 800,
-        fontSize: "14px",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        mb: 1.5,
+        fontSize: "24px", // Section Title 24px
+        letterSpacing: "-0.2px",
+        mb: 2, // 16px spacing
         display: "block",
       }}
     >
       SELECT BENEFICIARY ACCOUNT
     </Typography>
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" }, gap: 2 }}>
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "repeat(2, 1fr)",
+          lg: "repeat(4, 1fr)", // Desktop & 2K: 4 cards
+          xl: "repeat(5, 1fr)", // 4K: 5 cards
+        },
+        gap: 3, // 24px gap
+      }}
+    >
       {beneficiaries.map((b) => {
         const isSelected = selectedBeneficiary?.id === b.id;
         return (
@@ -40,9 +49,9 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
             elevation={0}
             onClick={() => onSelect(b)}
             sx={{
-              p: 2,
-              borderRadius: "16px",
-              height: 140,
+              p: "20px", // Card Padding 20px
+              height: 160, // Exact Card Height 160px
+              borderRadius: "16px", // Card Radius 16px
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -50,29 +59,29 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
               backdropFilter: "blur(20px)",
               border: isSelected ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.12)",
               cursor: "pointer",
-              boxShadow: isSelected ? "0 8px 24px rgba(37, 99, 235, 0.35)" : "0 8px 32px rgba(0, 0, 0, 0.25)",
-              transition: "all 150ms ease",
+              boxShadow: isSelected ? "0 8px 24px rgba(37, 99, 235, 0.4)" : "0 8px 32px rgba(0, 0, 0, 0.25)",
+              transition: "all 150ms ease", // Hover 150ms
               "&:hover": {
-                transform: "translateY(-2px)",
+                transform: "translateY(-2px)", // Card Lift 2px
                 borderColor: "#3B82F6",
-                boxShadow: "0 12px 32px rgba(37, 99, 235, 0.25)",
+                boxShadow: "0 12px 32px rgba(37, 99, 235, 0.3)",
               },
-              "&:active": { transform: "scale(0.98)" },
+              "&:active": { transform: "scale(0.98)" }, // Button Press Scale 0.98
             }}
           >
             <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-              <AccountBalanceIcon sx={{ color: isSelected ? "#60A5FA" : "rgba(255, 255, 255, 0.88)", fontSize: 20 }} />
-              {b.isFavorite && <StarIcon sx={{ color: "#FFD54F", fontSize: 18 }} />}
+              <AccountBalanceIcon sx={{ color: isSelected ? "#60A5FA" : "rgba(255, 255, 255, 0.88)", fontSize: 22 }} />
+              {b.isFavorite && <StarIcon sx={{ color: "#FFD54F", fontSize: 20 }} />}
             </Stack>
 
             <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px", lineHeight: 1.2 }}>
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px", lineHeight: 1.2 }}>
                 {b.name}
               </Typography>
-              <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.88)", fontWeight: 600, display: "block", fontSize: "13px" }}>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.90)", fontWeight: 500, fontSize: "13px", mt: 0.25 }}>
                 {b.bankName} · {b.accountNumber}
               </Typography>
-              <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.65)", fontWeight: 600, fontSize: "11px" }}>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontWeight: 600, fontSize: "12px" }}>
                 IFSC: {b.ifsc}
               </Typography>
             </Box>

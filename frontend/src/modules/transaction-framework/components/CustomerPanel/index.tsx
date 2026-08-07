@@ -1,8 +1,9 @@
 import React from "react";
-import { Box, Typography, Stack, Avatar, Chip, Paper } from "@mui/material";
-import PersonIcon from "@mui/icons-material/Person";
+import { Box, Typography, Stack, Avatar, Chip, Paper, Button } from "@mui/material";
 import ShieldIcon from "@mui/icons-material/Shield";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import EditIcon from "@mui/icons-material/Edit";
+import HistoryIcon from "@mui/icons-material/History";
 import { CustomerData } from "../../hooks/useCustomer";
 
 export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ customer }) => {
@@ -12,28 +13,31 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
     <Paper
       elevation={0}
       sx={{
-        p: 2,
+        height: 96, // Exact 96px height constraint
+        p: 2, // 16px padding
         borderRadius: "16px",
         bgcolor: "rgba(18, 27, 48, 0.75)",
         backdropFilter: "blur(20px)",
         border: "1px solid rgba(255, 255, 255, 0.12)",
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
         width: "100%",
+        display: "flex",
+        alignItems: "center",
       }}
     >
       <Stack
-        direction={{ xs: "column", lg: "row" }}
-        spacing={2}
-        sx={{ alignItems: "center", justifyContent: "space-between" }}
+        direction="row"
+        spacing={3} // 24px gap
+        sx={{ alignItems: "center", justifyContent: "space-between", width: "100%" }}
       >
-        {/* Left: Avatar + Customer Identity */}
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+        {/* Left: Avatar + Customer Name + ID */}
+        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
           <Avatar
             sx={{
               bgcolor: "#2563EB",
               color: "#FFFFFF",
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               fontWeight: 800,
               fontSize: "18px",
               boxShadow: "0 4px 12px rgba(37, 99, 235, 0.35)",
@@ -43,53 +47,101 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
           </Avatar>
           <Box>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px" }}>
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px", lineHeight: 1.2 }}>
                 {customer.name}
               </Typography>
               <Chip
-                icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 13 } }} />}
+                icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 14 } }} />}
                 label={customer.kycStatus}
                 size="small"
-                sx={{ bgcolor: "rgba(34, 197, 94, 0.15)", color: "#4ADE80", fontWeight: 800, height: 20, fontSize: "10px" }}
+                sx={{ bgcolor: "rgba(34, 197, 94, 0.15)", color: "#4ADE80", fontWeight: 800, height: 22, fontSize: "11px" }}
+              />
+              <Chip
+                label={`Risk: ${customer.riskRating}`}
+                size="small"
+                sx={{ bgcolor: "rgba(56, 189, 248, 0.15)", color: "#38BDF8", fontWeight: 800, height: 22, fontSize: "11px" }}
               />
             </Stack>
-            <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.88)", fontWeight: 600, fontSize: "14px" }}>
-              Mobile: {customer.mobile} · ID: {customer.id}
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontWeight: 600, fontSize: "12px", mt: 0.25 }}>
+              ID: {customer.id} · Mobile: {customer.mobile}
             </Typography>
           </Box>
         </Stack>
 
-        {/* Center: Limits & Wallet Telemetry Pills */}
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-          <Box sx={{ px: 1.5, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-            <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.65)", display: "block", fontSize: "11px", fontWeight: 600 }}>
+        {/* Center: Limits & Telemetry Summary Pills */}
+        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+          <Box sx={{ px: 2, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
               DAILY REMAINING
             </Typography>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "14px" }}>
+            <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "16px" }}>
               ₹{customer.dailyLimitRemaining.toLocaleString()}
             </Typography>
           </Box>
 
-          <Box sx={{ px: 1.5, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-            <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.65)", display: "block", fontSize: "11px", fontWeight: 600 }}>
+          <Box sx={{ px: 2, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
               MONTHLY REMAINING
             </Typography>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#34D399", fontSize: "14px" }}>
+            <Typography sx={{ fontWeight: 800, color: "#34D399", fontSize: "16px" }}>
               ₹{customer.monthlyLimitRemaining.toLocaleString()}
             </Typography>
           </Box>
 
-          <Box sx={{ px: 1.5, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-            <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.65)", display: "block", fontSize: "11px", fontWeight: 600 }}>
+          <Box sx={{ px: 2, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
               PREFERRED BANK
             </Typography>
             <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-              <AccountBalanceIcon sx={{ color: "#60A5FA", fontSize: 14 }} />
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "14px" }}>
+              <AccountBalanceIcon sx={{ color: "#60A5FA", fontSize: 16 }} />
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px" }}>
                 {customer.preferredBank}
               </Typography>
             </Stack>
           </Box>
+        </Stack>
+
+        {/* Right: Quick Actions */}
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<EditIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              height: 36,
+              fontSize: "13px",
+              fontWeight: 700,
+              borderRadius: "10px",
+              color: "#FFFFFF",
+              borderColor: "rgba(255, 255, 255, 0.2)",
+              bgcolor: "rgba(255, 255, 255, 0.05)",
+              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", transform: "translateY(-2px)" },
+              "&:active": { transform: "scale(0.98)" },
+              transition: "all 150ms ease",
+            }}
+          >
+            Edit
+          </Button>
+
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<HistoryIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              height: 36,
+              fontSize: "13px",
+              fontWeight: 700,
+              borderRadius: "10px",
+              color: "#FFFFFF",
+              borderColor: "rgba(255, 255, 255, 0.2)",
+              bgcolor: "rgba(255, 255, 255, 0.05)",
+              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", transform: "translateY(-2px)" },
+              "&:active": { transform: "scale(0.98)" },
+              transition: "all 150ms ease",
+            }}
+          >
+            History
+          </Button>
         </Stack>
       </Stack>
     </Paper>

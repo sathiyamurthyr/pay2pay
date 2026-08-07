@@ -16,7 +16,7 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
       p: 2,
       display: "flex",
       flexDirection: "column",
-      gap: 2,
+      gap: 3, // 24px gap
     }}
   >
     {/* 1. SMALL COMPACT PILL: SYSTEM STATUS SWITCH */}
@@ -32,7 +32,7 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
       <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 20 }} />
-          <Typography variant="caption" sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "12px", letterSpacing: "0.04em" }}>
+          <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "13px", letterSpacing: "0.04em" }}>
             SYSTEM STATUS: 100% ONLINE
           </Typography>
         </Stack>
@@ -44,7 +44,7 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
     <Paper
       elevation={0}
       sx={{
-        p: 2,
+        p: 2.5, // 20px padding
         borderRadius: "16px",
         bgcolor: "rgba(18, 27, 48, 0.75)",
         backdropFilter: "blur(20px)",
@@ -52,14 +52,14 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1.5 }}>
-        <SpeedIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
-        <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
+        <SpeedIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+        <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "13px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
           REAL-TIME BANK HEALTH
         </Typography>
       </Stack>
 
-      <Stack spacing={1.2}>
+      <Stack spacing={1.5}>
         {[
           { name: "HDFC Bank", success: "99.9%", status: "success" },
           { name: "ICICI Bank", success: "99.7%", status: "success" },
@@ -67,7 +67,7 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
           { name: "Axis Bank", success: "99.5%", status: "success" },
         ].map((b) => (
           <Stack key={b.name} direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px" }}>
+            <Typography sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "14px" }}>
               {b.name}
             </Typography>
             <StatusChip status={b.status as "success" | "warning"} label={b.success} />
@@ -80,7 +80,7 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
     <Paper
       elevation={0}
       sx={{
-        p: 2,
+        p: 2.5, // 20px padding
         borderRadius: "16px",
         bgcolor: "rgba(18, 27, 48, 0.75)",
         backdropFilter: "blur(20px)",
@@ -88,25 +88,25 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1.5 }}>
-        <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
-        <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
+        <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+        <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "13px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
           TODAY'S OPERATOR TELEMETRY
         </Typography>
       </Stack>
 
-      <Stack spacing={1}>
+      <Stack spacing={1.5}>
         <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-          <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600 }}>Today's Volume</Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>₹1,24,500.00</Typography>
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600, fontSize: "13px" }}>Today's Volume</Typography>
+          <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px" }}>₹1,24,500.00</Typography>
         </Stack>
         <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-          <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600 }}>Gross Commission</Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#4ADE80" }}>+ ₹450.00</Typography>
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600, fontSize: "13px" }}>Gross Commission</Typography>
+          <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "16px" }}>+ ₹450.00</Typography>
         </Stack>
         <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-          <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600 }}>Failed Transactions</Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#4ADE80" }}>0 Failures</Typography>
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600, fontSize: "13px" }}>Failed Transactions</Typography>
+          <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "16px" }}>0 Failures</Typography>
         </Stack>
       </Stack>
     </Paper>
@@ -115,7 +115,7 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
     <Paper
       elevation={0}
       sx={{
-        p: 2.5,
+        p: 3, // 24px padding
         borderRadius: "16px",
         bgcolor: "rgba(37, 99, 235, 0.2)",
         backdropFilter: "blur(20px)",
@@ -123,13 +123,13 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
         boxShadow: "0 8px 32px rgba(37, 99, 235, 0.25)",
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-        <AutoAwesomeIcon sx={{ color: "#60A5FA", fontSize: 22 }} />
-        <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px" }}>
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
+        <AutoAwesomeIcon sx={{ color: "#60A5FA", fontSize: 24 }} />
+        <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px" }}>
           AI Route Optimization
         </Typography>
       </Stack>
-      <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.90)", fontSize: "13px", lineHeight: 1.5 }}>
+      <Typography sx={{ color: "rgba(255, 255, 255, 0.90)", fontSize: "14px", lineHeight: 1.5 }}>
         HDFC DirectSwitch route selected automatically for minimum latency. Estimated settlement speed: <strong>1.2s</strong>.
       </Typography>
     </Paper>
@@ -138,23 +138,23 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
     <Paper
       elevation={0}
       sx={{
-        p: 2,
+        p: 2.5,
         borderRadius: "16px",
         bgcolor: "rgba(18, 27, 48, 0.75)",
         backdropFilter: "blur(20px)",
         border: "1px solid rgba(255, 255, 255, 0.12)",
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-        <NotificationsIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
-        <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1.5 }}>
+        <NotificationsIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+        <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "13px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
           LIVE NOTIFICATIONS
         </Typography>
       </Stack>
-      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "12px" }}>
+      <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "13px" }}>
         • Cashfree Penny Drop Verified (2m ago)
       </Typography>
-      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "12px", mt: 0.5 }}>
+      <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "13px", mt: 0.75 }}>
         • IMPS Settlement Completed (12m ago)
       </Typography>
     </Paper>

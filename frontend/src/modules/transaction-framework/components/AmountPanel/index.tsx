@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Typography, Stack, TextField, Chip, Paper } from "@mui/material";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 export interface AmountPanelProps {
   amount: number;
@@ -17,7 +18,7 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
     <Paper
       elevation={0}
       sx={{
-        p: 2.5,
+        p: 3, // 24px padding
         borderRadius: "16px",
         bgcolor: "rgba(18, 27, 48, 0.75)",
         backdropFilter: "blur(20px)",
@@ -26,23 +27,22 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
         width: "100%",
       }}
     >
+      {/* Card Section Header: 24px Section Title */}
       <Typography
-        variant="caption"
         sx={{
           color: "#60A5FA",
           fontWeight: 800,
-          fontSize: "14px",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          mb: 1.5,
+          fontSize: "24px",
+          letterSpacing: "-0.2px",
+          mb: 2,
           display: "block",
         }}
       >
-        ENTER TRANSFER AMOUNT & CHARGES BREAKDOWN
+        TRANSFER & CHARGES SUMMARY
       </Typography>
 
       {/* Row 1: Amount Input + Preset Chips */}
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={2} sx={{ alignItems: "center", mb: 2 }}>
+      <Stack direction={{ xs: "column", lg: "row" }} spacing={3} sx={{ alignItems: "center", mb: 3 }}>
         <TextField
           fullWidth
           type="number"
@@ -51,8 +51,8 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
           slotProps={{
             input: {
               sx: {
-                height: 48,
-                fontSize: "22px",
+                height: 56, // 56px height
+                fontSize: "24px", // 24px bold input text
                 fontWeight: 900,
                 color: "#FFFFFF",
                 borderRadius: "12px",
@@ -64,23 +64,23 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
           }}
         />
 
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1, flexShrink: 0 }}>
+        <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap", gap: 1.5, flexShrink: 0 }}>
           {[1000, 2000, 5000, 10000, 25000].map((quickVal) => (
             <Chip
               key={quickVal}
               label={`+₹${quickVal.toLocaleString()}`}
               onClick={() => onAmountChange(quickVal)}
               sx={{
-                height: 48,
-                px: 1.5,
+                height: 56,
+                px: 2,
                 borderRadius: "12px",
                 fontWeight: 800,
-                fontSize: "14px",
+                fontSize: "16px",
                 bgcolor: amount === quickVal ? "#2563EB" : "rgba(255, 255, 255, 0.08)",
                 color: amount === quickVal ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
                 border: amount === quickVal ? "1px solid #3B82F6" : "1px solid rgba(255, 255, 255, 0.12)",
                 cursor: "pointer",
-                "&:hover": { bgcolor: amount === quickVal ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)" },
+                "&:hover": { bgcolor: amount === quickVal ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", transform: "translateY(-2px)" },
                 "&:active": { transform: "scale(0.98)" },
                 transition: "all 150ms ease",
               }}
@@ -89,60 +89,83 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
         </Stack>
       </Stack>
 
-      {/* Row 2: All Aligned Charges & Net Debit Breakdown Summary Bar */}
+      {/* Row 2: Aligned Charges Breakdown Bar */}
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(5, 1fr)" },
-          gap: 1.5,
-          pt: 2,
+          gap: 2,
+          pt: 2.5,
           borderTop: "1px dashed rgba(255, 255, 255, 0.15)",
+          mb: 3,
         }}
       >
-        <Box sx={{ p: 1.5, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
-          <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.65)", display: "block", fontSize: "11px", fontWeight: 700 }}>
+        <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
             TRANSFER AMOUNT
           </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px" }}>
+          <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px" }}>
             ₹{amount.toLocaleString()}
           </Typography>
         </Box>
 
-        <Box sx={{ p: 1.5, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
-          <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.65)", display: "block", fontSize: "11px", fontWeight: 700 }}>
+        <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
             CONVENIENCE FEE
           </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "16px" }}>
+          <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "18px" }}>
             + ₹{fee.toLocaleString()}
           </Typography>
         </Box>
 
-        <Box sx={{ p: 1.5, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
-          <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.65)", display: "block", fontSize: "11px", fontWeight: 700 }}>
+        <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
             GST (18%)
           </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "16px" }}>
+          <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "18px" }}>
             + ₹{gst.toLocaleString()}
           </Typography>
         </Box>
 
-        <Box sx={{ p: 1.5, borderRadius: "10px", bgcolor: "rgba(34, 197, 94, 0.1)" }}>
-          <Typography variant="caption" sx={{ color: "#4ADE80", display: "block", fontSize: "11px", fontWeight: 700 }}>
+        <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(34, 197, 94, 0.1)" }}>
+          <Typography sx={{ color: "#4ADE80", display: "block", fontSize: "12px", fontWeight: 700 }}>
             EST. COMMISSION
           </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "16px" }}>
+          <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "18px" }}>
             + ₹{commission.toLocaleString()}
           </Typography>
         </Box>
 
-        <Box sx={{ p: 1.5, borderRadius: "10px", bgcolor: "rgba(37, 99, 235, 0.18)", border: "1px solid rgba(37, 99, 235, 0.3)" }}>
-          <Typography variant="caption" sx={{ color: "#60A5FA", display: "block", fontSize: "11px", fontWeight: 800 }}>
+        <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(37, 99, 235, 0.2)", border: "1px solid rgba(37, 99, 235, 0.4)" }}>
+          <Typography sx={{ color: "#60A5FA", display: "block", fontSize: "12px", fontWeight: 800 }}>
             NET WALLET DEBIT
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "18px" }}>
+          <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "24px" }}>
             ₹{totalPayable.toLocaleString()}
           </Typography>
         </Box>
+      </Box>
+
+      {/* Row 3: AI Route Optimization Recommendation Box Inside The Single Card */}
+      <Box
+        sx={{
+          p: 2,
+          borderRadius: "12px",
+          bgcolor: "rgba(37, 99, 235, 0.15)",
+          border: "1px solid rgba(37, 99, 235, 0.3)",
+        }}
+      >
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+          <AutoAwesomeIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+          <Box>
+            <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px" }}>
+              AI Smart Route Engine
+            </Typography>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontSize: "13px" }}>
+              HDFC DirectSwitch route selected automatically. Estimated settlement: <strong>1.2s</strong> · Success Probability: <strong>99.9%</strong>.
+            </Typography>
+          </Box>
+        </Stack>
       </Box>
     </Paper>
   );

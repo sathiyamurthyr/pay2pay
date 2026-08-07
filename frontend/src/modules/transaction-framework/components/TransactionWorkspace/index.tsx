@@ -41,9 +41,8 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
         />
       )}
 
-      {/* Amount Entry & Charges Breakdown */}
+      {/* Consolidated Transfer Summary Card (Amount, Charges, Commission, GST, Total, AI Suggestion) */}
       <AmountPanel amount={amount} onAmountChange={setAmount} charges={charges} totalPayable={totalPayable} />
-      <ChargesPanel amount={amount} charges={charges} totalPayable={totalPayable} />
 
       {/* Audit Ledger Data Grid */}
       <RecentTransactions />

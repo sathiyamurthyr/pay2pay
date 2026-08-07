@@ -44,18 +44,19 @@ export const TransactionSearch: React.FC<TransactionSearchProps> = ({
     <Box
       sx={{
         display: "flex",
-        flexDirection: { xs: "column", sm: "row" },
+        flexDirection: { xs: "column", md: "row" },
         alignItems: "center",
-        gap: 1.5,
+        gap: 2, // 16px (2 * 8px)
         width: "100%",
         bgcolor: "rgba(18, 27, 48, 0.75)",
         backdropFilter: "blur(20px)",
         border: "1px solid rgba(255, 255, 255, 0.12)",
         borderRadius: "16px",
-        p: 1.5,
+        p: 2, // 16px padding
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
       }}
     >
+      {/* Flexible Input (flex: 1) */}
       <TextField
         fullWidth
         variant="outlined"
@@ -66,16 +67,16 @@ export const TransactionSearch: React.FC<TransactionSearchProps> = ({
         slotProps={{
           input: {
             startAdornment: isSearching ? (
-              <CircularProgress size={20} sx={{ color: "#60A5FA", mr: 1 }} />
+              <CircularProgress size={22} sx={{ color: "#60A5FA", mr: 1.5 }} />
             ) : (
               <SearchIcon
                 onClick={handleTriggerSearch}
-                sx={{ color: "#60A5FA", mr: 1, fontSize: 22, cursor: "pointer" }}
+                sx={{ color: "#60A5FA", mr: 1.5, fontSize: 24, cursor: "pointer" }}
               />
             ),
             sx: {
-              height: 48,
-              fontSize: "15px",
+              height: 56, // Exact 56px height
+              fontSize: "16px",
               fontWeight: 600,
               color: "#FFFFFF",
               borderRadius: "12px",
@@ -86,23 +87,25 @@ export const TransactionSearch: React.FC<TransactionSearchProps> = ({
             },
           },
         }}
+        sx={{ flex: 1 }}
       />
 
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexShrink: 0 }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: "center", flexShrink: 0 }}>
+        {/* Search Button */}
         <Button
-          variant="outlined"
+          variant="contained"
           onClick={handleTriggerSearch}
           startIcon={<SearchIcon sx={{ fontSize: 20 }} />}
           sx={{
-            height: 48,
+            height: 56, // Exact 56px height
             borderRadius: "12px",
-            px: 2,
-            fontSize: "14px",
+            px: 3, // 24px padding
+            fontSize: "16px",
             fontWeight: 700,
             color: "#FFFFFF",
-            borderColor: "#2563EB",
             bgcolor: "#2563EB",
-            "&:hover": { bgcolor: "#1D4ED8" },
+            boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
+            "&:hover": { bgcolor: "#1D4ED8", transform: "translateY(-2px)" },
             "&:active": { transform: "scale(0.98)" },
             transition: "all 150ms ease",
           }}
@@ -110,19 +113,20 @@ export const TransactionSearch: React.FC<TransactionSearchProps> = ({
           Search
         </Button>
 
+        {/* Scan QR */}
         <Button
           variant="outlined"
           startIcon={<QrCodeScannerIcon sx={{ fontSize: 20 }} />}
           sx={{
-            height: 48,
+            height: 56, // Exact 56px height
             borderRadius: "12px",
-            px: 2,
-            fontSize: "14px",
-            fontWeight: 700,
+            px: 3, // 24px padding
+            fontSize: "16px",
+            fontWeight: 600,
             color: "#FFFFFF",
-            borderColor: "rgba(255, 255, 255, 0.25)",
+            borderColor: "rgba(255, 255, 255, 0.2)",
             bgcolor: "rgba(255, 255, 255, 0.05)",
-            "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", borderColor: "#60A5FA" },
+            "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", borderColor: "#60A5FA", transform: "translateY(-2px)" },
             "&:active": { transform: "scale(0.98)" },
             transition: "all 150ms ease",
           }}
@@ -130,20 +134,21 @@ export const TransactionSearch: React.FC<TransactionSearchProps> = ({
           Scan QR
         </Button>
 
+        {/* Paste */}
         <Button
           variant="outlined"
           onClick={handlePaste}
           startIcon={<ContentPasteIcon sx={{ fontSize: 20 }} />}
           sx={{
-            height: 48,
+            height: 56, // Exact 56px height
             borderRadius: "12px",
-            px: 2,
-            fontSize: "14px",
-            fontWeight: 700,
+            px: 3, // 24px padding
+            fontSize: "16px",
+            fontWeight: 600,
             color: "#FFFFFF",
-            borderColor: "rgba(255, 255, 255, 0.25)",
+            borderColor: "rgba(255, 255, 255, 0.2)",
             bgcolor: "rgba(255, 255, 255, 0.05)",
-            "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", borderColor: "#60A5FA" },
+            "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", borderColor: "#60A5FA", transform: "translateY(-2px)" },
             "&:active": { transform: "scale(0.98)" },
             transition: "all 150ms ease",
           }}
@@ -151,19 +156,21 @@ export const TransactionSearch: React.FC<TransactionSearchProps> = ({
           Paste
         </Button>
 
+        {/* Register Customer (Max Width: 220px) */}
         <Button
           variant="contained"
           startIcon={<PersonAddIcon sx={{ fontSize: 20 }} />}
           sx={{
-            height: 48,
+            height: 56, // Exact 56px height
+            maxWidth: 220, // Max width 220px constraint
             borderRadius: "12px",
-            px: 2.5,
-            fontSize: "14px",
+            px: 3, // 24px padding
+            fontSize: "16px",
             fontWeight: 700,
             color: "#FFFFFF",
             bgcolor: "#2563EB",
             boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
-            "&:hover": { bgcolor: "#1D4ED8" },
+            "&:hover": { bgcolor: "#1D4ED8", transform: "translateY(-2px)" },
             "&:active": { transform: "scale(0.98)" },
             transition: "all 150ms ease",
           }}
