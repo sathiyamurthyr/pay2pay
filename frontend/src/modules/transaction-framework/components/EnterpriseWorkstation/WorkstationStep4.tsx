@@ -331,8 +331,18 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Retailer Commission</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "13px" }}>+ ₹{Math.round(amount * 0.0035)}</Typography>
+                </Stack>
+
+                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Route</Typography>
                   <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "13px" }}>HDFC DirectSwitch</Typography>
+                </Stack>
+
+                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Reference No</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12px", fontFamily: "monospace" }}>REF-89120412</Typography>
                 </Stack>
               </Stack>
             </Box>

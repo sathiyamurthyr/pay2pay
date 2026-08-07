@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Box } from "@mui/material";
 import { WorkstationStep1 } from "./WorkstationStep1";
 import { WorkstationStep2 } from "./WorkstationStep2";
-import { WorkstationStep3 } from "./WorkstationStep3";
 import { WorkstationStep4 } from "./WorkstationStep4";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
@@ -64,9 +63,8 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
         e.preventDefault();
         if (currentStep === 1 && customer) setCurrentStep(2);
         else if (currentStep === 2 && selectedBeneficiary && amount > 0) setCurrentStep(3);
-        else if (currentStep === 3) setCurrentStep(4);
       } else if (e.key === "Escape") {
-        if (currentStep > 1 && currentStep < 4) setCurrentStep((prev) => prev - 1);
+        if (currentStep > 1) setCurrentStep((prev) => prev - 1);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -117,25 +115,13 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
         )}
 
         {currentStep === 3 && (
-          <WorkstationStep3
-            customer={customer}
-            beneficiary={selectedBeneficiary}
-            amount={amount}
-            charges={pricingResult.convenienceFee}
-            totalPayable={pricingResult.totalPayable}
-            onBack={() => setCurrentStep(2)}
-            onAuthorize={() => setCurrentStep(4)}
-          />
-        )}
-
-        {currentStep === 4 && (
           <WorkstationStep4
             customer={customer}
             beneficiary={selectedBeneficiary}
             amount={amount}
             charges={pricingResult.convenienceFee}
             totalPayable={pricingResult.totalPayable}
-            onBack={() => setCurrentStep(3)}
+            onBack={() => setCurrentStep(2)}
             onAuthorize={() => {
               onAmountChange(0);
               setCurrentStep(1);
