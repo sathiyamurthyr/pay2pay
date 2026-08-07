@@ -1164,131 +1164,21 @@ export default function DmtPage() {
   return (
     <Box sx={{ pb: 16, minHeight: "100vh", bgcolor: BG_DARK, color: TEXT_PRIMARY }}>
 
-      {/* ── 4-REGION ENTERPRISE OPERATING WORKSPACE WITH RESPONSIVE CSS GRID ENGINE ── */}
+      {/* ── 2-COLUMN ENTERPRISE WORKSPACE (FLEX CENTER WORKSPACE | 360px RIGHT OPERATIONS) ── */}
       <Box sx={{ width: "100%", px: 3, pt: 1, pb: 12 }}>
         <Box
           sx={{
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              sm: "1fr",
-              md: "220px minmax(650px, 1fr) 300px",
-              lg: "240px minmax(800px, 1fr) 340px",
-              xl: "260px minmax(900px, 1fr) 360px",
+              lg: "minmax(0, 1fr) 360px",
             },
             gap: 3,
             width: "100%",
             alignItems: "start",
           }}
         >
-          {/* ── REGION 2: LEFT OPERATIONS TOOLBOX (260px FIXED GRID COLUMN) ── */}
-          <Box sx={{ width: "100%", minWidth: 0 }}>
-            <Stack spacing={2}>
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, borderTop: `4px solid ${PRIMARY_BLUE}` }}>
-                <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
-                  OPERATOR TOOLBOX
-                </Typography>
 
-                <Stack spacing={2}>
-                  {[
-                    {
-                      category: "PAYMENTS",
-                      items: [
-                        { label: "Money Transfer", active: true },
-                        { label: "Card To Cash", active: false },
-                        { label: "AEPS Cash Out", active: false },
-                        { label: "UPI Services", active: false },
-                        { label: "BBPS Pay", active: false },
-                        { label: "Recharge", active: false },
-                      ],
-                    },
-                    {
-                      category: "WALLET",
-                      items: [
-                        { label: "Wallet", active: false },
-                        { label: "Wallet Statement", active: false },
-                      ],
-                    },
-                    {
-                      category: "CUSTOMERS",
-                      items: [
-                        { label: "Customer Directory", active: false },
-                        { label: "Beneficiaries", active: false },
-                      ],
-                    },
-                    {
-                      category: "BUSINESS",
-                      items: [
-                        { label: "Reports", active: false },
-                        { label: "Commission", active: false },
-                        { label: "Settlement", active: false },
-                      ],
-                    },
-                    {
-                      category: "SUPPORT",
-                      items: [
-                        { label: "Support", active: false },
-                        { label: "Settings", active: false },
-                      ],
-                    },
-                  ].map((grp) => (
-                    <Box key={grp.category}>
-                      <Typography variant="caption" sx={{ color: ACCENT_BLUE, fontWeight: 800, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 0.5 }}>
-                        {grp.category}
-                      </Typography>
-                      <Stack spacing={0.4}>
-                        {grp.items.map((nav) => (
-                          <Box
-                            key={nav.label}
-                            sx={{
-                              px: 1.5,
-                              py: 0.8,
-                              borderRadius: "8px",
-                              bgcolor: nav.active ? "rgba(37, 99, 235, 0.15)" : "transparent",
-                              color: nav.active ? PRIMARY_BLUE : TEXT_PRIMARY,
-                              border: nav.active ? `1px solid ${PRIMARY_BLUE}` : "1px solid transparent",
-                              fontWeight: nav.active ? 800 : 600,
-                              fontSize: "13px",
-                              cursor: "pointer",
-                              transition: "all 0.15s ease",
-                              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.05)" },
-                            }}
-                          >
-                            {nav.label}
-                          </Box>
-                        ))}
-                      </Stack>
-                    </Box>
-                  ))}
-                </Stack>
-              </Paper>
-
-              {/* TODAY'S OPERATOR KPIS */}
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, bgcolor: SURFACE_DARK }}>
-                <Typography variant="caption" sx={{ color: ACCENT_BLUE, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
-                  TODAY'S OPERATOR KPIS
-                </Typography>
-                <Stack spacing={1}>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Today's Volume</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: TEXT_PRIMARY }}>₹1,24,500</Typography>
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Today's Commission</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹450.00</Typography>
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Pending</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>0 Pending</Typography>
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Failures</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>0 Failures</Typography>
-                  </Stack>
-                </Stack>
-              </Paper>
-            </Stack>
-          </Box>
 
           {/* ── REGION 3: CENTER TRANSACTION WORKSPACE (FLEXIBLE, MIN 70%) ── */}
           <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
