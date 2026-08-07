@@ -80,57 +80,73 @@ import {
 } from "@/components/enterprise-design-system";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ENTERPRISE BANKING DESIGN SYSTEM TOKENS & BUTTON STYLES
+// DARK NAVY 4K ENTERPRISE DESIGN SYSTEM TOKENS & GLASS STYLES
 // ─────────────────────────────────────────────────────────────────────────────
-const BANK_BLUE = "#0F2C59";
-const BANK_BLUE_HOVER = "#0A2042";
-const BANK_BLUE_LIGHT = "#F4F7FC";
+const BG_DARK = "#08111F";
+const SURFACE_DARK = "#0F172A";
+const CARD_GLASS = "rgba(18, 27, 48, 0.72)";
+const BORDER_GLASS = "rgba(255, 255, 255, 0.08)";
 
-const BANK_GOLD = "#D4AF37";
-const BANK_GOLD_LIGHT = "#FFF8E8";
-const BANK_GOLD_BORDER = "#F7E7B6";
+const PRIMARY_BLUE = "#2563EB";
+const PRIMARY_BLUE_HOVER = "#1E40AF";
+const ACCENT_BLUE = "#3B82F6";
 
-const BANK_MAROON = "#7B1E3A";
-const BANK_BURGUNDY = "#8D1B3D";
-const BANK_MAROON_DARK = "#5C132B";
-const BANK_MAROON_LIGHT = "#F8EEF2";
+const SUCCESS_GREEN = "#22C55E";
+const SUCCESS_LIGHT = "rgba(34, 197, 94, 0.12)";
 
-const PRIMARY_GRADIENT = "linear-gradient(135deg, #7B1E3A 0%, #8D1B3D 45%, #D4AF37 100%)";
-const SEARCH_BLUE_GRADIENT = "linear-gradient(135deg, #0F2C59 0%, #1A407B 100%)";
+const WARNING_AMBER = "#F59E0B";
+const WARNING_LIGHT = "rgba(245, 158, 11, 0.12)";
 
-const SUCCESS_GREEN = "#16A34A";
-const SUCCESS_LIGHT = "#ECFDF5";
+const DANGER_RED = "#EF4444";
+const DANGER_LIGHT = "rgba(239, 68, 68, 0.12)";
 
-const ERROR_RED = "#DC2626";
-const ERROR_LIGHT = "#FEF2F2";
+const TEXT_PRIMARY = "#F8FAFC";
+const TEXT_SECONDARY = "#94A3B8";
+
+// Legacy fallback mappings for component compatibility
+const BANK_BLUE = PRIMARY_BLUE;
+const BANK_BLUE_HOVER = PRIMARY_BLUE_HOVER;
+const BANK_BLUE_LIGHT = "rgba(37, 99, 235, 0.12)";
+const BANK_GOLD = ACCENT_BLUE;
+const BANK_GOLD_LIGHT = "rgba(59, 130, 246, 0.12)";
+const BANK_GOLD_BORDER = BORDER_GLASS;
+const BANK_MAROON = PRIMARY_BLUE;
+const BANK_BURGUNDY = PRIMARY_BLUE;
+const BANK_MAROON_DARK = PRIMARY_BLUE_HOVER;
+const BANK_MAROON_LIGHT = "rgba(37, 99, 235, 0.12)";
+const PRIMARY_GRADIENT = "linear-gradient(135deg, #2563EB 0%, #3B82F6 100%)";
+const SEARCH_BLUE_GRADIENT = "linear-gradient(135deg, #1E40AF 0%, #2563EB 100%)";
+const ERROR_RED = DANGER_RED;
+const ERROR_LIGHT = DANGER_LIGHT;
 
 const CARD_STYLE = {
-  borderRadius: "24px",
-  border: "1px solid #E8EBF3",
-  boxShadow: "0 8px 32px rgba(15, 44, 89, 0.06)",
-  backgroundColor: "#FFFFFF",
+  borderRadius: "16px",
+  border: `1px solid ${BORDER_GLASS}`,
+  backgroundColor: CARD_GLASS,
+  backdropFilter: "blur(20px)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
 };
 
 const PRIMARY_BTN_SX = {
   background: PRIMARY_GRADIENT,
   color: "#FFFFFF",
   fontWeight: 800,
-  fontSize: "18px",
-  borderRadius: "18px",
-  height: "60px",
-  px: 4,
+  fontSize: "16px",
+  borderRadius: "12px",
+  height: "52px",
+  px: 3.5,
   textTransform: "none",
-  boxShadow: "0 6px 24px rgba(123, 30, 58, 0.28), 0 2px 8px rgba(212, 175, 55, 0.25)",
-  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+  boxShadow: "0 4px 16px rgba(37, 99, 235, 0.3)",
+  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
   "&:hover": {
     background: PRIMARY_GRADIENT,
-    boxShadow: "0 10px 30px rgba(212, 175, 55, 0.45), 0 6px 16px rgba(123, 30, 58, 0.35)",
-    transform: "translateY(-2px)",
+    boxShadow: "0 6px 24px rgba(59, 130, 246, 0.45)",
+    transform: "translateY(-1px)",
   },
   "&:disabled": {
-    background: "#E5E7EB !important",
-    border: "1px solid #CBD5E1 !important",
-    color: "#9CA3AF !important",
+    background: "rgba(255, 255, 255, 0.08) !important",
+    border: "1px solid rgba(255, 255, 255, 0.12) !important",
+    color: "#64748B !important",
     boxShadow: "none !important",
     transform: "none !important",
   },
@@ -1142,7 +1158,7 @@ export default function DmtPage() {
   }
 
   return (
-    <Box sx={{ pb: 16, minHeight: "100vh", bgcolor: "#F6F8FC", color: "#0F172A" }}>
+    <Box sx={{ pb: 16, minHeight: "100vh", bgcolor: BG_DARK, color: TEXT_PRIMARY }}>
 
       {/* ── 3-COLUMN RESPONSIVE ENTERPRISE OPERATING PLATFORM (20% LEFT | 58% CENTER | 22% RIGHT) ── */}
       <Box sx={{ maxWidth: 1780, mx: "auto", px: 3, pt: 2 }}>
