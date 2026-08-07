@@ -45,7 +45,7 @@ import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
 import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
 import { RightContextPanel } from "./right-context-panel";
 
-const FULL_DRAWER_WIDTH = 260;
+const FULL_DRAWER_WIDTH = 310;
 const COLLAPSED_DRAWER_WIDTH = 72;
 
 const KPI_THEMES: { id: KpiTheme; label: string; swatch: string }[] = [
@@ -152,10 +152,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         borderRight: "1px solid rgba(255, 255, 255, 0.08)",
       }}
     >
-      {/* PAY2PAY Brand Logo Header (64px) */}
+      {/* PAY2PAY Brand Logo Header (72px) */}
       <Box
         sx={{
-          height: 64,
+          height: 72,
           px: isCollapsed ? 1.5 : 2.5,
           display: "flex",
           alignItems: "center",
@@ -164,20 +164,20 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           bgcolor: "rgba(15, 23, 42, 0.6)",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
           <Box
             sx={{
-              width: 36,
-              height: 36,
-              borderRadius: "10px",
+              width: 48,
+              height: 48,
+              borderRadius: "12px",
               background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#FFFFFF",
               fontWeight: 900,
-              fontSize: "14px",
-              boxShadow: "0 4px 12px rgba(37, 99, 235, 0.35)",
+              fontSize: "18px",
+              boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
               flexShrink: 0,
             }}
           >
@@ -185,10 +185,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           </Box>
           {!isCollapsed && (
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#F8FAFC", lineHeight: 1.2, whiteSpace: "nowrap" }}>
-                PAY2PAY <Typography component="span" sx={{ color: "#3B82F6", fontWeight: 700, fontSize: "12px" }}>ENT</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 900, color: "#F8FAFC", fontSize: "22px", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+                PAY2PAY
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "10px", whiteSpace: "nowrap" }}>
+              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "13px", display: "block", whiteSpace: "nowrap" }}>
                 Enterprise Operations
               </Typography>
             </Box>
@@ -202,22 +202,22 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               size="small"
               sx={{ display: { xs: "none", lg: "flex" }, color: "#94A3B8", "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
             >
-              <ChevronLeftIcon sx={{ fontSize: 18 }} />
+              <ChevronLeftIcon sx={{ fontSize: 20 }} />
             </IconButton>
           </Tooltip>
         )}
       </Box>
 
-      {/* Categorized Dark Operator Navigation List */}
-      <Box sx={{ flex: 1, py: 1.5, px: isCollapsed ? 1 : 1.5, overflowY: "auto" }}>
+      {/* Categorized Enterprise Dark Navigation List */}
+      <Box sx={{ flex: 1, py: 2, px: isCollapsed ? 1 : 1.5, overflowY: "auto" }}>
         {navCategories.map((cat) => (
-          <Box key={cat.title} sx={{ mb: 2 }}>
+          <Box key={cat.title} sx={{ mb: 2.5 }}>
             {!isCollapsed && (
-              <Typography variant="caption" sx={{ color: "#3B82F6", fontWeight: 800, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.8px", px: 1.5, display: "block", mb: 0.5 }}>
+              <Typography variant="caption" sx={{ color: "#3B82F6", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "20px", display: "block", mb: 0.8 }}>
                 {cat.title}
               </Typography>
             )}
-            <Stack spacing={0.4}>
+            <Stack spacing={0.6}>
               {cat.items.map((item) => {
                 const IconComponent = item.icon;
                 const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
@@ -229,24 +229,40 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       href={item.path}
                       onClick={() => setMobileOpen(false)}
                       sx={{
+                        position: "relative",
                         display: "flex",
                         alignItems: "center",
-                        height: 38,
-                        borderRadius: "10px",
-                        px: isCollapsed ? 0 : 1.5,
+                        height: 56,
+                        borderRadius: "12px",
+                        px: isCollapsed ? 0 : "20px",
                         justifyContent: isCollapsed ? "center" : "space-between",
-                        backgroundColor: isActive ? "rgba(37, 99, 235, 0.2)" : "transparent",
-                        color: isActive ? "#60A5FA" : "#CBD5E1",
-                        border: isActive ? "1px solid #2563EB" : "1px solid transparent",
+                        backgroundColor: isActive ? "rgba(37, 99, 235, 0.18)" : "transparent",
+                        color: isActive ? "#FFFFFF" : "#CBD5E1",
                         textDecoration: "none",
-                        transition: "all 0.15s ease",
-                        "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.05)", color: "#F8FAFC" },
+                        boxShadow: isActive ? "0 4px 16px rgba(37, 99, 235, 0.25)" : "none",
+                        transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+                        "&::before": isActive
+                          ? {
+                              content: '""',
+                              position: "absolute",
+                              left: 0,
+                              top: "8px",
+                              bottom: "8px",
+                              width: "4px",
+                              borderRadius: "2px",
+                              backgroundColor: "#2563EB",
+                            }
+                          : {},
+                        "&:hover": {
+                          backgroundColor: isActive ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                          color: "#FFFFFF",
+                        },
                       }}
                     >
-                      <Stack direction="row" spacing={1.2} sx={{ alignItems: "center", minWidth: 0 }}>
-                        <IconComponent sx={{ fontSize: 18, color: isActive ? "#60A5FA" : "#94A3B8" }} />
+                      <Stack direction="row" spacing={2} sx={{ alignItems: "center", minWidth: 0 }}>
+                        <IconComponent sx={{ fontSize: 22, color: isActive ? "#3B82F6" : "#94A3B8" }} />
                         {!isCollapsed && (
-                          <Typography sx={{ fontSize: "13px", fontWeight: isActive ? 700 : 500, whiteSpace: "nowrap" }}>
+                          <Typography sx={{ fontSize: "16px", fontWeight: isActive ? 700 : 600, lineHeight: "24px", whiteSpace: "nowrap" }}>
                             {item.label}
                           </Typography>
                         )}
@@ -257,8 +273,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                           label={item.badge}
                           size="small"
                           sx={{
-                            height: 18,
-                            fontSize: "9px",
+                            height: 20,
+                            fontSize: "10px",
                             fontWeight: 800,
                             backgroundColor: isActive ? "#2563EB" : "rgba(255,255,255,0.08)",
                             color: isActive ? "#FFFFFF" : "#94A3B8",
