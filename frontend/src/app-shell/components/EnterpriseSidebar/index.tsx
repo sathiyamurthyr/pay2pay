@@ -98,28 +98,38 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
         </IconButton>
       </Box>
 
-      {/* Scrollable Navigation Groups */}
-      <Box sx={{ flex: 1, px: isCollapsed ? 1 : 2, py: 1, overflowY: "auto" }}>
+      {/* Clean Navigation Groups (No Scrollbars, Compact Fonts) */}
+      <Box
+        sx={{
+          flex: 1,
+          px: isCollapsed ? 1 : 1.5,
+          py: 1,
+          overflowY: "auto",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          "&::-webkit-scrollbar": { display: "none" },
+        }}
+      >
         {categories.map((cat) => (
-          <Box key={cat.title} sx={{ mb: 3 }}>
+          <Box key={cat.title} sx={{ mb: 1.5 }}>
             {!isCollapsed && (
               <Typography
                 variant="caption"
                 sx={{
                   color: "#60A5FA",
                   fontWeight: 800,
-                  fontSize: "14px",
+                  fontSize: "11px",
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
-                  px: "20px",
-                  mb: 1.2,
+                  px: "14px",
+                  mb: 0.5,
                   display: "block",
                 }}
               >
                 {cat.title}
               </Typography>
             )}
-            <Stack spacing={0.8}>
+            <Stack spacing={0.4}>
               {cat.items.map((item) => {
                 const IconComp = item.icon;
                 const isActive = activePath === item.path;
@@ -131,23 +141,23 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         position: "relative",
                         display: "flex",
                         alignItems: "center",
-                        height: 56,
-                        borderRadius: tokens.radii.lg,
-                        px: isCollapsed ? 0 : "20px",
+                        height: 44,
+                        borderRadius: "10px",
+                        px: isCollapsed ? 0 : "14px",
                         justifyContent: isCollapsed ? "center" : "space-between",
                         bgcolor: isActive ? "#2563EB" : "transparent",
                         color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.88)",
                         cursor: "pointer",
-                        boxShadow: isActive ? "0 4px 16px rgba(37, 99, 235, 0.4)" : "none",
+                        boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
                         transition: "all 150ms ease",
                         "&:hover": { bgcolor: isActive ? "#1D4ED8" : "rgba(255, 255, 255, 0.08)", color: "#FFFFFF" },
                         "&:active": { transform: "scale(0.98)" },
                       }}
                     >
-                      <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                        <IconComp sx={{ fontSize: 24, color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.88)" }} />
+                      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                        <IconComp sx={{ fontSize: 20, color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.88)" }} />
                         {!isCollapsed && (
-                          <Typography sx={{ fontSize: "16px", fontWeight: isActive ? 700 : 600, lineHeight: "24px" }}>
+                          <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 500, lineHeight: "20px" }}>
                             {item.label}
                           </Typography>
                         )}
@@ -158,8 +168,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                           label={item.badge}
                           size="small"
                           sx={{
-                            height: 20,
-                            fontSize: "10px",
+                            height: 18,
+                            fontSize: "9px",
                             fontWeight: 800,
                             bgcolor: isActive ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.12)",
                             color: "#FFFFFF",

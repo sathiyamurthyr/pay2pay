@@ -209,15 +209,25 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       </Box>
 
       {/* Categorized Enterprise Dark Navigation List */}
-      <Box sx={{ flex: 1, py: 2, px: isCollapsed ? 1 : 1.5, overflowY: "auto" }}>
+      <Box
+        sx={{
+          flex: 1,
+          py: 1.5,
+          px: isCollapsed ? 1 : 1.5,
+          overflowY: "auto",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          "&::-webkit-scrollbar": { display: "none" },
+        }}
+      >
         {navCategories.map((cat) => (
-          <Box key={cat.title} sx={{ mb: 2.5 }}>
+          <Box key={cat.title} sx={{ mb: 1.5 }}>
             {!isCollapsed && (
-              <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "20px", display: "block", mb: 0.8 }}>
+              <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "14px", display: "block", mb: 0.5 }}>
                 {cat.title}
               </Typography>
             )}
-            <Stack spacing={0.6}>
+            <Stack spacing={0.4}>
               {cat.items.map((item) => {
                 const IconComponent = item.icon;
                 const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
@@ -232,37 +242,37 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                         position: "relative",
                         display: "flex",
                         alignItems: "center",
-                        height: 56,
-                        borderRadius: "12px",
-                        px: isCollapsed ? 0 : "20px",
+                        height: 44,
+                        borderRadius: "10px",
+                        px: isCollapsed ? 0 : "14px",
                         justifyContent: isCollapsed ? "center" : "space-between",
-                        backgroundColor: isActive ? "rgba(37, 99, 235, 0.25)" : "transparent",
+                        backgroundColor: isActive ? "rgba(37, 99, 235, 0.35)" : "transparent",
                         color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
                         textDecoration: "none",
-                        boxShadow: isActive ? "0 4px 16px rgba(37, 99, 235, 0.35)" : "none",
+                        boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
                         transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
                         "&::before": isActive
                           ? {
                               content: '""',
                               position: "absolute",
                               left: 0,
-                              top: "8px",
-                              bottom: "8px",
-                              width: "4px",
+                              top: "6px",
+                              bottom: "6px",
+                              width: "3px",
                               borderRadius: "2px",
                               backgroundColor: "#2563EB",
                             }
                           : {},
                         "&:hover": {
-                          backgroundColor: isActive ? "rgba(37, 99, 235, 0.35)" : "rgba(255, 255, 255, 0.08)",
+                          backgroundColor: isActive ? "rgba(37, 99, 235, 0.45)" : "rgba(255, 255, 255, 0.08)",
                           color: "#FFFFFF",
                         },
                       }}
                     >
-                      <Stack direction="row" spacing={2} sx={{ alignItems: "center", minWidth: 0 }}>
-                        <IconComponent sx={{ fontSize: 22, color: isActive ? "#60A5FA" : "rgba(255, 255, 255, 0.88)" }} />
+                      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
+                        <IconComponent sx={{ fontSize: 20, color: isActive ? "#60A5FA" : "rgba(255, 255, 255, 0.88)" }} />
                         {!isCollapsed && (
-                          <Typography sx={{ fontSize: "16px", fontWeight: isActive ? 700 : 600, lineHeight: "24px", whiteSpace: "nowrap", color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)" }}>
+                          <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 500, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)" }}>
                             {item.label}
                           </Typography>
                         )}
@@ -273,8 +283,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                           label={item.badge}
                           size="small"
                           sx={{
-                            height: 20,
-                            fontSize: "10px",
+                            height: 18,
+                            fontSize: "9px",
                             fontWeight: 800,
                             backgroundColor: isActive ? "#2563EB" : "rgba(255,255,255,0.12)",
                             color: "#FFFFFF",
