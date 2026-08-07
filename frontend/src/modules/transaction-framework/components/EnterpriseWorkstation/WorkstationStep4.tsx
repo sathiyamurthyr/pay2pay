@@ -6,20 +6,16 @@ import {
   Paper,
   Button,
   Divider,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  Chip,
 } from "@mui/material";
-import LockIcon from "@mui/icons-material/Lock";
-import ShieldIcon from "@mui/icons-material/Shield";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import SyncIcon from "@mui/icons-material/Sync";
-import VpnKeyIcon from "@mui/icons-material/VpnKey";
-import SecurityIcon from "@mui/icons-material/Security";
+import LockIcon from "@mui/icons-material/Lock";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
@@ -61,36 +57,34 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
-  // Auto focus first digit input on mount
+  // Auto focus first digit input box on mount
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
 
   const currentPin = pinDigits.join("");
 
-  // Handle typing & keypad input
   const handleAddDigit = (digit: string) => {
     if (isLocked || isExecuting) return;
 
     const firstEmptyIndex = pinDigits.findIndex((d) => d === "");
     if (firstEmptyIndex !== -1) {
-      bankingSounds.playWarning(); // Low tick for key press
+      bankingSounds.playWarning();
       const nextDigits = [...pinDigits];
       nextDigits[firstEmptyIndex] = digit;
       setPinDigits(nextDigits);
       setRevealedIndex(firstEmptyIndex);
 
-      // Reveal last typed digit for 300ms
+      // Reveal digit for 300ms, then mask to dot
       setTimeout(() => {
         setRevealedIndex((prev) => (prev === firstEmptyIndex ? null : prev));
       }, 300);
 
-      // Move focus to next input box
       if (firstEmptyIndex < pinLength - 1) {
         inputRefs.current[firstEmptyIndex + 1]?.focus();
       }
 
-      // Auto Submit Engine if last digit entered
+      // Auto Submit Engine after 4th digit
       if (firstEmptyIndex === pinLength - 1 && config.autoSubmit) {
         executeAuthorizationPipeline(nextDigits.join(""));
       }
@@ -111,13 +105,6 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     }
   };
 
-  const handleClearPin = () => {
-    if (isLocked || isExecuting) return;
-    setPinDigits(Array(pinLength).fill(""));
-    setRevealedIndex(null);
-    inputRefs.current[0]?.focus();
-  };
-
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
     if (isLocked || isExecuting) return;
@@ -134,7 +121,6 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     }
   };
 
-  // Execution Pipeline: Multi-step Loader Sequence (Step 1 to Step 6)
   const executeAuthorizationPipeline = async (pinValue: string) => {
     if (isLocked || isExecuting) return;
 
@@ -142,7 +128,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       customerId: customer?.id,
       beneficiaryId: beneficiary?.id,
       pin: pinValue,
-      deviceId: "POS-TERM-8891",
+      deviceId: "DESKTOP-CBS-01",
       terminalId: "TERM-DELHI-01",
       ip: "10.0.4.15",
     });
@@ -166,18 +152,17 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         }
       }, 600);
     } else {
-      // PIN Verified - Execute 6-Step Multi-Stage Loader Sequence
       bankingSounds.playSuccess();
       setIsExecuting(true);
       setErrorMessage(null);
-      setLoaderStep(1); // Step 1: PIN Verified
+      setLoaderStep(1);
 
-      setTimeout(() => setLoaderStep(2), 300); // Step 2: Wallet Debited
-      setTimeout(() => setLoaderStep(3), 600); // Step 3: Settlement Created
-      setTimeout(() => setLoaderStep(4), 900); // Step 4: NPCI Processing
-      setTimeout(() => setLoaderStep(5), 1200); // Step 5: Bank Processing
+      setTimeout(() => setLoaderStep(2), 300);
+      setTimeout(() => setLoaderStep(3), 600);
+      setTimeout(() => setLoaderStep(4), 900);
+      setTimeout(() => setLoaderStep(5), 1200);
       setTimeout(() => {
-        setLoaderStep(6); // Step 6: Completed
+        setLoaderStep(6);
         onAuthorize();
       }, 1500);
     }
@@ -198,7 +183,6 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     }
   };
 
-  // Keyboard Navigation & Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isLocked || isExecuting || supervisorModalOpen) return;
@@ -223,7 +207,6 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentPin, isLocked, isExecuting, supervisorModalOpen]);
 
-  const keypad = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Delete"];
   const gst = Math.round(charges * 0.18);
 
   const loaderSteps = [
@@ -257,7 +240,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           bgcolor: "rgba(18, 27, 48, 0.85)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
-          p: 3,
+          p: 3.5,
           boxSizing: "border-box",
         }}
       >
@@ -266,17 +249,17 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              md: "45% 55%",
+              md: "55% 45%",
             },
-            gap: 3,
+            gap: 3.5,
             alignItems: "stretch",
           }}
         >
-          {/* ── LEFT PANEL (45%): TRANSACTION SUMMARY ── */}
+          {/* ── LEFT PANEL (55%): TRANSACTION SUMMARY & AUDIT PREVIEW ── */}
           <Paper
             elevation={0}
             sx={{
-              p: 2.5,
+              p: 3,
               borderRadius: "14px",
               bgcolor: "rgba(255, 255, 255, 0.03)",
               border: "1px solid rgba(255, 255, 255, 0.08)",
@@ -287,10 +270,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           >
             <Box>
               <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", mb: 2 }}>
-                TRANSACTION SUMMARY
+                TRANSACTION SUMMARY & AUDIT PREVIEW
               </Typography>
 
-              <Stack spacing={1.25}>
+              <Stack spacing={1.5}>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Customer</Typography>
                   <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "14px" }}>{customer?.name || "Ramesh Kumar"}</Typography>
@@ -315,7 +298,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Transfer Amount</Typography>
-                  <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px" }}>₹{amount.toLocaleString()}</Typography>
+                  <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "17px" }}>₹{amount.toLocaleString()}</Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
@@ -331,7 +314,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "13px" }}>WALLET DEBIT</Typography>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "14px" }}>WALLET DEBIT</Typography>
                   <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "18px" }}>₹{totalPayable.toLocaleString()}</Typography>
                 </Stack>
 
@@ -358,14 +341,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             <Paper
               elevation={0}
               sx={{
-                p: 1.25,
-                mt: 2,
+                p: 1.5,
+                mt: 3,
                 borderRadius: "8px",
                 bgcolor: "rgba(74, 222, 128, 0.15)",
                 border: "1px solid rgba(74, 222, 128, 0.3)",
                 color: "#4ADE80",
                 fontWeight: 900,
-                fontSize: "13px",
+                fontSize: "14px",
                 textAlign: "center",
               }}
             >
@@ -373,35 +356,35 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             </Paper>
           </Paper>
 
-          {/* ── RIGHT PANEL (55%): PIN AUTHORIZATION ENGINE ── */}
+          {/* ── RIGHT PANEL (45%): DESKTOP PIN AUTHORIZATION CONSOLE ── */}
           <Paper
             elevation={0}
             sx={{
-              p: 2.5,
+              p: 3,
               borderRadius: "14px",
               bgcolor: "rgba(255, 255, 255, 0.03)",
               border: "1px solid rgba(255, 255, 255, 0.08)",
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
               justifyContent: "space-between",
+              boxSizing: "border-box",
             }}
           >
-            <Box sx={{ width: "100%", textAlign: "center" }}>
-              <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "20px", mb: 0.5 }}>
-                Enter Transaction PIN ({pinLength} Digits)
+            <Box sx={{ width: "100%" }}>
+              <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "22px", mb: 0.5 }}>
+                Enter Transaction PIN
               </Typography>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px", mb: 2 }}>
-                Authenticate to execute transaction.
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13.5px", mb: 3 }}>
+                Enter your secure 4-digit operator PIN.
               </Typography>
 
-              {/* Status / Error Callout */}
+              {/* Error Callout */}
               {errorMessage && (
                 <Paper
                   elevation={0}
                   sx={{
-                    p: 1,
-                    mb: 2,
+                    p: 1.25,
+                    mb: 2.5,
                     borderRadius: "8px",
                     bgcolor: "rgba(239, 68, 68, 0.15)",
                     border: "1px solid #EF4444",
@@ -428,13 +411,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 </Paper>
               )}
 
-              {/* REAL-TIME 6-STEP LOADER SEQUENCE */}
+              {/* REAL-TIME LOADER PIPELINE */}
               {isExecuting && (
-                <Paper elevation={0} sx={{ p: 1.5, mb: 2, borderRadius: "10px", bgcolor: "rgba(37, 99, 235, 0.15)", border: "1px solid #2563EB" }}>
-                  <Typography sx={{ color: "#60A5FA", fontWeight: 900, fontSize: "12px", textTransform: "uppercase", mb: 1 }}>
-                    REAL-TIME AUTHORIZATION PIPELINE
+                <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: "10px", bgcolor: "rgba(37, 99, 235, 0.15)", border: "1px solid #2563EB" }}>
+                  <Typography sx={{ color: "#60A5FA", fontWeight: 900, fontSize: "12px", textTransform: "uppercase", mb: 1.5 }}>
+                    AUTHORIZING TRANSACTION...
                   </Typography>
-                  <Stack spacing={0.5}>
+                  <Stack spacing={0.75}>
                     {loaderSteps.map((stepText, idx) => {
                       const stepNum = idx + 1;
                       const isDone = stepNum < loaderStep;
@@ -442,13 +425,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       return (
                         <Stack key={stepText} direction="row" spacing={1} sx={{ alignItems: "center" }}>
                           {isDone ? (
-                            <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 14 }} />
+                            <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 15 }} />
                           ) : isCurrent ? (
-                            <SyncIcon sx={{ color: "#60A5FA", fontSize: 14, animation: "spin 1s linear infinite" }} />
+                            <SyncIcon sx={{ color: "#60A5FA", fontSize: 15, animation: "spin 1s linear infinite" }} />
                           ) : (
                             <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "rgba(255, 255, 255, 0.3)", ml: 0.5 }} />
                           )}
-                          <Typography sx={{ fontSize: "11px", fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#60A5FA" : isDone ? "#4ADE80" : "rgba(255, 255, 255, 0.4)" }}>
+                          <Typography sx={{ fontSize: "11.5px", fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#60A5FA" : isDone ? "#4ADE80" : "rgba(255, 255, 255, 0.4)" }}>
                             {stepText}
                           </Typography>
                         </Stack>
@@ -458,14 +441,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 </Paper>
               )}
 
-              {/* OTP STYLE DIGIT BOXES (64x64, 12px Radius, 36px Font) */}
+              {/* 4 OTP STYLE PIN BOXES (64x64, 12px Radius, 34px Font, 14px Spacing) */}
               <Box
                 onPaste={handlePaste}
                 sx={{
                   display: "flex",
                   justifyContent: "center",
                   gap: "14px",
-                  mb: 2.5,
+                  mb: 2,
                   animation: isShaking ? "shake 0.4s ease-in-out" : "none",
                   "@keyframes shake": {
                     "0%, 100%": { transform: "translateX(0)" },
@@ -484,8 +467,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                       key={idx}
                       onClick={() => inputRefs.current[idx]?.focus()}
                       sx={{
-                        width: 60,
-                        height: 60,
+                        width: 64,
+                        height: 64,
                         borderRadius: "12px",
                         bgcolor: digit ? "rgba(37, 99, 235, 0.25)" : "rgba(8, 17, 31, 0.9)",
                         border: errorMessage ? "2px solid #EF4444" : digit ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.15)",
@@ -493,7 +476,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         alignItems: "center",
                         justifyContent: "center",
                         color: "#FFFFFF",
-                        fontSize: "32px",
+                        fontSize: "34px",
                         fontWeight: 700,
                         boxShadow: digit ? "0 4px 16px rgba(37, 99, 235, 0.3)" : "none",
                         transition: "all 150ms ease",
@@ -508,6 +491,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         type="text"
                         style={{ position: "absolute", opacity: 0, width: 1, height: 1 }}
                         readOnly
+                        autoComplete="off"
                         aria-label={`PIN Digit ${idx + 1}`}
                       />
                     </Box>
@@ -515,46 +499,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 })}
               </Box>
 
-              {/* PIN KEYPAD (68x68 Buttons, 10px Gap) */}
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 64px)",
-                  gap: "10px",
-                  justifyContent: "center",
-                  mb: 2,
-                }}
-              >
-                {keypad.map((k) => (
-                  <Button
-                    key={k}
-                    disabled={isLocked || isExecuting}
-                    onClick={() => {
-                      if (k === "Clear") handleClearPin();
-                      else if (k === "Delete") handleDeleteDigit();
-                      else handleAddDigit(k);
-                    }}
-                    sx={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: "12px",
-                      fontWeight: 800,
-                      fontSize: k === "Clear" || k === "Delete" ? "11px" : "20px",
-                      color: "#FFFFFF",
-                      bgcolor: "rgba(255, 255, 255, 0.05)",
-                      border: "1px solid rgba(255, 255, 255, 0.12)",
-                      "&:hover": {
-                        bgcolor: "rgba(37, 99, 235, 0.3)",
-                        borderColor: "#2563EB",
-                      },
-                    }}
-                  >
-                    {k}
-                  </Button>
-                ))}
-              </Box>
+              {/* Forgot PIN Muted Subtitle */}
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.40)", fontSize: "11.5px", textAlign: "center", mb: 3 }}>
+                Forgot PIN? (Contact Supervisor)
+              </Typography>
+            </Box>
 
-              {/* PRIMARY ACTION BUTTON (Height 56px) */}
+            {/* ACTION BUTTONS (PRIMARY & BACK) */}
+            <Stack spacing={1.5} sx={{ width: "100%" }}>
               <Button
                 fullWidth
                 variant="contained"
@@ -564,7 +516,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   height: 56,
                   borderRadius: "12px",
                   fontWeight: 900,
-                  fontSize: "16px",
+                  fontSize: "15px",
                   bgcolor: "#2563EB",
                   color: "#FFFFFF",
                   boxShadow: "0 4px 20px rgba(37, 99, 235, 0.4)",
@@ -574,9 +526,28 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   },
                 }}
               >
-                {isExecuting ? "Authorizing Pipeline..." : "Authorize & Execute"}
+                {isExecuting ? "Authorizing Transaction..." : "AUTHORIZE & EXECUTE"}
               </Button>
-            </Box>
+
+              {onBack && (
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  onClick={onBack}
+                  startIcon={<ArrowBackIcon />}
+                  sx={{
+                    height: 42,
+                    borderRadius: "10px",
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    color: "rgba(255, 255, 255, 0.70)",
+                    borderColor: "rgba(255, 255, 255, 0.15)",
+                  }}
+                >
+                  Back
+                </Button>
+              )}
+            </Stack>
           </Paper>
         </Box>
       </Paper>
