@@ -259,7 +259,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               size="small"
               variant="contained"
               startIcon={<PersonAddIcon sx={{ fontSize: 16 }} />}
-              onClick={() => { window.location.href = "/retailer/beneficiary/new"; }}
+              onClick={() => { window.location.href = "/retailer/beneficiary"; }}
               sx={{
                 height: 32,
                 px: 2,
@@ -382,7 +382,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 startIcon={<PersonAddIcon />}
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.location.href = "/retailer/beneficiary/new";
+                  window.location.href = "/retailer/beneficiary";
                 }}
                 sx={{
                   height: 44,
