@@ -26,6 +26,7 @@ import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import TelegramIcon from "@mui/icons-material/Telegram";
 import EmailIcon from "@mui/icons-material/Email";
 import SmsIcon from "@mui/icons-material/Sms";
+import DashboardIcon from "@mui/icons-material/Dashboard";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
@@ -92,6 +93,11 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [supervisorError, setSupervisorError] = useState<string | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
 
+  // Animated Counter States for Wallet & Beneficiary Limit
+  const [animatedWallet, setAnimatedWallet] = useState<number>(customer?.walletBalance ?? 124500);
+  const [animatedLimit, setAnimatedLimit] = useState<number>(beneficiary?.monthlyRemaining ?? 80000);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
@@ -99,6 +105,93 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       inputRefs.current[0]?.focus();
     }
   }, [viewState]);
+
+  // 60 FPS Particle Confetti System (Green, Blue, Gold - Max 150 Particles)
+  useEffect(() => {
+    if (viewState !== "SUCCESS_RECEIPT") return;
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    canvas.width = canvas.parentElement?.clientWidth || 500;
+    canvas.height = canvas.parentElement?.clientHeight || 600;
+
+    const colors = ["#4ADE80", "#3B82F6", "#FBBF24"];
+    const particles: Array<{ x: number; y: number; vx: number; vy: number; radius: number; color: string; alpha: number }> = [];
+
+    for (let i = 0; i < 120; i++) {
+      particles.push({
+        x: canvas.width / 2 + (Math.random() - 0.5) * 100,
+        y: canvas.height / 3 + (Math.random() - 0.5) * 50,
+        vx: (Math.random() - 0.5) * 6,
+        vy: Math.random() * -6 - 2,
+        radius: Math.random() * 3 + 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        alpha: 1,
+      });
+    }
+
+    let animId: number;
+    let startTime: number | null = null;
+
+    const render = (time: number) => {
+      if (!startTime) startTime = time;
+      const elapsed = time - startTime;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      particles.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.2; // Gravity
+        p.alpha = Math.max(0, 1 - elapsed / 2000); // Fade out over 2000ms
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.alpha;
+        ctx.fill();
+      });
+
+      if (elapsed < 2000) {
+        animId = requestAnimationFrame(render);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    };
+
+    animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [viewState]);
+
+  // Smooth Counter Animation Effect upon Transaction Success
+  useEffect(() => {
+    if (viewState === "SUCCESS_RECEIPT") {
+      const targetWallet = (customer?.walletBalance ?? 124500) - totalPayable;
+      const targetLimit = Math.max(0, (beneficiary?.monthlyRemaining ?? 80000) - amount);
+
+      const duration = 1500;
+      const startWallet = customer?.walletBalance ?? 124500;
+      const startLimit = beneficiary?.monthlyRemaining ?? 80000;
+      const startTime = Date.now();
+
+      const timer = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        setAnimatedWallet(Math.round(startWallet + (targetWallet - startWallet) * progress));
+        setAnimatedLimit(Math.round(startLimit + (targetLimit - startLimit) * progress));
+
+        if (progress >= 1) clearInterval(timer);
+      }, 30);
+
+      return () => clearInterval(timer);
+    }
+  }, [viewState, amount, totalPayable, customer, beneficiary]);
 
   const currentPin = pinDigits.join("");
 
@@ -283,6 +376,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         justifyContent: "center",
         boxSizing: "border-box",
         px: 1,
+        position: "relative",
       }}
     >
       {/* ── PROFESSIONAL PAGE HEADER ── */}
@@ -300,14 +394,32 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         sx={{
           width: "100%",
           borderRadius: "16px",
-          bgcolor: "rgba(18, 27, 48, 0.85)",
+          bgcolor: viewState === "SUCCESS_RECEIPT" ? "rgba(18, 27, 48, 0.95)" : "rgba(18, 27, 48, 0.85)",
+          backgroundImage: viewState === "SUCCESS_RECEIPT" ? "radial-gradient(circle at 50% 30%, rgba(74, 222, 128, 0.12), transparent 70%)" : "none",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           p: 2.5,
           boxSizing: "border-box",
           overflow: "hidden",
+          position: "relative",
         }}
       >
+        {/* CANVAS CONFETTI OVERLAY */}
+        {viewState === "SUCCESS_RECEIPT" && (
+          <canvas
+            ref={canvasRef}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+              zIndex: 10,
+            }}
+          />
+        )}
+
         <Box
           sx={{
             display: "grid",
@@ -319,7 +431,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             alignItems: "stretch",
           }}
         >
-          {/* ── LEFT PANEL (50%): TRANSACTION SUMMARY ── */}
+          {/* ── LEFT PANEL (50%): TRANSACTION SUMMARY & ANIMATED BALANCES ── */}
           <Paper
             elevation={0}
             sx={{
@@ -335,7 +447,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           >
             <Box>
               <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11.5px", letterSpacing: "0.08em", textTransform: "uppercase", mb: 1.5 }}>
-                TRANSACTION SUMMARY & AUDIT PREVIEW
+                TRANSACTION SUMMARY & LIVE BALANCES
               </Typography>
 
               <Stack spacing={1}>
@@ -366,19 +478,19 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
                 <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
 
+                {/* ANIMATED COUNTERS FOR WALLET & BENEFICIARY LIMIT */}
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Transfer Amount</Typography>
-                  <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "15px" }}>₹{amount.toLocaleString()}</Typography>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet Balance</Typography>
+                  <Typography sx={{ fontWeight: 900, color: viewState === "SUCCESS_RECEIPT" ? "#4ADE80" : "#FBBF24", fontSize: "13.5px" }}>
+                    ₹{animatedWallet.toLocaleString()}
+                  </Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Convenience Fee</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>+ ₹{charges}</Typography>
-                </Stack>
-
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST (18%)</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12px" }}>+ ₹{gst}</Typography>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Monthly Remaining Limit</Typography>
+                  <Typography sx={{ fontWeight: 900, color: viewState === "SUCCESS_RECEIPT" ? "#60A5FA" : "#93C5FD", fontSize: "13.5px" }}>
+                    ₹{animatedLimit.toLocaleString()}
+                  </Typography>
                 </Stack>
 
                 <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
@@ -411,7 +523,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             </Paper>
           </Paper>
 
-          {/* ── RIGHT PANEL (50%): OPERATOR PIN / LIVE TIMELINE / NO-SCROLL BANKING RECEIPT ── */}
+          {/* ── RIGHT PANEL (50%): OPERATOR PIN / LIVE TIMELINE / PREMIUM SUCCESS EXPERIENCE ── */}
           <Paper
             elevation={0}
             sx={{
@@ -616,56 +728,66 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               </Box>
             )}
 
-            {/* VIEW 3: ZERO-SCROLL PERFECT FIT ENTERPRISE BANKING RECEIPT */}
+            {/* VIEW 3: PREMIUM ENTERPRISE SUCCESS EXPERIENCE & RECEIPT */}
             {viewState === "SUCCESS_RECEIPT" && (
-              <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", overflow: "hidden" }}>
+              <Box
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  overflow: "hidden",
+                  animation: "slideUp 0.4s ease-out",
+                  "@keyframes slideUp": {
+                    "0%": { opacity: 0, transform: "translateY(20px)" },
+                    "100%": { opacity: 1, transform: "translateY(0)" },
+                  },
+                }}
+              >
                 <Box sx={{ overflow: "hidden" }}>
-                  {/* HEADER */}
-                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 900, color: "#60A5FA", fontSize: "14px" }}>Pay2Pay Enterprise</Typography>
-                      <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "10px" }}>Domestic Money Transfer (DMT)</Typography>
-                    </Box>
-                    <Box sx={{ textAlign: "right" }}>
-                      <Chip label="SUCCESS" size="small" sx={{ bgcolor: "rgba(34, 197, 94, 0.2)", color: "#4ADE80", fontWeight: 900, fontSize: "10px", height: 20 }} />
-                      <Typography sx={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "9px", display: "block", mt: 0.25 }}>{timestamp}</Typography>
-                    </Box>
-                  </Stack>
+                  {/* ANIMATED LARGE GREEN SUCCESS CHECKMARK */}
+                  <Box sx={{ textAlign: "center", my: 0.5 }}>
+                    <CheckCircleIcon
+                      sx={{
+                        color: "#4ADE80",
+                        fontSize: 48,
+                        animation: "scaleCheck 0.4s ease-out",
+                        "@keyframes scaleCheck": {
+                          "0%": { transform: "scale(0.8)" },
+                          "50%": { transform: "scale(1.2)" },
+                          "100%": { transform: "scale(1.0)" },
+                        },
+                      }}
+                    />
+                    <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", mt: 0.25 }}>
+                      ₹{amount.toLocaleString()} Transferred Successfully
+                    </Typography>
+                    <Typography sx={{ color: "#4ADE80", fontWeight: 700, fontSize: "11px" }}>
+                      Transaction Settled & Committed
+                    </Typography>
+                  </Box>
 
                   <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", mb: 1 }} />
 
-                  {/* SECTION 1: TRANSACTION DETAILS & SECTION 2: RETAILER DETAILS */}
+                  {/* SECTION 1 & 2: TRANSACTION & RETAILER DETAILS */}
                   <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mb: 1 }}>
                     <Paper elevation={0} sx={{ p: 1, borderRadius: "6px", bgcolor: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                      <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "9.5px", textTransform: "uppercase", mb: 0.5 }}>SEC 1: TRANSACTION</Typography>
+                      <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "9.5px", textTransform: "uppercase", mb: 0.5 }}>TRANSACTION DETAILS</Typography>
                       <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>Txn ID: <span style={{ color: "#FFF", fontWeight: 700 }}>{txnId}</span></Typography>
                       <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>Ref No: <span style={{ color: "#60A5FA", fontWeight: 700 }}>{refNo}</span></Typography>
                       <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>UTR: <span style={{ color: "#4ADE80", fontWeight: 800 }}>{utr}</span></Typography>
-                      <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>Mode: <span style={{ color: "#FFF", fontWeight: 700 }}>{modeDisplay}</span></Typography>
                     </Paper>
 
                     <Paper elevation={0} sx={{ p: 1, borderRadius: "6px", bgcolor: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                      <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "9.5px", textTransform: "uppercase", mb: 0.5 }}>SEC 2: RETAILER</Typography>
-                      <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>Name: <span style={{ color: "#FFF", fontWeight: 700 }}>Rajesh Sharma</span></Typography>
-                      <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>Mobile: <span style={{ color: "#FFF", fontWeight: 700 }}>+91 98765 43210</span></Typography>
-                      <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>ID: <span style={{ color: "#60A5FA", fontWeight: 700 }}>RET-DELHI-001</span></Typography>
+                      <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "9.5px", textTransform: "uppercase", mb: 0.5 }}>BENEFICIARY & MODE</Typography>
+                      <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>Name: <span style={{ color: "#FFF", fontWeight: 700 }}>{beneficiary?.name || "Aman Ramesh"}</span></Typography>
+                      <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>Bank: <span style={{ color: "#60A5FA", fontWeight: 700 }}>{beneficiary?.bankName || "Axis Bank"}</span></Typography>
+                      <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>Mode: <span style={{ color: "#FFF", fontWeight: 700 }}>{modeDisplay}</span></Typography>
                     </Paper>
                   </Box>
 
-                  {/* SECTION 3: BENEFICIARY DETAILS */}
-                  <Paper elevation={0} sx={{ p: 1, mb: 1, borderRadius: "6px", bgcolor: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                    <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "9.5px", textTransform: "uppercase", mb: 0.5 }}>SEC 3: BENEFICIARY</Typography>
-                    <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography sx={{ fontSize: "10px", color: "#FFF", fontWeight: 700 }}>{beneficiary?.name || "Aman Ramesh"}</Typography>
-                      <Typography sx={{ fontSize: "10px", color: "#60A5FA", fontWeight: 700 }}>{beneficiary?.bankName || "Axis Bank"}</Typography>
-                    </Stack>
-                    <Stack direction="row" sx={{ justifyContent: "space-between", mt: 0.25 }}>
-                      <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)", fontFamily: "monospace" }}>XXXX XXXX 3210</Typography>
-                      <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>IFSC: {beneficiary?.ifsc || "UTIB0000123"}</Typography>
-                    </Stack>
-                  </Paper>
-
-                  {/* SECTION 4: PAYMENT SUMMARY & SECTION 5: STATUS */}
+                  {/* SECTION 4: PAYMENT SUMMARY */}
                   <Paper elevation={0} sx={{ p: 1, mb: 1, borderRadius: "6px", bgcolor: "rgba(37, 99, 235, 0.1)", border: "1px solid rgba(37, 99, 235, 0.25)" }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                       <Box>
@@ -673,39 +795,31 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "18px" }}>₹{totalAmountPaid.toLocaleString()}.00</Typography>
                       </Box>
                       <Box sx={{ textAlign: "right" }}>
-                        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", justifyContent: "flex-end" }}>
-                          <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 16 }} />
-                          <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "11px" }}>SUCCESS</Typography>
-                        </Stack>
-                        <Typography sx={{ fontSize: "9px", color: "rgba(255, 255, 255, 0.5)" }}>Money Credited Successfully</Typography>
+                        <Chip label="SETTLED" size="small" sx={{ bgcolor: "rgba(34, 197, 94, 0.2)", color: "#4ADE80", fontWeight: 900, fontSize: "10px", height: 20 }} />
+                        <Typography sx={{ fontSize: "9px", color: "rgba(255, 255, 255, 0.5)", mt: 0.25 }}>{timestamp}</Typography>
                       </Box>
                     </Stack>
                   </Paper>
 
-                  {/* SECTION 6: CENTER ALIGNED QR CODE */}
-                  <Box sx={{ textAlign: "center", my: 0.5 }}>
-                    <QrCode2Icon sx={{ fontSize: 42, color: "#FFFFFF" }} />
-                    <Typography sx={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "9px" }}>Scan to Verify Transaction</Typography>
+                  {/* CENTER ALIGNED QR CODE */}
+                  <Box sx={{ textAlign: "center", my: 0.25 }}>
+                    <QrCode2Icon sx={{ fontSize: 36, color: "#FFFFFF" }} />
+                    <Typography sx={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "8.5px" }}>Scan to Verify Transaction</Typography>
                   </Box>
-
-                  {/* FOOTER */}
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.35)", fontSize: "8.5px", textAlign: "center" }}>
-                    Thank you for using Pay2Pay Enterprise · Support: 1800-123-4567 · www.pay2pay.com · Receipt v2.4
-                  </Typography>
                 </Box>
 
-                {/* ACTION BAR */}
-                <Stack spacing={0.75} sx={{ mt: 1 }}>
-                  <Stack direction="row" spacing={0.75}>
+                {/* 5 ACTION BUTTONS: DOWNLOAD, PRINT, SHARE, NEW TRANSFER, DASHBOARD */}
+                <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                  <Stack direction="row" spacing={0.5}>
                     <Button
                       fullWidth
                       variant="contained"
-                      startIcon={<DownloadIcon sx={{ fontSize: 14 }} />}
+                      startIcon={<DownloadIcon sx={{ fontSize: 13 }} />}
                       onClick={() => {
                         bankingSounds.playSuccess();
                         alert(`Receipt PNG/PDF Downloaded successfully for UTR: ${utr}`);
                       }}
-                      sx={{ height: 34, borderRadius: "6px", fontWeight: 800, fontSize: "11px", bgcolor: "#2563EB" }}
+                      sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "10.5px", bgcolor: "#2563EB" }}
                     >
                       Download
                     </Button>
@@ -713,9 +827,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     <Button
                       fullWidth
                       variant="outlined"
-                      startIcon={<PrintIcon sx={{ fontSize: 14 }} />}
+                      startIcon={<PrintIcon sx={{ fontSize: 13 }} />}
                       onClick={() => window.print()}
-                      sx={{ height: 34, borderRadius: "6px", fontWeight: 800, fontSize: "11px", color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}
+                      sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "10.5px", color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}
                     >
                       Print
                     </Button>
@@ -723,24 +837,36 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     <Button
                       fullWidth
                       variant="outlined"
-                      startIcon={<ShareIcon sx={{ fontSize: 14 }} />}
+                      startIcon={<ShareIcon sx={{ fontSize: 13 }} />}
                       onClick={() => setShareModalOpen(true)}
-                      sx={{ height: 34, borderRadius: "6px", fontWeight: 800, fontSize: "11px", color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}
+                      sx={{ height: 32, borderRadius: "6px", fontWeight: 800, fontSize: "10.5px", color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}
                     >
                       Share
                     </Button>
                   </Stack>
 
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    color="success"
-                    startIcon={<AddIcon sx={{ fontSize: 14 }} />}
-                    onClick={onAuthorize}
-                    sx={{ height: 36, borderRadius: "8px", fontWeight: 900, fontSize: "12.5px" }}
-                  >
-                    + New Transaction
-                  </Button>
+                  <Stack direction="row" spacing={0.5}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      color="success"
+                      startIcon={<AddIcon sx={{ fontSize: 13 }} />}
+                      onClick={onAuthorize}
+                      sx={{ height: 34, borderRadius: "6px", fontWeight: 900, fontSize: "11.5px" }}
+                    >
+                      + New Transfer
+                    </Button>
+
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<DashboardIcon sx={{ fontSize: 13 }} />}
+                      onClick={onAuthorize}
+                      sx={{ height: 34, borderRadius: "6px", fontWeight: 800, fontSize: "11.5px", color: "#93C5FD", borderColor: "rgba(147, 197, 253, 0.3)" }}
+                    >
+                      Go Dashboard
+                    </Button>
+                  </Stack>
                 </Stack>
               </Box>
             )}
