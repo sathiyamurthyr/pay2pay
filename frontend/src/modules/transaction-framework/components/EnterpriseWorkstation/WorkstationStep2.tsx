@@ -24,7 +24,7 @@ import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
 import { EnterpriseStatusStrip } from "../Amount/EnterpriseStatusStrip";
-import { BeneficiaryCapacityCard } from "../Beneficiary/BeneficiaryCapacityCard";
+import { CompactBeneficiaryStrip } from "../Beneficiary/CompactBeneficiaryStrip";
 import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
 
 export interface WorkstationStep2Props {
@@ -272,9 +272,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           {/* Compact Enterprise Status Strip (Height: 48px - 56px, ZERO Waste Vertical Space) */}
           <EnterpriseStatusStrip validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
-          {/* Beneficiary Capacity & Receiving Limit Card (Replaces redundant customer info) */}
-          <Box sx={{ my: 1.5 }}>
-            <BeneficiaryCapacityCard beneficiary={selectedBeneficiary} transferAmount={amount} />
+          {/* Compact Beneficiary Status Strip (Max Height: 64px, Clickable to open Profile Side Drawer) */}
+          <Box sx={{ my: 1 }}>
+            <CompactBeneficiaryStrip beneficiary={selectedBeneficiary} transferAmount={amount} />
           </Box>
 
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
