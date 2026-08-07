@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -12,6 +12,7 @@ import {
   Divider,
   CircularProgress,
   Skeleton,
+  Tooltip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ShieldIcon from "@mui/icons-material/Shield";
@@ -28,6 +29,7 @@ export interface WorkstationStep1Props {
   hasSearched?: boolean;
   error?: string | null;
   onRegisterCustomer?: () => void;
+  canCreateCustomer?: boolean;
 }
 
 export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
@@ -39,12 +41,13 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   hasSearched = false,
   error = null,
   onRegisterCustomer,
+  canCreateCustomer = true,
 }) => {
   const [searchInput, setSearchInput] = useState("");
   const [localHasSearched, setLocalHasSearched] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (searchInput.trim()) {
       setLocalHasSearched(true);
       onSearchCustomer(searchInput.trim());
@@ -52,6 +55,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   };
 
   const handleNavigateToRegister = () => {
+    if (!canCreateCustomer) return;
     if (onRegisterCustomer) {
       onRegisterCustomer();
     } else {
@@ -59,15 +63,33 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
       if (typeof window !== "undefined" && mobileParam) {
         sessionStorage.setItem("draftCustomerMobile", mobileParam);
       }
-      window.location.href = "/retailer/customers";
+      window.location.href = "/customers/new";
     }
   };
+
+  // Keyboard Shortcuts (F2 -> New Customer, Ctrl+N -> New Customer, Esc -> Clear Search)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        handleNavigateToRegister();
+      } else if (e.ctrlKey && (e.key === "n" || e.key === "N")) {
+        e.preventDefault();
+        handleNavigateToRegister();
+      } else if (e.key === "Escape") {
+        setSearchInput("");
+        setLocalHasSearched(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [searchInput, canCreateCustomer]);
 
   const showEmptyState = !isSearching && !customer && (Boolean(error) || hasSearched || localHasSearched);
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", pt: 2 }}>
-      {/* 1. SEARCH CONSOLE */}
+      {/* 1. SEARCH CONSOLE WITH PERSISTENT "NEW CUSTOMER" QUICK ACTION */}
       <Paper
         elevation={0}
         sx={{
@@ -84,7 +106,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
         </Typography>
 
         <form onSubmit={handleSearch}>
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <TextField
               fullWidth
               value={searchInput}
@@ -108,24 +130,60 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               }}
             />
 
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={isSearching || !searchInput.trim()}
-              startIcon={isSearching ? <CircularProgress size={18} color="inherit" /> : <SearchIcon />}
-              sx={{
-                height: 52,
-                px: 4,
-                borderRadius: "10px",
-                fontWeight: 900,
-                fontSize: "15px",
-                bgcolor: "#2563EB",
-                color: "#FFFFFF",
-                boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
-              }}
-            >
-              {isSearching ? "Searching..." : "Search"}
-            </Button>
+            <Stack direction="row" spacing={1.5} sx={{ width: { xs: "100%", sm: "auto" } }}>
+              {/* PRIMARY SEARCH BUTTON */}
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={isSearching || !searchInput.trim()}
+                startIcon={isSearching ? <CircularProgress size={18} color="inherit" /> : <SearchIcon />}
+                sx={{
+                  height: 52,
+                  px: 4,
+                  borderRadius: "10px",
+                  fontWeight: 900,
+                  fontSize: "15px",
+                  bgcolor: "#2563EB",
+                  color: "#FFFFFF",
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
+                  flex: { xs: 1, sm: "initial" },
+                }}
+              >
+                {isSearching ? "Searching..." : "Search"}
+              </Button>
+
+              {/* PERSISTENT "NEW CUSTOMER" QUICK ACTION BUTTON */}
+              {canCreateCustomer && (
+                <Tooltip title="Register New Customer (F2 / Ctrl+N)" arrow>
+                  <Button
+                    variant="outlined"
+                    onClick={handleNavigateToRegister}
+                    startIcon={<PersonAddIcon />}
+                    aria-label="Register new customer"
+                    sx={{
+                      height: 52,
+                      px: 3,
+                      borderRadius: "10px",
+                      fontWeight: 900,
+                      fontSize: "15px",
+                      color: "#60A5FA",
+                      borderColor: "rgba(96, 165, 250, 0.4)",
+                      bgcolor: "rgba(37, 99, 235, 0.12)",
+                      boxShadow: "0 4px 16px rgba(37, 99, 235, 0.15)",
+                      whiteSpace: "nowrap",
+                      flex: { xs: 1, sm: "initial" },
+                      "&:hover": {
+                        bgcolor: "rgba(37, 99, 235, 0.25)",
+                        borderColor: "#60A5FA",
+                      },
+                    }}
+                  >
+                    + New Customer
+                  </Button>
+                </Tooltip>
+              )}
+            </Stack>
           </Stack>
         </form>
       </Paper>
