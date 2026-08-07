@@ -24,6 +24,7 @@ import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
 import { AmountValidation } from "../Amount/AmountValidation";
+import { BankingDecisionCenter } from "../Amount/BankingDecisionCenter";
 import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
 
 export interface WorkstationStep2Props {
@@ -263,8 +264,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
           <AmountInWords amount={amount} />
 
-          {/* Realtime 20-Point Wallet Balance & Limits Pre-Transaction Validation Engine */}
-          <AmountValidation validationResult={pricingResult} />
+          {/* Enterprise Banking Decision Center (Situation → Problem → Impact → Recommendation → One-Click Auto Fix) */}
+          <BankingDecisionCenter validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
 
