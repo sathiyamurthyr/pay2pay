@@ -54,6 +54,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const [filterType, setFilterType] = useState<"all" | "favorite">("all");
   const [sortBy, setSortBy] = useState<"recent" | "used" | "alphabetical">("recent");
 
+  const [visibleCount, setVisibleCount] = useState(24);
+
   const filteredBeneficiaries = beneficiaries
     .filter((b) => {
       const matchesSearch =
@@ -68,6 +70,17 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
       if (sortBy === "used") return (b.transferCount || 0) - (a.transferCount || 0);
       return 0;
     });
+
+  const displayedBeneficiaries = filteredBeneficiaries.slice(0, visibleCount);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 100) {
+      if (visibleCount < filteredBeneficiaries.length) {
+        setVisibleCount((prev) => prev + 24);
+      }
+    }
+  };
 
   // Dynamic Rule Engine Financial Parameters
   const fee = pricingResult.convenienceFee;
@@ -108,10 +121,13 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         },
         gap: 2,
         height: "100%",
-        overflow: "hidden",
+        width: "100%",
+        maxWidth: "100%",
+        overflowX: "hidden",
+        overflowY: "hidden",
       }}
     >
-      {/* ── LEFT PANEL (68%): BENEFICIARY SELECTION ── */}
+      {/* ── LEFT PANEL (68%): BENEFICIARY SELECTION CONSOLE ── */}
       <Paper
         elevation={0}
         sx={{
@@ -123,11 +139,15 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           display: "flex",
           flexDirection: "column",
           height: "100%",
-          overflow: "hidden",
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "hidden",
+          overflowY: "hidden",
+          boxSizing: "border-box",
         }}
       >
         {/* Header Console */}
-        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
           <Box>
             <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", letterSpacing: "-0.2px" }}>
               Beneficiary Selection Console
@@ -199,11 +219,21 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               },
             },
           }}
-          sx={{ mb: 2 }}
+          sx={{ mb: 2, width: "100%" }}
         />
 
-        {/* Beneficiary Grid (Custom Scroll Panel) */}
-        <Box sx={{ flex: 1, overflowY: "auto", pr: 0.5 }}>
+        {/* Beneficiary Responsive Grid (Vertical Scroll Only, Zero Horizontal Overflow) */}
+        <Box
+          onScroll={handleScroll}
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            overflowX: "hidden",
+            pr: 0.5,
+            width: "100%",
+            maxWidth: "100%",
+          }}
+        >
           {filteredBeneficiaries.length === 0 ? (
             <Paper
               elevation={0}
@@ -213,6 +243,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 bgcolor: "rgba(255, 255, 255, 0.02)",
                 borderRadius: "12px",
                 border: "1px dashed rgba(255, 255, 255, 0.15)",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "14px" }}>
@@ -225,13 +257,18 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 display: "grid",
                 gridTemplateColumns: {
                   xs: "1fr",
+                  sm: "repeat(2, 1fr)",
                   md: "repeat(2, 1fr)",
-                  xl: "repeat(3, 1fr)",
+                  lg: "repeat(3, 1fr)",
+                  xl: "repeat(4, 1fr)",
                 },
-                gap: 1.5,
+                gap: 2,
+                width: "100%",
+                maxWidth: "100%",
+                boxSizing: "border-box",
               }}
             >
-              {filteredBeneficiaries.map((b) => {
+              {displayedBeneficiaries.map((b) => {
                 const isSelected = selectedBeneficiary?.id === b.id;
                 return (
                   <Paper
@@ -239,6 +276,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                     elevation={0}
                     onClick={() => onSelectBeneficiary(b)}
                     sx={{
+                      width: "100%",
+                      minWidth: 0,
+                      boxSizing: "border-box",
                       p: 1.75,
                       borderRadius: "12px",
                       bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.04)",
@@ -251,15 +291,16 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                       },
                     }}
                   >
-                    <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
+                    <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0 }}>
                       <Avatar
                         sx={{
-                          width: 42,
-                          height: 42,
+                          width: 40,
+                          height: 40,
                           bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.1)",
                           color: "#FFFFFF",
                           fontWeight: 800,
-                          fontSize: "14px",
+                          fontSize: "13px",
+                          flexShrink: 0,
                         }}
                       >
                         {b.name.slice(0, 2).toUpperCase()}
@@ -267,22 +308,22 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                          <Typography noWrap sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13.5px" }}>
+                          <Typography noWrap sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
                             {b.name}
                           </Typography>
-                          {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 16 }} />}
+                          {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 15, flexShrink: 0 }} />}
                         </Stack>
 
-                        <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11.5px" }}>
+                        <Typography noWrap sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px" }}>
                           {b.bankName} • {b.maskedAccountNumber}
                         </Typography>
 
-                        <Typography sx={{ color: "#60A5FA", fontSize: "11px", fontWeight: 700 }}>
+                        <Typography noWrap sx={{ color: "#60A5FA", fontSize: "11px", fontWeight: 700 }}>
                           {b.ifsc}
                         </Typography>
                       </Box>
 
-                      {isSelected && <CheckCircleIcon sx={{ color: "#2563EB", fontSize: 24 }} />}
+                      {isSelected && <CheckCircleIcon sx={{ color: "#2563EB", fontSize: 22, flexShrink: 0 }} />}
                     </Stack>
                   </Paper>
                 );
