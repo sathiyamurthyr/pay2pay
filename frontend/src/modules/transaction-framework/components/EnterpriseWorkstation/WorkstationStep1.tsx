@@ -45,6 +45,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   isSearching = false,
   hasSearched = false,
   error = null,
+  onRegisterCustomer,
 }) => {
   const [searchInput, setSearchInput] = useState("");
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
@@ -236,24 +237,24 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
           sx={{
             p: 4,
             borderRadius: "16px",
-            bgcolor: "rgba(239, 68, 68, 0.06)",
-            border: "2px dashed rgba(239, 68, 68, 0.35)",
+            bgcolor: "rgba(37, 99, 235, 0.06)",
+            border: "2px dashed rgba(37, 99, 235, 0.35)",
             textAlign: "center",
             cursor: "pointer",
             transition: "all 0.2s ease-in-out",
             "&:hover": {
-              bgcolor: "rgba(239, 68, 68, 0.12)",
-              borderColor: "#EF4444",
+              bgcolor: "rgba(37, 99, 235, 0.12)",
+              borderColor: "#2563EB",
               transform: "translateY(-2px)",
             },
           }}
         >
-          <PersonOffIcon sx={{ fontSize: 60, color: "#EF4444", mb: 1 }} />
+          <PersonAddIcon sx={{ fontSize: 60, color: "#2563EB", mb: 1 }} />
           <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "21px", mb: 0.5 }}>
             Customer Not Found
           </Typography>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "14px", mb: 3, maxWidth: 500, mx: "auto" }}>
-            No customer records match your query. Click below to register a new customer and return directly to this transaction.
+            No customer records match your query in the database. Click below to add a new customer or register directly.
           </Typography>
           <Button
             variant="contained"
@@ -261,7 +262,11 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             startIcon={<PersonAddIcon />}
             onClick={(e) => {
               e.stopPropagation();
-              handleOpenRegister();
+              if (onRegisterCustomer) {
+                onRegisterCustomer();
+              } else {
+                handleOpenRegister();
+              }
             }}
             sx={{
               height: 48,
@@ -273,7 +278,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               boxShadow: "0 4px 20px rgba(37, 99, 235, 0.4)",
             }}
           >
-            + Register New Customer
+            + Add New Customer
           </Button>
         </Paper>
       )}
