@@ -68,6 +68,16 @@ import { retailerApi } from "@/services/retailer-api";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import { CustomerMasterSlideOver } from "@/components/master/customer-master-slide-over";
 import { BeneficiaryMasterSlideOver } from "@/components/master/beneficiary-master-slide-over";
+import {
+  PAY2PAY_TOKENS,
+  EnterpriseCard,
+  MetricCard,
+  StatusChip,
+  AIRecommendationCard,
+  WorkflowNavigator,
+  BankHealthCard,
+  StickyFooterBar,
+} from "@/components/enterprise-design-system";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ENTERPRISE BANKING DESIGN SYSTEM TOKENS & BUTTON STYLES
