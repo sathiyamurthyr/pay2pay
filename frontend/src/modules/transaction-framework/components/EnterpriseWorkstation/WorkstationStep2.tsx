@@ -24,6 +24,7 @@ import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
 import { EnterpriseStatusStrip } from "../Amount/EnterpriseStatusStrip";
+import { BeneficiaryCapacityCard } from "../Beneficiary/BeneficiaryCapacityCard";
 import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
 
 export interface WorkstationStep2Props {
@@ -75,8 +76,13 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const totalPayable = pricingResult.totalPayable;
   const balanceAfter = pricingResult.walletBalanceAfter;
 
-  // Realtime 20-Point Rule Engine Validation Allowed Check
-  const isProceedDisabled = amount <= 0 || !selectedBeneficiary || !pricingResult.allowed;
+  // Realtime 20-Point Rule Engine + Beneficiary Receiving Capacity Validation Check
+  const beneficiaryAvailableToReceive = selectedBeneficiary
+    ? Math.min(50000 - (selectedBeneficiary.dailyUsage ?? 15000), 200000 - (selectedBeneficiary.monthlyUsage ?? 45000))
+    : 50000;
+  const isBeneficiaryLimitExceeded = amount > beneficiaryAvailableToReceive;
+
+  const isProceedDisabled = amount <= 0 || !selectedBeneficiary || !pricingResult.allowed || isBeneficiaryLimitExceeded;
 
   return (
     <Box
@@ -266,10 +272,19 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           {/* Compact Enterprise Status Strip (Height: 48px - 56px, ZERO Waste Vertical Space) */}
           <EnterpriseStatusStrip validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
+          {/* Beneficiary Capacity & Receiving Limit Card (Replaces redundant customer info) */}
+          <Box sx={{ my: 1.5 }}>
+            <BeneficiaryCapacityCard beneficiary={selectedBeneficiary} transferAmount={amount} />
+          </Box>
+
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
 
-          {/* KPI Summary Table */}
+          {/* Financial Summary Table (Focus: Amount Entry -> Beneficiary Capacity -> Financial Summary) */}
           <Stack spacing={1}>
+            <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              FINANCIAL SUMMARY
+            </Typography>
+
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Transfer Amount</Typography>
               <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "14px" }}>₹{amount.toLocaleString()}</Typography>
@@ -312,7 +327,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Rule Version</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Recommended Route</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>{pricingResult.recommendedGateway}</Typography>
+            </Stack>
+
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Pricing Version</Typography>
               <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>{pricingResult.pricingVersion}</Typography>
             </Stack>
           </Stack>
