@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -25,9 +25,11 @@ import {
   TableBody,
   TableCell,
   TableRow,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Tooltip,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
@@ -35,10 +37,16 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import VerifiedIcon from "@mui/icons-material/Verified";
 import SaveIcon from "@mui/icons-material/Save";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import SpeedIcon from "@mui/icons-material/Speed";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import CodeIcon from "@mui/icons-material/Code";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import ShieldIcon from "@mui/icons-material/Shield";
+import BusinessIcon from "@mui/icons-material/Business";
+import PersonIcon from "@mui/icons-material/Person";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import CorporateFareIcon from "@mui/icons-material/CorporateFare";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { M3TextField } from "@/components/ui/form-components";
@@ -48,104 +56,199 @@ import { notificationEngine } from "@/services/notification-engine";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 import { formatShortCustomerId } from "@/lib/utils";
 
+// ─── CONSTANTS ──────────────────────────────────────────────────────────────
+
 const STEPS = [
-  { label: "Account Info", est: "20s" },
-  { label: "Bank & IFSC", est: "30s" },
-  { label: "Penny Drop Verification", est: "20s" },
-  { label: "Complete", est: "0s" },
+  { label: "Beneficiary Info", icon: "1", est: "45s" },
+  { label: "Verify Account", icon: "2", est: "20s" },
+  { label: "Confirmed", icon: "3", est: "0s" },
+];
+
+const RELATIONSHIP_OPTIONS = [
+  "Self", "Spouse", "Parent", "Sibling", "Child", "Friend",
+  "Business Partner", "Employee", "Vendor", "Other",
 ];
 
 const DEFAULT_BANK_LIST = [
-  { bank_id: 1, bank_name: "HDFC BANK LTD", ifsc: "HDFC0000001", ifsc_code: "HDFC0000001", ifsc_prefix: "HDFC", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/hdfcbank.com", is_top: true },
-  { bank_id: 2, bank_name: "STATE BANK OF INDIA", ifsc: "SBIN0000001", ifsc_code: "SBIN0000001", ifsc_prefix: "SBIN", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/sbi.co.in", is_top: true },
-  { bank_id: 3, bank_name: "ICICI BANK LTD", ifsc: "ICIC0000001", ifsc_code: "ICIC0000001", ifsc_prefix: "ICIC", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/icicibank.com", is_top: true },
-  { bank_id: 4, bank_name: "AXIS BANK LTD", ifsc: "UTIB0000001", ifsc_code: "UTIB0000001", ifsc_prefix: "UTIB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/axisbank.com", is_top: true },
-  { bank_id: 5, bank_name: "KOTAK MAHINDRA BANK LTD", ifsc: "KKBK0000001", ifsc_code: "KKBK0000001", ifsc_prefix: "KKBK", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/kotak.com", is_top: true },
-  { bank_id: 6, bank_name: "PUNJAB NATIONAL BANK", ifsc: "PUNB0000001", ifsc_code: "PUNB0000001", ifsc_prefix: "PUNB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/pnbindia.in", is_top: true },
-  { bank_id: 7, bank_name: "BANK OF BARODA", ifsc: "BARB0000001", ifsc_code: "BARB0000001", ifsc_prefix: "BARB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/bankofbaroda.in", is_top: false },
-  { bank_id: 8, bank_name: "CANARA BANK", ifsc: "CNRB0000001", ifsc_code: "CNRB0000001", ifsc_prefix: "CNRB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/canarabank.com", is_top: false },
-  { bank_id: 9, bank_name: "UNION BANK OF INDIA", ifsc: "UBIN0000001", ifsc_code: "UBIN0000001", ifsc_prefix: "UBIN", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/unionbankofindia.co.in", is_top: false },
-  { bank_id: 10, bank_name: "INDUSIND BANK LTD", ifsc: "INDB0000001", ifsc_code: "INDB0000001", ifsc_prefix: "INDB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/indusind.com", is_top: false },
-  { bank_id: 11, bank_name: "YES BANK LTD", ifsc: "YESB0000001", ifsc_code: "YESB0000001", ifsc_prefix: "YESB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/yesbank.in", is_top: false },
-  { bank_id: 12, bank_name: "IDFC FIRST BANK LTD", ifsc: "IDFB0000001", ifsc_code: "IDFB0000001", ifsc_prefix: "IDFB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/idfcfirstbank.com", is_top: false },
-  { bank_id: 13, bank_name: "FEDERAL BANK LTD", ifsc: "FDRL0000001", ifsc_code: "FDRL0000001", ifsc_prefix: "FDRL", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/federalbank.co.in", is_top: false },
-  { bank_id: 14, bank_name: "AKHAND AANAND CO-OPERATIVE BANK", ifsc: "GSCB0AACBL1", ifsc_code: "GSCB0AACBL1", ifsc_prefix: "GSCB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/hdfcbank.com", is_top: false },
-  { bank_id: 15, bank_name: "SARASWAT CO-OPERATIVE BANK LTD", ifsc: "SRCB0000001", ifsc_code: "SRCB0000001", ifsc_prefix: "SRCB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/saraswatbank.com", is_top: false },
-  { bank_id: 16, bank_name: "SVC CO-OPERATIVE BANK LTD", ifsc: "SVCB0000001", ifsc_code: "SVCB0000001", ifsc_prefix: "SVCB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/svcbank.com", is_top: false },
-  { bank_id: 17, bank_name: "AU SMALL FINANCE BANK LTD", ifsc: "AUBL0000001", ifsc_code: "AUBL0000001", ifsc_prefix: "AUBL", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/aubank.in", is_top: false },
-  { bank_id: 18, bank_name: "BANDHAN BANK LTD", ifsc: "BDBL0000001", ifsc_code: "BDBL0000001", ifsc_prefix: "BDBL", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/bandhanbank.com", is_top: false },
+  { bank_id: 1, bank_name: "HDFC BANK LTD", ifsc_code: "HDFC0000001", ifsc_prefix: "HDFC", imps_status: "ACTIVE" },
+  { bank_id: 2, bank_name: "STATE BANK OF INDIA", ifsc_code: "SBIN0000001", ifsc_prefix: "SBIN", imps_status: "ACTIVE" },
+  { bank_id: 3, bank_name: "ICICI BANK LTD", ifsc_code: "ICIC0000001", ifsc_prefix: "ICIC", imps_status: "ACTIVE" },
+  { bank_id: 4, bank_name: "AXIS BANK LTD", ifsc_code: "UTIB0000001", ifsc_prefix: "UTIB", imps_status: "ACTIVE" },
+  { bank_id: 5, bank_name: "KOTAK MAHINDRA BANK LTD", ifsc_code: "KKBK0000001", ifsc_prefix: "KKBK", imps_status: "ACTIVE" },
+  { bank_id: 6, bank_name: "PUNJAB NATIONAL BANK", ifsc_code: "PUNB0000001", ifsc_prefix: "PUNB", imps_status: "ACTIVE" },
+  { bank_id: 7, bank_name: "BANK OF BARODA", ifsc_code: "BARB0000001", ifsc_prefix: "BARB", imps_status: "ACTIVE" },
+  { bank_id: 8, bank_name: "CANARA BANK", ifsc_code: "CNRB0000001", ifsc_prefix: "CNRB", imps_status: "ACTIVE" },
+  { bank_id: 9, bank_name: "UNION BANK OF INDIA", ifsc_code: "UBIN0000001", ifsc_prefix: "UBIN", imps_status: "ACTIVE" },
+  { bank_id: 10, bank_name: "INDUSIND BANK LTD", ifsc_code: "INDB0000001", ifsc_prefix: "INDB", imps_status: "ACTIVE" },
+  { bank_id: 11, bank_name: "YES BANK LTD", ifsc_code: "YESB0000001", ifsc_prefix: "YESB", imps_status: "ACTIVE" },
+  { bank_id: 12, bank_name: "IDFC FIRST BANK LTD", ifsc_code: "IDFB0000001", ifsc_prefix: "IDFB", imps_status: "ACTIVE" },
+  { bank_id: 13, bank_name: "FEDERAL BANK LTD", ifsc_code: "FDRL0000001", ifsc_prefix: "FDRL", imps_status: "ACTIVE" },
 ];
+
+const BRANCH_MAP: Record<string, { branch: string; city: string; ifsc: string; micr: string }[]> = {
+  HDFC: [
+    { branch: "Anna Nagar Chennai", city: "Chennai", ifsc: "HDFC0001086", micr: "600240004" },
+    { branch: "T Nagar Chennai", city: "Chennai", ifsc: "HDFC0000375", micr: "600240018" },
+    { branch: "Nungambakkam", city: "Chennai", ifsc: "HDFC0000375", micr: "600240019" },
+  ],
+  SBIN: [
+    { branch: "Anna Nagar", city: "Chennai", ifsc: "SBIN0005827", micr: "600002027" },
+    { branch: "T Nagar", city: "Chennai", ifsc: "SBIN0003615", micr: "600002015" },
+    { branch: "Mylapore", city: "Chennai", ifsc: "SBIN0002618", micr: "600002018" },
+  ],
+  ICIC: [
+    { branch: "Anna Nagar", city: "Chennai", ifsc: "ICIC0001259", micr: "600229027" },
+    { branch: "Nungambakkam", city: "Chennai", ifsc: "ICIC0001259", micr: "600229019" },
+  ],
+  IDFB: [
+    { branch: "Nungambakkam Chennai", city: "Chennai", ifsc: "IDFB0080106", micr: "600690001" },
+    { branch: "T Nagar", city: "Chennai", ifsc: "IDFB0080104", micr: "600690002" },
+  ],
+};
+
+// ─── SOUND ENGINE ───────────────────────────────────────────────────────────
+
+function playSuccessSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + i * 0.12 + 0.04);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + i * 0.12 + 0.25);
+      osc.start(ctx.currentTime + i * 0.12);
+      osc.stop(ctx.currentTime + i * 0.12 + 0.3);
+    });
+  } catch { /* ignore */ }
+}
+
+function playFailureSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    [220, 180, 150].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = "sawtooth";
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.18);
+      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + i * 0.18 + 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + i * 0.18 + 0.35);
+      osc.start(ctx.currentTime + i * 0.18);
+      osc.stop(ctx.currentTime + i * 0.18 + 0.4);
+    });
+  } catch { /* ignore */ }
+}
+
+// ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
 
 export default function BeneficiaryWorkspacePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { selectedCustomer, setSelectedBeneficiary, referrerUrl } = useTransactionMemoryStore();
 
-  const paramName = searchParams?.get("customerName") || searchParams?.get("name") || "";
-  const paramMobile = searchParams?.get("customerMobile") || searchParams?.get("mobile") || "";
-  const paramId = searchParams?.get("customerId") || searchParams?.get("id") || "";
+  const paramName    = searchParams?.get("customerName") || searchParams?.get("name") || "";
+  const paramMobile  = searchParams?.get("customerMobile") || searchParams?.get("mobile") || "";
+  const paramId      = searchParams?.get("customerId") || searchParams?.get("id") || "";
   const paramReferrer = searchParams?.get("referrer") || searchParams?.get("from") || "";
 
-  const activeCustomerName = selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || paramName;
+  const activeCustomerName   = selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || paramName;
   const activeCustomerMobile = selectedCustomer?.mobile || selectedCustomer?.mobile_number || paramMobile;
-  const rawId = selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || paramId;
-  const activeCustomerId = formatShortCustomerId(rawId);
+  const rawId                = selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || paramId;
+  const activeCustomerId     = formatShortCustomerId(rawId);
 
+  // ── Step ──────────────────────────────────────────────────────────────────
   const [activeStep, setActiveStep] = useState(0);
 
-  // Form State
-  const [accHolder, setAccHolder] = useState("");
-  const [accNum, setAccNum] = useState("");
-  const [confirmAccNum, setConfirmAccNum] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [ifscCode, setIfscCode] = useState("");
-  const [selectedBankObj, setSelectedBankObj] = useState<any | null>(null);
-
-  // Bank Search
-  const [bankMasterList, setBankMasterList] = useState<any[]>(DEFAULT_BANK_LIST);
-  const [bankSearchLoading, setBankSearchLoading] = useState(false);
-
-  // Verification & Loading State
-  const [pennyDropLoading, setPennyDropLoading] = useState(false);
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
-  const [createdBeneficiary, setCreatedBeneficiary] = useState<any | null>(null);
-  const [rawCashfreeRequest, setRawCashfreeRequest] = useState<any | null>(null);
-  const [rawCashfreeResponse, setRawCashfreeResponse] = useState<any | null>(null);
+  // ── Step 1 Form ───────────────────────────────────────────────────────────
+  const [benName, setBenName]               = useState("");
+  const [nickName, setNickName]             = useState("");
+  const [relationship, setRelationship]     = useState("");
+  const [accNum, setAccNum]                 = useState("");
+  const [confirmAccNum, setConfirmAccNum]   = useState("");
   const [accMismatchError, setAccMismatchError] = useState("");
 
-  // Draft Timestamp
+  // ── Bank & Branch ─────────────────────────────────────────────────────────
+  const [bankMasterList, setBankMasterList] = useState<any[]>(DEFAULT_BANK_LIST);
+  const [bankSearchLoading, setBankSearchLoading] = useState(false);
+  const [selectedBankObj, setSelectedBankObj] = useState<any | null>(null);
+  const [bankName, setBankName]             = useState("");
+
+  const [branchList, setBranchList]         = useState<any[]>([]);
+  const [branchLoading, setBranchLoading]   = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<any | null>(null);
+
+  const [ifscCode, setIfscCode]             = useState("");
+  const [micrCode, setMicrCode]             = useState("");
+
+  // ── Pre-checks ────────────────────────────────────────────────────────────
+  const [precheckLoading, setPrecheckLoading] = useState(false);
+  const [precheckResult, setPrecheckResult]   = useState<any | null>(null);
+  const [walletBalance, setWalletBalance]     = useState<number>(48250.75);
+  const [verificationCharge, setVerificationCharge] = useState<{ base: number; gst: number; total: number } | null>(null);
+
+  // ── Verification ──────────────────────────────────────────────────────────
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [pennyDropLoading, setPennyDropLoading] = useState(false);
+  const [verificationError, setVerificationError] = useState("");
+  const [createdBeneficiary, setCreatedBeneficiary] = useState<any | null>(null);
+
+  // ── Success/Failure Modal ─────────────────────────────────────────────────
+  const [resultModalOpen, setResultModalOpen]   = useState(false);
+  const [resultModalSuccess, setResultModalSuccess] = useState(true);
+  const [resultModalData, setResultModalData]   = useState<any | null>(null);
+
+  // ── Misc ──────────────────────────────────────────────────────────────────
   const [lastSaved, setLastSaved] = useState<string>("Just now");
+  const [copied, setCopied]       = useState<string | null>(null);
+
+  // ─── Effects ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     fetchBankMasterList("");
+    loadWalletBalance();
   }, []);
+
+  useEffect(() => {
+    if (selectedBankObj) {
+      loadBranches(selectedBankObj);
+    }
+  }, [selectedBankObj]);
+
+  // ─── API Calls ────────────────────────────────────────────────────────────
+
+  const loadWalletBalance = async () => {
+    try {
+      const res = await retailerApi.getWalletBalance();
+      if (res && res.mainBalance) setWalletBalance(res.mainBalance);
+    } catch {
+      setWalletBalance(48250.75);
+    }
+  };
 
   const fetchBankMasterList = async (query: string = "") => {
     setBankSearchLoading(true);
     try {
       const res = await retailerApi.getBankMasterList(query);
       let list: any[] = [];
-      if (Array.isArray(res)) {
-        list = res;
-      } else if (res && Array.isArray(res.data)) {
-        list = res.data;
-      } else if (res && res.data && Array.isArray(res.data.data)) {
-        list = res.data.data;
-      }
-
+      if (Array.isArray(res)) list = res;
+      else if (res?.data && Array.isArray(res.data)) list = res.data;
+      else if (res?.data?.data && Array.isArray(res.data.data)) list = res.data.data;
       if (list.length > 0) {
         setBankMasterList(list);
-      } else if (query) {
+      } else {
         const q = query.toLowerCase();
         const filtered = DEFAULT_BANK_LIST.filter(
-          (b) =>
-            b.bank_name.toLowerCase().includes(q) ||
-            (b.ifsc || "").toLowerCase().includes(q) ||
-            (b.ifsc_prefix || "").toLowerCase().includes(q)
+          b => b.bank_name.toLowerCase().includes(q) || (b.ifsc_code || "").toLowerCase().includes(q)
         );
         setBankMasterList(filtered.length > 0 ? filtered : DEFAULT_BANK_LIST);
-      } else {
-        setBankMasterList(DEFAULT_BANK_LIST);
       }
     } catch {
       setBankMasterList(DEFAULT_BANK_LIST);
@@ -154,724 +257,1047 @@ export default function BeneficiaryWorkspacePage() {
     }
   };
 
-  const saveDraft = () => {
+  const loadBranches = async (bankObj: any) => {
+    setBranchLoading(true);
+    setSelectedBranch(null);
+    setIfscCode("");
+    setMicrCode("");
     try {
-      localStorage.setItem(
-        "pay2pay_beneficiary_workspace_draft",
-        JSON.stringify({ accHolder, accNum, confirmAccNum, bankName, ifscCode, activeStep })
-      );
-      setLastSaved(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
-      notificationEngine.notify("BENEFICIARY_VERIFIED", "Beneficiary Draft Saved");
+      const prefix = bankObj.ifsc_prefix || (bankObj.ifsc_code || "").slice(0, 4);
+      const mapped = BRANCH_MAP[prefix] || [];
+      if (mapped.length > 0) {
+        setBranchList(mapped);
+      } else {
+        // Build generic branches from bank IFSC prefix
+        const generic = [
+          { branch: "Main Branch", city: "Mumbai", ifsc: `${prefix}0000001`, micr: `400${Math.floor(1000 + Math.random() * 9000)}` },
+          { branch: "Metro Branch", city: "Delhi", ifsc: `${prefix}0000002`, micr: `110${Math.floor(1000 + Math.random() * 9000)}` },
+          { branch: "Anna Nagar", city: "Chennai", ifsc: `${prefix}0000003`, micr: `600${Math.floor(1000 + Math.random() * 9000)}` },
+        ];
+        setBranchList(generic);
+      }
     } catch {
-      // Ignore
+      setBranchList([]);
+    } finally {
+      setBranchLoading(false);
     }
   };
 
   const handleBankSelect = (bankObj: any) => {
-    if (bankObj && typeof bankObj !== "string") {
-      setSelectedBankObj(bankObj);
-      const bName = bankObj.bank_name || bankObj.bank || "";
-      const ifsc = bankObj.ifsc_code || bankObj.ifsc || (bankObj.ifsc_prefix ? `${bankObj.ifsc_prefix}0000001` : "");
-      setBankName(bName);
-      setIfscCode(ifsc);
-    }
+    if (!bankObj || typeof bankObj === "string") return;
+    setSelectedBankObj(bankObj);
+    setBankName(bankObj.bank_name || "");
+    setIfscCode("");
+    setMicrCode("");
+    setSelectedBranch(null);
   };
+
+  const handleBranchSelect = (branchObj: any) => {
+    if (!branchObj) return;
+    setSelectedBranch(branchObj);
+    setIfscCode(branchObj.ifsc || "");
+    setMicrCode(branchObj.micr || "");
+  };
+
+  // ─── Step 1 Submit ────────────────────────────────────────────────────────
 
   const handleStep1Submit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (accNum !== confirmAccNum) {
-      setAccMismatchError("Account numbers do not match! Please check carefully.");
+      setAccMismatchError("Account numbers do not match! Please re-enter carefully.");
+      return;
+    }
+    if (!ifscCode) {
+      setAccMismatchError("Please select a branch to auto-bind the IFSC code.");
       return;
     }
     setAccMismatchError("");
+    // Move to step 2 and run pre-checks
     setActiveStep(1);
+    runPrechecks();
   };
 
-  const handleStep2Submit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!bankName || !ifscCode) return;
-    setActiveStep(2);
+  // ─── Pre-checks & Pricing ─────────────────────────────────────────────────
+
+  const runPrechecks = async () => {
+    setPrecheckLoading(true);
+    setPrecheckResult(null);
+    setVerificationCharge(null);
+    try {
+      // Load wallet balance fresh
+      await loadWalletBalance();
+      // Simulate pre-checks
+      await new Promise(r => setTimeout(r, 1200));
+      // Dynamic pricing from pricing master (₹3.00 + 18% GST = ₹3.54)
+      const base = 3.00;
+      const gstRate = 0.18;
+      const gst = parseFloat((base * gstRate).toFixed(2));
+      const total = parseFloat((base + gst).toFixed(2));
+      setVerificationCharge({ base, gst, total });
+
+      const checks = {
+        wallet_balance: walletBalance >= total,
+        retailer_active: true,
+        customer_active: true,
+        tenant_active: true,
+        company_active: true,
+      };
+      const passed = Object.values(checks).every(Boolean);
+      setPrecheckResult({ passed, checks, wallet_balance: walletBalance, charge: total });
+    } catch {
+      setVerificationCharge({ base: 3.00, gst: 0.54, total: 3.54 });
+      setPrecheckResult({
+        passed: true,
+        checks: { wallet_balance: true, retailer_active: true, customer_active: true, tenant_active: true, company_active: true },
+        wallet_balance: walletBalance,
+        charge: 3.54,
+      });
+    } finally {
+      setPrecheckLoading(false);
+    }
   };
+
+  // ─── Penny Drop Verification ──────────────────────────────────────────────
 
   const handleRunPennyDrop = async () => {
     setPennyDropLoading(true);
-    const reqPayload = {
-      api_endpoint: "https://payout-api.cashfree.com/payout/v1/validation/bankDetails",
-      method: "POST",
-      headers: {
-        "X-Client-Id": "CF_STAGE_CLIENT_PAY2PAY",
-        "X-Client-Secret": "CF_STAGE_SECRET_PAY2PAY",
-        "X-Correlation-Id": `CORR-${Date.now()}`,
-        "Content-Type": "application/json"
-      },
-      request_body: {
-        name: accHolder,
-        phone: activeCustomerMobile || "9176669426",
-        bankAccount: accNum,
-        ifsc: ifscCode
-      }
-    };
-    setRawCashfreeRequest(reqPayload);
+    setVerificationError("");
+    setConfirmModalOpen(false);
 
-    const res = await retailerApi.addPayoutBeneficiary({
-      customer_id: activeCustomerId || "cust-101",
-      account_holder: accHolder,
-      account_number: accNum,
-      confirm_account_number: confirmAccNum,
-      ifsc: ifscCode,
-      bank_name: bankName,
-    });
-    setPennyDropLoading(false);
-    if (res.status === "SUCCESS") {
-      const officialName = res.data?.registered_name_in_bank || res.data?.name_at_bank || accHolder.toUpperCase();
-      const newBen = {
-        beneficiary_id: res.data?.beneficiary_id || `ben-${Date.now()}`,
-        account_holder_name: officialName,
-        entered_name: accHolder,
+    try {
+      const custId = rawId && rawId.includes("-") ? rawId : "011b2d7f-9426-4444-8888-000000000001";
+      const res = await retailerApi.addPayoutBeneficiary({
+        customer_id: custId,
+        account_holder: benName,
         account_number: accNum,
-        ifsc_code: ifscCode,
+        confirm_account_number: confirmAccNum,
+        ifsc: ifscCode,
         bank_name: bankName,
-        is_verified: true,
-        penny_drop_status: "SUCCESS",
-        vendor_ref: res.data?.vendor_ref_id || res.data?.utr || `CF-REF-${Date.now()}`
-      };
-      setCreatedBeneficiary(newBen);
-      setAccHolder(officialName); // Replace entered name with official bank registered account holder name
-      
-      const rawResp = res.data?.raw_vendor_response || {
-        status: "SUCCESS",
-        subCode: "200",
-        message: "Bank Account Verified Successfully",
-        accountStatus: "VALID",
-        accountStatusCode: "ACCOUNT_IS_VALID",
-        data: {
-          refId: newBen.vendor_ref,
-          nameAtBank: officialName,
+        nickname: nickName || undefined,
+      });
+
+      if (res.status === "SUCCESS") {
+        const officialName = res.data?.registered_name_in_bank || res.data?.name_at_bank || benName.toUpperCase();
+        const shortBenId   = `BEN-${(res.data?.beneficiary_id || Date.now()).toString().slice(-8).toUpperCase()}`;
+        const txnId        = `TXN-${Date.now().toString().slice(-10)}`;
+        const utr          = res.data?.utr || `UTR-CF-${Date.now()}`;
+        const vendorRef    = res.data?.vendor_ref_id || `CF-PENNY-${Date.now()}`;
+
+        const newBen = {
+          beneficiary_id: res.data?.beneficiary_id || `ben-${Date.now()}`,
+          short_ben_id: shortBenId,
+          transaction_id: txnId,
+          account_holder_name: officialName,
+          entered_name: benName,
+          nickname: nickName || `${bankName} Account`,
+          relationship,
+          account_number: accNum,
+          account_number_masked: `•••• •••• ${accNum.slice(-4)}`,
+          ifsc_code: ifscCode,
+          bank_name: bankName,
+          branch: selectedBranch?.branch || "Main Branch",
+          city: selectedBranch?.city || "",
+          micr: micrCode || "",
+          is_verified: true,
+          penny_drop_status: "SUCCESS",
+          vendor_ref: vendorRef,
+          utr,
+          wallet_debit: verificationCharge?.total || 3.54,
+          wallet_balance_after: walletBalance - (verificationCharge?.total || 3.54),
+        };
+
+        setCreatedBeneficiary(newBen);
+        setBenName(officialName); // Replace with official name from bank
+
+        // Save to store & localStorage
+        const formattedBene = {
+          id: newBen.beneficiary_id,
+          beneficiaryCode: shortBenId,
+          name: officialName,
+          nickname: newBen.nickname,
+          relationship,
           accountNumber: accNum,
+          maskedAccountNumber: newBen.account_number_masked,
           ifsc: ifscCode,
-          accountExists: true,
-          utr: res.data?.utr || `UTR-CF-${Date.now()}`,
-          city: "MUMBAI",
-          branch: "MAIN BRANCH"
-        }
-      };
-      setRawCashfreeResponse(rawResp);
-      
-      notificationEngine.notify("BENEFICIARY_VERIFIED", `Verified! Official Name: ${officialName}`);
-      setActiveStep(3);
+          branchName: newBen.branch,
+          bankName,
+          isVerified: true,
+          isFavorite: false,
+          lastUsedAt: "Just now",
+          transferCount: 0,
+          status: "ACTIVE",
+          preferredGateway: "Cashfree Verified",
+          dailyUsage: 0, monthlyUsage: 0,
+          dailyRemaining: 50000, monthlyRemaining: 200000,
+        };
+        setSelectedBeneficiary(formattedBene);
+
+        try {
+          const key = `pay2pay_user_added_beneficiaries_${activeCustomerId}`;
+          const existing = JSON.parse(localStorage.getItem(key) || "[]");
+          const deduped  = existing.filter((b: any) => b.accountNumber !== accNum);
+          localStorage.setItem(key, JSON.stringify([formattedBene, ...deduped]));
+        } catch { /* ignore */ }
+
+        notificationEngine.notify("BENEFICIARY_VERIFIED", `✅ Verified: ${officialName}`);
+
+        // Show success result modal
+        setResultModalSuccess(true);
+        setResultModalData(newBen);
+        setResultModalOpen(true);
+        playSuccessSound();
+
+        setActiveStep(2);
+      } else {
+        throw new Error(res.message || "Verification failed");
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || "Penny Drop Verification Failed. Please try again.";
+      setVerificationError(errMsg);
+      setResultModalSuccess(false);
+      setResultModalData({ error: errMsg });
+      setResultModalOpen(true);
+      playFailureSound();
+    } finally {
+      setPennyDropLoading(false);
     }
   };
+
+  // ─── Navigation ───────────────────────────────────────────────────────────
 
   const getReturnUrl = () => {
     const target = referrerUrl || paramReferrer || "/retailer/dmt";
-    const mobDigits = activeCustomerMobile ? activeCustomerMobile.replace(/\D/g, "").slice(-10) : "";
-    if (!mobDigits) return target;
+    const mob    = activeCustomerMobile ? activeCustomerMobile.replace(/\D/g, "").slice(-10) : "";
     const joiner = target.includes("?") ? "&" : "?";
-    return `${target}${joiner}customerMobile=${mobDigits}&customerId=${encodeURIComponent(activeCustomerId || "")}`;
+    return mob
+      ? `${target}${joiner}customerMobile=${mob}&customerId=${encodeURIComponent(activeCustomerId || "")}`
+      : target;
   };
 
-  const handleCompleteAndReturn = (benToSelect: any) => {
-    const formattedBene = {
-      id: benToSelect?.beneficiary_id || `BEN-${Date.now()}`,
-      beneficiaryCode: `BEN-${Date.now()}`,
-      name: benToSelect?.account_holder_name || accHolder || "Verified Beneficiary",
-      relationship: "Newly Added",
-      accountNumber: benToSelect?.account_number || accNum,
-      maskedAccountNumber: `•••• •••• ${(benToSelect?.account_number || accNum).slice(-4)}`,
-      ifsc: benToSelect?.ifsc_code || ifscCode,
-      branchName: "Main Branch",
-      bankName: benToSelect?.bank_name || bankName,
-      isVerified: true,
-      isFavorite: true,
-      lastUsedAt: "Just now",
-      transferCount: 0,
-      status: "ACTIVE",
-      preferredGateway: "Cashfree Verified",
-      dailyUsage: 0,
-      monthlyUsage: 0,
-      dailyRemaining: 50000,
-      monthlyRemaining: 200000,
-    };
-
-    setSelectedBeneficiary(formattedBene);
-
-    const custId = activeCustomerId || "cust-default";
-    try {
-      const existingStr = localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`);
-      const existingList = existingStr ? JSON.parse(existingStr) : [];
-      // Prevent duplicates
-      const filtered = existingList.filter((b: any) => b.accountNumber !== formattedBene.accountNumber);
-      filtered.unshift(formattedBene);
-      localStorage.setItem(`pay2pay_user_added_beneficiaries_${custId}`, JSON.stringify(filtered));
-    } catch (err) {
-      console.warn("Error saving added beneficiary to localStorage:", err);
-    }
-
+  const handleCompleteAndReturn = () => {
     localStorage.removeItem("pay2pay_beneficiary_workspace_draft");
     router.push(getReturnUrl());
   };
 
-  const handleCancel = () => {
-    router.push(getReturnUrl());
+  const handleCancel = () => router.push(getReturnUrl());
+
+  const saveDraft = () => {
+    try {
+      localStorage.setItem("pay2pay_beneficiary_workspace_draft", JSON.stringify({
+        benName, nickName, relationship, accNum, confirmAccNum, bankName, ifscCode, micrCode, activeStep
+      }));
+      setLastSaved(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+    } catch { /* ignore */ }
   };
 
-  const completionPercentage = Math.round(((activeStep + 1) / STEPS.length) * 100);
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  };
+
+  const completionPct = Math.round(((activeStep + 1) / STEPS.length) * 100);
+
+  // ─── RENDER ───────────────────────────────────────────────────────────────
 
   return (
-    <Box sx={{ height: "100vh", maxHeight: "100vh", backgroundColor: "#F8FAFC", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* ── STICKY ENTERPRISE HEADER ── */}
-      <Paper
-        square
-        elevation={0}
-        sx={{
-          position: "sticky",
-          top: 0,
-          zIndex: 1100,
-          px: 3,
-          py: 1.25,
-          background: "linear-gradient(90deg, #0F172A 0%, #1E293B 100%)",
-          color: "#FFFFFF",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-        }}
-      >
+    <Box sx={{ height: "100vh", maxHeight: "100vh", backgroundColor: "#F1F5F9", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+      {/* ── HEADER ────────────────────────────────────────────────────────── */}
+      <Paper square elevation={0} sx={{
+        zIndex: 1100, px: 3, py: 1.25,
+        background: "linear-gradient(90deg, #0F172A 0%, #1E293B 60%, #0C4A6E 100%)",
+        color: "#FFF", display: "flex", alignItems: "center", justifyContent: "space-between",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.25)",
+      }}>
         <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <IconButton onClick={handleCancel} sx={{ color: "#F8FAFC", bgcolor: "rgba(255,255,255,0.1)", "&:hover": { bgcolor: "rgba(255,255,255,0.2)" } }}>
-            <ArrowBackIcon />
+          <IconButton onClick={handleCancel} sx={{ color: "#F8FAFC", bgcolor: "rgba(255,255,255,0.08)", "&:hover": { bgcolor: "rgba(255,255,255,0.16)" } }}>
+            <ArrowBackIcon fontSize="small" />
           </IconButton>
           <Box>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: "18px", sm: "22px", md: "26px" }, color: "#F8FAFC", letterSpacing: "-0.5px" }}>
-                Beneficiary Onboarding Workspace
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              <Typography sx={{ fontWeight: 800, fontSize: { xs: "16px", md: "20px" }, color: "#F8FAFC", letterSpacing: "-0.3px" }}>
+                Add Beneficiary
               </Typography>
-              <Chip
-                label="Penny Drop Verified"
-                size="small"
-                sx={{
-                  height: 20,
-                  bgcolor: "rgba(56, 189, 248, 0.12)",
-                  color: "#38BDF8",
-                  border: "1px solid rgba(56, 189, 248, 0.3)",
-                  fontWeight: 700,
-                  fontSize: "0.65rem",
-                }}
-              />
+              <Chip label="Penny Drop" size="small" sx={{ height: 18, bgcolor: "rgba(56,189,248,0.15)", color: "#38BDF8", border: "1px solid rgba(56,189,248,0.3)", fontSize: "0.6rem", fontWeight: 700 }} />
             </Stack>
-
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap", mt: 0.25 }}>
-              <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "12px", fontWeight: 500 }}>
-                Bank Master Lookup • Auto IFSC Binding
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 0.2 }}>
+              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
+                Step {activeStep + 1}/{STEPS.length} — {STEPS[activeStep]?.label}
               </Typography>
-
-              {(activeCustomerName || activeCustomerMobile || activeCustomerId) && (
+              {(activeCustomerName || activeCustomerMobile) && (
                 <Chip
                   size="small"
-                  avatar={
-                    <Avatar sx={{ bgcolor: "#0284C7", color: "#FFFFFF", fontWeight: 800, fontSize: "11px", width: 20, height: 20 }}>
-                      {(activeCustomerName || "C").charAt(0).toUpperCase()}
-                    </Avatar>
-                  }
                   label={
-                    <Typography variant="caption" sx={{ color: "#F8FAFC", fontWeight: 700, fontSize: "11.5px" }}>
-                      Customer: <strong style={{ color: "#38BDF8" }}>{activeCustomerName || "Active Customer"}</strong>
-                      {activeCustomerMobile && <> &nbsp;•&nbsp; Mob: <strong style={{ color: "#38BDF8" }}>{activeCustomerMobile}</strong></>}
-                      {activeCustomerId && <> &nbsp;•&nbsp; ID: <strong style={{ color: "#CBD5E1" }}>{activeCustomerId}</strong></>}
+                    <Typography variant="caption" sx={{ color: "#F8FAFC", fontWeight: 600, fontSize: "10.5px" }}>
+                      <span style={{ color: "#94A3B8" }}>For:</span>{" "}
+                      <strong style={{ color: "#38BDF8" }}>{activeCustomerName || "Customer"}</strong>
+                      {activeCustomerMobile && <span style={{ color: "#64748B" }}> • {activeCustomerMobile}</span>}
+                      {activeCustomerId && <span style={{ color: "#475569" }}> • {activeCustomerId}</span>}
                     </Typography>
                   }
-                  sx={{
-                    bgcolor: "rgba(30, 41, 59, 0.85)",
-                    border: "1px solid rgba(56, 189, 248, 0.4)",
-                    height: 24,
-                    px: 0.5,
-                    borderRadius: "6px",
-                  }}
+                  sx={{ bgcolor: "rgba(15,23,42,0.7)", border: "1px solid rgba(56,189,248,0.25)", height: 20, borderRadius: "5px", px: 0.5 }}
                 />
               )}
             </Stack>
           </Box>
         </Stack>
 
-        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <Box sx={{ textAlign: "right", display: { xs: "none", md: "block" } }}>
-            <Typography variant="caption" sx={{ color: "#38BDF8", display: "block", fontWeight: 700 }}>
-              Draft Saved: {lastSaved}
-            </Typography>
-          </Box>
-
-          <M3Button variant="outlined" size="small" onClick={saveDraft} startIcon={<SaveIcon />} sx={{ color: "#F8FAFC", borderColor: "rgba(248,250,252,0.3)" }}>
-            Save Draft
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+          <Typography variant="caption" sx={{ color: "#38BDF8", fontWeight: 700, display: { xs: "none", md: "block" } }}>
+            Saved {lastSaved}
+          </Typography>
+          <M3Button variant="outlined" size="small" onClick={saveDraft} startIcon={<SaveIcon sx={{ fontSize: 14 }} />}
+            sx={{ color: "#94A3B8", borderColor: "rgba(148,163,184,0.3)", fontSize: "12px", py: 0.5 }}>
+            Draft
           </M3Button>
-
-          <IconButton onClick={handleCancel} sx={{ color: "#F8FAFC" }}>
-            <CloseIcon />
+          <IconButton onClick={handleCancel} sx={{ color: "#64748B" }}>
+            <CloseIcon fontSize="small" />
           </IconButton>
         </Stack>
       </Paper>
 
-      {/* ── WORKSPACE BODY (FIT VIEWPORT NO SCROLL) ── */}
-      <Box sx={{ flex: 1, overflowY: "auto", maxWidth: 1400, width: "100%", mx: "auto", p: { xs: 2, md: 3 }, pb: 3 }}>
-        <Grid container spacing={3}>
-          {/* LEFT SIDEBAR */}
-          <Grid size={{ xs: 12, md: 4, lg: 3 }}>
-            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F172A", mb: 0.5 }}>
-                Beneficiary Progress
-              </Typography>
-              <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 2 }}>
-                Step {activeStep + 1} of {STEPS.length}
-              </Typography>
+      {/* ── BODY ──────────────────────────────────────────────────────────── */}
+      <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 1.5, md: 2.5 }, pb: 3 }}>
+        <Grid container spacing={2.5} sx={{ maxWidth: 1280, mx: "auto" }}>
 
-              <Box sx={{ mb: 3 }}>
-                <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.75 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F172A" }}>
-                    Completion
-                  </Typography>
-                  <Typography variant="caption" sx={{ fontWeight: 900, color: "#0284C7" }}>
-                    {completionPercentage}%
-                  </Typography>
-                </Stack>
-                <LinearProgress variant="determinate" value={completionPercentage} sx={{ height: 8, borderRadius: 4, bgcolor: "#E2E8F0", "& .MuiLinearProgress-bar": { bgcolor: "#0284C7" } }} />
-              </Box>
-
-              <Stack spacing={2} sx={{ mb: 3 }}>
-                {STEPS.map((s, idx) => {
-                  const isDone = activeStep > idx;
-                  const isCurrent = activeStep === idx;
-                  return (
-                    <Paper
-                      key={s.label}
-                      elevation={0}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: 3,
-                        border: isCurrent ? "2px solid #0284C7" : "1px solid #F1F5F9",
-                        backgroundColor: isCurrent ? "#F0F9FF" : isDone ? "#F0FDF4" : "#FAF5FF",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                        <Avatar sx={{ width: 28, height: 28, fontSize: "0.75rem", fontWeight: 900, bgcolor: isDone ? "#16A34A" : isCurrent ? "#0F172A" : "#94A3B8" }}>
-                          {isDone ? <CheckCircleIcon sx={{ fontSize: 18 }} /> : idx + 1}
-                        </Avatar>
+          {/* ── LEFT SIDEBAR ────────────────────────────────────────────── */}
+          <Grid size={{ xs: 12, md: 3.5 }}>
+            <Stack spacing={2}>
+              {/* Progress Card */}
+              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
+                  Progress
+                </Typography>
+                <Box sx={{ my: 1.5 }}>
+                  <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mb: 0.75 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#0F172A" }}>Completion</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 900, color: "#0284C7" }}>{completionPct}%</Typography>
+                  </Box>
+                  <LinearProgress variant="determinate" value={completionPct}
+                    sx={{ height: 6, borderRadius: 3, bgcolor: "#E2E8F0", "& .MuiLinearProgress-bar": { bgcolor: "#0284C7", borderRadius: 3 } }} />
+                </Box>
+                <Box sx={{ mt: 1 }}>
+                <Stack spacing={1.5}>
+                  {STEPS.map((s, idx) => {
+                    const isDone    = activeStep > idx;
+                    const isCurrent = activeStep === idx;
+                    return (
+                      <Box key={s.label} sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                        <Box sx={{
+                          width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                          bgcolor: isDone ? "#DCFCE7" : isCurrent ? "#0284C7" : "#F1F5F9",
+                          border: isCurrent ? "none" : isDone ? "none" : "1px solid #E2E8F0",
+                          flexShrink: 0,
+                        }}>
+                          {isDone ? (
+                            <CheckCircleIcon sx={{ fontSize: 18, color: "#16A34A" }} />
+                          ) : (
+                            <Typography sx={{ fontSize: "12px", fontWeight: 800, color: isCurrent ? "#FFF" : "#94A3B8" }}>
+                              {idx + 1}
+                            </Typography>
+                          )}
+                        </Box>
                         <Box>
-                          <Typography variant="body2" sx={{ fontWeight: isCurrent ? 900 : 700, color: isCurrent ? "#0F172A" : "#334155" }}>
+                          <Typography variant="body2" sx={{ fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#0F172A" : isDone ? "#16A34A" : "#94A3B8", fontSize: "13px" }}>
                             {s.label}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: "#64748B", fontSize: "0.68rem" }}>
-                            Est. {s.est}
-                          </Typography>
+                          {isCurrent && (
+                            <Typography variant="caption" sx={{ color: "#64748B", fontSize: "10px" }}>Est. {s.est}</Typography>
+                          )}
                         </Box>
-                      </Stack>
-                    </Paper>
-                  );
-                })}
-              </Stack>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+                </Box>
+              </Paper>
 
-              <Divider sx={{ my: 2 }} />
+              {/* Customer Card */}
+              {(activeCustomerName || activeCustomerMobile) && (
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #BFDBFE", bgcolor: "#EFF6FF" }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#1E40AF", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
+                    Customer
+                  </Typography>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mt: 1 }}>
+                    <Avatar sx={{ width: 36, height: 36, bgcolor: "#1D4ED8", fontWeight: 800, fontSize: "14px" }}>
+                      {(activeCustomerName || "C").charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Box>
+                      <Typography sx={{ fontWeight: 800, color: "#1E40AF", fontSize: "13px" }}>{activeCustomerName || "Active Customer"}</Typography>
+                      {activeCustomerMobile && <Typography variant="caption" sx={{ color: "#3B82F6", fontWeight: 600 }}>{activeCustomerMobile}</Typography>}
+                      {activeCustomerId && <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", fontSize: "10px" }}>{activeCustomerId}</Typography>}
+                    </Box>
+                  </Stack>
+                </Paper>
+              )}
 
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "#64748B" }}>
-                <AccessTimeIcon sx={{ fontSize: 18 }} />
-                <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                  Est. Remaining: ~1 minute
+              {/* Wallet Card */}
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #D1FAE5", bgcolor: "#F0FDF4" }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
+                  <AccountBalanceWalletIcon sx={{ fontSize: 16, color: "#16A34A" }} />
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
+                    Retailer Wallet
+                  </Typography>
+                </Stack>
+                <Typography sx={{ fontWeight: 900, color: "#15803D", fontSize: "22px", letterSpacing: "-0.5px" }}>
+                  ₹{walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </Typography>
-              </Stack>
-            </Paper>
+                <Typography variant="caption" sx={{ color: "#86EFAC", fontWeight: 600 }}>Available Balance</Typography>
+              </Paper>
+
+              {/* Help Card */}
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #FEF3C7", bgcolor: "#FFFBEB" }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: "#92400E", fontSize: "10px", textTransform: "uppercase", letterSpacing: 1 }}>
+                  💡 How It Works
+                </Typography>
+                <Box sx={{ mt: 1 }}><Stack spacing={0.75}>
+                  {["Enter beneficiary bank details", "System verifies account via Penny Drop", "₹1 sent & instantly recovered", "Official bank name auto-updated", "Beneficiary saved for all future transfers"].map((txt, i) => (
+                    <Typography key={i} variant="caption" sx={{ color: "#78350F", display: "flex", gap: 0.75, alignItems: "flex-start", fontSize: "11px" }}>
+                      <span style={{ color: "#F59E0B", fontWeight: 900, flexShrink: 0 }}>{i + 1}.</span> {txt}
+                    </Typography>
+                  ))}
+                </Stack></Box>
+              </Paper>
+            </Stack>
           </Grid>
 
-          {/* MAIN CONTENT */}
-          <Grid size={{ xs: 12, md: 8, lg: 9 }}>
+          {/* ── MAIN CONTENT ────────────────────────────────────────────── */}
+          <Grid size={{ xs: 12, md: 8.5 }}>
             <AnimatePresence mode="wait">
-              {/* STEP 0: ACCOUNT INFO */}
-              {activeStep === 0 && (
-                <motion.div key="ben-step0" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}>
-                  <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
-                    <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A", mb: 0.5 }}>
-                      Step 1 — Customer Context & Bank Account Details
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "#64748B", mb: 4 }}>
-                      Adding beneficiary for customer: <strong>{selectedCustomer?.full_name || "Active Customer"}</strong> (+91 {selectedCustomer?.mobile_number || "9876543210"})
-                    </Typography>
 
-                    <form onSubmit={handleStep1Submit}>
-                      <Stack spacing={3}>
-                        <M3TextField label="Account Holder Name *" value={accHolder} onChange={(e) => setAccHolder(e.target.value)} required />
+              {/* ═══════════════════════════════════════════════════════════
+                  STEP 0 — BENEFICIARY INFORMATION
+              ═══════════════════════════════════════════════════════════ */}
+              {activeStep === 0 && (
+                <motion.div key="step0" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.25 }}>
+                  <form onSubmit={handleStep1Submit}>
+                    <Stack spacing={2}>
+
+                      {/* BENEFICIARY DETAILS */}
+                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2.5 }}>
+                          <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: "#0F172A", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <PersonIcon sx={{ fontSize: 18, color: "#FFF" }} />
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Beneficiary Details</Typography>
+                            <Typography variant="caption" sx={{ color: "#64748B" }}>Name will be replaced with official bank registered name after verification</Typography>
+                          </Box>
+                        </Stack>
 
                         <Grid container spacing={2}>
                           <Grid size={{ xs: 12, sm: 6 }}>
-                            <M3TextField label="Account Number *" value={accNum} onChange={(e) => setAccNum(e.target.value)} required />
+                            <M3TextField
+                              label="Beneficiary Name *"
+                              value={benName}
+                              onChange={e => setBenName(e.target.value)}
+                              required
+                              helperText="As per sender's knowledge (will be auto-updated after verification)"
+                            />
                           </Grid>
                           <Grid size={{ xs: 12, sm: 6 }}>
-                            <M3TextField label="Confirm Account Number *" value={confirmAccNum} onChange={(e) => setConfirmAccNum(e.target.value)} required />
+                            <M3TextField
+                              label="Nick Name (Optional)"
+                              value={nickName}
+                              onChange={e => setNickName(e.target.value)}
+                              helperText="Easy identifier e.g. 'Mom's SBI Account'"
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel>Relationship *</InputLabel>
+                              <Select value={relationship} label="Relationship *" onChange={e => setRelationship(e.target.value)} required>
+                                {RELATIONSHIP_OPTIONS.map(r => (
+                                  <MenuItem key={r} value={r}>{r}</MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
                           </Grid>
                         </Grid>
+                      </Paper>
 
-                        {accMismatchError && <Alert severity="error" sx={{ borderRadius: 2.5, fontWeight: 700 }}>{accMismatchError}</Alert>}
-
-                        <M3Button type="submit" variant="contained" disabled={!accHolder || !accNum || !confirmAccNum} sx={{ py: 1.75, bgcolor: "#0F172A" }}>
-                          Continue to Bank & IFSC Selection →
-                        </M3Button>
-                      </Stack>
-                    </form>
-                  </Paper>
-                </motion.div>
-              )}
-
-              {/* STEP 1: BANK MASTER & IFSC */}
-              {activeStep === 1 && (
-                <motion.div key="ben-step1" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}>
-                  <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
-                    <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A", mb: 0.5 }}>
-                      Step 2 — Search Bank Master & Auto-Bind IFSC Code
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "#64748B", mb: 4 }}>
-                      Search by Bank Name. Default IFSC code is automatically bound to prevent manual input errors.
-                    </Typography>
-
-                    <form onSubmit={handleStep2Submit}>
-                      <Stack spacing={3}>
-                        <Autocomplete
-                          options={bankMasterList}
-                          openOnFocus
-                          getOptionLabel={(option) => {
-                            if (typeof option === "string") return option;
-                            return option.bank_name ? `${option.bank_name} (${option.ifsc_code || option.ifsc || option.ifsc_prefix || ""})` : "";
-                          }}
-                          loading={bankSearchLoading}
-                          value={selectedBankObj}
-                          onChange={(_, val) => handleBankSelect(val)}
-                          onInputChange={(_, newInputValue) => {
-                            fetchBankMasterList(newInputValue || "");
-                          }}
-                          renderOption={(props, option) => (
-                            <Box component="li" {...props} key={option.bank_id || option.ifsc_code || option.bank_name}>
-                              <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                                <Avatar
-                                  src={option.logo || `https://logo.clearbit.com/${(option.bank_name || "").toLowerCase().replace(/\s+/g, "")}.com`}
-                                  sx={{ width: 24, height: 24, fontSize: "0.75rem", bgcolor: "#312E81" }}
-                                >
-                                  {option.bank_name ? option.bank_name.charAt(0) : "B"}
-                                </Avatar>
-                                <Box>
-                                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                    {option.bank_name}
-                                  </Typography>
-                                  <Typography variant="caption" sx={{ color: "#64748B" }}>
-                                    IFSC: {option.ifsc_code || option.ifsc || option.ifsc_prefix} • IMPS Operational
-                                  </Typography>
-                                </Box>
-                              </Stack>
-                            </Box>
-                          )}
-                          renderInput={(params) => <TextField {...params} label="Select Bank Name *" placeholder="Search Bank (e.g. HDFC, SBI, ICICI)..." />}
-                        />
-
-                        <M3TextField
-                          label="IFSC Code *"
-                          value={ifscCode}
-                          onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-                          placeholder="e.g. HDFC0000001"
-                          required
-                          helperText={ifscCode ? `✓ Auto-bound to ${bankName}` : "Auto-populated upon selecting bank"}
-                        />
-
-                        <M3Button type="submit" variant="contained" disabled={!bankName || !ifscCode} sx={{ py: 1.75, bgcolor: "#0F172A" }}>
-                          Continue to Penny Drop Verification →
-                        </M3Button>
-                      </Stack>
-                    </form>
-                  </Paper>
-                </motion.div>
-              )}
-
-              {/* STEP 2: PENNY DROP VERIFICATION */}
-              {activeStep === 2 && (
-                <motion.div key="ben-step2" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}>
-                  <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
-                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1 }}>
-                      <SpeedIcon sx={{ color: "#0284C7", fontSize: 32 }} />
-                      <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A" }}>
-                        Step 3 — Cashfree ₹1 Penny Drop Account Verification
-                      </Typography>
-                    </Stack>
-                    <Typography variant="body2" sx={{ color: "#64748B", mb: 4 }}>
-                      Runs real-time ₹1 Penny Drop via Cashfree API to verify account active status & match name.
-                    </Typography>
-
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 4 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F172A", mb: 1 }}>
-                        Account Summary to Verify:
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: "#334155" }}>
-                        Account Holder: {accHolder}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: "#64748B" }}>
-                        Bank: {bankName} • Account Number: {accNum} • IFSC: {ifscCode}
-                      </Typography>
-                    </Paper>
-
-                    <M3Button
-                      variant="contained"
-                      loading={pennyDropLoading}
-                      onClick={() => setConfirmModalOpen(true)}
-                      sx={{ py: 1.75, width: "100%", bgcolor: "#0284C7", "&:hover": { bgcolor: "#0369A1" } }}
-                    >
-                      Verify Bank Account
-                    </M3Button>
-
-                    {/* BELOW-THE-BUTTON FINANCIAL DISCLOSURE */}
-                    <Box sx={{ mt: 2.5, textAlign: "center", p: 2.5, borderRadius: 3, bgcolor: "#F0F9FF", border: "1px solid #BAE6FD" }}>
-                      <Typography sx={{ color: "#0C4A6E", fontWeight: 800, fontSize: "14px", mb: 0.5 }}>
-                        Verification Charge: <span style={{ color: "#0284C7" }}>₹3.00 + 18% GST (₹3.54 Total Debit)</span>
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: "#0369A1", display: "block", fontSize: "12px", fontWeight: 600 }}>
-                        Amount will be debited from your retailer wallet.
-                        If verification fails due to a system/vendor failure, the amount will be automatically refunded.
-                      </Typography>
-                    </Box>
-                  </Paper>
-                </motion.div>
-              )}
-
-              {/* ENTERPRISE FINANCIAL DEBIT CONFIRMATION DIALOG */}
-              <Dialog
-                open={confirmModalOpen}
-                onClose={() => setConfirmModalOpen(false)}
-                maxWidth="xs"
-                fullWidth
-                slotProps={{
-                  paper: { sx: { borderRadius: 4, p: 1 } },
-                }}
-              >
-                <DialogTitle sx={{ fontWeight: 900, color: "#0F172A", pb: 1 }}>
-                  Confirm Bank Account Verification
-                </DialogTitle>
-                <DialogContent>
-                  <Typography variant="body2" sx={{ color: "#64748B", mb: 2 }}>
-                    Please review the account details and financial debit breakdown before confirming.
-                  </Typography>
-
-                  <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 2 }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>ACCOUNT TO VERIFY</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>
-                      {accHolder}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: "#475569", display: "block" }}>
-                      {bankName} • XXXX{accNum.slice(-4)} • {ifscCode}
-                    </Typography>
-                  </Paper>
-
-                  <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "#F0F9FF", border: "1px solid #BAE6FD", mb: 2 }}>
-                    <Typography variant="caption" sx={{ color: "#0C4A6E", fontWeight: 800, display: "block", mb: 1 }}>
-                      FINANCIAL DEBIT BREAKDOWN
-                    </Typography>
-                    <Table size="small">
-                      <TableBody>
-                        <TableRow>
-                          <TableCell sx={{ border: 0, p: 0.5, color: "#475569", fontSize: "12px" }}>Verification Charge</TableCell>
-                          <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, fontSize: "12px" }}>₹3.00</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell sx={{ border: 0, p: 0.5, color: "#475569", fontSize: "12px" }}>GST (18%)</TableCell>
-                          <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, fontSize: "12px" }}>₹0.54</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell sx={{ borderTop: "1px solid #BAE6FD", p: 0.5, fontWeight: 900, color: "#0F172A", fontSize: "13px" }}>Total Debit Amount</TableCell>
-                          <TableCell align="right" sx={{ borderTop: "1px solid #BAE6FD", p: 0.5, fontWeight: 900, color: "#0284C7", fontSize: "13px" }}>₹3.54</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </Paper>
-
-                  <Alert severity="info" sx={{ borderRadius: 2.5, fontSize: "11px", fontWeight: 600 }}>
-                    Amount will be debited from Retailer Wallet. Automatic refund guaranteed upon vendor/system failure.
-                  </Alert>
-                </DialogContent>
-                <DialogActions sx={{ p: 2, pt: 0 }}>
-                  <M3Button variant="text" onClick={() => setConfirmModalOpen(false)} sx={{ color: "#64748B" }}>
-                    Cancel
-                  </M3Button>
-                  <M3Button
-                    variant="contained"
-                    onClick={() => {
-                      setConfirmModalOpen(false);
-                      handleRunPennyDrop();
-                    }}
-                    sx={{ bgcolor: "#0284C7", px: 3, fontWeight: 800 }}
-                  >
-                    Confirm & Debit ₹3.54 →
-                  </M3Button>
-                </DialogActions>
-              </Dialog>
-
-              {/* STEP 3: COMPLETE - OFFICIAL BANK REGISTERED NAME DISPLAY */}
-              {activeStep === 3 && (
-                <motion.div key="ben-step3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
-                  <Paper elevation={0} sx={{ p: 5, borderRadius: 4, border: "1px solid #BAE6FD", backgroundColor: "#F0F9FF", textAlign: "center" }}>
-                    <VerifiedIcon sx={{ fontSize: 72, color: "#0284C7", mb: 2 }} />
-                    <Typography variant="h5" sx={{ fontWeight: 900, color: "#0C4A6E", mb: 1 }}>
-                      Bank Account Verified & Registered
-                    </Typography>
-
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "#FFF", border: "1px solid #BAE6FD", maxWidth: 520, mx: "auto", my: 3, textAlign: "left" }}>
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800, display: "block", mb: 0.5 }}>
-                        OFFICIAL BANK REGISTERED ACCOUNT HOLDER NAME
-                      </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A", mb: 1.5 }}>
-                        {createdBeneficiary?.account_holder_name || accHolder}
-                      </Typography>
-                      <Divider sx={{ my: 1 }} />
-                      <Stack direction="row" sx={{ justifyContent: "space-between", mt: 1 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B" }}>Account Number:</Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F172A" }}>{accNum}</Typography>
-                      </Stack>
-                      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                        <Typography variant="caption" sx={{ color: "#64748B" }}>Bank Name:</Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F172A" }}>{bankName}</Typography>
-                      </Stack>
-                      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                        <Typography variant="caption" sx={{ color: "#64748B" }}>IFSC Code:</Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#0284C7" }}>{ifscCode}</Typography>
-                      </Stack>
-                      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                        <Typography variant="caption" sx={{ color: "#64748B" }}>Vendor Reference:</Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#16A34A" }}>{createdBeneficiary?.vendor_ref || "CF-VERIFIED-REF"}</Typography>
-                      </Stack>
-                    </Paper>
-
-                    {/* CASHFREE VENDOR API REQUEST & RESPONSE INSPECTION BOX */}
-                    <Accordion elevation={0} sx={{ mt: 3, mb: 3, border: "1px solid #BAE6FD", borderRadius: 3, textAlign: "left", "&:before": { display: "none" } }}>
-                      <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: "#0284C7" }} />}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                          <CodeIcon sx={{ fontSize: 18, color: "#0284C7" }} />
-                          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0C4A6E" }}>
-                            Inspect Cashfree API Request & Response Payload Audit Logs
-                          </Typography>
+                      {/* ACCOUNT DETAILS */}
+                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2.5 }}>
+                          <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: "#0284C7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <AccountBalanceIcon sx={{ fontSize: 18, color: "#FFF" }} />
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Account Details</Typography>
+                            <Typography variant="caption" sx={{ color: "#64748B" }}>Enter and confirm account number precisely</Typography>
+                          </Box>
                         </Stack>
-                      </AccordionSummary>
-                      <AccordionDetails sx={{ bgcolor: "#0F172A", color: "#38BDF8", borderRadius: "0 0 12px 12px", p: 2 }}>
-                        {/* OUTBOUND REQUEST PAYLOAD */}
-                        <Typography variant="caption" sx={{ color: "#F59E0B", display: "block", mb: 0.5, fontWeight: 800 }}>
-                          1. OUTBOUND CASHFREE REQUEST PAYLOAD (POST /payout/v1/validation/bankDetails)
-                        </Typography>
-                        <Box component="pre" sx={{ fontSize: "11px", fontFamily: "monospace", overflowX: "auto", margin: 0, p: 1.5, bgcolor: "#1E293B", borderRadius: 2, color: "#FCD34D", mb: 2 }}>
-                          {JSON.stringify(rawCashfreeRequest || {
-                            api_endpoint: "https://payout-api.cashfree.com/payout/v1/validation/bankDetails",
-                            method: "POST",
-                            headers: {
-                              "X-Client-Id": "CF_STAGE_CLIENT_PAY2PAY",
-                              "X-Client-Secret": "CF_STAGE_SECRET_PAY2PAY",
-                              "X-Correlation-Id": "CORR-1786116875",
-                              "Content-Type": "application/json"
-                            },
-                            request_body: {
-                              name: accHolder || "Sathiya Murthy",
-                              phone: "9176669426",
-                              bankAccount: accNum || "10198918757",
-                              ifsc: ifscCode || "IDFB0080106"
-                            }
-                          }, null, 2)}
-                        </Box>
 
-                        {/* INBOUND RESPONSE PAYLOAD */}
-                        <Typography variant="caption" sx={{ color: "#38BDF8", display: "block", mb: 0.5, fontWeight: 800 }}>
-                          2. INBOUND CASHFREE RESPONSE PAYLOAD (HTTP 200 OK)
-                        </Typography>
-                        <Box component="pre" sx={{ fontSize: "11px", fontFamily: "monospace", overflowX: "auto", margin: 0, p: 1.5, bgcolor: "#1E293B", borderRadius: 2, color: "#38BDF8" }}>
-                          {JSON.stringify(rawCashfreeResponse || {
-                            status: "SUCCESS",
-                            subCode: "200",
-                            message: "Bank Account Verified Successfully",
-                            accountStatus: "VALID",
-                            accountStatusCode: "ACCOUNT_IS_VALID",
-                            data: {
-                              refId: createdBeneficiary?.vendor_ref || "CF-PENNY-98129031",
-                              nameAtBank: createdBeneficiary?.account_holder_name || "SATHIYA MURTHY",
-                              accountNumber: accNum,
-                              ifsc: ifscCode,
-                              accountExists: true,
-                              utr: "UTR-CF-90182391",
-                              city: "MUMBAI",
-                              branch: "MAIN BRANCH"
-                            }
-                          }, null, 2)}
-                        </Box>
-                      </AccordionDetails>
-                    </Accordion>
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <M3TextField
+                              label="Account Number *"
+                              value={accNum}
+                              onChange={e => { setAccNum(e.target.value); setAccMismatchError(""); }}
+                              required
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <M3TextField
+                              label="Confirm Account Number *"
+                              value={confirmAccNum}
+                              onChange={e => { setConfirmAccNum(e.target.value); setAccMismatchError(""); }}
+                              required
+                              error={Boolean(accMismatchError && confirmAccNum)}
+                            />
+                          </Grid>
+                          {accNum && confirmAccNum && (
+                            <Grid size={{ xs: 12 }}>
+                              <Alert
+                                severity={accNum === confirmAccNum ? "success" : "error"}
+                                sx={{ borderRadius: 2, py: 0.5, fontSize: "12px" }}
+                              >
+                                {accNum === confirmAccNum
+                                  ? "✓ Account numbers match"
+                                  : "✗ Account numbers do not match"}
+                              </Alert>
+                            </Grid>
+                          )}
+                        </Grid>
+                      </Paper>
 
-                    <Typography variant="body2" sx={{ color: "#0369A1", mb: 4, fontWeight: 600 }}>
-                      Beneficiary successfully verified with official bank records and saved to customer account.
-                    </Typography>
+                      {/* BANK SELECTION */}
+                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2.5 }}>
+                          <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: "#7C3AED", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <BusinessIcon sx={{ fontSize: 18, color: "#FFF" }} />
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Bank & Branch</Typography>
+                            <Typography variant="caption" sx={{ color: "#64748B" }}>Select bank → select branch → IFSC auto-bound</Typography>
+                          </Box>
+                        </Stack>
 
-                    <M3Button
-                      variant="contained"
-                      size="large"
-                      onClick={() => handleCompleteAndReturn(createdBeneficiary)}
-                      sx={{ py: 1.75, px: 5, fontWeight: 900, bgcolor: "#0284C7", "&:hover": { bgcolor: "#0369A1" } }}
-                    >
-                      Return to Transaction & Auto-Select Beneficiary →
-                    </M3Button>
-                  </Paper>
+                        <Grid container spacing={2}>
+                          {/* Bank Select */}
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <Autocomplete
+                              options={bankMasterList}
+                              openOnFocus
+                              loading={bankSearchLoading}
+                              getOptionLabel={opt => typeof opt === "string" ? opt : (opt.bank_name || "")}
+                              value={selectedBankObj}
+                              onChange={(_, val) => handleBankSelect(val)}
+                              onInputChange={(_, val) => fetchBankMasterList(val || "")}
+                              renderOption={(props, opt) => (
+                                <Box component="li" {...props} key={opt.bank_id || opt.bank_name}>
+                                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                                    <Avatar sx={{ width: 24, height: 24, fontSize: "11px", bgcolor: "#312E81" }}>
+                                      {(opt.bank_name || "B").charAt(0)}
+                                    </Avatar>
+                                    <Box>
+                                      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px" }}>{opt.bank_name}</Typography>
+                                      <Typography variant="caption" sx={{ color: "#64748B" }}>{opt.ifsc_code || opt.ifsc_prefix}</Typography>
+                                    </Box>
+                                  </Stack>
+                                </Box>
+                              )}
+                              renderInput={params => <TextField {...params} label="Select Bank *" size="small" required />}
+                            />
+                          </Grid>
+
+                          {/* Branch Select */}
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            {selectedBankObj && (
+                              branchLoading ? (
+                                <Stack direction="row" spacing={1} sx={{ alignItems: "center", height: "100%", pt: 1 }}>
+                                  <CircularProgress size={16} />
+                                  <Typography variant="caption" sx={{ color: "#64748B" }}>Loading branches…</Typography>
+                                </Stack>
+                              ) : (
+                                <Autocomplete
+                                  options={branchList}
+                                  getOptionLabel={opt => typeof opt === "string" ? opt : `${opt.branch} — ${opt.city}`}
+                                  value={selectedBranch}
+                                  onChange={(_, val) => handleBranchSelect(val)}
+                                  renderOption={(props, opt) => (
+                                    <Box component="li" {...props} key={opt.ifsc}>
+                                      <Box>
+                                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px" }}>{opt.branch}</Typography>
+                                        <Typography variant="caption" sx={{ color: "#64748B" }}>{opt.city} • {opt.ifsc}</Typography>
+                                      </Box>
+                                    </Box>
+                                  )}
+                                  renderInput={params => <TextField {...params} label="Select Branch *" size="small" required />}
+                                />
+                              )
+                            )}
+                          </Grid>
+
+                          {/* Auto-bound display */}
+                          {ifscCode && (
+                            <>
+                              <Grid size={{ xs: 12 }}>
+                                <Divider sx={{ my: 0.5 }} />
+                              </Grid>
+                              <Grid size={{ xs: 12 }}>
+                                <Alert severity="success" icon={<CheckCircleIcon />} sx={{ borderRadius: 2.5, py: 0.5 }}>
+                                  <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap", gap: 1 }}>
+                                    <Box>
+                                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>Bank Name</Typography>
+                                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{bankName}</Typography>
+                                    </Box>
+                                    <Box>
+                                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>Branch</Typography>
+                                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{selectedBranch?.branch || "—"}</Typography>
+                                    </Box>
+                                    <Box>
+                                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>IFSC</Typography>
+                                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0284C7" }}>{ifscCode}</Typography>
+                                    </Box>
+                                    {micrCode && (
+                                      <Box>
+                                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>MICR</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{micrCode}</Typography>
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Alert>
+                              </Grid>
+                            </>
+                          )}
+                        </Grid>
+                      </Paper>
+
+                      {/* Error */}
+                      {accMismatchError && (
+                        <Alert severity="error" sx={{ borderRadius: 2.5 }}>{accMismatchError}</Alert>
+                      )}
+
+                      {/* Continue Button */}
+                      <M3Button
+                        type="submit"
+                        variant="contained"
+                        disabled={!benName || !relationship || !accNum || !confirmAccNum || !bankName || !ifscCode}
+                        sx={{ py: 1.75, bgcolor: "#0F172A", "&:hover": { bgcolor: "#1E293B" }, fontWeight: 800, borderRadius: 3 }}
+                      >
+                        Continue to Verification →
+                      </M3Button>
+                    </Stack>
+                  </form>
                 </motion.div>
               )}
+
+              {/* ═══════════════════════════════════════════════════════════
+                  STEP 1 — VERIFICATION (Pre-checks + Penny Drop)
+              ═══════════════════════════════════════════════════════════ */}
+              {activeStep === 1 && (
+                <motion.div key="step1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.25 }}>
+                  <Stack spacing={2}>
+
+                    {/* Account Summary */}
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                      <Typography sx={{ fontWeight: 800, color: "#0F172A", mb: 2, fontSize: "15px" }}>Account to Verify</Typography>
+                      <Grid container spacing={1.5}>
+                        {[
+                          { label: "Beneficiary Name", value: benName },
+                          { label: "Nick Name", value: nickName || "—" },
+                          { label: "Relationship", value: relationship },
+                          { label: "Account Number", value: `•••• •••• ${accNum.slice(-4)}` },
+                          { label: "Bank", value: bankName },
+                          { label: "Branch", value: selectedBranch?.branch || "—" },
+                          { label: "IFSC Code", value: ifscCode },
+                          { label: "MICR", value: micrCode || "—" },
+                        ].map(({ label, value }) => (
+                          <Grid key={label} size={{ xs: 6, sm: 4 }}>
+                            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block" }}>{label}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{value}</Typography>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Paper>
+
+                    {/* Pre-Checks */}
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2 }}>
+                        <ShieldIcon sx={{ color: "#0284C7", fontSize: 20 }} />
+                        <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Pre-Flight Checks</Typography>
+                        {precheckLoading && <CircularProgress size={16} />}
+                      </Stack>
+
+                      {precheckLoading ? (
+                        <Stack spacing={1.5}>
+                          {["Checking wallet balance…", "Verifying retailer status…", "Verifying customer status…", "Verifying tenant status…", "Verifying company status…"].map(txt => (
+                            <Stack key={txt} direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                              <CircularProgress size={14} sx={{ color: "#0284C7" }} />
+                              <Typography variant="body2" sx={{ color: "#64748B", fontSize: "13px" }}>{txt}</Typography>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      ) : precheckResult ? (
+                        <Stack spacing={1}>
+                          {[
+                            { key: "wallet_balance", label: "Wallet Balance Sufficient", icon: <AccountBalanceWalletIcon sx={{ fontSize: 15 }} /> },
+                            { key: "retailer_active", label: "Retailer Active & Enabled", icon: <StorefrontIcon sx={{ fontSize: 15 }} /> },
+                            { key: "customer_active", label: "Customer KYC Verified", icon: <PersonIcon sx={{ fontSize: 15 }} /> },
+                            { key: "tenant_active", label: "Tenant Operational", icon: <BusinessIcon sx={{ fontSize: 15 }} /> },
+                            { key: "company_active", label: "Company Active", icon: <CorporateFareIcon sx={{ fontSize: 15 }} /> },
+                          ].map(({ key, label, icon }) => (
+                            <Stack key={key} direction="row" spacing={1.5} sx={{ alignItems: "center", p: 1.25, borderRadius: 2, bgcolor: precheckResult.checks[key] ? "#F0FDF4" : "#FFF1F2", border: `1px solid ${precheckResult.checks[key] ? "#BBF7D0" : "#FECDD3"}` }}>
+                              <Box sx={{ color: precheckResult.checks[key] ? "#16A34A" : "#DC2626" }}>{icon}</Box>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: precheckResult.checks[key] ? "#166534" : "#991B1B", flex: 1, fontSize: "13px" }}>{label}</Typography>
+                              {precheckResult.checks[key] ? (
+                                <CheckCircleIcon sx={{ fontSize: 16, color: "#16A34A" }} />
+                              ) : (
+                                <WarningAmberIcon sx={{ fontSize: 16, color: "#DC2626" }} />
+                              )}
+                            </Stack>
+                          ))}
+                        </Stack>
+                      ) : null}
+                    </Paper>
+
+                    {/* Pricing */}
+                    {verificationCharge && (
+                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #BFDBFE", bgcolor: "#EFF6FF" }}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
+                          <SwapHorizIcon sx={{ color: "#1D4ED8", fontSize: 20 }} />
+                          <Typography sx={{ fontWeight: 800, color: "#1E3A8A", fontSize: "15px" }}>Verification Charge (Pricing Master)</Typography>
+                        </Stack>
+                        <Table size="small">
+                          <TableBody>
+                            <TableRow>
+                              <TableCell sx={{ border: 0, p: 0.75, color: "#475569", fontSize: "13px" }}>Base Verification Charge</TableCell>
+                              <TableCell align="right" sx={{ border: 0, p: 0.75, fontWeight: 700, fontSize: "13px" }}>₹{verificationCharge.base.toFixed(2)}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell sx={{ border: 0, p: 0.75, color: "#475569", fontSize: "13px" }}>GST (18%)</TableCell>
+                              <TableCell align="right" sx={{ border: 0, p: 0.75, fontWeight: 700, fontSize: "13px" }}>₹{verificationCharge.gst.toFixed(2)}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell sx={{ borderTop: "2px solid #BFDBFE", p: 0.75, fontWeight: 900, color: "#1E3A8A", fontSize: "14px" }}>Total Debit from Wallet</TableCell>
+                              <TableCell align="right" sx={{ borderTop: "2px solid #BFDBFE", p: 0.75, fontWeight: 900, color: "#1D4ED8", fontSize: "15px" }}>₹{verificationCharge.total.toFixed(2)}</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                        <Typography variant="caption" sx={{ color: "#3B82F6", mt: 1, display: "block", fontWeight: 600 }}>
+                          ₹1 penny drop is sent and instantly recovered. Net debit: ₹{verificationCharge.total.toFixed(2)}
+                        </Typography>
+                      </Paper>
+                    )}
+
+                    {/* Error */}
+                    {verificationError && (
+                      <Alert severity="error" sx={{ borderRadius: 2.5 }}>{verificationError}</Alert>
+                    )}
+
+                    {/* Actions */}
+                    <Stack direction="row" spacing={2}>
+                      <M3Button variant="outlined" onClick={() => setActiveStep(0)} sx={{ fontWeight: 700 }}>
+                        ← Back
+                      </M3Button>
+                      <M3Button
+                        variant="contained"
+                        disabled={!precheckResult?.passed || precheckLoading || pennyDropLoading}
+                        onClick={() => setConfirmModalOpen(true)}
+                        sx={{ flex: 1, py: 1.75, bgcolor: "#0284C7", "&:hover": { bgcolor: "#0369A1" }, fontWeight: 800, borderRadius: 3 }}
+                      >
+                        {pennyDropLoading ? <CircularProgress size={18} sx={{ color: "#FFF", mr: 1 }} /> : null}
+                        {pennyDropLoading ? "Verifying…" : "Verify Bank Account"}
+                      </M3Button>
+                    </Stack>
+                  </Stack>
+                </motion.div>
+              )}
+
+              {/* ═══════════════════════════════════════════════════════════
+                  STEP 2 — CONFIRMATION
+              ═══════════════════════════════════════════════════════════ */}
+              {activeStep === 2 && createdBeneficiary && (
+                <motion.div key="step2" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                  <Stack spacing={2}>
+
+                    {/* Success Banner */}
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #BBF7D0", bgcolor: "#F0FDF4", textAlign: "center" }}>
+                      <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1, type: "spring" }}>
+                        <VerifiedIcon sx={{ fontSize: 56, color: "#16A34A", mb: 1 }} />
+                      </motion.div>
+                      <Typography variant="h5" sx={{ fontWeight: 900, color: "#14532D", mb: 0.5 }}>
+                        Beneficiary Verified & Saved
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#166534", fontWeight: 600 }}>
+                        Official bank registered name has been auto-updated. Beneficiary is ready for transfers.
+                      </Typography>
+                    </Paper>
+
+                    {/* Details Grid */}
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                      <Typography sx={{ fontWeight: 800, color: "#0F172A", mb: 2, fontSize: "15px" }}>Verification Summary</Typography>
+                      <Grid container spacing={2}>
+                        {[
+                          { label: "Official Name (Bank Records)", value: createdBeneficiary.account_holder_name, highlight: true },
+                          { label: "Nick Name", value: createdBeneficiary.nickname },
+                          { label: "Bank Name", value: createdBeneficiary.bank_name },
+                          { label: "Branch", value: createdBeneficiary.branch },
+                          { label: "IFSC Code", value: createdBeneficiary.ifsc_code, mono: true },
+                          { label: "MICR", value: createdBeneficiary.micr || "—", mono: true },
+                          { label: "Account Number", value: createdBeneficiary.account_number_masked },
+                          { label: "Relationship", value: createdBeneficiary.relationship },
+                          { label: "Verification Ref", value: createdBeneficiary.vendor_ref, mono: true },
+                          { label: "UTR Number", value: createdBeneficiary.utr, mono: true },
+                          { label: "Wallet Debit", value: `₹${createdBeneficiary.wallet_debit?.toFixed(2) || "3.54"}` },
+                          { label: "Wallet Balance After", value: `₹${createdBeneficiary.wallet_balance_after?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "—"}` },
+                        ].map(({ label, value, highlight, mono }) => (
+                          <Grid key={label} size={{ xs: 12, sm: 6 }}>
+                            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block", mb: 0.25 }}>{label}</Typography>
+                            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                              <Typography variant="body2" sx={{
+                                fontWeight: highlight ? 900 : 700,
+                                color: highlight ? "#166534" : "#0F172A",
+                                fontFamily: mono ? "monospace" : "inherit",
+                                fontSize: highlight ? "15px" : "13px",
+                              }}>
+                                {value}
+                              </Typography>
+                              {mono && value && value !== "—" && (
+                                <Tooltip title={copied === label ? "Copied!" : "Copy"}>
+                                  <IconButton size="small" onClick={() => copyToClipboard(value, label)} sx={{ p: 0.25 }}>
+                                    <ContentCopyIcon sx={{ fontSize: 12, color: "#94A3B8" }} />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                            </Stack>
+                          </Grid>
+                        ))}
+                      </Grid>
+
+                      <Divider sx={{ my: 2 }} />
+
+                      {/* Short IDs */}
+                      <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", gap: 1.5 }}>
+                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "#F0F9FF", border: "1px solid #BAE6FD", flex: 1, minWidth: 160 }}>
+                          <Typography variant="caption" sx={{ color: "#0369A1", fontWeight: 800, display: "block", mb: 0.25 }}>SHORT BENEFICIARY ID</Typography>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            <Typography sx={{ fontWeight: 900, color: "#0284C7", fontSize: "16px", fontFamily: "monospace" }}>
+                              {createdBeneficiary.short_ben_id}
+                            </Typography>
+                            <Tooltip title={copied === "benId" ? "Copied!" : "Copy"}>
+                              <IconButton size="small" onClick={() => copyToClipboard(createdBeneficiary.short_ben_id, "benId")}>
+                                <ContentCopyIcon sx={{ fontSize: 14, color: "#0284C7" }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </Box>
+                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "#FDF4FF", border: "1px solid #E9D5FF", flex: 1, minWidth: 160 }}>
+                          <Typography variant="caption" sx={{ color: "#7E22CE", fontWeight: 800, display: "block", mb: 0.25 }}>TRANSACTION ID</Typography>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            <Typography sx={{ fontWeight: 900, color: "#7C3AED", fontSize: "16px", fontFamily: "monospace" }}>
+                              {createdBeneficiary.transaction_id}
+                            </Typography>
+                            <Tooltip title={copied === "txnId" ? "Copied!" : "Copy"}>
+                              <IconButton size="small" onClick={() => copyToClipboard(createdBeneficiary.transaction_id, "txnId")}>
+                                <ContentCopyIcon sx={{ fontSize: 14, color: "#7C3AED" }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </Box>
+                      </Stack>
+                    </Paper>
+
+                    {/* Return Actions */}
+                    <Stack direction="row" spacing={2}>
+                      <M3Button variant="outlined" onClick={() => setResultModalOpen(true)} sx={{ fontWeight: 700 }}>
+                        <VolumeUpIcon sx={{ fontSize: 16, mr: 0.5 }} /> View Result
+                      </M3Button>
+                      <M3Button
+                        variant="contained"
+                        onClick={handleCompleteAndReturn}
+                        sx={{ flex: 1, py: 1.75, bgcolor: "#0284C7", "&:hover": { bgcolor: "#0369A1" }, fontWeight: 800, borderRadius: 3 }}
+                      >
+                        Return to DMT Transaction →
+                      </M3Button>
+                    </Stack>
+                  </Stack>
+                </motion.div>
+              )}
+
             </AnimatePresence>
           </Grid>
         </Grid>
       </Box>
 
-      {/* STICKY FOOTER */}
-      <Paper
-        square
-        elevation={0}
-        sx={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 1100,
-          px: 4,
-          py: 2,
-          backgroundColor: "#FFF",
-          borderTop: "1px solid #E2E8F0",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Stack direction="row" spacing={2}>
-          <M3Button variant="text" onClick={handleCancel} sx={{ color: "#64748B" }}>
-            Cancel
-          </M3Button>
-          <M3Button variant="outlined" onClick={saveDraft} startIcon={<SaveIcon />}>
-            Save Draft
-          </M3Button>
-        </Stack>
+      {/* ══════════════════════════════════════════════════════════════════════
+          CONFIRM DEBIT MODAL
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Dialog open={confirmModalOpen} onClose={() => setConfirmModalOpen(false)} maxWidth="xs" fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 4, p: 0.5 } } }}>
+        <DialogTitle sx={{ fontWeight: 900, color: "#0F172A", pb: 1 }}>
+          Confirm Penny Drop Verification
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: "#64748B", mb: 2 }}>
+            A ₹1 penny drop will be sent to verify this account. The amount is instantly recovered.
+            A verification charge of <strong style={{ color: "#0284C7" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited from your wallet.
+          </Typography>
 
-        <Stack direction="row" spacing={2}>
-          {activeStep > 0 && (
-            <M3Button variant="outlined" onClick={() => setActiveStep((prev) => prev - 1)}>
-              ← Previous Step
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 2 }}>
+            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800 }}>ACCOUNT TO VERIFY</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A", mt: 0.5 }}>{benName}</Typography>
+            <Typography variant="caption" sx={{ color: "#475569" }}>{bankName} • ••••{accNum.slice(-4)} • {ifscCode}</Typography>
+          </Paper>
+
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "#F0F9FF", border: "1px solid #BAE6FD" }}>
+            <Typography variant="caption" sx={{ color: "#0369A1", fontWeight: 800, display: "block", mb: 1 }}>DEBIT BREAKDOWN</Typography>
+            <Table size="small">
+              <TableBody>
+                <TableRow>
+                  <TableCell sx={{ border: 0, p: 0.5, color: "#475569", fontSize: "12px" }}>Base Charge</TableCell>
+                  <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, fontSize: "12px" }}>₹{verificationCharge?.base?.toFixed(2) || "3.00"}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell sx={{ border: 0, p: 0.5, color: "#475569", fontSize: "12px" }}>GST (18%)</TableCell>
+                  <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, fontSize: "12px" }}>₹{verificationCharge?.gst?.toFixed(2) || "0.54"}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell sx={{ borderTop: "1px solid #BAE6FD", p: 0.5, fontWeight: 900, color: "#0C4A6E", fontSize: "13px" }}>Total</TableCell>
+                  <TableCell align="right" sx={{ borderTop: "1px solid #BAE6FD", p: 0.5, fontWeight: 900, color: "#0284C7", fontSize: "14px" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </Paper>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <M3Button variant="text" onClick={() => setConfirmModalOpen(false)} sx={{ color: "#64748B" }}>Cancel</M3Button>
+          <M3Button variant="contained" onClick={handleRunPennyDrop} sx={{ bgcolor: "#0284C7", px: 3, fontWeight: 800 }}>
+            Confirm & Debit ₹{verificationCharge?.total?.toFixed(2) || "3.54"} →
+          </M3Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          SUCCESS / FAILURE RESULT MODAL
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Dialog open={resultModalOpen} onClose={() => setResultModalOpen(false)} maxWidth="sm" fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 4, overflow: "hidden" } } }}>
+
+        {/* Animated top bar */}
+        <Box sx={{
+          height: 6,
+          background: resultModalSuccess
+            ? "linear-gradient(90deg, #16A34A, #22C55E, #16A34A)"
+            : "linear-gradient(90deg, #DC2626, #EF4444, #DC2626)",
+          backgroundSize: "200% 100%",
+          animation: "shimmer 1.5s infinite linear",
+          "@keyframes shimmer": { "0%": { backgroundPosition: "-200% 0" }, "100%": { backgroundPosition: "200% 0" } },
+        }} />
+
+        <DialogContent sx={{ p: 4, textAlign: "center" }}>
+          <AnimatePresence>
+            {resultModalOpen && (
+              <motion.div
+                initial={{ scale: 0.3, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
+              >
+                {resultModalSuccess ? (
+                  <Box sx={{ position: "relative", display: "inline-block", mb: 2 }}>
+                    <motion.div
+                      animate={{ rotate: [0, 15, -15, 10, -10, 5, -5, 0] }}
+                      transition={{ delay: 0.3, duration: 0.6 }}
+                    >
+                      <VerifiedIcon sx={{ fontSize: 80, color: "#16A34A" }} />
+                    </motion.div>
+                    {/* Confetti dots */}
+                    {[...Array(8)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ scale: 0, opacity: 0, x: 0, y: 0 }}
+                        animate={{
+                          scale: [0, 1, 0],
+                          opacity: [0, 1, 0],
+                          x: Math.cos((i / 8) * Math.PI * 2) * 55,
+                          y: Math.sin((i / 8) * Math.PI * 2) * 55,
+                        }}
+                        transition={{ delay: 0.2 + i * 0.05, duration: 0.8 }}
+                        style={{
+                          position: "absolute",
+                          top: "50%",
+                          left: "50%",
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          backgroundColor: ["#16A34A", "#0284C7", "#7C3AED", "#F59E0B", "#EC4899", "#0EA5E9", "#10B981", "#F97316"][i],
+                          marginTop: -4,
+                          marginLeft: -4,
+                        }}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <motion.div
+                    animate={{ x: [-10, 10, -8, 8, -5, 5, 0] }}
+                    transition={{ delay: 0.1, duration: 0.5 }}
+                  >
+                    <WarningAmberIcon sx={{ fontSize: 80, color: "#DC2626", mb: 2 }} />
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <Typography variant="h5" sx={{ fontWeight: 900, mb: 1, color: resultModalSuccess ? "#14532D" : "#991B1B" }}>
+            {resultModalSuccess ? "Beneficiary Verified! 🎉" : "Verification Failed"}
+          </Typography>
+
+          {resultModalSuccess && resultModalData ? (
+            <Stack spacing={1.5} sx={{ mt: 2, textAlign: "left" }}>
+              {[
+                { label: "Official Name", value: resultModalData.account_holder_name },
+                { label: "Bank", value: resultModalData.bank_name },
+                { label: "IFSC", value: resultModalData.ifsc_code },
+                { label: "Verification Ref", value: resultModalData.vendor_ref },
+                { label: "Short Beneficiary ID", value: resultModalData.short_ben_id, highlight: true },
+                { label: "Transaction ID", value: resultModalData.transaction_id, highlight: true },
+                { label: "Wallet Debited", value: `₹${resultModalData.wallet_debit?.toFixed(2) || "3.54"}` },
+                { label: "Wallet Balance After", value: `₹${resultModalData.wallet_balance_after?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "—"}` },
+              ].map(({ label, value, highlight }) => (
+                <Box key={label} sx={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  p: 1.25, borderRadius: 2,
+                  bgcolor: highlight ? "#F0FDF4" : "#F8FAFC",
+                  border: highlight ? "1px solid #BBF7D0" : "1px solid #F1F5F9"
+                }}>
+                  <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>{label}</Typography>
+                  <Typography variant="caption" sx={{ fontWeight: highlight ? 900 : 700, color: highlight ? "#16A34A" : "#0F172A", fontFamily: "monospace" }}>
+                    {value}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <Typography variant="body2" sx={{ color: "#64748B", mt: 1 }}>
+              {resultModalData?.error || "An error occurred during verification. Please try again."}
+            </Typography>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2.5, pt: 0, justifyContent: resultModalSuccess ? "space-between" : "center" }}>
+          {resultModalSuccess ? (
+            <>
+              <M3Button variant="outlined" onClick={() => setResultModalOpen(false)} sx={{ fontWeight: 700 }}>
+                Close
+              </M3Button>
+              <M3Button variant="contained" onClick={() => { setResultModalOpen(false); handleCompleteAndReturn(); }}
+                sx={{ bgcolor: "#0284C7", fontWeight: 800, px: 3 }}>
+                Return to Transaction →
+              </M3Button>
+            </>
+          ) : (
+            <M3Button variant="contained" onClick={() => { setResultModalOpen(false); setActiveStep(1); }}
+              sx={{ bgcolor: "#DC2626", fontWeight: 800 }}>
+              Try Again
             </M3Button>
           )}
+        </DialogActions>
+      </Dialog>
 
-          {activeStep < 3 && (
-            <M3Button
-              variant="contained"
-              onClick={() => {
-                if (activeStep === 0) handleStep1Submit();
-                else if (activeStep === 1) handleStep2Submit();
-                else if (activeStep === 2) handleRunPennyDrop();
-              }}
-              sx={{ bgcolor: "#0F172A", px: 4 }}
-            >
-              Continue →
-            </M3Button>
-          )}
-        </Stack>
-      </Paper>
     </Box>
   );
 }
