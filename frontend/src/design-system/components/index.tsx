@@ -141,9 +141,11 @@ export const GlassCard: React.FC<{ children: React.ReactNode; sx?: object }> = (
     sx={{
       p: 3,
       borderRadius: "16px",
-      bgcolor: "#FFFFFF",
-      border: "1px solid #E2E8F0",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+      bgcolor: "rgba(18, 27, 48, 0.75)",
+      backdropFilter: "blur(20px)",
+      border: "1px solid rgba(255, 255, 255, 0.12)",
+      boxShadow: "0 8px 32px rgba(0, 0, 0, 0.37)",
+      color: "#FFFFFF",
       ...sx,
     }}
   >
@@ -152,11 +154,11 @@ export const GlassCard: React.FC<{ children: React.ReactNode; sx?: object }> = (
 );
 
 export const InfoCard: React.FC<{ title: string; description: string; type?: "info" | "warning" }> = ({ title, description }) => (
-  <GlassCard sx={{ borderLeft: "4px solid #2563EB" }}>
-    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#2563EB" }}>
+  <GlassCard sx={{ borderLeft: "4px solid #3B82F6" }}>
+    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#60A5FA" }}>
       {title}
     </Typography>
-    <Typography variant="body2" sx={{ color: "#475569", mt: 0.5 }}>
+    <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.88)", mt: 0.5 }}>
       {description}
     </Typography>
   </GlassCard>
@@ -167,10 +169,10 @@ export const CustomerCard: React.FC<{ name: string; mobile: string; status: stri
   <GlassCard>
     <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
       <Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0F172A" }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
           {name}
         </Typography>
-        <Typography variant="body2" sx={{ color: "#475569", fontWeight: 600 }}>
+        <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.88)", fontWeight: 600 }}>
           Mobile: {mobile}
         </Typography>
       </Box>
@@ -245,11 +247,11 @@ export const SectionHeader: React.FC<{ title: string; subtitle?: string; action?
 
 export const PageHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
   <Box sx={{ mb: 2 }}>
-    <Typography variant="h4" sx={{ fontWeight: 900, color: "#0F172A" }}>
+    <Typography variant="h4" sx={{ fontWeight: 900, color: "#FFFFFF" }}>
       {title}
     </Typography>
     {subtitle && (
-      <Typography variant="body2" sx={{ color: "#475569", fontWeight: 600, mt: 0.5 }}>
+      <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.88)", fontWeight: 600, mt: 0.5 }}>
         {subtitle}
       </Typography>
     )}

@@ -334,7 +334,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#F8FAFC" }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        backgroundColor: "#08111F",
+        backgroundImage: "radial-gradient(ellipse at 50% 0%, #0F172A 0%, #08111F 100%)",
+        color: "#F8FAFC",
+      }}
+    >
       {/* ── Sticky Header (Height: 56px Exact) ── */}
       <AppBar
         position="fixed"
@@ -343,9 +351,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           height: 56,
           width: { lg: `calc(100% - ${activeDrawerWidth}px)` },
           ml: { lg: `${activeDrawerWidth}px` },
-          backgroundColor: "#FFFFFF",
-          color: "#111827",
-          borderBottom: "1px solid #E5E7EB",
+          backgroundColor: "rgba(15, 23, 42, 0.85)",
+          backdropFilter: "blur(20px)",
+          color: "#FFFFFF",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
           zIndex: (theme) => theme.zIndex.drawer + 1,
           justifyContent: "center",
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -362,14 +371,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 aria-label="toggle drawer"
                 onClick={handleDrawerToggle}
                 size="small"
-                sx={{ p: 0.75, color: "#1E3A8A" }}
+                sx={{ p: 0.75, color: "#60A5FA" }}
               >
                 {desktopCollapsed ? <MenuOpenIcon sx={{ fontSize: 24 }} /> : <MenuIcon sx={{ fontSize: 24 }} />}
               </IconButton>
             </Tooltip>
 
             {/* Page Title */}
-            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#111827" }}>
+            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>
               {activeMenuItem?.label || "Retailer Terminal"}
             </Typography>
 
@@ -384,17 +393,17 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 width: 260,
                 height: 36,
                 borderRadius: "10px",
-                backgroundColor: "#F8FAFC",
-                border: "1px solid #E5E7EB",
+                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
                 cursor: "pointer",
-                "&:hover": { backgroundColor: "#F1F5F9", borderColor: "#CBD5E1" },
+                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.25)" },
               }}
             >
-              <SearchIcon sx={{ color: "#0284C7", fontSize: 18, mr: 0.75 }} />
-              <Typography variant="caption" sx={{ fontSize: "12px", color: "#64748B", flex: 1, fontWeight: 700 }}>
+              <SearchIcon sx={{ color: "#60A5FA", fontSize: 18, mr: 0.75 }} />
+              <Typography variant="caption" sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.70)", flex: 1, fontWeight: 700 }}>
                 Universal Search...
               </Typography>
-              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "#E2E8F0", color: "#334155" }} />
+              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "rgba(255, 255, 255, 0.12)", color: "#FFFFFF" }} />
             </Paper>
           </Stack>
 

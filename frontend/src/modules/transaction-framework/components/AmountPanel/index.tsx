@@ -12,7 +12,7 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
     <Typography
       variant="caption"
       sx={{
-        color: "#2563EB",
+        color: "#60A5FA",
         fontWeight: 800,
         textTransform: "uppercase",
         letterSpacing: "1px",
@@ -34,11 +34,11 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
             sx: {
               fontSize: "24px",
               fontWeight: 900,
-              color: "#0F172A",
+              color: "#FFFFFF",
               borderRadius: "12px",
-              bgcolor: "#F8FAFC",
-              "& fieldset": { borderColor: "#CBD5E1" },
-              "&:hover fieldset": { borderColor: "#2563EB" },
+              bgcolor: "rgba(8, 17, 31, 0.85)",
+              "& fieldset": { borderColor: "rgba(255, 255, 255, 0.15)" },
+              "&:hover fieldset": { borderColor: "#3B82F6" },
             },
           },
         }}
@@ -51,11 +51,11 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
             onClick={() => onAmountChange(quickVal)}
             sx={{
               fontWeight: 800,
-              bgcolor: amount === quickVal ? "#2563EB" : "#F1F5F9",
-              color: amount === quickVal ? "#FFFFFF" : "#1E293B",
-              border: amount === quickVal ? "1px solid #2563EB" : "1px solid #CBD5E1",
+              bgcolor: amount === quickVal ? "#2563EB" : "rgba(255, 255, 255, 0.08)",
+              color: amount === quickVal ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
+              border: amount === quickVal ? "1px solid #3B82F6" : "1px solid rgba(255, 255, 255, 0.12)",
               cursor: "pointer",
-              "&:hover": { bgcolor: amount === quickVal ? "#1D4ED8" : "#E2E8F0" },
+              "&:hover": { bgcolor: amount === quickVal ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)" },
             }}
           />
         ))}

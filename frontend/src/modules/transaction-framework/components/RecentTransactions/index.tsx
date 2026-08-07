@@ -15,15 +15,17 @@ export const RecentTransactions: React.FC = () => {
       sx={{
         p: 2.5,
         borderRadius: "16px",
-        bgcolor: "#FFFFFF",
-        border: "1px solid #E2E8F0",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+        bgcolor: "rgba(18, 27, 48, 0.75)",
+        backdropFilter: "blur(20px)",
+        border: "1px solid rgba(255, 255, 255, 0.12)",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.37)",
+        color: "#FFFFFF",
       }}
     >
       <Typography
         variant="caption"
         sx={{
-          color: "#2563EB",
+          color: "#60A5FA",
           fontWeight: 800,
           textTransform: "uppercase",
           letterSpacing: "1px",
@@ -36,7 +38,7 @@ export const RecentTransactions: React.FC = () => {
 
       <Table size="small">
         <TableHead>
-          <TableRow sx={{ "& th": { borderColor: "#E2E8F0", color: "#64748B", fontWeight: 700 } }}>
+          <TableRow sx={{ "& th": { borderColor: "rgba(255, 255, 255, 0.12)", color: "rgba(255, 255, 255, 0.88)", fontWeight: 700 } }}>
             <TableCell>Transaction ID</TableCell>
             <TableCell>Customer</TableCell>
             <TableCell>Amount</TableCell>
@@ -46,12 +48,12 @@ export const RecentTransactions: React.FC = () => {
         </TableHead>
         <TableBody>
           {rows.map((r) => (
-            <TableRow key={r.id} sx={{ "& td": { borderColor: "#E2E8F0", color: "#0F172A" } }}>
+            <TableRow key={r.id} sx={{ "& td": { borderColor: "rgba(255, 255, 255, 0.08)", color: "#FFFFFF" } }}>
               <TableCell sx={{ fontWeight: 800 }}>{r.id}</TableCell>
               <TableCell>{r.customer}</TableCell>
-              <TableCell sx={{ fontWeight: 900, color: "#2563EB" }}>{r.amount}</TableCell>
+              <TableCell sx={{ fontWeight: 900, color: "#60A5FA" }}>{r.amount}</TableCell>
               <TableCell><StatusChip status="success" label="SUCCESS" /></TableCell>
-              <TableCell sx={{ color: "#64748B" }}>{r.date}</TableCell>
+              <TableCell sx={{ color: "rgba(255, 255, 255, 0.65)" }}>{r.date}</TableCell>
             </TableRow>
           ))}
         </TableBody>
