@@ -1163,89 +1163,120 @@ export default function DmtPage() {
   return (
     <Box sx={{ pb: 16, minHeight: "100vh", bgcolor: BG_DARK, color: TEXT_PRIMARY }}>
 
-      {/* ── 3-COLUMN RESPONSIVE ENTERPRISE OPERATING PLATFORM (18% LEFT | 60% CENTER | 22% RIGHT) ── */}
+      {/* ── 4-REGION ENTERPRISE OPERATING WORKSPACE (240px LEFT | FLEX CENTER | 340px RIGHT) ── */}
       <Box sx={{ width: "100%", px: 3, pt: 2 }}>
-        <Grid container spacing={2.5}>
-          {/* ── LEFT PANEL (18% WIDTH): ENTERPRISE OPERATIONS NAVIGATION ── */}
-          <Grid size={{ xs: 12, lg: 2.16 }}>
+        <Stack direction={{ xs: "column", lg: "row" }} spacing={3} sx={{ alignItems: "flex-start" }}>
+          {/* ── REGION 2: LEFT OPERATIONS TOOLBOX (240px FIXED) ── */}
+          <Box sx={{ width: { xs: "100%", lg: 240 }, flexShrink: 0 }}>
             <Stack spacing={2}>
-              {/* OPERATIONS NAVIGATION PANEL */}
               <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, borderTop: `4px solid ${PRIMARY_BLUE}` }}>
                 <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
-                  ENTERPRISE OPERATIONS
+                  OPERATOR TOOLBOX
                 </Typography>
 
-                <Stack spacing={0.6}>
+                <Stack spacing={2}>
                   {[
-                    { label: "Money Transfer (DMT)", active: true },
-                    { label: "Card to Cash", active: false },
-                    { label: "AEPS Cash Out", active: false },
-                    { label: "Wallet & Top-Up", active: false },
-                    { label: "Wallet Statement", active: false },
-                    { label: "UPI Services", active: false },
-                    { label: "Recharge", active: false },
-                    { label: "Bill Payment (BBPS)", active: false },
-                    { label: "Customer Directory", active: false },
-                    { label: "Reports & Tax Forms", active: false },
-                    { label: "Move To Bank", active: false },
-                    { label: "Support Desk", active: false },
-                    { label: "Settings", active: false },
-                  ].map((nav) => (
-                    <Box
-                      key={nav.label}
-                      sx={{
-                        px: 1.5,
-                        py: 1,
-                        borderRadius: "10px",
-                        bgcolor: nav.active ? "rgba(37, 99, 235, 0.15)" : "transparent",
-                        color: nav.active ? PRIMARY_BLUE : TEXT_PRIMARY,
-                        border: nav.active ? `1px solid ${PRIMARY_BLUE}` : "1px solid transparent",
-                        fontWeight: nav.active ? 800 : 600,
-                        fontSize: "13px",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
-                        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.05)" },
-                      }}
-                    >
-                      {nav.label}
+                    {
+                      category: "PAYMENTS",
+                      items: [
+                        { label: "Money Transfer", active: true },
+                        { label: "Card To Cash", active: false },
+                        { label: "AEPS Cash Out", active: false },
+                        { label: "UPI Services", active: false },
+                        { label: "BBPS Pay", active: false },
+                        { label: "Recharge", active: false },
+                      ],
+                    },
+                    {
+                      category: "WALLET",
+                      items: [
+                        { label: "Wallet", active: false },
+                        { label: "Wallet Statement", active: false },
+                      ],
+                    },
+                    {
+                      category: "CUSTOMERS",
+                      items: [
+                        { label: "Customer Directory", active: false },
+                        { label: "Beneficiaries", active: false },
+                      ],
+                    },
+                    {
+                      category: "BUSINESS",
+                      items: [
+                        { label: "Reports", active: false },
+                        { label: "Commission", active: false },
+                        { label: "Settlement", active: false },
+                      ],
+                    },
+                    {
+                      category: "SUPPORT",
+                      items: [
+                        { label: "Support", active: false },
+                        { label: "Settings", active: false },
+                      ],
+                    },
+                  ].map((grp) => (
+                    <Box key={grp.category}>
+                      <Typography variant="caption" sx={{ color: ACCENT_BLUE, fontWeight: 800, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 0.5 }}>
+                        {grp.category}
+                      </Typography>
+                      <Stack spacing={0.4}>
+                        {grp.items.map((nav) => (
+                          <Box
+                            key={nav.label}
+                            sx={{
+                              px: 1.5,
+                              py: 0.8,
+                              borderRadius: "8px",
+                              bgcolor: nav.active ? "rgba(37, 99, 235, 0.15)" : "transparent",
+                              color: nav.active ? PRIMARY_BLUE : TEXT_PRIMARY,
+                              border: nav.active ? `1px solid ${PRIMARY_BLUE}` : "1px solid transparent",
+                              fontWeight: nav.active ? 800 : 600,
+                              fontSize: "13px",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.05)" },
+                            }}
+                          >
+                            {nav.label}
+                          </Box>
+                        ))}
+                      </Stack>
                     </Box>
                   ))}
                 </Stack>
               </Paper>
 
-              {/* BELOW NAVIGATION SUMMARY */}
+              {/* TODAY'S OPERATOR KPIS */}
               <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, bgcolor: SURFACE_DARK }}>
                 <Typography variant="caption" sx={{ color: ACCENT_BLUE, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
-                  TODAY'S SUMMARY
+                  TODAY'S OPERATOR KPIS
                 </Typography>
                 <Stack spacing={1}>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Today's Txns</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: TEXT_PRIMARY }}>24 Executed</Typography>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Today's Volume</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: TEXT_PRIMARY }}>₹1,24,500</Typography>
+                  </Stack>
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Today's Commission</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹450.00</Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                     <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Pending</Typography>
                     <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>0 Pending</Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Failed</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>0 Failed</Typography>
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Commission</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹450.00</Typography>
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Wallet Balance</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 900, color: ACCENT_BLUE }}>₹48,250.75</Typography>
+                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Failures</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>0 Failures</Typography>
                   </Stack>
                 </Stack>
               </Paper>
             </Stack>
-          </Grid>
+          </Box>
 
-          {/* ── CENTER PANEL (60% WIDTH): TRANSACTION WORKSPACE ── */}
-          <Grid size={{ xs: 12, lg: 7.2 }}>
+          {/* ── REGION 3: CENTER TRANSACTION WORKSPACE (FLEXIBLE, MIN 70%) ── */}
+          <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeStep}
@@ -1921,121 +1952,93 @@ export default function DmtPage() {
             )}
           </motion.div>
         </AnimatePresence>
-      </Grid>
-
-      {/* ── RIGHT PANEL (22% WIDTH): OPERATIONAL INTELLIGENCE PANEL ── */}
-      <Grid size={{ xs: 12, lg: 2.64 }}>
-        <Stack spacing={2.5}>
-          {/* ROTATING LIVE INTELLIGENCE TICKER */}
-          <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, background: "linear-gradient(135deg, #0F2C59 0%, #1A407B 100%)", color: "#FFFFFF" }}>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
-                  <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#4ADE80", boxShadow: "0 0 12px #4ADE80" }} />
-                  <Typography variant="caption" sx={{ fontWeight: 800, color: BANK_GOLD, textTransform: "uppercase", letterSpacing: "1px", fontSize: "11px" }}>
-                    LIVE INTELLIGENCE TICKER
-                  </Typography>
-                </Stack>
-
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={intelligenceIndex}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                      {intelligenceItems[intelligenceIndex].icon}
-                      <Box>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "14px", color: "#FFFFFF" }}>
-                          {intelligenceItems[intelligenceIndex].title}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px" }}>
-                          {intelligenceItems[intelligenceIndex].detail}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </motion.div>
-                </AnimatePresence>
-              </Paper>
-
-              {/* BANK HEALTH MATRIX */}
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5 }}>
-                <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 2 }}>
-                  REAL-TIME BANK HEALTH MATRIX
-                </Typography>
-                <Stack spacing={1.5}>
-                  {[
-                    { bank: "HDFC Bank", uptime: "99.9%", latency: "0.4s", status: "Operational", color: SUCCESS_GREEN },
-                    { bank: "ICICI Bank", uptime: "99.7%", latency: "0.6s", status: "Operational", color: SUCCESS_GREEN },
-                    { bank: "State Bank of India", uptime: "99.5%", latency: "0.9s", status: "Operational", color: SUCCESS_GREEN },
-                    { bank: "Axis Bank", uptime: "99.8%", latency: "0.5s", status: "Operational", color: SUCCESS_GREEN },
-                  ].map((b) => (
-                    <Paper key={b.bank} elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: "#F8FAFC", border: "1px solid #E8EBF3" }}>
-                      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "13px" }}>
-                            {b.bank}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
-                            Uptime {b.uptime} • Latency {b.latency}
-                          </Typography>
-                        </Box>
-                        <Chip label={b.status} size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 700, bgcolor: SUCCESS_LIGHT, color: b.color }} />
-                      </Stack>
-                    </Paper>
-                  ))}
-                </Stack>
-              </Paper>
-
-              {/* WALLET TELEMETRY & EARNINGS */}
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, bgcolor: "linear-gradient(135deg, #FFF8E8 0%, #FFFFFF 100%)", border: `1px solid ${BANK_GOLD_BORDER}` }}>
-                <Typography variant="caption" sx={{ color: BANK_BLUE, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
-                  TODAY'S MARGIN &amp; TELEMETRY
-                </Typography>
-                <Stack spacing={1.2}>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Active Main Balance</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_BLUE }}>₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Today's Margin Earned</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹{wallet.todayMargin.toFixed(2)}</Typography>
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Transactions Today</Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A" }}>24 Executed</Typography>
-                  </Stack>
-                </Stack>
-              </Paper>
-
-              {/* CARD 4: OPERATIONAL ALERTS */}
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, bgcolor: SURFACE_DARK, border: `1px solid ${BORDER_GLASS}` }}>
-                <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
-                  OPERATIONAL ALERTS &amp; HEALTH
-                </Typography>
-                <Stack spacing={1.2}>
-                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Failed Transactions Today</Typography>
-                    <Chip label="0 Failed" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Pending Approvals</Typography>
-                    <Chip label="0 Pending" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Settlement Delays</Typography>
-                    <Chip label="None" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
-                  </Stack>
-                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Bank Maintenance</Typography>
-                    <Chip label="None Scheduled" size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 800, bgcolor: "rgba(255,255,255,0.05)", color: TEXT_SECONDARY }} />
-                  </Stack>
-                </Stack>
-              </Paper>
-            </Stack>
-          </Grid>
-        </Grid>
       </Box>
+
+      {/* ── REGION 4: RIGHT OPERATION CENTER (340px FIXED) ── */}
+      <Box sx={{ width: { xs: "100%", lg: 340 }, flexShrink: 0 }}>
+        <Stack spacing={2}>
+          {/* SECTION 1: LIVE SYSTEM STATUS */}
+          <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, bgcolor: SURFACE_DARK, borderTop: `4px solid ${PRIMARY_BLUE}` }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1 }}>
+              <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: SUCCESS_GREEN, boxShadow: `0 0 10px ${SUCCESS_GREEN}` }} />
+              <Typography variant="caption" sx={{ fontWeight: 800, color: ACCENT_BLUE, textTransform: "uppercase", letterSpacing: "0.8px", fontSize: "11px" }}>
+                1. SYSTEM STATUS
+              </Typography>
+            </Stack>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "14px", color: TEXT_PRIMARY }}>
+              Banking Switch 100% Operational
+            </Typography>
+            <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontSize: "12px" }}>
+              NPCI IMPS Latency 0.4s • Zero Degradation
+            </Typography>
+          </Paper>
+
+          {/* SECTION 2: REAL-TIME BANK HEALTH MATRIX */}
+          <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2 }}>
+            <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
+              2. REAL-TIME BANK HEALTH
+            </Typography>
+            <Stack spacing={1}>
+              {[
+                { bank: "HDFC Bank", uptime: "99.9%", status: "Optimal", color: SUCCESS_GREEN },
+                { bank: "ICICI Bank", uptime: "99.7%", status: "Optimal", color: SUCCESS_GREEN },
+                { bank: "State Bank of India", uptime: "99.5%", status: "Normal", color: SUCCESS_GREEN },
+                { bank: "Axis Bank", uptime: "99.8%", status: "Optimal", color: SUCCESS_GREEN },
+              ].map((b) => (
+                <Paper key={b.bank} elevation={0} sx={{ p: 1.2, borderRadius: "10px", bgcolor: "rgba(15, 23, 42, 0.6)", border: `1px solid ${BORDER_GLASS}` }}>
+                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: TEXT_PRIMARY, fontSize: "12px" }}>
+                        {b.bank}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontSize: "10px" }}>
+                        Uptime {b.uptime}
+                      </Typography>
+                    </Box>
+                    <Chip label={b.status} size="small" sx={{ height: 18, fontSize: "9px", fontWeight: 800, bgcolor: "rgba(34, 197, 94, 0.15)", color: b.color }} />
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          </Paper>
+
+          {/* SECTION 3: WALLET TELEMETRY & EARNINGS */}
+          <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, bgcolor: SURFACE_DARK }}>
+            <Typography variant="caption" sx={{ color: ACCENT_BLUE, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
+              3. WALLET TELEMETRY
+            </Typography>
+            <Stack spacing={1}>
+              <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Active Balance</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 900, color: ACCENT_BLUE }}>₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
+              </Stack>
+              <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Today's Margin</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹{wallet.todayMargin.toFixed(2)}</Typography>
+              </Stack>
+              <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                <Typography variant="caption" sx={{ color: TEXT_SECONDARY }}>Transfers Today</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: TEXT_PRIMARY }}>24 Executed</Typography>
+              </Stack>
+            </Stack>
+          </Paper>
+
+          {/* SECTION 4: AI ROUTE RECOMMENDATION */}
+          <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2, bgcolor: "rgba(37, 99, 235, 0.1)", border: `1px solid ${PRIMARY_BLUE}` }}>
+            <Typography variant="caption" sx={{ color: PRIMARY_BLUE, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1 }}>
+              4. AI ROUTE RECOMMENDATION
+            </Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "13px", color: TEXT_PRIMARY, mb: 0.5 }}>
+              Primary Switch: HDFC IMPS Node #4
+            </Typography>
+            <Typography variant="caption" sx={{ color: TEXT_SECONDARY, fontSize: "11px" }}>
+              Highest success probability (99.94%) with 100% instant settlement confirmation.
+            </Typography>
+          </Paper>
+        </Stack>
+      </Box>
+    </Stack>
+  </Box>
 
       {/* ── STICKY FOOTER BAR (56px) ── */}
       <Paper
