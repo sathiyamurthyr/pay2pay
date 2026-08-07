@@ -23,8 +23,7 @@ import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
-import { AmountValidation } from "../Amount/AmountValidation";
-import { BankingDecisionCenter } from "../Amount/BankingDecisionCenter";
+import { EnterpriseStatusStrip } from "../Amount/EnterpriseStatusStrip";
 import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
 
 export interface WorkstationStep2Props {
@@ -264,8 +263,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
           <AmountInWords amount={amount} />
 
-          {/* Enterprise Banking Decision Center (Situation → Problem → Impact → Recommendation → One-Click Auto Fix) */}
-          <BankingDecisionCenter validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
+          {/* Compact Enterprise Status Strip (Height: 48px - 56px, ZERO Waste Vertical Space) */}
+          <EnterpriseStatusStrip validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
 
