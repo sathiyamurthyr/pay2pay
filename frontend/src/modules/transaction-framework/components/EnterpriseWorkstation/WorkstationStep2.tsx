@@ -259,7 +259,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               size="small"
               variant="contained"
               startIcon={<PersonAddIcon sx={{ fontSize: 16 }} />}
-              onClick={() => setAddModalOpen(true)}
+              onClick={() => { window.location.href = "/retailer/beneficiary/new"; }}
               sx={{
                 height: 32,
                 px: 2,
@@ -382,7 +382,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 startIcon={<PersonAddIcon />}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setAddModalOpen(true);
+                  window.location.href = "/retailer/beneficiary/new";
                 }}
                 sx={{
                   height: 44,
