@@ -220,11 +220,10 @@ class AddAndVerifyBeneficiaryReq(BaseModel):
 
 # ── EPIC-014 / EPIC-015 STATIC ROUTES ──
 
-@router.get("/epic014/bank-master")
 @router.get("/epic014/bank-master/search")
 async def search_epic014_bank_master(
     query: Optional[str] = Query(None, description="Search bank name or IFSC prefix"),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(1000, ge=1, le=2000),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -330,6 +329,15 @@ async def search_epic014_bank_master(
             if q_c in b["bank_name"].upper() or q_c in b["ifsc_prefix"].upper() or q_c in b["short_name"].upper()
         ]
     return {"status": "SUCCESS", "source": "fallback", "total": len(FALLBACK_BANKS), "data": FALLBACK_BANKS}
+
+
+@router.get("/epic014/bank-master")
+async def get_epic014_bank_master(
+    query: Optional[str] = Query(None, description="Search bank name or IFSC prefix"),
+    limit: int = Query(1000, ge=1, le=2000),
+    db: AsyncSession = Depends(get_db)
+):
+    return await search_epic014_bank_master(query=query, limit=limit, db=db)
 
 
 def _bank_logo(bank_name: str) -> str:

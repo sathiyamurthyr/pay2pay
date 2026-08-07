@@ -99,6 +99,7 @@ app.include_router(verification.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_services.router, prefix=settings.API_V1_STR)
 app.include_router(payout_workflow.router, prefix=settings.API_V1_STR)
 app.include_router(ekyc.router, prefix=settings.API_V1_STR)
+app.include_router(epic014_beneficiary_router.router, prefix=settings.API_V1_STR)
 from app.presentation.api.v1 import reverse_penny_drop_router
 app.include_router(beneficiary_verification.router, prefix=settings.API_V1_STR)
 app.include_router(reverse_penny_drop_router.router, prefix=settings.API_V1_STR)

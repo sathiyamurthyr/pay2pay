@@ -63,6 +63,7 @@ async def add_and_verify_beneficiary(
     return res
 
 
+@router.get("/bank-master")
 @router.get("/bank-master/search")
 async def search_bank_master(
     query: Optional[str] = Query(None, description="Search by Bank Name, IFSC, or Short Name"),

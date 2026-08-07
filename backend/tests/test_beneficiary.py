@@ -112,3 +112,17 @@ async def test_verify_upi_id():
 
     assert res.upi_id == "anita@okaxis"
     assert res.verification_status == "VERIFIED"
+
+
+@pytest.mark.asyncio
+async def test_search_epic014_bank_master_fallback():
+    from app.presentation.api.v1.beneficiary import search_epic014_bank_master
+    db = AsyncMock()
+    db.execute.side_effect = Exception("DB mock skip")
+
+    res = await search_epic014_bank_master(query="HDFC", limit=1000, db=db)
+    assert res["status"] == "SUCCESS"
+    assert res["source"] == "fallback"
+    assert len(res["data"]) > 0
+    assert any(b["bank_name"] == "HDFC Bank" for b in res["data"])
+
