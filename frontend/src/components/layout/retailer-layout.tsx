@@ -7,8 +7,11 @@ import {
   AppBar, Toolbar, Drawer, Box, Typography, IconButton, Badge, Menu,
   MenuItem, Divider, List, ListItem, ListItemButton, ListItemIcon,
   ListItemText, Button, Avatar, Chip, Tooltip, Stack, Paper, InputBase,
-  Popover
+  Popover, TextField, InputAdornment
 } from "@mui/material";
+import ClearIcon from "@mui/icons-material/Clear";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import MenuIcon from "@mui/icons-material/Menu";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -70,6 +73,33 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [universalSearchOpen, setUniversalSearchOpen] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [menuSearchQuery, setMenuSearchQuery] = useState("");
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("p2p_sidebar_favorites");
+      if (saved) {
+        setFavorites(JSON.parse(saved));
+      } else {
+        setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
+      }
+    } catch {
+      setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
+    }
+  }, []);
+
+  const toggleFavorite = (path: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setFavorites((prev) => {
+      const updated = prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path];
+      try {
+        localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
 
   // Auto-close mobile drawer on route change
   useEffect(() => {
@@ -208,11 +238,50 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         )}
       </Box>
 
+      {/* ── SEARCH MENU INPUT BAR ── */}
+      {!isCollapsed && (
+        <Box sx={{ px: 1.5, pb: 1, pt: 0.5 }}>
+          <TextField
+            fullWidth
+            size="small"
+            value={menuSearchQuery}
+            onChange={(e) => setMenuSearchQuery(e.target.value)}
+            placeholder="Search menu items..."
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: "#60A5FA", fontSize: 16 }} />
+                  </InputAdornment>
+                ),
+                endAdornment: menuSearchQuery ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setMenuSearchQuery("")} sx={{ p: 0.2, color: "rgba(255, 255, 255, 0.5)" }}>
+                      <ClearIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+                sx: {
+                  height: 34,
+                  fontSize: "12px",
+                  color: "#FFFFFF",
+                  borderRadius: "8px",
+                  bgcolor: "rgba(255, 255, 255, 0.05)",
+                  "& fieldset": { borderColor: "rgba(255, 255, 255, 0.12)" },
+                  "&:hover fieldset": { borderColor: "#3B82F6" },
+                  "&.Mui-focused fieldset": { borderColor: "#2563EB" },
+                },
+              },
+            }}
+          />
+        </Box>
+      )}
+
       {/* Categorized Enterprise Dark Navigation List */}
       <Box
         sx={{
           flex: 1,
-          py: 1.5,
+          py: 1,
           px: isCollapsed ? 1 : 1.5,
           overflowY: "auto",
           scrollbarWidth: "none",
@@ -220,84 +289,187 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           "&::-webkit-scrollbar": { display: "none" },
         }}
       >
-        {navCategories.map((cat) => (
-          <Box key={cat.title} sx={{ mb: 1.5 }}>
-            {!isCollapsed && (
-              <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "14px", display: "block", mb: 0.5 }}>
-                {cat.title}
-              </Typography>
-            )}
-            <Stack spacing={0.4}>
-              {cat.items.map((item) => {
-                const IconComponent = item.icon;
-                const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
+        {/* ── 1. FAVORITES CATEGORY ── */}
+        {!menuSearchQuery && (() => {
+          const allItems = navCategories.flatMap((cat) => cat.items);
+          const favItems = allItems.filter((i) => favorites.includes(i.path));
+          if (favItems.length === 0) return null;
 
-                return (
-                  <Tooltip key={item.path} title={isCollapsed ? item.label : ""} placement="right" arrow>
-                    <Box
-                      component={Link}
-                      href={item.path}
-                      onClick={() => setMobileOpen(false)}
-                      sx={{
-                        position: "relative",
-                        display: "flex",
-                        alignItems: "center",
-                        height: 44,
-                        borderRadius: "10px",
-                        px: isCollapsed ? 0 : "14px",
-                        justifyContent: isCollapsed ? "center" : "space-between",
-                        backgroundColor: isActive ? "rgba(37, 99, 235, 0.35)" : "transparent",
-                        color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
-                        textDecoration: "none",
-                        boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
-                        transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
-                        "&::before": isActive
-                          ? {
-                              content: '""',
-                              position: "absolute",
-                              left: 0,
-                              top: "6px",
-                              bottom: "6px",
-                              width: "3px",
-                              borderRadius: "2px",
-                              backgroundColor: "#2563EB",
-                            }
-                          : {},
-                        "&:hover": {
-                          backgroundColor: isActive ? "rgba(37, 99, 235, 0.45)" : "rgba(255, 255, 255, 0.08)",
-                          color: "#FFFFFF",
-                        },
-                      }}
-                    >
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                        <IconComponent sx={{ fontSize: 20, color: isActive ? "#60A5FA" : "rgba(255, 255, 255, 0.88)" }} />
+          return (
+            <Box sx={{ mb: 1.5 }}>
+              {!isCollapsed && (
+                <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", px: "14px", mb: 0.5 }}>
+                  <StarIcon sx={{ color: "#FFD54F", fontSize: 13 }} />
+                  <Typography variant="caption" sx={{ color: "#FFD54F", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                    FAVORITES
+                  </Typography>
+                </Stack>
+              )}
+              <Stack spacing={0.4}>
+                {favItems.map((item) => {
+                  const IconComponent = item.icon;
+                  const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
+
+                  return (
+                    <Tooltip key={`fav-${item.path}`} title={isCollapsed ? item.label : ""} placement="right" arrow>
+                      <Box
+                        component={Link}
+                        href={item.path}
+                        onClick={() => setMobileOpen(false)}
+                        sx={{
+                          position: "relative",
+                          display: "flex",
+                          alignItems: "center",
+                          height: 44,
+                          borderRadius: "10px",
+                          px: isCollapsed ? 0 : "14px",
+                          justifyContent: isCollapsed ? "center" : "space-between",
+                          backgroundColor: isActive ? "#2563EB" : "rgba(255, 213, 79, 0.08)",
+                          color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
+                          textDecoration: "none",
+                          boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
+                          transition: "all 0.15s ease",
+                          "&:hover": { backgroundColor: isActive ? "#1D4ED8" : "rgba(255, 255, 255, 0.12)", color: "#FFFFFF" },
+                          "&:hover .fav-star": { opacity: 1 },
+                        }}
+                      >
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
+                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#FFFFFF" : "#FFD54F" }} />
+                          {!isCollapsed && (
+                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 600, lineHeight: "20px", whiteSpace: "nowrap", color: "#FFFFFF" }}>
+                              {item.label}
+                            </Typography>
+                          )}
+                        </Stack>
+
                         {!isCollapsed && (
-                          <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 500, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)" }}>
-                            {item.label}
-                          </Typography>
+                          <IconButton
+                            size="small"
+                            className="fav-star"
+                            onClick={(e) => toggleFavorite(item.path, e)}
+                            sx={{ p: 0.3, color: "#FFD54F" }}
+                          >
+                            <StarIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
                         )}
-                      </Stack>
+                      </Box>
+                    </Tooltip>
+                  );
+                })}
+              </Stack>
+            </Box>
+          );
+        })()}
 
-                      {!isCollapsed && item.badge && (
-                        <Chip
-                          label={item.badge}
-                          size="small"
-                          sx={{
-                            height: 18,
-                            fontSize: "9px",
-                            fontWeight: 800,
-                            backgroundColor: isActive ? "#2563EB" : "rgba(255,255,255,0.12)",
+        {/* ── 2. CATEGORIZED MENU LIST ── */}
+        {navCategories
+          .map((cat) => ({
+            ...cat,
+            items: cat.items.filter(
+              (item) =>
+                item.label.toLowerCase().includes(menuSearchQuery.toLowerCase()) ||
+                cat.title.toLowerCase().includes(menuSearchQuery.toLowerCase())
+            ),
+          }))
+          .filter((cat) => cat.items.length > 0)
+          .map((cat) => (
+            <Box key={cat.title} sx={{ mb: 1.5 }}>
+              {!isCollapsed && (
+                <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", px: "14px", display: "block", mb: 0.5 }}>
+                  {cat.title}
+                </Typography>
+              )}
+              <Stack spacing={0.4}>
+                {cat.items.map((item) => {
+                  const IconComponent = item.icon;
+                  const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
+                  const isFav = favorites.includes(item.path);
+
+                  return (
+                    <Tooltip key={item.path} title={isCollapsed ? item.label : ""} placement="right" arrow>
+                      <Box
+                        component={Link}
+                        href={item.path}
+                        onClick={() => setMobileOpen(false)}
+                        sx={{
+                          position: "relative",
+                          display: "flex",
+                          alignItems: "center",
+                          height: 44,
+                          borderRadius: "10px",
+                          px: isCollapsed ? 0 : "14px",
+                          justifyContent: isCollapsed ? "center" : "space-between",
+                          backgroundColor: isActive ? "rgba(37, 99, 235, 0.35)" : "transparent",
+                          color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
+                          textDecoration: "none",
+                          boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
+                          transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+                          "&::before": isActive
+                            ? {
+                                content: '""',
+                                position: "absolute",
+                                left: 0,
+                                top: "6px",
+                                bottom: "6px",
+                                width: "3px",
+                                borderRadius: "2px",
+                                backgroundColor: "#2563EB",
+                              }
+                            : {},
+                          "&:hover": {
+                            backgroundColor: isActive ? "rgba(37, 99, 235, 0.45)" : "rgba(255, 255, 255, 0.08)",
                             color: "#FFFFFF",
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </Tooltip>
-                );
-              })}
-            </Stack>
-          </Box>
-        ))}
+                          },
+                          "&:hover .fav-star": { opacity: 1 },
+                        }}
+                      >
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
+                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#60A5FA" : "rgba(255, 255, 255, 0.88)" }} />
+                          {!isCollapsed && (
+                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 500, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)" }}>
+                              {item.label}
+                            </Typography>
+                          )}
+                        </Stack>
+
+                        {!isCollapsed && (
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            {item.badge && (
+                              <Chip
+                                label={item.badge}
+                                size="small"
+                                sx={{
+                                  height: 18,
+                                  fontSize: "9px",
+                                  fontWeight: 800,
+                                  backgroundColor: isActive ? "#2563EB" : "rgba(255,255,255,0.12)",
+                                  color: "#FFFFFF",
+                                }}
+                              />
+                            )}
+
+                            <IconButton
+                              size="small"
+                              className="fav-star"
+                              onClick={(e) => toggleFavorite(item.path, e)}
+                              sx={{
+                                p: 0.3,
+                                color: isFav ? "#FFD54F" : "rgba(255, 255, 255, 0.4)",
+                                opacity: isFav ? 1 : 0.3,
+                                "&:hover": { opacity: 1, color: "#FFD54F" },
+                              }}
+                            >
+                              {isFav ? <StarIcon sx={{ fontSize: 16 }} /> : <StarBorderIcon sx={{ fontSize: 16 }} />}
+                            </IconButton>
+                          </Stack>
+                        )}
+                      </Box>
+                    </Tooltip>
+                  );
+                })}
+              </Stack>
+            </Box>
+          ))}
       </Box>
 
       <Divider sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
