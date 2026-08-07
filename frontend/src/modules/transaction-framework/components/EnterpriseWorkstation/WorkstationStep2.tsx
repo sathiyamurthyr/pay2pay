@@ -76,9 +76,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const totalPayable = pricingResult.totalPayable;
   const balanceAfter = pricingResult.walletBalanceAfter;
 
-  // Realtime Rule Engine + Beneficiary Receiving Capacity Validation Check
+  // Realtime Rule Engine + Beneficiary Receiving Capacity Validation Check (Loaded strictly from DB)
   const beneficiaryAvailableToReceive = selectedBeneficiary
-    ? Math.min(50000 - (selectedBeneficiary.dailyUsage ?? 15000), 200000 - (selectedBeneficiary.monthlyUsage ?? 45000))
+    ? (selectedBeneficiary.monthlyRemaining ?? Math.max(0, 200000 - (selectedBeneficiary.monthlyUsage ?? 0)))
     : 50000;
   const isBeneficiaryLimitExceeded = amount > beneficiaryAvailableToReceive;
 

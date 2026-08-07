@@ -20,6 +20,8 @@ export interface BeneficiaryData {
   preferredGateway?: string;
   dailyUsage?: number;
   monthlyUsage?: number;
+  dailyRemaining?: number;
+  monthlyRemaining?: number;
   notes?: string;
 }
 
@@ -86,6 +88,8 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
                 preferredGateway: b.preferred_gateway || "HDFC DirectSwitch",
                 dailyUsage: b.daily_usage ?? 15000,
                 monthlyUsage: b.monthly_usage ?? 85000,
+                dailyRemaining: b.daily_remaining ?? (50000 - (b.daily_usage ?? 15000)),
+                monthlyRemaining: b.monthly_remaining ?? (200000 - (b.monthly_usage ?? 85000)),
                 notes: b.notes || "Verified Salary Account",
               };
             });
