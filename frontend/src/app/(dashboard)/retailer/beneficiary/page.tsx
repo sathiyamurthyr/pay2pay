@@ -33,10 +33,12 @@ import {
   FormControl,
   InputLabel,
   Tooltip,
+  InputAdornment,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import LockIcon from "@mui/icons-material/Lock";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import VerifiedIcon from "@mui/icons-material/Verified";
 import SaveIcon from "@mui/icons-material/Save";
@@ -176,15 +178,11 @@ function BeneficiaryWorkspaceContent() {
   const [confirmAccNum, setConfirmAccNum]   = useState("");
   const [accMismatchError, setAccMismatchError] = useState("");
 
-  // ── Bank & Branch ─────────────────────────────────────────────────────────
+  // ── Bank ───────────────────────────────────────────────────────────────────
   const [bankMasterList, setBankMasterList] = useState<any[]>([]);
   const [bankSearchLoading, setBankSearchLoading] = useState(false);
   const [selectedBankObj, setSelectedBankObj] = useState<any | null>(null);
   const [bankName, setBankName]             = useState("");
-
-  const [branchList, setBranchList]         = useState<any[]>([]);
-  const [branchLoading, setBranchLoading]   = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState<any | null>(null);
 
   const [ifscCode, setIfscCode]             = useState("");
   const [micrCode, setMicrCode]             = useState("");
@@ -216,12 +214,6 @@ function BeneficiaryWorkspaceContent() {
     fetchBankMasterList("");
     loadWalletBalance();
   }, []);
-
-  useEffect(() => {
-    if (selectedBankObj) {
-      loadBranches(selectedBankObj);
-    }
-  }, [selectedBankObj]);
 
   // ─── API Calls ────────────────────────────────────────────────────────────
 
@@ -315,77 +307,22 @@ function BeneficiaryWorkspaceContent() {
     }
   };
 
-
-
-  const loadBranches = async (bankObj: any) => {
-    setBranchLoading(true);
-    setSelectedBranch(null);
-    setIfscCode("");
-    setMicrCode("");
-    try {
-      const prefix = (bankObj.ifsc_prefix || (bankObj.ifsc_code || "").slice(0, 4)).toUpperCase();
-
-      // ── Try DB API first ──────────────────────────────────────────────────
-      try {
-        const res = await retailerApi.getBankBranches(prefix, 50);
-        const branches: any[] = res?.data || [];
-        if (branches.length > 0) {
-          setBranchList(branches);
-          setBranchLoading(false);
-          return;
-        }
-      } catch { /* fall through to local map */ }
-
-      // ── Fallback: static BRANCH_MAP ───────────────────────────────────────
-      const mapped = BRANCH_MAP[prefix] || [];
-      if (mapped.length > 0) {
-        setBranchList(mapped);
-      } else {
-        // Generic synthetic branches from IFSC prefix
-        const generic = [
-          { branch: `${prefix}0000001`, ifsc: `${prefix}0000001`, micr: "" },
-          { branch: `${prefix}0000002`, ifsc: `${prefix}0000002`, micr: "" },
-          { branch: `${prefix}0000003`, ifsc: `${prefix}0000003`, micr: "" },
-        ];
-        setBranchList(generic);
-      }
-    } catch {
-      setBranchList([]);
-    } finally {
-      setBranchLoading(false);
-    }
-  };
-
   const handleBankSelect = (bankObj: any) => {
     if (!bankObj || typeof bankObj === "string") return;
     setSelectedBankObj(bankObj);
     setBankName(bankObj.bank_name || "");
-    setIfscCode("");
-    setMicrCode("");
-    setSelectedBranch(null);
 
-    addAuditLog("Bank Selected", {
+    // Auto-fill IFSC Code directly from Bank Master object
+    const autoIfsc = bankObj.ifsc_code || bankObj.ifsc || (bankObj.ifsc_prefix ? bankObj.ifsc_prefix + "0000001" : "");
+    setIfscCode(autoIfsc);
+    setMicrCode(bankObj.micr || "");
+
+    addAuditLog("Bank Selected & IFSC Auto-filled", {
       bank_id: bankObj.bank_id,
       bank_name: bankObj.bank_name,
+      ifsc_code: autoIfsc,
       bank_code: bankObj.ifsc_prefix || bankObj.ifsc_code,
       short_name: bankObj.short_name || bankObj.bank_name,
-    });
-  };
-
-  const handleBranchSelect = (branchObj: any) => {
-    if (!branchObj) return;
-    setSelectedBranch(branchObj);
-    const ifsc = branchObj.ifsc || "";
-    setIfscCode(ifsc);
-    setMicrCode(branchObj.micr || "");
-
-    addAuditLog("Branch Selected & IFSC Bound", {
-      branch_id: branchObj.branch_id || branchObj.branch,
-      branch_name: branchObj.branch,
-      ifsc: ifsc,
-      micr: branchObj.micr,
-      district: branchObj.city || branchObj.district || "Chennai",
-      state: branchObj.state || "Tamil Nadu",
     });
   };
 
@@ -401,8 +338,8 @@ function BeneficiaryWorkspaceContent() {
       setAccMismatchError("Account numbers do not match! Please re-enter carefully.");
       return;
     }
-    if (!ifscCode) {
-      setAccMismatchError("Please select a branch to auto-bind the IFSC code.");
+    if (!bankName || !ifscCode) {
+      setAccMismatchError("Please select a bank to auto-fill the IFSC code.");
       return;
     }
     setAccMismatchError("");
@@ -489,8 +426,8 @@ function BeneficiaryWorkspaceContent() {
           account_number_masked: `•••• •••• ${accNum.slice(-4)}`,
           ifsc_code: ifscCode,
           bank_name: bankName,
-          branch: selectedBranch?.branch || "Main Branch",
-          city: selectedBranch?.city || "",
+          branch: "Main Branch",
+          city: "",
           micr: micrCode || "",
           is_verified: true,
           penny_drop_status: "SUCCESS",
@@ -934,13 +871,13 @@ function BeneficiaryWorkspaceContent() {
                             <BusinessIcon sx={{ fontSize: 18, color: "#FFF" }} />
                           </Box>
                           <Box>
-                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Bank & Branch</Typography>
-                            <Typography variant="caption" sx={{ color: "#64748B" }}>Select bank → select branch → IFSC auto-bound</Typography>
+                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Bank & IFSC Details</Typography>
+                            <Typography variant="caption" sx={{ color: "#64748B" }}>Search bank → IFSC auto-filled (read-only)</Typography>
                           </Box>
                         </Stack>
 
                         <Grid container spacing={2}>
-                          {/* Bank Select */}
+                          {/* Search Bank */}
                           <Grid size={{ xs: 12, sm: 6 }}>
                             <Autocomplete
                               options={bankMasterList}
@@ -995,7 +932,7 @@ function BeneficiaryWorkspaceContent() {
                                           </Typography>
                                         </Stack>
                                         <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
-                                          IFSC Prefix: {opt.ifsc_prefix || opt.ifsc_code} • {opt.short_name || "Bank"}
+                                          IFSC Code: {opt.ifsc_code || opt.ifsc_prefix + "0000001"} • {opt.short_name || "Bank"}
                                         </Typography>
                                       </Box>
                                       <Stack direction="row" spacing={0.5}>
@@ -1009,7 +946,7 @@ function BeneficiaryWorkspaceContent() {
                               renderInput={(params: any) => (
                                 <TextField
                                   {...params}
-                                  label="Select Bank *"
+                                  label="Search Bank *"
                                   size="small"
                                   required
                                   placeholder="Search Bank..."
@@ -1044,48 +981,30 @@ function BeneficiaryWorkspaceContent() {
                             )}
                           </Grid>
 
-                          {/* Branch Select */}
+                          {/* Auto-filled Read-Only IFSC Field */}
                           <Grid size={{ xs: 12, sm: 6 }}>
-                            <Autocomplete
-                              options={branchList}
-                              disabled={!selectedBankObj}
-                              loading={branchLoading}
-                              getOptionLabel={opt => typeof opt === "string" ? opt : `${opt.branch} — ${opt.city}`}
-                              value={selectedBranch}
-                              onChange={(_, val) => handleBranchSelect(val)}
-                              noOptionsText={branchLoading ? "Loading branches..." : (!selectedBankObj ? "Select Bank First" : "No branch found")}
-                              renderOption={(props, opt) => (
-                                <Box component="li" {...props} key={opt.ifsc}>
-                                  <Box>
-                                    <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px" }}>{opt.branch}</Typography>
-                                    <Typography variant="caption" sx={{ color: "#64748B" }}>{opt.city} • {opt.ifsc}</Typography>
-                                  </Box>
-                                </Box>
-                              )}
-                              renderInput={(params: any) => (
-                                <TextField
-                                  {...params}
-                                  label="Select Branch *"
-                                  size="small"
-                                  required
-                                  placeholder={selectedBankObj ? "Search Branch..." : "Select Bank First"}
-                                  slotProps={{
-                                    input: {
-                                      ...(params.InputProps || {}),
-                                      endAdornment: (
-                                        <>
-                                          {branchLoading ? <CircularProgress color="primary" size={16} /> : null}
-                                          {params.InputProps?.endAdornment}
-                                        </>
-                                      ),
-                                    },
-                                  }}
-                                />
-                              )}
+                            <TextField
+                              label="IFSC (Auto-filled) *"
+                              size="small"
+                              fullWidth
+                              value={ifscCode}
+                              slotProps={{
+                                input: {
+                                  readOnly: true,
+                                  startAdornment: (
+                                    <InputAdornment position="start">
+                                      <LockIcon sx={{ fontSize: 16, color: "#64748B" }} />
+                                    </InputAdornment>
+                                  ),
+                                  sx: { bgcolor: "#F8FAFC", fontWeight: 700, color: "#0284C7" },
+                                },
+                              }}
+                              placeholder="Select bank to auto-fill IFSC..."
+                              helperText={selectedBankObj ? "✓ Auto-filled from Bank Master" : "Select bank first to auto-fill IFSC"}
                             />
                           </Grid>
 
-                          {/* Auto-bound display */}
+                          {/* Auto-bound Bank & IFSC Summary */}
                           {ifscCode && (
                             <>
                               <Grid size={{ xs: 12 }}>
@@ -1099,19 +1018,9 @@ function BeneficiaryWorkspaceContent() {
                                       <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{bankName}</Typography>
                                     </Box>
                                     <Box>
-                                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>Branch</Typography>
-                                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{selectedBranch?.branch || "—"}</Typography>
-                                    </Box>
-                                    <Box>
-                                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>IFSC</Typography>
+                                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>IFSC Code</Typography>
                                       <Typography variant="body2" sx={{ fontWeight: 800, color: "#0284C7" }}>{ifscCode}</Typography>
                                     </Box>
-                                    {micrCode && (
-                                      <Box>
-                                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>MICR</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{micrCode}</Typography>
-                                      </Box>
-                                    )}
                                   </Stack>
                                 </Alert>
                               </Grid>
@@ -1163,7 +1072,6 @@ function BeneficiaryWorkspaceContent() {
                           { label: "Relationship", value: relationship },
                           { label: "Account Number", value: `•••• •••• ${accNum.slice(-4)}` },
                           { label: "Bank", value: bankName },
-                          { label: "Branch", value: selectedBranch?.branch || "—" },
                           { label: "IFSC Code", value: ifscCode },
                           { label: "MICR", value: micrCode || "—" },
                         ].map(({ label, value }) => (
