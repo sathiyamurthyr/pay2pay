@@ -119,8 +119,8 @@ class FinancialAccountingService {
     const transactionId = `TXN-${Date.now()}`;
     const referenceNo = `REF-${Math.floor(100000000 + Math.random() * 900000000)}`;
 
-    const walletBefore = params.walletBalance ?? 124500;
-    const beneMonthlyBefore = params.beneficiaryMonthlyRemaining ?? 80000;
+    const walletBefore = params.walletBalance ?? 0;
+    const beneMonthlyBefore = params.beneficiaryMonthlyRemaining ?? 0;
     const amount = params.amount;
     const mode = params.mode || "IMPS";
 

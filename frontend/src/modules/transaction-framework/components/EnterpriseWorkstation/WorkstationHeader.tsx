@@ -9,7 +9,7 @@ export interface WorkstationHeaderProps {
   walletBalance?: number;
 }
 
-export const WorkstationHeader: React.FC<WorkstationHeaderProps> = ({ walletBalance = 124500 }) => {
+export const WorkstationHeader: React.FC<WorkstationHeaderProps> = ({ walletBalance = 0 }) => {
   return (
     <Paper
       elevation={0}

@@ -259,9 +259,9 @@ export class RuleEngineService {
     const {
       amount,
       transactionMode = "IMPS",
-      walletBalance = 124500,
-      dailyRemaining = 25000,
-      monthlyRemaining = 200000,
+      walletBalance = 0,
+      dailyRemaining = 0,
+      monthlyRemaining = 0,
       beneficiaryBankName = "HDFC Bank",
       beneficiaryDailyRemaining = 50000,
       beneficiaryMonthlyRemaining = 200000,

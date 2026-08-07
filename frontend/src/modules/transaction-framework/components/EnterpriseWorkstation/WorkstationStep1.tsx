@@ -10,11 +10,14 @@ import {
   Avatar,
   Chip,
   Divider,
+  CircularProgress,
+  Skeleton,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import ShieldIcon from "@mui/icons-material/Shield";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import PersonOffIcon from "@mui/icons-material/PersonOff";
 import { CustomerData } from "../../hooks/useCustomer";
 
 export interface WorkstationStep1Props {
@@ -23,6 +26,9 @@ export interface WorkstationStep1Props {
   onSelectCustomer: (cust: CustomerData) => void;
   onContinue: () => void;
   isSearching?: boolean;
+  hasSearched?: boolean;
+  error?: string | null;
+  onRegisterCustomer?: () => void;
 }
 
 export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
@@ -31,6 +37,9 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   onSelectCustomer,
   onContinue,
   isSearching = false,
+  hasSearched = false,
+  error = null,
+  onRegisterCustomer,
 }) => {
   const [searchInput, setSearchInput] = useState("");
 
@@ -40,12 +49,6 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
       onSearchCustomer(searchInput.trim());
     }
   };
-
-  const recentCustomers: CustomerData[] = [
-    { id: "CUS-9812", customerCode: "CUS-0245", name: "Ramesh Kumar", mobile: "9876543210", walletBalance: 124500, dailyLimitRemaining: 25000, monthlyLimitRemaining: 200000, kycStatus: "VERIFIED", riskRating: "LOW", preferredBank: "HDFC" },
-    { id: "CUS-9813", customerCode: "CUS-0246", name: "Priya Sharma", mobile: "9812345678", walletBalance: 85000, dailyLimitRemaining: 40000, monthlyLimitRemaining: 150000, kycStatus: "VERIFIED", riskRating: "LOW", preferredBank: "ICICI" },
-    { id: "CUS-9814", customerCode: "CUS-0247", name: "Anand Verma", mobile: "9988776655", walletBalance: 210000, dailyLimitRemaining: 10000, monthlyLimitRemaining: 80000, kycStatus: "VERIFIED", riskRating: "MEDIUM", preferredBank: "SBI" },
-  ];
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", pt: 2 }}>
@@ -71,7 +74,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               fullWidth
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by Mobile (9876543210), Aadhaar (XXXX XXXX 1234), or Code (CUS-0245)..."
+              placeholder="Search by Mobile Number or Customer Code..."
               slotProps={{
                 input: {
                   startAdornment: (
@@ -93,7 +96,8 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             <Button
               type="submit"
               variant="contained"
-              disabled={isSearching}
+              disabled={isSearching || !searchInput.trim()}
+              startIcon={isSearching ? <CircularProgress size={18} color="inherit" /> : <SearchIcon />}
               sx={{
                 height: 52,
                 px: 4,
@@ -109,32 +113,69 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             </Button>
           </Stack>
         </form>
-
-        <Stack direction="row" spacing={1} sx={{ mt: 2, alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "12px", fontWeight: 700 }}>
-            RECENT CUSTOMERS:
-          </Typography>
-          {recentCustomers.map((rc) => (
-            <Chip
-              key={rc.id}
-              avatar={<Avatar sx={{ bgcolor: "#2563EB", color: "#FFFFFF", fontWeight: 900 }}>{rc.name.charAt(0)}</Avatar>}
-              label={`${rc.name} (${rc.mobile})`}
-              onClick={() => onSelectCustomer(rc)}
-              sx={{
-                bgcolor: customer?.id === rc.id ? "#2563EB" : "rgba(255, 255, 255, 0.08)",
-                color: "#FFFFFF",
-                fontWeight: 700,
-                fontSize: "12px",
-                height: 32,
-                cursor: "pointer",
-              }}
-            />
-          ))}
-        </Stack>
       </Paper>
 
-      {/* 2. CUSTOMER PROFILE CARD */}
-      {customer && (
+      {/* 2. LOADING STATE SKELETON */}
+      {isSearching && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3.5,
+            borderRadius: "16px",
+            bgcolor: "rgba(18, 27, 48, 0.5)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+          }}
+        >
+          <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 2 }}>
+            <Skeleton variant="circular" width={64} height={64} sx={{ bgcolor: "rgba(255, 255, 255, 0.1)" }} />
+            <Box sx={{ flex: 1 }}>
+              <Skeleton variant="text" width="40%" height={32} sx={{ bgcolor: "rgba(255, 255, 255, 0.1)" }} />
+              <Skeleton variant="text" width="60%" height={20} sx={{ bgcolor: "rgba(255, 255, 255, 0.1)" }} />
+            </Box>
+          </Stack>
+        </Paper>
+      )}
+
+      {/* 3. EMPTY STATE - CUSTOMER NOT FOUND */}
+      {!isSearching && (error || (hasSearched && !customer)) && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            borderRadius: "16px",
+            bgcolor: "rgba(239, 68, 68, 0.08)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            textAlign: "center",
+          }}
+        >
+          <PersonOffIcon sx={{ fontSize: 56, color: "#EF4444", mb: 1 }} />
+          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "20px", mb: 0.5 }}>
+            Customer Not Found
+          </Typography>
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13.5px", mb: 3, maxWidth: 460, mx: "auto" }}>
+            No customer records matched your search query in the database. Please verify the mobile number or register a new customer.
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<PersonAddIcon />}
+            onClick={onRegisterCustomer || (() => alert("Register New Customer modal opened"))}
+            sx={{
+              height: 46,
+              px: 3.5,
+              borderRadius: "10px",
+              fontWeight: 900,
+              fontSize: "14px",
+              bgcolor: "#2563EB",
+            }}
+          >
+            + Register New Customer
+          </Button>
+        </Paper>
+      )}
+
+      {/* 4. CUSTOMER PROFILE CARD (API DRIVEN DATA BINDING) */}
+      {!isSearching && customer && (
         <Paper
           elevation={0}
           sx={{
@@ -155,11 +196,13 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "22px" }}>
                   {customer.name}
                 </Typography>
-                <Chip icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 14 } }} />} label={customer.kycStatus || "VERIFIED"} size="small" sx={{ bgcolor: "rgba(34, 197, 94, 0.2)", color: "#4ADE80", fontWeight: 800, fontSize: "11px" }} />
-                <Chip label={`Risk: ${customer.riskRating || "LOW"}`} size="small" sx={{ bgcolor: "rgba(56, 189, 248, 0.2)", color: "#38BDF8", fontWeight: 800, fontSize: "11px" }} />
+                <Chip icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 14 } }} />} label={customer.kycStatus || "PENDING"} size="small" sx={{ bgcolor: "rgba(34, 197, 94, 0.2)", color: "#4ADE80", fontWeight: 800, fontSize: "11px" }} />
+                {customer.riskRating && (
+                  <Chip label={`Risk: ${customer.riskRating}`} size="small" sx={{ bgcolor: "rgba(56, 189, 248, 0.2)", color: "#38BDF8", fontWeight: 800, fontSize: "11px" }} />
+                )}
               </Stack>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontSize: "13px", fontWeight: 600 }}>
-                Customer Code: <strong style={{ color: "#60A5FA" }}>{customer.customerCode || `CUS-${customer.mobile.slice(-4)}`}</strong> · Mobile: <strong>{customer.mobile}</strong>
+                Customer Code: <strong style={{ color: "#60A5FA" }}>{customer.customerCode}</strong> · Mobile: <strong>{customer.mobile}</strong>
               </Typography>
             </Box>
 
@@ -168,7 +211,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 RETAILER WALLET BALANCE
               </Typography>
               <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "24px" }}>
-                ₹{(customer.walletBalance ?? 124500).toLocaleString()}
+                ₹{Number(customer.walletBalance ?? 0).toLocaleString()}
               </Typography>
             </Box>
           </Stack>
@@ -178,19 +221,19 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
           <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2 }}>
             <Box>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>DAILY REMAINING</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "15px" }}>₹{(customer.dailyLimitRemaining ?? 25000).toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "15px" }}>₹{Number(customer.dailyLimitRemaining ?? 0).toLocaleString()}</Typography>
             </Box>
             <Box>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>MONTHLY REMAINING</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#34D399", fontSize: "15px" }}>₹{(customer.monthlyLimitRemaining ?? 200000).toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#34D399", fontSize: "15px" }}>₹{Number(customer.monthlyLimitRemaining ?? 0).toLocaleString()}</Typography>
             </Box>
             <Box>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>PREFERRED BANK</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>{customer.preferredBank || "HDFC Bank"}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>{customer.preferredBank || "—"}</Typography>
             </Box>
             <Box>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>RELATIONSHIP MGR</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "15px" }}>Vikram Singh</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "15px" }}>{customer.relationshipManager || "—"}</Typography>
             </Box>
           </Box>
 

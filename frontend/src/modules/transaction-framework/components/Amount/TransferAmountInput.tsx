@@ -17,8 +17,8 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
   onAmountChange,
   minLimit = 100,
   maxLimit = 50000,
-  remainingDaily = 25000,
-  walletBalance = 124500,
+  remainingDaily = 0,
+  walletBalance = 0,
   showPresets = false,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);

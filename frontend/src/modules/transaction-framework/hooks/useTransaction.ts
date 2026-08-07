@@ -15,7 +15,7 @@ export function useTransaction(service: ServiceType = "DMT", customer?: Customer
       service,
       amount,
       customerId: customer?.id,
-      walletBalance: customer?.walletBalance ?? 124500,
+      walletBalance: customer?.walletBalance ?? 0,
     });
   }, [service, amount, customer]);
 

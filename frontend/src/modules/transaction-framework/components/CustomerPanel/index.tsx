@@ -81,7 +81,7 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
             <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
               <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: 15 }} />
               <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "15px" }}>
-                ₹{(customer.walletBalance ?? 124500).toLocaleString()}
+                ₹{(customer.walletBalance ?? 0).toLocaleString()}
               </Typography>
             </Stack>
           </Box>

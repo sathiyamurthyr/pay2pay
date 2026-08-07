@@ -47,7 +47,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
       amount,
       transactionMode: selectedMode,
       customerId: customer?.id,
-      walletBalance: customer?.walletBalance ?? 124500,
+      walletBalance: customer?.walletBalance ?? 0,
     });
 
   useEffect(() => {

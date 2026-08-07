@@ -12,7 +12,7 @@ export interface WizardHeaderProps {
 
 export const WizardHeader: React.FC<WizardHeaderProps> = ({
   currentStep,
-  walletBalance = 124500,
+  walletBalance = 0,
   operatorName = "Sathyamoorthy (P2P-RET-0245)",
 }) => {
   const steps = ["1. Customer Search", "2. Beneficiary & Amount", "3. Authorize", "4. Receipt & Share"];

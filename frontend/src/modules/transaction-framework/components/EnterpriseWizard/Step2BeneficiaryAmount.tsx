@@ -79,7 +79,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
   const gst = Math.round(charges * 0.18);
   const fee = charges - gst;
   const commission = Math.round(amount * 0.0035);
-  const walletBalance = customer?.walletBalance ?? 124500;
+  const walletBalance = customer?.walletBalance ?? 0;
   const balanceAfter = Math.max(0, walletBalance - totalPayable);
 
   return (
@@ -107,7 +107,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
           <Box>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
               <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>
-                {customer?.name || "Ramesh Kumar"}
+                {customer?.name || "Customer"}
               </Typography>
               <Chip label="LOCKED CUSTOMER" size="small" sx={{ bgcolor: "rgba(37, 99, 235, 0.2)", color: "#60A5FA", fontWeight: 800, height: 18, fontSize: "10px" }} />
             </Stack>

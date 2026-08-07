@@ -16,9 +16,9 @@ export const TransferSummary: React.FC<TransferSummaryProps> = ({
   amount,
   charges,
   totalPayable,
-  currentWalletBalance = 124500,
-  dailyRemaining = 25000,
-  monthlyRemaining = 200000,
+  currentWalletBalance = 0,
+  dailyRemaining = 0,
+  monthlyRemaining = 0,
 }) => {
   const gst = Math.round(charges * 0.18);
   const fee = charges - gst;

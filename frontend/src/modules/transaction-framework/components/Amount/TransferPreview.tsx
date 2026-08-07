@@ -1,7 +1,5 @@
 import React from "react";
 import { Box, Typography, Stack, Paper, Divider } from "@mui/material";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import PersonIcon from "@mui/icons-material/Person";
 
 export interface TransferPreviewProps {
   customerName?: string;
@@ -15,16 +13,16 @@ export interface TransferPreviewProps {
 }
 
 export const TransferPreview: React.FC<TransferPreviewProps> = ({
-  customerName = "Ramesh Kumar",
-  customerMobile = "9876543210",
-  beneficiaryName = "Sarah Chen",
-  beneficiaryAccount = "456798121290",
-  bankName = "HDFC Bank",
+  customerName = "Customer",
+  customerMobile = "—",
+  beneficiaryName = "Beneficiary",
+  beneficiaryAccount = "—",
+  bankName = "Bank",
   amount,
   totalPayable,
-  walletBalance = 124500,
+  walletBalance = 0,
 }) => {
-  const maskedAcc = beneficiaryAccount.length >= 4 ? `•••• •••• ${beneficiaryAccount.slice(-4)}` : beneficiaryAccount;
+  const maskedAcc = beneficiaryAccount && beneficiaryAccount.length >= 4 ? `•••• •••• ${beneficiaryAccount.slice(-4)}` : beneficiaryAccount;
   const balanceAfter = Math.max(0, walletBalance - totalPayable);
 
   return (

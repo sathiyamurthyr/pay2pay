@@ -106,8 +106,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   // Animated Counter States for Wallet & Beneficiary Limit
-  const [animatedWallet, setAnimatedWallet] = useState<number>(customer?.walletBalance ?? 124500);
-  const [animatedLimit, setAnimatedLimit] = useState<number>(beneficiary?.monthlyRemaining ?? 80000);
+  const [animatedWallet, setAnimatedWallet] = useState<number>(customer?.walletBalance ?? 0);
+  const [animatedLimit, setAnimatedLimit] = useState<number>(beneficiary?.monthlyRemaining ?? 0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -184,12 +184,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   // Smooth Counter Animation Effect upon Transaction Success
   useEffect(() => {
     if (viewState === "SUCCESS_RECEIPT") {
-      const targetWallet = (customer?.walletBalance ?? 124500) - totalPayable;
-      const targetLimit = Math.max(0, (beneficiary?.monthlyRemaining ?? 80000) - amount);
+      const targetWallet = (customer?.walletBalance ?? 0) - totalPayable;
+      const targetLimit = Math.max(0, (beneficiary?.monthlyRemaining ?? 0) - amount);
 
       const duration = 1500;
-      const startWallet = customer?.walletBalance ?? 124500;
-      const startLimit = beneficiary?.monthlyRemaining ?? 80000;
+      const startWallet = customer?.walletBalance ?? 0;
+      const startLimit = beneficiary?.monthlyRemaining ?? 0;
       const startTime = Date.now();
 
       const timer = setInterval(() => {
@@ -510,12 +510,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               <Stack spacing={1}>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Customer</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>{customer?.name || "Ramesh Kumar"}</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>{customer?.name || "Customer"}</Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Beneficiary</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>{beneficiary?.name || "Aman Ramesh"}</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>{beneficiary?.name || "Beneficiary"}</Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
@@ -891,7 +891,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   <Paper elevation={0} sx={{ p: 0.75, mb: 0.75, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                     <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>BENEFICIARY DETAILS</Typography>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                      <Typography sx={{ fontSize: "9px", color: "#111827", fontWeight: 700 }}>{beneficiary?.name || "Aman Ramesh"}</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#111827", fontWeight: 700 }}>{beneficiary?.name || "Beneficiary"}</Typography>
                       <Typography sx={{ fontSize: "9px", color: "#2563EB", fontWeight: 700 }}>{beneficiary?.bankName || "Axis Bank"}</Typography>
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between", mt: 0.25 }}>
@@ -1160,7 +1160,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Mode: {transactionMode}</Typography>
             <Divider sx={{ my: 1 }} />
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Retailer: Rajesh Sharma (+91 98765 43210)</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Beneficiary: {beneficiary?.name || "Aman Ramesh"}</Typography>
+            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Beneficiary: {beneficiary?.name || "Beneficiary"}</Typography>
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Bank: {beneficiary?.bankName || "Axis Bank"}</Typography>
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Account: XXXX XXXX 3210</Typography>
             <Divider sx={{ my: 1 }} />
