@@ -113,7 +113,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 letterSpacing: "-0.2px",
               }}
             >
-              👤 {name}
+              {name}
             </Typography>
             <Chip
               icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 13 } }} />}
@@ -151,7 +151,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
               fontWeight: 600,
             }}
           >
-            📱 <strong>+91 {mobile}</strong> · Customer ID:{" "}
+            <strong>+91 {mobile}</strong> · Customer ID:{" "}
             <span style={{ color: darkTheme ? "#60A5FA" : "#0284C7", fontWeight: 800 }}>
               {customerCode}
             </span>
@@ -191,7 +191,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 },
               }}
             >
-              ✏ Edit Customer
+              Edit Customer
             </Button>
           </Tooltip>
         )}
@@ -218,7 +218,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 },
               }}
             >
-              👤 View Profile
+              View Profile
             </Button>
           </Tooltip>
         )}
@@ -245,7 +245,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 },
               }}
             >
-              🔄 Change Customer
+              Change Customer
             </Button>
           </Tooltip>
         )}
