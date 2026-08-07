@@ -56,7 +56,10 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
       onRegisterCustomer();
     } else {
       const mobileParam = searchInput.replace(/\D/g, "").slice(0, 10);
-      window.location.href = `/customers/new?mobile=${encodeURIComponent(mobileParam)}`;
+      if (typeof window !== "undefined" && mobileParam) {
+        sessionStorage.setItem("draftCustomerMobile", mobileParam);
+      }
+      window.location.href = "/customers/new";
     }
   };
 

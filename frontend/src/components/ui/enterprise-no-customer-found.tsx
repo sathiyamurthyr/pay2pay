@@ -158,9 +158,10 @@ export function EnterpriseNoCustomerFound({
     triggerVibration([30, 50, 30]);
     setTimeout(() => {
       setRippling(false);
-      router.push(
-        `/customers/customer-360?registerMobile=${mobileInput}&step=REGISTRATION&returnTo=/customers`
-      );
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("draftCustomerMobile", mobileInput);
+      }
+      router.push("/customers/new");
     }, 280);
   }, [isCtaEnabled, mobileInput, router]);
 

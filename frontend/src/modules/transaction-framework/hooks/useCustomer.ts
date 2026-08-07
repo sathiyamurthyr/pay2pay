@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import apiClient from "@/lib/api";
 
 export interface CustomerData {
@@ -85,6 +85,17 @@ export function useCustomer() {
     setHasSearched(false);
     setError(null);
   }, []);
+
+  // Auto-search customer query set by registration flow without exposing PII in URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const autoQuery = sessionStorage.getItem("autoSearchQuery");
+      if (autoQuery) {
+        sessionStorage.removeItem("autoSearchQuery"); // Clear temporary PII immediately
+        searchCustomer(autoQuery);
+      }
+    }
+  }, [searchCustomer]);
 
   return { selectedCustomer, isSearching, hasSearched, error, searchCustomer, resetCustomer, setSelectedCustomer };
 }

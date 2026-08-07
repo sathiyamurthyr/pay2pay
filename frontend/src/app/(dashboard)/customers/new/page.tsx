@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box,
   Typography,
@@ -21,13 +21,11 @@ import apiClient from "@/lib/api";
 
 export default function RegisterCustomerPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialMobile = searchParams.get("mobile") || "";
 
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [mobileNumber, setMobileNumber] = useState(initialMobile);
+  const [mobileNumber, setMobileNumber] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState("MALE");
   const [dob, setDob] = useState("1995-05-15");
@@ -41,6 +39,27 @@ export default function RegisterCustomerPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Securely retrieve draft mobile number from sessionStorage and clear immediately
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const draft = sessionStorage.getItem("draftCustomerMobile");
+      if (draft) {
+        setMobileNumber(draft.replace(/\D/g, "").slice(0, 10));
+        sessionStorage.removeItem("draftCustomerMobile"); // Clear temporary PII state immediately
+      }
+    }
+  }, []);
+
+  const handleReturnToDmt = (targetMobile?: string) => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("draftCustomerMobile");
+      if (targetMobile) {
+        sessionStorage.setItem("autoSearchQuery", targetMobile.trim());
+      }
+    }
+    router.push("/dmt");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,15 +94,14 @@ export default function RegisterCustomerPage() {
       setSuccessMsg("Customer registered successfully! Returning to DMT Workstation...");
 
       setTimeout(() => {
-        // Return to DMT workstation auto-searching the new customer
-        router.push(`/dmt?query=${encodeURIComponent(mobileNumber.trim())}`);
-      }, 1200);
+        handleReturnToDmt(mobileNumber.trim());
+      }, 1000);
     } catch (err: any) {
       console.warn("Customer registration API warning:", err);
       // Client-side fallback navigation on mock environments
       setSuccessMsg("Customer registered successfully! Returning to DMT Workstation...");
       setTimeout(() => {
-        router.push(`/dmt?query=${encodeURIComponent(mobileNumber.trim())}`);
+        handleReturnToDmt(mobileNumber.trim());
       }, 1000);
     } finally {
       setIsSubmitting(false);
@@ -97,7 +115,7 @@ export default function RegisterCustomerPage() {
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}
-          onClick={() => router.push("/dmt")}
+          onClick={() => handleReturnToDmt()}
           sx={{
             height: 40,
             borderRadius: "10px",
@@ -346,7 +364,7 @@ export default function RegisterCustomerPage() {
           <Stack direction="row" spacing={2} sx={{ justifyContent: "flex-end", alignItems: "center" }}>
             <Button
               variant="outlined"
-              onClick={() => router.push("/dmt")}
+              onClick={() => handleReturnToDmt()}
               sx={{
                 height: 50,
                 px: 3,
