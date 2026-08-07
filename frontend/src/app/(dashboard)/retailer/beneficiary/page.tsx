@@ -209,10 +209,11 @@ function BeneficiaryWorkspaceContent() {
   const [lastSaved, setLastSaved] = useState<string>("Just now");
   const [copied, setCopied]       = useState<string | null>(null);
 
-  // ─── Effects ──────────────────────────────────────────────────────────────
+  // ── Bank Master Cache & Local Search State ──
+  const [fullBankMasterList, setFullBankMasterList] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchBankMasterList("");
+    loadBankMasterOnMount();
     loadWalletBalance();
   }, []);
 
@@ -228,9 +229,6 @@ function BeneficiaryWorkspaceContent() {
   };
 
   const searchTimeoutRef = useRef<any>(null);
-  const searchCacheRef = useRef<Map<string, any[]>>(new Map());
-  const abortControllerRef = useRef<AbortController | null>(null);
-
   const [bankSearchError, setBankSearchError] = useState<boolean>(false);
   const [bankSearchQuery, setBankSearchQuery] = useState<string>("");
 
@@ -247,49 +245,22 @@ function BeneficiaryWorkspaceContent() {
     console.log(`[AUDIT LOG] ${action}:`, details);
   };
 
-  const fetchBankMasterList = async (query: string = "") => {
-    const q = query.trim();
-    setBankSearchQuery(q);
-    setBankSearchError(false);
-
-    // Minimum 2 characters requirement when searching query (q.length === 1 does not trigger API search)
-    if (q.length === 1) {
-      setBankSearchLoading(false);
-      return;
-    }
-
-    // Check In-Memory Cache first
-    const cacheKey = q.toLowerCase();
-    if (searchCacheRef.current.has(cacheKey)) {
-      setBankMasterList(searchCacheRef.current.get(cacheKey)!);
-      setBankSearchLoading(false);
-      return;
-    }
-
-    // Cancel previous pending API request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
+  // ── Load Bank Master ONCE on Page Load ──
+  const loadBankMasterOnMount = async () => {
     setBankSearchLoading(true);
-    addAuditLog("Bank Search", { query: q });
-
+    setBankSearchError(false);
     try {
-      const res = await retailerApi.getBankMasterList(q, undefined, controller.signal);
+      const res = await retailerApi.getBankMasterList();
       let list: any[] = [];
       if (Array.isArray(res)) list = res;
       else if (res?.data && Array.isArray(res.data)) list = res.data;
       else if (res?.data?.data && Array.isArray(res.data.data)) list = res.data.data;
 
+      setFullBankMasterList(list);
       setBankMasterList(list);
-      searchCacheRef.current.set(cacheKey, list);
-    } catch (err: any) {
-      if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED" || err?.message === "canceled") {
-        return; // Ignore aborted requests
-      }
-      console.error("Bank search API error:", err);
+      addAuditLog("Bank Master Loaded", { total: list.length });
+    } catch (err) {
+      console.error("Failed to load Bank Master:", err);
       setBankSearchError(true);
     } finally {
       setBankSearchLoading(false);
@@ -297,17 +268,34 @@ function BeneficiaryWorkspaceContent() {
   };
 
   const handleBankInputChange = (val: string, reason: string) => {
-    if (reason === "input") {
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-      searchTimeoutRef.current = setTimeout(() => {
-        fetchBankMasterList(val);
-      }, 300); // 300ms debounce
-    } else if (reason === "clear" || !val) {
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-      fetchBankMasterList("");
+    const q = (val || "").trim();
+    setBankSearchQuery(q);
+
+    if (reason === "clear" || !val) {
+      setBankMasterList(fullBankMasterList);
       setSelectedBankObj(null);
       setBankName("");
       setIfscCode("");
+      return;
+    }
+
+    if (reason === "input") {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = setTimeout(() => {
+        // Local search inside in-memory loaded Bank Master list
+        if (!q) {
+          setBankMasterList(fullBankMasterList);
+        } else {
+          const qLower = q.toLowerCase();
+          const filtered = fullBankMasterList.filter(b => {
+            const name = (b.bank_name || "").toLowerCase();
+            const ifsc = (b.ifsc_prefix || b.ifsc_code || b.ifsc || "").toLowerCase();
+            const shortName = (b.short_code || b.short_name || "").toLowerCase();
+            return name.includes(qLower) || ifsc.includes(qLower) || shortName.includes(qLower);
+          });
+          setBankMasterList(filtered);
+        }
+      }, 300); // 300ms debounce
     }
   };
 
@@ -323,17 +311,17 @@ function BeneficiaryWorkspaceContent() {
     setSelectedBankObj(bankObj);
     setBankName(bankObj.bank_name || "");
 
-    // Automatically store bank_id, bank_name, and ifsc_code internally
+    // Automatically store bank_id, bank_name, bank_code, bank_short_name, and ifsc_code internally
     const autoIfsc = bankObj.ifsc_code || bankObj.ifsc || (bankObj.ifsc_prefix ? bankObj.ifsc_prefix + "0000001" : "");
     setIfscCode(autoIfsc);
     setMicrCode(bankObj.micr || "");
 
-    addAuditLog("Bank Selected & IFSC Auto-filled", {
+    addAuditLog("Bank Selected", {
       bank_id: bankObj.bank_id,
       bank_name: bankObj.bank_name,
-      ifsc_code: autoIfsc,
       bank_code: bankObj.ifsc_prefix || bankObj.ifsc_code,
-      short_name: bankObj.short_name || bankObj.bank_name,
+      ifsc_code: autoIfsc,
+      short_name: bankObj.short_code || bankObj.short_name || bankObj.bank_name,
     });
   };
 
@@ -939,9 +927,7 @@ function BeneficiaryWorkspaceContent() {
                               noOptionsText={
                                 bankSearchLoading
                                   ? "Searching..."
-                                  : bankSearchQuery.length < 2
-                                  ? "Type at least 2 characters to search..."
-                                  : "No banks found"
+                                  : "No banks available."
                               }
                               getOptionLabel={opt => typeof opt === "string" ? opt : (opt.bank_name || "")}
                               isOptionEqualToValue={(opt, val) => {
@@ -1021,13 +1007,13 @@ function BeneficiaryWorkspaceContent() {
                               <Alert
                                 severity="error"
                                 action={
-                                  <Button color="inherit" size="small" onClick={() => fetchBankMasterList(bankSearchQuery)}>
+                                  <Button color="inherit" size="small" onClick={() => loadBankMasterOnMount()}>
                                     Retry
                                   </Button>
                                 }
                                 sx={{ mt: 1, py: 0.5, borderRadius: 2 }}
                               >
-                                Unable to load banks from bank master directory.
+                                Unable to load Bank Master.
                               </Alert>
                             )}
                           </Grid>

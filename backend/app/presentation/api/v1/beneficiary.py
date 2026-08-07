@@ -220,6 +220,7 @@ class AddAndVerifyBeneficiaryReq(BaseModel):
 
 # ── EPIC-014 / EPIC-015 STATIC ROUTES ──
 
+@router.get("/epic014/bank-master")
 @router.get("/epic014/bank-master/search")
 async def search_epic014_bank_master(
     query: Optional[str] = Query(None, description="Search bank name or IFSC prefix"),

@@ -976,8 +976,8 @@ export const retailerApi = {
 
   getBankMasterList: async (query?: string, is_credit_card?: boolean, signal?: AbortSignal) => {
     try {
-      const res = await apiClient.get("/beneficiaries/epic014/bank-master/search", {
-        params: query ? { query, limit: 100 } : { limit: 100 },
+      const res = await apiClient.get("/beneficiaries/epic014/bank-master", {
+        params: query ? { query, limit: 1000 } : { limit: 1000 },
         signal,
       });
       return res.data;
