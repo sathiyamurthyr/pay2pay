@@ -46,6 +46,7 @@ import { M3Button } from "@/components/ui/m3-components";
 import { retailerApi } from "@/services/retailer-api";
 import { notificationEngine } from "@/services/notification-engine";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
+import { formatShortCustomerId } from "@/lib/utils";
 
 const STEPS = [
   { label: "Account Info", est: "20s" },
@@ -87,7 +88,8 @@ export default function BeneficiaryWorkspacePage() {
 
   const activeCustomerName = selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || paramName;
   const activeCustomerMobile = selectedCustomer?.mobile || selectedCustomer?.mobile_number || paramMobile;
-  const activeCustomerId = selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || paramId;
+  const rawId = selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || paramId;
+  const activeCustomerId = formatShortCustomerId(rawId);
 
   const [activeStep, setActiveStep] = useState(0);
 

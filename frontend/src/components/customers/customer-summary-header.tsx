@@ -15,6 +15,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import PersonIcon from "@mui/icons-material/Person";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
+import { formatShortCustomerId } from "@/lib/utils";
 
 export interface CustomerSummaryHeaderProps {
   customer: {
@@ -51,7 +52,8 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
 
   const name = customer?.name || customer?.fullName || customer?.full_name || "Active Customer";
   const mobile = customer?.mobile || customer?.mobile_number || "N/A";
-  const customerCode = customer?.customerCode || customer?.publicId || customer?.public_id || customer?.id || "N/A";
+  const rawCode = customer?.customerCode || customer?.publicId || customer?.public_id || customer?.id;
+  const customerCode = formatShortCustomerId(rawCode);
   const kycStatus = customer?.kycStatus || customer?.kyc_status || "VERIFIED";
   const photoUrl = customer?.photoUrl || customer?.photo_url;
   const initials = name

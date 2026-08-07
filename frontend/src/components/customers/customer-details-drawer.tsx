@@ -47,6 +47,7 @@ import {
   FileDown,
 } from "lucide-react";
 import apiClient from "@/lib/api";
+import { formatShortCustomerId } from "@/lib/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & INTERFACES
@@ -254,7 +255,7 @@ export function CustomerDetailsDrawer({
   if (!isOpen || !customer) return null;
 
   const displayName = customer.name || customer.fullName || "Kavitha Sharma";
-  const customerId = customer.id || "CUST-1001";
+  const customerId = formatShortCustomerId(customer.id || (customer as any).public_id || "CUST-1001");
   const mobile = customer.mobile || "+91 98401 92837";
   const email = customer.email || "kavitha.s@domain.com";
   const maskedAadhaar = customer.maskedAadhaar || "XXXX XXXX 2837";

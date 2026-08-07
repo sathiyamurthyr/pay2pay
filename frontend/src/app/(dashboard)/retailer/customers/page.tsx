@@ -28,7 +28,7 @@ import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store
 import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
 import { CustomerCard } from "@/components/customers/customer-card";
 import { CustomerDetailsDrawer } from "@/components/customers/customer-details-drawer";
-import { isNormalizedMatch } from "@/lib/utils";
+import { isNormalizedMatch, formatShortCustomerId } from "@/lib/utils";
 import { retailerApi } from "@/services/retailer-api";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -285,7 +285,7 @@ export default function CustomersPage() {
         const res = await retailerApi.searchPayoutCustomer(searchTerm || "");
         if (!isCancelled && res.status === "SUCCESS" && Array.isArray(res.data) && res.data.length > 0) {
           const mapped: CustomerRecord[] = res.data.map((c: any) => ({
-            id: c.customer_number || c.public_id || `CUST-${c.id}`,
+            id: formatShortCustomerId(c.customer_number || c.public_id || c.id),
             name: c.full_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Verified Customer",
             mobile: c.mobile_number ? (c.mobile_number.startsWith("+91") ? c.mobile_number : `+91 ${c.mobile_number}`) : "+91 9176669426",
             email: c.email || "customer@example.com",
