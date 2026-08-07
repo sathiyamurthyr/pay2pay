@@ -35,14 +35,21 @@ export function useCustomer() {
         params: { query: trimmedQuery },
       });
 
-      // 2. Read customers directly from response.data.data
+      // Requirement 7: Explicit Verification Logs
+      console.log("response:", response);
+      console.log("response.data:", response.data);
+      console.log("response.data.data:", response.data?.data);
+
+      // 1. Read customers directly from response.data.data
       const customers = Array.isArray(response.data?.data)
         ? response.data.data
         : Array.isArray(response.data)
         ? response.data
         : [];
 
-      // 3. Explicit length check (avoiding truthy object/array checks)
+      console.log("response.data.data.length:", customers.length);
+
+      // 5 & 6: Explicit array length checks only (no truthy object checks)
       if (customers.length > 0) {
         const c = customers[0];
         setSelectedCustomer({
@@ -60,7 +67,7 @@ export function useCustomer() {
         });
         setError(null);
       } else if (customers.length === 0) {
-        // Hide CustomerDetailsCard and trigger CustomerNotFoundCard
+        // Hide customer details card & trigger Customer NotFound empty state card
         setSelectedCustomer(null);
         setError("Customer Not Found");
       }
