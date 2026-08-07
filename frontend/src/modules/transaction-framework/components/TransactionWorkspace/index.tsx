@@ -16,6 +16,8 @@ import { EnterpriseBeneficiaryModule } from "../Beneficiary";
 
 import { EnterpriseAmountWorkspace } from "../Amount";
 
+import { IntelligentBankingWorkspace } from "../IntelligentBanking";
+
 export interface TransactionWorkspaceProps {
   service: ServiceType;
 }
@@ -52,6 +54,15 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
         beneficiaryName={selectedBeneficiary?.name}
         beneficiaryAccount={selectedBeneficiary?.accountNumber}
         bankName={selectedBeneficiary?.bankName}
+      />
+
+      {/* Intelligent Banking Workspace Console (Sprint 6 - 10 Expandable Intelligence Panels) */}
+      <IntelligentBankingWorkspace
+        amount={amount}
+        charges={charges}
+        totalPayable={totalPayable}
+        customerCode={selectedCustomer?.customerCode}
+        beneficiaryCode={selectedBeneficiary?.beneficiaryCode}
       />
 
       {/* Audit Ledger Data Grid */}
