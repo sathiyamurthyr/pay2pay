@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import apiClient from "@/lib/api";
 import { CustomerData } from "./useCustomer";
+import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 
 export interface TransactionRecord {
   id: string;
@@ -120,12 +121,39 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
               return (b.transferCount || 0) - (a.transferCount || 0);
             });
 
-            setBeneficiaries(mapped);
-            setSelectedBeneficiary(mapped[0]); // Auto-select last used / top beneficiary
+            const custId = selectedCustomer.id || (selectedCustomer as any).public_id || "cust-default";
+            let userAddedList: BeneficiaryData[] = [];
+            try {
+              const storedStr = localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`);
+              if (storedStr) userAddedList = JSON.parse(storedStr);
+            } catch {
+              // Ignore
+            }
+
+            const existingAccs = new Set(userAddedList.map((b) => b.accountNumber));
+            const filteredMapped = mapped.filter((b) => !existingAccs.has(b.accountNumber));
+            const combinedList = [...userAddedList, ...filteredMapped];
+
+            setBeneficiaries(combinedList);
+
+            const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
+            if (memorySelected) {
+              setSelectedBeneficiary(memorySelected);
+            } else if (combinedList.length > 0) {
+              setSelectedBeneficiary(combinedList[0]);
+            }
           } else {
-            // Customer has NO beneficiaries in database -> Set empty array (Clean Empty State)
-            setBeneficiaries([]);
-            setSelectedBeneficiary(null);
+            const custId = selectedCustomer.id || (selectedCustomer as any).public_id || "cust-default";
+            let userAddedList: BeneficiaryData[] = [];
+            try {
+              const storedStr = localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`);
+              if (storedStr) userAddedList = JSON.parse(storedStr);
+            } catch {
+              // Ignore
+            }
+            setBeneficiaries(userAddedList);
+            const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
+            setSelectedBeneficiary(memorySelected || userAddedList[0] || null);
           }
         }
       } catch (err: any) {
@@ -216,8 +244,32 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
             },
           ];
 
-          setBeneficiaries(customerBoundRecords);
-          setSelectedBeneficiary(customerBoundRecords[0]); // Auto select last used
+          // Retrieve any user-added beneficiaries stored in localStorage for this customer
+          const custId = selectedCustomer.id || (selectedCustomer as any).public_id || "cust-default";
+          let userAddedList: BeneficiaryData[] = [];
+          try {
+            const storedStr = localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`);
+            if (storedStr) {
+              userAddedList = JSON.parse(storedStr);
+            }
+          } catch {
+            // Ignore
+          }
+
+          // Combine user-added beneficiaries with backend/mock records (avoiding duplicates)
+          const existingAccs = new Set(userAddedList.map((b) => b.accountNumber));
+          const filteredBound = customerBoundRecords.filter((b) => !existingAccs.has(b.accountNumber));
+          const combinedList = [...userAddedList, ...filteredBound];
+
+          setBeneficiaries(combinedList);
+
+          // Auto-select memory selected beneficiary or top newly added beneficiary
+          const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
+          if (memorySelected) {
+            setSelectedBeneficiary(memorySelected);
+          } else if (combinedList.length > 0) {
+            setSelectedBeneficiary(combinedList[0]);
+          }
         }
       } finally {
         if (isMounted) {

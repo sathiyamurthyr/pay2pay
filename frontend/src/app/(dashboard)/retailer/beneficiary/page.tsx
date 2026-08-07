@@ -204,7 +204,42 @@ export default function BeneficiaryWorkspacePage() {
   };
 
   const handleCompleteAndReturn = (benToSelect: any) => {
-    setSelectedBeneficiary(benToSelect);
+    const formattedBene = {
+      id: benToSelect?.beneficiary_id || `BEN-${Date.now()}`,
+      beneficiaryCode: `BEN-${Date.now()}`,
+      name: benToSelect?.account_holder_name || accHolder || "Verified Beneficiary",
+      relationship: "Newly Added",
+      accountNumber: benToSelect?.account_number || accNum,
+      maskedAccountNumber: `•••• •••• ${(benToSelect?.account_number || accNum).slice(-4)}`,
+      ifsc: benToSelect?.ifsc_code || ifscCode,
+      branchName: "Main Branch",
+      bankName: benToSelect?.bank_name || bankName,
+      isVerified: true,
+      isFavorite: true,
+      lastUsedAt: "Just now",
+      transferCount: 0,
+      status: "ACTIVE",
+      preferredGateway: "Cashfree Verified",
+      dailyUsage: 0,
+      monthlyUsage: 0,
+      dailyRemaining: 50000,
+      monthlyRemaining: 200000,
+    };
+
+    setSelectedBeneficiary(formattedBene);
+
+    const custId = selectedCustomer?.id || selectedCustomer?.public_id || selectedCustomer?.customerCode || "cust-default";
+    try {
+      const existingStr = localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`);
+      const existingList = existingStr ? JSON.parse(existingStr) : [];
+      // Prevent duplicates
+      const filtered = existingList.filter((b: any) => b.accountNumber !== formattedBene.accountNumber);
+      filtered.unshift(formattedBene);
+      localStorage.setItem(`pay2pay_user_added_beneficiaries_${custId}`, JSON.stringify(filtered));
+    } catch (err) {
+      console.warn("Error saving added beneficiary to localStorage:", err);
+    }
+
     localStorage.removeItem("pay2pay_beneficiary_workspace_draft");
     router.push(referrerUrl || "/retailer/dmt");
   };
