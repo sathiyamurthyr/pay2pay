@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
   Typography,
@@ -77,7 +77,17 @@ const DEFAULT_BANK_LIST = [
 
 export default function BeneficiaryWorkspacePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { selectedCustomer, setSelectedBeneficiary, referrerUrl } = useTransactionMemoryStore();
+
+  const paramName = searchParams?.get("customerName") || searchParams?.get("name") || "";
+  const paramMobile = searchParams?.get("customerMobile") || searchParams?.get("mobile") || "";
+  const paramId = searchParams?.get("customerId") || searchParams?.get("id") || "";
+  const paramReferrer = searchParams?.get("referrer") || searchParams?.get("from") || "";
+
+  const activeCustomerName = selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || paramName;
+  const activeCustomerMobile = selectedCustomer?.mobile || selectedCustomer?.mobile_number || paramMobile;
+  const activeCustomerId = selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || paramId;
 
   const [activeStep, setActiveStep] = useState(0);
 
@@ -194,7 +204,7 @@ export default function BeneficiaryWorkspacePage() {
       },
       request_body: {
         name: accHolder,
-        phone: selectedCustomer?.mobile || "9176669426",
+        phone: activeCustomerMobile || "9176669426",
         bankAccount: accNum,
         ifsc: ifscCode
       }
@@ -202,7 +212,7 @@ export default function BeneficiaryWorkspacePage() {
     setRawCashfreeRequest(reqPayload);
 
     const res = await retailerApi.addPayoutBeneficiary({
-      customer_id: selectedCustomer?.public_id || "cust-101",
+      customer_id: activeCustomerId || "cust-101",
       account_holder: accHolder,
       account_number: accNum,
       confirm_account_number: confirmAccNum,
@@ -250,6 +260,14 @@ export default function BeneficiaryWorkspacePage() {
     }
   };
 
+  const getReturnUrl = () => {
+    const target = referrerUrl || paramReferrer || "/retailer/dmt";
+    const mobDigits = activeCustomerMobile ? activeCustomerMobile.replace(/\D/g, "").slice(-10) : "";
+    if (!mobDigits) return target;
+    const joiner = target.includes("?") ? "&" : "?";
+    return `${target}${joiner}customerMobile=${mobDigits}&customerId=${encodeURIComponent(activeCustomerId || "")}`;
+  };
+
   const handleCompleteAndReturn = (benToSelect: any) => {
     const formattedBene = {
       id: benToSelect?.beneficiary_id || `BEN-${Date.now()}`,
@@ -275,7 +293,7 @@ export default function BeneficiaryWorkspacePage() {
 
     setSelectedBeneficiary(formattedBene);
 
-    const custId = selectedCustomer?.id || selectedCustomer?.public_id || selectedCustomer?.customerCode || "cust-default";
+    const custId = activeCustomerId || "cust-default";
     try {
       const existingStr = localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`);
       const existingList = existingStr ? JSON.parse(existingStr) : [];
@@ -288,11 +306,11 @@ export default function BeneficiaryWorkspacePage() {
     }
 
     localStorage.removeItem("pay2pay_beneficiary_workspace_draft");
-    router.push(referrerUrl || "/retailer/dmt");
+    router.push(getReturnUrl());
   };
 
   const handleCancel = () => {
-    router.push(referrerUrl || "/retailer/dmt");
+    router.push(getReturnUrl());
   };
 
   const completionPercentage = Math.round(((activeStep + 1) / STEPS.length) * 100);
@@ -340,9 +358,36 @@ export default function BeneficiaryWorkspacePage() {
               />
             </Stack>
 
-            <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "13px", fontWeight: 500, mt: 0.25 }}>
-              Bank Master Lookup • Auto IFSC Binding • Returns to transaction
-            </Typography>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap", mt: 0.5 }}>
+              <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "13px", fontWeight: 500 }}>
+                Bank Master Lookup • Auto IFSC Binding
+              </Typography>
+
+              {(activeCustomerName || activeCustomerMobile || activeCustomerId) && (
+                <Chip
+                  size="small"
+                  avatar={
+                    <Avatar sx={{ bgcolor: "#0284C7", color: "#FFFFFF", fontWeight: 800, fontSize: "11px", width: 22, height: 22 }}>
+                      {(activeCustomerName || "C").charAt(0).toUpperCase()}
+                    </Avatar>
+                  }
+                  label={
+                    <Typography variant="caption" sx={{ color: "#F8FAFC", fontWeight: 700, fontSize: "12px" }}>
+                      Customer: <strong style={{ color: "#38BDF8" }}>{activeCustomerName || "Active Customer"}</strong>
+                      {activeCustomerMobile && <> &nbsp;•&nbsp; Mob: <strong style={{ color: "#38BDF8" }}>{activeCustomerMobile}</strong></>}
+                      {activeCustomerId && <> &nbsp;•&nbsp; ID: <strong style={{ color: "#CBD5E1" }}>{activeCustomerId}</strong></>}
+                    </Typography>
+                  }
+                  sx={{
+                    bgcolor: "rgba(30, 41, 59, 0.85)",
+                    border: "1px solid rgba(56, 189, 248, 0.4)",
+                    height: 26,
+                    px: 0.5,
+                    borderRadius: "6px",
+                  }}
+                />
+              )}
+            </Stack>
           </Box>
         </Stack>
 

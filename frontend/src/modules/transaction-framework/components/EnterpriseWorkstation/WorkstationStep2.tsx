@@ -272,7 +272,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               size="small"
               variant="contained"
               startIcon={<PersonAddIcon sx={{ fontSize: 16 }} />}
-              onClick={() => { window.location.href = "/retailer/beneficiary"; }}
+              onClick={() => {
+                const cName = encodeURIComponent(customer?.name || "");
+                const cMob = encodeURIComponent(customer?.mobile || "");
+                const cId = encodeURIComponent(customer?.id || (customer as any)?.public_id || "");
+                window.location.href = `/retailer/beneficiary?customerName=${cName}&customerMobile=${cMob}&customerId=${cId}&referrer=/retailer/dmt`;
+              }}
               sx={{
                 height: 32,
                 px: 2,
@@ -395,7 +400,10 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 startIcon={<PersonAddIcon />}
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.location.href = "/retailer/beneficiary";
+                  const cName = encodeURIComponent(customer?.name || "");
+                  const cMob = encodeURIComponent(customer?.mobile || "");
+                  const cId = encodeURIComponent(customer?.id || (customer as any)?.public_id || "");
+                  window.location.href = `/retailer/beneficiary?customerName=${cName}&customerMobile=${cMob}&customerId=${cId}&referrer=/retailer/dmt`;
                 }}
                 sx={{
                   height: 44,

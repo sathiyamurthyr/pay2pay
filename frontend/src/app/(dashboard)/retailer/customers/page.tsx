@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -231,7 +231,11 @@ const INITIAL_CUSTOMERS: CustomerRecord[] = [
 
 export default function CustomersPage() {
   const router = useRouter();
-  const { setSelectedCustomer } = useTransactionMemoryStore();
+  const searchParams = useSearchParams();
+  const { setSelectedCustomer, setReferrerUrl } = useTransactionMemoryStore();
+
+  const urlMobile = searchParams?.get("customerMobile") || searchParams?.get("mobile") || "";
+  const urlSelectedId = searchParams?.get("selectedId") || searchParams?.get("id") || "";
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -338,17 +342,22 @@ export default function CustomersPage() {
 
   // ── Store Dispatch Handler ──
   const handleSelectCustomerForPayout = (cust: CustomerRecord) => {
+    const cleanMobile = cust.mobile.replace(/\D/g, "").slice(-10);
     const formatted = {
       public_id: cust.id,
+      id: cust.id,
       customer_number: cust.id,
       first_name: cust.name.split(" ")[0],
       last_name: cust.name.split(" ")[1] || "",
       full_name: cust.name,
-      mobile_number: cust.mobile.replace(/\D/g, "").slice(-10),
+      name: cust.name,
+      mobile: cust.mobile,
+      mobile_number: cleanMobile,
       kyc_status: cust.kycStatus,
     };
     setSelectedCustomer(formatted);
-    router.push("/retailer/dmt");
+    setReferrerUrl("/retailer/customers");
+    router.push(`/retailer/dmt?customerMobile=${cleanMobile}`);
   };
 
   // ── Filter & Search Logic (With Phone Normalization) ──

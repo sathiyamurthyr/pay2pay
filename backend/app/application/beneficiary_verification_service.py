@@ -310,8 +310,8 @@ class BeneficiaryVerificationService:
             )
             db.add(history_record)
 
-            # Flush changes to DB
-            await db.flush()
+            # Commit transaction permanently to DB
+            await db.commit()
 
             # ── 3. AUTOMATIC REFUND REVERSAL IF VENDOR FAILED ──
             if not vendor_res.account_exists:
