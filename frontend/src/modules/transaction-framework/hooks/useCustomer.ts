@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import apiClient from "@/lib/api";
+import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 
 export interface CustomerData {
   id: string;
@@ -52,7 +53,7 @@ export function useCustomer() {
       // Explicit array length checks only
       if (customers.length > 0) {
         const c = customers[0];
-        setSelectedCustomer({
+        const custData: CustomerData = {
           id: c.id || c.public_id || `CUST-${c.mobile_number?.slice(-4) || "0000"}`,
           customerCode: c.customer_code || c.customer_number || `CUS-${c.mobile_number?.slice(-4) || "0245"}`,
           name: c.full_name || c.name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Customer",
@@ -64,7 +65,9 @@ export function useCustomer() {
           riskRating: c.risk_category || "LOW",
           walletBalance: Number(c.wallet_balance ?? c.balance ?? 124500),
           relationshipManager: c.relationship_manager || c.rm_name || "Vikram Singh",
-        });
+        };
+        setSelectedCustomer(custData);
+        useTransactionMemoryStore.getState().setSelectedCustomer(custData);
         setError(null);
       } else if (customers.length === 0) {
         // Hide customer details card & trigger Customer NotFound empty state card

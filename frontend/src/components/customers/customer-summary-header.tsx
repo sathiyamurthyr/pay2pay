@@ -14,6 +14,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import PersonIcon from "@mui/icons-material/Person";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 
 export interface CustomerSummaryHeaderProps {
   customer: {
@@ -39,23 +40,26 @@ export interface CustomerSummaryHeaderProps {
 }
 
 export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
-  customer,
+  customer: propsCustomer,
   onEditCustomer,
   onViewCustomerProfile,
   onChangeCustomer,
   darkTheme = true,
 }) => {
-  const name = customer?.name || customer?.fullName || customer?.full_name || "Sathiya Murthy";
-  const mobile = customer?.mobile || customer?.mobile_number || "9176669425";
-  const customerCode = customer?.customerCode || customer?.publicId || customer?.public_id || customer?.id || "CUS-669426";
+  const storeCustomer = useTransactionMemoryStore((state) => state.selectedCustomer);
+  const customer = propsCustomer || storeCustomer;
+
+  const name = customer?.name || customer?.fullName || customer?.full_name || "Active Customer";
+  const mobile = customer?.mobile || customer?.mobile_number || "N/A";
+  const customerCode = customer?.customerCode || customer?.publicId || customer?.public_id || customer?.id || "N/A";
   const kycStatus = customer?.kycStatus || customer?.kyc_status || "VERIFIED";
   const photoUrl = customer?.photoUrl || customer?.photo_url;
   const initials = name
     .split(" ")
-    .map((n) => n.charAt(0))
+    .map((n: string) => n.charAt(0))
     .join("")
     .substring(0, 2)
-    .toUpperCase();
+    .toUpperCase() || "CU";
 
   return (
     <Paper
