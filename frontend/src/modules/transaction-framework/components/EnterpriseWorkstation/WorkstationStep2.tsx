@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -24,6 +24,7 @@ import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
 import { EnterpriseStatusStrip } from "../Amount/EnterpriseStatusStrip";
+import { SmartAutoCorrectionBar } from "../Amount/SmartAutoCorrectionBar";
 import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
 
 export interface WorkstationStep2Props {
@@ -75,13 +76,27 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const totalPayable = pricingResult.totalPayable;
   const balanceAfter = pricingResult.walletBalanceAfter;
 
-  // Realtime 20-Point Rule Engine + Beneficiary Receiving Capacity Validation Check
+  // Realtime Rule Engine + Beneficiary Receiving Capacity Validation Check
   const beneficiaryAvailableToReceive = selectedBeneficiary
     ? Math.min(50000 - (selectedBeneficiary.dailyUsage ?? 15000), 200000 - (selectedBeneficiary.monthlyUsage ?? 45000))
     : 50000;
   const isBeneficiaryLimitExceeded = amount > beneficiaryAvailableToReceive;
 
-  const isProceedDisabled = amount <= 0 || !selectedBeneficiary || !pricingResult.allowed || isBeneficiaryLimitExceeded;
+  const isProceedDisabled = amount <= 0 || !selectedBeneficiary || !pricingResult.canProceed || isBeneficiaryLimitExceeded;
+
+  // Keyboard shortcut listener for Ctrl+Enter (Proceed to Authorization)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === "Enter") {
+        e.preventDefault();
+        if (!isProceedDisabled) {
+          onContinue();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isProceedDisabled, onContinue]);
 
   return (
     <Box
@@ -89,22 +104,20 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         display: "grid",
         gridTemplateColumns: {
           xs: "1fr",
-          lg: "minmax(0, 68fr) minmax(340px, 32fr)",
-          xl: "minmax(0, 70fr) minmax(360px, 30fr)",
+          lg: "68% 32%",
         },
-        gap: 1.5,
+        gap: 2,
         height: "100%",
-        maxHeight: "100%",
         overflow: "hidden",
       }}
     >
-      {/* LEFT PANEL (68%): BENEFICIARY MANAGEMENT SUITE WITH INTERNAL SCROLL */}
+      {/* ── LEFT PANEL (68%): BENEFICIARY SELECTION ── */}
       <Paper
         elevation={0}
         sx={{
-          p: 2,
+          p: 2.25,
           borderRadius: "14px",
-          bgcolor: "rgba(18, 27, 48, 0.75)",
+          bgcolor: "rgba(18, 27, 48, 0.85)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           display: "flex",
@@ -113,134 +126,173 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           overflow: "hidden",
         }}
       >
-        <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", mb: 1 }}>
-          BENEFICIARY MANAGEMENT SUITE ({filteredBeneficiaries.length} ACCOUNTS)
-        </Typography>
+        {/* Header Console */}
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Box>
+            <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", letterSpacing: "-0.2px" }}>
+              Beneficiary Selection Console
+            </Typography>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>
+              Customer: <strong>{customer?.name}</strong> ({customer?.mobile})
+            </Typography>
+          </Box>
 
-        {/* Toolbar */}
-        <Stack direction="row" spacing={1} sx={{ mb: 1.5, alignItems: "center" }}>
-          <TextField
-            fullWidth
-            size="small"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by Name, Account, Bank, IFSC..."
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
-                  </InputAdornment>
-                ),
-                sx: { height: 38, color: "#FFFFFF", bgcolor: "rgba(8, 17, 31, 0.9)", borderRadius: "8px", fontSize: "13px" },
-              },
-            }}
-          />
+          {/* Quick Filters */}
+          <Stack direction="row" spacing={1}>
+            <Select
+              size="small"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as any)}
+              sx={{
+                height: 32,
+                fontSize: "12px",
+                fontWeight: 700,
+                color: "#FFFFFF",
+                bgcolor: "rgba(255, 255, 255, 0.08)",
+                ".MuiSelect-icon": { color: "#FFFFFF" },
+              }}
+            >
+              <MenuItem value="all">All Beneficiaries</MenuItem>
+              <MenuItem value="favorite">⭐ Favorites Only</MenuItem>
+            </Select>
 
-          <Chip
-            label="All"
-            onClick={() => setFilterType("all")}
-            sx={{ height: 38, fontWeight: 800, bgcolor: filterType === "all" ? "#2563EB" : "rgba(255, 255, 255, 0.08)", color: "#FFFFFF", cursor: "pointer" }}
-          />
-          <Chip
-            icon={<StarIcon sx={{ "&&": { color: "#FFD54F", fontSize: 14 } }} />}
-            label="Favourites"
-            onClick={() => setFilterType("favorite")}
-            sx={{ height: 38, fontWeight: 800, bgcolor: filterType === "favorite" ? "#2563EB" : "rgba(255, 255, 255, 0.08)", color: "#FFFFFF", cursor: "pointer" }}
-          />
-
-          <Select
-            size="small"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            sx={{ height: 38, color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px", fontSize: "12px", fontWeight: 700, "& fieldset": { border: "none" } }}
-          >
-            <MenuItem value="recent">Sort: Recent</MenuItem>
-            <MenuItem value="used">Sort: Most Used</MenuItem>
-            <MenuItem value="alphabetical">Sort: A-Z</MenuItem>
-          </Select>
+            <Select
+              size="small"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              sx={{
+                height: 32,
+                fontSize: "12px",
+                fontWeight: 700,
+                color: "#FFFFFF",
+                bgcolor: "rgba(255, 255, 255, 0.08)",
+                ".MuiSelect-icon": { color: "#FFFFFF" },
+              }}
+            >
+              <MenuItem value="recent">Sort: Most Recent</MenuItem>
+              <MenuItem value="used">Sort: Highest Used</MenuItem>
+              <MenuItem value="alphabetical">Sort: A-Z</MenuItem>
+            </Select>
+          </Stack>
         </Stack>
 
-        {/* Responsive Beneficiary Card Grid */}
-        <Box
-          sx={{
-            flex: 1,
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(2, 1fr)",
-              lg: "repeat(3, 1fr)",
-              xl: "repeat(4, 1fr)",
-              "@media (min-width: 2560px)": { gridTemplateColumns: "repeat(5, 1fr)" },
-              "@media (min-width: 3840px)": { gridTemplateColumns: "repeat(6, 1fr)" },
+        {/* Search Field */}
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Search by Name, Account Number, or Bank..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: "#60A5FA" }} />
+                </InputAdornment>
+              ),
+              sx: {
+                height: 40,
+                borderRadius: "10px",
+                bgcolor: "rgba(255, 255, 255, 0.05)",
+                color: "#FFFFFF",
+                fontSize: "13px",
+              },
             },
-            gap: 1.5,
-            overflowY: "auto",
-            pr: 0.5,
           }}
-        >
-          {filteredBeneficiaries.map((b) => {
-            const isSelected = selectedBeneficiary?.id === b.id;
-            const maskedAcc = b.accountNumber.length >= 4 ? `XXXX XXXX ${b.accountNumber.slice(-4)}` : b.accountNumber;
+          sx={{ mb: 2 }}
+        />
 
-            return (
-              <Paper
-                key={b.id}
-                elevation={0}
-                onClick={() => onSelectBeneficiary(b)}
-                sx={{
-                  width: "100%",
-                  height: 180,
-                  p: 1.75,
-                  borderRadius: "12px",
-                  bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.04)",
-                  backdropFilter: "blur(12px)",
-                  border: isSelected ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.1)",
-                  boxShadow: isSelected ? "0 4px 20px rgba(37, 99, 235, 0.4)" : "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  transition: "all 150ms ease",
-                  "&:hover": { bgcolor: isSelected ? "rgba(37, 99, 235, 0.3)" : "rgba(255, 255, 255, 0.08)" },
-                }}
-              >
-                <Box>
-                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start", mb: 0.5 }}>
-                    <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {b.name}
-                    </Typography>
-                    {b.isFavorite && <StarIcon sx={{ color: "#FFD54F", fontSize: 15 }} />}
-                  </Stack>
+        {/* Beneficiary Grid (Custom Scroll Panel) */}
+        <Box sx={{ flex: 1, overflowY: "auto", pr: 0.5 }}>
+          {filteredBeneficiaries.length === 0 ? (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 4,
+                textAlign: "center",
+                bgcolor: "rgba(255, 255, 255, 0.02)",
+                borderRadius: "12px",
+                border: "1px dashed rgba(255, 255, 255, 0.15)",
+              }}
+            >
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "14px" }}>
+                No beneficiaries found matching query.
+              </Typography>
+            </Paper>
+          ) : (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "repeat(2, 1fr)",
+                  xl: "repeat(3, 1fr)",
+                },
+                gap: 1.5,
+              }}
+            >
+              {filteredBeneficiaries.map((b) => {
+                const isSelected = selectedBeneficiary?.id === b.id;
+                return (
+                  <Paper
+                    key={b.id}
+                    elevation={0}
+                    onClick={() => onSelectBeneficiary(b)}
+                    sx={{
+                      p: 1.75,
+                      borderRadius: "12px",
+                      bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.04)",
+                      border: isSelected ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.08)",
+                      cursor: "pointer",
+                      transition: "all 150ms ease",
+                      "&:hover": {
+                        bgcolor: "rgba(37, 99, 235, 0.15)",
+                        borderColor: "rgba(37, 99, 235, 0.5)",
+                      },
+                    }}
+                  >
+                    <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
+                      <Avatar
+                        sx={{
+                          width: 42,
+                          height: 42,
+                          bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.1)",
+                          color: "#FFFFFF",
+                          fontWeight: 800,
+                          fontSize: "14px",
+                        }}
+                      >
+                        {b.name.slice(0, 2).toUpperCase()}
+                      </Avatar>
 
-                  <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "13px", mb: 0.25 }}>
-                    {b.bankName}
-                  </Typography>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                          <Typography noWrap sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13.5px" }}>
+                            {b.name}
+                          </Typography>
+                          {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 16 }} />}
+                        </Stack>
 
-                  <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "14px", mb: 0.5 }}>
-                    {maskedAcc}
-                  </Typography>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11.5px" }}>
+                          {b.bankName} • {b.maskedAccountNumber}
+                        </Typography>
 
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px" }}>
-                    IFSC: {b.ifsc}
-                  </Typography>
-                </Box>
+                        <Typography sx={{ color: "#60A5FA", fontSize: "11px", fontWeight: 700 }}>
+                          {b.ifsc}
+                        </Typography>
+                      </Box>
 
-                <Box>
-                  <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.75 }} />
-                  <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Chip icon={<CheckCircleIcon sx={{ "&&": { color: "#4ADE80", fontSize: 11 } }} />} label="VERIFIED" size="small" sx={{ bgcolor: "rgba(34, 197, 94, 0.15)", color: "#4ADE80", fontWeight: 800, height: 18, fontSize: "9px" }} />
-                    <Typography sx={{ color: "#4ADE80", fontSize: "11px", fontWeight: 800 }}>99.9% Success</Typography>
-                  </Stack>
-                </Box>
-              </Paper>
-            );
-          })}
+                      {isSelected && <CheckCircleIcon sx={{ color: "#2563EB", fontSize: 24 }} />}
+                    </Stack>
+                  </Paper>
+                );
+              })}
+            </Box>
+          )}
         </Box>
       </Paper>
 
-      {/* RIGHT PANEL (32%): STICKY TRANSFER WORKSPACE */}
+      {/* ── RIGHT PANEL (32%): TRANSFER AMOUNT & FINANCIAL EXECUTION ── */}
       <Paper
         elevation={0}
         sx={{
@@ -268,8 +320,11 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
           <AmountInWords amount={amount} />
 
-          {/* Compact Validation Status Strip (Height: 44px, States: Ready, Warning, Blocked) */}
+          {/* Compact 40px Beneficiary Monthly Limit Strip */}
           <EnterpriseStatusStrip validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
+
+          {/* One-Click Enterprise Auto Correction & Fixes Bar */}
+          <SmartAutoCorrectionBar validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
 
@@ -303,14 +358,14 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "13px" }}>NET WALLET DEBIT</Typography>
-              <Typography sx={{ fontWeight: 900, color: !pricingResult.allowed ? "#EF4444" : "#3B82F6", fontSize: "16px" }}>
+              <Typography sx={{ fontWeight: 900, color: !pricingResult.canProceed ? "#EF4444" : "#3B82F6", fontSize: "16px" }}>
                 ₹{totalPayable.toLocaleString()}
               </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet After Transfer</Typography>
-              <Typography sx={{ fontWeight: 800, color: !pricingResult.allowed ? "#EF4444" : "#FBBF24", fontSize: "14px" }}>
+              <Typography sx={{ fontWeight: 800, color: !pricingResult.canProceed ? "#EF4444" : "#FBBF24", fontSize: "14px" }}>
                 ₹{balanceAfter.toLocaleString()}
               </Typography>
             </Stack>
@@ -334,7 +389,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
         {/* Action Buttons */}
         <Stack spacing={1} sx={{ pt: 1.5 }}>
-          <Tooltip title={isProceedDisabled ? "Resolve validation errors before continuing" : ""} arrow placement="top">
+          <Tooltip title={isProceedDisabled ? `Transfer cannot continue. Reason: ${pricingResult.validationMessage}` : ""} arrow placement="top">
             <Box component="span" sx={{ width: "100%" }}>
               <Button
                 fullWidth
@@ -358,7 +413,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   },
                 }}
               >
-                Proceed to Authorization →
+                Proceed to Authorization (Ctrl+Enter)
               </Button>
             </Box>
           </Tooltip>

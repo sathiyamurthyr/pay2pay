@@ -152,9 +152,15 @@ export interface ComprehensiveValidationResult {
   maxLimit: number;
   dailyLimitRemaining: number;
   monthlyLimitRemaining: number;
+  beneficiaryRemaining: number;
+  customerRemaining: number;
+  maximumAllowed: number;
   walletBalance: number;
   walletBalanceAfter: number;
   allowed: boolean;
+  canProceed: boolean;
+  validationMessage: string;
+  suggestedAmount: number;
   validationErrors: RuleValidationError[];
   validationWarnings: RuleValidationError[];
 }
@@ -302,7 +308,20 @@ export class RuleEngineService {
       });
     }
 
+    const beneficiaryRemaining = Math.min(beneficiaryDailyRemaining, beneficiaryMonthlyRemaining);
+    const customerRemaining = Math.min(dailyRemaining, monthlyRemaining);
+    const maximumAllowed = Math.min(50000, dailyRemaining, monthlyRemaining, beneficiaryRemaining, Math.max(0, walletBalance - netFee));
     const allowed = amount > 0 && validationErrors.length === 0;
+    const canProceed = allowed;
+
+    let validationMessage = "Ready to proceed";
+    if (validationErrors.length > 0) {
+      validationMessage = validationErrors[0].message;
+    } else if (validationWarnings.length > 0) {
+      validationMessage = validationWarnings[0].message;
+    }
+
+    const suggestedAmount = amount > maximumAllowed ? maximumAllowed : amount;
 
     return {
       pricingVersion: currentConfig.version,
@@ -327,9 +346,15 @@ export class RuleEngineService {
       maxLimit: 50000,
       dailyLimitRemaining: dailyRemaining,
       monthlyLimitRemaining: monthlyRemaining,
+      beneficiaryRemaining,
+      customerRemaining,
+      maximumAllowed,
       walletBalance,
       walletBalanceAfter,
       allowed,
+      canProceed,
+      validationMessage,
+      suggestedAmount,
       validationErrors,
       validationWarnings,
     };
