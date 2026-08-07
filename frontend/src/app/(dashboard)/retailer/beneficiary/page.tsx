@@ -340,7 +340,7 @@ function BeneficiaryWorkspaceContent() {
       return;
     }
     if (!bankName || !ifscCode) {
-      setAccMismatchError("Please select a bank to auto-fill the IFSC code.");
+      setAccMismatchError("Please select a bank.");
       return;
     }
     setAccMismatchError("");
@@ -912,14 +912,14 @@ function BeneficiaryWorkspaceContent() {
                             <BusinessIcon sx={{ fontSize: 18, color: "#FFF" }} />
                           </Box>
                           <Box>
-                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Bank & IFSC Details</Typography>
-                            <Typography variant="caption" sx={{ color: "#64748B" }}>Search bank → IFSC auto-filled (read-only)</Typography>
+                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Bank Selection</Typography>
+                            <Typography variant="caption" sx={{ color: "#64748B" }}>Search and select beneficiary bank</Typography>
                           </Box>
                         </Stack>
 
                         <Grid container spacing={2}>
-                          {/* Search Bank */}
-                          <Grid size={{ xs: 12, sm: 6 }}>
+                          {/* Search Bank (Full Width) */}
+                          <Grid size={{ xs: 12 }}>
                             <Autocomplete
                               options={bankMasterList}
                               openOnFocus
@@ -973,7 +973,7 @@ function BeneficiaryWorkspaceContent() {
                                           </Typography>
                                         </Stack>
                                         <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
-                                          IFSC Code: {opt.ifsc_code || opt.ifsc_prefix + "0000001"} • {opt.short_name || "Bank"}
+                                          {opt.short_name || "Bank Master Partner"}
                                         </Typography>
                                       </Box>
                                       <Stack direction="row" spacing={0.5}>
@@ -987,7 +987,7 @@ function BeneficiaryWorkspaceContent() {
                               renderInput={(params: any) => (
                                 <TextField
                                   {...params}
-                                  label="Search Bank *"
+                                  label="Bank *"
                                   size="small"
                                   required
                                   placeholder="Search Bank..."
@@ -1021,52 +1021,6 @@ function BeneficiaryWorkspaceContent() {
                               </Alert>
                             )}
                           </Grid>
-
-                          {/* Auto-filled Read-Only IFSC Field */}
-                          <Grid size={{ xs: 12, sm: 6 }}>
-                            <TextField
-                              label="IFSC (Auto-filled) *"
-                              size="small"
-                              fullWidth
-                              value={ifscCode}
-                              slotProps={{
-                                input: {
-                                  readOnly: true,
-                                  startAdornment: (
-                                    <InputAdornment position="start">
-                                      <LockIcon sx={{ fontSize: 16, color: "#64748B" }} />
-                                    </InputAdornment>
-                                  ),
-                                  sx: { bgcolor: "#F8FAFC", fontWeight: 700, color: "#0284C7" },
-                                },
-                              }}
-                              placeholder="Select bank to auto-fill IFSC..."
-                              helperText={selectedBankObj ? "✓ Auto-filled from Bank Master" : "Select bank first to auto-fill IFSC"}
-                            />
-                          </Grid>
-
-                          {/* Auto-bound Bank & IFSC Summary */}
-                          {ifscCode && (
-                            <>
-                              <Grid size={{ xs: 12 }}>
-                                <Divider sx={{ my: 0.5 }} />
-                              </Grid>
-                              <Grid size={{ xs: 12 }}>
-                                <Alert severity="success" icon={<CheckCircleIcon />} sx={{ borderRadius: 2.5, py: 0.5 }}>
-                                  <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap", gap: 1 }}>
-                                    <Box>
-                                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>Bank Name</Typography>
-                                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{bankName}</Typography>
-                                    </Box>
-                                    <Box>
-                                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>IFSC Code</Typography>
-                                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0284C7" }}>{ifscCode}</Typography>
-                                    </Box>
-                                  </Stack>
-                                </Alert>
-                              </Grid>
-                            </>
-                          )}
                         </Grid>
                       </Paper>
 
