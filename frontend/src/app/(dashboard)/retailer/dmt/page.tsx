@@ -784,6 +784,23 @@ export default function DmtPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [favouriteBens, setFavouriteBens] = useState<Set<string>>(new Set());
 
+  // Auto-Rotating Intelligence State
+  const [intelligenceIndex, setIntelligenceIndex] = useState(0);
+  const intelligenceItems = [
+    { title: "Fraud Risk Engine", detail: "Risk Score 0.02 (Cleared) • Zero AML Flags", icon: <ShieldOutlinedIcon sx={{ color: "#4ADE80", fontSize: 18 }} /> },
+    { title: "NPCI IMPS Switch", detail: "100% Operational • 0.8s Avg Latency", icon: <FlashOnIcon sx={{ color: BANK_GOLD, fontSize: 18 }} /> },
+    { title: "Cashfree V2 Gateway", detail: "99.8% Success Rate • Instant Verification", icon: <AccountBalanceIcon sx={{ color: "#60A5FA", fontSize: 18 }} /> },
+    { title: "Wallet Health", detail: "Optimal Balance • Commission +₹12.50/txn", icon: <AccountBalanceWalletIcon sx={{ color: "#F472B6", fontSize: 18 }} /> },
+    { title: "Processing Speed", detail: "Expected Settlement < 2 Seconds", icon: <SpeedIcon sx={{ color: "#34D399", fontSize: 18 }} /> },
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIntelligenceIndex((prev) => (prev + 1) % intelligenceItems.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [intelligenceItems.length]);
+
   // Customer & Beneficiary Data
   const [searchQuery, setSearchQuery] = useState("");
   const [beneficiarySearchQuery, setBeneficiarySearchQuery] = useState("");
@@ -1113,14 +1130,14 @@ export default function DmtPage() {
 
   return (
     <Box sx={{ pb: 14, minHeight: "100vh", bgcolor: "#F6F8FC", color: "#0F172A" }}>
-      {/* ── ZONE 1: SIGNATURE VELOCITY GLASS HEADER (NO LOGO) ── */}
+      {/* ── ZONE 1: SIGNATURE PAY2PAY GLASS HEADER (COMPACT 35% REDUCED HEIGHT) ── */}
       <Paper
         elevation={0}
         sx={{
           px: 3.5,
-          py: 1.8,
+          py: 1.4,
           borderBottom: "1px solid #E8EBF3",
-          background: "rgba(255, 255, 255, 0.88)",
+          background: "rgba(255, 255, 255, 0.9)",
           backdropFilter: "blur(16px)",
           display: "flex",
           alignItems: "center",
@@ -1142,7 +1159,7 @@ export default function DmtPage() {
               elevation={0}
               sx={{
                 px: 1.8,
-                py: 0.6,
+                py: 0.5,
                 borderRadius: "10px",
                 background: "linear-gradient(135deg, #0F2C59 0%, #7B1E3A 100%)",
                 border: "1px solid #D4AF37",
@@ -1170,7 +1187,7 @@ export default function DmtPage() {
             size="small"
             onClick={() => setSystemDrawerOpen(true)}
             sx={{
-              height: 30,
+              height: 28,
               fontSize: "12px",
               fontWeight: 800,
               bgcolor: "rgba(212, 175, 55, 0.15)",
@@ -1194,26 +1211,26 @@ export default function DmtPage() {
             {soundEnabled ? <VolumeUpIcon sx={{ fontSize: 20 }} /> : <VolumeOffIcon sx={{ fontSize: 20 }} />}
           </IconButton>
 
-          {/* SIGNATURE VELOCITY WALLET CARD */}
+          {/* SIGNATURE PAY2PAY WALLET CARD */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               gap: 1.5,
-              px: 2.5,
-              py: 1,
+              px: 2.2,
+              py: 0.8,
               background: "linear-gradient(135deg, #FFF8E8 0%, #FFFFFF 100%)",
-              borderRadius: "16px",
+              borderRadius: "14px",
               border: `1.5px solid ${BANK_GOLD_BORDER}`,
               boxShadow: "0 4px 16px rgba(212, 175, 55, 0.12)",
             }}
           >
-            <AccountBalanceWalletIcon sx={{ color: BANK_GOLD, fontSize: 24, filter: "drop-shadow(0 2px 4px rgba(212, 175, 55, 0.3))" }} />
+            <AccountBalanceWalletIcon sx={{ color: BANK_GOLD, fontSize: 22, filter: "drop-shadow(0 2px 4px rgba(212, 175, 55, 0.3))" }} />
             <Box>
               <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
                 WALLET BALANCE
               </Typography>
-              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "18px", lineHeight: 1.1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "17px", lineHeight: 1.1 }}>
                 ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
             </Box>
@@ -1225,18 +1242,18 @@ export default function DmtPage() {
           </IconButton>
 
           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", pl: 1.5, borderLeft: "1px solid #E2E8F0" }}>
-            <Avatar sx={{ width: 38, height: 38, background: PRIMARY_GRADIENT, color: "#FFFFFF", fontSize: "14px", fontWeight: 800, boxShadow: "0 2px 8px rgba(123, 30, 58, 0.25)" }}>RK</Avatar>
+            <Avatar sx={{ width: 36, height: 36, background: PRIMARY_GRADIENT, color: "#FFFFFF", fontSize: "13px", fontWeight: 800, boxShadow: "0 2px 8px rgba(123, 30, 58, 0.25)" }}>RK</Avatar>
             <Box sx={{ display: { xs: "none", md: "block" } }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "14px", lineHeight: 1.1 }}>Ramesh Kumar</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "13px", lineHeight: 1.1 }}>Ramesh Kumar</Typography>
               <Typography variant="caption" sx={{ color: BANK_GOLD, fontWeight: 700, fontSize: "11px" }}>Retailer Console</Typography>
             </Box>
           </Stack>
         </Stack>
       </Paper>
 
-      {/* ── ZONE 2: SIGNATURE VELOCITY STEPPER ── */}
-      <Paper elevation={0} sx={{ py: 2, px: 3, bgcolor: "#FFFFFF", borderBottom: "1px solid #E8EBF3", mb: 4, boxShadow: "0 2px 10px rgba(15, 44, 89, 0.03)" }}>
-        <Box sx={{ maxWidth: 1100, mx: "auto" }}>
+      {/* ── ZONE 2: SIGNATURE PAY2PAY ANIMATED STEPPER ── */}
+      <Paper elevation={0} sx={{ py: 1.8, px: 3, bgcolor: "#FFFFFF", borderBottom: "1px solid #E8EBF3", mb: 3.5, boxShadow: "0 2px 10px rgba(15, 44, 89, 0.03)" }}>
+        <Box sx={{ maxWidth: 1200, mx: "auto" }}>
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
             {[
               { step: 1, title: "Customer", ok: isCustomerValid },
@@ -1309,94 +1326,229 @@ export default function DmtPage() {
         </Box>
       </Paper>
 
-      {/* ── CENTER WORKSPACE ── */}
-      <Box sx={{ maxWidth: 800, mx: "auto", px: 2 }}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeStep}
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 12 }}
-            transition={{ duration: 0.15 }}
-          >
-            {/* STEP 1: CUSTOMER IDENTIFICATION ONLY */}
-            {activeStep === 1 && (
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 4, borderTop: `4px solid ${BANK_BLUE}` }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, color: BANK_BLUE, fontSize: "22px", mb: 2.5 }}>
-                  Customer Identification
-                </Typography>
-
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 3 }}>
-                  <Box sx={{ flex: 1 }}>
-                    <M3TextField
-                      inputRef={customerSearchRef}
-                      label="Customer Mobile Number / ID / Aadhaar"
-                      placeholder="Enter 10-digit mobile number..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleCustomerSearch(); }}
-                      startAdornment={<SearchIcon sx={{ color: "#C99819", fontSize: 22 }} />}
-                      sx={{ ...SEARCH_INPUT_SX }}
-                    />
-                  </Box>
-                  <Button
-                    variant="contained"
-                    onClick={handleCustomerSearch}
-                    disabled={searchLoading || !searchQuery.trim()}
-                    startIcon={!searchLoading ? <SearchIcon sx={{ color: "#FFFFFF", fontSize: 22 }} /> : undefined}
-                    sx={{ ...SEARCH_BTN_SX }}
-                  >
-                    {searchLoading ? <CircularProgress size={22} sx={{ color: "#FFF" }} /> : "Search Customer"}
-                  </Button>
-                </Stack>
-
-                {selectedCustomer && (
-                  <Paper elevation={0} sx={{ p: 3, borderRadius: "14px", border: "1px solid #E2E8F0", bgcolor: BANK_BLUE_LIGHT }}>
-                    <Stack direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between" }}>
-                      <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                        <Avatar sx={{ bgcolor: BANK_BLUE, color: "#FFF", width: 48, height: 48, fontWeight: 800, fontSize: "18px" }}>
-                          {selectedCustomer.full_name[0]}
-                        </Avatar>
-                        <Box>
-                          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: BANK_BLUE, fontSize: "17px" }}>
-                              {selectedCustomer.full_name}
-                            </Typography>
-                            <Chip label="Aadhaar eKYC ✓" size="small" sx={{ height: 20, fontSize: "11px", fontWeight: 700, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
-                            <Chip label="Low Risk" size="small" sx={{ height: 20, fontSize: "11px", fontWeight: 700, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
-                          </Stack>
-                          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "13px" }}>
-                            ID: {selectedCustomer.customer_number} • Mobile: +91 {selectedCustomer.mobile_number}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                      <Button size="small" startIcon={<EditIcon sx={{ fontSize: 14 }} />} onClick={() => setSelectedCustomer(null)} sx={{ fontSize: "13px", fontWeight: 700, color: BANK_BLUE, textTransform: "none" }}>
-                        Change
+      {/* ── ZONE 3 & ZONE 4: 70% + 30% RESPONSIVE WORKSPACE (MAX 1400PX) ── */}
+      <Box sx={{ maxWidth: 1400, mx: "auto", px: 3 }}>
+        <Grid container spacing={3}>
+          {/* ZONE 3: MAIN WORKSPACE (70% WIDTH) */}
+          <Grid size={{ xs: 12, md: 8.5 }}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeStep}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                {/* STEP 1: UNIFIED CUSTOMER IDENTIFICATION DASHBOARD */}
+                {activeStep === 1 && (
+                  <Paper elevation={0} sx={{ ...CARD_STYLE, p: 4, borderTop: `4px solid ${BANK_BLUE}` }}>
+                    <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
+                      <Box>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: BANK_BLUE, fontSize: "22px", letterSpacing: "-0.4px" }}>
+                          Customer Identification
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
+                          Search by Mobile Number, Aadhaar Number or Customer ID
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setCustomerMasterSlideOverOpen(true)}
+                        sx={{
+                          borderColor: BANK_GOLD,
+                          color: BANK_BLUE,
+                          fontWeight: 800,
+                          borderRadius: "12px",
+                          height: "44px",
+                          px: 2.5,
+                          fontSize: "14px",
+                          textTransform: "none",
+                          "&:hover": { bgcolor: BANK_GOLD_LIGHT, borderColor: BANK_GOLD },
+                        }}
+                      >
+                        + Register New Customer
                       </Button>
                     </Stack>
 
-                    <Divider sx={{ my: 2 }} />
+                    {/* UNIFIED SEARCH FIELD */}
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <M3TextField
+                          inputRef={customerSearchRef}
+                          label="Unified Search (Mobile / Aadhaar / Customer ID)"
+                          placeholder="Enter 10-digit mobile number, Aadhaar or Customer ID..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleCustomerSearch(); }}
+                          startAdornment={<SearchIcon sx={{ color: BANK_GOLD, fontSize: 22 }} />}
+                          sx={{ ...SEARCH_INPUT_SX }}
+                        />
+                      </Box>
+                      <Button
+                        variant="contained"
+                        onClick={handleCustomerSearch}
+                        disabled={searchLoading || !searchQuery.trim()}
+                        startIcon={!searchLoading ? <SearchIcon sx={{ color: "#FFFFFF", fontSize: 22 }} /> : undefined}
+                        sx={{ ...SEARCH_BTN_SX }}
+                      >
+                        {searchLoading ? <CircularProgress size={22} sx={{ color: "#FFF" }} /> : "Search"}
+                      </Button>
+                    </Stack>
 
-                    <Grid container spacing={2}>
-                      <Grid size={{ xs: 6, sm: 4 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "11px", textTransform: "uppercase" }}>Monthly Limit Remaining</Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 800, color: BANK_BLUE, fontSize: "20px" }}>
-                          ₹{(selectedCustomer.monthly_remaining ?? 75000).toLocaleString("en-IN")}
+                    {/* QUICK ACTION CHIPS */}
+                    <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: "wrap", gap: 0.8 }}>
+                      {[
+                        { label: "Ramesh Kumar (9176669426)", num: "9176669426" },
+                        { label: "Anita Sharma (9840123456)", num: "9840123456" },
+                        { label: "Scan QR", action: () => alert("QR Scanner Active") },
+                        { label: "Paste Number", action: () => navigator.clipboard.readText().then((t) => setSearchQuery(t.slice(0, 10))) },
+                      ].map((item) => (
+                        <Chip
+                          key={item.label}
+                          label={item.label}
+                          onClick={() => {
+                            if (item.num) {
+                              setSearchQuery(item.num);
+                              handleCustomerSearch();
+                            } else if (item.action) {
+                              item.action();
+                            }
+                          }}
+                          sx={{
+                            fontWeight: 700,
+                            bgcolor: BANK_GOLD_LIGHT,
+                            color: BANK_BLUE,
+                            border: `1px solid ${BANK_GOLD_BORDER}`,
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            borderRadius: "8px",
+                            "&:hover": { bgcolor: BANK_GOLD, color: "#FFFFFF" },
+                          }}
+                        />
+                      ))}
+                    </Stack>
+
+                    {/* QUICK ACTION CARDS (PRE-SEARCH FREQUENT CUSTOMERS) */}
+                    {!selectedCustomer && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px", mb: 1.5, display: "block" }}>
+                          FREQUENT &amp; RECENT CUSTOMERS
                         </Typography>
-                      </Grid>
-                      <Grid size={{ xs: 6, sm: 4 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "11px", textTransform: "uppercase" }}>Daily Limit</Typography>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>₹50,000</Typography>
-                      </Grid>
-                      <Grid size={{ xs: 6, sm: 4 }}>
-                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "11px", textTransform: "uppercase" }}>Last Transaction</Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 700, color: "#0F172A", display: "block", fontSize: "13px" }}>12 mins ago</Typography>
-                      </Grid>
-                    </Grid>
+                        <Grid container spacing={2}>
+                          {[
+                            { name: "Ramesh Kumar", mobile: "9176669426", kyc: "eKYC Verified", txns: "18 txns/mo", last: "12m ago" },
+                            { name: "Anita Sharma", mobile: "9840123456", kyc: "eKYC Verified", txns: "12 txns/mo", last: "2h ago" },
+                            { name: "Vijay Patel", mobile: "9940567890", kyc: "Aadhaar Verified", txns: "24 txns/mo", last: "Yesterday" },
+                          ].map((c) => (
+                            <Grid key={c.mobile} size={{ xs: 12, sm: 4 }}>
+                              <Paper
+                                elevation={0}
+                                onClick={() => {
+                                  setSearchQuery(c.mobile);
+                                  handleCustomerSearch();
+                                }}
+                                sx={{
+                                  p: 2,
+                                  borderRadius: "16px",
+                                  border: "1px solid #E8EBF3",
+                                  bgcolor: "#F8FAFC",
+                                  cursor: "pointer",
+                                  transition: "all 0.2s ease",
+                                  "&:hover": {
+                                    borderColor: BANK_GOLD,
+                                    bgcolor: BANK_GOLD_LIGHT,
+                                    transform: "translateY(-2px)",
+                                    boxShadow: "0 6px 16px rgba(212, 175, 55, 0.15)",
+                                  },
+                                }}
+                              >
+                                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1 }}>
+                                  <Avatar sx={{ width: 36, height: 36, bgcolor: BANK_BLUE, color: BANK_GOLD, fontWeight: 800, fontSize: "14px" }}>
+                                    {c.name[0]}
+                                  </Avatar>
+                                  <Box>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "14px", lineHeight: 1.1 }}>
+                                      {c.name}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: "#64748B", fontSize: "12px" }}>
+                                      +91 {c.mobile}
+                                    </Typography>
+                                  </Box>
+                                </Stack>
+                                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                                  <Chip label={c.kyc} size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 700, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
+                                  <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>{c.last}</Typography>
+                                </Stack>
+                              </Paper>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Box>
+                    )}
+
+                    {/* IDENTIFIED CUSTOMER PROFILE GRID */}
+                    {selectedCustomer && (
+                      <Paper elevation={0} sx={{ p: 3, borderRadius: "20px", border: `2px solid ${BANK_GOLD}`, bgcolor: "linear-gradient(135deg, #FFF8E8 0%, #FFFFFF 100%)", boxShadow: "0 8px 24px rgba(212, 175, 55, 0.12)" }}>
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                            <Avatar sx={{ bgcolor: BANK_BLUE, color: BANK_GOLD, width: 56, height: 56, fontWeight: 900, fontSize: "22px", border: `2px solid ${BANK_GOLD}` }}>
+                              {selectedCustomer.full_name?.[0] || "C"}
+                            </Avatar>
+                            <Box>
+                              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                                <Typography variant="h6" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "20px" }}>
+                                  {selectedCustomer.full_name}
+                                </Typography>
+                                <Chip label="Aadhaar eKYC Verified ✓" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
+                                <Chip label="Low Risk (Score 0.02)" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN }} />
+                              </Stack>
+                              <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 600 }}>
+                                Customer ID: {selectedCustomer.customer_number || selectedCustomer.public_id} • Mobile: +91 {selectedCustomer.mobile_number}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                          <Button size="small" startIcon={<EditIcon sx={{ fontSize: 14 }} />} onClick={() => setSelectedCustomer(null)} sx={{ fontSize: "13px", fontWeight: 800, color: BANK_BLUE, textTransform: "none" }}>
+                            Change Customer
+                          </Button>
+                        </Stack>
+
+                        <Divider sx={{ my: 2 }} />
+
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 6, sm: 3 }}>
+                            <Paper elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E8EBF3" }}>
+                              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", textTransform: "uppercase", display: "block" }}>Monthly Limit Remaining</Typography>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "17px" }}>
+                                ₹{(selectedCustomer.monthly_remaining ?? 75000).toLocaleString("en-IN")}
+                              </Typography>
+                            </Paper>
+                          </Grid>
+
+                          <Grid size={{ xs: 6, sm: 3 }}>
+                            <Paper elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E8EBF3" }}>
+                              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", textTransform: "uppercase", display: "block" }}>Daily Limit</Typography>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#0F172A", fontSize: "17px" }}>₹50,000.00</Typography>
+                            </Paper>
+                          </Grid>
+
+                          <Grid size={{ xs: 6, sm: 3 }}>
+                            <Paper elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E8EBF3" }}>
+                              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", textTransform: "uppercase", display: "block" }}>Last Transaction</Typography>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: BANK_GOLD, fontSize: "15px" }}>IMPS ₹5,000 (12m ago)</Typography>
+                            </Paper>
+                          </Grid>
+
+                          <Grid size={{ xs: 6, sm: 3 }}>
+                            <Paper elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: "#FFFFFF", border: "1px solid #E8EBF3" }}>
+                              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", textTransform: "uppercase", display: "block" }}>Transfer Frequency</Typography>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: SUCCESS_GREEN, fontSize: "15px" }}>High • 18 txns/mo</Typography>
+                            </Paper>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    )}
                   </Paper>
                 )}
-              </Paper>
-            )}
 
             {/* STEP 2: BENEFICIARY SELECTION */}
             {activeStep === 2 && (
@@ -1718,9 +1870,115 @@ export default function DmtPage() {
             )}
           </motion.div>
         </AnimatePresence>
+      </Grid>
+
+      {/* ZONE 4: CONTEXTUAL INTELLIGENCE PANEL (30% WIDTH) */}
+      <Grid size={{ xs: 12, md: 3.5 }}>
+        <Stack spacing={2.5}>
+          {/* ROTATING LIVE INTELLIGENCE TICKER */}
+          <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, background: "linear-gradient(135deg, #0F2C59 0%, #1A407B 100%)", color: "#FFFFFF" }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#4ADE80", boxShadow: "0 0 12px #4ADE80" }} />
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: BANK_GOLD, textTransform: "uppercase", letterSpacing: "1px", fontSize: "11px" }}>
+                    LIVE INTELLIGENCE TICKER
+                  </Typography>
+                </Stack>
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={intelligenceIndex}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                      {intelligenceItems[intelligenceIndex].icon}
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "14px", color: "#FFFFFF" }}>
+                          {intelligenceItems[intelligenceIndex].title}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px" }}>
+                          {intelligenceItems[intelligenceIndex].detail}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </motion.div>
+                </AnimatePresence>
+              </Paper>
+
+              {/* BANK HEALTH MATRIX */}
+              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5 }}>
+                <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 2 }}>
+                  REAL-TIME BANK HEALTH MATRIX
+                </Typography>
+                <Stack spacing={1.5}>
+                  {[
+                    { bank: "HDFC Bank", uptime: "99.9%", latency: "0.4s", status: "Operational", color: SUCCESS_GREEN },
+                    { bank: "ICICI Bank", uptime: "99.7%", latency: "0.6s", status: "Operational", color: SUCCESS_GREEN },
+                    { bank: "State Bank of India", uptime: "99.5%", latency: "0.9s", status: "Operational", color: SUCCESS_GREEN },
+                    { bank: "Axis Bank", uptime: "99.8%", latency: "0.5s", status: "Operational", color: SUCCESS_GREEN },
+                  ].map((b) => (
+                    <Paper key={b.bank} elevation={0} sx={{ p: 1.5, borderRadius: "12px", bgcolor: "#F8FAFC", border: "1px solid #E8EBF3" }}>
+                      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "13px" }}>
+                            {b.bank}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
+                            Uptime {b.uptime} • Latency {b.latency}
+                          </Typography>
+                        </Box>
+                        <Chip label={b.status} size="small" sx={{ height: 20, fontSize: "10px", fontWeight: 700, bgcolor: SUCCESS_LIGHT, color: b.color }} />
+                      </Stack>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Paper>
+
+              {/* WALLET TELEMETRY & EARNINGS */}
+              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, bgcolor: "linear-gradient(135deg, #FFF8E8 0%, #FFFFFF 100%)", border: `1px solid ${BANK_GOLD_BORDER}` }}>
+                <Typography variant="caption" sx={{ color: BANK_BLUE, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
+                  WALLET TELEMETRY &amp; COMMISSION
+                </Typography>
+                <Stack spacing={1.2}>
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Main Balance</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_BLUE }}>₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
+                  </Stack>
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Today's Margin</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹{wallet.todayMargin.toFixed(2)}</Typography>
+                  </Stack>
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Transactions Today</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A" }}>24 Executed</Typography>
+                  </Stack>
+                </Stack>
+              </Paper>
+
+              {/* AI ASSISTANT RECOMMENDATION CARD */}
+              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, borderLeft: `5px solid ${BANK_MAROON}`, bgcolor: BANK_MAROON_LIGHT }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
+                  <FlashOnIcon sx={{ color: BANK_MAROON, fontSize: 20 }} />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_MAROON, fontSize: "14px" }}>
+                    AI Recommendation
+                  </Typography>
+                </Stack>
+                <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, display: "block", mb: 1.5 }}>
+                  Customer Ramesh Kumar usually transfers ₹5,000 via IMPS. Best route: HDFC Gateway (99.8% Success).
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <Chip label="Rec: ₹5,000" size="small" sx={{ fontWeight: 800, bgcolor: "#FFFFFF", color: BANK_MAROON, fontSize: "11px" }} />
+                  <Chip label="Comm: +₹18.00" size="small" sx={{ fontWeight: 800, bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN, fontSize: "11px" }} />
+                </Stack>
+              </Paper>
+            </Stack>
+          </Grid>
+        </Grid>
       </Box>
 
-      {/* ── STICKY BOTTOM ACTION BAR (FOOTER) ── */}
+      {/* ── STICKY BOTTOM ACTION BAR & KEYBOARD SHORTCUTS STATUS FOOTER ── */}
       <Paper
         elevation={0}
         sx={{
@@ -1728,7 +1986,7 @@ export default function DmtPage() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 76,
+          height: 72,
           bgcolor: "#FFFFFF",
           borderTop: "1px solid #E2E8F0",
           zIndex: 1100,
@@ -1738,69 +1996,72 @@ export default function DmtPage() {
           boxShadow: "0 -4px 20px rgba(15, 23, 42, 0.08)",
         }}
       >
-        <Box sx={{ maxWidth: 840, width: "100%", mx: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Button
-            variant="outlined"
-            disabled={activeStep <= 1 || activeStep >= 6}
-            onClick={handlePrevStep}
-            sx={{
-              color: "#0F3D91",
-              borderColor: "#0F3D91",
-              fontWeight: 700,
-              px: 3.5,
-              borderRadius: "12px",
-              textTransform: "none",
-              height: 48,
-              fontSize: "15px",
-              borderWidth: "1.5px",
-              "&:hover": { bgcolor: BANK_BLUE_LIGHT, borderWidth: "1.5px", borderColor: "#0F3D91" },
-              "&:disabled": {
-                borderColor: "#CBD5E1 !important",
-                color: "#9CA3AF !important",
-                bgcolor: "#E5E7EB !important",
-                borderWidth: "1px !important",
-              },
-            }}
-          >
-            ← Previous
-          </Button>
+        <Box sx={{ maxWidth: 1400, width: "100%", mx: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {/* KEYBOARD SHORTCUTS HINTS */}
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", display: { xs: "none", lg: "flex" } }}>
+            <Chip label="F1 Help" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
+            <Chip label="Ctrl+K Search" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
+            <Chip label="ESC Cancel" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
+            <Chip label="F9 Refresh" size="small" sx={{ height: 22, fontSize: "11px", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }} />
+          </Stack>
 
-          <Box sx={{ textAlign: "center" }}>
-            <Typography variant="subtitle2" sx={{ color: "#0F172A", fontWeight: 800, fontSize: "16px" }}>
-              Step {Math.min(activeStep, 6)} of 6
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "12px" }}>
-              {activeStep === 1 && "Customer Identification"}
-              {activeStep === 2 && "Beneficiary Selection"}
-              {activeStep === 3 && "Transfer Amount"}
-              {activeStep === 4 && "Review Summary"}
-              {activeStep === 5 && "Authentication MPIN"}
-              {activeStep === 6 && "Dispatch Settlement"}
-            </Typography>
-          </Box>
-
-          {activeStep < 5 ? (
+          {/* ACTION BUTTONS */}
+          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
             <Button
-              variant="contained"
-              disabled={!canAdvanceCurrentStep()}
-              onClick={handleNextStep}
-              endIcon={<ArrowForwardIcon sx={{ color: "#FFFFFF" }} />}
+              variant="outlined"
+              disabled={activeStep <= 1 || activeStep >= 6}
+              onClick={handlePrevStep}
               sx={{
-                ...PRIMARY_BTN_SX,
-                height: "52px",
-                fontSize: "16px",
-                px: 4,
+                color: "#0F3D91",
+                borderColor: "#0F3D91",
+                fontWeight: 700,
+                px: 3,
+                borderRadius: "12px",
+                textTransform: "none",
+                height: 44,
+                fontSize: "14px",
+                borderWidth: "1.5px",
+                "&:hover": { bgcolor: BANK_BLUE_LIGHT, borderWidth: "1.5px", borderColor: "#0F3D91" },
               }}
             >
-              {getStepButtonLabel()}
+              ← Previous
             </Button>
-          ) : activeStep === 5 ? (
-            <Box sx={{ width: 280 }}>
-              <SlideToSend disabled={!isAllValid} onConfirm={handleExecutePayout} label="Slide to Transfer →" />
-            </Box>
-          ) : (
-            <Box sx={{ width: 160 }} />
-          )}
+
+            <Typography variant="subtitle2" sx={{ color: "#0F172A", fontWeight: 800, fontSize: "15px" }}>
+              Step {Math.min(activeStep, 6)} of 6
+            </Typography>
+
+            {activeStep < 5 ? (
+              <Button
+                variant="contained"
+                disabled={!canAdvanceCurrentStep()}
+                onClick={handleNextStep}
+                endIcon={<ArrowForwardIcon sx={{ color: "#FFFFFF" }} />}
+                sx={{
+                  ...PRIMARY_BTN_SX,
+                  height: "46px",
+                  fontSize: "15px",
+                  px: 3.5,
+                }}
+              >
+                {getStepButtonLabel()}
+              </Button>
+            ) : activeStep === 5 ? (
+              <Box sx={{ width: 260 }}>
+                <SlideToSend disabled={!isAllValid} onConfirm={handleExecutePayout} label="Slide to Transfer →" />
+              </Box>
+            ) : (
+              <Box sx={{ width: 140 }} />
+            )}
+          </Stack>
+
+          {/* NODE STATUS & LAST SYNC */}
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: SUCCESS_GREEN, boxShadow: `0 0 8px ${SUCCESS_GREEN}` }} />
+            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "12px" }}>
+              Live Banking Switch 100% • Sync Just now
+            </Typography>
+          </Stack>
         </Box>
       </Paper>
 
