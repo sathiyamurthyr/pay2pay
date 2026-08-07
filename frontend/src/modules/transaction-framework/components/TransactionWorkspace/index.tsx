@@ -12,8 +12,7 @@ import { ChargesPanel } from "../ChargesPanel";
 import { RecentTransactions } from "../RecentTransactions";
 import { PageHeader } from "@/design-system/components";
 
-import { EnterpriseBeneficiaryModule } from "../Beneficiary";
-import { EnterpriseBankingCockpit } from "../Cockpit";
+import { EnterpriseWizardModule } from "../EnterpriseWizard";
 
 export interface TransactionWorkspaceProps {
   service: ServiceType;
@@ -22,26 +21,12 @@ export interface TransactionWorkspaceProps {
 export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ service }) => {
   const { config, amount, setAmount, charges, totalPayable } = useTransaction(service);
   const { selectedCustomer, isSearching, searchCustomer } = useCustomer();
-  const { beneficiaries, selectedBeneficiary, setSelectedBeneficiary, isLoading: isBeneficiariesLoading } = useBeneficiary(selectedCustomer);
+  const { beneficiaries, selectedBeneficiary, setSelectedBeneficiary } = useBeneficiary(selectedCustomer);
 
   return (
-    <Stack spacing={2.5} sx={{ width: "100%", minWidth: 0, pt: 0 }}>
-      {/* Universal Transaction Search Toolbar */}
-      <TransactionSearch placeholder={config.searchPlaceholder} onSearch={searchCustomer} isSearching={isSearching} />
-
-      {/* Enterprise Beneficiary Module (Summary, Search, Filters, Recent, Favorites, Data Grid & Right Drawer) */}
-      {config.allowBeneficiarySelection && (
-        <EnterpriseBeneficiaryModule
-          customer={selectedCustomer}
-          beneficiaries={beneficiaries}
-          selectedBeneficiary={selectedBeneficiary}
-          onSelectBeneficiary={setSelectedBeneficiary}
-          isLoading={isBeneficiariesLoading}
-        />
-      )}
-
-      {/* Intelligent Transaction Cockpit (Left Panel 25% | Center Panel 50% | Right Panel 25% + Sticky Bottom Dock) */}
-      <EnterpriseBankingCockpit
+    <Box sx={{ width: "100%", minWidth: 0, pt: 0 }}>
+      {/* 4-Step Enterprise Transaction Wizard (Step 1: Search → Step 2: Beneficiary & Amount → Step 3: Authorize → Step 4: Live Settlement) */}
+      <EnterpriseWizardModule
         amount={amount}
         onAmountChange={setAmount}
         charges={charges}
@@ -49,11 +34,11 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
         customer={selectedCustomer}
         beneficiaries={beneficiaries}
         selectedBeneficiary={selectedBeneficiary}
+        onSelectCustomer={(c) => searchCustomer(c.mobile)}
         onSelectBeneficiary={setSelectedBeneficiary}
+        onSearchCustomer={searchCustomer}
+        isSearching={isSearching}
       />
-
-      {/* Audit Ledger Data Grid */}
-      <RecentTransactions />
-    </Stack>
+    </Box>
   );
 };
