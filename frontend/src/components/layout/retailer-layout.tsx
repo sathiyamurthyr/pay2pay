@@ -78,25 +78,54 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const activeDrawerWidth = desktopCollapsed ? COLLAPSED_DRAWER_WIDTH : FULL_DRAWER_WIDTH;
 
-  const navMenuItems = [
-    { label: "Dashboard", path: "/retailer-dashboard", icon: DashboardIcon },
-    { label: "Wallet & Top-Up", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
-    { label: "Wallet Statement", path: "/retailer/wallet-statement", icon: ReceiptLongIcon },
-    { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, badge: "IMPS" },
-    { label: "Card To Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon },
-    { label: "Swipe Machine (POS)", path: "/retailer/pos", icon: CreditCardIcon, badge: "mPOS" },
-    { label: "UPI Services", path: "/retailer/upi", icon: QrCodeIcon },
-    { label: "AEPS Cash Out", path: "/retailer/aeps", icon: FingerprintIcon, badge: "Biometric" },
-    { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon },
-    { label: "Bill Payment (BBPS)", path: "/retailer/bbps", icon: ReceiptIcon },
-    { label: "Customer Directory", path: "/retailer/customers", icon: PersonIcon },
-    { label: "Commission Slabs", path: "/retailer/commission", icon: AssessmentIcon },
-    { label: "Move To Bank", path: "/retailer/settlement", icon: AccountBalanceIcon },
-    { label: "Transactions Ledger", path: "/retailer/transactions", icon: ReceiptLongIcon },
-    { label: "Reports & Tax Forms", path: "/retailer/reports", icon: AssessmentIcon },
-    { label: "Notifications", path: "/retailer/notifications", icon: NotificationsIcon },
-    { label: "Retailer Profile", path: "/retailer/profile", icon: PersonIcon },
-    { label: "KYC Verification", path: "/retailer/kyc", icon: VerifiedUserIcon, badge: "Verified" },
+  const navCategories = [
+    {
+      title: "MAIN",
+      items: [{ label: "Dashboard", path: "/retailer-dashboard", icon: DashboardIcon }],
+    },
+    {
+      title: "PAYMENTS",
+      items: [
+        { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, badge: "IMPS" },
+        { label: "Card to Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon },
+        { label: "AEPS Cash Out", path: "/retailer/aeps", icon: FingerprintIcon, badge: "Biometric" },
+        { label: "UPI Services", path: "/retailer/upi", icon: QrCodeIcon },
+        { label: "Bill Payment (BBPS)", path: "/retailer/bbps", icon: ReceiptIcon },
+        { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon },
+      ],
+    },
+    {
+      title: "WALLET",
+      items: [
+        { label: "Wallet & Top-Up", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
+        { label: "Wallet Statement", path: "/retailer/wallet-statement", icon: ReceiptLongIcon },
+      ],
+    },
+    {
+      title: "CUSTOMERS",
+      items: [
+        { label: "Customer Directory", path: "/retailer/customers", icon: PersonIcon },
+        { label: "Beneficiaries", path: "/retailer/beneficiaries", icon: PersonIcon },
+      ],
+    },
+    {
+      title: "BUSINESS",
+      items: [
+        { label: "Reports & Tax Forms", path: "/retailer/reports", icon: AssessmentIcon },
+        { label: "Commission Slabs", path: "/retailer/commission", icon: AssessmentIcon },
+        { label: "Move To Bank", path: "/retailer/settlement", icon: AccountBalanceIcon },
+        { label: "Transactions Ledger", path: "/retailer/transactions", icon: ReceiptLongIcon },
+      ],
+    },
+    {
+      title: "SUPPORT",
+      items: [
+        { label: "Notifications", path: "/retailer/notifications", icon: NotificationsIcon },
+        { label: "Support Desk", path: "/retailer/support", icon: AssessmentIcon },
+        { label: "Settings", path: "/retailer/settings", icon: AssessmentIcon },
+        { label: "Retailer Profile", path: "/retailer/profile", icon: PersonIcon },
+      ],
+    },
   ];
 
   const handleDrawerToggle = () => {
@@ -107,7 +136,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const activeMenuItem = navMenuItems.find((item) =>
+  const allNavItems = navCategories.flatMap((c) => c.items);
+  const activeMenuItem = allNavItems.find((item) =>
     pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path))
   );
 
@@ -117,178 +147,171 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#FFFFFF",
-        borderRight: "1px solid #E5E7EB",
-        transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+        backgroundColor: "#08111F",
+        color: "#F8FAFC",
+        borderRight: "1px solid rgba(255, 255, 255, 0.08)",
       }}
     >
-      {/* Brand Header (56px) */}
+      {/* PAY2PAY Brand Logo Header (64px) */}
       <Box
         sx={{
-          height: 56,
-          px: isCollapsed ? 1 : 2,
+          height: 64,
+          px: isCollapsed ? 1.5 : 2.5,
           display: "flex",
           alignItems: "center",
           justifyContent: isCollapsed ? "center" : "space-between",
-          borderBottom: "1px solid #F1F5F9",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          bgcolor: "rgba(15, 23, 42, 0.6)",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box
             sx={{
               width: 36,
               height: 36,
-              borderRadius: 2.5,
-              backgroundColor: "#2563EB",
+              borderRadius: "10px",
+              background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#FFFFFF",
-              boxShadow: "0 2px 8px rgba(37, 99, 235, 0.25)",
+              fontWeight: 900,
+              fontSize: "14px",
+              boxShadow: "0 4px 12px rgba(37, 99, 235, 0.35)",
               flexShrink: 0,
             }}
           >
-            <StorefrontIcon sx={{ fontSize: 22 }} />
+            P2P
           </Box>
           {!isCollapsed && (
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#111827", lineHeight: 1.2, whiteSpace: "nowrap" }}>
-                Pay2Pay FinTech
+              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#F8FAFC", lineHeight: 1.2, whiteSpace: "nowrap" }}>
+                PAY2PAY <Typography component="span" sx={{ color: "#3B82F6", fontWeight: 700, fontSize: "12px" }}>ENT</Typography>
               </Typography>
-              <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 600, fontSize: "11px", whiteSpace: "nowrap" }}>
-                Enterprise Retailer
+              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "10px", whiteSpace: "nowrap" }}>
+                Enterprise Operations
               </Typography>
             </Box>
           )}
         </Box>
 
-        {/* Desktop Collapse Arrow Button */}
         {!isCollapsed && (
           <Tooltip title="Collapse Sidebar (72px)">
             <IconButton
               onClick={() => setDesktopCollapsed(true)}
               size="small"
-              sx={{ display: { xs: "none", lg: "flex" }, color: "#6B7280", "&:hover": { backgroundColor: "#F1F5F9" } }}
+              sx={{ display: { xs: "none", lg: "flex" }, color: "#94A3B8", "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
             >
-              <ChevronLeftIcon sx={{ fontSize: 20 }} />
+              <ChevronLeftIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
         )}
       </Box>
 
-      {/* Navigation Menu List (Starts Right at Top!) */}
-      <List sx={{ flex: 1, py: "12px", px: isCollapsed ? 0.75 : "12px", overflowY: "auto" }}>
-        {navMenuItems.map((item) => {
-          const IconComponent = item.icon;
-          const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
+      {/* Categorized Dark Operator Navigation List */}
+      <Box sx={{ flex: 1, py: 1.5, px: isCollapsed ? 1 : 1.5, overflowY: "auto" }}>
+        {navCategories.map((cat) => (
+          <Box key={cat.title} sx={{ mb: 2 }}>
+            {!isCollapsed && (
+              <Typography variant="caption" sx={{ color: "#3B82F6", fontWeight: 800, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.8px", px: 1.5, display: "block", mb: 0.5 }}>
+                {cat.title}
+              </Typography>
+            )}
+            <Stack spacing={0.4}>
+              {cat.items.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
 
-          return (
-            <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-              <Tooltip title={isCollapsed ? item.label : ""} placement="right" arrow>
-                <ListItemButton
-                  component={Link}
-                  href={item.path}
-                  onClick={() => setMobileOpen(false)}
-                  sx={{
-                    height: 44,
-                    borderRadius: "12px",
-                    px: isCollapsed ? 0 : 2,
-                    justifyContent: isCollapsed ? "center" : "initial",
-                    backgroundColor: isActive ? "#EFF6FF" : "transparent",
-                    color: isActive ? "#2563EB" : "#374151",
-                    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                    "&:hover": { backgroundColor: isActive ? "#DBEAFE" : "#F8FAFC" },
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: isCollapsed ? 0 : 36,
-                      justifyContent: "center",
-                      color: isActive ? "#2563EB" : "#6B7280",
-                    }}
-                  >
-                    <IconComponent sx={{ fontSize: 22 }} />
-                  </ListItemIcon>
-
-                  {!isCollapsed && (
-                    <ListItemText
-                      primary={
-                        <Typography sx={{ fontSize: "14px", fontWeight: isActive ? 700 : 500, color: isActive ? "#2563EB" : "#374151" }}>
-                          {item.label}
-                        </Typography>
-                      }
-                    />
-                  )}
-
-                  {!isCollapsed && item.badge && (
-                    <Chip
-                      label={item.badge}
-                      size="small"
+                return (
+                  <Tooltip key={item.path} title={isCollapsed ? item.label : ""} placement="right" arrow>
+                    <Box
+                      component={Link}
+                      href={item.path}
+                      onClick={() => setMobileOpen(false)}
                       sx={{
-                        height: 20,
-                        fontSize: "0.65rem",
-                        fontWeight: 800,
-                        backgroundColor: isActive ? "#2563EB" : "#F1F5F9",
-                        color: isActive ? "#FFFFFF" : "#475569",
+                        display: "flex",
+                        alignItems: "center",
+                        height: 38,
+                        borderRadius: "10px",
+                        px: isCollapsed ? 0 : 1.5,
+                        justifyContent: isCollapsed ? "center" : "space-between",
+                        backgroundColor: isActive ? "rgba(37, 99, 235, 0.2)" : "transparent",
+                        color: isActive ? "#60A5FA" : "#CBD5E1",
+                        border: isActive ? "1px solid #2563EB" : "1px solid transparent",
+                        textDecoration: "none",
+                        transition: "all 0.15s ease",
+                        "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.05)", color: "#F8FAFC" },
                       }}
-                    />
-                  )}
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
-          );
-        })}
-      </List>
+                    >
+                      <Stack direction="row" spacing={1.2} sx={{ alignItems: "center", minWidth: 0 }}>
+                        <IconComponent sx={{ fontSize: 18, color: isActive ? "#60A5FA" : "#94A3B8" }} />
+                        {!isCollapsed && (
+                          <Typography sx={{ fontSize: "13px", fontWeight: isActive ? 700 : 500, whiteSpace: "nowrap" }}>
+                            {item.label}
+                          </Typography>
+                        )}
+                      </Stack>
 
-      <Divider sx={{ borderColor: "#F1F5F9" }} />
+                      {!isCollapsed && item.badge && (
+                        <Chip
+                          label={item.badge}
+                          size="small"
+                          sx={{
+                            height: 18,
+                            fontSize: "9px",
+                            fontWeight: 800,
+                            backgroundColor: isActive ? "#2563EB" : "rgba(255,255,255,0.08)",
+                            color: isActive ? "#FFFFFF" : "#94A3B8",
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </Tooltip>
+                );
+              })}
+            </Stack>
+          </Box>
+        ))}
+      </Box>
 
-      {/* Compact Retailer User Profile Pill at Bottom of Drawer (Clickable to open profile info) */}
+      <Divider sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
+
+      {/* Logged-in Retailer Profile Footer at Bottom of Dark Sidebar */}
       {!isCollapsed ? (
-        <Box sx={{ p: 1.5 }}>
+        <Box sx={{ p: 1.5, bgcolor: "rgba(15, 23, 42, 0.6)" }}>
           <Paper
             elevation={0}
             onClick={(e) => setProfileAnchor(e.currentTarget)}
             sx={{
-              p: 1.25,
+              p: 1.2,
               borderRadius: "12px",
-              backgroundColor: "#F8FAFC",
-              border: "1px solid #E5E7EB",
+              backgroundColor: "rgba(18, 27, 48, 0.72)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
               display: "flex",
               alignItems: "center",
-              gap: 1.25,
+              gap: 1.2,
               cursor: "pointer",
-              transition: "all 0.2s ease",
-              "&:hover": { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" },
+              "&:hover": { borderColor: "#2563EB" },
             }}
           >
-            <Avatar sx={{ bgcolor: "#1E3A8A", width: 34, height: 34, fontWeight: 800, fontSize: "0.85rem" }}>
+            <Avatar sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px" }}>
               {outlet.ownerName.charAt(0)}
             </Avatar>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ fontSize: "13px", fontWeight: 800, color: "#111827", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#F8FAFC", fontSize: "12px", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {outlet.ownerName}
               </Typography>
-              <Typography variant="caption" sx={{ fontSize: "11px", color: "#16A34A", fontWeight: 700, display: "block" }}>
-                ● Online Retailer
+              <Typography variant="caption" sx={{ fontSize: "10px", color: "#4ADE80", fontWeight: 700, display: "block" }}>
+                ● Online Retailer ({outlet.code})
               </Typography>
             </Box>
-            <UnfoldMoreIcon sx={{ fontSize: 18, color: "#6B7280" }} />
           </Paper>
         </Box>
       ) : (
-        <Box sx={{ py: 1.5, display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75 }}>
-          <Tooltip title={`${outlet.ownerName} (${outlet.code}) | Click to view Retailer Profile`} placement="right">
-            <IconButton onClick={(e) => setProfileAnchor(e.currentTarget)} size="small">
-              <Avatar sx={{ bgcolor: "#1E3A8A", width: 36, height: 36, fontWeight: 800, fontSize: "0.85rem" }}>
-                {outlet.ownerName.charAt(0)}
-              </Avatar>
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Expand Sidebar (260px)" placement="right">
-            <IconButton onClick={() => setDesktopCollapsed(false)} size="small" sx={{ color: "#2563EB", backgroundColor: "#EFF6FF" }}>
-              <ChevronRightIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
+        <Box sx={{ py: 1.5, display: "flex", justifyContent: "center" }}>
+          <Avatar sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px" }}>
+            {outlet.ownerName.charAt(0)}
+          </Avatar>
         </Box>
       )}
     </Box>
