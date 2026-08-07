@@ -1,3 +1,3 @@
-import RegisterCustomerPage from "../new/page";
+import CustomerMasterPage from "../page";
 
-export default RegisterCustomerPage;
+export default CustomerMasterPage;
