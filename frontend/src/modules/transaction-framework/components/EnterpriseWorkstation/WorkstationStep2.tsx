@@ -25,7 +25,11 @@ import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
 import { EnterpriseStatusStrip } from "../Amount/EnterpriseStatusStrip";
 import { SmartAutoCorrectionBar } from "../Amount/SmartAutoCorrectionBar";
-import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
+import {
+  PricingEvaluationResult,
+  RuleEngineService,
+  TransactionModeRecord,
+} from "../../services/RuleEngineAdapter";
 import { BeneficiaryInlineDrawer } from "../Beneficiary/BeneficiaryInlineDrawer";
 
 export interface WorkstationStep2Props {
@@ -38,6 +42,8 @@ export interface WorkstationStep2Props {
   pricingResult: PricingEvaluationResult;
   onBack: () => void;
   onContinue: () => void;
+  selectedMode?: "IMPS" | "NEFT" | "RTGS" | "UPI";
+  onModeChange?: (mode: "IMPS" | "NEFT" | "RTGS" | "UPI") => void;
 }
 
 export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
@@ -47,15 +53,36 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   onSelectBeneficiary,
   amount,
   onAmountChange,
-  pricingResult,
+  pricingResult: initialPricingResult,
   onBack,
   onContinue,
+  selectedMode: propsSelectedMode,
+  onModeChange,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "favorite">("all");
   const [sortBy, setSortBy] = useState<"recent" | "used" | "alphabetical">("recent");
-
   const [visibleCount, setVisibleCount] = useState(24);
+
+  // Load Transaction Modes from Database
+  const dbTransactionModes: TransactionModeRecord[] = RuleEngineService.getTransactionModes();
+  const [selectedMode, setSelectedMode] = useState<"IMPS" | "NEFT" | "RTGS" | "UPI">(
+    propsSelectedMode || "IMPS"
+  );
+
+  // Real-time Pricing Recalculation on Mode or Amount Change
+  const pricingResult = RuleEngineService.evaluatePricing({
+    service: "DMT",
+    amount,
+    transactionMode: selectedMode,
+    customerId: customer?.id,
+    walletBalance: customer?.walletBalance ?? 124500,
+  });
+
+  const handleModeSelect = (modeCode: "IMPS" | "NEFT" | "RTGS" | "UPI") => {
+    setSelectedMode(modeCode);
+    if (onModeChange) onModeChange(modeCode);
+  };
 
   const filteredBeneficiaries = beneficiaries
     .filter((b) => {
@@ -90,15 +117,21 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const totalPayable = pricingResult.totalPayable;
   const balanceAfter = pricingResult.walletBalanceAfter;
 
-  // Realtime Rule Engine + Beneficiary Receiving Capacity Validation Check (Loaded strictly from DB)
+  const currentModeInfo = dbTransactionModes.find((m) => m.mode_code === selectedMode);
+  const isModeDisabled = currentModeInfo ? !currentModeInfo.enabled : false;
+
   const beneficiaryAvailableToReceive = selectedBeneficiary
-    ? (selectedBeneficiary.monthlyRemaining ?? Math.max(0, 200000 - (selectedBeneficiary.monthlyUsage ?? 0)))
+    ? selectedBeneficiary.monthlyRemaining ?? Math.max(0, 200000 - (selectedBeneficiary.monthlyUsage ?? 0))
     : 50000;
   const isBeneficiaryLimitExceeded = amount > beneficiaryAvailableToReceive;
 
-  const isProceedDisabled = amount <= 0 || !selectedBeneficiary || !pricingResult.canProceed || isBeneficiaryLimitExceeded;
+  const isProceedDisabled =
+    amount <= 0 ||
+    !selectedBeneficiary ||
+    !pricingResult.canProceed ||
+    isBeneficiaryLimitExceeded ||
+    isModeDisabled;
 
-  // Keyboard shortcut listener for Ctrl+Enter (Proceed to Authorization)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "Enter") {
@@ -223,7 +256,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           sx={{ mb: 2, width: "100%" }}
         />
 
-        {/* Beneficiary Responsive Grid (Vertical Scroll Only, Zero Horizontal Overflow) */}
+        {/* Beneficiary Grid */}
         <Box
           onScroll={handleScroll}
           sx={{
@@ -328,7 +361,6 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                       </Stack>
                     </Paper>
 
-                    {/* Inline Expandable Drawer (Opens Directly Below Selected Card) */}
                     {isSelected && (
                       <BeneficiaryInlineDrawer beneficiary={b} isOpen={isSelected} />
                     )}
@@ -340,7 +372,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         </Box>
       </Paper>
 
-      {/* ── RIGHT PANEL (32%): TRANSFER AMOUNT & FINANCIAL EXECUTION ── */}
+      {/* ── RIGHT PANEL (32%): TRANSACTION MODE & TRANSFER AMOUNT ── */}
       <Paper
         elevation={0}
         sx={{
@@ -356,7 +388,60 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         }}
       >
         <Box>
-          {/* Transfer Amount Component */}
+          {/* ── TRANSACTION MODE SEGMENTED CONTROL ── */}
+          <Box sx={{ mb: 1.5 }}>
+            <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1 }}>
+              TRANSACTION MODE
+            </Typography>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 0.75,
+                bgcolor: "rgba(255, 255, 255, 0.05)",
+                p: 0.5,
+                borderRadius: "10px",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+              }}
+            >
+              {dbTransactionModes.map((m) => {
+                const isSelected = selectedMode === m.mode_code;
+                return (
+                  <Button
+                    key={m.mode_id}
+                    disabled={!m.enabled}
+                    onClick={() => handleModeSelect(m.mode_code)}
+                    sx={{
+                      height: 34,
+                      borderRadius: "7px",
+                      fontWeight: 800,
+                      fontSize: "11px",
+                      color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)",
+                      bgcolor: isSelected ? "#2563EB" : "transparent",
+                      boxShadow: isSelected ? "0 2px 8px rgba(37, 99, 235, 0.4)" : "none",
+                      "&:hover": {
+                        bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.1)",
+                      },
+                      "&.Mui-disabled": {
+                        color: "rgba(255, 255, 255, 0.25)",
+                      },
+                    }}
+                  >
+                    {m.icon} {m.mode_name}
+                  </Button>
+                );
+              })}
+            </Box>
+
+            {isModeDisabled && (
+              <Typography sx={{ color: "#EF4444", fontSize: "11px", fontWeight: 700, mt: 0.5 }}>
+                This transaction mode is currently unavailable.
+              </Typography>
+            )}
+          </Box>
+
+          {/* Transfer Amount Input Component */}
           <TransferAmountInput
             amount={amount}
             onAmountChange={onAmountChange}
@@ -371,72 +456,67 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           {/* Compact 40px Beneficiary Monthly Limit Strip */}
           <EnterpriseStatusStrip validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
-          {/* One-Click Enterprise Auto Correction & Fixes Bar */}
+          {/* One-Click Enterprise Auto Correction Bar */}
           <SmartAutoCorrectionBar validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
-          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
+          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1 }} />
 
-          {/* Financial Summary Table (Focus: Amount Entry -> Beneficiary Capacity -> Financial Summary) */}
-          <Stack spacing={1}>
-            <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              FINANCIAL SUMMARY
+          {/* Financial Summary Table */}
+          <Stack spacing={0.75}>
+            <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              FINANCIAL SUMMARY ({selectedMode})
             </Typography>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Transfer Amount</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "14px" }}>₹{amount.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>₹{amount.toLocaleString()}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Convenience Fee ({pricingResult.slabId})</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "13px" }}>+ ₹{fee.toLocaleString()}</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Convenience Fee</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>+ ₹{fee.toLocaleString()}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST ({pricingResult.gstPercentage}%)</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "13px" }}>+ ₹{gst.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12px" }}>+ ₹{gst.toLocaleString()}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Retailer Commission</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "13px" }}>+ ₹{commission.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12px" }}>+ ₹{commission.toLocaleString()}</Typography>
             </Stack>
 
-            <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
+            <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "13px" }}>NET WALLET DEBIT</Typography>
-              <Typography sx={{ fontWeight: 900, color: !pricingResult.canProceed ? "#EF4444" : "#3B82F6", fontSize: "16px" }}>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "12px" }}>NET WALLET DEBIT</Typography>
+              <Typography sx={{ fontWeight: 900, color: !pricingResult.canProceed ? "#EF4444" : "#3B82F6", fontSize: "15px" }}>
                 ₹{totalPayable.toLocaleString()}
               </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet After Transfer</Typography>
-              <Typography sx={{ fontWeight: 800, color: !pricingResult.canProceed ? "#EF4444" : "#FBBF24", fontSize: "14px" }}>
+              <Typography sx={{ fontWeight: 800, color: !pricingResult.canProceed ? "#EF4444" : "#FBBF24", fontSize: "13px" }}>
                 ₹{balanceAfter.toLocaleString()}
               </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Settlement ETA</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12px" }}>1.2 sec (IMPS)</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12px" }}>{pricingResult.settlementEtaText}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Recommended Route</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>{pricingResult.recommendedGateway}</Typography>
-            </Stack>
-
-            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Pricing Version</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>{pricingResult.pricingVersion}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "11px" }}>{pricingResult.recommendedGateway}</Typography>
             </Stack>
           </Stack>
         </Box>
 
         {/* Action Buttons */}
-        <Stack spacing={1} sx={{ pt: 1.5 }}>
+        <Stack spacing={1} sx={{ pt: 1 }}>
           <Tooltip title={isProceedDisabled ? `Transfer cannot continue. Reason: ${pricingResult.validationMessage}` : ""} arrow placement="top">
             <Box component="span" sx={{ width: "100%" }}>
               <Button
@@ -446,7 +526,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 onClick={onContinue}
                 endIcon={<ArrowForwardIcon />}
                 sx={{
-                  height: 46,
+                  height: 44,
                   borderRadius: "10px",
                   fontWeight: 900,
                   fontSize: "14px",
@@ -471,7 +551,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             variant="outlined"
             onClick={onBack}
             startIcon={<ArrowBackIcon />}
-            sx={{ height: 36, borderRadius: "8px", fontWeight: 700, fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", borderColor: "rgba(255, 255, 255, 0.2)" }}
+            sx={{ height: 34, borderRadius: "8px", fontWeight: 700, fontSize: "11.5px", color: "rgba(255, 255, 255, 0.8)", borderColor: "rgba(255, 255, 255, 0.2)" }}
           >
             Back to Customer
           </Button>

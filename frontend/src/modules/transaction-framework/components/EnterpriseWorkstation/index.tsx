@@ -37,13 +37,15 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
   pricingResult: propsPricingResult,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [selectedMode, setSelectedMode] = useState<"IMPS" | "NEFT" | "RTGS" | "UPI">("IMPS");
 
-  // Dynamic Rule Engine Evaluation
+  // Dynamic Rule Engine Evaluation with Transaction Mode
   const pricingResult =
     propsPricingResult ||
     RuleEngineService.evaluatePricing({
       service: "DMT",
       amount,
+      transactionMode: selectedMode,
       customerId: customer?.id,
       walletBalance: customer?.walletBalance ?? 124500,
     });
@@ -109,6 +111,8 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
             amount={amount}
             onAmountChange={onAmountChange}
             pricingResult={pricingResult}
+            selectedMode={selectedMode}
+            onModeChange={(mode) => setSelectedMode(mode)}
             onBack={() => setCurrentStep(1)}
             onContinue={() => setCurrentStep(3)}
           />
