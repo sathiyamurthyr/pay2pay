@@ -1,6 +1,5 @@
 import React from "react";
 import { Typography, Box } from "@mui/material";
-import TranslateIcon from "@mui/icons-material/Translate";
 
 export function numberToIndianWords(num: number): string {
   if (num <= 0 || isNaN(num)) return "Zero Rupees Only";
@@ -58,15 +57,15 @@ export const AmountInWords: React.FC<{ amount: number }> = ({ amount }) => {
   const words = numberToIndianWords(amount);
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-      <TranslateIcon sx={{ color: "#60A5FA", fontSize: 16 }} />
+    <Box sx={{ mt: 1, minHeight: 24, display: "flex", alignItems: "center" }}>
       <Typography
         sx={{
-          color: "#93C5FD",
-          fontWeight: 700,
-          fontSize: "14px",
-          letterSpacing: "0.2px",
+          color: "#FFFFFF",
+          opacity: 0.9,
+          fontWeight: 500,
+          fontSize: "16px",
           fontStyle: "italic",
+          lineHeight: 1.3,
         }}
       >
         {words}

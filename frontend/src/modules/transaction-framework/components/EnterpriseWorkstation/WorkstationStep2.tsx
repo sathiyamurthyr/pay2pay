@@ -21,6 +21,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
+import { TransferAmountInput } from "../Amount/TransferAmountInput";
 
 export interface WorkstationStep2Props {
   customer: CustomerData | null;
@@ -247,61 +248,19 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         }}
       >
         <Box>
-          <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", mb: 1.25 }}>
-            TRANSFER WORKSPACE
-          </Typography>
-
-          {/* Amount Input */}
-          <TextField
-            fullWidth
-            type="number"
-            value={amount === 0 ? "" : amount}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value);
-              onAmountChange(isNaN(val) ? 0 : val);
-            }}
-            placeholder="0.00"
-            slotProps={{
-              input: {
-                startAdornment: <Typography sx={{ color: "#2563EB", fontWeight: 900, fontSize: "24px", mr: 0.5 }}>₹</Typography>,
-                sx: {
-                  height: 52,
-                  fontSize: "24px",
-                  fontWeight: 900,
-                  color: "#FFFFFF",
-                  bgcolor: "rgba(8, 17, 31, 0.9)",
-                  borderRadius: "10px",
-                  px: 1.5,
-                  "& input": { textAlign: "right" },
-                },
-              },
-            }}
+          {/* Redesigned Enterprise Transfer Amount Component (No Spinners, Text Input, Validation Limits Bar) */}
+          <TransferAmountInput
+            amount={amount}
+            onAmountChange={onAmountChange}
+            minLimit={100}
+            maxLimit={50000}
+            remainingDaily={customer?.dailyLimitRemaining ?? 25000}
+            walletBalance={customer?.walletBalance ?? 124500}
           />
 
           <AmountInWords amount={amount} />
 
-          {/* Quick Amount Chips */}
-          <Stack direction="row" spacing={0.75} sx={{ mt: 1.25, mb: 1.5, flexWrap: "wrap", gap: 0.75 }}>
-            {quickAmounts.map((preset) => (
-              <Chip
-                key={preset}
-                label={`+ ₹${preset.toLocaleString()}`}
-                onClick={() => onAmountChange(preset)}
-                sx={{
-                  height: 30,
-                  px: 1,
-                  borderRadius: "6px",
-                  fontSize: "11px",
-                  fontWeight: amount === preset ? 900 : 700,
-                  bgcolor: amount === preset ? "#2563EB" : "rgba(255, 255, 255, 0.05)",
-                  color: "#FFFFFF",
-                  cursor: "pointer",
-                }}
-              />
-            ))}
-          </Stack>
-
-          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1 }} />
+          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
 
           {/* KPI Summary Table */}
           <Stack spacing={1}>
