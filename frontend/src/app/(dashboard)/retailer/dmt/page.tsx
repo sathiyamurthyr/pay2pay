@@ -1142,158 +1142,7 @@ export default function DmtPage() {
   }
 
   return (
-    <Box sx={{ pb: 14, minHeight: "100vh", bgcolor: "#F6F8FC", color: "#0F172A" }}>
-      {/* ── ZONE 1: SIGNATURE PAY2PAY GLASS HEADER (COMPACT 35% REDUCED HEIGHT) ── */}
-      <Paper
-        elevation={0}
-        sx={{
-          px: 3.5,
-          py: 1.4,
-          borderBottom: "1px solid #E8EBF3",
-          background: "rgba(255, 255, 255, 0.9)",
-          backdropFilter: "blur(16px)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          position: "sticky",
-          top: 0,
-          zIndex: 1100,
-          boxShadow: "0 4px 20px rgba(15, 44, 89, 0.04)",
-        }}
-      >
-        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <IconButton size="small" sx={{ color: BANK_BLUE, bgcolor: "#F4F7FC", p: 1, "&:hover": { bgcolor: BANK_GOLD_LIGHT } }}>
-            <MenuIcon />
-          </IconButton>
-
-          {/* BRAND LOGO BADGE */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Paper
-              elevation={0}
-              sx={{
-                px: 1.8,
-                py: 0.5,
-                borderRadius: "10px",
-                background: "linear-gradient(135deg, #0F2C59 0%, #7B1E3A 100%)",
-                border: "1px solid #D4AF37",
-                color: "#FFFFFF",
-                fontWeight: 900,
-                fontSize: "14px",
-                letterSpacing: "1px",
-                boxShadow: "0 2px 8px rgba(15, 44, 89, 0.2)",
-              }}
-            >
-              PAY2PAY
-            </Paper>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "17px", letterSpacing: "-0.4px", lineHeight: 1.1 }}>
-                Domestic Money Transfer (DMT)
-              </Typography>
-              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "11px" }}>
-                PAY2PAY Enterprise Retail Banking Platform
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* GLOBAL SEARCH & KEYBOARD HINT */}
-          <Paper
-            elevation={0}
-            onClick={() => customerSearchRef.current?.focus()}
-            sx={{
-              display: { xs: "none", xl: "flex" },
-              alignItems: "center",
-              gap: 1.5,
-              px: 2,
-              py: 0.6,
-              bgcolor: "#F1F5F9",
-              borderRadius: "10px",
-              border: "1px solid #E2E8F0",
-              cursor: "pointer",
-            }}
-          >
-            <SearchIcon sx={{ color: "#64748B", fontSize: 18 }} />
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "12px" }}>
-              Universal Search...
-            </Typography>
-            <Chip label="Ctrl + K" size="small" sx={{ height: 18, fontSize: "10px", fontWeight: 800, bgcolor: "#FFFFFF", color: "#475569" }} />
-          </Paper>
-
-          <Chip
-            label="⚡ Live Intelligence"
-            size="small"
-            onClick={() => setSystemDrawerOpen(true)}
-            sx={{
-              height: 28,
-              fontSize: "12px",
-              fontWeight: 800,
-              bgcolor: "rgba(212, 175, 55, 0.15)",
-              color: BANK_BLUE,
-              border: `1px solid ${BANK_GOLD_BORDER}`,
-              cursor: "pointer",
-              px: 0.5,
-              transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-              "&:hover": {
-                bgcolor: BANK_GOLD,
-                color: "#FFFFFF",
-                transform: "translateY(-1px)",
-                boxShadow: "0 4px 12px rgba(212, 175, 55, 0.3)",
-              },
-            }}
-          />
-        </Stack>
-
-        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          {/* BUSINESS DATE & CONNECTION STATUS */}
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", display: { xs: "none", lg: "flex" } }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: SUCCESS_GREEN, boxShadow: `0 0 8px ${SUCCESS_GREEN}` }} />
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "11px" }}>
-              Live 100% • 07 Aug 2026
-            </Typography>
-          </Stack>
-
-          <IconButton size="small" onClick={() => setSoundEnabled(!soundEnabled)} sx={{ color: soundEnabled ? BANK_GOLD : "#94A3B8", bgcolor: soundEnabled ? BANK_GOLD_LIGHT : "transparent" }}>
-            {soundEnabled ? <VolumeUpIcon sx={{ fontSize: 20 }} /> : <VolumeOffIcon sx={{ fontSize: 20 }} />}
-          </IconButton>
-
-          {/* SIGNATURE PAY2PAY WALLET CARD */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1.5,
-              px: 2,
-              py: 0.7,
-              background: "linear-gradient(135deg, #FFF8E8 0%, #FFFFFF 100%)",
-              borderRadius: "12px",
-              border: `1.5px solid ${BANK_GOLD_BORDER}`,
-              boxShadow: "0 4px 16px rgba(212, 175, 55, 0.12)",
-            }}
-          >
-            <AccountBalanceWalletIcon sx={{ color: BANK_GOLD, fontSize: 22, filter: "drop-shadow(0 2px 4px rgba(212, 175, 55, 0.3))" }} />
-            <Box>
-              <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
-                WALLET BALANCE
-              </Typography>
-              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "16px", lineHeight: 1.1 }}>
-                ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </Typography>
-            </Box>
-            <Chip label={`+₹${wallet.todayMargin.toFixed(2)}`} size="small" sx={{ bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN, fontWeight: 800, height: 20, fontSize: "10px" }} />
-          </Box>
-
-          <IconButton size="small" sx={{ color: "#64748B" }}>
-            <NotificationsIcon sx={{ fontSize: 20 }} />
-          </IconButton>
-
-          <Stack direction="row" spacing={1.2} sx={{ alignItems: "center", pl: 1.5, borderLeft: "1px solid #E2E8F0" }}>
-            <Avatar sx={{ width: 34, height: 34, background: PRIMARY_GRADIENT, color: "#FFFFFF", fontSize: "13px", fontWeight: 800, boxShadow: "0 2px 8px rgba(123, 30, 58, 0.25)" }}>RK</Avatar>
-            <Box sx={{ display: { xs: "none", md: "block" } }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "13px", lineHeight: 1.1 }}>Ramesh Kumar</Typography>
-              <Typography variant="caption" sx={{ color: BANK_GOLD, fontWeight: 700, fontSize: "11px" }}>Retailer Console</Typography>
-            </Box>
-          </Stack>
-        </Stack>
-      </Paper>
+    <Box sx={{ pb: 16, minHeight: "100vh", bgcolor: "#F6F8FC", color: "#0F172A" }}>
 
       {/* ── 3-COLUMN RESPONSIVE ENTERPRISE OPERATING PLATFORM (20% LEFT | 58% CENTER | 22% RIGHT) ── */}
       <Box sx={{ maxWidth: 1780, mx: "auto", px: 3, pt: 2 }}>
@@ -1374,10 +1223,10 @@ export default function DmtPage() {
                             </Box>
 
                             <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Typography variant="subtitle2" noWrap sx={{ fontWeight: isCurrent ? 900 : 700, color: isCurrent ? BANK_MAROON : isCompleted ? SUCCESS_GREEN : "#0F172A", fontSize: "13px", lineHeight: 1.1 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: isCurrent ? 900 : 700, color: isCurrent ? BANK_MAROON : isCompleted ? SUCCESS_GREEN : "#0F172A", fontSize: "13px", lineHeight: 1.2, wordBreak: "break-word" }}>
                                 {st.title}
                               </Typography>
-                              <Typography variant="caption" noWrap sx={{ color: "#64748B", fontSize: "11px", display: "block" }}>
+                              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px", display: "block", wordBreak: "break-word" }}>
                                 {st.subtitle}
                               </Typography>
                             </Box>
@@ -2158,15 +2007,15 @@ export default function DmtPage() {
               {/* WALLET TELEMETRY & EARNINGS */}
               <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, bgcolor: "linear-gradient(135deg, #FFF8E8 0%, #FFFFFF 100%)", border: `1px solid ${BANK_GOLD_BORDER}` }}>
                 <Typography variant="caption" sx={{ color: BANK_BLUE, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", mb: 1.5 }}>
-                  WALLET TELEMETRY &amp; COMMISSION
+                  TODAY'S MARGIN &amp; TELEMETRY
                 </Typography>
                 <Stack spacing={1.2}>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Main Balance</Typography>
+                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Active Main Balance</Typography>
                     <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_BLUE }}>₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Today's Margin</Typography>
+                    <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>Today's Margin Earned</Typography>
                     <Typography variant="subtitle2" sx={{ fontWeight: 800, color: SUCCESS_GREEN }}>+ ₹{wallet.todayMargin.toFixed(2)}</Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
