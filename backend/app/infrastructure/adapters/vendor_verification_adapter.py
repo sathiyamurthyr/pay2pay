@@ -157,12 +157,7 @@ class CashfreeVerificationAdapter(BaseVerificationVendorAdapter):
         # Check invalid account pattern (accounts ending with 0000 are treated as non-existent)
         account_valid = not account_number.endswith("0000")
         if account_valid:
-            clean_name = name.strip().upper()
-            tokens = clean_name.split()
-            if len(tokens) == 1:
-                name_returned = f"{clean_name} MURTHY R"
-            else:
-                name_returned = f"{clean_name} R"
+            name_returned = name.strip().upper()
         else:
             name_returned = None
 

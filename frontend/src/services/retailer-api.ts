@@ -709,7 +709,7 @@ export const retailerApi = {
     }
 
     const masked = `XXXX-XXXX-${payload.account_number.slice(-4)}`;
-    const fallbackName = payload.account_holder.length < 10 ? `${payload.account_holder.toUpperCase()} MURTHY R` : payload.account_holder.toUpperCase();
+    const fallbackName = payload.account_holder.toUpperCase();
     const fallbackBen = {
       beneficiary_id: `ben-${Date.now()}`,
       account_holder_name: fallbackName,

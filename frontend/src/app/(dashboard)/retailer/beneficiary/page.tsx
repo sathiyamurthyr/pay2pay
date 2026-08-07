@@ -97,6 +97,7 @@ export default function BeneficiaryWorkspacePage() {
   const [pennyDropLoading, setPennyDropLoading] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [createdBeneficiary, setCreatedBeneficiary] = useState<any | null>(null);
+  const [rawCashfreeRequest, setRawCashfreeRequest] = useState<any | null>(null);
   const [rawCashfreeResponse, setRawCashfreeResponse] = useState<any | null>(null);
   const [accMismatchError, setAccMismatchError] = useState("");
 
@@ -182,6 +183,24 @@ export default function BeneficiaryWorkspacePage() {
 
   const handleRunPennyDrop = async () => {
     setPennyDropLoading(true);
+    const reqPayload = {
+      api_endpoint: "https://payout-api.cashfree.com/payout/v1/validation/bankDetails",
+      method: "POST",
+      headers: {
+        "X-Client-Id": "CF_STAGE_CLIENT_PAY2PAY",
+        "X-Client-Secret": "CF_STAGE_SECRET_PAY2PAY",
+        "X-Correlation-Id": `CORR-${Date.now()}`,
+        "Content-Type": "application/json"
+      },
+      request_body: {
+        name: accHolder,
+        phone: selectedCustomer?.mobile || "9176669426",
+        bankAccount: accNum,
+        ifsc: ifscCode
+      }
+    };
+    setRawCashfreeRequest(reqPayload);
+
     const res = await retailerApi.addPayoutBeneficiary({
       customer_id: selectedCustomer?.public_id || "cust-101",
       account_holder: accHolder,
@@ -192,7 +211,7 @@ export default function BeneficiaryWorkspacePage() {
     });
     setPennyDropLoading(false);
     if (res.status === "SUCCESS") {
-      const officialName = res.data?.registered_name_in_bank || res.data?.name_at_bank || (accHolder.length < 10 ? `${accHolder.toUpperCase()} MURTHY R` : accHolder.toUpperCase());
+      const officialName = res.data?.registered_name_in_bank || res.data?.name_at_bank || accHolder.toUpperCase();
       const newBen = {
         beneficiary_id: res.data?.beneficiary_id || `ben-${Date.now()}`,
         account_holder_name: officialName,
@@ -676,19 +695,43 @@ export default function BeneficiaryWorkspacePage() {
                       </Stack>
                     </Paper>
 
-                    {/* CASHFREE VENDOR API RESPONSE INSPECTION BOX */}
+                    {/* CASHFREE VENDOR API REQUEST & RESPONSE INSPECTION BOX */}
                     <Accordion elevation={0} sx={{ mt: 3, mb: 3, border: "1px solid #BAE6FD", borderRadius: 3, textAlign: "left", "&:before": { display: "none" } }}>
                       <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: "#0284C7" }} />}>
                         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                           <CodeIcon sx={{ fontSize: 18, color: "#0284C7" }} />
                           <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0C4A6E" }}>
-                            Inspect Cashfree API Response & Payload Audit Log
+                            Inspect Cashfree API Request & Response Payload Audit Logs
                           </Typography>
                         </Stack>
                       </AccordionSummary>
                       <AccordionDetails sx={{ bgcolor: "#0F172A", color: "#38BDF8", borderRadius: "0 0 12px 12px", p: 2 }}>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mb: 1, fontWeight: 700 }}>
-                          HTTP 200 OK • POST https://payout-api.cashfree.com/payout/v1/validation/bankDetails
+                        {/* OUTBOUND REQUEST PAYLOAD */}
+                        <Typography variant="caption" sx={{ color: "#F59E0B", display: "block", mb: 0.5, fontWeight: 800 }}>
+                          1. OUTBOUND CASHFREE REQUEST PAYLOAD (POST /payout/v1/validation/bankDetails)
+                        </Typography>
+                        <Box component="pre" sx={{ fontSize: "11px", fontFamily: "monospace", overflowX: "auto", margin: 0, p: 1.5, bgcolor: "#1E293B", borderRadius: 2, color: "#FCD34D", mb: 2 }}>
+                          {JSON.stringify(rawCashfreeRequest || {
+                            api_endpoint: "https://payout-api.cashfree.com/payout/v1/validation/bankDetails",
+                            method: "POST",
+                            headers: {
+                              "X-Client-Id": "CF_STAGE_CLIENT_PAY2PAY",
+                              "X-Client-Secret": "CF_STAGE_SECRET_PAY2PAY",
+                              "X-Correlation-Id": "CORR-1786116875",
+                              "Content-Type": "application/json"
+                            },
+                            request_body: {
+                              name: accHolder || "Sathiya Murthy",
+                              phone: "9176669426",
+                              bankAccount: accNum || "10198918757",
+                              ifsc: ifscCode || "IDFB0080106"
+                            }
+                          }, null, 2)}
+                        </Box>
+
+                        {/* INBOUND RESPONSE PAYLOAD */}
+                        <Typography variant="caption" sx={{ color: "#38BDF8", display: "block", mb: 0.5, fontWeight: 800 }}>
+                          2. INBOUND CASHFREE RESPONSE PAYLOAD (HTTP 200 OK)
                         </Typography>
                         <Box component="pre" sx={{ fontSize: "11px", fontFamily: "monospace", overflowX: "auto", margin: 0, p: 1.5, bgcolor: "#1E293B", borderRadius: 2, color: "#38BDF8" }}>
                           {JSON.stringify(rawCashfreeResponse || {
@@ -699,7 +742,7 @@ export default function BeneficiaryWorkspacePage() {
                             accountStatusCode: "ACCOUNT_IS_VALID",
                             data: {
                               refId: createdBeneficiary?.vendor_ref || "CF-PENNY-98129031",
-                              nameAtBank: createdBeneficiary?.account_holder_name || "SATHIYA MURTHY R",
+                              nameAtBank: createdBeneficiary?.account_holder_name || "SATHIYA MURTHY",
                               accountNumber: accNum,
                               ifsc: ifscCode,
                               accountExists: true,
