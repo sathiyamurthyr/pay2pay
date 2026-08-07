@@ -11,19 +11,15 @@ import {
   Divider,
   LinearProgress,
   Tooltip,
-  Badge,
-  Grid,
 } from "@mui/material";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import SpeedIcon from "@mui/icons-material/Speed";
-import VerifiedIcon from "@mui/icons-material/Verified";
-import NotificationsIcon from "@mui/icons-material/Notifications";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import CloseIcon from "@mui/icons-material/Close";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export const RightContextPanel: React.FC<{
@@ -31,11 +27,11 @@ export const RightContextPanel: React.FC<{
   onToggleCollapse?: () => void;
 }> = ({ collapsed = false, onToggleCollapse }) => {
   const { wallet, syncBalance, isSyncing } = useRetailerStore();
-  const [bankList, setBankList] = useState([
-    { name: "HDFC Bank", status: "ONLINE", mode: "IMPS/NEFT", successRate: "99.4%" },
-    { name: "State Bank of India", status: "ONLINE", mode: "IMPS/NEFT", successRate: "98.9%" },
-    { name: "ICICI Bank", status: "ONLINE", mode: "IMPS/NEFT", successRate: "99.1%" },
-    { name: "Axis Bank", status: "SLOW", mode: "NEFT Only", successRate: "94.2%" },
+  const [bankList] = useState([
+    { name: "HDFC Bank", status: "ONLINE", successRate: "99.9%" },
+    { name: "ICICI Bank", status: "ONLINE", successRate: "99.7%" },
+    { name: "State Bank of India", status: "SLOW", successRate: "98.4%" },
+    { name: "Axis Bank", status: "ONLINE", successRate: "99.5%" },
   ]);
 
   if (collapsed) {
@@ -43,15 +39,16 @@ export const RightContextPanel: React.FC<{
       <Box
         sx={{
           width: 48,
-          borderLeft: "1px solid #E2E8F0",
-          bgcolor: "#FFFFFF",
+          borderLeft: "1px solid rgba(255, 255, 255, 0.12)",
+          bgcolor: "rgba(18, 27, 48, 0.75)",
+          backdropFilter: "blur(20px)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           py: 2,
         }}
       >
-        <IconButton onClick={onToggleCollapse} size="small">
+        <IconButton onClick={onToggleCollapse} size="small" sx={{ color: "#FFFFFF" }}>
           <ChevronLeftIcon />
         </IconButton>
         <Tooltip title="Live Bank Health" placement="left">
@@ -72,172 +69,159 @@ export const RightContextPanel: React.FC<{
     <Paper
       elevation={0}
       sx={{
-        width: 320,
+        width: 340,
         height: "100%",
-        borderLeft: "1px solid #E2E8F0",
-        backgroundColor: "#F8FAFC",
+        borderLeft: "1px solid rgba(255, 255, 255, 0.12)",
+        backgroundColor: "rgba(18, 27, 48, 0.75)",
+        backdropFilter: "blur(20px)",
         display: "flex",
         flexDirection: "column",
         overflowY: "auto",
+        p: 2,
+        gap: 2,
       }}
     >
-      {/* Panel Header */}
-      <Box
+      {/* 1. SMALL COMPACT PILL: SYSTEM STATUS SWITCH */}
+      <Paper
+        elevation={0}
         sx={{
-          p: 2,
-          borderBottom: "1px solid #E2E8F0",
-          backgroundColor: "#FFFFFF",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          p: 1.5,
+          borderRadius: "12px",
+          bgcolor: "rgba(34, 197, 94, 0.12)",
+          border: "1px solid rgba(34, 197, 94, 0.3)",
         }}
       >
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          <SpeedIcon sx={{ color: "#0284C7", fontSize: 20 }} />
-          <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F172A" }}>
-            Live Intelligence
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 20 }} />
+            <Typography variant="caption" sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "12px", letterSpacing: "0.04em" }}>
+              SYSTEM STATUS: 100% ONLINE
+            </Typography>
+          </Stack>
+          <Chip label="OPERATIONAL" size="small" sx={{ bgcolor: "#4ADE80", color: "#0F172A", fontWeight: 900, height: 20, fontSize: "10px" }} />
+        </Stack>
+      </Paper>
+
+      {/* 2. MEDIUM CARD: REAL-TIME BANK HEALTH */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          borderRadius: "16px",
+          bgcolor: "rgba(15, 23, 42, 0.6)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+        }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1.5 }}>
+          <SpeedIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
+          <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            REAL-TIME BANK HEALTH
           </Typography>
         </Stack>
-        {onToggleCollapse && (
-          <IconButton size="small" onClick={onToggleCollapse}>
-            <ChevronRightIcon />
+
+        <Stack spacing={1.2}>
+          {bankList.map((b) => (
+            <Stack key={b.name} direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+              <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "13px" }}>
+                {b.name}
+              </Typography>
+              <Chip
+                label={b.successRate}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  bgcolor: b.status === "ONLINE" ? "rgba(34, 197, 94, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                  color: b.status === "ONLINE" ? "#4ADE80" : "#FBBF24",
+                  border: `1px solid ${b.status === "ONLINE" ? "rgba(34, 197, 94, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+                }}
+              />
+            </Stack>
+          ))}
+        </Stack>
+      </Paper>
+
+      {/* 3. MEDIUM CARD: OPERATOR WALLET SUMMARY */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          borderRadius: "16px",
+          bgcolor: "rgba(15, 23, 42, 0.6)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+        }}
+      >
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+          <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            TODAY'S OPERATOR TELEMETRY
+          </Typography>
+          <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ color: "#60A5FA" }}>
+            <RefreshIcon sx={{ fontSize: 16 }} />
           </IconButton>
-        )}
-      </Box>
+        </Stack>
 
-      <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-        {/* ── 1. BANK HEALTH & GATEWAY STATUS ── */}
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
-          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-            <Typography variant="caption" sx={{ fontWeight: 900, color: "#475569", textTransform: "uppercase", letterSpacing: 0.5 }}>
-              Bank Health Monitor
-            </Typography>
-            <Chip label="All Systems Normal" size="small" sx={{ bgcolor: "#DCFCE7", color: "#166534", fontWeight: 800, height: 20, fontSize: "0.65rem" }} />
-          </Stack>
+        <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", mb: 1.5, fontFamily: "monospace" }}>
+          ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+        </Typography>
 
-          <Stack spacing={1}>
-            {bankList.map((b) => (
-              <Box key={b.name} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: "#1E293B" }}>
-                  {b.name}
-                </Typography>
-                <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                  <Chip
-                    label={b.status}
-                    size="small"
-                    sx={{
-                      height: 18,
-                      fontSize: "0.6rem",
-                      fontWeight: 800,
-                      bgcolor: b.status === "ONLINE" ? "#DCFCE7" : "#FEF3C7",
-                      color: b.status === "ONLINE" ? "#15803D" : "#B45309",
-                    }}
-                  />
-                  <Typography variant="caption" sx={{ color: "#64748B", fontSize: "0.65rem" }}>
-                    {b.successRate}
-                  </Typography>
-                </Stack>
-              </Box>
-            ))}
-          </Stack>
+        <Stack spacing={1}>
+          <Box>
+            <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
+              <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", fontWeight: 600 }}>Daily Limit</Typography>
+              <Typography variant="caption" sx={{ color: "#FFFFFF", fontWeight: 800 }}>₹25,000 / ₹75,000</Typography>
+            </Stack>
+            <LinearProgress variant="determinate" value={33} sx={{ height: 6, borderRadius: 3, bgcolor: "rgba(255, 255, 255, 0.1)", "& .MuiLinearProgress-bar": { bgcolor: "#2563EB" } }} />
+          </Box>
+        </Stack>
+      </Paper>
 
-          <Divider sx={{ my: 1.5 }} />
-
-          <Grid container spacing={1}>
-            <Grid size={{ xs: 6 }}>
-              <Box sx={{ p: 1, bgcolor: "#F0FDF4", borderRadius: 2, border: "1px solid #BBF7D0", textAlign: "center" }}>
-                <Typography variant="caption" sx={{ color: "#166534", fontWeight: 800, display: "block" }}>
-                  NPCI Gateway
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#15803D", fontWeight: 900 }}>
-                  🟢 99.8% Up
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid size={{ xs: 6 }}>
-              <Box sx={{ p: 1, bgcolor: "#F0F9FF", borderRadius: 2, border: "1px solid #BAE6FD", textAlign: "center" }}>
-                <Typography variant="caption" sx={{ color: "#075985", fontWeight: 800, display: "block" }}>
-                  Cashfree API
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#0369A1", fontWeight: 900 }}>
-                  🟢 Operational
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </Paper>
-
-        {/* ── 2. LIVE WALLET SUMMARY & LIMIT USAGE ── */}
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
-          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-            <Typography variant="caption" sx={{ fontWeight: 900, color: "#475569", textTransform: "uppercase", letterSpacing: 0.5 }}>
-              Main Wallet Balance
-            </Typography>
-            <IconButton size="small" onClick={syncBalance} disabled={isSyncing}>
-              <RefreshIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Stack>
-
-          <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A", mb: 1.5 }}>
-            ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+      {/* 4. LARGE PROMINENT CARD: AI SMART ROUTE ENGINE */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2.5,
+          borderRadius: "16px",
+          bgcolor: "rgba(37, 99, 235, 0.2)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(37, 99, 235, 0.4)",
+          boxShadow: "0 8px 32px rgba(37, 99, 235, 0.25)",
+        }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
+          <AutoAwesomeIcon sx={{ color: "#60A5FA", fontSize: 22 }} />
+          <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px" }}>
+            AI Route Optimization
           </Typography>
+        </Stack>
+        <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.90)", fontSize: "13px", lineHeight: 1.5 }}>
+          HDFC DirectSwitch route selected automatically for minimum latency. Estimated settlement speed: <strong>1.2s</strong>.
+        </Typography>
+      </Paper>
 
-          <Stack spacing={1}>
-            <Box>
-              <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
-                <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>
-                  Daily Transfer Limit
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#0F172A", fontWeight: 800 }}>
-                  ₹25,000 / ₹75,000
-                </Typography>
-              </Stack>
-              <LinearProgress variant="determinate" value={33} sx={{ height: 6, borderRadius: 3, bgcolor: "#E2E8F0", "& .MuiLinearProgress-bar": { bgcolor: "#0284C7" } }} />
-            </Box>
-
-            <Box>
-              <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
-                <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>
-                  Monthly DMT Limit
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#0F172A", fontWeight: 800 }}>
-                  ₹85,000 / ₹2,000,000
-                </Typography>
-              </Stack>
-              <LinearProgress variant="determinate" value={42.5} sx={{ height: 6, borderRadius: 3, bgcolor: "#E2E8F0", "& .MuiLinearProgress-bar": { bgcolor: "#16A34A" } }} />
-            </Box>
-          </Stack>
-        </Paper>
-
-        {/* ── 3. RECENT ALERTS & NOTIFICATIONS ── */}
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
-          <Typography variant="caption" sx={{ fontWeight: 900, color: "#475569", textTransform: "uppercase", letterSpacing: 0.5, mb: 1.5, display: "block" }}>
-            Live Notifications
+      {/* 5. DYNAMIC NOTIFICATION ALERTS */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          borderRadius: "16px",
+          bgcolor: "rgba(15, 23, 42, 0.6)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+        }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
+          <NotificationsIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
+          <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            LIVE NOTIFICATIONS
           </Typography>
-
-          <Stack spacing={1}>
-            {[
-              { title: "Cashfree Penny Drop Verified", time: "2m ago", type: "success" },
-              { title: "Wallet Auto-Topup Received", time: "15m ago", type: "info" },
-              { title: "HDFC NEFT Maintenance Scheduled", time: "1h ago", type: "warning" },
-            ].map((n, idx) => (
-              <Box key={idx} sx={{ p: 1.25, borderRadius: 2, bgcolor: "#F8FAFC", border: "1px solid #F1F5F9" }}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                  <CheckCircleIcon sx={{ fontSize: 16, color: n.type === "success" ? "#16A34A" : n.type === "info" ? "#0284C7" : "#D97706" }} />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F172A", display: "block" }}>
-                      {n.title}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "0.65rem" }}>
-                      {n.time}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-            ))}
-          </Stack>
-        </Paper>
-      </Box>
+        </Stack>
+        <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "12px" }}>
+          • Cashfree Penny Drop Verified (2m ago)
+        </Typography>
+        <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "12px", mt: 0.5 }}>
+          • IMPS Settlement Completed (12m ago)
+        </Typography>
+      </Paper>
     </Paper>
   );
 };

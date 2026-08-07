@@ -42,7 +42,7 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
       )}
 
       {/* Amount Entry & Charges Breakdown */}
-      <AmountPanel amount={amount} onAmountChange={setAmount} />
+      <AmountPanel amount={amount} onAmountChange={setAmount} charges={charges} totalPayable={totalPayable} />
       <ChargesPanel amount={amount} charges={charges} totalPayable={totalPayable} />
 
       {/* Audit Ledger Data Grid */}

@@ -1,19 +1,19 @@
 import React from "react";
-import { Paper, Box, Typography, Stack } from "@mui/material";
+import { Paper, Box, Typography, Stack, Button, Chip } from "@mui/material";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
-import { Button } from "@/design-system/components";
-import { tokens } from "@/design-system/tokens/design-tokens";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 export interface StickyFooterProps {
-  leftAction?: React.ReactNode;
-  contextText?: string;
-  rightAction?: React.ReactNode;
+  stepText?: string;
+  onBack?: () => void;
+  onContinue?: () => void;
 }
 
 export const StickyFooter: React.FC<StickyFooterProps> = ({
-  leftAction = <Button variant="outlined" color="primary">← Back</Button>,
-  contextText = "Step 1 of 6: Customer Search & Identification",
-  rightAction = <Button variant="contained" color="primary">Continue to Transfer →</Button>,
+  stepText = "Step 1 of 6: Customer Search & Identification",
+  onBack,
+  onContinue,
 }) => (
   <Paper
     elevation={0}
@@ -23,31 +23,72 @@ export const StickyFooter: React.FC<StickyFooterProps> = ({
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      bgcolor: "rgba(15, 23, 42, 0.9)",
+      bgcolor: "rgba(15, 23, 42, 0.95)",
       backdropFilter: "blur(20px)",
-      borderTop: `1px solid ${tokens.colors.neutral.dark.border}`,
-      position: "sticky",
-      bottom: 0,
-      zIndex: 1100,
+      borderTop: "1px solid rgba(255, 255, 255, 0.12)",
+      width: "100%",
     }}
   >
-    {/* Left Zone: Previous Action */}
-    <Box>{leftAction}</Box>
+    {/* Left Zone: Back Button */}
+    <Button
+      variant="outlined"
+      startIcon={<ArrowBackIcon />}
+      onClick={onBack}
+      sx={{
+        height: 44,
+        borderRadius: "12px",
+        px: 2.5,
+        fontSize: "14px",
+        fontWeight: 700,
+        color: "#FFFFFF",
+        borderColor: "rgba(255, 255, 255, 0.25)",
+        bgcolor: "rgba(255, 255, 255, 0.05)",
+        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", borderColor: "#60A5FA" },
+        "&:active": { transform: "scale(0.98)" },
+      }}
+    >
+      Previous Step
+    </Button>
 
-    {/* Center Zone: Workflow Context & Shortcuts */}
-    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-      <Typography variant="body2" sx={{ color: tokens.colors.neutral.dark.textSecondary, fontWeight: 600 }}>
-        {contextText}
+    {/* Center Zone: Workflow Progress & Keyboard Shortcuts */}
+    <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+      <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "14px" }}>
+        {stepText}
       </Typography>
-      <Stack direction="row" spacing={0.5} sx={{ bgcolor: tokens.colors.neutral.dark.surface, px: 1, py: 0.3, borderRadius: tokens.radii.xs, alignItems: "center" }}>
-        <KeyboardIcon sx={{ fontSize: 14, color: tokens.colors.neutral.dark.textMuted }} />
-        <Typography variant="caption" sx={{ color: tokens.colors.neutral.dark.textMuted, fontWeight: 700, fontSize: "10px" }}>
-          Ctrl+Enter (Fast Submit)
-        </Typography>
-      </Stack>
+      <Chip
+        icon={<KeyboardIcon sx={{ "&&": { fontSize: 14, color: "#60A5FA" } }} />}
+        label="Ctrl+Enter (Fast Submit)"
+        size="small"
+        sx={{
+          bgcolor: "rgba(255, 255, 255, 0.08)",
+          color: "rgba(255, 255, 255, 0.88)",
+          fontWeight: 700,
+          fontSize: "11px",
+          height: 24,
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+        }}
+      />
     </Stack>
 
-    {/* Right Zone: Primary Action */}
-    <Box>{rightAction}</Box>
+    {/* Right Zone: Large Fixed Primary Action Button */}
+    <Button
+      variant="contained"
+      endIcon={<ArrowForwardIcon />}
+      onClick={onContinue}
+      sx={{
+        height: 44,
+        borderRadius: "12px",
+        px: 3.5,
+        fontSize: "15px",
+        fontWeight: 800,
+        color: "#FFFFFF",
+        bgcolor: "#2563EB",
+        boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
+        "&:hover": { bgcolor: "#1D4ED8" },
+        "&:active": { transform: "scale(0.98)" },
+      }}
+    >
+      Continue to Transfer
+    </Button>
   </Paper>
 );
