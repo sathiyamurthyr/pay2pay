@@ -318,7 +318,7 @@ export default function BeneficiaryWorkspacePage() {
   const completionPercentage = Math.round(((activeStep + 1) / STEPS.length) * 100);
 
   return (
-    <Box sx={{ minHeight: "100vh", backgroundColor: "#F8FAFC", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ height: "100vh", maxHeight: "100vh", backgroundColor: "#F8FAFC", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* ── STICKY ENTERPRISE HEADER ── */}
       <Paper
         square
@@ -328,7 +328,7 @@ export default function BeneficiaryWorkspacePage() {
           top: 0,
           zIndex: 1100,
           px: 3,
-          py: 2,
+          py: 1.25,
           background: "linear-gradient(90deg, #0F172A 0%, #1E293B 100%)",
           color: "#FFFFFF",
           display: "flex",
@@ -343,25 +343,25 @@ export default function BeneficiaryWorkspacePage() {
           </IconButton>
           <Box>
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: "20px", sm: "26px", md: "30px" }, color: "#F8FAFC", letterSpacing: "-0.5px" }}>
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: "18px", sm: "22px", md: "26px" }, color: "#F8FAFC", letterSpacing: "-0.5px" }}>
                 Beneficiary Onboarding Workspace
               </Typography>
               <Chip
                 label="Penny Drop Verified"
                 size="small"
                 sx={{
-                  height: 22,
+                  height: 20,
                   bgcolor: "rgba(56, 189, 248, 0.12)",
                   color: "#38BDF8",
                   border: "1px solid rgba(56, 189, 248, 0.3)",
                   fontWeight: 700,
-                  fontSize: "0.68rem",
+                  fontSize: "0.65rem",
                 }}
               />
             </Stack>
 
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap", mt: 0.5 }}>
-              <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "13px", fontWeight: 500 }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap", mt: 0.25 }}>
+              <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "12px", fontWeight: 500 }}>
                 Bank Master Lookup • Auto IFSC Binding
               </Typography>
 
@@ -369,12 +369,12 @@ export default function BeneficiaryWorkspacePage() {
                 <Chip
                   size="small"
                   avatar={
-                    <Avatar sx={{ bgcolor: "#0284C7", color: "#FFFFFF", fontWeight: 800, fontSize: "11px", width: 22, height: 22 }}>
+                    <Avatar sx={{ bgcolor: "#0284C7", color: "#FFFFFF", fontWeight: 800, fontSize: "11px", width: 20, height: 20 }}>
                       {(activeCustomerName || "C").charAt(0).toUpperCase()}
                     </Avatar>
                   }
                   label={
-                    <Typography variant="caption" sx={{ color: "#F8FAFC", fontWeight: 700, fontSize: "12px" }}>
+                    <Typography variant="caption" sx={{ color: "#F8FAFC", fontWeight: 700, fontSize: "11.5px" }}>
                       Customer: <strong style={{ color: "#38BDF8" }}>{activeCustomerName || "Active Customer"}</strong>
                       {activeCustomerMobile && <> &nbsp;•&nbsp; Mob: <strong style={{ color: "#38BDF8" }}>{activeCustomerMobile}</strong></>}
                       {activeCustomerId && <> &nbsp;•&nbsp; ID: <strong style={{ color: "#CBD5E1" }}>{activeCustomerId}</strong></>}
@@ -383,7 +383,7 @@ export default function BeneficiaryWorkspacePage() {
                   sx={{
                     bgcolor: "rgba(30, 41, 59, 0.85)",
                     border: "1px solid rgba(56, 189, 248, 0.4)",
-                    height: 26,
+                    height: 24,
                     px: 0.5,
                     borderRadius: "6px",
                   }}
@@ -410,12 +410,12 @@ export default function BeneficiaryWorkspacePage() {
         </Stack>
       </Paper>
 
-      {/* ── WORKSPACE BODY ── */}
-      <Box sx={{ flex: 1, maxWidth: 1400, width: "100%", mx: "auto", p: { xs: 2, md: 4 }, pb: 12 }}>
-        <Grid container spacing={4}>
+      {/* ── WORKSPACE BODY (FIT VIEWPORT NO SCROLL) ── */}
+      <Box sx={{ flex: 1, overflowY: "auto", maxWidth: 1400, width: "100%", mx: "auto", p: { xs: 2, md: 3 }, pb: 3 }}>
+        <Grid container spacing={3}>
           {/* LEFT SIDEBAR */}
           <Grid size={{ xs: 12, md: 4, lg: 3 }}>
-            <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF", position: { md: "sticky" }, top: { md: 100 } }}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF" }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F172A", mb: 0.5 }}>
                 Beneficiary Progress
               </Typography>
