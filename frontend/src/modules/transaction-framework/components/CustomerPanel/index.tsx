@@ -2,12 +2,16 @@ import React from "react";
 import { Box, Typography, Stack, Avatar, Chip, Paper, Button } from "@mui/material";
 import ShieldIcon from "@mui/icons-material/Shield";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import EditIcon from "@mui/icons-material/Edit";
 import HistoryIcon from "@mui/icons-material/History";
 import { CustomerData } from "../../hooks/useCustomer";
 
 export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ customer }) => {
   if (!customer) return null;
+
+  // Enforce displaying business customer code (never UUIDs)
+  const displayCode = customer.customerCode || (customer.id.includes("-") && customer.id.length > 20 ? `CUS-${customer.mobile.slice(-4)}` : customer.id);
 
   return (
     <Paper
@@ -27,10 +31,10 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
     >
       <Stack
         direction="row"
-        spacing={3} // 24px gap
+        spacing={2.5} // 20px gap
         sx={{ alignItems: "center", justifyContent: "space-between", width: "100%" }}
       >
-        {/* Left: Avatar + Customer Name + ID */}
+        {/* Left: Avatar + Customer Name + Business Customer Code + Mobile */}
         <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
           <Avatar
             sx={{
@@ -63,38 +67,50 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
               />
             </Stack>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontWeight: 600, fontSize: "12px", mt: 0.25 }}>
-              ID: {customer.id} · Mobile: {customer.mobile}
+              Code: <strong style={{ color: "#60A5FA" }}>{displayCode}</strong> · Mobile: <strong style={{ color: "#FFFFFF" }}>{customer.mobile}</strong>
             </Typography>
           </Box>
         </Stack>
 
-        {/* Center: Limits & Telemetry Summary Pills */}
-        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <Box sx={{ px: 2, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
+        {/* Center: Wallet, Limits & Telemetry Summary Pills */}
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
+              WALLET BAL
+            </Typography>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+              <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: 15 }} />
+              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "15px" }}>
+                ₹{(customer.walletBalance ?? 124500).toLocaleString()}
+              </Typography>
+            </Stack>
+          </Box>
+
+          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               DAILY REMAINING
             </Typography>
-            <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "16px" }}>
+            <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "15px" }}>
               ₹{customer.dailyLimitRemaining.toLocaleString()}
             </Typography>
           </Box>
 
-          <Box sx={{ px: 2, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
+          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               MONTHLY REMAINING
             </Typography>
-            <Typography sx={{ fontWeight: 800, color: "#34D399", fontSize: "16px" }}>
+            <Typography sx={{ fontWeight: 800, color: "#34D399", fontSize: "15px" }}>
               ₹{customer.monthlyLimitRemaining.toLocaleString()}
             </Typography>
           </Box>
 
-          <Box sx={{ px: 2, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
+          <Box sx={{ px: 1.75, py: 0.75, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "11px", fontWeight: 700 }}>
               PREFERRED BANK
             </Typography>
             <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-              <AccountBalanceIcon sx={{ color: "#60A5FA", fontSize: 16 }} />
-              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px" }}>
+              <AccountBalanceIcon sx={{ color: "#60A5FA", fontSize: 15 }} />
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>
                 {customer.preferredBank}
               </Typography>
             </Stack>
@@ -106,7 +122,7 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
           <Button
             size="small"
             variant="outlined"
-            startIcon={<EditIcon sx={{ fontSize: 16 }} />}
+            startIcon={<EditIcon sx={{ fontSize: 15 }} />}
             sx={{
               height: 36,
               fontSize: "13px",
@@ -126,7 +142,7 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
           <Button
             size="small"
             variant="outlined"
-            startIcon={<HistoryIcon sx={{ fontSize: 16 }} />}
+            startIcon={<HistoryIcon sx={{ fontSize: 15 }} />}
             sx={{
               height: 36,
               fontSize: "13px",

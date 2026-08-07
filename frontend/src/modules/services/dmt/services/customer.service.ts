@@ -2,9 +2,10 @@ import { CustomerData } from "@/modules/transaction-framework";
 
 export class DMTCustomerService {
   static async searchCustomerByMobile(mobile: string): Promise<CustomerData | null> {
-    // API Call wrapper simulation / FastAPI backend endpoint integration
+    const mobLast4 = mobile && mobile.length >= 4 ? mobile.slice(-4) : "9812";
     return {
-      id: "CUST-9812",
+      id: `CUST-${mobLast4}`,
+      customerCode: `CUS-${mobLast4}`,
       name: "Ramesh Kumar",
       mobile: mobile || "9876543210",
       kycStatus: "VERIFIED",
@@ -12,12 +13,15 @@ export class DMTCustomerService {
       monthlyLimitRemaining: 200000,
       preferredBank: "HDFC Bank",
       riskRating: "LOW",
+      walletBalance: 124500,
     };
   }
 
   static async registerCustomer(data: { name: string; mobile: string; dob: string }): Promise<CustomerData> {
+    const mobLast4 = data.mobile && data.mobile.length >= 4 ? data.mobile.slice(-4) : "0245";
     return {
-      id: `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: `CUST-${mobLast4}`,
+      customerCode: `CUS-${mobLast4}`,
       name: data.name,
       mobile: data.mobile,
       kycStatus: "VERIFIED",
@@ -25,6 +29,7 @@ export class DMTCustomerService {
       monthlyLimitRemaining: 200000,
       preferredBank: "HDFC Bank",
       riskRating: "LOW",
+      walletBalance: 124500,
     };
   }
 }
