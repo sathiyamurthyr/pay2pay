@@ -1151,7 +1151,7 @@ export default function DmtPage() {
           boxShadow: "0 4px 20px rgba(15, 44, 89, 0.04)",
         }}
       >
-        <Stack direction="row" spacing={2.5} sx={{ alignItems: "center" }}>
+        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
           <IconButton size="small" sx={{ color: BANK_BLUE, bgcolor: "#F4F7FC", p: 1, "&:hover": { bgcolor: BANK_GOLD_LIGHT } }}>
             <MenuIcon />
           </IconButton>
@@ -1176,7 +1176,7 @@ export default function DmtPage() {
               PAY2PAY
             </Paper>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "18px", letterSpacing: "-0.4px", lineHeight: 1.1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "17px", letterSpacing: "-0.4px", lineHeight: 1.1 }}>
                 Domestic Money Transfer (DMT)
               </Typography>
               <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "11px" }}>
@@ -1184,6 +1184,29 @@ export default function DmtPage() {
               </Typography>
             </Box>
           </Box>
+
+          {/* GLOBAL SEARCH & KEYBOARD HINT */}
+          <Paper
+            elevation={0}
+            onClick={() => customerSearchRef.current?.focus()}
+            sx={{
+              display: { xs: "none", xl: "flex" },
+              alignItems: "center",
+              gap: 1.5,
+              px: 2,
+              py: 0.6,
+              bgcolor: "#F1F5F9",
+              borderRadius: "10px",
+              border: "1px solid #E2E8F0",
+              cursor: "pointer",
+            }}
+          >
+            <SearchIcon sx={{ color: "#64748B", fontSize: 18 }} />
+            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "12px" }}>
+              Universal Search...
+            </Typography>
+            <Chip label="Ctrl + K" size="small" sx={{ height: 18, fontSize: "10px", fontWeight: 800, bgcolor: "#FFFFFF", color: "#475569" }} />
+          </Paper>
 
           <Chip
             label="⚡ Live Intelligence"
@@ -1209,7 +1232,15 @@ export default function DmtPage() {
           />
         </Stack>
 
-        <Stack direction="row" spacing={2.5} sx={{ alignItems: "center" }}>
+        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+          {/* BUSINESS DATE & CONNECTION STATUS */}
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", display: { xs: "none", lg: "flex" } }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: SUCCESS_GREEN, boxShadow: `0 0 8px ${SUCCESS_GREEN}` }} />
+            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "11px" }}>
+              Live 100% • 07 Aug 2026
+            </Typography>
+          </Stack>
+
           <IconButton size="small" onClick={() => setSoundEnabled(!soundEnabled)} sx={{ color: soundEnabled ? BANK_GOLD : "#94A3B8", bgcolor: soundEnabled ? BANK_GOLD_LIGHT : "transparent" }}>
             {soundEnabled ? <VolumeUpIcon sx={{ fontSize: 20 }} /> : <VolumeOffIcon sx={{ fontSize: 20 }} />}
           </IconButton>
@@ -1220,10 +1251,10 @@ export default function DmtPage() {
               display: "flex",
               alignItems: "center",
               gap: 1.5,
-              px: 2.2,
-              py: 0.8,
+              px: 2,
+              py: 0.7,
               background: "linear-gradient(135deg, #FFF8E8 0%, #FFFFFF 100%)",
-              borderRadius: "14px",
+              borderRadius: "12px",
               border: `1.5px solid ${BANK_GOLD_BORDER}`,
               boxShadow: "0 4px 16px rgba(212, 175, 55, 0.12)",
             }}
@@ -1233,19 +1264,19 @@ export default function DmtPage() {
               <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", display: "block" }}>
                 WALLET BALANCE
               </Typography>
-              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "17px", lineHeight: 1.1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: BANK_BLUE, fontSize: "16px", lineHeight: 1.1 }}>
                 ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
             </Box>
-            <Chip label={`+₹${wallet.todayMargin.toFixed(2)}`} size="small" sx={{ bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN, fontWeight: 800, height: 22, fontSize: "11px" }} />
+            <Chip label={`+₹${wallet.todayMargin.toFixed(2)}`} size="small" sx={{ bgcolor: SUCCESS_LIGHT, color: SUCCESS_GREEN, fontWeight: 800, height: 20, fontSize: "10px" }} />
           </Box>
 
           <IconButton size="small" sx={{ color: "#64748B" }}>
             <NotificationsIcon sx={{ fontSize: 20 }} />
           </IconButton>
 
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", pl: 1.5, borderLeft: "1px solid #E2E8F0" }}>
-            <Avatar sx={{ width: 36, height: 36, background: PRIMARY_GRADIENT, color: "#FFFFFF", fontSize: "13px", fontWeight: 800, boxShadow: "0 2px 8px rgba(123, 30, 58, 0.25)" }}>RK</Avatar>
+          <Stack direction="row" spacing={1.2} sx={{ alignItems: "center", pl: 1.5, borderLeft: "1px solid #E2E8F0" }}>
+            <Avatar sx={{ width: 34, height: 34, background: PRIMARY_GRADIENT, color: "#FFFFFF", fontSize: "13px", fontWeight: 800, boxShadow: "0 2px 8px rgba(123, 30, 58, 0.25)" }}>RK</Avatar>
             <Box sx={{ display: { xs: "none", md: "block" } }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F172A", fontSize: "13px", lineHeight: 1.1 }}>Ramesh Kumar</Typography>
               <Typography variant="caption" sx={{ color: BANK_GOLD, fontWeight: 700, fontSize: "11px" }}>Retailer Console</Typography>
@@ -1254,14 +1285,14 @@ export default function DmtPage() {
         </Stack>
       </Paper>
 
-      {/* ── 3-COLUMN RESPONSIVE ENTERPRISE OPERATING PLATFORM (22% LEFT | 56% CENTER | 22% RIGHT) ── */}
-      <Box sx={{ maxWidth: 1760, mx: "auto", px: 3, pt: 2 }}>
+      {/* ── 3-COLUMN RESPONSIVE ENTERPRISE OPERATING PLATFORM (20% LEFT | 58% CENTER | 22% RIGHT) ── */}
+      <Box sx={{ maxWidth: 1780, mx: "auto", px: 3, pt: 2 }}>
         <Grid container spacing={2.5}>
-          {/* ── LEFT PANEL (22% WIDTH): INTELLIGENT WORKFLOW NAVIGATOR ── */}
-          <Grid size={{ xs: 12, lg: 2.6 }}>
-            <Stack spacing= {2.5}>
+          {/* ── LEFT PANEL (20% WIDTH): ENTERPRISE WORKFLOW NAVIGATOR ── */}
+          <Grid size={{ xs: 12, lg: 2.4 }}>
+            <Stack spacing={2.5}>
               {/* WORKFLOW PROGRESS NAVIGATOR */}
-              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 3, borderTop: `4px solid ${BANK_BLUE}` }}>
+              <Paper elevation={0} sx={{ ...CARD_STYLE, p: 2.5, borderTop: `4px solid ${BANK_BLUE}` }}>
                 <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
                   <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px" }}>
                     WORKFLOW PROGRESS
@@ -1280,17 +1311,17 @@ export default function DmtPage() {
                   </Box>
 
                   <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "12px", display: "block", mb: 2 }}>
-                    Est. Duration: <strong>&lt; 45 Seconds</strong> • Step {activeStep} of 6
+                    Est. Remaining: <strong>35 Seconds</strong> • Step {activeStep} of 6
                   </Typography>
 
                   {/* VERTICAL STEP TIMELINE */}
-                  <Stack spacing={2}>
+                  <Stack spacing={1.5}>
                     {[
                       { step: 1, title: "Customer Identification", ok: isCustomerValid, subtitle: "Mobile / Aadhaar / ID" },
                       { step: 2, title: "Beneficiary Selection", ok: isBeneficiaryValid, subtitle: "Account & IFSC Verification" },
                       { step: 3, title: "Transfer Amount", ok: numAmount > 0, subtitle: "IMPS / NEFT Settlement" },
                       { step: 4, title: "Review Summary", ok: numAmount > 0 && isCustomerValid && isBeneficiaryValid, subtitle: "Fee & Net Debit Audit" },
-                      { step: 5, title: "Security MPIN", ok: isPinValid, subtitle: "256-bit Retailer Auth" },
+                      { step: 5, title: "Authentication MPIN", ok: isPinValid, subtitle: "256-bit Retailer Auth" },
                       { step: 6, title: "Receipt Dispatch", ok: !!payoutReceipt, subtitle: "PDF & WhatsApp Print" },
                     ].map((st) => {
                       const isCurrent = activeStep === st.step;
@@ -1316,13 +1347,13 @@ export default function DmtPage() {
                           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                             <Box
                               sx={{
-                                width: 32,
-                                height: 32,
+                                width: 30,
+                                height: 30,
                                 borderRadius: "8px",
                                 background: isCompleted ? SUCCESS_GREEN : isCurrent ? PRIMARY_GRADIENT : "#CBD5E1",
                                 color: "#FFFFFF",
                                 fontWeight: 900,
-                                fontSize: "13px",
+                                fontSize: "12px",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
@@ -1332,11 +1363,11 @@ export default function DmtPage() {
                               {isCompleted ? <CheckIcon sx={{ fontSize: 16 }} /> : `0${st.step}`}
                             </Box>
 
-                            <Box sx={{ flex: 1 }}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: isCurrent ? 900 : 700, color: isCurrent ? BANK_MAROON : isCompleted ? SUCCESS_GREEN : "#0F172A", fontSize: "13px", lineHeight: 1.1 }}>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography variant="subtitle2" noWrap sx={{ fontWeight: isCurrent ? 900 : 700, color: isCurrent ? BANK_MAROON : isCompleted ? SUCCESS_GREEN : "#0F172A", fontSize: "13px", lineHeight: 1.1 }}>
                                 {st.title}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
+                              <Typography variant="caption" noWrap sx={{ color: "#64748B", fontSize: "11px", display: "block" }}>
                                 {st.subtitle}
                               </Typography>
                             </Box>
@@ -1371,8 +1402,8 @@ export default function DmtPage() {
             </Stack>
           </Grid>
 
-          {/* ── CENTER PANEL (56% WIDTH): CUSTOMER OPERATIONS WORKSPACE ── */}
-          <Grid size={{ xs: 12, lg: 6.8 }}>
+          {/* ── CENTER PANEL (58% WIDTH): CUSTOMER OPERATIONS WORKSPACE ── */}
+          <Grid size={{ xs: 12, lg: 7.0 }}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeStep}
