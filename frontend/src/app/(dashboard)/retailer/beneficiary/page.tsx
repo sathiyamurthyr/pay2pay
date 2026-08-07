@@ -42,6 +42,27 @@ const STEPS = [
   { label: "Complete", est: "0s" },
 ];
 
+const DEFAULT_BANK_LIST = [
+  { bank_id: 1, bank_name: "HDFC BANK LTD", ifsc: "HDFC0000001", ifsc_code: "HDFC0000001", ifsc_prefix: "HDFC", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/hdfcbank.com", is_top: true },
+  { bank_id: 2, bank_name: "STATE BANK OF INDIA", ifsc: "SBIN0000001", ifsc_code: "SBIN0000001", ifsc_prefix: "SBIN", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/sbi.co.in", is_top: true },
+  { bank_id: 3, bank_name: "ICICI BANK LTD", ifsc: "ICIC0000001", ifsc_code: "ICIC0000001", ifsc_prefix: "ICIC", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/icicibank.com", is_top: true },
+  { bank_id: 4, bank_name: "AXIS BANK LTD", ifsc: "UTIB0000001", ifsc_code: "UTIB0000001", ifsc_prefix: "UTIB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/axisbank.com", is_top: true },
+  { bank_id: 5, bank_name: "KOTAK MAHINDRA BANK LTD", ifsc: "KKBK0000001", ifsc_code: "KKBK0000001", ifsc_prefix: "KKBK", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/kotak.com", is_top: true },
+  { bank_id: 6, bank_name: "PUNJAB NATIONAL BANK", ifsc: "PUNB0000001", ifsc_code: "PUNB0000001", ifsc_prefix: "PUNB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/pnbindia.in", is_top: true },
+  { bank_id: 7, bank_name: "BANK OF BARODA", ifsc: "BARB0000001", ifsc_code: "BARB0000001", ifsc_prefix: "BARB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/bankofbaroda.in", is_top: false },
+  { bank_id: 8, bank_name: "CANARA BANK", ifsc: "CNRB0000001", ifsc_code: "CNRB0000001", ifsc_prefix: "CNRB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/canarabank.com", is_top: false },
+  { bank_id: 9, bank_name: "UNION BANK OF INDIA", ifsc: "UBIN0000001", ifsc_code: "UBIN0000001", ifsc_prefix: "UBIN", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/unionbankofindia.co.in", is_top: false },
+  { bank_id: 10, bank_name: "INDUSIND BANK LTD", ifsc: "INDB0000001", ifsc_code: "INDB0000001", ifsc_prefix: "INDB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/indusind.com", is_top: false },
+  { bank_id: 11, bank_name: "YES BANK LTD", ifsc: "YESB0000001", ifsc_code: "YESB0000001", ifsc_prefix: "YESB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/yesbank.in", is_top: false },
+  { bank_id: 12, bank_name: "IDFC FIRST BANK LTD", ifsc: "IDFB0000001", ifsc_code: "IDFB0000001", ifsc_prefix: "IDFB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/idfcfirstbank.com", is_top: false },
+  { bank_id: 13, bank_name: "FEDERAL BANK LTD", ifsc: "FDRL0000001", ifsc_code: "FDRL0000001", ifsc_prefix: "FDRL", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/federalbank.co.in", is_top: false },
+  { bank_id: 14, bank_name: "AKHAND AANAND CO-OPERATIVE BANK", ifsc: "GSCB0AACBL1", ifsc_code: "GSCB0AACBL1", ifsc_prefix: "GSCB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/hdfcbank.com", is_top: false },
+  { bank_id: 15, bank_name: "SARASWAT CO-OPERATIVE BANK LTD", ifsc: "SRCB0000001", ifsc_code: "SRCB0000001", ifsc_prefix: "SRCB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/saraswatbank.com", is_top: false },
+  { bank_id: 16, bank_name: "SVC CO-OPERATIVE BANK LTD", ifsc: "SVCB0000001", ifsc_code: "SVCB0000001", ifsc_prefix: "SVCB", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/svcbank.com", is_top: false },
+  { bank_id: 17, bank_name: "AU SMALL FINANCE BANK LTD", ifsc: "AUBL0000001", ifsc_code: "AUBL0000001", ifsc_prefix: "AUBL", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/aubank.in", is_top: false },
+  { bank_id: 18, bank_name: "BANDHAN BANK LTD", ifsc: "BDBL0000001", ifsc_code: "BDBL0000001", ifsc_prefix: "BDBL", imps_status: "ACTIVE", logo: "https://logo.clearbit.com/bandhanbank.com", is_top: false },
+];
+
 export default function BeneficiaryWorkspacePage() {
   const router = useRouter();
   const { selectedCustomer, setSelectedBeneficiary, referrerUrl } = useTransactionMemoryStore();
@@ -57,7 +78,7 @@ export default function BeneficiaryWorkspacePage() {
   const [selectedBankObj, setSelectedBankObj] = useState<any | null>(null);
 
   // Bank Search
-  const [bankMasterList, setBankMasterList] = useState<any[]>([]);
+  const [bankMasterList, setBankMasterList] = useState<any[]>(DEFAULT_BANK_LIST);
   const [bankSearchLoading, setBankSearchLoading] = useState(false);
 
   // Verification & Loading State
@@ -76,11 +97,31 @@ export default function BeneficiaryWorkspacePage() {
     setBankSearchLoading(true);
     try {
       const res = await retailerApi.getBankMasterList(query);
-      if (res && res.data) {
-        setBankMasterList(Array.isArray(res.data) ? res.data : []);
+      let list: any[] = [];
+      if (Array.isArray(res)) {
+        list = res;
+      } else if (res && Array.isArray(res.data)) {
+        list = res.data;
+      } else if (res && res.data && Array.isArray(res.data.data)) {
+        list = res.data.data;
+      }
+
+      if (list.length > 0) {
+        setBankMasterList(list);
+      } else if (query) {
+        const q = query.toLowerCase();
+        const filtered = DEFAULT_BANK_LIST.filter(
+          (b) =>
+            b.bank_name.toLowerCase().includes(q) ||
+            (b.ifsc || "").toLowerCase().includes(q) ||
+            (b.ifsc_prefix || "").toLowerCase().includes(q)
+        );
+        setBankMasterList(filtered.length > 0 ? filtered : DEFAULT_BANK_LIST);
+      } else {
+        setBankMasterList(DEFAULT_BANK_LIST);
       }
     } catch {
-      // Fallback
+      setBankMasterList(DEFAULT_BANK_LIST);
     } finally {
       setBankSearchLoading(false);
     }
@@ -357,6 +398,7 @@ export default function BeneficiaryWorkspacePage() {
                       <Stack spacing={3}>
                         <Autocomplete
                           options={bankMasterList}
+                          openOnFocus
                           getOptionLabel={(option) => {
                             if (typeof option === "string") return option;
                             return option.bank_name ? `${option.bank_name} (${option.ifsc_code || option.ifsc || option.ifsc_prefix || ""})` : "";
@@ -365,9 +407,7 @@ export default function BeneficiaryWorkspacePage() {
                           value={selectedBankObj}
                           onChange={(_, val) => handleBankSelect(val)}
                           onInputChange={(_, newInputValue) => {
-                            if (newInputValue && newInputValue.length >= 1) {
-                              fetchBankMasterList(newInputValue);
-                            }
+                            fetchBankMasterList(newInputValue || "");
                           }}
                           renderOption={(props, option) => (
                             <Box component="li" {...props} key={option.bank_id || option.ifsc_code || option.bank_name}>
