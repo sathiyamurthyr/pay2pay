@@ -65,20 +65,18 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
     <Box
       sx={{
         width: "100%",
-        height: "100vh", // Full screen zero browser scroll
-        maxHeight: "100vh",
+        height: "calc(100vh - 56px)", // Exact height matching RetailerLayout main area
+        maxHeight: "calc(100vh - 56px)",
         bgcolor: "#0B132B",
         color: "#FFFFFF",
         overflow: "hidden", // ZERO BROWSER SCROLLBAR
         display: "flex",
         flexDirection: "column",
+        p: 1.5,
       }}
     >
-      {/* 1. GLOBAL FIXED 64px HEADER */}
-      <WorkstationHeader walletBalance={customer?.walletBalance ?? 124500} />
-
-      {/* 2. ZERO-SCROLL BODY (height: calc(100vh - 64px)) */}
-      <Box sx={{ flex: 1, px: 3, py: 1.5, height: "calc(100vh - 64px)", overflow: "hidden" }}>
+      {/* ZERO-SCROLL WORKSTATION BODY */}
+      <Box sx={{ flex: 1, height: "100%", overflow: "hidden" }}>
         {currentStep === 1 && (
           <WorkstationStep1
             customer={customer}

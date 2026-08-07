@@ -921,61 +921,64 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, sm: 3 },
+          p: pathname === "/retailer/dmt" ? 0 : { xs: 2, sm: 3 },
           width: { xs: "100%", lg: `calc(100% - ${activeDrawerWidth}px)` },
           maxWidth: "100vw",
           overflowX: "hidden",
+          overflowY: pathname === "/retailer/dmt" ? "hidden" : "auto",
           mt: "56px",
-          // On mobile, add bottom padding so content doesn't hide behind the bottom nav
-          pb: { xs: "80px", md: 0 },
+          pb: pathname === "/retailer/dmt" ? 0 : { xs: "80px", md: 0 },
           minHeight: "calc(100vh - 56px)",
+          maxHeight: pathname === "/retailer/dmt" ? "calc(100vh - 56px)" : "none",
           display: "flex",
           flexDirection: "column",
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflow: pathname === "/retailer/dmt" ? "hidden" : "visible" }}>
           {children}
         </Box>
 
-        {/* Enterprise Footer */}
-        <Box
-          component="footer"
-          sx={{
-            mt: 4,
-            pt: 2.5,
-            pb: 1.5,
-            borderTop: "1px solid #E5E7EB",
-            display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1.5,
-            color: "#6B7280",
-          }}
-        >
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "12px" }}>
-              © 2026 Pay2Pay FinTech Platform. All Rights Reserved.
-            </Typography>
-            <Chip label="v2.4.0-ENT" size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 800 }} />
-          </Stack>
+        {/* Enterprise Footer (Hidden on DMT Workspace to prevent height overflow) */}
+        {pathname !== "/retailer/dmt" && (
+          <Box
+            component="footer"
+            sx={{
+              mt: 4,
+              pt: 2.5,
+              pb: 1.5,
+              borderTop: "1px solid #E5E7EB",
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1.5,
+              color: "#6B7280",
+            }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "12px" }}>
+                © 2026 Pay2Pay FinTech Platform. All Rights Reserved.
+              </Typography>
+              <Chip label="v2.4.0-ENT" size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 800 }} />
+            </Stack>
 
-          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-              <ShieldIcon sx={{ fontSize: 14, color: "#16A34A" }} />
-              <Typography variant="caption" sx={{ fontWeight: 700, color: "#111827", fontSize: "12px" }}>
-                256-bit SSL
-              </Typography>
+            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+              <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                <ShieldIcon sx={{ fontSize: 14, color: "#16A34A" }} />
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#111827", fontSize: "12px" }}>
+                  256-bit SSL
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                <LockIcon sx={{ fontSize: 14, color: "#2563EB" }} />
+                <Typography variant="caption" sx={{ fontWeight: 700, color: "#111827", fontSize: "12px" }}>
+                  NPCI & BBPS Certified
+                </Typography>
+              </Stack>
             </Stack>
-            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-              <LockIcon sx={{ fontSize: 14, color: "#2563EB" }} />
-              <Typography variant="caption" sx={{ fontWeight: 700, color: "#111827", fontSize: "12px" }}>
-                NPCI & BBPS Certified
-              </Typography>
-            </Stack>
-          </Stack>
-        </Box>
+          </Box>
+        )}
       </Box>
 
     {/* ── Mobile Bottom Navigation (xs / sm only) ────────────────────────── */}

@@ -78,9 +78,14 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 68fr) minmax(340px, 32fr)" },
-        gap: 2,
-        height: "calc(100vh - 64px - 48px)", // Zero browser scroll height formula
+        gridTemplateColumns: {
+          xs: "1fr",
+          lg: "minmax(0, 68fr) minmax(340px, 32fr)",
+          xl: "minmax(0, 70fr) minmax(360px, 30fr)",
+        },
+        gap: 1.5,
+        height: "100%", // 100% of parent container height
+        maxHeight: "100%",
         overflow: "hidden",
       }}
     >
