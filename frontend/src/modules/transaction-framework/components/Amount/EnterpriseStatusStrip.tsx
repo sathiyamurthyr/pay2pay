@@ -56,8 +56,8 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
     <Paper
       elevation={0}
       sx={{
-        height: 52, // Fixed 48px - 56px height strip
-        px: 1.75,
+        height: 44, // Fixed 40px - 48px compact validation status height
+        px: 1.5,
         borderRadius: "10px",
         bgcolor: hasErrors
           ? "rgba(239, 68, 68, 0.15)"
