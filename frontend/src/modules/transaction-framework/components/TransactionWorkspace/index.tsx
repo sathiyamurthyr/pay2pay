@@ -22,11 +22,8 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
   const { beneficiaries, selectedBeneficiary, setSelectedBeneficiary } = useBeneficiary();
 
   return (
-    <Stack spacing={3} sx={{ width: "100%", minWidth: 0 }}>
-      {/* Dynamic Service Header */}
-      <PageHeader title={config.title} subtitle={config.subtitle} />
-
-      {/* Universal Search Input Bar */}
+    <Stack spacing={2.5} sx={{ width: "100%", minWidth: 0, pt: 0 }}>
+      {/* Transaction Toolbar as Very First Primary Control (No Hero Section) */}
       <TransactionSearch placeholder={config.searchPlaceholder} onSearch={searchCustomer} isSearching={isSearching} />
 
       {/* Customer Profile Card */}

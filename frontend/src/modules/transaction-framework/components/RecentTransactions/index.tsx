@@ -27,14 +27,14 @@ export const RecentTransactions: React.FC = () => {
       <Typography
         sx={{
           color: "#60A5FA",
-          fontWeight: 800,
-          fontSize: "24px", // Section Title 24px
+          fontWeight: 600,
+          fontSize: "20px", // Section Heading 20px (Weight 600)
           letterSpacing: "-0.2px",
-          mb: 2, // 16px spacing
+          mb: 2,
           display: "block",
         }}
       >
-        RECENT TRANSACTIONS AUDIT LEDGER
+        Recent Transactions Audit Ledger
       </Typography>
 
       <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
