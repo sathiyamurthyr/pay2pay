@@ -41,7 +41,6 @@ import { M3Button } from "@/components/ui/m3-components";
 import { retailerApi } from "@/services/retailer-api";
 import { notificationEngine } from "@/services/notification-engine";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
-import { CustomerSummaryHeader } from "@/components/customers/customer-summary-header";
 
 const STEPS = [
   { label: "Account Info", est: "20s" },
@@ -296,25 +295,6 @@ export default function BeneficiaryWorkspacePage() {
             <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "13px", fontWeight: 500, mt: 0.25 }}>
               Bank Master Lookup • Auto IFSC Binding • Returns to transaction
             </Typography>
-
-            {/* DIRECT CUSTOMER IDENTITY DISPLAY BENEATH TITLE */}
-            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 0.75, flexWrap: "wrap" }}>
-              <Avatar
-                src={selectedCustomer?.photo_url || selectedCustomer?.photoUrl}
-                sx={{ width: 22, height: 22, fontSize: "0.65rem", fontWeight: 800, bgcolor: "#2563EB", color: "#FFF" }}
-              >
-                {selectedCustomer?.name ? selectedCustomer.name.charAt(0).toUpperCase() : (selectedCustomer?.full_name ? selectedCustomer.full_name.charAt(0).toUpperCase() : "C")}
-              </Avatar>
-              <Typography sx={{ color: "#F8FAFC", fontWeight: 700, fontSize: "13px" }}>
-                {selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || "Active Customer"}
-              </Typography>
-              <Typography sx={{ color: "#CBD5E1", fontSize: "13px" }}>
-                · 📱 +91 {selectedCustomer?.mobile || selectedCustomer?.mobile_number || "N/A"}
-              </Typography>
-              <Typography sx={{ color: "#94A3B8", fontSize: "12px" }}>
-                · ID: <span style={{ color: "#38BDF8", fontWeight: 700 }}>{selectedCustomer?.customerCode || selectedCustomer?.public_id || selectedCustomer?.id || "N/A"}</span>
-              </Typography>
-            </Stack>
           </Box>
         </Stack>
 
@@ -409,15 +389,6 @@ export default function BeneficiaryWorkspacePage() {
 
           {/* MAIN CONTENT */}
           <Grid size={{ xs: 12, md: 8, lg: 9 }}>
-            {/* PROMINENT CUSTOMER SUMMARY HEADER */}
-            <CustomerSummaryHeader
-              customer={selectedCustomer}
-              darkTheme={false}
-              onChangeCustomer={() => router.push("/retailer/dmt")}
-              onEditCustomer={() => router.push("/retailer/customers")}
-              onViewCustomerProfile={() => router.push("/retailer/customers")}
-            />
-
             <AnimatePresence mode="wait">
               {/* STEP 0: ACCOUNT INFO */}
               {activeStep === 0 && (
