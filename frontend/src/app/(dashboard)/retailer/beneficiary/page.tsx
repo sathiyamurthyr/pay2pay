@@ -191,9 +191,8 @@ export default function BeneficiaryWorkspacePage() {
       bank_name: bankName,
     });
     setPennyDropLoading(false);
-
     if (res.status === "SUCCESS") {
-      const officialName = res.data?.registered_name_in_bank || res.data?.name_at_bank || res.data?.official_name || (accHolder.length < 10 ? `${accHolder.toUpperCase()} MURTHY R` : accHolder.toUpperCase());
+      const officialName = res.data?.registered_name_in_bank || res.data?.name_at_bank || (accHolder.length < 10 ? `${accHolder.toUpperCase()} MURTHY R` : accHolder.toUpperCase());
       const newBen = {
         beneficiary_id: res.data?.beneficiary_id || `ben-${Date.now()}`,
         account_holder_name: officialName,

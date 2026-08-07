@@ -64,10 +64,10 @@ class BeneficiaryVerificationService:
         acc_hash = hashlib.sha256(req.account_number.encode("utf-8")).hexdigest()
 
         # Check duplicate pending request in database
-        stmt = select(BeneficiaryVerificationRecordModel).where(
-            BeneficiaryVerificationRecordModel.retailer_id == req.retailer_id,
-            BeneficiaryVerificationRecordModel.masked_account_number == f"XXXX{req.account_number[-4:]}",
-            BeneficiaryVerificationRecordModel.verification_status == "PENDING"
+        stmt = select(BeneficiaryVerificationRequestModel).where(
+            BeneficiaryVerificationRequestModel.retailer_id == req.retailer_id,
+            BeneficiaryVerificationRequestModel.masked_account_number == f"XXXX{req.account_number[-4:]}",
+            BeneficiaryVerificationRequestModel.status == "INITIATED"
         )
         existing = (await db.execute(stmt)).scalars().first()
         if existing:

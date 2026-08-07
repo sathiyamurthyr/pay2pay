@@ -91,7 +91,7 @@ class BeneficiaryVerificationResponseModel(BaseEntity, EnterpriseBaseMixin):
 
 
 class BeneficiaryVerificationRecordModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "beneficiary_verification"
+    __tablename__ = "beneficiary_verification_audit_record"
     __table_args__ = {'extend_existing': True}
 
     verification_number: Mapped[str] = mapped_column(String(40), nullable=False, unique=True, index=True)
@@ -131,10 +131,8 @@ class BeneficiaryVerificationHistoryModel(BaseEntity, EnterpriseBaseMixin):
     action_by: Mapped[str] = mapped_column(String(100), nullable=False, default="SYSTEM")
     remarks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-
-
 class WalletBalanceHistoryModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "wallet_balance_history"
+    __tablename__ = "beneficiary_wallet_balance_history"
     __table_args__ = {'extend_existing': True}
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
@@ -147,7 +145,7 @@ class WalletBalanceHistoryModel(BaseEntity, EnterpriseBaseMixin):
 
 
 class FinancialJournalModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "financial_journal"
+    __tablename__ = "beneficiary_financial_journal"
     __table_args__ = {'extend_existing': True}
 
     journal_number: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
@@ -162,7 +160,7 @@ class FinancialJournalModel(BaseEntity, EnterpriseBaseMixin):
 
 
 class AccountLedgerModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "account_ledger"
+    __tablename__ = "beneficiary_account_ledger"
     __table_args__ = {'extend_existing': True}
 
     account_number: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
@@ -175,7 +173,7 @@ class AccountLedgerModel(BaseEntity, EnterpriseBaseMixin):
 
 
 class GeneralLedgerModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "general_ledger"
+    __tablename__ = "beneficiary_general_ledger"
     __table_args__ = {'extend_existing': True}
 
     ledger_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
@@ -189,7 +187,7 @@ class GeneralLedgerModel(BaseEntity, EnterpriseBaseMixin):
 
 
 class WalletLedgerModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "wallet_ledger"
+    __tablename__ = "beneficiary_wallet_ledger"
     __table_args__ = {'extend_existing': True}
 
     ledger_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
@@ -200,7 +198,7 @@ class WalletLedgerModel(BaseEntity, EnterpriseBaseMixin):
 
 
 class CommissionLedgerModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "commission_ledger"
+    __tablename__ = "beneficiary_commission_ledger"
     __table_args__ = {'extend_existing': True}
 
     ledger_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
@@ -213,7 +211,7 @@ class CommissionLedgerModel(BaseEntity, EnterpriseBaseMixin):
 
 
 class GstLedgerModel(BaseEntity, EnterpriseBaseMixin):
-    __tablename__ = "gst_ledger"
+    __tablename__ = "beneficiary_gst_ledger"
     __table_args__ = {'extend_existing': True}
 
     ledger_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
