@@ -14,6 +14,8 @@ import { PageHeader } from "@/design-system/components";
 
 import { EnterpriseBeneficiaryModule } from "../Beneficiary";
 
+import { EnterpriseAmountWorkspace } from "../Amount";
+
 export interface TransactionWorkspaceProps {
   service: ServiceType;
 }
@@ -39,8 +41,18 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
         />
       )}
 
-      {/* Consolidated Transfer Summary Card (Amount, Charges, Commission, GST, Total, AI Suggestion) */}
-      <AmountPanel amount={amount} onAmountChange={setAmount} charges={charges} totalPayable={totalPayable} />
+      {/* Enterprise Transfer Amount & Settlement Workspace (Sprint 5) */}
+      <EnterpriseAmountWorkspace
+        amount={amount}
+        onAmountChange={setAmount}
+        charges={charges}
+        totalPayable={totalPayable}
+        customerName={selectedCustomer?.name}
+        customerMobile={selectedCustomer?.mobile}
+        beneficiaryName={selectedBeneficiary?.name}
+        beneficiaryAccount={selectedBeneficiary?.accountNumber}
+        bankName={selectedBeneficiary?.bankName}
+      />
 
       {/* Audit Ledger Data Grid */}
       <RecentTransactions />
