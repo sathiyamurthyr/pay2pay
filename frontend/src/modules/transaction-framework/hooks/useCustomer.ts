@@ -35,21 +35,21 @@ export function useCustomer() {
         params: { query: trimmedQuery },
       });
 
-      // Requirement 7: Explicit Verification Logs
+      // Requirement Debug Logs
       console.log("response:", response);
       console.log("response.data:", response.data);
-      console.log("response.data.data:", response.data?.data);
-
-      // 1. Read customers directly from response.data.data
+      console.log("Array.isArray(response.data):", Array.isArray(response.data));
+      
+      // Read customers array from response.data.data or response.data
       const customers = Array.isArray(response.data?.data)
         ? response.data.data
         : Array.isArray(response.data)
         ? response.data
         : [];
 
-      console.log("response.data.data.length:", customers.length);
+      console.log("response.data.length:", customers.length);
 
-      // 5 & 6: Explicit array length checks only (no truthy object checks)
+      // Explicit array length checks only
       if (customers.length > 0) {
         const c = customers[0];
         setSelectedCustomer({

@@ -22,7 +22,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import ShieldIcon from "@mui/icons-material/Shield";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import PersonOffIcon from "@mui/icons-material/PersonOff";
 import { CustomerData } from "../../hooks/useCustomer";
 import apiClient from "@/lib/api";
 
@@ -48,6 +47,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   onRegisterCustomer,
 }) => {
   const [searchInput, setSearchInput] = useState("");
+  const [localHasSearched, setLocalHasSearched] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
 
   // Registration Form State
@@ -63,14 +63,19 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchInput.trim()) {
+      setLocalHasSearched(true);
       onSearchCustomer(searchInput.trim());
     }
   };
 
   const handleOpenRegister = () => {
-    setMobileNumber(searchInput.replace(/\D/g, "").slice(0, 10));
-    setRegError(null);
-    setRegisterModalOpen(true);
+    if (onRegisterCustomer) {
+      onRegisterCustomer();
+    } else {
+      setMobileNumber(searchInput.replace(/\D/g, "").slice(0, 10));
+      setRegError(null);
+      setRegisterModalOpen(true);
+    }
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -142,6 +147,8 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
       setIsSubmittingReg(false);
     }
   };
+
+  const showEmptyState = !isSearching && !customer && (Boolean(error) || hasSearched || localHasSearched);
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", pt: 2 }}>
@@ -229,8 +236,8 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
         </Paper>
       )}
 
-      {/* 3. CENTERED "ADD NEW CUSTOMER" EMPTY-STATE CARD (WHEN API RETURNS ZERO CUSTOMERS) */}
-      {!isSearching && (error || (hasSearched && !customer)) && (
+      {/* 3. CENTERED "CUSTOMER NOT FOUND" EMPTY-STATE CARD (WHEN API RETURNS ZERO CUSTOMERS) */}
+      {showEmptyState && (
         <Paper
           elevation={0}
           onClick={handleOpenRegister}
@@ -249,12 +256,12 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             },
           }}
         >
-          <PersonAddIcon sx={{ fontSize: 60, color: "#2563EB", mb: 1 }} />
-          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "21px", mb: 0.5 }}>
+          <PersonAddIcon sx={{ fontSize: 64, color: "#2563EB", mb: 1.5 }} />
+          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "22px", mb: 0.5 }}>
             Customer Not Found
           </Typography>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "14px", mb: 3, maxWidth: 500, mx: "auto" }}>
-            No customer records match your query in the database. Click below to add a new customer or register directly.
+            No customer exists with the entered Mobile Number / Customer Code.
           </Typography>
           <Button
             variant="contained"
@@ -262,11 +269,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             startIcon={<PersonAddIcon />}
             onClick={(e) => {
               e.stopPropagation();
-              if (onRegisterCustomer) {
-                onRegisterCustomer();
-              } else {
-                handleOpenRegister();
-              }
+              handleOpenRegister();
             }}
             sx={{
               height: 48,
