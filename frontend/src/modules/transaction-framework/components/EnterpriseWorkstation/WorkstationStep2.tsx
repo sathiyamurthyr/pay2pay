@@ -26,6 +26,7 @@ import { TransferAmountInput } from "../Amount/TransferAmountInput";
 import { EnterpriseStatusStrip } from "../Amount/EnterpriseStatusStrip";
 import { SmartAutoCorrectionBar } from "../Amount/SmartAutoCorrectionBar";
 import { PricingEvaluationResult } from "../../services/RuleEngineAdapter";
+import { BeneficiaryInlineDrawer } from "../Beneficiary/BeneficiaryInlineDrawer";
 
 export interface WorkstationStep2Props {
   customer: CustomerData | null;
@@ -271,61 +272,67 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               {displayedBeneficiaries.map((b) => {
                 const isSelected = selectedBeneficiary?.id === b.id;
                 return (
-                  <Paper
-                    key={b.id}
-                    elevation={0}
-                    onClick={() => onSelectBeneficiary(b)}
-                    sx={{
-                      width: "100%",
-                      minWidth: 0,
-                      boxSizing: "border-box",
-                      p: 1.75,
-                      borderRadius: "12px",
-                      bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.04)",
-                      border: isSelected ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.08)",
-                      cursor: "pointer",
-                      transition: "all 150ms ease",
-                      "&:hover": {
-                        bgcolor: "rgba(37, 99, 235, 0.15)",
-                        borderColor: "rgba(37, 99, 235, 0.5)",
-                      },
-                    }}
-                  >
-                    <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0 }}>
-                      <Avatar
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.1)",
-                          color: "#FFFFFF",
-                          fontWeight: 800,
-                          fontSize: "13px",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {b.name.slice(0, 2).toUpperCase()}
-                      </Avatar>
+                  <React.Fragment key={b.id}>
+                    <Paper
+                      elevation={0}
+                      onClick={() => onSelectBeneficiary(b)}
+                      sx={{
+                        width: "100%",
+                        minWidth: 0,
+                        boxSizing: "border-box",
+                        p: 1.75,
+                        borderRadius: "12px",
+                        bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.04)",
+                        border: isSelected ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.08)",
+                        cursor: "pointer",
+                        transition: "all 150ms ease",
+                        "&:hover": {
+                          bgcolor: "rgba(37, 99, 235, 0.15)",
+                          borderColor: "rgba(37, 99, 235, 0.5)",
+                        },
+                      }}
+                    >
+                      <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0 }}>
+                        <Avatar
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.1)",
+                            color: "#FFFFFF",
+                            fontWeight: 800,
+                            fontSize: "13px",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {b.name.slice(0, 2).toUpperCase()}
+                        </Avatar>
 
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                          <Typography noWrap sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
-                            {b.name}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            <Typography noWrap sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
+                              {b.name}
+                            </Typography>
+                            {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 15, flexShrink: 0 }} />}
+                          </Stack>
+
+                          <Typography noWrap sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px" }}>
+                            {b.bankName} • {b.maskedAccountNumber}
                           </Typography>
-                          {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 15, flexShrink: 0 }} />}
-                        </Stack>
 
-                        <Typography noWrap sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px" }}>
-                          {b.bankName} • {b.maskedAccountNumber}
-                        </Typography>
+                          <Typography noWrap sx={{ color: "#60A5FA", fontSize: "11px", fontWeight: 700 }}>
+                            {b.ifsc}
+                          </Typography>
+                        </Box>
 
-                        <Typography noWrap sx={{ color: "#60A5FA", fontSize: "11px", fontWeight: 700 }}>
-                          {b.ifsc}
-                        </Typography>
-                      </Box>
+                        {isSelected && <CheckCircleIcon sx={{ color: "#2563EB", fontSize: 22, flexShrink: 0 }} />}
+                      </Stack>
+                    </Paper>
 
-                      {isSelected && <CheckCircleIcon sx={{ color: "#2563EB", fontSize: 22, flexShrink: 0 }} />}
-                    </Stack>
-                  </Paper>
+                    {/* Inline Expandable Drawer (Opens Directly Below Selected Card) */}
+                    {isSelected && (
+                      <BeneficiaryInlineDrawer beneficiary={b} isOpen={isSelected} />
+                    )}
+                  </React.Fragment>
                 );
               })}
             </Box>

@@ -2,6 +2,17 @@ import { useState, useEffect } from "react";
 import apiClient from "@/lib/api";
 import { CustomerData } from "./useCustomer";
 
+export interface TransactionRecord {
+  id: string;
+  date: string;
+  time: string;
+  amount: number;
+  status: "SUCCESS" | "FAILED" | "PENDING";
+  reference: string;
+  channel: string;
+  settlementTime: string;
+}
+
 export interface BeneficiaryData {
   id: string;
   beneficiaryCode?: string;
@@ -22,6 +33,15 @@ export interface BeneficiaryData {
   monthlyUsage?: number;
   dailyRemaining?: number;
   monthlyRemaining?: number;
+  monthlyLimit?: number;
+  todayReceived?: number;
+  todayRemaining?: number;
+  riskScore?: number;
+  avgTransfer?: number;
+  lastTransferAmount?: number;
+  lastTransferDate?: string;
+  createdDate?: string;
+  recentTransactions?: TransactionRecord[];
   notes?: string;
 }
 
