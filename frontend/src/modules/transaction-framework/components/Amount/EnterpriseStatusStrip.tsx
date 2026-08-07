@@ -132,7 +132,7 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
           </Typography>
         </Stack>
       ) : (
-        /* ── 3. READY STATE (COMPACT STATUS STRIP) ── */
+        /* ── 3. READY STATE (ONLY SHOW BENE MONTHLY BALANCE) ── */
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", width: "100%", justifyContent: "space-between", overflow: "hidden" }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", overflow: "hidden" }}>
             <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 18, flexShrink: 0 }} />
@@ -141,11 +141,7 @@ export const EnterpriseStatusStrip: React.FC<EnterpriseStatusStripProps> = ({
             </Typography>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>•</Typography>
             <Typography sx={{ color: "#FFFFFF", fontSize: "11.5px", fontWeight: 600, whiteSpace: "nowrap" }}>
-              Wallet <strong style={{ color: "#FBBF24" }}>₹{walletBalance.toLocaleString()}</strong>
-            </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>•</Typography>
-            <Typography sx={{ color: "#FFFFFF", fontSize: "11.5px", fontWeight: 600, whiteSpace: "nowrap" }}>
-              Daily Left <strong style={{ color: "#60A5FA" }}>₹{dailyRemaining.toLocaleString()}</strong>
+              Bene Monthly Left <strong style={{ color: "#34D399" }}>₹{monthlyRemaining.toLocaleString()}</strong>
             </Typography>
           </Stack>
 
