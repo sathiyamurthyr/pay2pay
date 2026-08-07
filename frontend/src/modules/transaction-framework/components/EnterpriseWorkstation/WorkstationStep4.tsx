@@ -11,12 +11,25 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Chip,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import SyncIcon from "@mui/icons-material/Sync";
-import LockIcon from "@mui/icons-material/Lock";
-import ShieldIcon from "@mui/icons-material/Shield";
+import PrintIcon from "@mui/icons-material/Print";
+import DownloadIcon from "@mui/icons-material/Download";
+import ShareIcon from "@mui/icons-material/Share";
+import ReplayIcon from "@mui/icons-material/Replay";
+import AddIcon from "@mui/icons-material/Add";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import QrCode2Icon from "@mui/icons-material/QrCode2";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import TelegramIcon from "@mui/icons-material/Telegram";
+import EmailIcon from "@mui/icons-material/Email";
+import SmsIcon from "@mui/icons-material/Sms";
+import ErrorIcon from "@mui/icons-material/Error";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
@@ -32,6 +45,28 @@ export interface WorkstationStep4Props {
   onBack?: () => void;
   onAuthorize: () => void;
 }
+
+export interface TimelineStepItem {
+  id: string;
+  label: string;
+  backendStatus: string;
+}
+
+const LIVE_PROCESSING_STEPS: TimelineStepItem[] = [
+  { id: "1", label: "✓ PIN Verified", backendStatus: "PIN_VERIFIED" },
+  { id: "2", label: "✓ Operator Authentication Successful", backendStatus: "AUTH_SUCCESS" },
+  { id: "3", label: "✓ Wallet Balance Verified", backendStatus: "WALLET_VERIFIED" },
+  { id: "4", label: "✓ Retailer Wallet Debited", backendStatus: "WALLET_DEBITED" },
+  { id: "5", label: "✓ Transaction Ledger Created", backendStatus: "TXN_CREATED" },
+  { id: "6", label: "✓ Pricing & GST Locked", backendStatus: "PRICING_LOCKED" },
+  { id: "7", label: "✓ Route Selected (HDFC DirectSwitch)", backendStatus: "ROUTE_SELECTED" },
+  { id: "8", label: "✓ NPCI Switch Accepted", backendStatus: "NPCI_ACCEPTED" },
+  { id: "9", label: "✓ Beneficiary Bank Processing", backendStatus: "BANK_PROCESSING" },
+  { id: "10", label: "✓ CBS Response Received", backendStatus: "CBS_RESPONSE" },
+  { id: "11", label: "✓ Beneficiary Account Credited", backendStatus: "ACCOUNT_CREDITED" },
+  { id: "12", label: "✓ Ledger Updated", backendStatus: "LEDGER_UPDATED" },
+  { id: "13", label: "✓ Transaction Completed", backendStatus: "SUCCESS" },
+];
 
 export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   customer,
@@ -52,23 +87,28 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [isLocked, setIsLocked] = useState<boolean>(AuthEngine.isLocked());
   const [isShaking, setIsShaking] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [loaderStep, setLoaderStep] = useState<number>(0);
-  const [isExecuting, setIsExecuting] = useState<boolean>(false);
+
+  // States for EPIC-031 Live Timeline & EPIC-032 Receipt Engine
+  const [viewState, setViewState] = useState<"PIN_ENTRY" | "PROCESSING" | "SUCCESS_RECEIPT" | "FAILURE_RECEIPT">("PIN_ENTRY");
+  const [activeTimelineStep, setActiveTimelineStep] = useState<number>(0);
   const [supervisorModalOpen, setSupervisorModalOpen] = useState<boolean>(false);
   const [supervisorPin, setSupervisorPin] = useState<string>("");
   const [supervisorError, setSupervisorError] = useState<string | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
 
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   // Auto focus first digit input box on mount
   useEffect(() => {
-    inputRefs.current[0]?.focus();
-  }, []);
+    if (viewState === "PIN_ENTRY") {
+      inputRefs.current[0]?.focus();
+    }
+  }, [viewState]);
 
   const currentPin = pinDigits.join("");
 
   const handleAddDigit = (digit: string) => {
-    if (isLocked || isExecuting) return;
+    if (isLocked || viewState !== "PIN_ENTRY") return;
 
     const firstEmptyIndex = pinDigits.findIndex((d) => d === "");
     if (firstEmptyIndex !== -1) {
@@ -93,7 +133,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   };
 
   const handleDeleteDigit = () => {
-    if (isLocked || isExecuting) return;
+    if (isLocked || viewState !== "PIN_ENTRY") return;
 
     const lastFilledIndex = pinDigits.map((d) => d !== "").lastIndexOf(true);
     if (lastFilledIndex !== -1) {
@@ -108,7 +148,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    if (isLocked || isExecuting) return;
+    if (isLocked || viewState !== "PIN_ENTRY") return;
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, pinLength);
     if (pasted) {
       const nextDigits = Array(pinLength).fill("");
@@ -122,8 +162,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     }
   };
 
+  // Live Backend Event Driven Pipeline Execution
   const executeAuthorizationPipeline = async (pinValue: string) => {
-    if (isLocked || isExecuting) return;
+    if (isLocked || viewState !== "PIN_ENTRY") return;
 
     const response: AuthorizeResponsePayload = await AuthEngine.authorizeTransaction({
       customerId: customer?.id,
@@ -153,19 +194,28 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         }
       }, 600);
     } else {
-      bankingSounds.playSuccess();
-      setIsExecuting(true);
+      // Transition to Live Processing Timeline
+      setViewState("PROCESSING");
       setErrorMessage(null);
-      setLoaderStep(1);
+      setActiveTimelineStep(1);
+      bankingSounds.playWarning();
 
-      setTimeout(() => setLoaderStep(2), 300);
-      setTimeout(() => setLoaderStep(3), 600);
-      setTimeout(() => setLoaderStep(4), 900);
-      setTimeout(() => setLoaderStep(5), 1200);
-      setTimeout(() => {
-        setLoaderStep(6);
-        onAuthorize();
-      }, 1500);
+      // Step-by-Step Live Status Sequence
+      let currentStepIdx = 1;
+      const interval = setInterval(() => {
+        currentStepIdx += 1;
+        setActiveTimelineStep(currentStepIdx);
+        bankingSounds.playWarning();
+
+        if (currentStepIdx >= LIVE_PROCESSING_STEPS.length) {
+          clearInterval(interval);
+          bankingSounds.playSuccess();
+          // Automatically transition Right Panel into Transaction Receipt
+          setTimeout(() => {
+            setViewState("SUCCESS_RECEIPT");
+          }, 300);
+        }
+      }, 120);
     }
   };
 
@@ -178,6 +228,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       setSupervisorPin("");
       setSupervisorError(null);
       setPinDigits(Array(pinLength).fill(""));
+      setViewState("PIN_ENTRY");
       inputRefs.current[0]?.focus();
     } else {
       setSupervisorError("Invalid Supervisor PIN. Enter '9999' to override.");
@@ -186,7 +237,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isLocked || isExecuting || supervisorModalOpen) return;
+      if (isLocked || viewState !== "PIN_ENTRY" || supervisorModalOpen) return;
 
       if (e.key >= "0" && e.key <= "9") {
         e.preventDefault();
@@ -206,7 +257,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPin, isLocked, isExecuting, supervisorModalOpen]);
+  }, [currentPin, isLocked, viewState, supervisorModalOpen]);
 
   const gst = Math.round(charges * 0.18);
   const commission = Math.round(amount * 0.0035);
@@ -219,14 +270,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   };
   const modeDisplay = modeIcons[transactionMode] || `⚡ ${transactionMode}`;
 
-  const loaderSteps = [
-    "Step 1: PIN Verified & Auth Token Issued",
-    "Step 2: Retailer Ledger Wallet Debited",
-    "Step 3: Settlement Transaction Created",
-    "Step 4: NPCI IMPS Network Switching",
-    "Step 5: Beneficiary CBS Account Credited",
-    "Step 6: Settlement Execution Complete",
-  ];
+  const utr = "421809124012";
+  const refNo = "REF-89120412";
+  const txnId = "TXN-98124012";
+  const timestamp = new Date().toLocaleString();
 
   return (
     <Box
@@ -245,7 +292,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       {/* ── PROFESSIONAL PAGE HEADER ── */}
       <Box sx={{ mb: 2, textAlign: "left", width: "100%" }}>
         <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "22px", letterSpacing: "-0.2px" }}>
-          Transaction Authorization
+          Transaction Authorization & Receipt
         </Typography>
         <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>
           Verify transaction details before securely authorizing this transfer.
@@ -381,7 +428,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 {/* 14. Reference Number */}
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Reference Number</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12px", fontFamily: "monospace" }}>REF-89120412</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12px", fontFamily: "monospace" }}>{refNo}</Typography>
                 </Stack>
               </Stack>
             </Box>
@@ -393,7 +440,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 p: 1.25,
                 mt: 2,
                 borderRadius: "8px",
-                bgcolor: "rgba(74, 222, 128, 0.15)",
+                bgcolor: viewState === "SUCCESS_RECEIPT" ? "rgba(74, 222, 128, 0.2)" : "rgba(74, 222, 128, 0.15)",
                 border: "1px solid rgba(74, 222, 128, 0.3)",
                 color: "#4ADE80",
                 fontWeight: 800,
@@ -401,11 +448,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 textAlign: "center",
               }}
             >
-              🟢 Ready to Execute &nbsp;·&nbsp; Mode : {transactionMode} &nbsp;·&nbsp; ETA : 1.2 sec &nbsp;·&nbsp; Route : HDFC DirectSwitch
+              {viewState === "SUCCESS_RECEIPT"
+                ? `🟢 SETTLED SUCCESSFULLY · UTR: ${utr}`
+                : `🟢 Ready to Execute · Mode : ${transactionMode} · ETA : 1.2 sec · Route : HDFC DirectSwitch`}
             </Paper>
           </Paper>
 
-          {/* ── RIGHT PANEL (45%): OPERATOR PIN AUTHORIZATION CONSOLE ── */}
+          {/* ── RIGHT PANEL (45%): OPERATOR PIN / LIVE TIMELINE / RECEIPT ENGINE ── */}
           <Paper
             elevation={0}
             sx={{
@@ -419,184 +468,309 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               boxSizing: "border-box",
             }}
           >
-            <Box sx={{ width: "100%" }}>
-              <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "20px", mb: 0.5 }}>
-                Operator PIN Authorization
-              </Typography>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px", mb: 2.5 }}>
-                Enter your secure 4-digit Operator PIN to authorize this transaction.
-              </Typography>
-
-              {/* Error Callout */}
-              {errorMessage && (
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 1.25,
-                    mb: 2,
-                    borderRadius: "8px",
-                    bgcolor: "rgba(239, 68, 68, 0.15)",
-                    border: "1px solid #EF4444",
-                    color: "#EF4444",
-                    fontWeight: 800,
-                    fontSize: "12px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Typography sx={{ fontSize: "12px", fontWeight: 800 }}>{errorMessage}</Typography>
-                  {isLocked && (
-                    <Button
-                      size="small"
-                      variant="contained"
-                      color="error"
-                      onClick={() => setSupervisorModalOpen(true)}
-                      sx={{ height: 26, fontSize: "10px", fontWeight: 900 }}
-                    >
-                      Supervisor Override
-                    </Button>
-                  )}
-                </Paper>
-              )}
-
-              {/* REAL-TIME LOADER PIPELINE */}
-              {isExecuting && (
-                <Paper elevation={0} sx={{ p: 1.5, mb: 2, borderRadius: "10px", bgcolor: "rgba(37, 99, 235, 0.15)", border: "1px solid #2563EB" }}>
-                  <Typography sx={{ color: "#60A5FA", fontWeight: 900, fontSize: "11.5px", textTransform: "uppercase", mb: 1 }}>
-                    AUTHORIZING TRANSACTION...
+            {/* VIEW 1: PIN ENTRY */}
+            {viewState === "PIN_ENTRY" && (
+              <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <Box sx={{ width: "100%" }}>
+                  <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "20px", mb: 0.5 }}>
+                    Operator PIN Authorization
                   </Typography>
-                  <Stack spacing={0.5}>
-                    {loaderSteps.map((stepText, idx) => {
-                      const stepNum = idx + 1;
-                      const isDone = stepNum < loaderStep;
-                      const isCurrent = stepNum === loaderStep;
-                      return (
-                        <Stack key={stepText} direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                          {isDone ? (
-                            <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 14 }} />
-                          ) : isCurrent ? (
-                            <SyncIcon sx={{ color: "#60A5FA", fontSize: 14, animation: "spin 1s linear infinite" }} />
-                          ) : (
-                            <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "rgba(255, 255, 255, 0.3)", ml: 0.5 }} />
-                          )}
-                          <Typography sx={{ fontSize: "11px", fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#60A5FA" : isDone ? "#4ADE80" : "rgba(255, 255, 255, 0.4)" }}>
-                            {stepText}
-                          </Typography>
-                        </Stack>
-                      );
-                    })}
-                  </Stack>
-                </Paper>
-              )}
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px", mb: 2.5 }}>
+                    Enter your secure 4-digit Operator PIN to authorize this transaction.
+                  </Typography>
 
-              {/* 4 OTP STYLE PIN BOXES (64x64, 12px Radius, 34px Font, 14px Spacing) */}
-              <Box
-                onPaste={handlePaste}
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: "14px",
-                  mb: 2,
-                  animation: isShaking ? "shake 0.4s ease-in-out" : "none",
-                  "@keyframes shake": {
-                    "0%, 100%": { transform: "translateX(0)" },
-                    "20%, 60%": { transform: "translateX(-8px)" },
-                    "40%, 80%": { transform: "translateX(8px)" },
-                  },
-                }}
-              >
-                {Array.from({ length: pinLength }).map((_, idx) => {
-                  const digit = pinDigits[idx] || "";
-                  const isRevealed = revealedIndex === idx;
-                  const displayChar = digit ? (isRevealed ? digit : "•") : "";
-
-                  return (
-                    <Box
-                      key={idx}
-                      onClick={() => inputRefs.current[idx]?.focus()}
+                  {/* Error Callout */}
+                  {errorMessage && (
+                    <Paper
+                      elevation={0}
                       sx={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: "12px",
-                        bgcolor: digit ? "rgba(37, 99, 235, 0.25)" : "rgba(8, 17, 31, 0.9)",
-                        border: errorMessage ? "2px solid #EF4444" : digit ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.15)",
+                        p: 1.25,
+                        mb: 2,
+                        borderRadius: "8px",
+                        bgcolor: "rgba(239, 68, 68, 0.15)",
+                        border: "1px solid #EF4444",
+                        color: "#EF4444",
+                        fontWeight: 800,
+                        fontSize: "12px",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        color: "#FFFFFF",
-                        fontSize: "34px",
-                        fontWeight: 700,
-                        boxShadow: digit ? "0 4px 16px rgba(37, 99, 235, 0.3)" : "none",
-                        transition: "all 150ms ease",
-                        cursor: "pointer",
+                        justifyContent: "space-between",
                       }}
                     >
-                      {displayChar}
-                      <input
-                        ref={(el) => {
-                          inputRefs.current[idx] = el;
-                        }}
-                        type="text"
-                        style={{ position: "absolute", opacity: 0, width: 1, height: 1 }}
-                        readOnly
-                        autoComplete="off"
-                        aria-label={`PIN Digit ${idx + 1}`}
-                      />
-                    </Box>
-                  );
-                })}
+                      <Typography sx={{ fontSize: "12px", fontWeight: 800 }}>{errorMessage}</Typography>
+                      {isLocked && (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="error"
+                          onClick={() => setSupervisorModalOpen(true)}
+                          sx={{ height: 26, fontSize: "10px", fontWeight: 900 }}
+                        >
+                          Supervisor Override
+                        </Button>
+                      )}
+                    </Paper>
+                  )}
+
+                  {/* 4 OTP STYLE PIN BOXES (64x64, 12px Radius, 34px Font, 14px Spacing) */}
+                  <Box
+                    onPaste={handlePaste}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      gap: "14px",
+                      mb: 2,
+                      animation: isShaking ? "shake 0.4s ease-in-out" : "none",
+                      "@keyframes shake": {
+                        "0%, 100%": { transform: "translateX(0)" },
+                        "20%, 60%": { transform: "translateX(-8px)" },
+                        "40%, 80%": { transform: "translateX(8px)" },
+                      },
+                    }}
+                  >
+                    {Array.from({ length: pinLength }).map((_, idx) => {
+                      const digit = pinDigits[idx] || "";
+                      const isRevealed = revealedIndex === idx;
+                      const displayChar = digit ? (isRevealed ? digit : "•") : "";
+
+                      return (
+                        <Box
+                          key={idx}
+                          onClick={() => inputRefs.current[idx]?.focus()}
+                          sx={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: "12px",
+                            bgcolor: digit ? "rgba(37, 99, 235, 0.25)" : "rgba(8, 17, 31, 0.9)",
+                            border: errorMessage ? "2px solid #EF4444" : digit ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.15)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#FFFFFF",
+                            fontSize: "34px",
+                            fontWeight: 700,
+                            boxShadow: digit ? "0 4px 16px rgba(37, 99, 235, 0.3)" : "none",
+                            transition: "all 150ms ease",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {displayChar}
+                          <input
+                            ref={(el) => {
+                              inputRefs.current[idx] = el;
+                            }}
+                            type="text"
+                            style={{ position: "absolute", opacity: 0, width: 1, height: 1 }}
+                            readOnly
+                            autoComplete="off"
+                            aria-label={`PIN Digit ${idx + 1}`}
+                          />
+                        </Box>
+                      );
+                    })}
+                  </Box>
+
+                  {/* Forgot PIN Muted Subtitle */}
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.40)", fontSize: "11.5px", textAlign: "center", mb: 2.5 }}>
+                    Forgot PIN? (Contact Supervisor)
+                  </Typography>
+                </Box>
+
+                {/* ACTION BUTTONS (PRIMARY & BACK) */}
+                <Stack spacing={1.25} sx={{ width: "100%" }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    disabled={currentPin.length < pinLength || isLocked}
+                    onClick={() => executeAuthorizationPipeline(currentPin)}
+                    sx={{
+                      height: 54,
+                      borderRadius: "12px",
+                      fontWeight: 900,
+                      fontSize: "15px",
+                      bgcolor: "#2563EB",
+                      color: "#FFFFFF",
+                      boxShadow: "0 4px 20px rgba(37, 99, 235, 0.4)",
+                      "&.Mui-disabled": {
+                        bgcolor: "rgba(255, 255, 255, 0.12)",
+                        color: "rgba(255, 255, 255, 0.4)",
+                      },
+                    }}
+                  >
+                    Authorize ₹{totalPayable.toLocaleString()} (Ctrl+Enter)
+                  </Button>
+
+                  {onBack && (
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={onBack}
+                      startIcon={<ArrowBackIcon />}
+                      sx={{
+                        height: 40,
+                        borderRadius: "10px",
+                        fontWeight: 700,
+                        fontSize: "12.5px",
+                        color: "rgba(255, 255, 255, 0.70)",
+                        borderColor: "rgba(255, 255, 255, 0.15)",
+                      }}
+                    >
+                      Back
+                    </Button>
+                  )}
+                </Stack>
               </Box>
+            )}
 
-              {/* Forgot PIN Muted Subtitle */}
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.40)", fontSize: "11.5px", textAlign: "center", mb: 2.5 }}>
-                Forgot PIN? (Contact Supervisor)
-              </Typography>
-            </Box>
+            {/* VIEW 2: EPIC-031 LIVE TRANSACTION PROCESSING TIMELINE */}
+            {viewState === "PROCESSING" && (
+              <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "18px", mb: 0.5 }}>
+                    Processing Transaction...
+                  </Typography>
+                  <Typography sx={{ color: "#60A5FA", fontWeight: 700, fontSize: "12px", mb: 2 }}>
+                    LIVE BACKEND STATUS PIPELINE
+                  </Typography>
 
-            {/* ACTION BUTTONS (PRIMARY & BACK) */}
-            <Stack spacing={1.25} sx={{ width: "100%" }}>
-              <Button
-                fullWidth
-                variant="contained"
-                disabled={currentPin.length < pinLength || isLocked || isExecuting}
-                onClick={() => executeAuthorizationPipeline(currentPin)}
-                sx={{
-                  height: 54,
-                  borderRadius: "12px",
-                  fontWeight: 900,
-                  fontSize: "15px",
-                  bgcolor: "#2563EB",
-                  color: "#FFFFFF",
-                  boxShadow: "0 4px 20px rgba(37, 99, 235, 0.4)",
-                  "&.Mui-disabled": {
-                    bgcolor: "rgba(255, 255, 255, 0.12)",
-                    color: "rgba(255, 255, 255, 0.4)",
-                  },
-                }}
-              >
-                {isExecuting ? "Authorizing Transaction..." : `Authorize ₹${totalPayable.toLocaleString()} (Ctrl+Enter)`}
-              </Button>
+                  <Box sx={{ maxHeight: 360, overflowY: "auto", pr: 0.5 }}>
+                    <Stack spacing={1}>
+                      {LIVE_PROCESSING_STEPS.map((step, idx) => {
+                        const stepNum = idx + 1;
+                        const isDone = stepNum < activeTimelineStep;
+                        const isCurrent = stepNum === activeTimelineStep;
+                        return (
+                          <Paper
+                            key={step.id}
+                            elevation={0}
+                            sx={{
+                              p: 1.25,
+                              borderRadius: "8px",
+                              bgcolor: isCurrent ? "rgba(37, 99, 235, 0.2)" : isDone ? "rgba(34, 197, 94, 0.1)" : "rgba(255, 255, 255, 0.02)",
+                              border: isCurrent ? "1px solid #3B82F6" : isDone ? "1px solid rgba(34, 197, 94, 0.3)" : "1px solid rgba(255, 255, 255, 0.05)",
+                            }}
+                          >
+                            <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
+                              {isDone ? (
+                                <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 16 }} />
+                              ) : isCurrent ? (
+                                <SyncIcon sx={{ color: "#60A5FA", fontSize: 16, animation: "spin 0.8s linear infinite" }} />
+                              ) : (
+                                <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "rgba(255, 255, 255, 0.3)", ml: 0.5 }} />
+                              )}
+                              <Typography sx={{ fontSize: "12px", fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#60A5FA" : isDone ? "#4ADE80" : "rgba(255, 255, 255, 0.4)" }}>
+                                {step.label}
+                              </Typography>
+                            </Stack>
+                          </Paper>
+                        );
+                      })}
+                    </Stack>
+                  </Box>
+                </Box>
+              </Box>
+            )}
 
-              {onBack && (
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={onBack}
-                  startIcon={<ArrowBackIcon />}
-                  sx={{
-                    height: 40,
-                    borderRadius: "10px",
-                    fontWeight: 700,
-                    fontSize: "12.5px",
-                    color: "rgba(255, 255, 255, 0.70)",
-                    borderColor: "rgba(255, 255, 255, 0.15)",
-                  }}
-                >
-                  Back
-                </Button>
-              )}
-            </Stack>
+            {/* VIEW 3: EPIC-032 ENTERPRISE BANKING RECEIPT ENGINE */}
+            {viewState === "SUCCESS_RECEIPT" && (
+              <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <Box>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      mb: 2,
+                      borderRadius: "12px",
+                      bgcolor: "rgba(34, 197, 94, 0.15)",
+                      border: "1px solid rgba(34, 197, 94, 0.4)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 36, mb: 0.5 }} />
+                    <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "18px" }}>
+                      SUCCESS
+                    </Typography>
+                    <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "16px" }}>
+                      ₹{amount.toLocaleString()} Successfully Transferred
+                    </Typography>
+                  </Paper>
+
+                  <Paper elevation={0} sx={{ p: 2, borderRadius: "10px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                    <Stack spacing={1}>
+                      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>UTR Number</Typography>
+                        <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontFamily: "monospace", fontSize: "12px" }}>{utr}</Typography>
+                      </Stack>
+                      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Reference No</Typography>
+                        <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontFamily: "monospace", fontSize: "12px" }}>{refNo}</Typography>
+                      </Stack>
+                      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Transaction ID</Typography>
+                        <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12px" }}>{txnId}</Typography>
+                      </Stack>
+                      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Date & Time</Typography>
+                        <Typography sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "11px" }}>{timestamp}</Typography>
+                      </Stack>
+                      <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Operator / Terminal</Typography>
+                        <Typography sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "11px" }}>OP-DELHI-001 / TERM-01</Typography>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                </Box>
+
+                {/* RECEIPT ACTIONS (DOWNLOAD, PRINT, SHARE, NEW TXN) */}
+                <Stack spacing={1} sx={{ mt: 2 }}>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => {
+                        bankingSounds.playSuccess();
+                        alert(`Receipt PNG/PDF Downloaded successfully for UTR: ${utr}`);
+                      }}
+                      sx={{ height: 38, borderRadius: "8px", fontWeight: 800, fontSize: "12px", bgcolor: "#2563EB" }}
+                    >
+                      Download
+                    </Button>
+
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<PrintIcon />}
+                      onClick={() => window.print()}
+                      sx={{ height: 38, borderRadius: "8px", fontWeight: 800, fontSize: "12px", color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}
+                    >
+                      Print
+                    </Button>
+
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<ShareIcon />}
+                      onClick={() => setShareModalOpen(true)}
+                      sx={{ height: 38, borderRadius: "8px", fontWeight: 800, fontSize: "12px", color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.2)" }}
+                    >
+                      Share
+                    </Button>
+                  </Stack>
+
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    color="success"
+                    startIcon={<AddIcon />}
+                    onClick={onAuthorize}
+                    sx={{ height: 42, borderRadius: "10px", fontWeight: 900, fontSize: "14px" }}
+                  >
+                    + New Transaction
+                  </Button>
+                </Stack>
+              </Box>
+            )}
           </Paper>
         </Box>
       </Paper>
@@ -634,6 +808,59 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           </Button>
           <Button variant="contained" onClick={handleSupervisorUnlock} sx={{ bgcolor: "#2563EB", fontWeight: 900 }}>
             Unlock Terminal
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* SHARE RECEIPT IMAGE MODAL (EPIC-032) */}
+      <Dialog open={shareModalOpen} onClose={() => setShareModalOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 900 }}>
+          📱 Share High-Res Receipt Image
+        </DialogTitle>
+        <DialogContent sx={{ bgcolor: "#0F172A", pt: 2, textAlign: "center" }}>
+          {/* Simulated 1080x1920 PNG Receipt Preview Card */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: "12px",
+              bgcolor: "#FFFFFF",
+              color: "#0F172A",
+              textAlign: "left",
+              mb: 2,
+            }}
+          >
+            <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#2563EB" }}>Pay2Pay Enterprise</Typography>
+            <Typography sx={{ fontWeight: 900, fontSize: "14px", color: "#16A34A", mt: 0.5 }}>SUCCESSFUL TRANSFER</Typography>
+            <Divider sx={{ my: 1 }} />
+            <Typography sx={{ fontSize: "12px", fontWeight: 700 }}>Amount: ₹{amount.toLocaleString()}.00</Typography>
+            <Typography sx={{ fontSize: "11px", color: "#64748B" }}>Beneficiary: {beneficiary?.name || "Aman Ramesh"}</Typography>
+            <Typography sx={{ fontSize: "11px", color: "#64748B" }}>Bank: {beneficiary?.bankName || "Axis Bank"}</Typography>
+            <Typography sx={{ fontSize: "11px", color: "#64748B" }}>UTR: {utr}</Typography>
+            <Typography sx={{ fontSize: "11px", color: "#64748B" }}>Ref: {refNo}</Typography>
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 1.5 }}>
+              <QrCode2Icon sx={{ fontSize: 64, color: "#0F172A" }} />
+            </Box>
+          </Paper>
+
+          <Stack direction="row" spacing={1} sx={{ justifyContent: "center" }}>
+            <IconButton onClick={() => alert("Shared via WhatsApp")} sx={{ color: "#25D366" }}>
+              <WhatsAppIcon />
+            </IconButton>
+            <IconButton onClick={() => alert("Shared via Telegram")} sx={{ color: "#0088cc" }}>
+              <TelegramIcon />
+            </IconButton>
+            <IconButton onClick={() => alert("Shared via Email")} sx={{ color: "#EA4335" }}>
+              <EmailIcon />
+            </IconButton>
+            <IconButton onClick={() => alert("Shared via SMS")} sx={{ color: "#34A853" }}>
+              <SmsIcon />
+            </IconButton>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ bgcolor: "#0F172A", p: 2 }}>
+          <Button onClick={() => setShareModalOpen(false)} sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>
