@@ -104,6 +104,7 @@ async def get_beneficiary_dashboard(
     return APIResponse(data=stats)
 
 
+@router.get("", response_model=APIResponse)
 @router.get("/", response_model=APIResponse)
 async def list_beneficiaries(
     query: Optional[str] = Query(None),

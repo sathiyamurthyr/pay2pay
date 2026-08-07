@@ -22,14 +22,12 @@ from app.infrastructure.db.beneficiary_verification_models import (
     WalletBalanceHistoryModel,
     FinancialJournalModel,
     AccountLedgerModel,
-    BeneficiaryReconciliationModel,
-)
-from app.infrastructure.db.policy_models import (
     GeneralLedgerModel,
     WalletLedgerModel,
     CommissionLedgerModel,
     GstLedgerModel,
     AuditLedgerModel,
+    BeneficiaryReconciliationModel,
 )
 from app.infrastructure.adapters.vendor_verification_adapter import (
     VendorAdapterRegistry,

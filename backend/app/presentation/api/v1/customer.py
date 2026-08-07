@@ -34,6 +34,7 @@ async def get_customer_dashboard(
 
 # ── Customer CRUD ─────────────────────────────────────────────────────────────
 
+@router.post("", response_model=APIResponse, status_code=201)
 @router.post("/", response_model=APIResponse, status_code=201)
 async def register_customer(
     req: CustomerRegisterRequest,

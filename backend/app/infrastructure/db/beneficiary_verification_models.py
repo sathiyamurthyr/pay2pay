@@ -9,6 +9,11 @@ Tables:
 - financial_journal
 - account_ledger
 - beneficiary_reconciliation
+- general_ledger
+- wallet_ledger
+- commission_ledger
+- gst_ledger
+- audit_ledger
 """
 import uuid
 from datetime import datetime, date
@@ -101,7 +106,7 @@ class BeneficiaryVerificationRecordModel(BaseEntity, EnterpriseBaseMixin):
     registered_bank_name: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     name_match_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
-    verification_status: Mapped[str] = mapped_column(String(30), nullable=False, default="PENDING", index=True)  # SUCCESS, FAILED, REVERSED
+    verification_status: Mapped[str] = mapped_column(String(30), nullable=False, default="PENDING", index=True)
     failure_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     total_debit: Mapped[float] = mapped_column(Float, nullable=False)
@@ -134,7 +139,7 @@ class WalletBalanceHistoryModel(BaseEntity, EnterpriseBaseMixin):
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     transaction_ref: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)  # DEBIT_BENEFICIARY_VERIFY, REVERSAL_BENEFICIARY_VERIFY
+    transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)
     opening_balance: Mapped[float] = mapped_column(Float, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     closing_balance: Mapped[float] = mapped_column(Float, nullable=False)
@@ -147,7 +152,7 @@ class FinancialJournalModel(BaseEntity, EnterpriseBaseMixin):
 
     journal_number: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
     transaction_ref: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    entry_type: Mapped[str] = mapped_column(String(50), nullable=False)  # BENEFICIARY_VERIFICATION_DEBIT, BENEFICIARY_VERIFICATION_REVERSAL
+    entry_type: Mapped[str] = mapped_column(String(50), nullable=False)
     debit_account: Mapped[str] = mapped_column(String(100), nullable=False)
     credit_account: Mapped[str] = mapped_column(String(100), nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
@@ -169,6 +174,67 @@ class AccountLedgerModel(BaseEntity, EnterpriseBaseMixin):
     posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class GeneralLedgerModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "general_ledger"
+    __table_args__ = {'extend_existing': True}
+
+    ledger_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    transaction_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    reference_number: Mapped[str] = mapped_column(String(100), nullable=False)
+    account_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    debit_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    credit_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="POSTED")
+    narration: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class WalletLedgerModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "wallet_ledger"
+    __table_args__ = {'extend_existing': True}
+
+    ledger_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    wallet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    transaction_ref: Mapped[str] = mapped_column(String(100), nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)
+
+
+class CommissionLedgerModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "commission_ledger"
+    __table_args__ = {'extend_existing': True}
+
+    ledger_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    transaction_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    reference_number: Mapped[str] = mapped_column(String(100), nullable=False)
+    company_commission: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    vendor_commission: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    retailer_commission: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="POSTED")
+
+
+class GstLedgerModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "gst_ledger"
+    __table_args__ = {'extend_existing': True}
+
+    ledger_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    transaction_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    reference_number: Mapped[str] = mapped_column(String(100), nullable=False)
+    taxable_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    gst_rate: Mapped[float] = mapped_column(Float, nullable=False, default=18.0)
+    gst_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="POSTED")
+
+
+class AuditLedgerModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "audit_ledger"
+    __table_args__ = {'extend_existing': True}
+
+    audit_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    details: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+
 class BeneficiaryReconciliationModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "beneficiary_reconciliation"
     __table_args__ = {'extend_existing': True}
@@ -180,5 +246,5 @@ class BeneficiaryReconciliationModel(BaseEntity, EnterpriseBaseMixin):
     wallet_debit_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     ledger_debit_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     discrepancy_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    reconciliation_status: Mapped[str] = mapped_column(String(30), nullable=False, default="MATCHED")  # MATCHED, DISCREPANCY
+    reconciliation_status: Mapped[str] = mapped_column(String(30), nullable=False, default="MATCHED")
     exception_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
