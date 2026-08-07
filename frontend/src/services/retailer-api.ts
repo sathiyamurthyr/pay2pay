@@ -876,7 +876,7 @@ export const retailerApi = {
 
   getBankMasterList: async (query?: string, is_credit_card?: boolean) => {
     try {
-      const res = await apiClient.get("/epic014/bank-master/search", {
+      const res = await apiClient.get("/beneficiaries/epic014/bank-master/search", {
         params: query ? { query } : {}
       });
       return res.data;

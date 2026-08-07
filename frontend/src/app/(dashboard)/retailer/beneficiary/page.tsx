@@ -69,15 +69,20 @@ export default function BeneficiaryWorkspacePage() {
   const [lastSaved, setLastSaved] = useState<string>("Just now");
 
   useEffect(() => {
-    fetchBankMasterList("HDFC");
+    fetchBankMasterList("");
   }, []);
 
-  const fetchBankMasterList = async (query: string) => {
+  const fetchBankMasterList = async (query: string = "") => {
     setBankSearchLoading(true);
-    const res = await retailerApi.getBankMasterList(query);
-    setBankSearchLoading(false);
-    if (res.status === "SUCCESS") {
-      setBankMasterList(res.data);
+    try {
+      const res = await retailerApi.getBankMasterList(query);
+      if (res && res.data) {
+        setBankMasterList(Array.isArray(res.data) ? res.data : []);
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setBankSearchLoading(false);
     }
   };
 
@@ -97,8 +102,10 @@ export default function BeneficiaryWorkspacePage() {
   const handleBankSelect = (bankObj: any) => {
     if (bankObj && typeof bankObj !== "string") {
       setSelectedBankObj(bankObj);
-      setBankName(bankObj.bank_name);
-      setIfscCode(bankObj.ifsc);
+      const bName = bankObj.bank_name || bankObj.bank || "";
+      const ifsc = bankObj.ifsc_code || bankObj.ifsc || (bankObj.ifsc_prefix ? `${bankObj.ifsc_prefix}0000001` : "");
+      setBankName(bName);
+      setIfscCode(ifsc);
     }
   };
 
@@ -350,25 +357,33 @@ export default function BeneficiaryWorkspacePage() {
                       <Stack spacing={3}>
                         <Autocomplete
                           options={bankMasterList}
-                          getOptionLabel={(option) => `${option.bank_name} (${option.ifsc_prefix})`}
+                          getOptionLabel={(option) => {
+                            if (typeof option === "string") return option;
+                            return option.bank_name ? `${option.bank_name} (${option.ifsc_code || option.ifsc || option.ifsc_prefix || ""})` : "";
+                          }}
                           loading={bankSearchLoading}
                           value={selectedBankObj}
                           onChange={(_, val) => handleBankSelect(val)}
+                          onInputChange={(_, newInputValue) => {
+                            if (newInputValue && newInputValue.length >= 1) {
+                              fetchBankMasterList(newInputValue);
+                            }
+                          }}
                           renderOption={(props, option) => (
-                            <Box component="li" {...props} key={option.bank_id}>
+                            <Box component="li" {...props} key={option.bank_id || option.ifsc_code || option.bank_name}>
                               <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                                 <Avatar
-                                  src={`https://logo.clearbit.com/${option.bank_name.toLowerCase().replace(/\s+/g, "")}.com`}
+                                  src={option.logo || `https://logo.clearbit.com/${(option.bank_name || "").toLowerCase().replace(/\s+/g, "")}.com`}
                                   sx={{ width: 24, height: 24, fontSize: "0.75rem", bgcolor: "#312E81" }}
                                 >
-                                  {option.bank_name.charAt(0)}
+                                  {option.bank_name ? option.bank_name.charAt(0) : "B"}
                                 </Avatar>
                                 <Box>
                                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                     {option.bank_name}
                                   </Typography>
                                   <Typography variant="caption" sx={{ color: "#64748B" }}>
-                                    IFSC: {option.ifsc} • IMPS Operational
+                                    IFSC: {option.ifsc_code || option.ifsc || option.ifsc_prefix} • IMPS Operational
                                   </Typography>
                                 </Box>
                               </Stack>
