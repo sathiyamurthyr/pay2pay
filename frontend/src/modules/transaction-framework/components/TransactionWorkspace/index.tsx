@@ -12,6 +12,8 @@ import { ChargesPanel } from "../ChargesPanel";
 import { RecentTransactions } from "../RecentTransactions";
 import { PageHeader } from "@/design-system/components";
 
+import { EnterpriseBeneficiaryModule } from "../Beneficiary";
+
 export interface TransactionWorkspaceProps {
   service: ServiceType;
 }
@@ -23,18 +25,16 @@ export const TransactionWorkspace: React.FC<TransactionWorkspaceProps> = ({ serv
 
   return (
     <Stack spacing={2.5} sx={{ width: "100%", minWidth: 0, pt: 0 }}>
-      {/* Transaction Toolbar as Very First Primary Control (No Hero Section) */}
+      {/* Universal Transaction Search Toolbar */}
       <TransactionSearch placeholder={config.searchPlaceholder} onSearch={searchCustomer} isSearching={isSearching} />
 
-      {/* Customer Profile Card */}
-      <CustomerPanel customer={selectedCustomer} />
-
-      {/* Beneficiary Grid (If Supported by Service) */}
+      {/* Enterprise Beneficiary Module (Summary, Search, Filters, Recent, Favorites, Data Grid & Right Drawer) */}
       {config.allowBeneficiarySelection && (
-        <BeneficiaryPanel
+        <EnterpriseBeneficiaryModule
+          customer={selectedCustomer}
           beneficiaries={beneficiaries}
           selectedBeneficiary={selectedBeneficiary}
-          onSelect={setSelectedBeneficiary}
+          onSelectBeneficiary={setSelectedBeneficiary}
           isLoading={isBeneficiariesLoading}
         />
       )}
