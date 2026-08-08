@@ -80,8 +80,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [beneName, setBeneName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
-  const [ifsc, setIfsc] = useState("HDFC0001234");
-  const [bankName, setBankName] = useState("HDFC Bank");
+  const [ifsc, setIfsc] = useState("");
+  const [bankName, setBankName] = useState("");
   const [isSubmittingBene, setIsSubmittingBene] = useState(false);
   const [addBeneError, setAddBeneError] = useState<string | null>(null);
 
@@ -371,6 +371,19 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             pr: 0.5,
             width: "100%",
             maxWidth: "100%",
+            "&::-webkit-scrollbar": {
+              width: "4px",
+            },
+            "&::-webkit-scrollbar-track": {
+              background: "transparent",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              background: "rgba(255, 255, 255, 0.2)",
+              borderRadius: "4px",
+            },
+            "&::-webkit-scrollbar-thumb:hover": {
+              background: "rgba(255, 255, 255, 0.4)",
+            },
           }}
         >
           {filteredBeneficiaries.length === 0 ? (
@@ -454,7 +467,16 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   <React.Fragment key={b.id}>
                     <Paper
                       elevation={0}
-                      onClick={() => onSelectBeneficiary(b)}
+                      onClick={() => {
+                        onSelectBeneficiary(b);
+                        setTimeout(() => {
+                          const el = document.querySelector('input[inputmode="numeric"]') as HTMLInputElement;
+                          if (el) {
+                            el.focus();
+                            el.select();
+                          }
+                        }, 50);
+                      }}
                       sx={{
                         width: "100%",
                         minWidth: 0,

@@ -86,19 +86,24 @@ class BeneficiaryResponse(BaseModel):
     beneficiary_number: str
     customer_id: uuid.UUID
     full_name: str
-    nickname: Optional[str]
-    relationship: str
-    mobile_number: Optional[str]
-    email: Optional[str]
-    beneficiary_category: str
-    beneficiary_type: str
-    verification_status: str
-    risk_category: str
-    beneficiary_status: str
-    cooling_period_ends_at: Optional[datetime]
-    is_favourite: bool
-    registration_date: Optional[datetime]
-    activation_date: Optional[datetime]
+    nickname: Optional[str] = None
+    relationship: str = "FAMILY"
+    mobile_number: Optional[str] = None
+    email: Optional[str] = None
+    beneficiary_category: str = "RETAIL"
+    beneficiary_type: str = "INDIVIDUAL"
+    verification_status: str = "VERIFIED"
+    risk_category: str = "LOW"
+    beneficiary_status: str = "ACTIVE"
+    cooling_period_ends_at: Optional[datetime] = None
+    is_favourite: bool = False
+    registration_date: Optional[datetime] = None
+    activation_date: Optional[datetime] = None
+    account_number: Optional[str] = None
+    masked_account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    bank_name: Optional[str] = None
+    branch_name: Optional[str] = None
 
 
 class BeneficiaryBankAccountResponse(BaseModel):

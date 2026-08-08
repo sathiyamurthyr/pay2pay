@@ -24,6 +24,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_db():
+    # Reload trigger for bank master 1000 limit
     print("ALL REGISTERED ROUTES:", [r.path for r in app.routes if hasattr(r, 'path')])
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

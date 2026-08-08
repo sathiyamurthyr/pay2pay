@@ -5,7 +5,7 @@ import { CustomerData } from "../hooks/useCustomer";
 
 export function useTransaction(service: ServiceType = "DMT", customer?: CustomerData | null) {
   const config = SERVICE_CONFIGS[service] || SERVICE_CONFIGS.DMT;
-  const [amount, setAmount] = useState<number>(5000);
+  const [amount, setAmount] = useState<number>(0);
   const [activeStep, setActiveStep] = useState<number>(1);
   const [isProcessing, setIsProcessing] = useState(false);
 

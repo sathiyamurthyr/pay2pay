@@ -28,47 +28,18 @@ export const BeneficiaryInlineDrawer: React.FC<BeneficiaryInlineDrawerProps> = (
   beneficiary,
   isOpen,
 }) => {
-  const [detailsCache, setDetailsCache] = useState<Record<string, any>>({});
-
-  useEffect(() => {
-    if (isOpen && beneficiary && !detailsCache[beneficiary.id]) {
-      // Simulate API fetch: GET /beneficiaries/{beneficiaryId}/details
-      const fetchedDetails = {
-        monthlyLimit: 200000,
-        monthlyRemaining: beneficiary.monthlyRemaining ?? 80000,
-        todayReceived: 15000,
-        todayRemaining: 35000,
-        totalTransferCount: beneficiary.transferCount || 24,
-        averageTransferAmount: beneficiary.avgTransfer || 12500,
-        lastTransferAmount: beneficiary.lastTransferAmount || 10000,
-        lastTransferDatetime: beneficiary.lastTransferDate || "2026-08-07 14:20:15",
-        riskLevel: beneficiary.riskScore ? "LOW RISK (99.4%)" : "LOW RISK",
-        registeredDate: beneficiary.createdDate || "2025-01-15",
-        recentTransactions: beneficiary.recentTransactions || [
-          { id: "TXN-89210", date: "2026-08-07", time: "14:20", amount: 10000, status: "SUCCESS", reference: "CMS892104512", channel: "IMPS", settlementTime: "0.9s" },
-          { id: "TXN-88129", date: "2026-08-05", time: "11:14", amount: 15000, status: "SUCCESS", reference: "CMS881293019", channel: "IMPS", settlementTime: "1.1s" },
-          { id: "TXN-87401", date: "2026-07-28", time: "09:45", amount: 50000, status: "SUCCESS", reference: "CMS874019284", channel: "NEFT", settlementTime: "1.4s" },
-          { id: "TXN-86920", date: "2026-07-15", time: "16:02", amount: 30000, status: "SUCCESS", reference: "CMS869201948", channel: "IMPS", settlementTime: "0.8s" },
-          { id: "TXN-85102", date: "2026-07-01", time: "10:30", amount: 10000, status: "FAILED", reference: "CMS851028391", channel: "UPI", settlementTime: "Failed" },
-        ],
-      };
-
-      setDetailsCache((prev) => ({ ...prev, [beneficiary.id]: fetchedDetails }));
-    }
-  }, [isOpen, beneficiary, detailsCache]);
-
-  const details = detailsCache[beneficiary?.id] || {
-    monthlyLimit: 200000,
-    monthlyRemaining: beneficiary.monthlyRemaining ?? 80000,
-    todayReceived: 15000,
-    todayRemaining: 35000,
-    totalTransferCount: beneficiary.transferCount || 24,
-    averageTransferAmount: 12500,
-    lastTransferAmount: 10000,
-    lastTransferDatetime: "2026-08-07 14:20:15",
-    riskLevel: "LOW RISK",
-    registeredDate: "2025-01-15",
-    recentTransactions: [],
+  const details = {
+    monthlyLimit: beneficiary.monthlyLimit ?? 200000,
+    monthlyRemaining: beneficiary.monthlyRemaining ?? Math.max(0, 200000 - (beneficiary.monthlyUsage ?? 0)),
+    todayReceived: beneficiary.todayReceived ?? 0,
+    todayRemaining: beneficiary.todayRemaining ?? Math.max(0, 50000 - (beneficiary.dailyUsage ?? 0)),
+    totalTransferCount: beneficiary.transferCount || 0,
+    averageTransferAmount: beneficiary.avgTransfer || 0,
+    lastTransferAmount: beneficiary.lastTransferAmount || 0,
+    lastTransferDatetime: beneficiary.lastTransferDate || "N/A",
+    riskLevel: beneficiary.riskScore ? `SCORE (${beneficiary.riskScore}%)` : "LOW RISK",
+    registeredDate: beneficiary.createdDate || "Active",
+    recentTransactions: beneficiary.recentTransactions || [],
   };
 
   const maskedAcc = beneficiary.maskedAccountNumber || (beneficiary.accountNumber.length >= 4 ? `•••• •••• ${beneficiary.accountNumber.slice(-4)}` : beneficiary.accountNumber);
@@ -84,10 +55,7 @@ export const BeneficiaryInlineDrawer: React.FC<BeneficiaryInlineDrawerProps> = (
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(37, 99, 235, 0.4)",
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
-          minHeight: 220,
-          maxHeight: 280,
-          overflowY: "auto",
-          overflowX: "hidden",
+          overflow: "hidden",
           display: "flex",
           flexDirection: "column",
           gap: 2,
@@ -187,27 +155,35 @@ export const BeneficiaryInlineDrawer: React.FC<BeneficiaryInlineDrawerProps> = (
                 </TableRow>
               </TableHead>
               <TableBody>
-                {details.recentTransactions.map((tx: TransactionRecord) => (
-                  <TableRow key={tx.id} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
-                    <TableCell sx={{ color: "#FFFFFF", fontSize: "11px", py: 0.5 }}>{tx.date} {tx.time}</TableCell>
-                    <TableCell sx={{ color: "#93C5FD", fontFamily: "monospace", fontSize: "10px", py: 0.5 }}>{tx.reference}</TableCell>
-                    <TableCell sx={{ color: "#FFFFFF", fontSize: "10px", fontWeight: 700, py: 0.5 }}>{tx.channel}</TableCell>
-                    <TableCell align="right" sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "11px", py: 0.5 }}>₹{tx.amount.toLocaleString()}</TableCell>
-                    <TableCell align="center" sx={{ py: 0.5 }}>
-                      <Chip
-                        label={tx.status}
-                        size="small"
-                        sx={{
-                          height: 16,
-                          fontSize: "9px",
-                          fontWeight: 800,
-                          bgcolor: tx.status === "SUCCESS" ? "rgba(74, 222, 128, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                          color: tx.status === "SUCCESS" ? "#4ADE80" : "#EF4444",
-                        }}
-                      />
+                {details.recentTransactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ color: "rgba(255, 255, 255, 0.45)", fontSize: "11px", py: 1.5 }}>
+                      No recent transfers recorded for this beneficiary.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  details.recentTransactions.map((tx: TransactionRecord) => (
+                    <TableRow key={tx.id} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
+                      <TableCell sx={{ color: "#FFFFFF", fontSize: "11px", py: 0.5 }}>{tx.date} {tx.time}</TableCell>
+                      <TableCell sx={{ color: "#93C5FD", fontFamily: "monospace", fontSize: "10px", py: 0.5 }}>{tx.reference}</TableCell>
+                      <TableCell sx={{ color: "#FFFFFF", fontSize: "10px", fontWeight: 700, py: 0.5 }}>{tx.channel}</TableCell>
+                      <TableCell align="right" sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "11px", py: 0.5 }}>₹{tx.amount.toLocaleString()}</TableCell>
+                      <TableCell align="center" sx={{ py: 0.5 }}>
+                        <Chip
+                          label={tx.status}
+                          size="small"
+                          sx={{
+                            height: 16,
+                            fontSize: "9px",
+                            fontWeight: 800,
+                            bgcolor: tx.status === "SUCCESS" ? "rgba(74, 222, 128, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                            color: tx.status === "SUCCESS" ? "#4ADE80" : "#EF4444",
+                          }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </TableContainer>

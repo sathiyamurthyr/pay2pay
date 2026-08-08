@@ -137,20 +137,24 @@ class Epic014BeneficiaryService:
             }
 
         # ----------------------------------------------------
-        # 2. WALLET BALANCE CHECK & PRE-DEBIT (₹3.00)
+        # 2. WALLET BALANCE CHECK & PRE-DEBIT (Base ₹3.00 + GST ₹0.54 = Total ₹3.54)
         # ----------------------------------------------------
         charge_amount = 3.0
-        if current_wallet_balance < charge_amount:
+        gst_pct = 18.0
+        gst_amount = round(charge_amount * (gst_pct / 100.0), 2)
+        net_amount = round(charge_amount + gst_amount, 2)
+
+        if current_wallet_balance < net_amount:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient Wallet Balance. Required ₹{charge_amount:.2f}, available ₹{current_wallet_balance:.2f}."
+                detail=f"Insufficient Wallet Balance. Required ₹{net_amount:.2f}, available ₹{current_wallet_balance:.2f}."
             )
 
         ref_id = f"CFV2-PD-{int(time.time() * 1000)}"
         txn_id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
 
         opening_balance = current_wallet_balance
-        closing_balance = opening_balance - charge_amount
+        closing_balance = opening_balance - net_amount
 
         # Record Wallet Pre-Debit Transaction
         w_txn = WalletTransactionRecordModel(
@@ -159,26 +163,26 @@ class Epic014BeneficiaryService:
             retailer_id=retailer_id,
             wallet_id=wallet_id,
             transaction_type="BENEFICIARY_VERIFICATION_DEBIT",
-            amount=charge_amount,
+            amount=net_amount,
             opening_balance=opening_balance,
             closing_balance=closing_balance,
             reference_id=ref_id,
-            remarks=f"Pre-debit verification charge for account {masked_account}",
+            remarks=f"Verification charge (Base ₹{charge_amount:.2f} + GST ₹{gst_amount:.2f}) for account {masked_account}",
         )
         db.add(w_txn)
         await db.flush()
 
-        # Double Entry Wallet Ledger (Debit Retailer Wallet, Credit Verification Revenue)
+        # Double Entry Wallet Ledger (Debit Retailer Wallet net_amount, Credit Revenue & GST)
         wl_debit = WalletLedgerRecordModel(
             tenant_id=tenant_id,
             company_id=company_id,
             transaction_id=w_txn.public_id,
             account_code="RETAILER_MAIN_WALLET",
             entry_type="DEBIT",
-            amount=charge_amount,
+            amount=net_amount,
             running_balance=closing_balance,
         )
-        wl_credit = WalletLedgerRecordModel(
+        wl_credit_rev = WalletLedgerRecordModel(
             tenant_id=tenant_id,
             company_id=company_id,
             transaction_id=w_txn.public_id,
@@ -187,13 +191,20 @@ class Epic014BeneficiaryService:
             amount=charge_amount,
             running_balance=charge_amount,
         )
+        wl_credit_gst = WalletLedgerRecordModel(
+            tenant_id=tenant_id,
+            company_id=company_id,
+            transaction_id=w_txn.public_id,
+            account_code="GST_PAYABLE_ACCOUNT",
+            entry_type="CREDIT",
+            amount=gst_amount,
+            running_balance=gst_amount,
+        )
         db.add(wl_debit)
-        db.add(wl_credit)
+        db.add(wl_credit_rev)
+        db.add(wl_credit_gst)
 
         # Record Financial Transaction (GST & Tax tracking)
-        gst_amount = round(charge_amount * 0.18, 2)
-        net_amount = round(charge_amount + gst_amount, 2)
-
         fin_txn = FinancialTransactionRecordModel(
             tenant_id=tenant_id,
             company_id=company_id,
@@ -206,7 +217,7 @@ class Epic014BeneficiaryService:
             service_code="BENEFICIARY_VERIFICATION",
             service_name="Cashfree V2 Penny Drop",
             amount=charge_amount,
-            gst_pct=18.0,
+            gst_pct=gst_pct,
             gst_amount=gst_amount,
             cgst=round(gst_amount / 2, 2),
             sgst=round(gst_amount / 2, 2),
@@ -388,9 +399,9 @@ class Epic014BeneficiaryService:
             }
 
         else:
-            # FAILURE PATH: IMMEDIATE WALLET REFUND (+₹3.00)
+            # FAILURE PATH: IMMEDIATE FULL WALLET REFUND (+₹3.54)
             refund_opening = closing_balance
-            refund_closing = refund_opening + charge_amount
+            refund_closing = refund_opening + net_amount
 
             refund_w_txn = WalletTransactionRecordModel(
                 tenant_id=tenant_id,
@@ -398,17 +409,17 @@ class Epic014BeneficiaryService:
                 retailer_id=retailer_id,
                 wallet_id=wallet_id,
                 transaction_type="BENEFICIARY_VERIFICATION_REFUND_CREDIT",
-                amount=charge_amount,
+                amount=net_amount,
                 opening_balance=refund_opening,
                 closing_balance=refund_closing,
                 reference_id=f"REFUND-{ref_id}",
-                remarks=f"Refund for failed Cashfree penny drop verification ({masked_account})",
+                remarks=f"Full refund (Base ₹{charge_amount:.2f} + GST ₹{gst_amount:.2f}) for failed Cashfree verification ({masked_account})",
             )
             db.add(refund_w_txn)
             await db.flush()
 
             # Reverse Wallet Ledger Entries
-            wl_ref_debit = WalletLedgerRecordModel(
+            wl_ref_rev = WalletLedgerRecordModel(
                 tenant_id=tenant_id,
                 company_id=company_id,
                 transaction_id=refund_w_txn.public_id,
@@ -417,16 +428,26 @@ class Epic014BeneficiaryService:
                 amount=charge_amount,
                 running_balance=0.0,
             )
+            wl_ref_gst = WalletLedgerRecordModel(
+                tenant_id=tenant_id,
+                company_id=company_id,
+                transaction_id=refund_w_txn.public_id,
+                account_code="GST_PAYABLE_ACCOUNT",
+                entry_type="DEBIT",
+                amount=gst_amount,
+                running_balance=0.0,
+            )
             wl_ref_credit = WalletLedgerRecordModel(
                 tenant_id=tenant_id,
                 company_id=company_id,
                 transaction_id=refund_w_txn.public_id,
                 account_code="RETAILER_MAIN_WALLET",
                 entry_type="CREDIT",
-                amount=charge_amount,
+                amount=net_amount,
                 running_balance=refund_closing,
             )
-            db.add(wl_ref_debit)
+            db.add(wl_ref_rev)
+            db.add(wl_ref_gst)
             db.add(wl_ref_credit)
 
             fin_txn.status = "REFUNDED"
@@ -442,7 +463,7 @@ class Epic014BeneficiaryService:
                     "message": cf_res.get("message") or "Penny Drop Verification failed with Cashfree V2",
                     "reference_id": ref_id,
                     "wallet_refunded": True,
-                    "refund_amount": charge_amount,
+                    "refund_amount": net_amount,
                     "wallet_balance_after": refund_closing,
                 }
             )

@@ -32,6 +32,17 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
     }
   }, [amount]);
 
+  // Auto cursor focus on mount & when component renders
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        if (amount > 0) inputRef.current.select();
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Keyboard shortcut listener for Ctrl+Shift+A
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

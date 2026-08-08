@@ -34,9 +34,11 @@ import {
   InputLabel,
   Tooltip,
   InputAdornment,
+  ListSubheader,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
+import SearchIcon from "@mui/icons-material/Search";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import LockIcon from "@mui/icons-material/Lock";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
@@ -52,6 +54,7 @@ import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, UserPlus, ArrowLeft, ShieldCheck, CheckCircle2, Wallet, HelpCircle, Save } from "lucide-react";
 
@@ -65,9 +68,8 @@ import { formatShortCustomerId } from "@/lib/utils";
 // ─── CONSTANTS ──────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { label: "Beneficiary Info", icon: "1", est: "45s" },
-  { label: "Verify Account", icon: "2", est: "20s" },
-  { label: "Confirmed", icon: "3", est: "0s" },
+  { label: "Beneficiary Details", icon: "1", est: "30s" },
+  { label: "Verification Confirmed", icon: "2", est: "0s" },
 ];
 
 const RELATIONSHIP_OPTIONS = [
@@ -77,26 +79,7 @@ const RELATIONSHIP_OPTIONS = [
 
 
 
-const BRANCH_MAP: Record<string, { branch: string; city: string; ifsc: string; micr: string }[]> = {
-  HDFC: [
-    { branch: "Anna Nagar Chennai", city: "Chennai", ifsc: "HDFC0001086", micr: "600240004" },
-    { branch: "T Nagar Chennai", city: "Chennai", ifsc: "HDFC0000375", micr: "600240018" },
-    { branch: "Nungambakkam", city: "Chennai", ifsc: "HDFC0000375", micr: "600240019" },
-  ],
-  SBIN: [
-    { branch: "Anna Nagar", city: "Chennai", ifsc: "SBIN0005827", micr: "600002027" },
-    { branch: "T Nagar", city: "Chennai", ifsc: "SBIN0003615", micr: "600002015" },
-    { branch: "Mylapore", city: "Chennai", ifsc: "SBIN0002618", micr: "600002018" },
-  ],
-  ICIC: [
-    { branch: "Anna Nagar", city: "Chennai", ifsc: "ICIC0001259", micr: "600229027" },
-    { branch: "Nungambakkam", city: "Chennai", ifsc: "ICIC0001259", micr: "600229019" },
-  ],
-  IDFB: [
-    { branch: "Nungambakkam Chennai", city: "Chennai", ifsc: "IDFB0080106", micr: "600690001" },
-    { branch: "T Nagar", city: "Chennai", ifsc: "IDFB0080104", micr: "600690002" },
-  ],
-};
+
 
 // ─── SOUND ENGINE ───────────────────────────────────────────────────────────
 
@@ -214,6 +197,18 @@ function BeneficiaryWorkspaceContent() {
 
   // ── Bank Master Cache & Local Search State ──
   const [fullBankMasterList, setFullBankMasterList] = useState<any[]>([]);
+  const [bankSelectSearch, setBankSelectSearch]     = useState<string>("");
+
+  const filteredBankOptions = useMemo(() => {
+    if (!bankSelectSearch.trim()) return bankMasterList;
+    const q = bankSelectSearch.toLowerCase().trim();
+    return bankMasterList.filter((p: any) => {
+      const name = (p.bank_name || "").toLowerCase();
+      const shortName = (p.short_name || p.bank_short_name || "").toLowerCase();
+      const ifsc = (p.ifsc_prefix || p.ifsc_code || p.ifsc || "").toLowerCase();
+      return name.includes(q) || shortName.includes(q) || ifsc.includes(q);
+    });
+  }, [bankMasterList, bankSelectSearch]);
 
   useEffect(() => {
     loadBankMasterOnMount();
@@ -358,9 +353,8 @@ function BeneficiaryWorkspaceContent() {
       return;
     }
     setAccMismatchError("");
-    // Move to step 2 and run pre-checks
-    setActiveStep(1);
-    runPrechecks();
+    // 2-Step Workflow: Click button on Step 1 -> Open Permission Dialog showing Debit Amount Details
+    setConfirmModalOpen(true);
   };
 
   // ─── Pre-checks & Pricing ─────────────────────────────────────────────────
@@ -433,9 +427,13 @@ function BeneficiaryWorkspaceContent() {
         const txnId        = `TXN-${Date.now().toString().slice(-10)}`;
         const utr          = beneData.utr || `UTR-CF-${Date.now()}`;
         const vendorRef    = beneData.verification_reference || beneData.vendor_ref_id || `CF-PENNY-${Date.now()}`;
+        const isReused     = Boolean(res.is_reused || res.is_reused_master || beneData.is_reused);
+
+        const actualDebit        = isReused ? 0.00 : (verificationCharge?.total || 3.54);
+        const actualBalanceAfter = isReused ? walletBalance : walletBalance - actualDebit;
 
         const newBen = {
-          beneficiary_id: res.data?.beneficiary_id || `ben-${Date.now()}`,
+          beneficiary_id: beneData.beneficiary_id || `ben-${Date.now()}`,
           short_ben_id: shortBenId,
           transaction_id: txnId,
           account_holder_name: officialName,
@@ -450,11 +448,12 @@ function BeneficiaryWorkspaceContent() {
           city: "",
           micr: micrCode || "",
           is_verified: true,
+          is_reused: isReused,
           penny_drop_status: "SUCCESS",
           vendor_ref: vendorRef,
           utr,
-          wallet_debit: verificationCharge?.total || 3.54,
-          wallet_balance_after: walletBalance - (verificationCharge?.total || 3.54),
+          wallet_debit: actualDebit,
+          wallet_balance_after: actualBalanceAfter,
         };
 
         setCreatedBeneficiary(newBen);
@@ -477,7 +476,7 @@ function BeneficiaryWorkspaceContent() {
           lastUsedAt: "Just now",
           transferCount: 0,
           status: "ACTIVE",
-          preferredGateway: "Cashfree Verified",
+          preferredGateway: isReused ? "Cashfree (Idempotent Reuse)" : "Cashfree Verified",
           dailyUsage: 0, monthlyUsage: 0,
           dailyRemaining: 50000, monthlyRemaining: 200000,
         };
@@ -490,7 +489,10 @@ function BeneficiaryWorkspaceContent() {
           localStorage.setItem(key, JSON.stringify([formattedBene, ...deduped]));
         } catch { /* ignore */ }
 
-        notificationEngine.notify("BENEFICIARY_VERIFIED", `✅ Verified: ${officialName}`);
+        const notifMsg = isReused
+          ? `ℹ️ Verified Account Reused: ${officialName} (₹0.00 Debited)`
+          : `✅ Verified: ${officialName}`;
+        notificationEngine.notify("BENEFICIARY_VERIFIED", notifMsg);
 
         // Show success result modal
         setResultModalSuccess(true);
@@ -498,7 +500,7 @@ function BeneficiaryWorkspaceContent() {
         setResultModalOpen(true);
         playSuccessSound();
 
-        setActiveStep(2);
+        setActiveStep(1);
       } else {
         throw new Error(res.message || "Verification failed");
       }
@@ -526,6 +528,22 @@ function BeneficiaryWorkspaceContent() {
       await retailerApi.invalidateBeneficiarySession();
     } catch {}
     router.push(getReturnUrl());
+  };
+
+  const handleAddAnotherBeneficiary = () => {
+    setBenName("");
+    setNickName("");
+    setRelationship("Self");
+    setAccNum("");
+    setConfirmAccNum("");
+    setBankName("");
+    setIfscCode("");
+    setMicrCode("");
+    setSelectedBankObj(null);
+    setCreatedBeneficiary(null);
+    setAccMismatchError("");
+    setVerificationError("");
+    setActiveStep(0);
   };
 
   const handleCancel = async () => {
@@ -937,91 +955,96 @@ function BeneficiaryWorkspaceContent() {
                         </Stack>
 
                         <Grid container spacing={2}>
-                          {/* Search Bank (Full Width) */}
-                          <Grid size={{ xs: 12 }}>
-                            <Autocomplete
-                              options={bankMasterList}
-                              openOnFocus
-                              autoHighlight
-                              forcePopupIcon
-                              loading={bankSearchLoading}
-                              noOptionsText={
-                                bankSearchLoading
-                                  ? "Searching..."
-                                  : "No banks available."
-                              }
-                              getOptionLabel={opt => typeof opt === "string" ? opt : (opt.bank_name || "")}
-                              isOptionEqualToValue={(opt, val) => {
-                                if (!opt || !val) return false;
-                                if (typeof opt === "string" || typeof val === "string") return opt === val;
-                                return (opt.bank_name || "").toUpperCase() === (val.bank_name || "").toUpperCase();
-                              }}
-                              value={selectedBankObj}
-                              onChange={(_, val) => handleBankSelect(val)}
-                              onInputChange={(_, val, reason) => handleBankInputChange(val || "", reason)}
-                              filterOptions={(options, state) => {
-                                const q = state.inputValue.trim().toLowerCase();
-                                if (!q) return options;
-                                return options.filter(opt => {
-                                  if (!opt || typeof opt === "string") return false;
-                                  const name = (opt.bank_name || "").toLowerCase();
-                                  const ifsc = (opt.ifsc_prefix || opt.ifsc_code || "").toLowerCase();
-                                  const shortName = (opt.short_name || "").toLowerCase();
-                                  return name.includes(q) || ifsc.includes(q) || shortName.includes(q);
-                                });
-                              }}
-                              slotProps={{
-                                popper: {
-                                  sx: { zIndex: 99999 },
-                                },
-                              }}
-                              renderOption={(props, opt) => {
-                                const { key, ...optionProps } = props;
-                                return (
-                                  <Box component="li" key={key || (opt.bank_name + (opt.ifsc_prefix || ""))} {...optionProps}>
-                                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", width: "100%", py: 0.5 }}>
-                                      <Avatar src={opt.logo} sx={{ width: 28, height: 28, fontSize: "11px", bgcolor: "#312E81", fontWeight: 800 }}>
-                                        🏦
-                                      </Avatar>
-                                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                                          <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px", color: "#0F172A" }}>
-                                            {opt.bank_name}
-                                          </Typography>
-                                        </Stack>
-                                        <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
-                                          {opt.short_name || "Bank Master Partner"}
-                                        </Typography>
-                                      </Box>
-                                      <Stack direction="row" spacing={0.5}>
-                                        {opt.imps !== false && <Chip label="IMPS" size="small" sx={{ height: 16, fontSize: "9px", bgcolor: "#DCFCE7", color: "#166534", fontWeight: 700 }} />}
-                                        {opt.neft !== false && <Chip label="NEFT" size="small" sx={{ height: 16, fontSize: "9px", bgcolor: "#E0F2FE", color: "#075985", fontWeight: 700 }} />}
-                                      </Stack>
-                                    </Stack>
-                                  </Box>
-                                );
-                              }}
-                              renderInput={(params: any) => (
-                                <TextField
-                                  {...params}
-                                  label="Bank *"
-                                  size="small"
-                                  required
-                                  placeholder="Search Bank..."
-                                  slotProps={{
-                                    input: {
-                                      ...(params.InputProps || {}),
-                                      endAdornment: (
-                                        <>
-                                          {bankSearchLoading ? <CircularProgress color="primary" size={16} /> : null}
-                                          {params.InputProps?.endAdornment}
-                                        </>
-                                      ),
+                          {/* Select Bank Dropdown */}
+                          <Grid size={{ xs: 12, md: selectedBankObj ? 6 : 12 }}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel id="bank-select-label">Select Bank *</InputLabel>
+                              <Select
+                                labelId="bank-select-label"
+                                id="bankSelectDropdown"
+                                value={selectedBankObj ? (selectedBankObj.bank_name || "") : ""}
+                                onChange={(e) => {
+                                  const selected = bankMasterList.find(
+                                    (p: any) => p.bank_name === e.target.value || p.bank_code === e.target.value
+                                  );
+                                  handleBankSelect(selected || null);
+                                }}
+                                onClose={() => setBankSelectSearch("")}
+                                label="Select Bank *"
+                                MenuProps={{
+                                  autoFocus: false,
+                                  slotProps: {
+                                    paper: {
+                                      style: {
+                                        maxHeight: 350,
+                                      },
                                     },
-                                  }}
-                                />
-                              )}
-                            />
+                                  },
+                                }}
+                              >
+                                {/* Search options input inside dropdown menu */}
+                                <ListSubheader
+                                  sx={{ pt: 1, pb: 1, px: 1.5, bgcolor: "background.paper", zIndex: 1 }}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                >
+                                  <TextField
+                                    size="small"
+                                    autoFocus
+                                    placeholder="Search bank name or IFSC..."
+                                    fullWidth
+                                    value={bankSelectSearch}
+                                    onChange={(e) => setBankSelectSearch(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                    slotProps={{
+                                      input: {
+                                        startAdornment: (
+                                          <InputAdornment position="start">
+                                            <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                                          </InputAdornment>
+                                        ),
+                                        endAdornment: bankSelectSearch ? (
+                                          <InputAdornment position="end">
+                                            <IconButton
+                                              size="small"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setBankSelectSearch("");
+                                              }}
+                                            >
+                                              <CloseIcon fontSize="small" />
+                                            </IconButton>
+                                          </InputAdornment>
+                                        ) : null,
+                                      },
+                                    }}
+                                  />
+                                </ListSubheader>
+
+                                <MenuItem value="">
+                                  <em>-- Select Bank --</em>
+                                </MenuItem>
+                                {filteredBankOptions.map((p: any, idx: number) => {
+                                  const isSelected = Boolean(
+                                    selectedBankObj && p.bank_name === selectedBankObj.bank_name
+                                  );
+                                  return (
+                                    <MenuItem
+                                      key={p.bank_id || p.bank_code || p.bank_name || idx}
+                                      value={p.bank_name}
+                                      selected={isSelected}
+                                    >
+                                      {p.bank_name} {p.short_name ? `(${p.short_name})` : ""}
+                                    </MenuItem>
+                                  );
+                                })}
+                                {filteredBankOptions.length === 0 && (
+                                  <MenuItem disabled sx={{ fontStyle: "italic", color: "text.secondary" }}>
+                                    No banks matching "{bankSelectSearch}"
+                                  </MenuItem>
+                                )}
+                              </Select>
+                            </FormControl>
 
                             {/* Error State with Retry Button */}
                             {bankSearchError && (
@@ -1038,6 +1061,50 @@ function BeneficiaryWorkspaceContent() {
                               </Alert>
                             )}
                           </Grid>
+
+                          {/* IFSC Code Display (Shown once bank is chosen, readOnly = true / readable false) */}
+                          {selectedBankObj && (
+                            <Grid size={{ xs: 12, md: 6 }}>
+                              <TextField
+                                label="IFSC Code *"
+                                size="small"
+                                fullWidth
+                                value={ifscCode}
+                                slotProps={{
+                                  input: {
+                                    readOnly: true,
+                                    startAdornment: (
+                                      <InputAdornment position="start">
+                                        <LockIcon fontSize="small" sx={{ color: "#64748B" }} />
+                                      </InputAdornment>
+                                    ),
+                                    endAdornment: (
+                                      <InputAdornment position="end">
+                                        <Chip
+                                          label="Auto-bound"
+                                          size="small"
+                                          sx={{ height: 20, fontSize: "10px", bgcolor: "#E0F2FE", color: "#0369A1", fontWeight: 800 }}
+                                        />
+                                      </InputAdornment>
+                                    ),
+                                  },
+                                }}
+                                helperText="IFSC Code is auto-assigned from selected Bank Master"
+                                sx={{
+                                  "& .MuiInputBase-root": {
+                                    bgcolor: "#F8FAFC",
+                                    borderRadius: 2,
+                                  },
+                                  "& .MuiInputBase-input": {
+                                    fontWeight: 800,
+                                    letterSpacing: "0.5px",
+                                    color: "#0F172A",
+                                    cursor: "not-allowed",
+                                  },
+                                }}
+                              />
+                            </Grid>
+                          )}
                         </Grid>
                       </Paper>
 
@@ -1059,7 +1126,7 @@ function BeneficiaryWorkspaceContent() {
                         }
                         className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] hover:from-[#1d3066] hover:to-[#243374] text-white font-extrabold text-sm shadow-md shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed min-h-[50px]"
                       >
-                        <span>Continue to Verification →</span>
+                        <span>Verify & Add Beneficiary →</span>
                       </button>
                     </Stack>
                   </form>
@@ -1067,129 +1134,9 @@ function BeneficiaryWorkspaceContent() {
               )}
 
               {/* ═══════════════════════════════════════════════════════════
-                  STEP 1 — VERIFICATION (Pre-checks + Penny Drop)
+                  STEP 2 — CONFIRMATION (VERIFICATION SUCCESS)
               ═══════════════════════════════════════════════════════════ */}
-              {activeStep === 1 && (
-                <motion.div key="step1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.25 }}>
-                  <Stack spacing={2}>
-
-                    {/* Account Summary */}
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
-                      <Typography sx={{ fontWeight: 800, color: "#0F172A", mb: 2, fontSize: "15px" }}>Account to Verify</Typography>
-                      <Grid container spacing={1.5}>
-                        {[
-                          { label: "Beneficiary Name", value: benName },
-                          { label: "Nick Name", value: nickName || "—" },
-                          { label: "Relationship", value: relationship },
-                          { label: "Account Number", value: `•••• •••• ${accNum.slice(-4)}` },
-                          { label: "Bank", value: bankName },
-                          { label: "IFSC Code", value: ifscCode },
-                          { label: "MICR", value: micrCode || "—" },
-                        ].map(({ label, value }) => (
-                          <Grid key={label} size={{ xs: 6, sm: 4 }}>
-                            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block" }}>{label}</Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A" }}>{value}</Typography>
-                          </Grid>
-                        ))}
-                      </Grid>
-                    </Paper>
-
-                    {/* Pre-Checks */}
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2 }}>
-                        <ShieldIcon sx={{ color: "#0284C7", fontSize: 20 }} />
-                        <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Pre-Flight Checks</Typography>
-                        {precheckLoading && <CircularProgress size={16} />}
-                      </Stack>
-
-                      {precheckLoading ? (
-                        <Stack spacing={1.5}>
-                          {["Checking wallet balance…", "Verifying retailer status…", "Verifying customer status…", "Verifying tenant status…", "Verifying company status…"].map(txt => (
-                            <Stack key={txt} direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                              <CircularProgress size={14} sx={{ color: "#0284C7" }} />
-                              <Typography variant="body2" sx={{ color: "#64748B", fontSize: "13px" }}>{txt}</Typography>
-                            </Stack>
-                          ))}
-                        </Stack>
-                      ) : precheckResult ? (
-                        <Stack spacing={1}>
-                          {[
-                            { key: "wallet_balance", label: "Wallet Balance Sufficient", icon: <AccountBalanceWalletIcon sx={{ fontSize: 15 }} /> },
-                            { key: "retailer_active", label: "Retailer Active & Enabled", icon: <StorefrontIcon sx={{ fontSize: 15 }} /> },
-                            { key: "customer_active", label: "Customer KYC Verified", icon: <PersonIcon sx={{ fontSize: 15 }} /> },
-                            { key: "tenant_active", label: "Tenant Operational", icon: <BusinessIcon sx={{ fontSize: 15 }} /> },
-                            { key: "company_active", label: "Company Active", icon: <CorporateFareIcon sx={{ fontSize: 15 }} /> },
-                          ].map(({ key, label, icon }) => (
-                            <Stack key={key} direction="row" spacing={1.5} sx={{ alignItems: "center", p: 1.25, borderRadius: 2, bgcolor: precheckResult.checks[key] ? "#F0FDF4" : "#FFF1F2", border: `1px solid ${precheckResult.checks[key] ? "#BBF7D0" : "#FECDD3"}` }}>
-                              <Box sx={{ color: precheckResult.checks[key] ? "#16A34A" : "#DC2626" }}>{icon}</Box>
-                              <Typography variant="body2" sx={{ fontWeight: 700, color: precheckResult.checks[key] ? "#166534" : "#991B1B", flex: 1, fontSize: "13px" }}>{label}</Typography>
-                              {precheckResult.checks[key] ? (
-                                <CheckCircleIcon sx={{ fontSize: 16, color: "#16A34A" }} />
-                              ) : (
-                                <WarningAmberIcon sx={{ fontSize: 16, color: "#DC2626" }} />
-                              )}
-                            </Stack>
-                          ))}
-                        </Stack>
-                      ) : null}
-                    </Paper>
-
-                    {/* Pricing */}
-                    {verificationCharge && (
-                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #BFDBFE", bgcolor: "#EFF6FF" }}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
-                          <SwapHorizIcon sx={{ color: "#1D4ED8", fontSize: 20 }} />
-                          <Typography sx={{ fontWeight: 800, color: "#1E3A8A", fontSize: "15px" }}>Verification Charge (Pricing Master)</Typography>
-                        </Stack>
-                        <Table size="small">
-                          <TableBody>
-                            <TableRow>
-                              <TableCell sx={{ border: 0, p: 0.75, color: "#475569", fontSize: "13px" }}>Base Verification Charge</TableCell>
-                              <TableCell align="right" sx={{ border: 0, p: 0.75, fontWeight: 700, fontSize: "13px" }}>₹{verificationCharge.base.toFixed(2)}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell sx={{ border: 0, p: 0.75, color: "#475569", fontSize: "13px" }}>GST (18%)</TableCell>
-                              <TableCell align="right" sx={{ border: 0, p: 0.75, fontWeight: 700, fontSize: "13px" }}>₹{verificationCharge.gst.toFixed(2)}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell sx={{ borderTop: "2px solid #BFDBFE", p: 0.75, fontWeight: 900, color: "#1E3A8A", fontSize: "14px" }}>Total Debit from Wallet</TableCell>
-                              <TableCell align="right" sx={{ borderTop: "2px solid #BFDBFE", p: 0.75, fontWeight: 900, color: "#1D4ED8", fontSize: "15px" }}>₹{verificationCharge.total.toFixed(2)}</TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                        <Typography variant="caption" sx={{ color: "#3B82F6", mt: 1, display: "block", fontWeight: 600 }}>
-                          ₹1 penny drop is sent and instantly recovered. Net debit: ₹{verificationCharge.total.toFixed(2)}
-                        </Typography>
-                      </Paper>
-                    )}
-
-                    {/* Error */}
-                    {verificationError && (
-                      <Alert severity="error" sx={{ borderRadius: 2.5 }}>{verificationError}</Alert>
-                    )}
-
-                    {/* Actions */}
-                    <Stack direction="row" spacing={2}>
-                      <M3Button variant="outlined" onClick={() => setActiveStep(0)} sx={{ fontWeight: 700 }}>
-                        ← Back
-                      </M3Button>
-                      <button
-                        disabled={!precheckResult?.passed || precheckLoading || pennyDropLoading}
-                        onClick={() => setConfirmModalOpen(true)}
-                        className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] hover:from-[#1d3066] hover:to-[#243374] text-white font-extrabold text-sm shadow-md shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px]"
-                      >
-                        {pennyDropLoading ? <CircularProgress size={18} sx={{ color: "#FFF", mr: 1 }} /> : null}
-                        <span>{pennyDropLoading ? "Verifying…" : "Verify Bank Account"}</span>
-                      </button>
-                    </Stack>
-                  </Stack>
-                </motion.div>
-              )}
-
-              {/* ═══════════════════════════════════════════════════════════
-                  STEP 2 — CONFIRMATION
-              ═══════════════════════════════════════════════════════════ */}
-              {activeStep === 2 && createdBeneficiary && (
+              {activeStep === 1 && createdBeneficiary && (
                 <motion.div key="step2" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
                   <Stack spacing={2}>
 
@@ -1280,16 +1227,23 @@ function BeneficiaryWorkspaceContent() {
                       </Stack>
                     </Paper>
 
-                    {/* Return Actions */}
-                    <Stack direction="row" spacing={2}>
-                      <M3Button variant="outlined" onClick={() => setResultModalOpen(true)} sx={{ fontWeight: 700 }}>
-                        <VolumeUpIcon sx={{ fontSize: 16, mr: 0.5 }} /> View Result
-                      </M3Button>
+                    {/* Primary Action Buttons: Add Another OR Go to DMT */}
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                       <button
-                        onClick={handleCompleteAndReturn}
-                        className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] hover:from-[#1d3066] hover:to-[#243374] text-white font-extrabold text-sm shadow-md shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] min-h-[48px]"
+                        type="button"
+                        onClick={handleAddAnotherBeneficiary}
+                        className="flex-1 py-3.5 px-6 rounded-2xl bg-white hover:bg-slate-50 border-2 border-[#243B7D] text-[#243B7D] font-extrabold text-sm shadow-xs flex items-center justify-center gap-2 transition-all active:scale-[0.99] min-h-[50px]"
                       >
-                        <span>Return to DMT Transaction →</span>
+                        <PersonAddIcon sx={{ fontSize: 20 }} />
+                        <span>+ Add Another Beneficiary</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleCompleteAndReturn}
+                        className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] hover:from-[#1d3066] hover:to-[#243374] text-white font-extrabold text-sm shadow-md shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] min-h-[50px]"
+                      >
+                        <span>Transfer Funds Now (Go to DMT) →</span>
                       </button>
                     </Stack>
                   </Stack>
@@ -1346,6 +1300,49 @@ function BeneficiaryWorkspaceContent() {
             Confirm & Debit ₹{verificationCharge?.total?.toFixed(2) || "3.54"} →
           </M3Button>
         </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          PENNY DROP HIGH-TECH PROCESSING LOADER OVERLAY
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Dialog
+        open={pennyDropLoading}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 4, overflow: "hidden", p: 3.5, textAlign: "center", bgcolor: "#0F172A", color: "#FFFFFF", border: "1px solid rgba(255, 255, 255, 0.15)", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" } } }}
+      >
+        <Box sx={{ py: 2, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <Box sx={{ position: "relative", width: 72, height: 72, mb: 3 }}>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: "50%",
+                border: "4px solid rgba(37, 99, 235, 0.2)",
+                borderTopColor: "#3B82F6",
+                borderRightColor: "#60A5FA",
+                position: "absolute",
+                top: 0,
+                left: 0,
+              }}
+            />
+            <AccountBalanceIcon sx={{ position: "absolute", top: 20, left: 20, fontSize: 32, color: "#60A5FA" }} />
+          </Box>
+          <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", mb: 0.75, letterSpacing: "-0.2px" }}>
+            Verifying Bank Account…
+          </Typography>
+          <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.70)", fontSize: "13px", mb: 2.5, px: 2 }}>
+            Executing Cashfree V2 Penny Drop Deposit & Validating Official Name at Bank…
+          </Typography>
+          <Chip
+            icon={<SwapHorizIcon sx={{ "&&": { color: "#60A5FA", fontSize: 16 } }} />}
+            label={`Debiting ₹${verificationCharge?.total?.toFixed(2) || "3.54"} from Wallet`}
+            size="small"
+            sx={{ bgcolor: "rgba(59, 130, 246, 0.15)", color: "#60A5FA", fontWeight: 800, fontSize: "11px", py: 1.75, px: 1 }}
+          />
+        </Box>
       </Dialog>
 
       {/* ══════════════════════════════════════════════════════════════════════
@@ -1455,20 +1452,20 @@ function BeneficiaryWorkspaceContent() {
           )}
         </DialogContent>
 
-        <DialogActions sx={{ p: 2.5, pt: 0, justifyContent: resultModalSuccess ? "space-between" : "center" }}>
+        <DialogActions sx={{ p: 2.5, pt: 0, justifyContent: "center", gap: 1.5 }}>
           {resultModalSuccess ? (
             <>
-              <M3Button variant="outlined" onClick={() => setResultModalOpen(false)} sx={{ fontWeight: 700 }}>
-                Close
+              <M3Button variant="outlined" onClick={() => { setResultModalOpen(false); handleAddAnotherBeneficiary(); }} sx={{ fontWeight: 800, borderRadius: 2.5 }}>
+                + Add Another Beneficiary
               </M3Button>
               <M3Button variant="contained" onClick={() => { setResultModalOpen(false); handleCompleteAndReturn(); }}
-                sx={{ bgcolor: "#0284C7", fontWeight: 800, px: 3 }}>
-                Return to Transaction →
+                sx={{ bgcolor: "#243B7D", fontWeight: 800, px: 3, borderRadius: 2.5 }}>
+                Transfer Funds Now (Go to DMT) →
               </M3Button>
             </>
           ) : (
-            <M3Button variant="contained" onClick={() => { setResultModalOpen(false); setActiveStep(1); }}
-              sx={{ bgcolor: "#DC2626", fontWeight: 800 }}>
+            <M3Button variant="contained" onClick={() => { setResultModalOpen(false); setActiveStep(0); }}
+              sx={{ bgcolor: "#DC2626", fontWeight: 800, borderRadius: 2.5 }}>
               Try Again
             </M3Button>
           )}
