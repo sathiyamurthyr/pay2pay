@@ -53,6 +53,11 @@ class AddBeneficiaryReq(BaseModel):
     bank_name: str
     nickname: Optional[str] = None
 
+class CheckDuplicateAccountReq(BaseModel):
+    customer_id: uuid.UUID
+    account_number: str
+    ifsc_code: Optional[str] = None
+
 class PrecheckReq(BaseModel):
     customer_id: uuid.UUID
     amount: float
@@ -369,3 +374,18 @@ async def search_epic014_bank_master(
         q_clean = query.strip().upper()
         sample_banks = [b for b in sample_banks if q_clean in b["bank_name"].upper() or q_clean in b["ifsc_prefix"].upper() or q_clean in b["ifsc_code"].upper()]
     return {"status": "SUCCESS", "data": sample_banks}
+
+
+@router.post("/epic014/check-duplicate-account")
+async def check_duplicate_account_endpoint(
+    req: CheckDuplicateAccountReq,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.application.epic014_beneficiary_service import Epic014BeneficiaryService
+    res = await Epic014BeneficiaryService.check_existing_account_for_customer(
+        db=db,
+        customer_id=req.customer_id,
+        account_number=req.account_number,
+        ifsc_code=req.ifsc_code,
+    )
+    return res

@@ -390,9 +390,56 @@ function BeneficiaryWorkspaceContent() {
   };
 
 
+  const [duplicateError, setDuplicateError] = useState<string>("");
+  const [checkingDuplicate, setCheckingDuplicate] = useState<boolean>(false);
+
+  const validateDuplicateAccount = async (accToTest: string, ifscToTest?: string) => {
+    if (!accToTest || accToTest.length < 9) {
+      setDuplicateError("");
+      return false;
+    }
+    setCheckingDuplicate(true);
+    try {
+      // 1. Query backend database for existing customer beneficiary mapping
+      const res = await retailerApi.checkDuplicateBeneficiaryAccount({
+        customer_id: activeCustomerId,
+        account_number: accToTest,
+        ifsc_code: ifscToTest || ifscCode,
+      });
+
+      if (res && res.is_duplicate) {
+        const holderName = res.existing_beneficiary?.account_holder_name || res.existing_beneficiary?.registered_name_in_bank || "Registered Beneficiary";
+        const errMsg = `❌ Bank account number ending in ${accToTest.slice(-4)} is ALREADY registered for this customer (${activeCustomerName}). Registered Holder: ${holderName}`;
+        setDuplicateError(errMsg);
+        setCheckingDuplicate(false);
+        return true;
+      }
+
+      // 2. Check local active customer beneficiary list
+      const key = `pay2pay_user_added_beneficiaries_${activeCustomerId}`;
+      const existingLocal = JSON.parse(localStorage.getItem(key) || "[]");
+      const localMatch = existingLocal.find((b: any) => (b.accountNumber || b.account_number) === accToTest);
+
+      if (localMatch) {
+        const errMsg = `❌ Bank account number ending in ${accToTest.slice(-4)} is ALREADY registered for this customer (${activeCustomerName}). Registered Holder: ${localMatch.name || localMatch.account_holder_name}`;
+        setDuplicateError(errMsg);
+        setCheckingDuplicate(false);
+        return true;
+      }
+
+      setDuplicateError("");
+      setCheckingDuplicate(false);
+      return false;
+    } catch {
+      setDuplicateError("");
+      setCheckingDuplicate(false);
+      return false;
+    }
+  };
+
   // ─── Step 1 Submit ────────────────────────────────────────────────────────
 
-  const handleStep1Submit = (e?: React.FormEvent) => {
+  const handleStep1Submit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (accNum.length < 9) {
       setAccMismatchError(`Account number must be at least 9 digits (entered: ${accNum.length})`);
@@ -407,6 +454,13 @@ function BeneficiaryWorkspaceContent() {
       return;
     }
     setAccMismatchError("");
+
+    // Real-time DB Duplicate Account Check for same customer
+    const isDup = await validateDuplicateAccount(accNum, ifscCode);
+    if (isDup) {
+      return;
+    }
+
     // 2-Step Workflow: Click button on Step 1 -> Open Permission Dialog showing Debit Amount Details
     setConfirmModalOpen(true);
   };
@@ -950,11 +1004,22 @@ function BeneficiaryWorkspaceContent() {
                                   const digits = e.target.value.replace(/\D/g, "").slice(0, 18);
                                   setConfirmAccNum(digits);
                                   setAccMismatchError("");
+                                  setDuplicateError("");
+                                  if (digits === accNum && digits.length >= 9) {
+                                    validateDuplicateAccount(digits, ifscCode);
+                                  }
+                                }}
+                                onBlur={() => {
+                                  if (confirmAccNum === accNum && confirmAccNum.length >= 9) {
+                                    validateDuplicateAccount(confirmAccNum, ifscCode);
+                                  }
                                 }}
                                 required
-                                error={Boolean(accMismatchError && confirmAccNum) || (confirmAccNum.length > 0 && confirmAccNum !== accNum)}
+                                error={Boolean(duplicateError) || Boolean(accMismatchError && confirmAccNum) || (confirmAccNum.length > 0 && confirmAccNum !== accNum)}
                                 helperText={
-                                  confirmAccNum.length === 0
+                                  duplicateError
+                                    ? duplicateError
+                                    : confirmAccNum.length === 0
                                     ? "Re-enter account number to confirm"
                                     : confirmAccNum === accNum
                                     ? "✓ Matches"
@@ -965,14 +1030,14 @@ function BeneficiaryWorkspaceContent() {
                               <Box sx={{
                                 position: "absolute", top: 8, right: 10,
                                 bgcolor: confirmAccNum.length === 0 ? "#F1F5F9"
-                                  : confirmAccNum === accNum ? "#DCFCE7"
+                                  : confirmAccNum === accNum && !duplicateError ? "#DCFCE7"
                                   : "#FEE2E2",
                                 color: confirmAccNum.length === 0 ? "#64748B"
-                                  : confirmAccNum === accNum ? "#166534"
+                                  : confirmAccNum === accNum && !duplicateError ? "#166534"
                                   : "#991B1B",
                                 px: 1, py: 0.25, borderRadius: "6px",
                                 fontSize: "11px", fontWeight: 800,
-                                border: `1px solid ${confirmAccNum.length === 0 ? "#E2E8F0" : confirmAccNum === accNum ? "#86EFAC" : "#FECACA"}`,
+                                border: `1px solid ${confirmAccNum.length === 0 ? "#E2E8F0" : confirmAccNum === accNum && !duplicateError ? "#86EFAC" : "#FECACA"}`,
                                 lineHeight: 1.6, minWidth: 44, textAlign: "center",
                                 pointerEvents: "none",
                                 zIndex: 1,
@@ -984,12 +1049,14 @@ function BeneficiaryWorkspaceContent() {
                           {accNum && confirmAccNum && (
                             <Grid size={{ xs: 12 }}>
                               <Alert
-                                severity={accNum === confirmAccNum ? "success" : "error"}
-                                sx={{ borderRadius: 2, py: 0.5, fontSize: "12px" }}
+                                severity={duplicateError ? "error" : accNum === confirmAccNum ? "success" : "error"}
+                                sx={{ borderRadius: 2, py: 0.5, fontSize: "12px", fontWeight: 700 }}
                               >
-                                {accNum === confirmAccNum
-                                  ? "✓ Account numbers match"
-                                  : "✗ Account numbers do not match"}
+                                {accNum !== confirmAccNum
+                                  ? "✗ Account numbers do not match"
+                                  : duplicateError
+                                  ? duplicateError
+                                  : "✓ Account numbers match & verified unique for customer"}
                               </Alert>
                             </Grid>
                           )}

@@ -26,6 +26,57 @@ class Epic014BeneficiaryService:
     """Enterprise Beneficiary Registration & Cashfree V2 Penny Drop Workflow Service."""
 
     @classmethod
+    async def check_existing_account_for_customer(
+        cls,
+        db: AsyncSession,
+        customer_id: uuid.UUID,
+        account_number: str,
+        ifsc_code: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Check if an account number is ALREADY registered for the active customer in DB.
+        """
+        clean_account = (account_number or "").strip().replace(" ", "")
+        if not clean_account:
+            return {"is_duplicate": False}
+
+        stmt = (
+            select(BeneficiaryMasterModel)
+            .join(
+                BeneficiaryCustomerMappingModel,
+                BeneficiaryCustomerMappingModel.beneficiary_id == BeneficiaryMasterModel.public_id
+            )
+            .where(
+                and_(
+                    BeneficiaryCustomerMappingModel.customer_id == customer_id,
+                    BeneficiaryCustomerMappingModel.is_active == True,
+                    BeneficiaryMasterModel.account_number == clean_account,
+                )
+            )
+        )
+        if ifsc_code and ifsc_code.strip():
+            stmt = stmt.where(BeneficiaryMasterModel.ifsc_code == ifsc_code.strip().upper())
+
+        existing_master = (await db.execute(stmt)).scalars().first()
+
+        if existing_master:
+            return {
+                "is_duplicate": True,
+                "message": f"Account number ending in {clean_account[-4:]} is already registered for this customer.",
+                "existing_beneficiary": {
+                    "beneficiary_id": str(existing_master.public_id),
+                    "account_holder_name": existing_master.account_holder_name,
+                    "registered_name_in_bank": existing_master.registered_name_in_bank,
+                    "account_number_masked": existing_master.account_number_masked,
+                    "ifsc_code": existing_master.ifsc_code,
+                    "bank_name": existing_master.bank_name,
+                    "verification_status": existing_master.verification_status,
+                }
+            }
+
+        return {"is_duplicate": False}
+
+    @classmethod
     async def register_and_verify_beneficiary(
         cls,
         db: AsyncSession,

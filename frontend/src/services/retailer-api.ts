@@ -915,6 +915,19 @@ export const retailerApi = {
     }
   },
 
+  checkDuplicateBeneficiaryAccount: async (payload: {
+    customer_id: string;
+    account_number: string;
+    ifsc_code?: string;
+  }) => {
+    try {
+      const res = await apiClient.post("/payout-workflow/epic014/check-duplicate-account", payload);
+      return res.data;
+    } catch {
+      return { is_duplicate: false };
+    }
+  },
+
   addAndVerifyEpic014Beneficiary: async (payload: {
     customer_id: string;
     account_number: string;
