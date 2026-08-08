@@ -682,12 +682,12 @@ function BeneficiaryWorkspaceContent() {
   // ─── RENDER ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans pb-24 transition-colors">
+    <div className="min-h-screen bg-[#0B132B] text-slate-100 font-sans pb-24 transition-colors">
 
       {/* ─────────────────────────────────────────────────────────────────────
-          1. TOP APP BAR (Matching /retailer/customers theme)
+          1. TOP APP BAR (DMT Workstation Dark Theme)
       ───────────────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs">
+      <header className="sticky top-0 z-30 bg-[#0F172A]/90 backdrop-blur-md border-b border-[#1E293B] shadow-lg">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           
           {/* Left: Back Button & Title */}
@@ -695,16 +695,16 @@ function BeneficiaryWorkspaceContent() {
             <button
               onClick={handleCancel}
               aria-label="Back to Customer / DMT"
-              className="p-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:ring-2 focus:ring-blue-600 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="p-2 rounded-xl text-slate-300 hover:bg-[#1E293B] transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center border border-[#1E293B]"
             >
               <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
             </button>
 
             <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-base sm:text-lg font-black tracking-tight text-white">
                 Add Beneficiary
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hidden sm:inline-block">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#1E293B] text-[#60A5FA] border border-[#3B82F6]/30 hidden sm:inline-block">
                 Penny Drop Verified
               </span>
             </div>
@@ -712,22 +712,22 @@ function BeneficiaryWorkspaceContent() {
 
           {/* Right: Draft Save & Customer Context */}
           <div className="flex items-center gap-2.5">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 hidden md:inline-block">
+            <span className="text-xs font-bold text-[#94A3B8] hidden md:inline-block">
               Saved {lastSaved}
             </span>
 
             <button
               onClick={saveDraft}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 font-extrabold text-xs flex items-center gap-1.5 transition-colors"
+              className="min-h-[44px] px-3.5 py-2 rounded-xl border border-[#334155] bg-[#1E293B] text-[#E2E8F0] hover:bg-[#334155] font-extrabold text-xs flex items-center gap-1.5 transition-colors"
             >
-              <Save className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <Save className="w-4 h-4 text-[#60A5FA]" />
               <span>Draft</span>
             </button>
 
             <button
               onClick={handleCancel}
               aria-label="Cancel"
-              className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="p-2 rounded-xl text-[#94A3B8] hover:bg-[#1E293B] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center border border-transparent hover:border-[#1E293B]"
             >
               <CloseIcon fontSize="small" />
             </button>
@@ -740,38 +740,38 @@ function BeneficiaryWorkspaceContent() {
       ───────────────────────────────────────────────────────────────────── */}
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-5 space-y-5">
 
-        {/* ── 2. HERO CARD (Matching /retailer/customers: 110px Height, Gradient #243B7D to #2E3E8C) ── */}
+        {/* ── 2. HERO CARD (Matching /retailer/dmt dark theme) ── */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="w-full h-[110px] rounded-[24px] bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] text-white px-5 sm:px-7 flex items-center justify-between shadow-lg relative overflow-hidden shrink-0 border border-blue-900/50"
+          className="w-full h-[110px] rounded-[24px] bg-[#0F172A] border border-[#1E293B] text-white px-5 sm:px-7 flex items-center justify-between shadow-xl relative overflow-hidden shrink-0"
         >
           {/* Subtle Background Accent Pattern */}
-          <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-white/5 pointer-events-none blur-xl" />
-          <div className="absolute right-32 -top-10 w-32 h-32 rounded-full bg-blue-400/10 pointer-events-none blur-lg" />
+          <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-blue-600/10 pointer-events-none blur-xl" />
+          <div className="absolute right-32 -top-10 w-32 h-32 rounded-full bg-blue-500/10 pointer-events-none blur-lg" />
 
           <div className="relative z-10 space-y-1 max-w-xl">
             <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
               Beneficiary Registration
               <Sparkles className="w-4 h-4 text-emerald-400" />
             </h2>
-            <p className="text-xs sm:text-sm font-medium text-blue-100/90 line-clamp-1">
+            <p className="text-xs sm:text-sm font-medium text-[#94A3B8] line-clamp-1">
               Step {activeStep + 1} of {STEPS.length}: {STEPS[activeStep]?.label} • Verify bank account instantly via Penny Drop.
             </p>
           </div>
 
           {/* Right Customer Badge Pill */}
           {(activeCustomerName || activeCustomerMobile) && (
-            <div className="relative z-10 shrink-0 hidden sm:flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20">
-              <div className="w-8 h-8 rounded-full bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
+            <div className="relative z-10 shrink-0 hidden sm:flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-[#1E293B] backdrop-blur-md border border-[#334155]">
+              <div className="w-8 h-8 rounded-full bg-[#2563EB] text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
                 {(activeCustomerName || "C").charAt(0).toUpperCase()}
               </div>
               <div>
-                <div className="text-xs font-extrabold text-white leading-tight">
+                <div className="text-xs font-extrabold text-[#38BDF8] leading-tight">
                   {activeCustomerName}
                 </div>
-                <div className="text-[11px] font-medium text-blue-200">
+                <div className="text-[11px] font-medium text-[#94A3B8]">
                   {activeCustomerMobile} {activeCustomerId ? `• ${activeCustomerId}` : ""}
                 </div>
               </div>
@@ -786,17 +786,17 @@ function BeneficiaryWorkspaceContent() {
           <Grid size={{ xs: 12, md: 3.5 }}>
             <Stack spacing={2}>
               {/* Progress Card */}
-              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
-                <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
+              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: "#60A5FA", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
                   Progress
                 </Typography>
                 <Box sx={{ my: 1.5 }}>
                   <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mb: 0.75 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#0F172A" }}>Completion</Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 900, color: "#0284C7" }}>{completionPct}%</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#E2E8F0" }}>Completion</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 900, color: "#38BDF8" }}>{completionPct}%</Typography>
                   </Box>
                   <LinearProgress variant="determinate" value={completionPct}
-                    sx={{ height: 6, borderRadius: 3, bgcolor: "#E2E8F0", "& .MuiLinearProgress-bar": { bgcolor: "#0284C7", borderRadius: 3 } }} />
+                    sx={{ height: 6, borderRadius: 3, bgcolor: "#1E293B", "& .MuiLinearProgress-bar": { bgcolor: "#2563EB", borderRadius: 3 } }} />
                 </Box>
                 <Box sx={{ mt: 1 }}>
                 <Stack spacing={1.5}>
@@ -807,12 +807,12 @@ function BeneficiaryWorkspaceContent() {
                       <Box key={s.label} sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                         <Box sx={{
                           width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                          bgcolor: isDone ? "#DCFCE7" : isCurrent ? "#0284C7" : "#F1F5F9",
-                          border: isCurrent ? "none" : isDone ? "none" : "1px solid #E2E8F0",
+                          bgcolor: isDone ? "rgba(16, 185, 129, 0.2)" : isCurrent ? "#2563EB" : "#1E293B",
+                          border: isCurrent ? "none" : isDone ? "1px solid #10B981" : "1px solid #334155",
                           flexShrink: 0,
                         }}>
                           {isDone ? (
-                            <CheckCircleIcon sx={{ fontSize: 18, color: "#16A34A" }} />
+                            <CheckCircleIcon sx={{ fontSize: 18, color: "#10B981" }} />
                           ) : (
                             <Typography sx={{ fontSize: "12px", fontWeight: 800, color: isCurrent ? "#FFF" : "#94A3B8" }}>
                               {idx + 1}
@@ -820,11 +820,11 @@ function BeneficiaryWorkspaceContent() {
                           )}
                         </Box>
                         <Box>
-                          <Typography variant="body2" sx={{ fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#0F172A" : isDone ? "#16A34A" : "#94A3B8", fontSize: "13px" }}>
+                          <Typography variant="body2" sx={{ fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#FFFFFF" : isDone ? "#34D399" : "#94A3B8", fontSize: "13px" }}>
                             {s.label}
                           </Typography>
                           {isCurrent && (
-                            <Typography variant="caption" sx={{ color: "#64748B", fontSize: "10px" }}>Est. {s.est}</Typography>
+                            <Typography variant="caption" sx={{ color: "#60A5FA", fontSize: "10px" }}>Est. {s.est}</Typography>
                           )}
                         </Box>
                       </Box>
@@ -836,17 +836,17 @@ function BeneficiaryWorkspaceContent() {
 
               {/* Customer Card */}
               {(activeCustomerName || activeCustomerMobile) && (
-                <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #BFDBFE", bgcolor: "#EFF6FF" }}>
-                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#1E40AF", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#60A5FA", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
                     Customer
                   </Typography>
                   <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mt: 1 }}>
-                    <Avatar sx={{ width: 36, height: 36, bgcolor: "#1D4ED8", fontWeight: 800, fontSize: "14px" }}>
+                    <Avatar sx={{ width: 36, height: 36, bgcolor: "#2563EB", fontWeight: 800, fontSize: "14px" }}>
                       {(activeCustomerName || "C").charAt(0).toUpperCase()}
                     </Avatar>
                     <Box>
-                      <Typography sx={{ fontWeight: 800, color: "#1E40AF", fontSize: "13px" }}>{activeCustomerName || "Active Customer"}</Typography>
-                      {activeCustomerMobile && <Typography variant="caption" sx={{ color: "#3B82F6", fontWeight: 600 }}>{activeCustomerMobile}</Typography>}
+                      <Typography sx={{ fontWeight: 800, color: "#38BDF8", fontSize: "13px" }}>{activeCustomerName || "Active Customer"}</Typography>
+                      {activeCustomerMobile && <Typography variant="caption" sx={{ color: "#CBD5E1", fontWeight: 600, display: "block" }}>{activeCustomerMobile}</Typography>}
                       {activeCustomerId && <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", fontSize: "10px" }}>{activeCustomerId}</Typography>}
                     </Box>
                   </Stack>
@@ -854,28 +854,28 @@ function BeneficiaryWorkspaceContent() {
               )}
 
               {/* Wallet Card */}
-              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #D1FAE5", bgcolor: "#F0FDF4" }}>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
-                  <AccountBalanceWalletIcon sx={{ fontSize: 16, color: "#16A34A" }} />
-                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
+                  <AccountBalanceWalletIcon sx={{ fontSize: 16, color: "#10B981" }} />
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#34D399", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
                     Retailer Wallet
                   </Typography>
                 </Stack>
-                <Typography sx={{ fontWeight: 900, color: "#15803D", fontSize: "22px", letterSpacing: "-0.5px" }}>
+                <Typography sx={{ fontWeight: 900, color: "#34D399", fontSize: "22px", letterSpacing: "-0.5px" }}>
                   ₹{walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </Typography>
-                <Typography variant="caption" sx={{ color: "#86EFAC", fontWeight: 600 }}>Available Balance</Typography>
+                <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600 }}>Available Balance</Typography>
               </Paper>
 
               {/* Help Card */}
-              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #FEF3C7", bgcolor: "#FFFBEB" }}>
-                <Typography variant="caption" sx={{ fontWeight: 800, color: "#92400E", fontSize: "10px", textTransform: "uppercase", letterSpacing: 1 }}>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "10px", textTransform: "uppercase", letterSpacing: 1 }}>
                   💡 How It Works
                 </Typography>
                 <Box sx={{ mt: 1 }}><Stack spacing={0.75}>
                   {["Enter beneficiary bank details", "System verifies account via Penny Drop", "₹1 sent & instantly recovered", "Official bank name auto-updated", "Beneficiary saved for all future transfers"].map((txt, i) => (
-                    <Typography key={i} variant="caption" sx={{ color: "#78350F", display: "flex", gap: 0.75, alignItems: "flex-start", fontSize: "11px" }}>
-                      <span style={{ color: "#F59E0B", fontWeight: 900, flexShrink: 0 }}>{i + 1}.</span> {txt}
+                    <Typography key={i} variant="caption" sx={{ color: "#CBD5E1", display: "flex", gap: 0.75, alignItems: "flex-start", fontSize: "11px" }}>
+                      <span style={{ color: "#60A5FA", fontWeight: 900, flexShrink: 0 }}>{i + 1}.</span> {txt}
                     </Typography>
                   ))}
                 </Stack></Box>
@@ -896,14 +896,14 @@ function BeneficiaryWorkspaceContent() {
                     <Stack spacing={2}>
 
                       {/* BENEFICIARY DETAILS */}
-                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2.5 }}>
-                          <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: "#0F172A", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <PersonIcon sx={{ fontSize: 18, color: "#FFF" }} />
                           </Box>
                           <Box>
-                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Beneficiary Details</Typography>
-                            <Typography variant="caption" sx={{ color: "#64748B" }}>Name will be replaced with official bank registered name after verification</Typography>
+                            <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>Beneficiary Details</Typography>
+                            <Typography variant="caption" sx={{ color: "#94A3B8" }}>Name will be replaced with official bank registered name after verification</Typography>
                           </Box>
                         </Stack>
 
@@ -915,6 +915,11 @@ function BeneficiaryWorkspaceContent() {
                               onChange={e => setBenName(e.target.value)}
                               required
                               helperText="As per sender's knowledge (will be auto-updated after verification)"
+                              sx={{
+                                "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
+                                "& .MuiInputLabel-root": { color: "#94A3B8" },
+                                "& .MuiFormHelperText-root": { color: "#64748B" },
+                              }}
                             />
                           </Grid>
                           <Grid size={{ xs: 12, sm: 6 }}>
@@ -923,12 +928,21 @@ function BeneficiaryWorkspaceContent() {
                               value={nickName}
                               onChange={e => setNickName(e.target.value)}
                               helperText="Easy identifier e.g. 'Mom's SBI Account'"
+                              sx={{
+                                "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
+                                "& .MuiInputLabel-root": { color: "#94A3B8" },
+                                "& .MuiFormHelperText-root": { color: "#64748B" },
+                              }}
                             />
                           </Grid>
                           <Grid size={{ xs: 12, sm: 6 }}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Relationship *</InputLabel>
-                              <Select value={relationship} label="Relationship *" onChange={e => setRelationship(e.target.value)} required>
+                            <FormControl fullWidth size="small" sx={{
+                              "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
+                              "& .MuiInputLabel-root": { color: "#94A3B8" },
+                              "& .MuiSvgIcon-root": { color: "#94A3B8" },
+                            }}>
+                              <InputLabel id="relationship-select-label">Relationship *</InputLabel>
+                              <Select labelId="relationship-select-label" value={relationship} label="Relationship *" onChange={e => setRelationship(e.target.value)} required>
                                 {RELATIONSHIP_OPTIONS.map(r => (
                                   <MenuItem key={r} value={r}>{r}</MenuItem>
                                 ))}
@@ -939,14 +953,14 @@ function BeneficiaryWorkspaceContent() {
                       </Paper>
 
                       {/* ACCOUNT DETAILS */}
-                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2.5 }}>
                           <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: "#0284C7", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <AccountBalanceIcon sx={{ fontSize: 18, color: "#FFF" }} />
                           </Box>
                           <Box>
-                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Account Details</Typography>
-                            <Typography variant="caption" sx={{ color: "#64748B" }}>Enter and confirm account number precisely</Typography>
+                            <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>Account Details</Typography>
+                            <Typography variant="caption" sx={{ color: "#94A3B8" }}>Enter and confirm account number precisely</Typography>
                           </Box>
                         </Stack>
 
@@ -972,20 +986,25 @@ function BeneficiaryWorkspaceContent() {
                                     ? `${accNum.length} / 18 digits entered — min 9 required`
                                     : `${accNum.length} / 18 digits ✓ valid length`
                                 }
+                                sx={{
+                                  "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
+                                  "& .MuiInputLabel-root": { color: "#94A3B8" },
+                                  "& .MuiFormHelperText-root": { color: "#64748B" },
+                                }}
                               />
                               {/* Character count badge */}
                               <Box sx={{
                                 position: "absolute", top: 8, right: 10,
-                                bgcolor: accNum.length === 0 ? "#F1F5F9"
-                                  : accNum.length < 9 ? "#FEF3C7"
-                                  : accNum.length <= 18 ? "#DCFCE7"
-                                  : "#FEE2E2",
-                                color: accNum.length === 0 ? "#64748B"
-                                  : accNum.length < 9 ? "#92400E"
-                                  : "#166534",
+                                bgcolor: accNum.length === 0 ? "#1E293B"
+                                  : accNum.length < 9 ? "rgba(245, 158, 11, 0.2)"
+                                  : accNum.length <= 18 ? "rgba(16, 185, 129, 0.2)"
+                                  : "rgba(239, 68, 68, 0.2)",
+                                color: accNum.length === 0 ? "#94A3B8"
+                                  : accNum.length < 9 ? "#F59E0B"
+                                  : "#34D399",
                                 px: 1, py: 0.25, borderRadius: "6px",
                                 fontSize: "11px", fontWeight: 800,
-                                border: `1px solid ${accNum.length === 0 ? "#E2E8F0" : accNum.length < 9 ? "#FDE68A" : "#86EFAC"}`,
+                                border: `1px solid ${accNum.length === 0 ? "#334155" : accNum.length < 9 ? "#F59E0B" : "#10B981"}`,
                                 lineHeight: 1.6, minWidth: 44, textAlign: "center",
                                 pointerEvents: "none",
                                 zIndex: 1,
@@ -1025,19 +1044,24 @@ function BeneficiaryWorkspaceContent() {
                                     ? "✓ Matches"
                                     : `${confirmAccNum.length} / 18 — does not match`
                                 }
+                                sx={{
+                                  "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
+                                  "& .MuiInputLabel-root": { color: "#94A3B8" },
+                                  "& .MuiFormHelperText-root": { color: duplicateError ? "#F87171" : "#64748B" },
+                                }}
                               />
                               {/* Character count badge */}
                               <Box sx={{
                                 position: "absolute", top: 8, right: 10,
-                                bgcolor: confirmAccNum.length === 0 ? "#F1F5F9"
-                                  : confirmAccNum === accNum && !duplicateError ? "#DCFCE7"
-                                  : "#FEE2E2",
-                                color: confirmAccNum.length === 0 ? "#64748B"
-                                  : confirmAccNum === accNum && !duplicateError ? "#166534"
-                                  : "#991B1B",
+                                bgcolor: confirmAccNum.length === 0 ? "#1E293B"
+                                  : confirmAccNum === accNum && !duplicateError ? "rgba(16, 185, 129, 0.2)"
+                                  : "rgba(239, 68, 68, 0.2)",
+                                color: confirmAccNum.length === 0 ? "#94A3B8"
+                                  : confirmAccNum === accNum && !duplicateError ? "#34D399"
+                                  : "#F87171",
                                 px: 1, py: 0.25, borderRadius: "6px",
                                 fontSize: "11px", fontWeight: 800,
-                                border: `1px solid ${confirmAccNum.length === 0 ? "#E2E8F0" : confirmAccNum === accNum && !duplicateError ? "#86EFAC" : "#FECACA"}`,
+                                border: `1px solid ${confirmAccNum.length === 0 ? "#334155" : confirmAccNum === accNum && !duplicateError ? "#10B981" : "#EF4444"}`,
                                 lineHeight: 1.6, minWidth: 44, textAlign: "center",
                                 pointerEvents: "none",
                                 zIndex: 1,
@@ -1064,21 +1088,25 @@ function BeneficiaryWorkspaceContent() {
                       </Paper>
 
                       {/* BANK SELECTION */}
-                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
+                      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2.5 }}>
                           <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: "#7C3AED", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <BusinessIcon sx={{ fontSize: 18, color: "#FFF" }} />
                           </Box>
                           <Box>
-                            <Typography sx={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>Bank Selection</Typography>
-                            <Typography variant="caption" sx={{ color: "#64748B" }}>Search and select beneficiary bank</Typography>
+                            <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>Bank Selection</Typography>
+                            <Typography variant="caption" sx={{ color: "#94A3B8" }}>Search and select beneficiary bank</Typography>
                           </Box>
                         </Stack>
 
                         <Grid container spacing={2}>
                           {/* Select Bank Dropdown */}
                           <Grid size={{ xs: 12, md: selectedBankObj ? 6 : 12 }}>
-                            <FormControl fullWidth size="small">
+                            <FormControl fullWidth size="small" sx={{
+                              "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
+                              "& .MuiInputLabel-root": { color: "#94A3B8" },
+                              "& .MuiSvgIcon-root": { color: "#94A3B8" },
+                            }}>
                               <InputLabel id="bank-select-label">Select Bank *</InputLabel>
                               <Select
                                 labelId="bank-select-label"
@@ -1098,6 +1126,9 @@ function BeneficiaryWorkspaceContent() {
                                     paper: {
                                       style: {
                                         maxHeight: 350,
+                                        backgroundColor: "#0F172A",
+                                        color: "#FFFFFF",
+                                        border: "1px solid #1E293B",
                                       },
                                     },
                                   },
@@ -1105,7 +1136,7 @@ function BeneficiaryWorkspaceContent() {
                               >
                                 {/* Search options input inside dropdown menu */}
                                 <ListSubheader
-                                  sx={{ pt: 1, pb: 1, px: 1.5, bgcolor: "background.paper", zIndex: 1 }}
+                                  sx={{ pt: 1, pb: 1, px: 1.5, bgcolor: "#0F172A", zIndex: 1 }}
                                   onKeyDown={(e) => e.stopPropagation()}
                                 >
                                   <TextField
@@ -1117,11 +1148,14 @@ function BeneficiaryWorkspaceContent() {
                                     onChange={(e) => setBankSelectSearch(e.target.value)}
                                     onClick={(e) => e.stopPropagation()}
                                     onKeyDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                      "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
+                                    }}
                                     slotProps={{
                                       input: {
                                         startAdornment: (
                                           <InputAdornment position="start">
-                                            <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                                            <SearchIcon fontSize="small" sx={{ color: "#94A3B8" }} />
                                           </InputAdornment>
                                         ),
                                         endAdornment: bankSelectSearch ? (
@@ -1133,7 +1167,7 @@ function BeneficiaryWorkspaceContent() {
                                                 setBankSelectSearch("");
                                               }}
                                             >
-                                              <CloseIcon fontSize="small" />
+                                              <CloseIcon fontSize="small" sx={{ color: "#94A3B8" }} />
                                             </IconButton>
                                           </InputAdornment>
                                         ) : null,
@@ -1142,7 +1176,7 @@ function BeneficiaryWorkspaceContent() {
                                   />
                                 </ListSubheader>
 
-                                <MenuItem value="">
+                                <MenuItem value="" sx={{ color: "#94A3B8" }}>
                                   <em>-- Select Bank --</em>
                                 </MenuItem>
                                 {filteredBankOptions.map((p: any, idx: number) => {
@@ -1154,13 +1188,18 @@ function BeneficiaryWorkspaceContent() {
                                       key={p.bank_id || p.bank_code || p.bank_name || idx}
                                       value={p.bank_name}
                                       selected={isSelected}
+                                      sx={{
+                                        color: "#FFFFFF",
+                                        "&:hover": { bgcolor: "#1E293B" },
+                                        "&.Mui-selected": { bgcolor: "#2563EB", color: "#FFFFFF" },
+                                      }}
                                     >
                                       {p.bank_name} {p.short_name ? `(${p.short_name})` : ""}
                                     </MenuItem>
                                   );
                                 })}
                                 {filteredBankOptions.length === 0 && (
-                                  <MenuItem disabled sx={{ fontStyle: "italic", color: "text.secondary" }}>
+                                  <MenuItem disabled sx={{ fontStyle: "italic", color: "#94A3B8" }}>
                                     No banks matching "{bankSelectSearch}"
                                   </MenuItem>
                                 )}
@@ -1183,7 +1222,7 @@ function BeneficiaryWorkspaceContent() {
                             )}
                           </Grid>
 
-                          {/* IFSC Code Display (Shown once bank is chosen, readOnly = true / readable false) */}
+                          {/* IFSC Code Display */}
                           {selectedBankObj && (
                             <Grid size={{ xs: 12, md: 6 }}>
                               <TextField
@@ -1204,7 +1243,7 @@ function BeneficiaryWorkspaceContent() {
                                         <Chip
                                           label="Auto-bound"
                                           size="small"
-                                          sx={{ height: 20, fontSize: "10px", bgcolor: "#E0F2FE", color: "#0369A1", fontWeight: 800 }}
+                                          sx={{ height: 20, fontSize: "10px", bgcolor: "rgba(56, 189, 248, 0.2)", color: "#38BDF8", fontWeight: 800 }}
                                         />
                                       </InputAdornment>
                                     ),
@@ -1213,15 +1252,17 @@ function BeneficiaryWorkspaceContent() {
                                 helperText="IFSC Code is auto-assigned from selected Bank Master"
                                 sx={{
                                   "& .MuiInputBase-root": {
-                                    bgcolor: "#F8FAFC",
+                                    bgcolor: "#1E293B",
                                     borderRadius: 2,
                                   },
                                   "& .MuiInputBase-input": {
                                     fontWeight: 800,
                                     letterSpacing: "0.5px",
-                                    color: "#0F172A",
+                                    color: "#38BDF8",
                                     cursor: "not-allowed",
                                   },
+                                  "& .MuiInputLabel-root": { color: "#94A3B8" },
+                                  "& .MuiFormHelperText-root": { color: "#64748B" },
                                 }}
                               />
                             </Grid>
@@ -1245,7 +1286,7 @@ function BeneficiaryWorkspaceContent() {
                           !bankName ||
                           !ifscCode
                         }
-                        className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] hover:from-[#1d3066] hover:to-[#243374] text-white font-extrabold text-sm shadow-md shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed min-h-[50px]"
+                        className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white font-extrabold text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed min-h-[50px]"
                       >
                         <span>Verify & Add Beneficiary →</span>
                       </button>
@@ -1262,21 +1303,21 @@ function BeneficiaryWorkspaceContent() {
                   <Stack spacing={2}>
 
                     {/* Success Banner */}
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #BBF7D0", bgcolor: "#F0FDF4", textAlign: "center" }}>
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #10B981", bgcolor: "rgba(16, 185, 129, 0.15)", textAlign: "center" }}>
                       <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1, type: "spring" }}>
-                        <VerifiedIcon sx={{ fontSize: 56, color: "#16A34A", mb: 1 }} />
+                        <VerifiedIcon sx={{ fontSize: 56, color: "#10B981", mb: 1 }} />
                       </motion.div>
-                      <Typography variant="h5" sx={{ fontWeight: 900, color: "#14532D", mb: 0.5 }}>
+                      <Typography variant="h5" sx={{ fontWeight: 900, color: "#34D399", mb: 0.5 }}>
                         Beneficiary Verified & Saved
                       </Typography>
-                      <Typography variant="body2" sx={{ color: "#166534", fontWeight: 600 }}>
+                      <Typography variant="body2" sx={{ color: "#A7F3D0", fontWeight: 600 }}>
                         Official bank registered name has been auto-updated. Beneficiary is ready for transfers.
                       </Typography>
                     </Paper>
 
                     {/* Details Grid */}
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #E2E8F0", bgcolor: "#FFF" }}>
-                      <Typography sx={{ fontWeight: 800, color: "#0F172A", mb: 2, fontSize: "15px" }}>Verification Summary</Typography>
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
+                      <Typography sx={{ fontWeight: 800, color: "#FFFFFF", mb: 2, fontSize: "15px" }}>Verification Summary</Typography>
                       <Grid container spacing={2}>
                         {[
                           { label: "Official Name (Bank Records)", value: createdBeneficiary.account_holder_name, highlight: true },
@@ -1293,11 +1334,11 @@ function BeneficiaryWorkspaceContent() {
                           { label: "Wallet Balance After", value: `₹${createdBeneficiary.wallet_balance_after?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "—"}` },
                         ].map(({ label, value, highlight, mono }) => (
                           <Grid key={label} size={{ xs: 12, sm: 6 }}>
-                            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block", mb: 0.25 }}>{label}</Typography>
+                            <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, display: "block", mb: 0.25 }}>{label}</Typography>
                             <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                               <Typography variant="body2" sx={{
                                 fontWeight: highlight ? 900 : 700,
-                                color: highlight ? "#166534" : "#0F172A",
+                                color: highlight ? "#34D399" : "#FFFFFF",
                                 fontFamily: mono ? "monospace" : "inherit",
                                 fontSize: highlight ? "15px" : "13px",
                               }}>
@@ -1315,32 +1356,32 @@ function BeneficiaryWorkspaceContent() {
                         ))}
                       </Grid>
 
-                      <Divider sx={{ my: 2 }} />
+                      <Divider sx={{ my: 2, borderColor: "#1E293B" }} />
 
                       {/* Short IDs */}
                       <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", gap: 1.5 }}>
-                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "#F0F9FF", border: "1px solid #BAE6FD", flex: 1, minWidth: 160 }}>
-                          <Typography variant="caption" sx={{ color: "#0369A1", fontWeight: 800, display: "block", mb: 0.25 }}>SHORT BENEFICIARY ID</Typography>
+                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "#1E293B", border: "1px solid #334155", flex: 1, minWidth: 160 }}>
+                          <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800, display: "block", mb: 0.25 }}>SHORT BENEFICIARY ID</Typography>
                           <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                            <Typography sx={{ fontWeight: 900, color: "#0284C7", fontSize: "16px", fontFamily: "monospace" }}>
+                            <Typography sx={{ fontWeight: 900, color: "#38BDF8", fontSize: "16px", fontFamily: "monospace" }}>
                               {createdBeneficiary.short_ben_id}
                             </Typography>
                             <Tooltip title={copied === "benId" ? "Copied!" : "Copy"}>
                               <IconButton size="small" onClick={() => copyToClipboard(createdBeneficiary.short_ben_id, "benId")}>
-                                <ContentCopyIcon sx={{ fontSize: 14, color: "#0284C7" }} />
+                                <ContentCopyIcon sx={{ fontSize: 14, color: "#38BDF8" }} />
                               </IconButton>
                             </Tooltip>
                           </Stack>
                         </Box>
-                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "#FDF4FF", border: "1px solid #E9D5FF", flex: 1, minWidth: 160 }}>
-                          <Typography variant="caption" sx={{ color: "#7E22CE", fontWeight: 800, display: "block", mb: 0.25 }}>TRANSACTION ID</Typography>
+                        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "#1E293B", border: "1px solid #334155", flex: 1, minWidth: 160 }}>
+                          <Typography variant="caption" sx={{ color: "#C084FC", fontWeight: 800, display: "block", mb: 0.25 }}>TRANSACTION ID</Typography>
                           <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                            <Typography sx={{ fontWeight: 900, color: "#7C3AED", fontSize: "16px", fontFamily: "monospace" }}>
+                            <Typography sx={{ fontWeight: 900, color: "#E879F9", fontSize: "16px", fontFamily: "monospace" }}>
                               {createdBeneficiary.transaction_id}
                             </Typography>
                             <Tooltip title={copied === "txnId" ? "Copied!" : "Copy"}>
                               <IconButton size="small" onClick={() => copyToClipboard(createdBeneficiary.transaction_id, "txnId")}>
-                                <ContentCopyIcon sx={{ fontSize: 14, color: "#7C3AED" }} />
+                                <ContentCopyIcon sx={{ fontSize: 14, color: "#E879F9" }} />
                               </IconButton>
                             </Tooltip>
                           </Stack>
@@ -1353,16 +1394,16 @@ function BeneficiaryWorkspaceContent() {
                       <button
                         type="button"
                         onClick={handleAddAnotherBeneficiary}
-                        className="flex-1 py-3.5 px-6 rounded-2xl bg-white hover:bg-slate-50 border-2 border-[#243B7D] text-[#243B7D] font-extrabold text-sm shadow-xs flex items-center justify-center gap-2 transition-all active:scale-[0.99] min-h-[50px]"
+                        className="flex-1 py-3.5 px-6 rounded-2xl bg-[#1E293B] hover:bg-[#334155] border border-[#334155] text-white font-extrabold text-sm shadow-xs flex items-center justify-center gap-2 transition-all active:scale-[0.99] min-h-[50px]"
                       >
-                        <PersonAddIcon sx={{ fontSize: 20 }} />
+                        <PersonAddIcon sx={{ fontSize: 20, color: "#38BDF8" }} />
                         <span>+ Add Another Beneficiary</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={handleCompleteAndReturn}
-                        className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#243B7D] to-[#2E3E8C] hover:from-[#1d3066] hover:to-[#243374] text-white font-extrabold text-sm shadow-md shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] min-h-[50px]"
+                        className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white font-extrabold text-sm shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all active:scale-[0.99] min-h-[50px]"
                       >
                         <span>Transfer Funds Now (Go to DMT) →</span>
                       </button>
@@ -1379,45 +1420,45 @@ function BeneficiaryWorkspaceContent() {
           CONFIRM DEBIT MODAL
       ══════════════════════════════════════════════════════════════════════ */}
       <Dialog open={confirmModalOpen} onClose={() => setConfirmModalOpen(false)} maxWidth="xs" fullWidth
-        slotProps={{ paper: { sx: { borderRadius: 4, p: 0.5 } } }}>
-        <DialogTitle sx={{ fontWeight: 900, color: "#0F172A", pb: 1 }}>
+        slotProps={{ paper: { sx: { borderRadius: 4, p: 0.5, bgcolor: "#0F172A", color: "#FFFFFF", border: "1px solid #1E293B" } } }}>
+        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pb: 1 }}>
           Confirm Penny Drop Verification
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ color: "#64748B", mb: 2 }}>
+          <Typography variant="body2" sx={{ color: "#94A3B8", mb: 2 }}>
             A ₹1 penny drop will be sent to verify this account. The amount is instantly recovered.
-            A verification charge of <strong style={{ color: "#0284C7" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited from your wallet.
+            A verification charge of <strong style={{ color: "#38BDF8" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited from your wallet.
           </Typography>
 
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", mb: 2 }}>
-            <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 800 }}>ACCOUNT TO VERIFY</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F172A", mt: 0.5 }}>{benName}</Typography>
-            <Typography variant="caption" sx={{ color: "#475569" }}>{bankName} • ••••{accNum.slice(-4)} • {ifscCode}</Typography>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "#1E293B", border: "1px solid #334155", mb: 2 }}>
+            <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800 }}>ACCOUNT TO VERIFY</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF", mt: 0.5 }}>{benName}</Typography>
+            <Typography variant="caption" sx={{ color: "#CBD5E1" }}>{bankName} • ••••{accNum.slice(-4)} • {ifscCode}</Typography>
           </Paper>
 
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "#F0F9FF", border: "1px solid #BAE6FD" }}>
-            <Typography variant="caption" sx={{ color: "#0369A1", fontWeight: 800, display: "block", mb: 1 }}>DEBIT BREAKDOWN</Typography>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "#1E293B", border: "1px solid #334155" }}>
+            <Typography variant="caption" sx={{ color: "#38BDF8", fontWeight: 800, display: "block", mb: 1 }}>DEBIT BREAKDOWN</Typography>
             <Table size="small">
               <TableBody>
                 <TableRow>
-                  <TableCell sx={{ border: 0, p: 0.5, color: "#475569", fontSize: "12px" }}>Base Charge</TableCell>
-                  <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, fontSize: "12px" }}>₹{verificationCharge?.base?.toFixed(2) || "3.00"}</TableCell>
+                  <TableCell sx={{ border: 0, p: 0.5, color: "#CBD5E1", fontSize: "12px" }}>Base Charge</TableCell>
+                  <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, color: "#FFFFFF", fontSize: "12px" }}>₹{verificationCharge?.base?.toFixed(2) || "3.00"}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell sx={{ border: 0, p: 0.5, color: "#475569", fontSize: "12px" }}>GST (18%)</TableCell>
-                  <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, fontSize: "12px" }}>₹{verificationCharge?.gst?.toFixed(2) || "0.54"}</TableCell>
+                  <TableCell sx={{ border: 0, p: 0.5, color: "#CBD5E1", fontSize: "12px" }}>GST (18%)</TableCell>
+                  <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, color: "#FFFFFF", fontSize: "12px" }}>₹{verificationCharge?.gst?.toFixed(2) || "0.54"}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell sx={{ borderTop: "1px solid #BAE6FD", p: 0.5, fontWeight: 900, color: "#0C4A6E", fontSize: "13px" }}>Total</TableCell>
-                  <TableCell align="right" sx={{ borderTop: "1px solid #BAE6FD", p: 0.5, fontWeight: 900, color: "#0284C7", fontSize: "14px" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</TableCell>
+                  <TableCell sx={{ borderTop: "1px solid #334155", p: 0.5, fontWeight: 900, color: "#FFFFFF", fontSize: "13px" }}>Total</TableCell>
+                  <TableCell align="right" sx={{ borderTop: "1px solid #334155", p: 0.5, fontWeight: 900, color: "#38BDF8", fontSize: "14px" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
           </Paper>
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>
-          <M3Button variant="text" onClick={() => setConfirmModalOpen(false)} sx={{ color: "#64748B" }}>Cancel</M3Button>
-          <M3Button variant="contained" onClick={handleRunPennyDrop} sx={{ bgcolor: "#0284C7", px: 3, fontWeight: 800 }}>
+          <M3Button variant="text" onClick={() => setConfirmModalOpen(false)} sx={{ color: "#94A3B8" }}>Cancel</M3Button>
+          <M3Button variant="contained" onClick={handleRunPennyDrop} sx={{ bgcolor: "#2563EB", hover: { bgcolor: "#1D4ED8" }, px: 3, fontWeight: 800, borderRadius: 2.5 }}>
             Confirm & Debit ₹{verificationCharge?.total?.toFixed(2) || "3.54"} →
           </M3Button>
         </DialogActions>
@@ -1480,9 +1521,10 @@ function BeneficiaryWorkspaceContent() {
               borderRadius: 5,
               overflow: "hidden",
               p: 0,
-              bgcolor: "#FFFFFF",
-              boxShadow: "0 25px 60px -12px rgba(15, 23, 42, 0.4)",
-              border: "1px solid #E2E8F0",
+              bgcolor: "#0F172A",
+              color: "#FFFFFF",
+              boxShadow: "0 25px 60px -12px rgba(0, 0, 0, 0.7)",
+              border: "1px solid #1E293B",
             },
           },
         }}
@@ -1569,11 +1611,11 @@ function BeneficiaryWorkspaceContent() {
             )}
           </AnimatePresence>
 
-          <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5, color: resultModalSuccess ? "#065F46" : "#991B1B", letterSpacing: "-0.3px" }}>
+          <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5, color: resultModalSuccess ? "#34D399" : "#F87171", letterSpacing: "-0.3px" }}>
             {resultModalSuccess ? "Beneficiary Verified! 🎉" : "Verification Failed"}
           </Typography>
 
-          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block", mb: 2 }}>
+          <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, display: "block", mb: 2 }}>
             {resultModalSuccess
               ? "Official Name Confirmed via Cashfree V2 Bank Gateway"
               : "Unable to verify bank details. Please check account number & IFSC."}
@@ -1582,15 +1624,15 @@ function BeneficiaryWorkspaceContent() {
           {resultModalSuccess && resultModalData ? (
             <Box
               sx={{
-                bgcolor: "#F8FAFC",
-                border: "1px solid #E2E8F0",
+                bgcolor: "#1E293B",
+                border: "1px solid #334155",
                 borderRadius: 3.5,
                 p: 2,
                 textAlign: "left",
                 maxHeight: 340,
                 overflowY: "auto",
                 "&::-webkit-scrollbar": { width: "4px" },
-                "&::-webkit-scrollbar-thumb": { backgroundColor: "rgba(0,0,0,0.15)", borderRadius: "4px" },
+                "&::-webkit-scrollbar-thumb": { backgroundColor: "rgba(255,255,255,0.15)", borderRadius: "4px" },
               }}
             >
               {/* Hero Account Card */}
@@ -1604,7 +1646,7 @@ function BeneficiaryWorkspaceContent() {
                   color: "#FFFFFF",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   display: "flex",
-                  justify: "space-between",
+                  justifyContent: "space-between",
                   alignItems: "center",
                 }}
               >
@@ -1642,15 +1684,15 @@ function BeneficiaryWorkspaceContent() {
                       sx={{
                         p: 1.25,
                         borderRadius: 2,
-                        bgcolor: highlight ? "#F0FDF4" : "#FFFFFF",
-                        border: highlight ? "1px solid #BBF7D0" : "1px solid #F1F5F9",
+                        bgcolor: highlight ? "rgba(16, 185, 129, 0.15)" : "#0F172A",
+                        border: highlight ? "1px solid #10B981" : "1px solid #334155",
                         height: "100%",
                       }}
                     >
-                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", display: "block" }}>
+                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "10px", display: "block" }}>
                         {label}
                       </Typography>
-                      <Typography variant="caption" sx={{ fontWeight: highlight ? 900 : 800, color: highlight ? "#15803D" : "#0F172A", fontFamily: "monospace", fontSize: "11px", wordBreak: "break-all" }}>
+                      <Typography variant="caption" sx={{ fontWeight: highlight ? 900 : 800, color: highlight ? "#34D399" : "#FFFFFF", fontFamily: "monospace", fontSize: "11px", wordBreak: "break-all" }}>
                         {value}
                       </Typography>
                     </Box>
@@ -1659,7 +1701,7 @@ function BeneficiaryWorkspaceContent() {
               </Grid>
             </Box>
           ) : (
-            <Typography variant="body2" sx={{ color: "#64748B", mt: 1 }}>
+            <Typography variant="body2" sx={{ color: "#F87171", mt: 1 }}>
               {resultModalData?.error || "An error occurred during verification. Please try again."}
             </Typography>
           )}
@@ -1676,7 +1718,7 @@ function BeneficiaryWorkspaceContent() {
                     setResultModalOpen(false);
                     handleAddAnotherBeneficiary();
                   }}
-                  sx={{ fontWeight: 800, borderRadius: 3, border: "2px solid #243B7D", color: "#243B7D", px: 2.5, py: 1 }}
+                  sx={{ fontWeight: 800, borderRadius: 3, border: "1px solid #334155", color: "#FFFFFF", px: 2.5, py: 1 }}
                 >
                   + Add Another Beneficiary
                 </M3Button>
@@ -1690,7 +1732,7 @@ function BeneficiaryWorkspaceContent() {
                     setResultModalOpen(false);
                     handleCompleteAndReturn();
                   }}
-                  sx={{ bgcolor: "#243B7D", fontWeight: 800, px: 3, py: 1, borderRadius: 3, boxShadow: "0 4px 12px rgba(36, 59, 125, 0.25)" }}
+                  sx={{ bgcolor: "#2563EB", fontWeight: 800, px: 3, py: 1, borderRadius: 3, boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)" }}
                 >
                   Transfer Funds Now (Go to DMT) →
                 </M3Button>
