@@ -163,14 +163,30 @@ export const retailerApi = {
       const res = await apiClient.get("/retailer/wallet/balance");
       return res.data;
     } catch {
+      let savedBalance = 48250.75;
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
+        if (saved && !isNaN(parseFloat(saved))) {
+          savedBalance = parseFloat(saved);
+        }
+      }
       return {
         success: true,
-        mainBalance: 48250.75,
+        mainBalance: savedBalance,
         commissionBalance: 3420.50,
         todayMargin: 1480.00,
         todayTxnCount: 42,
         todaySettlement: 25000.00,
       };
+    }
+  },
+
+  debitWallet: async (amount: number) => {
+    try {
+      const res = await apiClient.post("/retailer/wallet/debit", { amount });
+      return res.data;
+    } catch {
+      return null;
     }
   },
 

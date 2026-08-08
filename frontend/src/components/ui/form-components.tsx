@@ -15,16 +15,24 @@ export interface M3TextFieldProps extends Omit<TextFieldProps, "variant"> {
 }
 
 export const M3TextField = React.forwardRef<HTMLInputElement, M3TextFieldProps>(
-  ({ label, errorText, startAdornment, endAdornment, ...props }, ref) => {
+  ({ label, errorText, startAdornment, endAdornment, slotProps, ...props }, ref) => {
     return (
       <TextField
         ref={ref}
         fullWidth
         label={label}
         variant="outlined"
+        autoComplete="off"
         error={Boolean(errorText)}
         helperText={errorText}
         slotProps={{
+          htmlInput: {
+            autoComplete: "new-password",
+            autoCorrect: "off",
+            autoCapitalize: "off",
+            spellCheck: "false",
+            ...(slotProps?.htmlInput || {}),
+          },
           input: {
             startAdornment: startAdornment ? (
               <InputAdornment position="start">{startAdornment}</InputAdornment>
@@ -33,6 +41,7 @@ export const M3TextField = React.forwardRef<HTMLInputElement, M3TextFieldProps>(
               <InputAdornment position="end">{endAdornment}</InputAdornment>
             ) : undefined,
             sx: { borderRadius: 2.5, backgroundColor: "#FFFFFF" },
+            ...(slotProps?.input || {}),
           },
         }}
         sx={{

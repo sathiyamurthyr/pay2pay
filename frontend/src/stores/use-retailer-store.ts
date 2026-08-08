@@ -104,6 +104,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => ({
     set((state) => ({
       wallet: { ...state.wallet, mainBalance: newBal },
     }));
+    retailerApi.debitWallet(amount).catch(() => {});
     return newBal;
   },
 

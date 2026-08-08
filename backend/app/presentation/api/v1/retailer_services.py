@@ -10,7 +10,28 @@ import random
 
 router = APIRouter(prefix="/retailer", tags=["Retailer Platform"])
 
+# ── Dynamic Retailer Wallet State ──
+RETAILER_WALLET_STATE = {
+    "mainBalance": 48250.75,
+    "commissionBalance": 3420.50,
+    "todayMargin": 1480.00,
+    "todayTxnCount": 42,
+    "todaySettlement": 25000.00,
+}
+
+def get_current_wallet_balance() -> float:
+    return RETAILER_WALLET_STATE["mainBalance"]
+
+def debit_retailer_wallet(amount: float) -> float:
+    new_bal = max(0.0, round(RETAILER_WALLET_STATE["mainBalance"] - amount, 2))
+    RETAILER_WALLET_STATE["mainBalance"] = new_bal
+    RETAILER_WALLET_STATE["todayTxnCount"] += 1
+    return new_bal
+
 # ── Schemas ──
+class WalletDebitRequest(BaseModel):
+    amount: float
+
 class DmtRequest(BaseModel):
     customerMobile: str
     beneficiaryId: str
@@ -51,25 +72,38 @@ class SettlementRequest(BaseModel):
 async def get_wallet_balance():
     return {
         "success": True,
-        "mainBalance": 48250.75,
-        "commissionBalance": 3420.50,
-        "todayMargin": 1480.00,
-        "todayTxnCount": 42,
-        "todaySettlement": 25000.00,
+        "mainBalance": RETAILER_WALLET_STATE["mainBalance"],
+        "commissionBalance": RETAILER_WALLET_STATE["commissionBalance"],
+        "todayMargin": RETAILER_WALLET_STATE["todayMargin"],
+        "todayTxnCount": RETAILER_WALLET_STATE["todayTxnCount"],
+        "todaySettlement": RETAILER_WALLET_STATE["todaySettlement"],
+    }
+
+@router.post("/wallet/debit")
+async def debit_wallet_endpoint(req: WalletDebitRequest):
+    new_bal = debit_retailer_wallet(req.amount)
+    return {
+        "success": True,
+        "mainBalance": new_bal,
+        "debitedAmount": req.amount
     }
 
 @router.post("/dmt/transfer")
 async def execute_dmt(req: DmtRequest):
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Invalid transfer amount")
+    charge = 10.0 if req.transferMode == "IMPS" else 5.0
+    total_debit = req.amount + charge
+    new_bal = debit_retailer_wallet(total_debit)
     return {
         "success": True,
         "transactionId": f"DMT{int(time.time()*1000)}",
         "utr": f"UTR{random.randint(1000000000, 9999999999)}",
         "status": "SUCCESS",
         "amount": req.amount,
-        "charge": 10.0 if req.transferMode == "IMPS" else 5.0,
+        "charge": charge,
         "margin": round(req.amount * 0.005, 2),
+        "walletBalanceAfter": new_bal,
         "timestamp": time.time(),
     }
 

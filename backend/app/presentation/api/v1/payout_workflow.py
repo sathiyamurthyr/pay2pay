@@ -350,6 +350,13 @@ async def add_and_verify_epic014_beneficiary(
         retailer_id=getattr(current_user, "public_id", None),
         current_wallet_balance=req.current_wallet_balance or 5000.0,
     )
+    if isinstance(res, dict) and res.get("status") == "SUCCESS" and not res.get("is_reused"):
+        try:
+            from app.presentation.api.v1.retailer_services import debit_retailer_wallet
+            new_bal = debit_retailer_wallet(3.54)
+            res["wallet_balance_after"] = new_bal
+        except Exception:
+            pass
     return res
 
 

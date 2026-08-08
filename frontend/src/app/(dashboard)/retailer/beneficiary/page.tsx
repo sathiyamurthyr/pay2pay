@@ -1234,6 +1234,7 @@ function BeneficiaryWorkspaceContent() {
                               <TextField
                                 label="IFSC Code *"
                                 size="small"
+                                autoComplete="off"
                                 fullWidth
                                 value={ifscCode}
                                 slotProps={{
