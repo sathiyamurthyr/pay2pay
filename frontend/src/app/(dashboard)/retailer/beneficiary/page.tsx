@@ -527,7 +527,7 @@ function BeneficiaryWorkspaceContent() {
     try {
       await retailerApi.invalidateBeneficiarySession();
     } catch {}
-    router.push(getReturnUrl());
+    router.push("/retailer/dmt");
   };
 
   const handleAddAnotherBeneficiary = () => {
