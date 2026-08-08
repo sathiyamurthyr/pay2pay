@@ -81,44 +81,98 @@ const RELATIONSHIP_OPTIONS = [
 
 
 
-// ─── SOUND ENGINE ───────────────────────────────────────────────────────────
+// ─── HIGH-FIDELITY FINTECH SOUND ENGINE ───────────────────────────────────────
 
 function playSuccessSound() {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const notes = [523.25, 659.25, 783.99, 1046.5];
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+
+    // Multi-stage chord arpeggio (C5 -> E5 -> G5 -> C6 -> E6) with warm bass backing
+    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+    
+    // Bass warmth (C3 130.81Hz)
+    const bassOsc = ctx.createOscillator();
+    const bassGain = ctx.createGain();
+    bassOsc.type = "sine";
+    bassOsc.frequency.setValueAtTime(130.81, ctx.currentTime);
+    bassGain.gain.setValueAtTime(0, ctx.currentTime);
+    bassGain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+    bassGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    bassOsc.connect(bassGain);
+    bassGain.connect(ctx.destination);
+    bassOsc.start(ctx.currentTime);
+    bassOsc.stop(ctx.currentTime + 0.65);
+
+    // Sparkling bell chime notes
     notes.forEach((freq, i) => {
+      const startTime = ctx.currentTime + i * 0.08;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.28, startTime + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45);
+
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.frequency.value = freq;
-      osc.type = "sine";
-      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
-      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + i * 0.12 + 0.04);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + i * 0.12 + 0.25);
-      osc.start(ctx.currentTime + i * 0.12);
-      osc.stop(ctx.currentTime + i * 0.12 + 0.3);
+      osc.start(startTime);
+      osc.stop(startTime + 0.5);
     });
-  } catch { /* ignore */ }
+  } catch { /* ignore audio policies */ }
 }
 
 function playFailureSound() {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    [220, 180, 150].forEach((freq, i) => {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+
+    // Two soft warm thuds
+    [261.63, 196.00].forEach((freq, i) => {
+      const startTime = ctx.currentTime + i * 0.16;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.7, startTime + 0.2);
+
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.35, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.28);
+
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.frequency.value = freq;
-      osc.type = "sawtooth";
-      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.18);
-      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + i * 0.18 + 0.05);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + i * 0.18 + 0.35);
-      osc.start(ctx.currentTime + i * 0.18);
-      osc.stop(ctx.currentTime + i * 0.18 + 0.4);
+      osc.start(startTime);
+      osc.stop(startTime + 0.3);
     });
+  } catch { /* ignore */ }
+}
+
+function playClickSound() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(1000, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.02);
+
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.025);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.03);
   } catch { /* ignore */ }
 }
 
@@ -1346,105 +1400,197 @@ function BeneficiaryWorkspaceContent() {
       </Dialog>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SUCCESS / FAILURE RESULT MODAL
+          ULTRA-PREMIUM BUTTER-SMOOTH SUCCESS / FAILURE RESULT MODAL
       ══════════════════════════════════════════════════════════════════════ */}
-      <Dialog open={resultModalOpen} onClose={() => setResultModalOpen(false)} maxWidth="sm" fullWidth
-        slotProps={{ paper: { sx: { borderRadius: 4, overflow: "hidden" } } }}>
+      <Dialog
+        open={resultModalOpen}
+        onClose={() => setResultModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 5,
+              overflow: "hidden",
+              p: 0,
+              bgcolor: "#FFFFFF",
+              boxShadow: "0 25px 60px -12px rgba(15, 23, 42, 0.4)",
+              border: "1px solid #E2E8F0",
+            },
+          },
+        }}
+      >
+        {/* Animated Accent Top Bar */}
+        <Box
+          sx={{
+            height: 6,
+            background: resultModalSuccess
+              ? "linear-gradient(90deg, #10B981, #34D399, #059669)"
+              : "linear-gradient(90deg, #EF4444, #F87171, #DC2626)",
+            backgroundSize: "200% 100%",
+            animation: "shimmerBar 2s infinite linear",
+            "@keyframes shimmerBar": {
+              "0%": { backgroundPosition: "-200% 0" },
+              "100%": { backgroundPosition: "200% 0" },
+            },
+          }}
+        />
 
-        {/* Animated top bar */}
-        <Box sx={{
-          height: 6,
-          background: resultModalSuccess
-            ? "linear-gradient(90deg, #16A34A, #22C55E, #16A34A)"
-            : "linear-gradient(90deg, #DC2626, #EF4444, #DC2626)",
-          backgroundSize: "200% 100%",
-          animation: "shimmer 1.5s infinite linear",
-          "@keyframes shimmer": { "0%": { backgroundPosition: "-200% 0" }, "100%": { backgroundPosition: "200% 0" } },
-        }} />
-
-        <DialogContent sx={{ p: 4, textAlign: "center" }}>
+        <DialogContent sx={{ p: { xs: 2.5, sm: 3.5 }, pb: 2, textAlign: "center" }}>
           <AnimatePresence>
             {resultModalOpen && (
               <motion.div
-                initial={{ scale: 0.3, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
+                initial={{ scale: 0.8, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
               >
                 {resultModalSuccess ? (
-                  <Box sx={{ position: "relative", display: "inline-block", mb: 2 }}>
+                  <Box sx={{ position: "relative", display: "inline-flex", justifyContent: "center", alignItems: "center", mb: 2 }}>
+                    {/* Glowing emerald radial aura */}
                     <motion.div
-                      animate={{ rotate: [0, 15, -15, 10, -10, 5, -5, 0] }}
-                      transition={{ delay: 0.3, duration: 0.6 }}
+                      animate={{ scale: [1, 1.25, 1], opacity: [0.3, 0.7, 0.3] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      style={{
+                        position: "absolute",
+                        width: 90,
+                        height: 90,
+                        borderRadius: "50%",
+                        background: "radial-gradient(circle, rgba(16, 185, 129, 0.35) 0%, rgba(16, 185, 129, 0) 70%)",
+                      }}
+                    />
+
+                    {/* Main Verified Badge Icon */}
+                    <motion.div
+                      initial={{ scale: 0.5, rotate: -20 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.1 }}
                     >
-                      <VerifiedIcon sx={{ fontSize: 80, color: "#16A34A" }} />
+                      <CheckCircleIcon sx={{ fontSize: 76, color: "#10B981", filter: "drop-shadow(0 8px 16px rgba(16,185,129,0.3))" }} />
                     </motion.div>
-                    {/* Confetti dots */}
-                    {[...Array(8)].map((_, i) => (
+
+                    {/* 12 Floating Confetti Burst Particles */}
+                    {[...Array(12)].map((_, i) => (
                       <motion.div
                         key={i}
                         initial={{ scale: 0, opacity: 0, x: 0, y: 0 }}
                         animate={{
-                          scale: [0, 1, 0],
+                          scale: [0, 1.2, 0],
                           opacity: [0, 1, 0],
-                          x: Math.cos((i / 8) * Math.PI * 2) * 55,
-                          y: Math.sin((i / 8) * Math.PI * 2) * 55,
+                          x: Math.cos((i / 12) * Math.PI * 2) * 60,
+                          y: Math.sin((i / 12) * Math.PI * 2) * 60,
                         }}
-                        transition={{ delay: 0.2 + i * 0.05, duration: 0.8 }}
+                        transition={{ delay: 0.15 + i * 0.03, duration: 0.75, ease: "easeOut" }}
                         style={{
                           position: "absolute",
-                          top: "50%",
-                          left: "50%",
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          backgroundColor: ["#16A34A", "#0284C7", "#7C3AED", "#F59E0B", "#EC4899", "#0EA5E9", "#10B981", "#F97316"][i],
-                          marginTop: -4,
-                          marginLeft: -4,
+                          backgroundColor: ["#10B981", "#3B82F6", "#8B5CF6", "#F59E0B", "#EC4899", "#06B6D4", "#84CC16", "#F97316"][i % 8],
                         }}
                       />
                     ))}
                   </Box>
                 ) : (
                   <motion.div
-                    animate={{ x: [-10, 10, -8, 8, -5, 5, 0] }}
-                    transition={{ delay: 0.1, duration: 0.5 }}
+                    animate={{ x: [-8, 8, -6, 6, -3, 3, 0] }}
+                    transition={{ duration: 0.45 }}
                   >
-                    <WarningAmberIcon sx={{ fontSize: 80, color: "#DC2626", mb: 2 }} />
+                    <WarningAmberIcon sx={{ fontSize: 72, color: "#EF4444", filter: "drop-shadow(0 6px 12px rgba(239,68,68,0.25))", mb: 1.5 }} />
                   </motion.div>
                 )}
               </motion.div>
             )}
           </AnimatePresence>
 
-          <Typography variant="h5" sx={{ fontWeight: 900, mb: 1, color: resultModalSuccess ? "#14532D" : "#991B1B" }}>
+          <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5, color: resultModalSuccess ? "#065F46" : "#991B1B", letterSpacing: "-0.3px" }}>
             {resultModalSuccess ? "Beneficiary Verified! 🎉" : "Verification Failed"}
           </Typography>
 
+          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, display: "block", mb: 2 }}>
+            {resultModalSuccess
+              ? "Official Name Confirmed via Cashfree V2 Bank Gateway"
+              : "Unable to verify bank details. Please check account number & IFSC."}
+          </Typography>
+
           {resultModalSuccess && resultModalData ? (
-            <Stack spacing={1.5} sx={{ mt: 2, textAlign: "left" }}>
-              {[
-                { label: "Official Name", value: resultModalData.account_holder_name },
-                { label: "Bank", value: resultModalData.bank_name },
-                { label: "IFSC", value: resultModalData.ifsc_code },
-                { label: "Verification Ref", value: resultModalData.vendor_ref },
-                { label: "Short Beneficiary ID", value: resultModalData.short_ben_id, highlight: true },
-                { label: "Transaction ID", value: resultModalData.transaction_id, highlight: true },
-                { label: "Wallet Debited", value: `₹${resultModalData.wallet_debit?.toFixed(2) || "3.54"}` },
-                { label: "Wallet Balance After", value: `₹${resultModalData.wallet_balance_after?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "—"}` },
-              ].map(({ label, value, highlight }) => (
-                <Box key={label} sx={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  p: 1.25, borderRadius: 2,
-                  bgcolor: highlight ? "#F0FDF4" : "#F8FAFC",
-                  border: highlight ? "1px solid #BBF7D0" : "1px solid #F1F5F9"
-                }}>
-                  <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>{label}</Typography>
-                  <Typography variant="caption" sx={{ fontWeight: highlight ? 900 : 700, color: highlight ? "#16A34A" : "#0F172A", fontFamily: "monospace" }}>
-                    {value}
+            <Box
+              sx={{
+                bgcolor: "#F8FAFC",
+                border: "1px solid #E2E8F0",
+                borderRadius: 3.5,
+                p: 2,
+                textAlign: "left",
+                maxHeight: 340,
+                overflowY: "auto",
+                "&::-webkit-scrollbar": { width: "4px" },
+                "&::-webkit-scrollbar-thumb": { backgroundColor: "rgba(0,0,0,0.15)", borderRadius: "4px" },
+              }}
+            >
+              {/* Hero Account Card */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1.75,
+                  mb: 1.5,
+                  borderRadius: 2.5,
+                  bgcolor: "#0F172A",
+                  color: "#FFFFFF",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  display: "flex",
+                  justify: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Box>
+                  <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "10px", letterSpacing: "0.08em" }}>
+                    BANK REGISTERED HOLDER
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 900, color: "#38BDF8", fontSize: "15px" }}>
+                    {resultModalData.account_holder_name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "#CBD5E1", fontSize: "11px", fontWeight: 700 }}>
+                    {resultModalData.bank_name} • {resultModalData.ifsc_code}
                   </Typography>
                 </Box>
-              ))}
-            </Stack>
+                <Chip
+                  icon={<VerifiedIcon sx={{ "&&": { color: "#10B981", fontSize: 15 } }} />}
+                  label="VERIFIED"
+                  size="small"
+                  sx={{ bgcolor: "rgba(16, 185, 129, 0.15)", color: "#34D399", fontWeight: 900, fontSize: "10px" }}
+                />
+              </Paper>
+
+              {/* Data Grid */}
+              <Grid container spacing={1}>
+                {[
+                  { label: "Short Beneficiary ID", value: resultModalData.short_ben_id, highlight: true },
+                  { label: "Transaction ID", value: resultModalData.transaction_id, highlight: true },
+                  { label: "Verification Ref", value: resultModalData.vendor_ref },
+                  { label: "Bank UTR", value: resultModalData.utr },
+                  { label: "Wallet Debited", value: `₹${resultModalData.wallet_debit?.toFixed(2) || "0.00"}` },
+                  { label: "Wallet Balance After", value: `₹${resultModalData.wallet_balance_after?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "—"}` },
+                ].map(({ label, value, highlight }) => (
+                  <Grid item xs={12} sm={6} key={label}>
+                    <Box
+                      sx={{
+                        p: 1.25,
+                        borderRadius: 2,
+                        bgcolor: highlight ? "#F0FDF4" : "#FFFFFF",
+                        border: highlight ? "1px solid #BBF7D0" : "1px solid #F1F5F9",
+                        height: "100%",
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700, fontSize: "10px", display: "block" }}>
+                        {label}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontWeight: highlight ? 900 : 800, color: highlight ? "#15803D" : "#0F172A", fontFamily: "monospace", fontSize: "11px", wordBreak: "break-all" }}>
+                        {value}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
           ) : (
             <Typography variant="body2" sx={{ color: "#64748B", mt: 1 }}>
               {resultModalData?.error || "An error occurred during verification. Please try again."}
@@ -1455,19 +1601,48 @@ function BeneficiaryWorkspaceContent() {
         <DialogActions sx={{ p: 2.5, pt: 0, justifyContent: "center", gap: 1.5 }}>
           {resultModalSuccess ? (
             <>
-              <M3Button variant="outlined" onClick={() => { setResultModalOpen(false); handleAddAnotherBeneficiary(); }} sx={{ fontWeight: 800, borderRadius: 2.5 }}>
-                + Add Another Beneficiary
-              </M3Button>
-              <M3Button variant="contained" onClick={() => { setResultModalOpen(false); handleCompleteAndReturn(); }}
-                sx={{ bgcolor: "#243B7D", fontWeight: 800, px: 3, borderRadius: 2.5 }}>
-                Transfer Funds Now (Go to DMT) →
-              </M3Button>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
+                <M3Button
+                  variant="outlined"
+                  onClick={() => {
+                    playClickSound();
+                    setResultModalOpen(false);
+                    handleAddAnotherBeneficiary();
+                  }}
+                  sx={{ fontWeight: 800, borderRadius: 3, border: "2px solid #243B7D", color: "#243B7D", px: 2.5, py: 1 }}
+                >
+                  + Add Another Beneficiary
+                </M3Button>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
+                <M3Button
+                  variant="contained"
+                  onClick={() => {
+                    playClickSound();
+                    setResultModalOpen(false);
+                    handleCompleteAndReturn();
+                  }}
+                  sx={{ bgcolor: "#243B7D", fontWeight: 800, px: 3, py: 1, borderRadius: 3, boxShadow: "0 4px 12px rgba(36, 59, 125, 0.25)" }}
+                >
+                  Transfer Funds Now (Go to DMT) →
+                </M3Button>
+              </motion.div>
             </>
           ) : (
-            <M3Button variant="contained" onClick={() => { setResultModalOpen(false); setActiveStep(0); }}
-              sx={{ bgcolor: "#DC2626", fontWeight: 800, borderRadius: 2.5 }}>
-              Try Again
-            </M3Button>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
+              <M3Button
+                variant="contained"
+                onClick={() => {
+                  playClickSound();
+                  setResultModalOpen(false);
+                  setActiveStep(0);
+                }}
+                sx={{ bgcolor: "#DC2626", fontWeight: 800, borderRadius: 3, px: 4, py: 1 }}
+              >
+                Try Again
+              </M3Button>
+            </motion.div>
           )}
         </DialogActions>
       </Dialog>
