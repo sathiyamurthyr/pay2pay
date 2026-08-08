@@ -1,4 +1,5 @@
 import { CustomerData } from "@/modules/transaction-framework";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export class DMTCustomerService {
   static async searchCustomerByMobile(mobile: string): Promise<CustomerData | null> {
@@ -13,7 +14,7 @@ export class DMTCustomerService {
       monthlyLimitRemaining: 200000,
       preferredBank: "HDFC Bank",
       riskRating: "LOW",
-      walletBalance: 124500,
+      walletBalance: useRetailerStore.getState().wallet.mainBalance,
     };
   }
 
@@ -29,7 +30,7 @@ export class DMTCustomerService {
       monthlyLimitRemaining: 200000,
       preferredBank: "HDFC Bank",
       riskRating: "LOW",
-      walletBalance: 124500,
+      walletBalance: useRetailerStore.getState().wallet.mainBalance,
     };
   }
 }

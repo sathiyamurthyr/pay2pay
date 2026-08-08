@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
   Typography,
@@ -77,7 +78,7 @@ export const TransferAccordion: React.FC<TransferAccordionProps> = ({
       badge: "VERIFIED",
       badgeColor: "#34D399",
       icon: <SpeedIcon sx={{ color: "#34D399", fontSize: 20 }} />,
-      component: <TransferLimits dailyRemaining={25000} monthlyRemaining={200000} walletBalance={124500} />,
+      component: <TransferLimits dailyRemaining={25000} monthlyRemaining={200000} walletBalance={useRetailerStore.getState().wallet.mainBalance} />,
     },
     {
       id: "panel4",

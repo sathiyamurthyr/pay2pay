@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
   Typography,
@@ -45,6 +46,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
 }) => {
   const [searchInput, setSearchInput] = useState("");
   const [localHasSearched, setLocalHasSearched] = useState(false);
+  const wallet = useRetailerStore((state) => state.wallet);
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -306,7 +308,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 RETAILER WALLET BALANCE
               </Typography>
               <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "24px" }}>
-                ₹{Number(customer.walletBalance ?? 124500).toLocaleString()}
+                ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
             </Box>
           </Stack>

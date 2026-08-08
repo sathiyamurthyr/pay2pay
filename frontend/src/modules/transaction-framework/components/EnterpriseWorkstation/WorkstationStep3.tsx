@@ -1,4 +1,5 @@
 import React from "react";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
   Typography,
@@ -104,7 +105,7 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Operator Wallet After Transfer</Typography>
               <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "15px" }}>
-                ₹{((customer?.walletBalance ?? 124500) - totalPayable).toLocaleString()}.00
+                ₹{((useRetailerStore.getState().wallet.mainBalance) - totalPayable).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
             </Stack>
           </Stack>

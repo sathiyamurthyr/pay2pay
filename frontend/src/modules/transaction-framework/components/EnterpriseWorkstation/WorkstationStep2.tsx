@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
   Typography,
@@ -97,7 +98,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     amount,
     transactionMode: selectedMode,
     customerId: customer?.id,
-    walletBalance: customer?.walletBalance ?? 124500,
+    walletBalance: useRetailerStore.getState().wallet.mainBalance,
   });
 
   const handleModeSelect = (modeCode: "IMPS" | "NEFT" | "RTGS" | "UPI") => {

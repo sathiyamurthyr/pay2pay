@@ -1,4 +1,5 @@
 import React from "react";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 import { Box, Typography, Stack, Avatar, Chip, Paper, Button } from "@mui/material";
 import ShieldIcon from "@mui/icons-material/Shield";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
@@ -80,7 +81,7 @@ export const BeneficiarySummary: React.FC<{ customer: CustomerData | null }> = (
             <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
               <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: 14 }} />
               <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "14px" }}>
-                ₹{(customer.walletBalance ?? 124500).toLocaleString()}
+                ₹{useRetailerStore.getState().wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
             </Stack>
           </Box>

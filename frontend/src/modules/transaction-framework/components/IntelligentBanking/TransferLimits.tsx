@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Typography, Stack, Paper, LinearProgress } from "@mui/material";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export interface TransferLimitsProps {
   dailyRemaining?: number;
@@ -10,7 +11,7 @@ export interface TransferLimitsProps {
 export const TransferLimits: React.FC<TransferLimitsProps> = ({
   dailyRemaining = 25000,
   monthlyRemaining = 200000,
-  walletBalance = 124500,
+  walletBalance = useRetailerStore.getState().wallet.mainBalance,
 }) => {
   const dailyCap = 75000;
   const dailyUsed = dailyCap - dailyRemaining;

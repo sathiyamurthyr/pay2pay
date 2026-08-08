@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import apiClient from "@/lib/api";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export interface CustomerData {
   id: string;
@@ -63,7 +64,7 @@ export function useCustomer() {
           monthlyLimitRemaining: Number(c.monthly_limit_remaining ?? c.monthly_remaining ?? 200000),
           preferredBank: c.preferred_bank || c.bank_name || "HDFC Bank",
           riskRating: c.risk_category || "LOW",
-          walletBalance: Number(c.wallet_balance ?? c.balance ?? 124500),
+          walletBalance: Number(useRetailerStore.getState().wallet.mainBalance),
           relationshipManager: c.relationship_manager || c.rm_name || "Vikram Singh",
         };
         setSelectedCustomer(custData);

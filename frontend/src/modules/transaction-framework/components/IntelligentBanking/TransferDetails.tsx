@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Typography, Stack, Paper } from "@mui/material";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export interface TransferDetailsProps {
   amount: number;
@@ -12,7 +13,7 @@ export const TransferDetails: React.FC<TransferDetailsProps> = ({
   amount,
   charges,
   totalPayable,
-  walletBalance = 124500,
+  walletBalance = useRetailerStore.getState().wallet.mainBalance,
 }) => {
   const gst = Math.round(charges * 0.18);
   const fee = charges - gst;
