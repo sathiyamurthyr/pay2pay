@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
   Typography,
@@ -184,6 +185,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   // Smooth Counter Animation Effect upon Transaction Success
   useEffect(() => {
     if (viewState === "SUCCESS_RECEIPT") {
+      try {
+        useRetailerStore.getState().debitWallet(totalPayable);
+      } catch { /* ignore */ }
       const targetWallet = (customer?.walletBalance ?? 0) - totalPayable;
       const targetLimit = Math.max(0, (beneficiary?.monthlyRemaining ?? 0) - amount);
 

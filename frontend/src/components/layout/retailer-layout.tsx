@@ -642,7 +642,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             </Paper>
 
             {/* KPI Theme Selector Icon & Menu */}
-            <Tooltip title="KPI Cards Color Theme">
+            <Tooltip title="App Theme & Color Palette">
               <IconButton
                 color="inherit"
                 onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
@@ -657,10 +657,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               anchorEl={kpiThemeAnchor}
               open={Boolean(kpiThemeAnchor)}
               onClose={() => setKpiThemeAnchor(null)}
-              slotProps={{ paper: { sx: { borderRadius: 3, width: 200, mt: 1 } } }}
+              slotProps={{ paper: { sx: { borderRadius: 3, width: 220, mt: 1, p: 0.5 } } }}
             >
               <Box sx={{ p: 1.5, borderBottom: "1px solid #E5E7EB" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "13px" }}>KPI Card Theme</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "13px", color: "#0F172A" }}>
+                  🎨 Color & Layout Theme
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#64748B", fontSize: "10px" }}>
+                  Select visual theme & color palette
+                </Typography>
               </Box>
               {KPI_THEMES.map((theme) => (
                 <MenuItem
@@ -670,15 +675,26 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     setKpiTheme(theme.id);
                     if (typeof window !== "undefined") {
                       localStorage.setItem("kpi_card_theme", theme.id);
+                      localStorage.setItem("pay2pay_app_theme", theme.id);
+                      if (theme.id === "dark") {
+                        document.documentElement.classList.add("dark");
+                        document.body.classList.add("dark");
+                      } else {
+                        document.documentElement.classList.remove("dark");
+                        document.body.classList.remove("dark");
+                      }
                     }
                     setKpiThemeAnchor(null);
                   }}
-                  sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}
+                  sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1, px: 1.5, borderRadius: 2 }}
                 >
-                  <Box sx={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: theme.swatch, border: "1px solid #CBD5E1" }} />
-                  <Typography variant="body2" sx={{ fontWeight: kpiTheme === theme.id ? 800 : 500, fontSize: "13px" }}>
+                  <Box sx={{ width: 18, height: 18, borderRadius: "50%", backgroundColor: theme.swatch, border: "2px solid #CBD5E1", boxShadow: "0 2px 4px rgba(0,0,0,0.15)" }} />
+                  <Typography variant="body2" sx={{ fontWeight: kpiTheme === theme.id ? 800 : 500, fontSize: "13px", color: kpiTheme === theme.id ? "#2563EB" : "#1E293B" }}>
                     {theme.label}
                   </Typography>
+                  {kpiTheme === theme.id && (
+                    <Box sx={{ ml: "auto", width: 6, height: 6, borderRadius: "50%", bgcolor: "#2563EB" }} />
+                  )}
                 </MenuItem>
               ))}
             </Menu>
@@ -694,21 +710,32 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               anchorEl={notifAnchor}
               open={Boolean(notifAnchor)}
               onClose={() => setNotifAnchor(null)}
-              slotProps={{ paper: { sx: { borderRadius: 3, width: 300, mt: 1 } } }}
+              slotProps={{ paper: { sx: { borderRadius: 3, width: 320, mt: 1, p: 0.5 } } }}
             >
-              <Box sx={{ p: 1.5, borderBottom: "1px solid #E5E7EB" }}>
+              <Box sx={{ p: 1.5, borderBottom: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "13px" }}>Recent Alerts</Typography>
+                {unreadNotifications > 0 && (
+                  <Button size="small" onClick={() => setUnreadNotifications(0)} sx={{ fontSize: "10px", fontWeight: 800, color: "#2563EB" }}>
+                    Mark all read
+                  </Button>
+                )}
               </Box>
-              <MenuItem onClick={() => setNotifAnchor(null)} sx={{ py: 1 }}>
+              <MenuItem onClick={() => setNotifAnchor(null)} sx={{ py: 1.25 }}>
                 <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px" }}>DMT Transfer Successful</Typography>
-                  <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "11px" }}>₹5,000 sent via IMPS · 2 mins ago</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "13px", color: "#166534" }}>✅ Penny Drop Verification Succeeded</Typography>
+                  <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "11px", display: "block" }}>Beneficiary verified & saved · ₹3.54 debited</Typography>
                 </Box>
               </MenuItem>
-              <MenuItem onClick={() => setNotifAnchor(null)} sx={{ py: 1 }}>
+              <MenuItem onClick={() => setNotifAnchor(null)} sx={{ py: 1.25 }}>
                 <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px" }}>AEPS Cash Withdrawal</Typography>
-                  <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "11px" }}>₹2,000 credited to wallet · 15 mins ago</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "13px", color: "#1E40AF" }}>💸 DMT Transfer Successful</Typography>
+                  <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "11px", display: "block" }}>₹5,000 sent via IMPS · UTR992817263541</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem onClick={() => setNotifAnchor(null)} sx={{ py: 1.25 }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "13px", color: "#D97706" }}>⚡ AEPS Cash Withdrawal</Typography>
+                  <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "11px", display: "block" }}>₹2,000 credited to wallet · 15 mins ago</Typography>
                 </Box>
               </MenuItem>
             </Menu>

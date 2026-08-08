@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
   Typography,
@@ -596,6 +597,11 @@ function BeneficiaryWorkspaceContent() {
           const deduped  = existing.filter((b: any) => b.accountNumber !== accNum);
           localStorage.setItem(key, JSON.stringify([formattedBene, ...deduped]));
         } catch { /* ignore */ }
+
+        if (!isReused) {
+          const newBal = useRetailerStore.getState().debitWallet(verificationCharge.total);
+          setWalletBalance(newBal);
+        }
 
         const notifMsg = isReused
           ? `ℹ️ Verified Account Reused: ${officialName} (₹0.00 Debited)`
@@ -1417,27 +1423,60 @@ function BeneficiaryWorkspaceContent() {
         </Grid>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          CONFIRM DEBIT MODAL
+          CONFIRM DEBIT MODAL (Ultra-Premium Glassmorphism & Gold/Yellow Theme)
       ══════════════════════════════════════════════════════════════════════ */}
-      <Dialog open={confirmModalOpen} onClose={() => setConfirmModalOpen(false)} maxWidth="xs" fullWidth
-        slotProps={{ paper: { sx: { borderRadius: 4, p: 0.5, bgcolor: "#0F172A", color: "#FFFFFF", border: "1px solid #1E293B" } } }}>
-        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pb: 1 }}>
-          Confirm Penny Drop Verification
+      <Dialog
+        open={confirmModalOpen}
+        onClose={() => setConfirmModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 5,
+              overflow: "hidden",
+              p: 0,
+              bgcolor: "rgba(15, 23, 42, 0.85)",
+              backdropFilter: "blur(24px)",
+              color: "#FFFFFF",
+              border: "1px solid rgba(245, 158, 11, 0.35)",
+              boxShadow: "0 25px 70px rgba(0, 0, 0, 0.75), 0 0 50px rgba(245, 158, 11, 0.18)",
+            },
+          },
+        }}
+      >
+        {/* Shimmering Gold Accent Bar */}
+        <Box
+          sx={{
+            height: 6,
+            background: "linear-gradient(90deg, #F59E0B, #FBBF24, #FEF08A, #D97706)",
+            backgroundSize: "200% 100%",
+            animation: "shimmerGold 2.5s infinite linear",
+            "@keyframes shimmerGold": {
+              "0%": { backgroundPosition: "-200% 0" },
+              "100%": { backgroundPosition: "200% 0" },
+            },
+          }}
+        />
+
+        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pt: 2.5, pb: 1, px: 3, display: "flex", alignItems: "center", justify: "space-between" }}>
+          <span>Confirm Penny Drop Verification</span>
+          <Chip label="₹3.54 DEBIT" size="small" sx={{ bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FBBF24", fontWeight: 900, fontSize: "10px", border: "1px solid #F59E0B" }} />
         </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ color: "#94A3B8", mb: 2 }}>
+        <DialogContent sx={{ px: 3, pb: 2 }}>
+          <Typography variant="body2" sx={{ color: "#CBD5E1", mb: 2, fontSize: "13px" }}>
             A ₹1 penny drop will be sent to verify this account. The amount is instantly recovered.
-            A verification charge of <strong style={{ color: "#38BDF8" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited from your wallet.
+            A verification charge of <strong style={{ color: "#FBBF24" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited from your wallet.
           </Typography>
 
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "#1E293B", border: "1px solid #334155", mb: 2 }}>
-            <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 800 }}>ACCOUNT TO VERIFY</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF", mt: 0.5 }}>{benName}</Typography>
-            <Typography variant="caption" sx={{ color: "#CBD5E1" }}>{bankName} • ••••{accNum.slice(-4)} • {ifscCode}</Typography>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(30, 41, 59, 0.65)", border: "1px solid rgba(245, 158, 11, 0.3)", backdropFilter: "blur(12px)", mb: 2 }}>
+            <Typography variant="caption" sx={{ color: "#FBBF24", fontWeight: 900, letterSpacing: "0.05em" }}>ACCOUNT TO VERIFY</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 900, color: "#FFFFFF", mt: 0.5, fontSize: "14px" }}>{benName}</Typography>
+            <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600 }}>{bankName} • ••••{accNum.slice(-4)} • {ifscCode}</Typography>
           </Paper>
 
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "#1E293B", border: "1px solid #334155" }}>
-            <Typography variant="caption" sx={{ color: "#38BDF8", fontWeight: 800, display: "block", mb: 1 }}>DEBIT BREAKDOWN</Typography>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(30, 41, 59, 0.65)", border: "1px solid rgba(245, 158, 11, 0.3)", backdropFilter: "blur(12px)" }}>
+            <Typography variant="caption" sx={{ color: "#FBBF24", fontWeight: 900, display: "block", mb: 1, letterSpacing: "0.05em" }}>DEBIT BREAKDOWN</Typography>
             <Table size="small">
               <TableBody>
                 <TableRow>
@@ -1449,18 +1488,23 @@ function BeneficiaryWorkspaceContent() {
                   <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, color: "#FFFFFF", fontSize: "12px" }}>₹{verificationCharge?.gst?.toFixed(2) || "0.54"}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell sx={{ borderTop: "1px solid #334155", p: 0.5, fontWeight: 900, color: "#FFFFFF", fontSize: "13px" }}>Total</TableCell>
-                  <TableCell align="right" sx={{ borderTop: "1px solid #334155", p: 0.5, fontWeight: 900, color: "#38BDF8", fontSize: "14px" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</TableCell>
+                  <TableCell sx={{ borderTop: "1px solid rgba(245, 158, 11, 0.3)", p: 0.5, fontWeight: 900, color: "#FFFFFF", fontSize: "13px" }}>Total</TableCell>
+                  <TableCell align="right" sx={{ borderTop: "1px solid rgba(245, 158, 11, 0.3)", p: 0.5, fontWeight: 900, color: "#FBBF24", fontSize: "14px" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
           </Paper>
         </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <M3Button variant="text" onClick={() => setConfirmModalOpen(false)} sx={{ color: "#94A3B8" }}>Cancel</M3Button>
-          <M3Button variant="contained" onClick={handleRunPennyDrop} sx={{ bgcolor: "#2563EB", hover: { bgcolor: "#1D4ED8" }, px: 3, fontWeight: 800, borderRadius: 2.5 }}>
-            Confirm & Debit ₹{verificationCharge?.total?.toFixed(2) || "3.54"} →
-          </M3Button>
+        <DialogActions sx={{ p: 2.5, pt: 0, px: 3, justifyContent: "space-between" }}>
+          <M3Button variant="text" onClick={() => setConfirmModalOpen(false)} sx={{ color: "#94A3B8", fontWeight: 700 }}>Cancel</M3Button>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
+            <button
+              onClick={handleRunPennyDrop}
+              className="py-2.5 px-5 rounded-2xl bg-gradient-to-r from-[#F59E0B] via-[#FBBF24] to-[#D97706] hover:from-[#D97706] hover:to-[#B45309] text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span>Confirm & Debit ₹{verificationCharge?.total?.toFixed(2) || "3.54"} →</span>
+            </button>
+          </motion.div>
         </DialogActions>
       </Dialog>
 

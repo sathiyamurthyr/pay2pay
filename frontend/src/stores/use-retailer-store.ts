@@ -38,12 +38,23 @@ interface RetailerStoreState {
   // Actions
   setSyncing: (syncing: boolean) => void;
   updateWallet: (part: Partial<WalletState>) => void;
+  debitWallet: (amount: number) => number;
   syncBalance: () => Promise<void>;
   toggleSoundbox: () => void;
   setUnreadNotifications: (count: number) => void;
   setActiveDrawer: (drawer: string | null) => void;
   setKpiTheme: (theme: KpiTheme) => void;
 }
+
+const getInitialMainBalance = (): number => {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
+    if (saved && !isNaN(parseFloat(saved))) {
+      return parseFloat(saved);
+    }
+  }
+  return 48250.75;
+};
 
 export const useRetailerStore = create<RetailerStoreState>((set, get) => ({
   outlet: {
@@ -60,7 +71,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => ({
     soundboxLang: "en",
   },
   wallet: {
-    mainBalance: 48250.75,
+    mainBalance: getInitialMainBalance(),
     commissionBalance: 3420.50,
     todayMargin: 1480.00,
     todayTxnCount: 42,
@@ -73,29 +84,61 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => ({
   kpiTheme: "classic-blue",
 
   setSyncing: (syncing) => set({ isSyncing: syncing }),
-  updateWallet: (part) => set((state) => ({ wallet: { ...state.wallet, ...part } })),
+  
+  updateWallet: (part) => {
+    set((state) => {
+      const updatedWallet = { ...state.wallet, ...part };
+      if (part.mainBalance !== undefined && typeof window !== "undefined") {
+        localStorage.setItem("p2p_active_retailer_wallet_balance", part.mainBalance.toString());
+      }
+      return { wallet: updatedWallet };
+    });
+  },
+
+  debitWallet: (amount: number) => {
+    const current = get().wallet.mainBalance;
+    const newBal = Math.max(0, current - amount);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("p2p_active_retailer_wallet_balance", newBal.toString());
+    }
+    set((state) => ({
+      wallet: { ...state.wallet, mainBalance: newBal },
+    }));
+    return newBal;
+  },
+
   syncBalance: async () => {
     set({ isSyncing: true });
     try {
       const data = await retailerApi.getWalletBalance();
-      if (data && data.mainBalance !== undefined) {
-        set((state) => ({
-          wallet: {
-            ...state.wallet,
-            mainBalance: data.mainBalance,
-            commissionBalance: data.commissionBalance ?? state.wallet.commissionBalance,
-            todayMargin: data.todayMargin ?? state.wallet.todayMargin,
-            todayTxnCount: data.todayTxnCount ?? state.wallet.todayTxnCount,
-            todaySettlement: data.todaySettlement ?? state.wallet.todaySettlement,
-          },
-        }));
+      let newBalance = data && data.mainBalance !== undefined ? data.mainBalance : getInitialMainBalance();
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
+        if (saved && !isNaN(parseFloat(saved))) {
+          newBalance = parseFloat(saved);
+        }
       }
+      set((state) => ({
+        wallet: {
+          ...state.wallet,
+          mainBalance: newBalance,
+          commissionBalance: data?.commissionBalance ?? state.wallet.commissionBalance,
+          todayMargin: data?.todayMargin ?? state.wallet.todayMargin,
+          todayTxnCount: data?.todayTxnCount ?? state.wallet.todayTxnCount,
+          todaySettlement: data?.todaySettlement ?? state.wallet.todaySettlement,
+        },
+      }));
     } catch {
-      // Keep existing balance intact on error
+      // Preserve local storage balance on API error
+      const savedBalance = getInitialMainBalance();
+      set((state) => ({
+        wallet: { ...state.wallet, mainBalance: savedBalance },
+      }));
     } finally {
       set({ isSyncing: false });
     }
   },
+
   toggleSoundbox: () => set((state) => ({ soundboxEnabled: !state.soundboxEnabled })),
   setUnreadNotifications: (count) => set({ unreadNotifications: count }),
   setActiveDrawer: (drawer) => set({ activeDrawer: drawer }),
