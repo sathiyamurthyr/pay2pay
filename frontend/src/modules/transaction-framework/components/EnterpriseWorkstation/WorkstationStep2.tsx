@@ -339,10 +339,20 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         <TextField
           fullWidth
           size="small"
+          autoComplete="off"
           placeholder="Search by Name, Account Number, or Bank..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           slotProps={{
+            htmlInput: {
+              autoComplete: "new-password",
+              name: "no_autofill_bene_search",
+              autoCorrect: "off",
+              autoCapitalize: "off",
+              spellCheck: "false",
+              "data-lpignore": "true",
+              "data-1p-ignore": "true",
+            },
             input: {
               startAdornment: (
                 <InputAdornment position="start">
@@ -728,7 +738,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
       {/* ── ADD BENEFICIARY DIALOG MODAL ── */}
       <Dialog open={addModalOpen} onClose={() => setAddModalOpen(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleAddBeneficiarySubmit}>
+        <form onSubmit={handleAddBeneficiarySubmit} autoComplete="off" autoCorrect="off" autoCapitalize="off">
           <DialogTitle sx={{ bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 900, fontSize: "18px" }}>
             💳 Add New Beneficiary
           </DialogTitle>
@@ -750,7 +760,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 value={beneName}
                 onChange={(e) => setBeneName(e.target.value)}
                 required
+                autoComplete="off"
                 slotProps={{
+                  htmlInput: { autoComplete: "new-password", name: "no_autofill_bene_fullname", autoCorrect: "off", autoCapitalize: "off", spellCheck: "false" },
                   input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
                   inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
                 }}
@@ -762,7 +774,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 value={accountNumber}
                 onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
                 required
+                autoComplete="off"
                 slotProps={{
+                  htmlInput: { autoComplete: "new-password", name: "no_autofill_bene_accnum", autoCorrect: "off", autoCapitalize: "off", spellCheck: "false" },
                   input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
                   inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
                 }}
@@ -775,7 +789,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   value={ifsc}
                   onChange={(e) => setIfsc(e.target.value.toUpperCase())}
                   required
+                  autoComplete="off"
                   slotProps={{
+                    htmlInput: { autoComplete: "new-password", name: "no_autofill_bene_ifsc", autoCorrect: "off", autoCapitalize: "off", spellCheck: "false" },
                     input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
                     inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
                   }}
@@ -786,7 +802,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   value={bankName}
                   onChange={(e) => setBankName(e.target.value)}
                   required
+                  autoComplete="off"
                   slotProps={{
+                    htmlInput: { autoComplete: "new-password", name: "no_autofill_bene_bankname", autoCorrect: "off", autoCapitalize: "off", spellCheck: "false" },
                     input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
                     inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
                   }}

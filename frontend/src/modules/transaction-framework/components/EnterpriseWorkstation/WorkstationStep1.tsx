@@ -105,14 +105,24 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
           CUSTOMER SEARCH & IDENTIFICATION
         </Typography>
 
-        <form onSubmit={handleSearch}>
+        <form onSubmit={handleSearch} autoComplete="off" autoCorrect="off" autoCapitalize="off">
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <TextField
               fullWidth
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search by Mobile, Customer Code, Aadhaar, PAN, or Name..."
+              autoComplete="off"
               slotProps={{
+                htmlInput: {
+                  autoComplete: "new-password",
+                  name: "no_autofill_customer_search",
+                  autoCorrect: "off",
+                  autoCapitalize: "off",
+                  spellCheck: "false",
+                  "data-lpignore": "true",
+                  "data-1p-ignore": "true",
+                },
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">

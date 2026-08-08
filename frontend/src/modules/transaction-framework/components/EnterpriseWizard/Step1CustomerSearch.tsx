@@ -70,14 +70,24 @@ export const Step1CustomerSearch: React.FC<Step1CustomerSearchProps> = ({
           STEP 1: CUSTOMER IDENTIFICATION & SEARCH
         </Typography>
 
-        <form onSubmit={handleSearch}>
+        <form onSubmit={handleSearch} autoComplete="off" autoCorrect="off" autoCapitalize="off">
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <TextField
               fullWidth
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Enter Mobile Number or Customer Code..."
+              autoComplete="off"
               slotProps={{
+                htmlInput: {
+                  autoComplete: "new-password",
+                  name: "no_autofill_wiz_cust_search",
+                  autoCorrect: "off",
+                  autoCapitalize: "off",
+                  spellCheck: "false",
+                  "data-lpignore": "true",
+                  "data-1p-ignore": "true",
+                },
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
