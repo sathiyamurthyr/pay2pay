@@ -194,7 +194,7 @@ export const AuthPanel: React.FC = () => {
   const [acceptedConsent, setAcceptedConsent] = useState(true);
   const [trustDevice, setTrustDevice] = useState(true);
   const [trustDays, setTrustDays] = useState<number>(30);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
 
   // Status & Telemetry
   const [loading, setLoading] = useState(false);
@@ -436,13 +436,13 @@ export const AuthPanel: React.FC = () => {
   };
 
   return (
-    <div className={`relative w-full h-full ${darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"} flex flex-col justify-between p-3 sm:p-5 xl:p-6 2xl:p-10 transition-colors overflow-y-auto select-none no-scrollbar`}>
+    <div className={`relative w-full h-full ${darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"} flex flex-col justify-between p-3 sm:p-4 xl:p-6 2xl:p-8 transition-colors overflow-y-auto select-none no-scrollbar`}>
       
       {/* Confetti Burst Container on Success */}
       {showConfetti && <ConfettiBurst />}
 
       {/* Mobile Top Header */}
-      <div className="lg:hidden flex items-center justify-between mb-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="lg:hidden flex items-center justify-between mb-2 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-md">
             P2P
@@ -478,9 +478,9 @@ export const AuthPanel: React.FC = () => {
       </div>
 
       {/* Desktop Top Bar Controls */}
-      <div className="hidden lg:flex items-center justify-between mb-2 2xl:mb-4">
+      <div className="hidden lg:flex items-center justify-between mb-2 2xl:mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+          <div className="w-7 h-7 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
             <Shield className="w-4 h-4" />
           </div>
           <span className="text-[10px] 2xl:text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -489,8 +489,8 @@ export const AuthPanel: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="relative flex items-center text-xs font-extrabold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-xs hover:border-blue-500 transition-colors">
-            <Globe className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400" />
+          <div className="relative flex items-center text-xs font-extrabold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1 shadow-xs hover:border-blue-500 transition-colors">
+            <Globe className="w-3.5 h-3.5 mr-1 text-blue-600 dark:text-blue-400" />
             <select
               value={selectedLanguage}
               onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
@@ -512,15 +512,15 @@ export const AuthPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Glass Authentication Card (Compact, Responsive, No Hidden Overflow) */}
+      {/* Main Glass Authentication Card (Compact, Responsive, Fits Viewport) */}
       <motion.div
         variants={glassPanelVariants}
         initial="hidden"
         animate="visible"
-        className="my-auto max-w-md 2xl:max-w-xl w-full mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-[30px] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-4 sm:p-5 2xl:p-8 shadow-2xl relative overflow-hidden"
+        className="my-auto max-w-md 2xl:max-w-xl w-full mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-[30px] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-4 sm:p-5 2xl:p-7 shadow-2xl relative"
       >
         {/* Header */}
-        <div className="text-center mb-3 2xl:mb-5">
+        <div className="text-center mb-2.5 2xl:mb-4">
           <h2 className="text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
             {t.welcomeBack}
           </h2>
@@ -530,7 +530,7 @@ export const AuthPanel: React.FC = () => {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl mb-3 2xl:mb-5">
+        <div className="flex bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl mb-2.5 2xl:mb-4">
           {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
             <button
               key={tab}
@@ -549,7 +549,7 @@ export const AuthPanel: React.FC = () => {
 
         {/* Risk Assessment Indicator */}
         {riskAssessment && (
-          <div className={`mb-3 px-3 py-1.5 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
+          <div className={`mb-2.5 px-3 py-1 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
             riskAssessment.risk_level === "LOW"
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
               : riskAssessment.risk_level === "MEDIUM"
@@ -572,7 +572,7 @@ export const AuthPanel: React.FC = () => {
               initial={{ opacity: 0, y: -4 }}
               animate={isShakeError ? "shake" : { opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mb-3 p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2"
+              className="mb-2.5 p-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2"
             >
               <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
               <span>{errorMsg}</span>
@@ -584,7 +584,7 @@ export const AuthPanel: React.FC = () => {
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mb-3 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-2"
+              className="mb-2.5 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-2"
             >
               <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
               <span>{successMsg}</span>
@@ -594,10 +594,10 @@ export const AuthPanel: React.FC = () => {
 
         {/* ── TAB 1: PASSWORD LOGIN ── */}
         {authTab === "PASSWORD" && (
-          <form onSubmit={handlePasswordLogin} className="space-y-2.5 2xl:space-y-4">
+          <form onSubmit={handlePasswordLogin} className="space-y-2 2xl:space-y-3.5">
             {/* Mobile Input with Floating Animated Glow */}
             <div>
-              <label className="block text-[11px] 2xl:text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-[11px] 2xl:text-xs font-bold text-slate-700 dark:text-slate-300 mb-0.5">
                 {t.mobileNumber} <span className="text-red-500">*</span>
               </label>
               <div className={`relative transition-all duration-200 rounded-xl ${mobileFocused ? "ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/10" : ""}`}>
@@ -612,7 +612,7 @@ export const AuthPanel: React.FC = () => {
                   onChange={(e) => handleMobileChange(e.target.value)}
                   placeholder="9876543210"
                   required
-                  className="w-full pl-11 pr-9 py-2 2xl:py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
+                  className="w-full pl-11 pr-9 py-1.5 2xl:py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
                 />
                 {mobileNumber.length === 10 && (
                   <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
@@ -622,7 +622,7 @@ export const AuthPanel: React.FC = () => {
 
             {/* Password Input */}
             <div>
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-0.5">
                 <label className="block text-[11px] 2xl:text-xs font-bold text-slate-700 dark:text-slate-300">
                   {t.password} <span className="text-red-500">*</span>
                 </label>
@@ -639,7 +639,7 @@ export const AuthPanel: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   required
-                  className="w-full pl-3 pr-12 py-2 2xl:py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
+                  className="w-full pl-3 pr-12 py-1.5 2xl:py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
                 />
                 <button
                   type="button"
@@ -652,7 +652,7 @@ export const AuthPanel: React.FC = () => {
             </div>
 
             {/* Captcha Widget */}
-            <div className="p-2 2xl:p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800">
+            <div className="p-2 rounded-xl bg-slate-100/70 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] 2xl:text-xs font-extrabold text-slate-700 dark:text-slate-300">{t.captchaChallenge}</span>
                 <div className="flex items-center gap-1.5">
@@ -714,8 +714,8 @@ export const AuthPanel: React.FC = () => {
             </div>
 
             {/* Security Consent */}
-            <div className="p-2 rounded-xl bg-blue-500/5 border border-blue-500/20 text-[10px] text-slate-600 dark:text-slate-300">
-              <label className="flex items-start gap-2 cursor-pointer">
+            <div className="p-1.5 rounded-xl bg-blue-500/5 border border-blue-500/20 text-[10px] text-slate-600 dark:text-slate-300">
+              <label className="flex items-start gap-1.5 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={acceptedConsent}
@@ -735,7 +735,7 @@ export const AuthPanel: React.FC = () => {
               whileTap="tap"
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 2xl:py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white text-xs 2xl:text-sm font-extrabold hover:shadow-lg hover:shadow-blue-600/25 transition-all flex items-center justify-center gap-1.5 relative overflow-hidden"
+              className="w-full py-2.5 2xl:py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white text-xs 2xl:text-sm font-extrabold hover:shadow-lg hover:shadow-blue-600/25 transition-all flex items-center justify-center gap-1.5 relative overflow-hidden shadow-md cursor-pointer"
             >
               {loading ? (
                 <div className="flex items-center gap-2">
@@ -777,7 +777,7 @@ export const AuthPanel: React.FC = () => {
                   type="button"
                   onClick={handleSendOtp}
                   disabled={loading || mobileNumber.length !== 10}
-                  className="px-3 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-extrabold flex items-center gap-1"
+                  className="px-3 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-extrabold flex items-center gap-1 cursor-pointer"
                 >
                   <MessageSquare className="w-3 h-3" />
                   <span>{otpSent ? t.resend : t.sendOtp}</span>
@@ -821,7 +821,7 @@ export const AuthPanel: React.FC = () => {
                   whileTap="tap"
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold shadow-md"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold shadow-md cursor-pointer"
                 >
                   {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : <span>{t.verifySignIn}</span>}
                 </motion.button>
@@ -832,16 +832,16 @@ export const AuthPanel: React.FC = () => {
 
         {/* ── TAB 3: BIOMETRIC LOGIN ── */}
         {authTab === "BIOMETRIC" && (
-          <div className="py-4 text-center space-y-3">
+          <div className="py-3 text-center space-y-2.5">
             <motion.div
               animate={{ scale: [1, 1.08, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="w-14 h-14 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto border border-blue-500/30 shadow-lg shadow-blue-500/10"
+              className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto border border-blue-500/30 shadow-lg shadow-blue-500/10"
             >
-              <Fingerprint className="w-7 h-7" />
+              <Fingerprint className="w-6 h-6" />
             </motion.div>
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">{t.webauthnTitle}</h3>
+              <h3 className="text-xs 2xl:text-sm font-extrabold text-slate-900 dark:text-white">{t.webauthnTitle}</h3>
               <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 max-w-xs mx-auto mt-0.5">
                 {t.webauthnDesc}
               </p>
@@ -856,7 +856,7 @@ export const AuthPanel: React.FC = () => {
                 setSuccessMsg("✓ Biometric Passkey Authenticated. Redirecting...");
                 setTimeout(() => router.push("/retailer-dashboard"), 800);
               }}
-              className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-md"
+              className="px-5 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-md cursor-pointer"
             >
               <Fingerprint className="w-3.5 h-3.5" />
               <span>{t.authPasskey}</span>
@@ -865,7 +865,7 @@ export const AuthPanel: React.FC = () => {
         )}
 
         {/* Registration Trigger - Redirects directly to Progressive Retailer Onboarding Wizard (/retailers/onboard) */}
-        <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+        <div className="mt-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
           <span className="font-semibold text-slate-500">{t.newRetailer}</span>
           <Link href="/retailers/onboard" className="font-extrabold text-blue-600 dark:text-blue-400 hover:underline">
             {t.registerAccount}
@@ -874,7 +874,7 @@ export const AuthPanel: React.FC = () => {
       </motion.div>
 
       {/* Footer */}
-      <div className="mt-3 text-center text-[10px] 2xl:text-xs font-semibold text-slate-400 dark:text-slate-500 space-y-0.5">
+      <div className="mt-2 text-center text-[10px] 2xl:text-xs font-semibold text-slate-400 dark:text-slate-500 space-y-0.5">
         <div className="flex items-center justify-center gap-2">
           <a href="#" className="hover:underline">{t.privacyPolicy}</a>
           <span>·</span>
