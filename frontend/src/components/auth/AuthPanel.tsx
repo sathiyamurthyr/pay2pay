@@ -436,10 +436,13 @@ export const AuthPanel: React.FC = () => {
   };
 
   return (
-    <div className={`relative w-full h-full ${darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"} flex flex-col justify-between p-3 sm:p-4 xl:p-6 2xl:p-8 transition-colors overflow-y-auto select-none no-scrollbar`}>
+    <div className={`relative w-full min-h-screen ${darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"} flex flex-col transition-colors overflow-y-auto select-none no-scrollbar`}>
       
       {/* Confetti Burst Container on Success */}
       {showConfetti && <ConfettiBurst />}
+
+      {/* ── Inner Content Wrapper (provides padding + vertical flex centering) ── */}
+      <div className="flex flex-col flex-1 justify-between p-4 sm:p-5 xl:p-6 2xl:p-8">
 
       {/* Mobile Top Header */}
       <div className="lg:hidden flex items-center justify-between mb-2 pb-2 border-b border-slate-200 dark:border-slate-800">
@@ -512,7 +515,7 @@ export const AuthPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Glass Authentication Card (Compact, Responsive, Fits Viewport) */}
+      {/* Main Glass Authentication Card */}
       <motion.div
         variants={glassPanelVariants}
         initial="hidden"
@@ -864,17 +867,17 @@ export const AuthPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Registration Trigger - Redirects directly to Progressive Retailer Onboarding Wizard (/retailers/onboard) */}
+        {/* Registration Trigger - Redirects to Progressive Retailer Onboarding Wizard */}
         <div className="mt-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
           <span className="font-semibold text-slate-500">{t.newRetailer}</span>
-          <Link href="/retailers/onboard" className="font-extrabold text-blue-600 dark:text-blue-400 hover:underline">
+          <Link href="/register" className="font-extrabold text-blue-600 dark:text-blue-400 hover:underline">
             {t.registerAccount}
           </Link>
         </div>
       </motion.div>
 
       {/* Footer */}
-      <div className="mt-2 text-center text-[10px] 2xl:text-xs font-semibold text-slate-400 dark:text-slate-500 space-y-0.5">
+      <div className="mt-4 text-center text-[10px] 2xl:text-xs font-semibold text-slate-400 dark:text-slate-500 space-y-0.5">
         <div className="flex items-center justify-center gap-2">
           <a href="#" className="hover:underline">{t.privacyPolicy}</a>
           <span>·</span>
@@ -884,6 +887,8 @@ export const AuthPanel: React.FC = () => {
         </div>
         <p>{t.rbiFooter}</p>
       </div>
+
+      </div>{/* end inner padding wrapper */}
     </div>
   );
 };
