@@ -19,7 +19,7 @@ interface Step6Props {
 }
 
 export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) => {
-  const [panNumber, setPanNumber] = useState("");
+  const [panNumber, setPanNumber] = useState("DAQPS8535F");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [panData, setPanData] = useState<any>(null);
