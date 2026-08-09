@@ -342,7 +342,10 @@ export const AuthPanel: React.FC = () => {
           router.push("/retailer-dashboard");
         }, 800);
       } else {
-        triggerError(data.detail || data.message || "Invalid mobile number or password.");
+        const errText = (data.detail && data.detail !== "Not Found")
+          ? data.detail
+          : (data.message || "Invalid mobile number or password. Please try again.");
+        triggerError(errText);
       }
     } catch {
       setLoading(false);
@@ -376,7 +379,8 @@ export const AuthPanel: React.FC = () => {
         setSuccessMsg(`✓ WhatsApp OTP dispatched. Demo Code: ${data.data.simulated_otp || "778899"}`);
         setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
       } else {
-        triggerError(data.detail || "Failed to send OTP.");
+        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : "Failed to send OTP.";
+        triggerError(errText);
       }
     } catch {
       setLoading(false);
@@ -419,7 +423,8 @@ export const AuthPanel: React.FC = () => {
           router.push("/retailer-dashboard");
         }, 800);
       } else {
-        triggerError(data.detail || "Invalid OTP code.");
+        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : "Invalid OTP code.";
+        triggerError(errText);
       }
     } catch {
       setLoading(false);
@@ -431,19 +436,19 @@ export const AuthPanel: React.FC = () => {
   };
 
   return (
-    <div className={`relative w-full h-full ${darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"} flex flex-col justify-between p-4 sm:p-6 xl:p-10 2xl:p-14 transition-colors overflow-y-auto lg:overflow-hidden select-none`}>
+    <div className={`relative w-full h-full ${darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"} flex flex-col justify-between p-3 sm:p-5 xl:p-6 2xl:p-10 transition-colors overflow-y-auto select-none no-scrollbar`}>
       
       {/* Confetti Burst Container on Success */}
       {showConfetti && <ConfettiBurst />}
 
       {/* Mobile Top Header */}
-      <div className="lg:hidden flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-800">
+      <div className="lg:hidden flex items-center justify-between mb-3 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-md">
+          <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-md">
             P2P
           </div>
           <div>
-            <h1 className="text-base font-black text-slate-900 dark:text-white">Pay2Pay Enterprise</h1>
+            <h1 className="text-sm font-black text-slate-900 dark:text-white">Pay2Pay Enterprise</h1>
             <p className="text-[10px] font-semibold text-slate-500">Retailer Workstation</p>
           </div>
         </div>
@@ -465,7 +470,7 @@ export const AuthPanel: React.FC = () => {
 
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+            className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
           >
             {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
@@ -473,19 +478,19 @@ export const AuthPanel: React.FC = () => {
       </div>
 
       {/* Desktop Top Bar Controls */}
-      <div className="hidden lg:flex items-center justify-between mb-4 2xl:mb-6">
+      <div className="hidden lg:flex items-center justify-between mb-2 2xl:mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 2xl:w-9 2xl:h-9 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
-            <Shield className="w-4 h-4 2xl:w-5 2xl:h-5" />
+          <div className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+            <Shield className="w-4 h-4" />
           </div>
           <span className="text-[10px] 2xl:text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
             {t.securityAuth}
           </span>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex items-center text-xs 2xl:text-sm font-extrabold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 2xl:px-4 2xl:py-2 shadow-xs hover:border-blue-500 transition-colors">
-            <Globe className="w-4 h-4 mr-1.5 text-blue-600 dark:text-blue-400" />
+        <div className="flex items-center gap-2">
+          <div className="relative flex items-center text-xs font-extrabold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-xs hover:border-blue-500 transition-colors">
+            <Globe className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400" />
             <select
               value={selectedLanguage}
               onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
@@ -500,38 +505,38 @@ export const AuthPanel: React.FC = () => {
 
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="p-1.5 2xl:p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            {darkMode ? <Sun className="w-4 h-4 2xl:w-5 2xl:h-5 text-amber-400" /> : <Moon className="w-4 h-4 2xl:w-5 2xl:h-5 text-slate-600" />}
+            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
         </div>
       </div>
 
-      {/* Main Glass Authentication Card (Spring Slide In + Blur 30px) */}
+      {/* Main Glass Authentication Card (Compact, Responsive, No Hidden Overflow) */}
       <motion.div
         variants={glassPanelVariants}
         initial="hidden"
         animate="visible"
-        className="my-auto max-w-md 2xl:max-w-xl w-full mx-auto bg-white/90 dark:bg-slate-900/90 backdrop-blur-[30px] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 2xl:p-10 shadow-2xl relative overflow-hidden"
+        className="my-auto max-w-md 2xl:max-w-xl w-full mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-[30px] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-4 sm:p-5 2xl:p-8 shadow-2xl relative overflow-hidden"
       >
         {/* Header */}
-        <div className="text-center mb-4 2xl:mb-6">
-          <h2 className="text-xl sm:text-2xl 2xl:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+        <div className="text-center mb-3 2xl:mb-5">
+          <h2 className="text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
             {t.welcomeBack}
           </h2>
-          <p className="text-[11px] 2xl:text-sm font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-[11px] 2xl:text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
             {t.subtitle}
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl mb-4 2xl:mb-6">
+        <div className="flex bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl mb-3 2xl:mb-5">
           {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
-              className={`flex-1 py-1.5 2xl:py-2.5 rounded-xl text-[11px] 2xl:text-xs font-extrabold transition-all relative ${
+              className={`flex-1 py-1.5 2xl:py-2 rounded-xl text-[11px] 2xl:text-xs font-extrabold transition-all relative ${
                 authTab === tab
                   ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
@@ -544,7 +549,7 @@ export const AuthPanel: React.FC = () => {
 
         {/* Risk Assessment Indicator */}
         {riskAssessment && (
-          <div className={`mb-3 2xl:mb-4 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-xl border text-[11px] 2xl:text-xs font-bold flex items-center justify-between ${
+          <div className={`mb-3 px-3 py-1.5 rounded-xl border text-[11px] font-bold flex items-center justify-between ${
             riskAssessment.risk_level === "LOW"
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
               : riskAssessment.risk_level === "MEDIUM"
@@ -555,7 +560,7 @@ export const AuthPanel: React.FC = () => {
               <Shield className="w-3.5 h-3.5" />
               <span>Risk Score: {riskAssessment.risk_score}/100 ({riskAssessment.risk_level})</span>
             </span>
-            <span className="uppercase text-[9px] 2xl:text-[11px] font-black">{riskAssessment.recommended_action}</span>
+            <span className="uppercase text-[9px] font-black">{riskAssessment.recommended_action}</span>
           </div>
         )}
 
@@ -569,7 +574,7 @@ export const AuthPanel: React.FC = () => {
               exit={{ opacity: 0 }}
               className="mb-3 p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2"
             >
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
               <span>{errorMsg}</span>
             </motion.div>
           )}
@@ -589,7 +594,7 @@ export const AuthPanel: React.FC = () => {
 
         {/* ── TAB 1: PASSWORD LOGIN ── */}
         {authTab === "PASSWORD" && (
-          <form onSubmit={handlePasswordLogin} className="space-y-3 2xl:space-y-5">
+          <form onSubmit={handlePasswordLogin} className="space-y-2.5 2xl:space-y-4">
             {/* Mobile Input with Floating Animated Glow */}
             <div>
               <label className="block text-[11px] 2xl:text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -607,7 +612,7 @@ export const AuthPanel: React.FC = () => {
                   onChange={(e) => handleMobileChange(e.target.value)}
                   placeholder="9876543210"
                   required
-                  className="w-full pl-11 pr-9 py-2 2xl:py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
+                  className="w-full pl-11 pr-9 py-2 2xl:py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
                 />
                 {mobileNumber.length === 10 && (
                   <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
@@ -634,7 +639,7 @@ export const AuthPanel: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   required
-                  className="w-full pl-3 pr-12 py-2 2xl:py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
+                  className="w-full pl-3 pr-12 py-2 2xl:py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
                 />
                 <button
                   type="button"
@@ -647,11 +652,11 @@ export const AuthPanel: React.FC = () => {
             </div>
 
             {/* Captcha Widget */}
-            <div className="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800">
-              <div className="flex items-center justify-between mb-1.5">
+            <div className="p-2 2xl:p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] 2xl:text-xs font-extrabold text-slate-700 dark:text-slate-300">{t.captchaChallenge}</span>
                 <div className="flex items-center gap-1.5">
-                  <span className="px-2.5 py-0.5 bg-slate-800 text-amber-300 font-mono font-black text-xs tracking-widest rounded-lg">
+                  <span className="px-2 py-0.5 bg-slate-800 text-amber-300 font-mono font-black text-xs tracking-widest rounded-lg">
                     {captchaCode}
                   </span>
                   <button
@@ -698,7 +703,7 @@ export const AuthPanel: React.FC = () => {
                   <select
                     value={trustDays}
                     onChange={(e) => setTrustDays(Number(e.target.value))}
-                    className="font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded px-1 py-0.5 outline-none"
+                    className="font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded px-1 py-0.5 outline-none text-[10px]"
                   >
                     <option value={30}>{t.days30}</option>
                     <option value={90}>{t.days90}</option>
@@ -730,7 +735,7 @@ export const AuthPanel: React.FC = () => {
               whileTap="tap"
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 2xl:py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white text-xs 2xl:text-sm font-extrabold hover:shadow-lg hover:shadow-blue-600/25 transition-all flex items-center justify-center gap-1.5 relative overflow-hidden"
+              className="w-full py-2.5 2xl:py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white text-xs 2xl:text-sm font-extrabold hover:shadow-lg hover:shadow-blue-600/25 transition-all flex items-center justify-center gap-1.5 relative overflow-hidden"
             >
               {loading ? (
                 <div className="flex items-center gap-2">
@@ -859,17 +864,17 @@ export const AuthPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Registration Trigger */}
-        <div className="mt-4 pt-3 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+        {/* Registration Trigger - Redirects directly to Progressive Retailer Onboarding Wizard (/retailers/onboard) */}
+        <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
           <span className="font-semibold text-slate-500">{t.newRetailer}</span>
-          <Link href="/retailer/customers/new" className="font-extrabold text-blue-600 dark:text-blue-400 hover:underline">
+          <Link href="/retailers/onboard" className="font-extrabold text-blue-600 dark:text-blue-400 hover:underline">
             {t.registerAccount}
           </Link>
         </div>
       </motion.div>
 
       {/* Footer */}
-      <div className="mt-4 text-center text-[10px] 2xl:text-xs font-semibold text-slate-400 dark:text-slate-500 space-y-1">
+      <div className="mt-3 text-center text-[10px] 2xl:text-xs font-semibold text-slate-400 dark:text-slate-500 space-y-0.5">
         <div className="flex items-center justify-center gap-2">
           <a href="#" className="hover:underline">{t.privacyPolicy}</a>
           <span>·</span>
