@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,9 +15,16 @@ import {
   Fingerprint,
   MessageSquare,
   ArrowRight,
-  Loader2
+  Loader2,
+  Check
 } from "lucide-react";
 import { collectSilentTelemetry, TelemetryData } from "@/lib/telemetry";
+import { ConfettiBurst } from "./motion/ConfettiBurst";
+import {
+  glassPanelVariants,
+  shakeErrorVariants,
+  buttonMotionVariants
+} from "./motion/animationVariants";
 
 type LanguageKey = "English" | "Hindi" | "Tamil" | "Telugu";
 
@@ -172,16 +179,22 @@ export const AuthPanel: React.FC = () => {
   const [mobileNumber, setMobileNumber] = useState("9176669426");
   const [password, setPassword] = useState("Retailer#2026");
   const [showPassword, setShowPassword] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaCode, setCaptchaCode] = useState("K7N8P2");
+
+  // Focus & Validation states
+  const [mobileFocused, setMobileFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [isShakeError, setIsShakeError] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Security & Preferences
   const [rememberMe, setRememberMe] = useState(true);
   const [acceptedConsent, setAcceptedConsent] = useState(true);
   const [trustDevice, setTrustDevice] = useState(true);
   const [trustDays, setTrustDays] = useState<number>(30);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
 
   // Status & Telemetry
   const [loading, setLoading] = useState(false);
@@ -191,6 +204,8 @@ export const AuthPanel: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState("");
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
   const [riskAssessment, setRiskAssessment] = useState<any>(null);
+
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Captcha Fetch
   const fetchCaptcha = async () => {
@@ -216,6 +231,12 @@ export const AuthPanel: React.FC = () => {
       }).catch(() => {});
     });
   }, []);
+
+  const triggerError = (msg: string) => {
+    setErrorMsg(msg);
+    setIsShakeError(true);
+    setTimeout(() => setIsShakeError(false), 500);
+  };
 
   const handleMobileChange = (val: string) => {
     const clean = val.replace(/\D/g, "").slice(0, 10);
@@ -246,18 +267,35 @@ export const AuthPanel: React.FC = () => {
     }
   };
 
+  const handleOtpDigitChange = (index: number, val: string) => {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const updated = [...otpDigits];
+    updated[index] = digit;
+    setOtpDigits(updated);
+
+    if (digit && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!acceptedConsent) {
-      setErrorMsg("Security Consent acceptance is mandatory before login.");
+      triggerError("Security Consent acceptance is mandatory before login.");
       return;
     }
     if (mobileNumber.length !== 10) {
-      setErrorMsg("Please enter a valid 10-digit mobile number.");
+      triggerError("Please enter a valid 10-digit mobile number.");
       return;
     }
     if (!password) {
-      setErrorMsg("Please enter your account password.");
+      triggerError("Please enter your account password.");
       return;
     }
 
@@ -282,6 +320,7 @@ export const AuthPanel: React.FC = () => {
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
+        setShowConfetti(true);
         setSuccessMsg("✓ Authentication Successful! Redirecting...");
         localStorage.setItem("pay2pay_access_token", data.data.access_token);
         localStorage.setItem("pay2pay_session_id", data.data.session_id);
@@ -301,22 +340,23 @@ export const AuthPanel: React.FC = () => {
 
         setTimeout(() => {
           router.push("/retailer-dashboard");
-        }, 700);
+        }, 800);
       } else {
-        setErrorMsg(data.detail || data.message || "Invalid mobile number or password.");
+        triggerError(data.detail || data.message || "Invalid mobile number or password.");
       }
     } catch {
       setLoading(false);
+      setShowConfetti(true);
       setSuccessMsg("✓ Authenticated. Redirecting...");
       setTimeout(() => {
         router.push("/retailer-dashboard");
-      }, 500);
+      }, 600);
     }
   };
 
   const handleSendOtp = async () => {
     if (mobileNumber.length !== 10) {
-      setErrorMsg("Please enter a valid 10-digit mobile number.");
+      triggerError("Please enter a valid 10-digit mobile number.");
       return;
     }
     setErrorMsg("");
@@ -334,25 +374,28 @@ export const AuthPanel: React.FC = () => {
         setOtpSent(true);
         setOtpHint(data.data.simulated_otp || "778899");
         setSuccessMsg(`✓ WhatsApp OTP dispatched. Demo Code: ${data.data.simulated_otp || "778899"}`);
+        setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
       } else {
-        setErrorMsg(data.detail || "Failed to send OTP.");
+        triggerError(data.detail || "Failed to send OTP.");
       }
     } catch {
       setLoading(false);
       setOtpSent(true);
       setOtpHint("778899");
       setSuccessMsg(`✓ WhatsApp OTP dispatched. Demo Code: 778899`);
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
     }
   };
 
   const handleOtpVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    const fullOtp = otpDigits.join("");
     if (!acceptedConsent) {
-      setErrorMsg("Security Consent acceptance is mandatory before login.");
+      triggerError("Security Consent acceptance is mandatory before login.");
       return;
     }
-    if (otpCode.length < 4) {
-      setErrorMsg("Please enter the complete OTP code.");
+    if (fullOtp.length < 6) {
+      triggerError("Please enter the complete 6-digit OTP code.");
       return;
     }
 
@@ -363,31 +406,36 @@ export const AuthPanel: React.FC = () => {
       const res = await fetch("http://localhost:8000/api/v1/auth/enterprise/login-otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile_number: mobileNumber, otp_code: otpCode, telemetry: telemetry })
+        body: JSON.stringify({ mobile_number: mobileNumber, otp_code: fullOtp, telemetry: telemetry })
       });
       const data = await res.json();
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
+        setShowConfetti(true);
         setSuccessMsg("✓ OTP Verified! Redirecting...");
         localStorage.setItem("pay2pay_access_token", data.data.access_token);
         setTimeout(() => {
           router.push("/retailer-dashboard");
-        }, 700);
+        }, 800);
       } else {
-        setErrorMsg(data.detail || "Invalid OTP code.");
+        triggerError(data.detail || "Invalid OTP code.");
       }
     } catch {
       setLoading(false);
+      setShowConfetti(true);
       setTimeout(() => {
         router.push("/retailer-dashboard");
-      }, 500);
+      }, 600);
     }
   };
 
   return (
     <div className={`relative w-full h-full ${darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"} flex flex-col justify-between p-4 sm:p-6 xl:p-10 2xl:p-14 transition-colors overflow-y-auto lg:overflow-hidden select-none`}>
       
+      {/* Confetti Burst Container on Success */}
+      {showConfetti && <ConfettiBurst />}
+
       {/* Mobile Top Header */}
       <div className="lg:hidden flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
@@ -401,7 +449,6 @@ export const AuthPanel: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Mobile Language Selector */}
           <div className="relative flex items-center text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1">
             <Globe className="w-3.5 h-3.5 mr-1 text-blue-600" />
             <select
@@ -437,7 +484,6 @@ export const AuthPanel: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Language Selector Dropdown */}
           <div className="relative flex items-center text-xs 2xl:text-sm font-extrabold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 2xl:px-4 2xl:py-2 shadow-xs hover:border-blue-500 transition-colors">
             <Globe className="w-4 h-4 mr-1.5 text-blue-600 dark:text-blue-400" />
             <select
@@ -452,7 +498,6 @@ export const AuthPanel: React.FC = () => {
             </select>
           </div>
 
-          {/* Dark Mode Toggle */}
           <button
             onClick={() => setDarkMode(!darkMode)}
             className="p-1.5 2xl:p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -462,10 +507,14 @@ export const AuthPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Glass Authentication Card */}
-      <div className="my-auto max-w-md 2xl:max-w-xl w-full mx-auto bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 2xl:p-10 shadow-2xl">
-        
-        {/* Multilingual Header */}
+      {/* Main Glass Authentication Card (Spring Slide In + Blur 30px) */}
+      <motion.div
+        variants={glassPanelVariants}
+        initial="hidden"
+        animate="visible"
+        className="my-auto max-w-md 2xl:max-w-xl w-full mx-auto bg-white/90 dark:bg-slate-900/90 backdrop-blur-[30px] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 2xl:p-10 shadow-2xl relative overflow-hidden"
+      >
+        {/* Header */}
         <div className="text-center mb-4 2xl:mb-6">
           <h2 className="text-xl sm:text-2xl 2xl:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
             {t.welcomeBack}
@@ -477,39 +526,20 @@ export const AuthPanel: React.FC = () => {
 
         {/* Tab Switcher */}
         <div className="flex bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl mb-4 2xl:mb-6">
-          <button
-            type="button"
-            onClick={() => { setAuthTab("PASSWORD"); setErrorMsg(""); }}
-            className={`flex-1 py-1.5 2xl:py-2.5 rounded-xl text-[11px] 2xl:text-xs font-extrabold transition-all ${
-              authTab === "PASSWORD"
-                ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-900"
-            }`}
-          >
-            {t.passwordLogin}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAuthTab("OTP"); setErrorMsg(""); }}
-            className={`flex-1 py-1.5 2xl:py-2.5 rounded-xl text-[11px] 2xl:text-xs font-extrabold transition-all ${
-              authTab === "OTP"
-                ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-900"
-            }`}
-          >
-            {t.otpLogin}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAuthTab("BIOMETRIC"); setErrorMsg(""); }}
-            className={`flex-1 py-1.5 2xl:py-2.5 rounded-xl text-[11px] 2xl:text-xs font-extrabold transition-all ${
-              authTab === "BIOMETRIC"
-                ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-900"
-            }`}
-          >
-            {t.biometricLogin}
-          </button>
+          {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
+              className={`flex-1 py-1.5 2xl:py-2.5 rounded-xl text-[11px] 2xl:text-xs font-extrabold transition-all relative ${
+                authTab === tab
+                  ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              {tab === "PASSWORD" ? t.passwordLogin : tab === "OTP" ? t.otpLogin : t.biometricLogin}
+            </button>
+          ))}
         </div>
 
         {/* Risk Assessment Indicator */}
@@ -529,12 +559,13 @@ export const AuthPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Alerts */}
+        {/* Alerts & Validation Shake Wrapper */}
         <AnimatePresence>
           {errorMsg && (
             <motion.div
+              variants={shakeErrorVariants}
               initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
+              animate={isShakeError ? "shake" : { opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               className="mb-3 p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2"
             >
@@ -550,7 +581,7 @@ export const AuthPanel: React.FC = () => {
               exit={{ opacity: 0 }}
               className="mb-3 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-2"
             >
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
               <span>{successMsg}</span>
             </motion.div>
           )}
@@ -559,23 +590,28 @@ export const AuthPanel: React.FC = () => {
         {/* ── TAB 1: PASSWORD LOGIN ── */}
         {authTab === "PASSWORD" && (
           <form onSubmit={handlePasswordLogin} className="space-y-3 2xl:space-y-5">
-            {/* Mobile Input */}
+            {/* Mobile Input with Floating Animated Glow */}
             <div>
               <label className="block text-[11px] 2xl:text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 {t.mobileNumber} <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
+              <div className={`relative transition-all duration-200 rounded-xl ${mobileFocused ? "ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/10" : ""}`}>
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
                   +91
                 </span>
                 <input
                   type="text"
                   value={mobileNumber}
+                  onFocus={() => setMobileFocused(true)}
+                  onBlur={() => setMobileFocused(false)}
                   onChange={(e) => handleMobileChange(e.target.value)}
                   placeholder="9876543210"
                   required
-                  className="w-full pl-11 pr-3 py-2 2xl:py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  className="w-full pl-11 pr-9 py-2 2xl:py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
                 />
+                {mobileNumber.length === 10 && (
+                  <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
+                )}
               </div>
             </div>
 
@@ -589,19 +625,21 @@ export const AuthPanel: React.FC = () => {
                   {t.forgot}
                 </Link>
               </div>
-              <div className="relative">
+              <div className={`relative transition-all duration-200 rounded-xl ${passwordFocused ? "ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/10" : ""}`}>
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   required
-                  className="w-full pl-3 pr-10 py-2 2xl:py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  className="w-full pl-3 pr-12 py-2 2xl:py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs 2xl:text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[11px] font-bold"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-[11px] font-bold"
                 >
                   {showPassword ? "Hide" : "Show"}
                 </button>
@@ -619,7 +657,7 @@ export const AuthPanel: React.FC = () => {
                   <button
                     type="button"
                     onClick={fetchCaptcha}
-                    className="p-1 rounded bg-white dark:bg-slate-800 text-slate-600 hover:bg-slate-200 transition-colors"
+                    className="p-1 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors"
                   >
                     <RefreshCw className="w-3 h-3" />
                   </button>
@@ -685,28 +723,31 @@ export const AuthPanel: React.FC = () => {
               </label>
             </div>
 
-            {/* Login Submit Button */}
-            <button
+            {/* Login Submit Button with Hover 1.02 & Click 0.98 */}
+            <motion.button
+              variants={buttonMotionVariants}
+              whileHover="hover"
+              whileTap="tap"
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 2xl:py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs 2xl:text-sm font-extrabold hover:from-blue-700 shadow-md transition-all flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 2xl:py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white text-xs 2xl:text-sm font-extrabold hover:shadow-lg hover:shadow-blue-600/25 transition-all flex items-center justify-center gap-1.5 relative overflow-hidden"
             >
               {loading ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
                   <span>{t.authenticating}</span>
-                </>
+                </div>
               ) : (
                 <>
                   <span>{t.signIn}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
-            </button>
+            </motion.button>
           </form>
         )}
 
-        {/* ── TAB 2: OTP LOGIN ── */}
+        {/* ── TAB 2: OTP LOGIN (6-DIGIT AUTO-FOCUS BOXES) ── */}
         {authTab === "OTP" && (
           <div className="space-y-3">
             <div>
@@ -742,30 +783,43 @@ export const AuthPanel: React.FC = () => {
             {otpSent && (
               <form onSubmit={handleOtpVerify} className="space-y-3 pt-1">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 text-center">
                     {t.enterOtp} <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="6-Digit OTP"
-                    required
-                    className="w-full text-center tracking-widest text-base font-black py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white"
-                  />
+
+                  {/* 6 Digit Auto Focus Box Matrix */}
+                  <div className="flex items-center justify-center gap-2">
+                    {otpDigits.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        ref={(el) => { otpInputRefs.current[idx] = el; }}
+                        type="text"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                        className="w-10 h-11 text-center font-black text-lg rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/30 transition-all"
+                      />
+                    ))}
+                  </div>
+
                   {otpHint && (
-                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-1 text-center">
+                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-2 text-center">
                       ⚡ Demo OTP Code: <span className="underline">{otpHint}</span>
                     </p>
                   )}
                 </div>
-                <button
+
+                <motion.button
+                  variants={buttonMotionVariants}
+                  whileHover="hover"
+                  whileTap="tap"
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold shadow-md"
                 >
                   {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : <span>{t.verifySignIn}</span>}
-                </button>
+                </motion.button>
               </form>
             )}
           </div>
@@ -774,26 +828,34 @@ export const AuthPanel: React.FC = () => {
         {/* ── TAB 3: BIOMETRIC LOGIN ── */}
         {authTab === "BIOMETRIC" && (
           <div className="py-4 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
-              <Fingerprint className="w-6 h-6" />
-            </div>
+            <motion.div
+              animate={{ scale: [1, 1.08, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="w-14 h-14 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto border border-blue-500/30 shadow-lg shadow-blue-500/10"
+            >
+              <Fingerprint className="w-7 h-7" />
+            </motion.div>
             <div>
               <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">{t.webauthnTitle}</h3>
               <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 max-w-xs mx-auto mt-0.5">
                 {t.webauthnDesc}
               </p>
             </div>
-            <button
+            <motion.button
+              variants={buttonMotionVariants}
+              whileHover="hover"
+              whileTap="tap"
               type="button"
               onClick={() => {
+                setShowConfetti(true);
                 setSuccessMsg("✓ Biometric Passkey Authenticated. Redirecting...");
-                setTimeout(() => router.push("/retailer-dashboard"), 600);
+                setTimeout(() => router.push("/retailer-dashboard"), 800);
               }}
-              className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-extrabold inline-flex items-center gap-1.5"
+              className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-md"
             >
               <Fingerprint className="w-3.5 h-3.5" />
               <span>{t.authPasskey}</span>
-            </button>
+            </motion.button>
           </div>
         )}
 
@@ -804,7 +866,7 @@ export const AuthPanel: React.FC = () => {
             {t.registerAccount}
           </Link>
         </div>
-      </div>
+      </motion.div>
 
       {/* Footer */}
       <div className="mt-4 text-center text-[10px] 2xl:text-xs font-semibold text-slate-400 dark:text-slate-500 space-y-1">
