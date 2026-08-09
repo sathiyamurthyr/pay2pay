@@ -14,7 +14,7 @@ export default function RegisterMobilePage() {
         setMobileNumber(mob);
         localStorage.setItem("pay2pay_reg_id", regId);
         localStorage.setItem("pay2pay_reg_mobile", mob);
-        if (isResumed && savedStep) {
+        if (isResumed && savedStep && savedStep > 1) {
           navigateToStep(savedStep);
         } else {
           handleStepComplete(2);
