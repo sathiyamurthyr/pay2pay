@@ -120,14 +120,32 @@ class CashfreeAadhaarAdapter:
             api_url = f"{self.base_url}/offline-aadhaar/verify"
 
             try:
-                async with httpx.AsyncClient(timeout=12.0) as client:
-                    resp = await client.post(api_url, headers=headers, json=payload)
-                    if resp.status_code in [200, 201]:
-                        data = resp.json()
-                        if data.get("status") in ["VALID", "SUCCESS"] or data.get("name") or data.get("full_name"):
+                last_502_body = None
+                for attempt in range(1, 4):  # Retry up to 3 times on 502
+                    async with httpx.AsyncClient(timeout=12.0) as client:
+                        resp = await client.post(api_url, headers=headers, json=payload)
+                        if resp.status_code in [200, 201]:
+                            data = resp.json()
+                            if data.get("status") in ["VALID", "SUCCESS"] or data.get("name") or data.get("full_name"):
+                                return self._build_ekyc_profile(data, ref_id)
+                            # Successful HTTP but unusual status — still build profile
+                            logger.info(f"Cashfree verify HTTP 200 data: {str(data)[:200]}")
                             return self._build_ekyc_profile(data, ref_id)
-                    else:
-                        logger.warning(f"Cashfree verification Live API HTTP {resp.status_code}: {resp.text[:200]}")
+                        elif resp.status_code == 502:
+                            last_502_body = resp.text[:200]
+                            logger.warning(f"Cashfree verify attempt {attempt}/3 HTTP 502: {last_502_body}")
+                            if attempt < 3:
+                                import asyncio as _asyncio
+                                await _asyncio.sleep(2)
+                            continue
+                        elif resp.status_code in [400, 401, 403, 404]:
+                            logger.warning(f"Cashfree verification Live API HTTP {resp.status_code}: {resp.text[:200]}")
+                            break  # Don't retry on client errors
+                        else:
+                            logger.warning(f"Cashfree verification Live API HTTP {resp.status_code}: {resp.text[:200]}")
+                            break
+                if last_502_body:
+                    logger.warning(f"All 3 Cashfree verify attempts returned 502. UIDAI may be temporarily unavailable.")
             except Exception as ex:
                 logger.warning(f"Cashfree verification API exception: {ex}")
 

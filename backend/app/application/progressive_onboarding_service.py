@@ -703,8 +703,13 @@ class ProgressiveOnboardingService:
         return {
             "status": "SUCCESS",
             "message": "Bank Account verified via Reverse Penny Drop!",
+            "account_number_masked": bank_model.account_number_masked,
+            "ifsc": clean_ifsc,
             "bank_name": bank_model.bank_name,
+            "branch": bank_model.branch,
             "name_at_bank": bank_model.name_at_bank,
+            "account_type": account_type,
+            "verification_status": "VERIFIED",
             "next_step": 9,
             "completed_steps": draft.completed_steps
         }
