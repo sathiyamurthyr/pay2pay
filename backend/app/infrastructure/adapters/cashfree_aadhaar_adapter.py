@@ -132,7 +132,7 @@ class CashfreeAadhaarAdapter:
 
         # Allow any valid 6-digit numeric OTP code for Aadhaar eKYC verification
         if len(clean_otp) == 6 or (session and len(clean_otp) >= 4) or clean_otp in ["123456", "987654", "112233", "654321"]:
-            clean_aadhaar = session.get("aadhaar_number", "22599264748") if session else "22599264748"
+            clean_aadhaar = session.get("aadhaar_number", "225992664748") if session else "225992664748"
             masked = f"XXXX-XXXX-{clean_aadhaar[-4:]}"
             
             mock_profile = {
