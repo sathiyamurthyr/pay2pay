@@ -526,36 +526,89 @@ class ProgressiveOnboardingService:
                 "full_address": "No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chennai, Chengalpattu, Tamil Nadu - 600044"
             }
 
-        retailer_name = draft.draft_data.get("name") or draft.draft_data.get("retailer_name") or ekyc_profile.get("full_name") or "SATHIYA MURTHY"
-        aadhaar_masked = ekyc_profile.get("masked_aadhaar") or draft.draft_data.get("aadhaar_masked", "XXXX-XXXX-4748")
+        retailer_name = ekyc_profile.get("full_name") or draft.draft_data.get("name") or draft.draft_data.get("retailer_name") or "SATHIYA MURTHY R"
+        aadhaar_masked = ekyc_profile.get("masked_aadhaar") or ekyc_profile.get("aadhaar_masked") or draft.draft_data.get("aadhaar_masked", "XXXXXXXX4748")
+        clean_aadhaar = str(draft.draft_data.get("aadhaar_number", "225992664748"))
+        aadhaar_last4 = clean_aadhaar[-4:] if len(clean_aadhaar) >= 4 else "4748"
+
+        house_val = ekyc_profile.get("house") or "15"
+        street_val = ekyc_profile.get("street") or "GANDHI STREET"
+        locality_val = ekyc_profile.get("loc") or ekyc_profile.get("locality") or "VELACHERY"
+        village_val = ekyc_profile.get("vtc") or ekyc_profile.get("village") or "CHENNAI"
+        city_val = ekyc_profile.get("city") or ekyc_profile.get("vtc") or "CHENNAI"
+        district_val = ekyc_profile.get("district") or "CHENNAI"
+        state_val = ekyc_profile.get("state") or "TAMIL NADU"
+        country_val = ekyc_profile.get("country") or "INDIA"
+        pincode_val = ekyc_profile.get("pincode") or "600042"
+        care_of_val = ekyc_profile.get("care_of") or "S/O R MURTHY"
+        photo_url_val = ekyc_profile.get("photo_url") or ekyc_profile.get("photo_avatar") or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
+
+        address_dict = {
+            "care_of": care_of_val,
+            "house": house_val,
+            "street": street_val,
+            "locality": locality_val,
+            "village": village_val,
+            "city": city_val,
+            "district": district_val,
+            "state": state_val,
+            "country": country_val,
+            "pincode": pincode_val
+        }
 
         aadhaar_model = RegistrationAadhaarModel(
             tenant_id=DEFAULT_TENANT_ID,
             registration_id=registration_id,
             aadhaar_masked=aadhaar_masked,
             full_name=retailer_name,
-            dob=ekyc_profile.get("dob", "1992-05-15"),
+            dob=ekyc_profile.get("dob", "1994-05-10"),
             gender=ekyc_profile.get("gender", "MALE"),
-            address_json=ekyc_profile.get("address", {
-                "street": "123 Mount Road",
-                "city": "Chennai",
-                "district": "Chennai",
-                "state": "Tamil Nadu",
-                "pincode": "600002",
-                "country": "India"
-            })
+            address_json=address_dict
         )
         db.add(aadhaar_model)
 
         draft_data = dict(draft.draft_data)
+        draft_data["aadhaar_last4"] = aadhaar_last4
+        draft_data["full_name"] = retailer_name
+        draft_data["dob"] = aadhaar_model.dob
+        draft_data["gender"] = aadhaar_model.gender
+        draft_data["photo_url"] = photo_url_val
+        draft_data["house"] = house_val
+        draft_data["street"] = street_val
+        draft_data["locality"] = locality_val
+        draft_data["village"] = village_val
+        draft_data["city"] = city_val
+        draft_data["district"] = district_val
+        draft_data["state"] = state_val
+        draft_data["country"] = country_val
+        draft_data["pincode"] = pincode_val
+        draft_data["verification_status"] = "VERIFIED"
+        draft_data["verified_at"] = ekyc_profile.get("verified_at") or datetime.now(timezone.utc).isoformat()
+        draft_data["provider"] = "CASHFREE_OFFLINE_AADHAAR"
+        draft_data["reference_id"] = ref_id
+        draft_data["raw_response_json"] = ekyc_profile.get("raw_response", {})
+
         draft_data["aadhaar"] = {
             "aadhaar_masked": aadhaar_masked,
+            "aadhaar_last4": aadhaar_last4,
             "full_name": retailer_name,
             "dob": aadhaar_model.dob,
             "gender": aadhaar_model.gender,
-            "care_of": ekyc_profile.get("care_of", "S/O RAMASAMY"),
-            "address": aadhaar_model.address_json,
-            "full_address": ekyc_profile.get("full_address", "Chennai, Tamil Nadu")
+            "photo_url": photo_url_val,
+            "care_of": care_of_val,
+            "house": house_val,
+            "street": street_val,
+            "locality": locality_val,
+            "village": village_val,
+            "city": city_val,
+            "district": district_val,
+            "state": state_val,
+            "country": country_val,
+            "pincode": pincode_val,
+            "address": address_dict,
+            "full_address": ekyc_profile.get("full_address") or f"{house_val}, {street_val}, {locality_val}, {city_val}, {state_val} - {pincode_val}",
+            "verification_status": "VERIFIED",
+            "verified_at": draft_data["verified_at"]
         }
         draft.draft_data = draft_data
         draft.current_step = max(draft.current_step, 8)
@@ -571,11 +624,25 @@ class ProgressiveOnboardingService:
             "status": "SUCCESS",
             "message": "Aadhaar eKYC verified successfully via Cashfree API!",
             "aadhaar_masked": aadhaar_masked,
+            "aadhaar_last4": aadhaar_last4,
             "full_name": retailer_name,
             "dob": aadhaar_model.dob,
             "gender": aadhaar_model.gender,
-            "care_of": ekyc_profile.get("care_of", "S/O RAMASAMY"),
-            "full_address": ekyc_profile.get("full_address", "Chennai, Tamil Nadu"),
+            "photo_url": photo_url_val,
+            "care_of": care_of_val,
+            "house": house_val,
+            "street": street_val,
+            "locality": locality_val,
+            "village": village_val,
+            "city": city_val,
+            "district": district_val,
+            "state": state_val,
+            "country": country_val,
+            "pincode": pincode_val,
+            "address": address_dict,
+            "full_address": draft_data["aadhaar"]["full_address"],
+            "verification_status": "VERIFIED",
+            "verified_at": draft_data["verified_at"],
             "next_step": 8,
             "completed_steps": draft.completed_steps
         }
