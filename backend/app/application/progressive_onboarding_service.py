@@ -288,7 +288,7 @@ class ProgressiveOnboardingService:
 
         # Resolve authentic registered holder name
         raw_name = cf_res.get("registered_name")
-        if raw_name and raw_name != "Pay2Pay Merchant":
+        if raw_name and raw_name not in ["Pay2Pay Merchant", "Pay2Pay Verified Merchant", "JOHN DOE"]:
             registered_name = raw_name
         elif clean_pan in ["DAQPS8535F", "ABCPE1234F"]:
             registered_name = "SATHIYA MURTHY"

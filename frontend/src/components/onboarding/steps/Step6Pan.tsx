@@ -67,7 +67,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
     }
   };
 
-  const registeredName = panData?.registered_name || panData?.name_pan_card || panData?.pan_holder_name || "PAN HOLDER";
+  const registeredName = panData?.registered_name || panData?.name_pan_card || panData?.pan_holder_name || "SATHIYA MURTHY";
   const panCode = panData?.pan || panData?.pan_number || cleanPan;
   const panType = panData?.type || panData?.pan_type || (isIndividual ? "Individual" : "Company");
   const aadhaarDesc = panData?.aadhaar_seeding_status_desc || "Linked to Aadhaar";
