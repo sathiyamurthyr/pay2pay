@@ -63,15 +63,15 @@ function SuccessScreen({ appRef }: { appRef: string }) {
         </div>
 
         {/* App Ref Card */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 shadow-xl">
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
-            Application Reference
+        <div className="p-4 rounded-2xl bg-blue-50 dark:bg-slate-900 border-2 border-blue-200 dark:border-slate-700 shadow-sm">
+          <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">
+            📋 Application Reference Number
           </p>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-lg font-black text-blue-400 font-mono tracking-wide">{appRef}</p>
+            <p className="text-lg font-black text-blue-700 dark:text-blue-400 font-mono tracking-wide">{appRef}</p>
             <button
               onClick={copyRef}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-500/15 border border-blue-500/25 text-blue-400 text-[10px] font-bold hover:bg-blue-500/25 transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-[10px] font-bold hover:bg-blue-700 transition-all shadow-sm"
             >
               {copied ? <><CheckCheck className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy</>}
             </button>
