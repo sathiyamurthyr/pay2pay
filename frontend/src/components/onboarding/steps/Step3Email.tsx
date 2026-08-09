@@ -34,12 +34,16 @@ export const Step3Email: React.FC<Step3Props> = ({ registrationId, onSuccess }) 
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
+        // Save simulated email OTP so Step 4 can display it
+        const emailOtp = data.simulated_otp || "556677";
+        localStorage.setItem("pay2pay_email_otp_hint", emailOtp);
         onSuccess(clean);
       } else {
         setErrorMsg(data.detail || "Email validation failed.");
       }
     } catch {
       setLoading(false);
+      localStorage.setItem("pay2pay_email_otp_hint", "556677");
       onSuccess(clean);
     }
   };

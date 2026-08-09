@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { MessageSquare, ArrowRight, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { MessageSquare, ArrowRight, Loader2, AlertCircle, RefreshCw, Copy, CheckCircle2 } from "lucide-react";
 
 interface Step2Props {
   registrationId: string;
@@ -10,12 +10,23 @@ interface Step2Props {
 }
 
 export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNumber, onSuccess }) => {
-  const [otpCode, setOtpCode] = useState("");
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [countdown, setCountdown] = useState(60);
   const [attemptsLeft, setAttemptsLeft] = useState(5);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [copied, setCopied] = useState(false);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Read simulated OTP from localStorage (set by Step 1)
+  const [simulatedOtp, setSimulatedOtp] = useState("778899");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("pay2pay_otp_hint");
+    if (stored) setSimulatedOtp(stored);
+  }, []);
+
+  // Countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
@@ -23,15 +34,55 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
     return () => clearInterval(timer);
   }, []);
 
+  const otpValue = otpDigits.join("");
+
+  const handleDigitChange = (index: number, val: string) => {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const updated = [...otpDigits];
+    updated[index] = digit;
+    setOtpDigits(updated);
+    setErrorMsg("");
+    if (digit && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const digits = text.split("").concat(Array(6).fill("")).slice(0, 6);
+    setOtpDigits(digits);
+    inputRefs.current[Math.min(text.length, 5)]?.focus();
+  };
+
+  // Auto-fill the simulated OTP
+  const handleAutoFill = () => {
+    const digits = simulatedOtp.split("").slice(0, 6);
+    setOtpDigits(digits.concat(Array(6).fill("")).slice(0, 6));
+    setErrorMsg("");
+    inputRefs.current[5]?.focus();
+  };
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(simulatedOtp);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpCode.length !== 6) {
-      setErrorMsg("Please enter a complete 6-digit OTP.");
+    if (otpValue.length !== 6) {
+      setErrorMsg("Please enter the complete 6-digit OTP.");
       return;
     }
-
     if (attemptsLeft <= 0) {
-      setErrorMsg("Maximum OTP verification attempts exceeded. Please request a new OTP.");
+      setErrorMsg("Maximum attempts exceeded. Please request a new OTP.");
       return;
     }
 
@@ -42,19 +93,22 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
       const res = await fetch("http://localhost:8000/api/v1/onboarding/verify-mobile-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: registrationId, otp_code: otpCode })
+        body: JSON.stringify({ registration_id: registrationId, otp_code: otpValue })
       });
       const data = await res.json();
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
+        localStorage.removeItem("pay2pay_otp_hint");
         onSuccess();
       } else {
         setAttemptsLeft((prev) => prev - 1);
-        setErrorMsg(data.detail || `Invalid OTP. ${attemptsLeft - 1} attempts remaining.`);
+        setErrorMsg(data.detail || `Invalid OTP. ${attemptsLeft - 1} attempt(s) remaining.`);
       }
     } catch {
       setLoading(false);
+      // Fallback: accept in offline/demo mode
+      localStorage.removeItem("pay2pay_otp_hint");
       onSuccess();
     }
   };
@@ -66,8 +120,49 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
           Verify Mobile Number
         </h2>
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
-          WhatsApp OTP dispatched to <span className="font-extrabold text-blue-600 dark:text-blue-400">+91 {mobileNumber || "9876543210"}</span>
+          OTP dispatched to{" "}
+          <span className="font-extrabold text-blue-600 dark:text-blue-400">
+            +91 {mobileNumber || "xxxxxxxxxx"}
+          </span>
         </p>
+      </div>
+
+      {/* ── Demo OTP Banner ── */}
+      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+            <MessageSquare className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <p className="text-[11px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+              Demo / Test OTP
+            </p>
+            <p className="text-xl font-black text-amber-800 dark:text-amber-300 tracking-[0.3em]">
+              {simulatedOtp}
+            </p>
+            <p className="text-[10px] text-amber-600/70 dark:text-amber-500/70 font-medium mt-0.5">
+              No real WhatsApp message is sent in demo mode
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleAutoFill}
+            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-extrabold transition-all flex items-center gap-1"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Auto-Fill
+          </button>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 text-[11px] font-extrabold transition-all flex items-center gap-1"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
       </div>
 
       {errorMsg && (
@@ -78,30 +173,55 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
       )}
 
       <form onSubmit={handleVerify} className="space-y-4">
+        {/* 6-Digit OTP Box Matrix */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-            Enter 6-Digit WhatsApp OTP <span className="text-red-500">*</span>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 text-center">
+            Enter 6-Digit OTP <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
-            value={otpCode}
-            onChange={(e) => {
-              setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6));
-              setErrorMsg("");
-            }}
-            placeholder="778899"
-            required
-            className="w-full text-center tracking-widest text-xl font-black py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-          />
-          <p className="text-[11px] font-extrabold text-emerald-500 mt-1.5 text-center">
-            ⚡ Demo Test Code: <span className="underline">778899</span>
+          <div className="flex items-center justify-center gap-2" onPaste={handlePaste}>
+            {otpDigits.map((digit, idx) => (
+              <input
+                key={idx}
+                ref={(el) => { inputRefs.current[idx] = el; }}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleDigitChange(idx, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(idx, e)}
+                className={`w-11 h-13 text-center text-xl font-black rounded-xl border-2 transition-all focus:outline-none
+                  ${digit
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
+                    : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
+                  }
+                  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20`}
+                style={{ width: 44, height: 52 }}
+              />
+            ))}
+          </div>
+          <p className="text-[11px] font-semibold text-slate-400 mt-2 text-center">
+            Tip: Click{" "}
+            <button
+              type="button"
+              onClick={handleAutoFill}
+              className="text-amber-600 dark:text-amber-400 font-extrabold underline"
+            >
+              Auto-Fill
+            </button>{" "}
+            above to fill the demo OTP instantly
           </p>
         </div>
 
+        {/* Attempts & Resend */}
         <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-          <span>Attempts Left: <strong className="text-amber-500">{attemptsLeft}/5</strong></span>
+          <span>
+            Attempts:{" "}
+            <strong className="text-amber-500">{attemptsLeft}/5</strong>
+          </span>
           {countdown > 0 ? (
-            <span>Resend OTP in <strong className="text-blue-500">{countdown}s</strong></span>
+            <span>
+              Resend in <strong className="text-blue-500">{countdown}s</strong>
+            </span>
           ) : (
             <button
               type="button"
@@ -109,19 +229,21 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
                 setCountdown(60);
                 setAttemptsLeft(5);
                 setErrorMsg("");
+                setOtpDigits(["", "", "", "", "", ""]);
               }}
               className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
             >
               <RefreshCw className="w-3 h-3" />
-              <span>Resend WhatsApp OTP</span>
+              <span>Resend OTP</span>
             </button>
           )}
         </div>
 
+        {/* Submit */}
         <button
           type="submit"
-          disabled={loading || otpCode.length !== 6}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          disabled={loading || otpValue.length !== 6}
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
         >
           {loading ? (
             <>

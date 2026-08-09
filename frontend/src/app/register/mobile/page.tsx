@@ -9,7 +9,7 @@ export default function RegisterMobilePage() {
 
   return (
     <Step1Mobile
-      onSuccess={(regId, mob, isResumed, savedStep) => {
+      onSuccess={(regId, mob, isResumed, savedStep, _simulatedOtp) => {
         setRegistrationId(regId);
         setMobileNumber(mob);
         localStorage.setItem("pay2pay_reg_id", regId);

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Phone, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 
 interface Step1Props {
-  onSuccess: (regId: string, mobile: string, isResumed: boolean, savedStep?: number) => void;
+  onSuccess: (regId: string, mobile: string, isResumed: boolean, savedStep?: number, simulatedOtp?: string) => void;
 }
 
 export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
@@ -34,19 +34,27 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
 
       if (res.ok) {
         if (data.status === "ALREADY_REGISTERED") {
-          setErrorMsg("This mobile number is already registered. Please Login or reset password.");
+          setErrorMsg("This mobile number is already registered. Please Login or reset your password.");
         } else if (data.status === "RESUME_DRAFT") {
-          onSuccess(data.registration_id, clean, true, data.current_step);
+          // Store simulated OTP for resumed drafts too
+          if (data.simulated_otp) {
+            localStorage.setItem("pay2pay_otp_hint", data.simulated_otp);
+          }
+          onSuccess(data.registration_id, clean, true, data.current_step, data.simulated_otp);
         } else {
-          onSuccess(data.registration_id, clean, false);
+          // Store simulated OTP so Step 2 can display it
+          const otp = data.simulated_otp || "778899";
+          localStorage.setItem("pay2pay_otp_hint", otp);
+          onSuccess(data.registration_id, clean, false, undefined, otp);
         }
       } else {
         setErrorMsg(data.detail || "Failed to process mobile number.");
       }
     } catch {
       setLoading(false);
-      // Resilience fallback
-      onSuccess(`REG-${Date.now()}`, clean, false);
+      // Resilience fallback — use default demo OTP
+      localStorage.setItem("pay2pay_otp_hint", "778899");
+      onSuccess(`REG-${Date.now()}`, clean, false, undefined, "778899");
     }
   };
 

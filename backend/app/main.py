@@ -15,6 +15,7 @@ import app.infrastructure.db.beneficiary_verification_models
 import app.infrastructure.db.error_management_models as _error_management_models
 import app.infrastructure.db.enterprise_payout_models as _enterprise_payout_models
 import app.infrastructure.db.swipe_settlement_models as _swipe_settlement_models
+import app.infrastructure.db.registration_models  # Registration Draft & KYC tables for progressive onboarding
 from app.presentation.api.v1 import beneficiary_verification
 from app.presentation.api.v1 import enterprise_payout_execution_router
 from app.presentation.api.v1 import payout_report_router

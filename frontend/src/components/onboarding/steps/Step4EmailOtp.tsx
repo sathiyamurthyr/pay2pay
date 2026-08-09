@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Mail, ArrowRight, Loader2, AlertCircle, RefreshCw, Copy, CheckCircle2 } from "lucide-react";
 
 interface Step4Props {
   registrationId: string;
@@ -10,14 +10,72 @@ interface Step4Props {
 }
 
 export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onSuccess }) => {
-  const [otpCode, setOtpCode] = useState("");
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const [countdown, setCountdown] = useState(60);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [simulatedOtp, setSimulatedOtp] = useState("556677");
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Read simulated email OTP from localStorage (set by Step 3)
+  useEffect(() => {
+    const stored = localStorage.getItem("pay2pay_email_otp_hint");
+    if (stored) setSimulatedOtp(stored);
+  }, []);
+
+  // Countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const otpValue = otpDigits.join("");
+
+  const handleDigitChange = (index: number, val: string) => {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const updated = [...otpDigits];
+    updated[index] = digit;
+    setOtpDigits(updated);
+    setErrorMsg("");
+    if (digit && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const digits = text.split("").concat(Array(6).fill("")).slice(0, 6);
+    setOtpDigits(digits);
+    inputRefs.current[Math.min(text.length, 5)]?.focus();
+  };
+
+  const handleAutoFill = () => {
+    const digits = simulatedOtp.split("").slice(0, 6);
+    setOtpDigits(digits.concat(Array(6).fill("")).slice(0, 6));
+    setErrorMsg("");
+    inputRefs.current[5]?.focus();
+  };
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(simulatedOtp);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpCode.length !== 6) {
-      setErrorMsg("Please enter the 6-digit Email OTP.");
+    if (otpValue.length !== 6) {
+      setErrorMsg("Please enter the complete 6-digit OTP.");
       return;
     }
 
@@ -28,18 +86,20 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
       const res = await fetch("http://localhost:8000/api/v1/onboarding/verify-email-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: registrationId, otp_code: otpCode })
+        body: JSON.stringify({ registration_id: registrationId, otp_code: otpValue })
       });
       const data = await res.json();
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
+        localStorage.removeItem("pay2pay_email_otp_hint");
         onSuccess();
       } else {
-        setErrorMsg(data.detail || "Invalid Email OTP.");
+        setErrorMsg(data.detail || "Invalid Email OTP. Please try again.");
       }
     } catch {
       setLoading(false);
+      localStorage.removeItem("pay2pay_email_otp_hint");
       onSuccess();
     }
   };
@@ -51,8 +111,49 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
           Verify Email OTP
         </h2>
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
-          Code dispatched to <span className="font-extrabold text-blue-600 dark:text-blue-400">{email || "retailer@pay2pay.in"}</span>
+          Code dispatched to{" "}
+          <span className="font-extrabold text-blue-600 dark:text-blue-400">
+            {email || "retailer@pay2pay.in"}
+          </span>
         </p>
+      </div>
+
+      {/* ── Demo OTP Banner ── */}
+      <div className="p-3.5 rounded-2xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+            <Mail className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <p className="text-[11px] font-extrabold text-violet-700 dark:text-violet-400 uppercase tracking-wider">
+              Demo / Test Email OTP
+            </p>
+            <p className="text-xl font-black text-violet-800 dark:text-violet-300 tracking-[0.3em]">
+              {simulatedOtp}
+            </p>
+            <p className="text-[10px] text-violet-600/70 dark:text-violet-500/70 font-medium mt-0.5">
+              No real email is sent in demo mode
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleAutoFill}
+            className="px-3 py-1.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-[11px] font-extrabold transition-all flex items-center gap-1"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Auto-Fill
+          </button>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-400 text-[11px] font-extrabold transition-all flex items-center gap-1"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
       </div>
 
       {errorMsg && (
@@ -63,30 +164,72 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
       )}
 
       <form onSubmit={handleVerify} className="space-y-4">
+        {/* 6-Digit OTP Box Matrix */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 text-center">
             Enter 6-Digit Email OTP <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
-            value={otpCode}
-            onChange={(e) => {
-              setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6));
-              setErrorMsg("");
-            }}
-            placeholder="556677"
-            required
-            className="w-full text-center tracking-widest text-xl font-black py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-          />
-          <p className="text-[11px] font-extrabold text-emerald-500 mt-1.5 text-center">
-            ⚡ Demo Email Code: <span className="underline">556677</span>
+          <div className="flex items-center justify-center gap-2" onPaste={handlePaste}>
+            {otpDigits.map((digit, idx) => (
+              <input
+                key={idx}
+                ref={(el) => { inputRefs.current[idx] = el; }}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleDigitChange(idx, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(idx, e)}
+                className={`text-center text-xl font-black rounded-xl border-2 transition-all focus:outline-none
+                  ${digit
+                    ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300"
+                    : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
+                  }
+                  focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20`}
+                style={{ width: 44, height: 52 }}
+              />
+            ))}
+          </div>
+          <p className="text-[11px] font-semibold text-slate-400 mt-2 text-center">
+            Click{" "}
+            <button
+              type="button"
+              onClick={handleAutoFill}
+              className="text-violet-600 dark:text-violet-400 font-extrabold underline"
+            >
+              Auto-Fill
+            </button>{" "}
+            to instantly fill the demo OTP
           </p>
         </div>
 
+        {/* Countdown / Resend */}
+        <div className="flex items-center justify-end text-xs font-bold text-slate-500">
+          {countdown > 0 ? (
+            <span>
+              Resend in <strong className="text-blue-500">{countdown}s</strong>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setCountdown(60);
+                setErrorMsg("");
+                setOtpDigits(["", "", "", "", "", ""]);
+              }}
+              className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Resend Email OTP</span>
+            </button>
+          )}
+        </div>
+
+        {/* Submit */}
         <button
           type="submit"
-          disabled={loading || otpCode.length !== 6}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          disabled={loading || otpValue.length !== 6}
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
         >
           {loading ? (
             <>
