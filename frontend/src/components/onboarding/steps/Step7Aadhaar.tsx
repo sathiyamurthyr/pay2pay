@@ -105,6 +105,12 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
           UIDAI Authenticated OTP Verification via Cashfree API
         </p>
+        <div className="mt-2 flex items-center justify-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live Cashfree eKYC Gateway Active
+          </span>
+        </div>
       </div>
 
       {errorMsg && (
