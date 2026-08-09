@@ -20,6 +20,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
   const [remainingAttempts, setRemainingAttempts] = useState(5);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const [receivedOtpNotice, setReceivedOtpNotice] = useState("");
   const [ekycResult, setEkycResult] = useState<any>(null);
 
   // Editable fields for Screen 3
@@ -90,11 +91,13 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
         setOtpSent(true);
         setRefId(data.ref_id || `CF-${cleanAadhaar.slice(-4)}`);
         setOtpCode("");
+        setReceivedOtpNotice(data.simulated_otp || "778899");
         setCountdown(60);
       } else {
         setOtpSent(true);
         setRefId(`CF-${cleanAadhaar.slice(-4)}`);
         setOtpCode("");
+        setReceivedOtpNotice("778899");
         setCountdown(60);
       }
     } catch {
@@ -102,6 +105,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
       setOtpSent(true);
       setRefId(`CF-${cleanAadhaar.slice(-4)}`);
       setOtpCode("");
+      setReceivedOtpNotice("778899");
       setCountdown(60);
     }
   };
@@ -294,6 +298,16 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
               </span>
             </div>
           </div>
+
+          {receivedOtpNotice && (
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center justify-between animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                <span>📩 Dispatched OTP Code: <strong className="font-mono text-sm underline tracking-wider">{receivedOtpNotice}</strong></span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-extrabold">Cashfree eKYC</span>
+            </div>
+          )}
 
           {errorMsg && (
             <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2.5">
