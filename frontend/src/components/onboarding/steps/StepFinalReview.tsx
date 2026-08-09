@@ -110,10 +110,10 @@ function SuccessScreen({ appRef }: { appRef: string }) {
         </div>
 
         {/* Info strip */}
-        <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-blue-500/8 border border-blue-500/20">
-          <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-          <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 leading-relaxed">
-            Log in to your <strong className="text-blue-500">Verification Dashboard</strong> to track real-time approval progress. Financial transactions unlock automatically once approved.
+        <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/25">
+          <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+          <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-relaxed">
+            Log in to your <strong className="text-blue-600 dark:text-blue-400">Verification Dashboard</strong> to track real-time approval progress. Financial transactions unlock automatically once approved.
           </p>
         </div>
 
