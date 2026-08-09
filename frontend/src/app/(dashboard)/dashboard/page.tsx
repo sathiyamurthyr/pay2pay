@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
+import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
+import { VerificationPendingDashboard } from "@/components/dashboard/VerificationPendingDashboard";
 import {
   Building2, Users, HardDrive, IndianRupee, Wallet, ArrowUpRight, ArrowDownRight,
   RefreshCw, Activity, AlertTriangle, Clock, CheckCircle2, TrendingUp, ShieldCheck,
@@ -24,6 +26,8 @@ const KPI_META: Record<string, { label: string; icon: React.ElementType; color: 
 };
 
 export default function DashboardPage() {
+  const onboardingStatus = useOnboardingGuard();
+
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   // DataGrid Toolbar states
@@ -67,8 +71,31 @@ export default function DashboardPage() {
       return res.data;
     },
     refetchInterval: autoRefresh ? 10000 : false,
+    enabled: onboardingStatus.verificationStatus === "APPROVED"
   });
 
+  // If onboarding status is loading, render smooth spinner
+  if (onboardingStatus.loading) {
+    return (
+      <div className="py-16 text-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-xs font-bold text-slate-400">Verifying account access rights...</p>
+      </div>
+    );
+  }
+
+  // If Retailer status is NOT APPROVED/ACTIVE, render Verification Pending Dashboard (Case 3, 5)
+  if (onboardingStatus.verificationStatus !== "APPROVED" || onboardingStatus.retailerStatus !== "ACTIVE") {
+    return (
+      <VerificationPendingDashboard
+        verificationStatus={onboardingStatus.verificationStatus}
+        applicationRef={onboardingStatus.applicationRef}
+        adminRemarks={onboardingStatus.adminRemarks}
+      />
+    );
+  }
+
+  // Full Operational Dashboard (Case 4: APPROVED & ACTIVE)
   const widgetKeys = [
     "total_companies", "active_retailers", "total_machines", "todays_settlement",
     "wallet_liability", "pending_payouts", "todays_profit", "failed_settlement", "pending_approvals"

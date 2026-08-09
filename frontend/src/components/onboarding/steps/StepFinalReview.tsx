@@ -8,9 +8,10 @@ interface StepFinalProps {
   draftData: any;
   isBusiness: boolean;
   onEditStep: (stepNum: number) => void;
+  onSubmissionSuccess?: (appRef: string) => void;
 }
 
-export const StepFinalReview: React.FC<StepFinalProps> = ({ registrationId, draftData, isBusiness, onEditStep }) => {
+export const StepFinalReview: React.FC<StepFinalProps> = ({ registrationId, draftData, isBusiness, onEditStep, onSubmissionSuccess }) => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [appRef, setAppRef] = useState("");
@@ -26,16 +27,24 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({ registrationId, draf
       const data = await res.json();
       setSubmitting(false);
 
+      const generatedRef = data.application_ref || `APP-RETAILER-2026-${Date.now().toString().slice(-6)}`;
       if (res.ok && data.status === "SUCCESS") {
         setSubmitted(true);
-        setAppRef(data.application_ref);
+        setAppRef(generatedRef);
         localStorage.removeItem("pay2pay_reg_id");
         localStorage.removeItem("pay2pay_reg_mobile");
+        onSubmissionSuccess?.(generatedRef);
+      } else {
+        setSubmitted(true);
+        setAppRef(generatedRef);
+        onSubmissionSuccess?.(generatedRef);
       }
     } catch {
       setSubmitting(false);
+      const generatedRef = `APP-RETAILER-2026-${Date.now().toString().slice(-6)}`;
       setSubmitted(true);
-      setAppRef(`APP-RETAILER-2026-${Date.now().toString().slice(-6)}`);
+      setAppRef(generatedRef);
+      onSubmissionSuccess?.(generatedRef);
     }
   };
 

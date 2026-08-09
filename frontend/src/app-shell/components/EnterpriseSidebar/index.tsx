@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -14,6 +16,8 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import StarIcon from "@mui/icons-material/Star";
+import LockIcon from "@mui/icons-material/Lock";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import SendIcon from "@mui/icons-material/Send";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
@@ -21,13 +25,24 @@ import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
-import PersonIcon from "@mui/icons-material/Person";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import NotificationsIcon from "@mui/icons-material/Notifications";
 import { tokens } from "@/design-system/tokens/design-tokens";
+import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
+
+/** Financial service paths locked until verification is APPROVED */
+const FINANCIAL_PATHS = new Set([
+  "/retailer/dmt",
+  "/retailer/card-to-cash",
+  "/retailer/aeps",
+  "/retailer/upi",
+  "/retailer/bbps",
+  "/retailer/recharge",
+  "/retailer/wallet",
+  "/retailer/settlement",
+  "/retailer/wallet-statement",
+]);
 
 export interface EnterpriseSidebarProps {
   isCollapsed?: boolean;
@@ -42,6 +57,16 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
+
+  // Verification guard — locks financial menu items until APPROVED & ACTIVE
+  const { verificationStatus, retailerStatus, loading: guardLoading } = useOnboardingGuard();
+  const isApproved = !guardLoading && verificationStatus === "APPROVED" && retailerStatus === "ACTIVE";
+
+  /** Returns true when a nav item should be locked behind verification */
+  const isLocked = (item: { financial?: boolean; path: string }) =>
+    !isApproved && (item.financial || FINANCIAL_PATHS.has(item.path));
+
+  const lockTooltip = "Available after account verification & approval";
 
   useEffect(() => {
     try {
@@ -71,26 +96,26 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   const categories = [
     {
       title: "Main Navigation",
-      items: [{ label: "Dashboard", path: "/retailer-dashboard", icon: DashboardIcon }],
+      items: [{ label: "Dashboard", path: "/retailer-dashboard", icon: DashboardIcon, financial: false }],
     },
     {
       title: "Payment Services",
       items: [
-        { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, badge: "IMPS" },
-        { label: "Card To Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon },
-        { label: "AEPS Cash Out", path: "/retailer/aeps", icon: FingerprintIcon, badge: "Biometric" },
-        { label: "UPI Services", path: "/retailer/upi", icon: QrCodeIcon },
-        { label: "Bill Payment (BBPS)", path: "/retailer/bbps", icon: ReceiptIcon },
-        { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon },
+        { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, badge: "IMPS", financial: true },
+        { label: "Card To Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon, financial: true },
+        { label: "AEPS Cash Out", path: "/retailer/aeps", icon: FingerprintIcon, badge: "Biometric", financial: true },
+        { label: "UPI Services", path: "/retailer/upi", icon: QrCodeIcon, financial: true },
+        { label: "Bill Payment (BBPS)", path: "/retailer/bbps", icon: ReceiptIcon, financial: true },
+        { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon, financial: true },
       ],
     },
     {
       title: "Reports & Analytics",
       items: [
-        { label: "Payout Report", path: "/retailer/dmt/reports", icon: AssessmentIcon },
-        { label: "Enterprise Report Center", path: "/retailer/reports", icon: AssessmentIcon },
-        { label: "POS Settlement Report", path: "/retailer/pos/settlement-report", icon: AccountBalanceIcon },
-        { label: "Passbook Ledger Statement", path: "/retailer/dmt/ledger", icon: ReceiptLongIcon },
+        { label: "Payout Report", path: "/retailer/dmt/reports", icon: AssessmentIcon, financial: false },
+        { label: "Enterprise Report Center", path: "/retailer/reports", icon: AssessmentIcon, financial: false },
+        { label: "POS Settlement Report", path: "/retailer/pos/settlement-report", icon: AccountBalanceIcon, financial: false },
+        { label: "Passbook Ledger Statement", path: "/retailer/dmt/ledger", icon: ReceiptLongIcon, financial: false },
       ],
     },
   ];
@@ -131,6 +156,33 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
           {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
         </IconButton>
       </Box>
+
+      {/* ── Verification Pending Banner (shown when not approved) ── */}
+      {!isApproved && !guardLoading && !isCollapsed && (
+        <Box
+          sx={{
+            mx: 2,
+            mb: 1.5,
+            p: 1.5,
+            borderRadius: "10px",
+            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(234, 88, 12, 0.10) 100%)",
+            border: "1px solid rgba(245, 158, 11, 0.35)",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1,
+          }}
+        >
+          <VerifiedUserIcon sx={{ fontSize: 16, color: "#F59E0B", mt: 0.2, flexShrink: 0 }} />
+          <Box>
+            <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#F59E0B", lineHeight: 1.3 }}>
+              Verification Pending
+            </Typography>
+            <Typography sx={{ fontSize: "10px", color: "rgba(255,255,255,0.55)", mt: 0.3, lineHeight: 1.4 }}>
+              Financial services unlock after admin approval.
+            </Typography>
+          </Box>
+        </Box>
+      )}
 
       {/* SEARCH MENU INPUT BAR */}
       {!isCollapsed && (
@@ -199,9 +251,15 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                 const IconComp = item.icon;
                 const isActive = activePath === item.path;
                 const isFav = favorites.includes(item.path);
+                const locked = isLocked(item);
 
                 return (
-                  <Tooltip key={`fav-${item.path}`} title={isCollapsed ? item.label : ""} placement="right" arrow>
+                  <Tooltip
+                    key={`fav-${item.path}`}
+                    title={locked ? lockTooltip : isCollapsed ? item.label : ""}
+                    placement="right"
+                    arrow
+                  >
                     <Box
                       sx={{
                         position: "relative",
@@ -211,16 +269,36 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         borderRadius: "12px",
                         px: isCollapsed ? 0 : "14px",
                         justifyContent: isCollapsed ? "center" : "space-between",
-                        bgcolor: isActive ? "#2563EB" : "rgba(255, 213, 79, 0.10)",
-                        color: "#FFFFFF",
-                        cursor: "pointer",
-                        boxShadow: isActive ? "0 4px 14px rgba(37, 99, 235, 0.40)" : "none",
+                        bgcolor: locked
+                          ? "rgba(255, 255, 255, 0.04)"
+                          : isActive
+                          ? "#2563EB"
+                          : "rgba(255, 213, 79, 0.10)",
+                        color: locked ? "rgba(255,255,255,0.35)" : "#FFFFFF",
+                        cursor: locked ? "not-allowed" : "pointer",
+                        boxShadow: isActive && !locked ? "0 4px 14px rgba(37, 99, 235, 0.40)" : "none",
                         transition: "all 150ms ease",
-                        "&:hover": { bgcolor: isActive ? "#1D4ED8" : "rgba(255, 255, 255, 0.14)" },
+                        "&:hover": {
+                          bgcolor: locked
+                            ? "rgba(255, 255, 255, 0.04)"
+                            : isActive
+                            ? "#1D4ED8"
+                            : "rgba(255, 255, 255, 0.14)",
+                        },
+                        ...(locked && { borderLeft: "2px solid rgba(245, 158, 11, 0.35)" }),
                       }}
                     >
                       <Stack direction="row" spacing={1.8} sx={{ alignItems: "center" }}>
-                        <IconComp sx={{ fontSize: 22, color: isActive ? "#FFFFFF" : "#FFD54F" }} />
+                        <IconComp
+                          sx={{
+                            fontSize: 22,
+                            color: locked
+                              ? "rgba(255,255,255,0.25)"
+                              : isActive
+                              ? "#FFFFFF"
+                              : "#FFD54F",
+                          }}
+                        />
                         {!isCollapsed && (
                           <Typography sx={{ fontSize: "17px", fontWeight: isActive ? 700 : 600 }}>
                             {item.label}
@@ -229,13 +307,17 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                       </Stack>
 
                       {!isCollapsed && (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => toggleFavorite(item.path, e)}
-                          sx={{ p: 0.5, color: isFav ? "#FFD54F" : "rgba(255,255,255,0.5)" }}
-                        >
-                          <StarIcon sx={{ fontSize: 18 }} />
-                        </IconButton>
+                        locked ? (
+                          <LockIcon sx={{ fontSize: 14, color: "rgba(245, 158, 11, 0.7)", flexShrink: 0 }} />
+                        ) : (
+                          <IconButton
+                            size="small"
+                            onClick={(e) => toggleFavorite(item.path, e)}
+                            sx={{ p: 0.5, color: isFav ? "#FFD54F" : "rgba(255,255,255,0.5)" }}
+                          >
+                            <StarIcon sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        )
                       )}
                     </Box>
                   </Tooltip>
@@ -249,7 +331,10 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
         {filteredCategories.map((cat) => (
           <Box key={cat.title} sx={{ mb: 2.5 }}>
             {!isCollapsed && (
-              <Typography variant="body1" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "15px", px: "14px", mb: 1, display: "block" }}>
+              <Typography
+                variant="body1"
+                sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "15px", px: "14px", mb: 1, display: "block" }}
+              >
                 {cat.title}
               </Typography>
             )}
@@ -257,9 +342,15 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
               {cat.items.map((item) => {
                 const IconComp = item.icon;
                 const isActive = activePath === item.path;
+                const locked = isLocked(item);
 
                 return (
-                  <Tooltip key={item.path} title={isCollapsed ? item.label : ""} placement="right" arrow>
+                  <Tooltip
+                    key={item.path}
+                    title={locked ? lockTooltip : isCollapsed ? item.label : ""}
+                    placement="right"
+                    arrow
+                  >
                     <Box
                       sx={{
                         position: "relative",
@@ -269,25 +360,70 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         borderRadius: "12px",
                         px: isCollapsed ? 0 : "14px",
                         justifyContent: isCollapsed ? "center" : "space-between",
-                        bgcolor: isActive ? "#2563EB" : "transparent",
-                        color: "#FFFFFF",
-                        cursor: "pointer",
-                        boxShadow: isActive ? "0 4px 14px rgba(37, 99, 235, 0.40)" : "none",
+                        bgcolor: locked
+                          ? "rgba(255, 255, 255, 0.03)"
+                          : isActive
+                          ? "#2563EB"
+                          : "transparent",
+                        color: locked ? "rgba(255,255,255,0.3)" : "#FFFFFF",
+                        cursor: locked ? "not-allowed" : "pointer",
+                        boxShadow: isActive && !locked ? "0 4px 14px rgba(37, 99, 235, 0.40)" : "none",
                         transition: "all 150ms ease",
-                        "&:hover": { bgcolor: isActive ? "#1D4ED8" : "rgba(255, 255, 255, 0.12)" },
+                        "&:hover": {
+                          bgcolor: locked
+                            ? "rgba(255, 255, 255, 0.03)"
+                            : isActive
+                            ? "#1D4ED8"
+                            : "rgba(255, 255, 255, 0.12)",
+                        },
+                        ...(locked && { borderLeft: "2px solid rgba(245, 158, 11, 0.35)" }),
                       }}
                     >
-                      <Stack direction="row" spacing={1.8} sx={{ alignItems: "center" }}>
-                        <IconComp sx={{ fontSize: 22, color: isActive ? "#FFFFFF" : "#CBD5E1" }} />
+                      <Stack direction="row" spacing={1.8} sx={{ alignItems: "center", minWidth: 0 }}>
+                        <IconComp
+                          sx={{
+                            fontSize: 22,
+                            color: locked
+                              ? "rgba(255,255,255,0.25)"
+                              : isActive
+                              ? "#FFFFFF"
+                              : "#CBD5E1",
+                            flexShrink: 0,
+                          }}
+                        />
                         {!isCollapsed && (
-                          <Typography sx={{ fontSize: "17px", fontWeight: isActive ? 700 : 600 }}>
+                          <Typography
+                            sx={{
+                              fontSize: "17px",
+                              fontWeight: isActive ? 700 : 600,
+                              color: locked ? "rgba(255,255,255,0.35)" : "inherit",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {item.label}
                           </Typography>
                         )}
                       </Stack>
 
-                      {!isCollapsed && item.badge && (
-                        <Chip label={item.badge} size="small" sx={{ bgcolor: "rgba(59, 130, 246, 0.25)", color: "#60A5FA", fontWeight: 800, fontSize: "12px", height: 22 }} />
+                      {!isCollapsed && (
+                        locked ? (
+                          <LockIcon sx={{ fontSize: 14, color: "rgba(245, 158, 11, 0.6)", flexShrink: 0 }} />
+                        ) : item.badge ? (
+                          <Chip
+                            label={item.badge}
+                            size="small"
+                            sx={{
+                              bgcolor: "rgba(59, 130, 246, 0.25)",
+                              color: "#60A5FA",
+                              fontWeight: 800,
+                              fontSize: "12px",
+                              height: 22,
+                              flexShrink: 0,
+                            }}
+                          />
+                        ) : null
                       )}
                     </Box>
                   </Tooltip>
