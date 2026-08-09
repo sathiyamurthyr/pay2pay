@@ -11,6 +11,7 @@ interface DocEntry { key: string; label: string; }
 interface Step11Props {
   registrationId: string;
   isBusiness: boolean;
+  savedDocs?: Record<string, string>; // doc_type -> file_url from draftData
   onSuccess: () => void;
   onBack?: () => void;
 }
@@ -25,7 +26,7 @@ interface DocStatus {
 }
 
 export const Step11Documents: React.FC<Step11Props> = ({
-  registrationId, isBusiness, onSuccess, onBack
+  registrationId, isBusiness, savedDocs = {}, onSuccess, onBack
 }) => {
   const baseDocList: DocEntry[] = [
     { key: "pan",           label: "PAN Card (Front)" },
@@ -38,7 +39,14 @@ export const Step11Documents: React.FC<Step11Props> = ({
 
   const [docStatus, setDocStatus] = useState<Record<string, DocStatus>>(() => {
     const init: Record<string, DocStatus> = {};
-    baseDocList.forEach(d => { init[d.key] = { state: "idle", preview: null, fileName: null, fileType: null }; });
+    baseDocList.forEach(d => {
+      // Normalise: backend stores as "PAN", "AADHAAR_FRONT" etc.
+      const backendKey = d.key.toUpperCase();
+      const savedUrl = savedDocs[backendKey] || savedDocs[d.key];
+      init[d.key] = savedUrl
+        ? { state: "done", preview: null, fileName: "Previously uploaded", fileType: "image/jpeg" }
+        : { state: "idle", preview: null, fileName: null, fileType: null };
+    });
     return init;
   });
 

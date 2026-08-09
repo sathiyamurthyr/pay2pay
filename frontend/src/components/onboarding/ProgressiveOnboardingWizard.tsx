@@ -338,6 +338,7 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
               <Step11Documents
                 registrationId={registrationId}
                 isBusiness={isBusiness}
+                savedDocs={draftData?.documents || {}}
                 onSuccess={() => handleStepComplete(12)}
                 onBack={handleBack}
               />
