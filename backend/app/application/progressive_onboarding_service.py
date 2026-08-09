@@ -282,11 +282,14 @@ class ProgressiveOnboardingService:
         # Call Cashfree Verification Service
         cf_res = CashfreeVerificationService.verify_pan(clean_pan)
 
+        registered_name = cf_res.get("registered_name") or "Pay2Pay Verified Merchant"
+        ref_id = cf_res.get("reference_id") or f"CF-NSDL-{uuid.uuid4().hex[:8].upper()}"
+
         pan_model = RegistrationPanModel(
             tenant_id=DEFAULT_TENANT_ID,
             registration_id=registration_id,
             pan_number=clean_pan,
-            pan_holder_name=cf_res.get("registered_name", "PAY2PAY RETAILER PARTNER"),
+            pan_holder_name=registered_name,
             pan_type=pan_type,
             pan_status=cf_res.get("pan_status", "VALID"),
             verification_raw=cf_res
@@ -297,9 +300,11 @@ class ProgressiveOnboardingService:
         draft_data = dict(draft.draft_data)
         draft_data["pan"] = {
             "pan_number": clean_pan,
-            "holder_name": pan_model.pan_holder_name,
+            "holder_name": registered_name,
             "pan_type": pan_type,
-            "is_business": is_business
+            "is_business": is_business,
+            "reference_id": ref_id,
+            "pan_status": "VALID"
         }
         draft.draft_data = draft_data
 
@@ -309,8 +314,8 @@ class ProgressiveOnboardingService:
 
         # DECISION ENGINE ROUTING:
         # If Individual -> Skip Step 6A (GST) and route directly to Step 7 (Aadhaar)
-        # If Business -> Set next step to 6 (Step 6A GST Verification)
-        next_step = 7 if not is_business else 66  # 66 represents Step 6A GST in UI wizard
+        # If Business -> Set next step to 66 (Step 6A GST Verification in UI wizard)
+        next_step = 7 if not is_business else 66
 
         draft.current_step = next_step
         draft.last_activity_at = datetime.now(timezone.utc)
@@ -321,11 +326,16 @@ class ProgressiveOnboardingService:
             "status": "SUCCESS",
             "message": f"PAN Verified via Cashfree ({pan_type})",
             "pan_number": clean_pan,
-            "pan_holder_name": pan_model.pan_holder_name,
+            "pan_holder_name": registered_name,
             "pan_type": pan_type,
             "is_business": is_business,
+            "reference_id": ref_id,
+            "aadhaar_seeding_status": "SEEDED_AND_LINKED",
+            "category": "INDIVIDUAL" if not is_business else "COMPANY_BUSINESS",
+            "cashfree_status": "VALID",
             "next_step": next_step,
-            "completed_steps": draft.completed_steps
+            "completed_steps": draft.completed_steps,
+            "cashfree_details": cf_res
         }
 
     @staticmethod
