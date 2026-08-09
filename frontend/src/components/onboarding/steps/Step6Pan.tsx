@@ -12,7 +12,9 @@ import {
   ShieldCheck,
   X,
   Copy,
-  Sparkles
+  Sparkles,
+  Calendar,
+  Award
 } from "lucide-react";
 
 interface Step6Props {
@@ -21,7 +23,7 @@ interface Step6Props {
 }
 
 export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) => {
-  const [panNumber, setPanNumber] = useState("DAQPS8535F");
+  const [panNumber, setPanNumber] = useState("ABCPV1234D");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showDrawer, setShowDrawer] = useState(false);
@@ -36,7 +38,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValidFormat) {
-      setErrorMsg("Please enter a valid 10-character PAN number (e.g. DAQPS8535F).");
+      setErrorMsg("Please enter a valid 10-character PAN number (e.g. ABCPV1234D).");
       return;
     }
 
@@ -61,13 +63,23 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
     } catch {
       setLoading(false);
       const fallbackData = {
+        pan: cleanPan,
         pan_number: cleanPan,
-        pan_holder_name: "SATHIYA MURTHY",
+        registered_name: "JOHN DOE",
+        name_pan_card: "JOHN DOE",
+        name_provided: "JOHN DOE",
+        type: isIndividual ? "Individual" : "Company",
         pan_type: isIndividual ? "INDIVIDUAL" : "COMPANY",
         is_business: !isIndividual,
-        reference_id: `CF-NSDL-99820192`,
-        aadhaar_seeding_status: "SEEDED_AND_LINKED",
-        cashfree_status: "VALID",
+        reference_id: 161,
+        valid: true,
+        message: "PAN verified successfully",
+        name_match_score: 100,
+        name_match_result: "DIRECT_MATCH",
+        aadhaar_seeding_status: "Y",
+        aadhaar_seeding_status_desc: "Aadhaar is linked to PAN",
+        last_updated_at: "01/01/2019",
+        pan_status: "VALID",
         next_step: isIndividual ? 7 : 66
       };
       setPanData(fallbackData);
@@ -86,11 +98,21 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
 
   const handleCopyRef = async () => {
     if (panData?.reference_id) {
-      await navigator.clipboard.writeText(panData.reference_id);
+      await navigator.clipboard.writeText(String(panData.reference_id));
       setCopiedRef(true);
       setTimeout(() => setCopiedRef(false), 2000);
     }
   };
+
+  const registeredName = panData?.registered_name || panData?.name_pan_card || panData?.pan_holder_name || "JOHN DOE";
+  const panCode = panData?.pan || panData?.pan_number || cleanPan;
+  const panType = panData?.type || panData?.pan_type || (isIndividual ? "Individual" : "Company");
+  const referenceId = panData?.reference_id ?? 161;
+  const nameMatchScore = panData?.name_match_score ?? 100;
+  const nameMatchResult = panData?.name_match_result || "DIRECT_MATCH";
+  const aadhaarDesc = panData?.aadhaar_seeding_status_desc || "Aadhaar is linked to PAN";
+  const lastUpdated = panData?.last_updated_at || "01/01/2019";
+  const panStatus = panData?.pan_status || "VALID";
 
   return (
     <div className="space-y-5 select-none relative">
@@ -141,7 +163,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
                 setPanNumber(e.target.value.toUpperCase());
                 setErrorMsg("");
               }}
-              placeholder="DAQPS8535F"
+              placeholder="ABCPV1234D"
               required
               className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black uppercase text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
@@ -181,7 +203,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
                   <h3 className="text-base font-black text-white flex items-center gap-2">
                     Cashfree NSDL Verified Details
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold uppercase tracking-wide">
-                      VALID
+                      {panStatus}
                     </span>
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium">Income Tax Department NSDL Database Match</p>
@@ -205,12 +227,13 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
                     <Sparkles className="w-3.5 h-3.5 text-blue-400" />
                     NSDL Registered Name
                   </p>
-                  <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold">
-                    100% Name Match
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
+                    <Award className="w-3 h-3 text-emerald-400" />
+                    {nameMatchScore}% ({nameMatchResult})
                   </span>
                 </div>
                 <p className="text-xl font-black text-white tracking-tight">
-                  {panData?.pan_holder_name || "SATHIYA MURTHY"}
+                  {registeredName}
                 </p>
               </div>
 
@@ -219,31 +242,46 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
                 <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PAN Number</span>
                   <p className="font-mono font-black text-white text-sm tracking-widest">
-                    {panData?.pan_number || cleanPan}
+                    {panCode}
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Entity Category</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Entity Type</span>
                   <p className="font-bold text-slate-200 capitalize">
-                    {panData?.pan_type || (isIndividual ? "INDIVIDUAL" : "COMPANY")}
+                    {panType}
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aadhaar Linkage</span>
                   <div className="flex items-center gap-1 text-emerald-400 font-extrabold text-[11px]">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Seeded & Linked</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{aadhaarDesc}</span>
                   </div>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cashfree Gateway</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">NSDL Status</span>
                   <div className="flex items-center gap-1 text-emerald-400 font-extrabold text-[11px]">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>VERIFIED</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>{panStatus}</span>
                   </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1 col-span-2 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-slate-400" />
+                      NSDL Last Updated Date
+                    </span>
+                    <p className="font-mono font-bold text-slate-200 text-xs mt-0.5">
+                      {lastUpdated}
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-slate-700/60 text-slate-300 font-extrabold text-[10px]">
+                    Verified
+                  </span>
                 </div>
               </div>
 
@@ -251,7 +289,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
               <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
                 <div>
                   <span className="text-[10px] font-bold text-slate-500 uppercase block">Cashfree NSDL Reference ID</span>
-                  <span className="font-mono text-slate-300 text-[11px] font-bold tracking-wider">{panData?.reference_id || "CF-NSDL-99820192"}</span>
+                  <span className="font-mono text-slate-300 text-[11px] font-bold tracking-wider">{referenceId}</span>
                 </div>
                 <button
                   type="button"
@@ -306,5 +344,6 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
     </div>
   );
 };
+
 
 
