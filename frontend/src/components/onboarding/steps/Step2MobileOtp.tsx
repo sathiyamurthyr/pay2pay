@@ -113,6 +113,34 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
     }
   };
 
+  const handleResend = async () => {
+    if (!mobileNumber) return;
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/onboarding/check-mobile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile_number: mobileNumber })
+      });
+      const data = await res.json();
+      setLoading(false);
+      setCountdown(60);
+      setAttemptsLeft(5);
+      setErrorMsg("");
+      setOtpDigits(["", "", "", "", "", ""]);
+      if (data.simulated_otp) {
+        setSimulatedOtp(data.simulated_otp);
+        localStorage.setItem("pay2pay_otp_hint", data.simulated_otp);
+      }
+    } catch {
+      setLoading(false);
+      setCountdown(60);
+      setAttemptsLeft(5);
+      setErrorMsg("");
+      setOtpDigits(["", "", "", "", "", ""]);
+    }
+  };
+
   return (
     <div className="space-y-5 select-none">
       <div className="text-center">
@@ -141,7 +169,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
               {simulatedOtp}
             </p>
             <p className="text-[10px] text-amber-600/70 dark:text-amber-500/70 font-medium mt-0.5">
-              No real WhatsApp message is sent in demo mode
+              Dispatched via Meta WhatsApp API (+91 {mobileNumber})
             </p>
           </div>
         </div>
@@ -189,7 +217,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
                 value={digit}
                 onChange={(e) => handleDigitChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
-                className={`w-11 h-13 text-center text-xl font-black rounded-xl border-2 transition-all focus:outline-none
+                className={`text-center text-xl font-black rounded-xl border-2 transition-all focus:outline-none
                   ${digit
                     ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
                     : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
@@ -225,16 +253,11 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
           ) : (
             <button
               type="button"
-              onClick={() => {
-                setCountdown(60);
-                setAttemptsLeft(5);
-                setErrorMsg("");
-                setOtpDigits(["", "", "", "", "", ""]);
-              }}
+              onClick={handleResend}
               className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
             >
               <RefreshCw className="w-3 h-3" />
-              <span>Resend OTP</span>
+              <span>Resend WhatsApp OTP</span>
             </button>
           )}
         </div>

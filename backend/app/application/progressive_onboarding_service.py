@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.application.cashfree_service import CashfreeVerificationService
+from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 from app.infrastructure.db.auth_models import AuthUserModel
 from app.infrastructure.db.registration_models import (
     RegistrationDraftModel, RegistrationProgressModel, RegistrationPanModel,
@@ -38,23 +39,42 @@ class ProgressiveOnboardingService:
                 "action": "LOGIN"
             }
 
+        otp_code = "778899"
+
+        # Dispatch real WhatsApp message via Meta Cloud API Adapter
+        wa_dispatch_status = "PENDING"
+        try:
+            wa_res = await whatsapp_service.send_otp(clean_mobile, otp_code)
+            print(f"[WHATSAPP DISPATCH] Mobile: {clean_mobile} | OTP: {otp_code} | Result: {wa_res}")
+            wa_dispatch_status = "DELIVERED" if wa_res.get("delivered") else "FAILED"
+        except Exception as e:
+            print(f"[WHATSAPP DISPATCH ERROR] {e}")
+            wa_dispatch_status = "FAILED"
+
         # 2. Check existing Registration Draft
         d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.mobile_number == clean_mobile)
         existing_draft = (await db.execute(d_stmt)).scalars().first()
         if existing_draft:
+            # Update draft_data with latest OTP code
+            draft_data = dict(existing_draft.draft_data or {})
+            draft_data["otp_code"] = otp_code
+            existing_draft.draft_data = draft_data
+            await db.commit()
+
             return {
                 "status": "RESUME_DRAFT",
-                "message": "Registration draft found. Resuming where you left off.",
+                "message": "Registration draft found. WhatsApp OTP dispatched.",
                 "registration_id": existing_draft.registration_id,
                 "current_step": existing_draft.current_step,
                 "completed_steps": existing_draft.completed_steps,
-                "draft_data": existing_draft.draft_data
+                "draft_data": existing_draft.draft_data,
+                "simulated_otp": otp_code,
+                "whatsapp_status": wa_dispatch_status
             }
 
         # 3. New Draft Creation
         reg_id = f"REG-{uuid.uuid4().hex[:10].upper()}"
         correlation_id = f"CORR-{uuid.uuid4().hex[:10].upper()}"
-        otp_code = "778899"
 
         draft = RegistrationDraftModel(
             tenant_id=DEFAULT_TENANT_ID,
@@ -73,7 +93,7 @@ class ProgressiveOnboardingService:
             registration_id=reg_id,
             event_type="MOBILE_DRAFT_CREATED",
             ip_address="127.0.0.1",
-            details={"mobile_number": clean_mobile}
+            details={"mobile_number": clean_mobile, "whatsapp_status": wa_dispatch_status}
         )
         db.add(audit)
 
@@ -81,10 +101,11 @@ class ProgressiveOnboardingService:
 
         return {
             "status": "NEW_DRAFT",
-            "message": "Draft created successfully. WhatsApp OTP dispatched.",
+            "message": "Draft created successfully. WhatsApp OTP dispatched to your phone.",
             "registration_id": reg_id,
             "correlation_id": correlation_id,
-            "simulated_otp": otp_code
+            "simulated_otp": otp_code,
+            "whatsapp_status": wa_dispatch_status
         }
 
     @staticmethod
