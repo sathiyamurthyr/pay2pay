@@ -14,7 +14,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
   const [aadhaarNumber, setAadhaarNumber] = useState("225992664748");
   const [otpSent, setOtpSent] = useState(false);
   const [refId, setRefId] = useState("");
-  const [otpCode, setOtpCode] = useState("778899");
+  const [otpCode, setOtpCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [remainingAttempts, setRemainingAttempts] = useState(5);
@@ -89,19 +89,19 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
       if (res.ok && data.status === "SUCCESS") {
         setOtpSent(true);
         setRefId(data.ref_id || `CF-${cleanAadhaar.slice(-4)}`);
-        setOtpCode(data.simulated_otp || "778899");
+        setOtpCode("");
         setCountdown(60);
       } else {
         setOtpSent(true);
         setRefId(`CF-${cleanAadhaar.slice(-4)}`);
-        setOtpCode("778899");
+        setOtpCode("");
         setCountdown(60);
       }
     } catch {
       setLoading(false);
       setOtpSent(true);
       setRefId(`CF-${cleanAadhaar.slice(-4)}`);
-      setOtpCode("778899");
+      setOtpCode("");
       setCountdown(60);
     }
   };
@@ -198,7 +198,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
     setCountdown(60);
     setCanResend(false);
     setRemainingAttempts(5);
-    setOtpCode("778899");
+    setOtpCode("");
     handleSendOtp();
   };
 
@@ -324,14 +324,11 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
                   if (pasted) setOtpCode(pasted);
                 }}
-                placeholder="778899"
+                placeholder="Enter 6-Digit OTP"
                 maxLength={6}
                 required
                 className="w-full text-center tracking-widest text-2xl font-black py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 transition-all"
               />
-              <p className="text-[11px] font-extrabold text-emerald-500 mt-1.5 text-center">
-                ⚡ Demo Code: <span className="underline">778899</span>
-              </p>
             </div>
 
             {/* Countdown & Resend Option */}

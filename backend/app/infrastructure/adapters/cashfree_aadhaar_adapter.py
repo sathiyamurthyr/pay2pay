@@ -18,7 +18,7 @@ logger = logging.getLogger("cashfree_aadhaar_adapter")
 # In-memory OTP session store for testing & fallback
 _cashfree_otp_sessions: Dict[str, Dict[str, Any]] = {}
 
-ENABLE_LIVE_CASHFREE_AADHAAR = os.getenv("ENABLE_LIVE_CASHFREE_AADHAAR", "false").lower() == "true"
+ENABLE_LIVE_CASHFREE_AADHAAR = os.getenv("ENABLE_LIVE_CASHFREE_AADHAAR", "true").lower() == "true"
 
 class CashfreeAadhaarAdapter:
     """Production Cashfree Offline Aadhaar eKYC Adapter."""
