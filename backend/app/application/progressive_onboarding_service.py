@@ -336,9 +336,13 @@ class ProgressiveOnboardingService:
 
         draft.is_business = is_business
         draft_data = dict(draft.draft_data)
+        draft_data["name"] = registered_name
+        draft_data["retailer_name"] = registered_name
+        draft_data["pan_number"] = clean_pan
         draft_data["pan"] = {
             "pan_number": clean_pan,
             "holder_name": registered_name,
+            "registered_name": registered_name,
             "pan_type": pan_type,
             "is_business": is_business,
             "reference_id": ref_id,
@@ -366,6 +370,8 @@ class ProgressiveOnboardingService:
             "message": cf_res.get("message") or "PAN verified successfully",
             "pan": clean_pan,
             "pan_number": clean_pan,
+            "name": registered_name,
+            "retailer_name": registered_name,
             "pan_holder_name": registered_name,
             "registered_name": registered_name,
             "name_pan_card": cf_res.get("name_pan_card") or registered_name,

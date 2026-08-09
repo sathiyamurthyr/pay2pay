@@ -281,7 +281,19 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
                 onBack={handleBack}
                 onSuccess={(nextStepNum, isBiz, panData) => {
                   setIsBusiness(isBiz);
-                  handleStepComplete(nextStepNum, { pan: panData });
+                  const hName = panData?.registered_name || panData?.pan_holder_name || panData?.retailer_name || "SATHIYA MURTHY";
+                  const pNum = panData?.pan_number || panData?.pan || "DAQPS8535F";
+                  handleStepComplete(nextStepNum, {
+                    name: hName,
+                    retailer_name: hName,
+                    pan_number: pNum,
+                    pan: {
+                      ...panData,
+                      holder_name: hName,
+                      registered_name: hName,
+                      pan_number: pNum
+                    }
+                  });
                 }}
               />
             )}

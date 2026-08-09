@@ -62,10 +62,18 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess, onBa
   };
 
   const handleConfirmNext = () => {
+    const payload = {
+      ...panData,
+      registered_name: registeredName,
+      pan_holder_name: registeredName,
+      retailer_name: registeredName,
+      name: registeredName,
+      pan_number: panCode,
+    };
     if (panData) {
-      onSuccess(panData.next_step, panData.is_business, panData);
+      onSuccess(panData.next_step, panData.is_business, payload);
     } else {
-      onSuccess(isIndividual ? 7 : 66, !isIndividual, { pan_number: cleanPan });
+      onSuccess(isIndividual ? 7 : 66, !isIndividual, payload);
     }
   };
 
