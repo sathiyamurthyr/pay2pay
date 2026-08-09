@@ -62,6 +62,14 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_NUMBER_ID: str = Field(default="497102120160245")
     WHATSAPP_AUTH_TOKEN: str = Field(default="EAAHe8ickOaEBO5X8Afgq8gNGq3mYEe9BmlyZBYnZCgRZBx9P1ZCjRJizHMH4P3lbtKAewLIRRgGWoOlWmlo0EfUWmGLMO5x2oZAyLOqKCAAhok9ZCp0hEYzWV9819cIlyDjVVjuc3jENdB52SdH1i4JNDComK1cruqsC752ts4qzujJB7TD5ymUtphwjEZBYZCX8KQZDZD")
 
+    # ── SMTP Email Dispatcher Credentials ────────────────────────────────────
+    SMTP_SERVER: str = Field(default="smtp.gmail.com")
+    SMTP_PORT: int = Field(default=587)
+    SMTP_USERNAME: str = Field(default="")
+    SMTP_PASSWORD: str = Field(default="")
+    SMTP_FROM_EMAIL: str = Field(default="noreply@pay2pay.in")
+    SMTP_FROM_NAME: str = Field(default="Pay2Pay Enterprise")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

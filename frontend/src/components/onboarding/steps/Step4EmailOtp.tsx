@@ -131,8 +131,8 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
             <p className="text-xl font-black text-violet-800 dark:text-violet-300 tracking-[0.3em]">
               {simulatedOtp}
             </p>
-            <p className="text-[10px] text-violet-600/70 dark:text-violet-500/70 font-medium mt-0.5">
-              No real email is sent in demo mode
+            <p className="text-[10px] text-violet-600/80 dark:text-violet-400/80 font-medium mt-0.5">
+              Click Auto-Fill to test instantly, or set SMTP credentials in backend .env for real inbox delivery.
             </p>
           </div>
         </div>
