@@ -135,22 +135,25 @@ app.include_router(customer_mpin.router, prefix=settings.API_V1_STR)
 from app.presentation.api.v1 import reverse_penny_drop_router
 from app.presentation.api.v1 import bulkpe_payout_router
 from app.presentation.api.v1 import admin_error_management_router
+from app.presentation.api.v1 import enterprise_auth_router
 app.include_router(beneficiary_verification.router, prefix=settings.API_V1_STR)
 app.include_router(reverse_penny_drop_router.router, prefix=settings.API_V1_STR)
 app.include_router(bulkpe_payout_router.router, prefix=settings.API_V1_STR)
+app.include_router(enterprise_auth_router.router, prefix=settings.API_V1_STR)
 app.include_router(admin_error_management_router.router, prefix=settings.API_V1_STR)
 app.include_router(enterprise_payout_execution_router.router, prefix=settings.API_V1_STR)
 app.include_router(payout_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(payout_ledger_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
-app.include_router(swipe_settlement_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
 from app.presentation.api.v1 import retailer_dashboard_router
 from app.presentation.api.v1 import session_security_router
 from app.presentation.api.v1 import report_center_router
+from app.presentation.api.v1 import progressive_onboarding_router
 app.include_router(retailer_dashboard_router.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(session_security_router.router, prefix=settings.API_V1_STR)
 app.include_router(report_center_router.router, prefix=settings.API_V1_STR)
 app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
+app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])
