@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     BITWARDEN_CLIENT_SECRET:   str = Field(default="")
     BITWARDEN_MASTER_PASSWORD: str = Field(default="")
     
+    # ── Meta WhatsApp Cloud API Credentials ──────────────────────────────────
+    WHATSAPP_API_URL: str = Field(default="https://graph.facebook.com/v21.0")
+    WHATSAPP_PHONE_NUMBER_ID: str = Field(default="497102120160245")
+    WHATSAPP_AUTH_TOKEN: str = Field(default="EAAHe8ickOaEBO5X8Afgq8gNGq3mYEe9BmlyZBYnZCgRZBx9P1ZCjRJizHMH4P3lbtKAewLIRRgGWoOlWmlo0EfUWmGLMO5x2oZAyLOqKCAAhok9ZCp0hEYzWV9819cIlyDjVVjuc3jENdB52SdH1i4JNDComK1cruqsC752ts4qzujJB7TD5ymUtphwjEZBYZCX8KQZDZD")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

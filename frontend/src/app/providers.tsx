@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { AuthProvider } from "@/lib/auth";
+import { WalletSyncProvider } from "@/context/WalletSyncProvider";
 import { m3Theme } from "@/styles/m3-theme";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={m3Theme}>
         <CssBaseline />
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <WalletSyncProvider>
+            {children}
+          </WalletSyncProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

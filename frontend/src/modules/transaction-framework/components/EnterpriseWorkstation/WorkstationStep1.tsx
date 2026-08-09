@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
@@ -46,7 +46,18 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
 }) => {
   const [searchInput, setSearchInput] = useState("");
   const [localHasSearched, setLocalHasSearched] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const wallet = useRetailerStore((state) => state.wallet);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -111,19 +122,27 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <TextField
               fullWidth
+              autoFocus
+              inputRef={searchInputRef}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search by Mobile, Customer Code, Aadhaar, PAN, or Name..."
               autoComplete="off"
               slotProps={{
                 htmlInput: {
-                  autoComplete: "new-password",
-                  name: "no_autofill_customer_search",
+                  readOnly: isReadOnly,
+                  onFocus: () => setIsReadOnly(false),
+                  onBlur: () => setIsReadOnly(true),
+                  autoComplete: "off",
+                  name: "disable_autofill_cust_search",
+                  id: "disable_autofill_cust_search_id",
                   autoCorrect: "off",
                   autoCapitalize: "off",
                   spellCheck: "false",
                   "data-lpignore": "true",
                   "data-1p-ignore": "true",
+                  "data-bwignore": "true",
+                  "aria-autocomplete": "none",
                 },
                 input: {
                   startAdornment: (
@@ -294,6 +313,11 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   {customer.name}
                 </Typography>
                 <Chip icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 14 } }} />} label={customer.kycStatus || "VERIFIED"} size="small" sx={{ bgcolor: "rgba(34, 197, 94, 0.2)", color: "#4ADE80", fontWeight: 800, fontSize: "11px" }} />
+                {customer.mpin_enabled === false ? (
+                  <Chip label="MPIN NOT CREATED" size="small" sx={{ bgcolor: "rgba(245, 158, 11, 0.25)", color: "#FBBF24", fontWeight: 900, fontSize: "11px", border: "1px solid #F59E0B" }} />
+                ) : (
+                  <Chip label="MPIN ACTIVE" size="small" sx={{ bgcolor: "rgba(16, 185, 129, 0.25)", color: "#34D399", fontWeight: 800, fontSize: "11px" }} />
+                )}
                 {customer.riskRating && (
                   <Chip label={`Risk: ${customer.riskRating}`} size="small" sx={{ bgcolor: "rgba(56, 189, 248, 0.2)", color: "#38BDF8", fontWeight: 800, fontSize: "11px" }} />
                 )}
@@ -325,34 +349,55 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               <Typography sx={{ fontWeight: 800, color: "#34D399", fontSize: "15px" }}>₹{Number(customer.monthlyLimitRemaining ?? 200000).toLocaleString()}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>PREFERRED BANK</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>{customer.preferredBank || "HDFC Bank"}</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>CATEGORY</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>{customer.category || "REGULAR"}</Typography>
             </Box>
             <Box>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>RELATIONSHIP MGR</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "15px" }}>{customer.relationshipManager || "Vikram Singh"}</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>KYC LEVEL</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "15px" }}>{customer.kycLevel || "FULL_KYC"}</Typography>
             </Box>
           </Box>
 
-          <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
-            <Button
-              variant="contained"
-              onClick={onContinue}
-              endIcon={<ArrowForwardIcon />}
-              sx={{
-                height: 48,
-                px: 4,
-                borderRadius: "12px",
-                fontWeight: 900,
-                fontSize: "15px",
-                bgcolor: "#2563EB",
-                color: "#FFFFFF",
-                boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
-              }}
-            >
-              Continue to Beneficiary Selection →
-            </Button>
-          </Box>
+          <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: "flex-end" }}>
+            {customer.mpin_enabled === false ? (
+              <Button
+                variant="contained"
+                onClick={() => { window.location.href = `/customers/create-pin?customer_id=${customer.id}`; }}
+                startIcon={<ShieldIcon />}
+                sx={{
+                  py: 1.5,
+                  px: 4,
+                  borderRadius: "12px",
+                  fontWeight: 900,
+                  fontSize: "15px",
+                  bgcolor: "#F59E0B",
+                  color: "#0F172A",
+                  "&:hover": { bgcolor: "#D97706" },
+                  boxShadow: "0 4px 20px rgba(245, 158, 11, 0.4)",
+                }}
+              >
+                🔒 Create Required MPIN
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={onContinue}
+                endIcon={<ArrowForwardIcon />}
+                sx={{
+                  py: 1.5,
+                  px: 4,
+                  borderRadius: "12px",
+                  fontWeight: 900,
+                  fontSize: "15px",
+                  bgcolor: "#2563EB",
+                  "&:hover": { bgcolor: "#1D4ED8" },
+                  boxShadow: "0 4px 20px rgba(37, 99, 235, 0.4)",
+                }}
+              >
+                Continue to Beneficiary Selection
+              </Button>
+            )}
+          </Stack>
         </Paper>
       )}
     </Box>

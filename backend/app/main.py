@@ -5,14 +5,22 @@ from fastapi.responses import JSONResponse
 from app.core.database import settings, engine, Base
 from app.core.exceptions import DomainException
 from app.presentation.api.v1 import (
-    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements, developer, compliance, financial_config, settlement_intake, settlement_processing, wallet_ledger, payouts, reporting, operations, crm, fraud, finance_accounting, bpm, eip, notifications, customer, beneficiary, policy, dmt, aeps, audio, secrets, upload, verification, retailer_services, payout_workflow, ekyc, epic014_beneficiary_router
+    auth, tenants, companies, users, roles, permissions, audit, settings as sys_settings, profile, dashboard, organization, retailers, machines, settlements, developer, compliance, financial_config, settlement_intake, settlement_processing, wallet_ledger, payouts, reporting, operations, crm, fraud, finance_accounting, bpm, eip, notifications, customer, beneficiary, policy, dmt, aeps, audio, secrets, upload, verification, retailer_services, payout_workflow, ekyc, epic014_beneficiary_router, customer_mpin
 )
 import app.infrastructure.db.models  # Register all models with Base.metadata
 import app.infrastructure.db.payout_workflow_models
 import app.infrastructure.db.ekyc_models
 import app.infrastructure.db.epic014_models
 import app.infrastructure.db.beneficiary_verification_models
+import app.infrastructure.db.error_management_models as _error_management_models
+import app.infrastructure.db.enterprise_payout_models as _enterprise_payout_models
+import app.infrastructure.db.swipe_settlement_models as _swipe_settlement_models
 from app.presentation.api.v1 import beneficiary_verification
+from app.presentation.api.v1 import enterprise_payout_execution_router
+from app.presentation.api.v1 import payout_report_router
+from app.presentation.api.v1 import payout_ledger_report_router
+from app.presentation.api.v1 import swipe_settlement_report_router
+from app.presentation.api.v1 import retailer_dashboard_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -22,17 +30,39 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_STR}/redoc",
 )
 
+import asyncio
+
+async def background_pending_reconciliation_poller():
+    """
+    Background job executing every 60 seconds (1 minute).
+    Polls vendor status API for all PENDING transactions, updates DB status,
+    and notifies retailer automatically on completion.
+    """
+    while True:
+        try:
+            await asyncio.sleep(60)
+            from app.core.database import AsyncSessionLocal
+            from app.application.enterprise_payout_execution_service import EnterprisePayoutExecutionService
+            async with AsyncSessionLocal() as db:
+                await EnterprisePayoutExecutionService.reconcile_pending_transactions(db)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[BACKGROUND POLLER WARNING] Pending reconciliation loop error: {str(e)}")
+
 @app.on_event("startup")
 async def startup_db():
     # Reload trigger for bank master 1000 limit
     print("ALL REGISTERED ROUTES:", [r.path for r in app.routes if hasattr(r, 'path')])
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    asyncio.create_task(background_pending_reconciliation_poller())
 
 # Enterprise CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -101,9 +131,26 @@ app.include_router(retailer_services.router, prefix=settings.API_V1_STR)
 app.include_router(payout_workflow.router, prefix=settings.API_V1_STR)
 app.include_router(ekyc.router, prefix=settings.API_V1_STR)
 app.include_router(epic014_beneficiary_router.router, prefix=settings.API_V1_STR)
+app.include_router(customer_mpin.router, prefix=settings.API_V1_STR)
 from app.presentation.api.v1 import reverse_penny_drop_router
+from app.presentation.api.v1 import bulkpe_payout_router
+from app.presentation.api.v1 import admin_error_management_router
 app.include_router(beneficiary_verification.router, prefix=settings.API_V1_STR)
 app.include_router(reverse_penny_drop_router.router, prefix=settings.API_V1_STR)
+app.include_router(bulkpe_payout_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_error_management_router.router, prefix=settings.API_V1_STR)
+app.include_router(enterprise_payout_execution_router.router, prefix=settings.API_V1_STR)
+app.include_router(payout_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
+app.include_router(payout_ledger_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
+app.include_router(swipe_settlement_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
+from app.presentation.api.v1 import retailer_dashboard_router
+from app.presentation.api.v1 import session_security_router
+from app.presentation.api.v1 import report_center_router
+app.include_router(retailer_dashboard_router.router, prefix=settings.API_V1_STR)
+app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
+app.include_router(session_security_router.router, prefix=settings.API_V1_STR)
+app.include_router(report_center_router.router, prefix=settings.API_V1_STR)
+app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
 
 
 @app.get("/health", tags=["Health"])

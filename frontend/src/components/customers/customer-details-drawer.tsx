@@ -45,9 +45,53 @@ import {
   Wallet,
   Shield,
   FileDown,
+  KeyRound,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import apiClient from "@/lib/api";
 import { formatShortCustomerId } from "@/lib/utils";
+
+function getCleanAddressString(customer: any): string {
+  if (!customer) return "";
+  if (typeof customer.fullAddress === "string" && customer.fullAddress.trim()) {
+    return customer.fullAddress;
+  }
+  if (typeof customer.address === "string" && customer.address.trim()) {
+    return customer.address;
+  }
+  if (typeof customer.address === "object" && customer.address !== null) {
+    const a = customer.address;
+    const parts = [
+      a.street || a.line1 || a.addressLine1 || a.house,
+      a.line2 || a.addressLine2 || a.landmark,
+      a.city || a.district,
+      a.state,
+      a.pincode || a.pin
+    ].filter((val) => typeof val === "string" && val.trim() !== "");
+    if (parts.length > 0) return parts.join(", ");
+  }
+
+  const directParts = [
+    typeof customer.addressLine1 === "string" ? customer.addressLine1 : "",
+    typeof customer.addressLine2 === "string" ? customer.addressLine2 : "",
+    typeof customer.city === "string" ? customer.city : (typeof customer.district === "string" ? customer.district : ""),
+    typeof customer.state === "string" ? customer.state : "",
+    typeof customer.pincode === "string" ? customer.pincode : (typeof customer.pin === "string" ? customer.pin : "")
+  ].filter((val) => val.trim() !== "");
+
+  if (directParts.length > 0) return directParts.join(", ");
+
+  return "";
+}
+
+function formatImgSrc(url?: string): string {
+  if (!url) return "";
+  const s = url.trim();
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:image")) {
+    return s;
+  }
+  return `data:image/jpeg;base64,${s}`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & INTERFACES
@@ -111,6 +155,10 @@ export interface CustomerDetailsDrawerProps {
     isBlocked?: boolean;
     isFavourite?: boolean;
     aadhaarVerifiedDate?: string;
+    todayTxnCount?: number;
+    todayTxnVolume?: number;
+    beneficiaries?: any[];
+    state?: string;
   } | null;
   onStartPayout?: (customer: any) => void;
   onEditCustomer?: (customer: any) => void;
@@ -125,6 +173,7 @@ export function CustomerDetailsDrawer({
   onEditCustomer,
   onTransferHistory,
 }: CustomerDetailsDrawerProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "overview" | "banks" | "transactions" | "beneficiaries" | "kyc" | "documents" | "risk" | "audit" | "notes"
   >("overview");
@@ -252,21 +301,44 @@ export function CustomerDetailsDrawer({
     setNewNoteText("");
   };
 
+  // Body scroll lock effect
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
+  // Escape key listener to close drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !customer) return null;
 
-  const displayName = customer.name || customer.fullName || "Kavitha Sharma";
-  const customerId = formatShortCustomerId(customer.id || (customer as any).public_id || "CUST-1001");
-  const mobile = customer.mobile || "+91 98401 92837";
-  const email = customer.email || "kavitha.s@domain.com";
-  const maskedAadhaar = customer.maskedAadhaar || "XXXX XXXX 2837";
+  const displayName = customer.name || customer.fullName || "Customer Profile";
+  const customerId = formatShortCustomerId(customer.id || (customer as any).public_id || "CUST-LIVE");
+  const mobile = customer.mobile || "";
+  const email = customer.email || "";
+  const maskedAadhaar = customer.maskedAadhaar || "XXXX-XXXX-4748";
   const kycStatus = customer.kycStatus || "VERIFIED";
   const riskLevel = customer.riskLevel || customer.riskScore || "LOW";
-  const walletBal = customer.walletBalance ?? 48250.75;
-  const since = customer.customerSince || "15-Mar-2024";
+  const walletBal = customer.walletBalance ?? 0;
+  const since = customer.customerSince || "2026-08-08";
   const verifyDate = customer.aadhaarVerifiedDate || "05-Aug-2026";
-  const limitUsed = customer.monthlyLimitUsed ?? customer.usedAmount ?? 45000;
-  const limitTotal = customer.monthlyLimitTotal ?? customer.monthlyLimit ?? 200000;
-  const usagePct = Math.min(Math.round((limitUsed / limitTotal) * 100), 100);
+  const limitUsed = customer.monthlyLimitUsed ?? customer.usedAmount ?? 0;
+  const limitTotal = customer.monthlyLimitTotal ?? customer.monthlyLimit ?? 250000;
+  const usagePct = limitTotal > 0 ? Math.min(Math.round((limitUsed / limitTotal) * 100), 100) : 0;
 
   const TABS = [
     { id: "overview", label: "Overview", icon: Layers },
@@ -282,23 +354,28 @@ export function CustomerDetailsDrawer({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex justify-end">
+      <div 
+        className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex justify-end"
+        onClick={onClose}
+      >
         <motion.div
           initial={{ x: "100%" }}
           animate={{ x: 0 }}
           exit={{ x: "100%" }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="w-full md:max-w-[640px] lg:max-w-[780px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 h-full flex flex-col justify-between shadow-2xl relative overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+          className="w-full md:max-w-[680px] lg:max-w-[840px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 h-full flex flex-col justify-between shadow-2xl relative overflow-hidden max-h-screen"
         >
           {/* ───────────────────────────────────────────────────────────────────
-              1. STICKY HEADER (ALWAYS VISIBLE)
+              1. STICKY HEADER (ALWAYS VISIBLE WITH EXPLICIT CLOSE BUTTON)
           ─────────────────────────────────────────────────────────────────── */}
-          <div className="sticky top-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shrink-0">
+          <div className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shrink-0 shadow-xs">
             <div className="flex items-center gap-3">
               <button
                 onClick={onClose}
                 aria-label="Back to customer list"
                 className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Back / Close (Esc)"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
@@ -316,13 +393,17 @@ export function CustomerDetailsDrawer({
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              aria-label="Close customer drawer"
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onClose}
+                aria-label="Close customer drawer"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-300/60 dark:border-slate-700"
+                title="Close drawer (Esc)"
+              >
+                <X className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                <span>Close</span>
+              </button>
+            </div>
           </div>
 
           {/* ───────────────────────────────────────────────────────────────────
@@ -337,7 +418,7 @@ export function CustomerDetailsDrawer({
                   <div className="relative shrink-0">
                     {customer.aadhaarPhotoUrl || customer.photoUrl ? (
                       <img
-                        src={customer.aadhaarPhotoUrl || customer.photoUrl}
+                        src={formatImgSrc(customer.aadhaarPhotoUrl || customer.photoUrl)}
                         alt={displayName}
                         className="w-[80px] h-[80px] rounded-2xl object-cover border-2 border-emerald-400 shadow-lg ring-4 ring-emerald-500/20"
                       />
@@ -386,17 +467,8 @@ export function CustomerDetailsDrawer({
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-400/30">
                   <Phone className="w-3.5 h-3.5" /> ✓ Mobile Verified
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-teal-500/20 text-teal-300 border border-teal-400/30">
-                  <UserCheck className="w-3.5 h-3.5" /> ✓ Face Verified
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                  <ShieldCheck className="w-3.5 h-3.5" /> ✓ Liveness Passed
-                </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
                   🟢 LOW RISK
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-400/30">
-                  ⭐ Frequent Customer
                 </span>
               </div>
 
@@ -411,42 +483,52 @@ export function CustomerDetailsDrawer({
               </div>
             </div>
 
-            {/* ── TOP KPI SUMMARY CARDS (6 Cards: 6 Desktop, 3x2 Tablet, 2x3 Mobile) ── */}
+            {/* ── TOP KPI SUMMARY CARDS (DYNAMIC METRICS FROM CUSTOMER DATA) ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-bold">
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-1">
                 <div className="text-slate-500 text-[10px] uppercase font-bold">Today Txns</div>
-                <div className="text-lg font-mono font-black text-slate-900 dark:text-white">24</div>
-                <div className="text-[10px] text-emerald-600 font-bold">Volume High</div>
+                <div className="text-lg font-mono font-black text-slate-900 dark:text-white">
+                  {customer.todayTxnCount ?? 0}
+                </div>
+                <div className="text-[10px] text-slate-600 font-bold">Operations</div>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800 space-y-1">
                 <div className="text-blue-600 dark:text-blue-400 text-[10px] uppercase font-bold">Today Amount</div>
-                <div className="text-lg font-mono font-black text-blue-950 dark:text-blue-200">₹45,000</div>
-                <div className="text-[10px] text-blue-600 font-bold">4 Payouts</div>
+                <div className="text-lg font-mono font-black text-blue-950 dark:text-blue-200">
+                  ₹{(customer.todayTxnVolume ?? 0).toLocaleString("en-IN")}
+                </div>
+                <div className="text-[10px] text-blue-600 font-bold">Daily Volume</div>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 space-y-1">
                 <div className="text-emerald-600 dark:text-emerald-400 text-[10px] uppercase font-bold">Wallet Balance</div>
-                <div className="text-lg font-mono font-black text-emerald-950 dark:text-emerald-200">₹{walletBal.toLocaleString("en-IN")}</div>
+                <div className="text-lg font-mono font-black text-emerald-950 dark:text-emerald-200">
+                  ₹{walletBal.toLocaleString("en-IN")}
+                </div>
                 <div className="text-[10px] text-emerald-600 font-bold">Pre-Funded</div>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800 space-y-1">
                 <div className="text-amber-700 dark:text-amber-400 text-[10px] uppercase font-bold">Monthly Usage</div>
                 <div className="text-lg font-mono font-black text-amber-900 dark:text-amber-200">{usagePct}%</div>
-                <div className="text-[10px] text-amber-600 font-bold">Cap ₹2.00L</div>
+                <div className="text-[10px] text-amber-600 font-bold">Cap ₹{(limitTotal / 100000).toFixed(1)}L</div>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800 space-y-1">
                 <div className="text-purple-700 dark:text-purple-400 text-[10px] uppercase font-bold">Beneficiaries</div>
-                <div className="text-lg font-mono font-black text-purple-950 dark:text-purple-200">8</div>
-                <div className="text-[10px] text-purple-600 font-bold">Verified Banks</div>
+                <div className="text-lg font-mono font-black text-purple-950 dark:text-purple-200">
+                  {beneficiaries.length || ((customer as any).beneficiaries?.length ?? 0)}
+                </div>
+                <div className="text-[10px] text-purple-600 font-bold">Linked Accounts</div>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800 space-y-1">
-                <div className="text-teal-700 dark:text-teal-400 text-[10px] uppercase font-bold">Success Rate</div>
-                <div className="text-lg font-mono font-black text-teal-950 dark:text-teal-200">100%</div>
-                <div className="text-[10px] text-teal-600 font-bold">0 Failures</div>
+                <div className="text-teal-700 dark:text-teal-400 text-[10px] uppercase font-bold">KYC Status</div>
+                <div className="text-sm font-mono font-black text-teal-950 dark:text-teal-200">
+                  {kycStatus}
+                </div>
+                <div className="text-[10px] text-teal-600 font-bold">UIDAI eKYC</div>
               </div>
             </div>
 
@@ -492,13 +574,10 @@ export function CustomerDetailsDrawer({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold">
                     <div><span className="text-slate-500">Full Name:</span> <div className="font-bold text-slate-900 dark:text-white">{displayName}</div></div>
                     <div><span className="text-slate-500">Masked Aadhaar:</span> <div className="font-mono font-bold text-blue-600">{maskedAadhaar}</div></div>
-                    <div><span className="text-slate-500">Date of Birth:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">15-Aug-1994</div></div>
-                    <div><span className="text-slate-500">Gender:</span> <div className="font-bold text-slate-900 dark:text-white">Female</div></div>
-                    <div><span className="text-slate-500">Verification Provider:</span> <div className="font-bold text-slate-900 dark:text-white">UIDAI eKYC Direct API</div></div>
-                    <div><span className="text-slate-500">Verification Reference:</span> <div className="font-mono font-bold text-blue-600">REF-89021B-UIDAI</div></div>
+                    <div><span className="text-slate-500">Mobile Number:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 {mobile.replace("+91 ", "")}</div></div>
+                    <div><span className="text-slate-500">Verification Provider:</span> <div className="font-bold text-slate-900 dark:text-white">Cashfree Aadhaar eKYC API</div></div>
+                    <div><span className="text-slate-500">Verification Status:</span> <div className="font-mono font-bold text-emerald-600">{kycStatus}</div></div>
                     <div><span className="text-slate-500">Verification Date:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{verifyDate}</div></div>
-                    <div><span className="text-slate-500">Liveness Score:</span> <div className="font-mono font-bold text-emerald-600">98.2% (Passed)</div></div>
-                    <div><span className="text-slate-500">Face Match Score:</span> <div className="font-mono font-bold text-emerald-600">96.4% (Matched)</div></div>
                   </div>
                 </div>
 
@@ -517,15 +596,10 @@ export function CustomerDetailsDrawer({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold">
                     <div><span className="text-slate-500">Customer ID:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{customerId}</div></div>
                     <div><span className="text-slate-500">Customer Type:</span> <div className="font-bold text-slate-900 dark:text-white">Individual</div></div>
-                    <div><span className="text-slate-500">Occupation:</span> <div className="font-bold text-slate-900 dark:text-white">Business Owner</div></div>
-                    <div><span className="text-slate-500">Business Category:</span> <div className="font-bold text-slate-900 dark:text-white">Retailer & DMT</div></div>
-                    <div><span className="text-slate-500">Retailer Type:</span> <div className="font-bold text-slate-900 dark:text-white">Retailer Store Agent</div></div>
-                    <div><span className="text-slate-500">Nationality:</span> <div className="font-bold text-slate-900 dark:text-white">Indian</div></div>
-                    <div><span className="text-slate-500">Preferred Language:</span> <div className="font-bold text-slate-900 dark:text-white">English / Tamil / Hindi</div></div>
-                    <div><span className="text-slate-500">Email:</span> <div className="font-bold text-slate-900 dark:text-white">{email}</div></div>
-                    <div><span className="text-slate-500">Primary Mobile:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 {mobile}</div></div>
-                    <div><span className="text-slate-500">Alternate Mobile:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 98401 00000</div></div>
-                    <div><span className="text-slate-500">Emergency Contact:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 98401 11111</div></div>
+                    <div><span className="text-slate-500">Primary Mobile:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 {mobile.replace("+91 ", "")}</div></div>
+                    <div><span className="text-slate-500">Email:</span> <div className="font-bold text-slate-900 dark:text-white">{email || "Not Provided"}</div></div>
+                    <div><span className="text-slate-500">KYC Status:</span> <div className="font-bold text-emerald-600">{kycStatus}</div></div>
+                    <div><span className="text-slate-500">Member Since:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{since}</div></div>
                   </div>
                 </div>
 
@@ -541,13 +615,19 @@ export function CustomerDetailsDrawer({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold">
-                    <div><span className="text-slate-500">House / Flat No:</span> <div className="font-bold text-slate-900 dark:text-white">Plot 42</div></div>
-                    <div><span className="text-slate-500">Street / Road:</span> <div className="font-bold text-slate-900 dark:text-white">Sector 18</div></div>
-                    <div><span className="text-slate-500">Area / Landmark:</span> <div className="font-bold text-slate-900 dark:text-white">Cyber City</div></div>
-                    <div><span className="text-slate-500">City / District:</span> <div className="font-bold text-slate-900 dark:text-white">Gurugram</div></div>
-                    <div><span className="text-slate-500">State:</span> <div className="font-bold text-slate-900 dark:text-white">Haryana</div></div>
-                    <div><span className="text-slate-500">Country & PIN:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">India - 122002</div></div>
+                  <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">
+                    {(() => {
+                      const cleanAddr = getCleanAddressString(customer);
+                      return cleanAddr ? (
+                        <div className="font-bold text-slate-900 dark:text-white">
+                          {cleanAddr}
+                        </div>
+                      ) : (
+                        <div className="text-slate-700 dark:text-slate-300">
+                          S/O RAMASAMY, No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chengalpattu, Tamil Nadu - 600044
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -562,10 +642,10 @@ export function CustomerDetailsDrawer({
                     <div>
                       <div className="flex justify-between mb-1">
                         <span>DMT Monthly Limit</span>
-                        <span className="font-mono">₹45,000 / ₹2,000,000 (23%)</span>
+                        <span className="font-mono">₹{limitUsed.toLocaleString("en-IN")} / ₹{limitTotal.toLocaleString("en-IN")} ({usagePct}%)</span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
-                        <div className="h-full bg-blue-600 rounded-full" style={{ width: "23%" }} />
+                        <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: `${usagePct}%` }} />
                       </div>
                     </div>
 
@@ -769,13 +849,9 @@ export function CustomerDetailsDrawer({
                 <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">Verification Timeline Audit</h3>
                 <div className="space-y-2 text-xs font-bold">
                   {[
-                    { step: "Aadhaar OCR Extraction", status: "COMPLETED", provider: "Enterprise AI OCR", ref: "REF-OCR-890A" },
-                    { step: "Secure QR Digital Signature", status: "COMPLETED", provider: "UIDAI 2048-bit RSA", ref: "REF-QR-2048" },
-                    { step: "UIDAI 6-Digit OTP Verification", status: "COMPLETED", provider: "UIDAI eKYC Direct", ref: "REF-OTP-9081" },
-                    { step: "Biometric Face Match (96.4%)", status: "COMPLETED", provider: "Biometric AI Engine", ref: "REF-FACE-964" },
-                    { step: "Passive Liveness Detection (98.2%)", status: "COMPLETED", provider: "Anti-Spoof Liveness AI", ref: "REF-LIVE-982" },
-                    { step: "PAN Card Verification", status: "COMPLETED", provider: "NSDL / NSDL e-Gov", ref: "REF-PAN-1029" },
-                    { step: "Mobile OTP Verification", status: "COMPLETED", provider: "SMS Gateway", ref: "REF-MOB-9840" },
+                    { step: "Aadhaar Digital Signature", status: "COMPLETED", provider: "UIDAI 2048-bit RSA", ref: "REF-QR-UIDAI" },
+                    { step: "UIDAI 6-Digit OTP Verification", status: "COMPLETED", provider: "UIDAI eKYC Direct API", ref: "REF-OTP-UIDAI" },
+                    { step: "Mobile Number Verification", status: "COMPLETED", provider: "SMS Gateway", ref: "REF-MOB-SMS" },
                   ].map((item, idx) => (
                     <div key={idx} className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs font-bold">
                       <div className="space-y-0.5">
@@ -920,9 +996,20 @@ export function CustomerDetailsDrawer({
               </button>
 
               {moreMenuOpen && (
-                <div className="absolute right-0 bottom-14 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-1.5 space-y-1 text-xs font-bold z-30">
+                <div className="absolute right-0 bottom-14 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-1.5 space-y-1 text-xs font-bold z-30">
                   <button onClick={() => setMoreMenuOpen(false)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2">
                     <Download className="w-4 h-4 text-blue-600" /> Download KYC PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMoreMenuOpen(false);
+                      if (customer) {
+                        router.push(`/customers/create-pin?customer_id=${customer.id}&name=${encodeURIComponent(customer.name || customer.fullName || "")}&mobile=${customer.mobile || ""}`);
+                      }
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center gap-2"
+                  >
+                    <KeyRound className="w-4 h-4 text-indigo-500" /> Change / Reset Security MPIN
                   </button>
                   <button onClick={() => setMoreMenuOpen(false)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-red-600">
                     <Ban className="w-4 h-4 text-red-600" /> Freeze Account

@@ -65,6 +65,11 @@ import { retailerApi } from "@/services/retailer-api";
 import { notificationEngine } from "@/services/notification-engine";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 import { formatShortCustomerId } from "@/lib/utils";
+import { DeleteBeneficiaryDialog } from "@/components/payout/delete-beneficiary-dialog";
+import { BeneficiaryDataGrid } from "@/modules/transaction-framework/components/Beneficiary/BeneficiaryDataGrid";
+import { useBeneficiary, BeneficiaryData } from "@/modules/transaction-framework/hooks/useBeneficiary";
+import DeleteIcon from "@mui/icons-material/Delete";
+import ListIcon from "@mui/icons-material/List";
 
 // ─── CONSTANTS ──────────────────────────────────────────────────────────────
 
@@ -246,6 +251,12 @@ function BeneficiaryWorkspaceContent() {
   const [resultModalSuccess, setResultModalSuccess] = useState(true);
   const [resultModalData, setResultModalData]   = useState<any | null>(null);
 
+  // ── Saved Beneficiaries & Delete State ──
+  const { beneficiaries, setBeneficiaries, deleteBeneficiary } = useBeneficiary(selectedCustomer);
+  const [savedBenModalOpen, setSavedBenModalOpen] = useState(false);
+  const [targetDeleteBen, setTargetDeleteBen]     = useState<BeneficiaryData | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen]   = useState(false);
+
   // ── Misc ──────────────────────────────────────────────────────────────────
   const [lastSaved, setLastSaved] = useState<string>("Just now");
   const [copied, setCopied]       = useState<string | null>(null);
@@ -416,17 +427,15 @@ function BeneficiaryWorkspaceContent() {
         return true;
       }
 
-      // 2. Check local active customer beneficiary list
+      // If backend DB confirms account is NOT duplicate, purge any stale localStorage cached entry
       const key = `pay2pay_user_added_beneficiaries_${activeCustomerId}`;
-      const existingLocal = JSON.parse(localStorage.getItem(key) || "[]");
-      const localMatch = existingLocal.find((b: any) => (b.accountNumber || b.account_number) === accToTest);
-
-      if (localMatch) {
-        const errMsg = `❌ Bank account number ending in ${accToTest.slice(-4)} is ALREADY registered for this customer (${activeCustomerName}). Registered Holder: ${localMatch.name || localMatch.account_holder_name}`;
-        setDuplicateError(errMsg);
-        setCheckingDuplicate(false);
-        return true;
-      }
+      try {
+        const existingLocal = JSON.parse(localStorage.getItem(key) || "[]");
+        const cleaned = existingLocal.filter((b: any) => (b.accountNumber || b.account_number) !== accToTest);
+        if (cleaned.length !== existingLocal.length) {
+          localStorage.setItem(key, JSON.stringify(cleaned));
+        }
+      } catch { /* ignore */ }
 
       setDuplicateError("");
       setCheckingDuplicate(false);
@@ -533,7 +542,12 @@ function BeneficiaryWorkspaceContent() {
         const beneData = res.beneficiary || res.data || {};
         const officialName = beneData.registered_name_in_bank || beneData.name_at_bank || beneData.account_holder_name || benName.toUpperCase();
         const shortBenId   = `BEN-${(beneData.beneficiary_id || Date.now()).toString().slice(-8).toUpperCase()}`;
-        const txnId        = `TXN-${Date.now().toString().slice(-10)}`;
+        const dStr = new Date();
+        const dd = String(dStr.getDate()).padStart(2, '0');
+        const mm = String(dStr.getMonth() + 1).padStart(2, '0');
+        const yy = String(dStr.getFullYear()).slice(-2);
+        const rDigits = Math.floor(10000 + Math.random() * 90000);
+        const txnId = `RPD${dd}${mm}${yy}${rDigits}`;
         const utr          = beneData.utr || `UTR-CF-${Date.now()}`;
         const vendorRef    = beneData.verification_reference || beneData.vendor_ref_id || `CF-PENNY-${Date.now()}`;
         const isReused     = Boolean(res.is_reused || res.is_reused_master || beneData.is_reused);
@@ -599,7 +613,8 @@ function BeneficiaryWorkspaceContent() {
         } catch { /* ignore */ }
 
         if (!isReused) {
-          const newBal = useRetailerStore.getState().debitWallet(verificationCharge.total);
+          const debitAmt = verificationCharge?.total || 3.54;
+          const newBal = useRetailerStore.getState().debitWallet(debitAmt);
           setWalletBalance(newBal);
         }
 
@@ -858,6 +873,37 @@ function BeneficiaryWorkspaceContent() {
                   </Stack>
                 </Paper>
               )}
+
+              {/* Saved Beneficiaries Card */}
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ fontWeight: 800, color: "#38BDF8", textTransform: "uppercase", letterSpacing: 1, fontSize: "10px" }}>
+                      Registered Beneficiaries
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "18px", mt: 0.25 }}>
+                      {beneficiaries.length} Active {beneficiaries.length === 1 ? "Account" : "Accounts"}
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => setSavedBenModalOpen(true)}
+                    startIcon={<ListIcon sx={{ fontSize: 16 }} />}
+                    sx={{
+                      borderColor: "rgba(56, 189, 248, 0.4)",
+                      color: "#38BDF8",
+                      fontWeight: 800,
+                      fontSize: "11px",
+                      borderRadius: 2.5,
+                      px: 1.5,
+                      "&:hover": { borderColor: "#38BDF8", bgcolor: "rgba(56, 189, 248, 0.1)" },
+                    }}
+                  >
+                    Manage / Delete
+                  </Button>
+                </Stack>
+              </Paper>
 
               {/* Wallet Card */}
               <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #1E293B", bgcolor: "#0F172A", color: "#FFFFFF" }}>
@@ -1724,7 +1770,7 @@ function BeneficiaryWorkspaceContent() {
                   { label: "Wallet Debited", value: `₹${resultModalData.wallet_debit?.toFixed(2) || "0.00"}` },
                   { label: "Wallet Balance After", value: `₹${resultModalData.wallet_balance_after?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) || "—"}` },
                 ].map(({ label, value, highlight }) => (
-                  <Grid item xs={12} sm={6} key={label}>
+                  <Grid size={{ xs: 12, sm: 6 }} key={label}>
                     <Box
                       sx={{
                         p: 1.25,
@@ -1800,6 +1846,90 @@ function BeneficiaryWorkspaceContent() {
           )}
         </DialogActions>
       </Dialog>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          SAVED BENEFICIARIES MANAGEMENT MODAL
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Dialog
+        open={savedBenModalOpen}
+        onClose={() => setSavedBenModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 5,
+              overflow: "hidden",
+              p: 0,
+              bgcolor: "#0F172A",
+              color: "#FFFFFF",
+              border: "1px solid #1E293B",
+              boxShadow: "0 25px 70px rgba(0, 0, 0, 0.75)",
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pt: 2.5, pb: 1, px: 3, display: "flex", alignItems: "center", justify: "space-between", borderBottom: "1px solid #1E293B" }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <AccountBalanceIcon sx={{ color: "#38BDF8", fontSize: 24 }} />
+            <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF" }}>
+              Active Beneficiaries for {activeCustomerName}
+            </Typography>
+          </Stack>
+          <IconButton onClick={() => setSavedBenModalOpen(false)} sx={{ color: "#94A3B8" }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {beneficiaries.length === 0 ? (
+            <Paper elevation={0} sx={{ p: 4, textAlign: "center", bgcolor: "#1E293B", borderRadius: 3, border: "1px solid #334155" }}>
+              <Typography variant="body1" sx={{ fontWeight: 800, color: "#CBD5E1", mb: 0.5 }}>
+                No Active Beneficiaries Registered
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                Add and verify a new bank account using the onboarding form.
+              </Typography>
+            </Paper>
+          ) : (
+            <BeneficiaryDataGrid
+              beneficiaries={beneficiaries}
+              selectedBeneficiary={null}
+              onSelect={(b) => {
+                setSelectedBeneficiary(b);
+                setSavedBenModalOpen(false);
+              }}
+              onOpenDrawer={(b) => {
+                setSelectedBeneficiary(b);
+              }}
+              onDeleteRequest={(b) => {
+                setTargetDeleteBen(b);
+                setDeleteDialogOpen(true);
+              }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5, pt: 0, px: 3, justifyContent: "flex-end" }}>
+          <M3Button variant="outlined" onClick={() => setSavedBenModalOpen(false)} sx={{ color: "#94A3B8", borderColor: "#334155", fontWeight: 800, borderRadius: 2.5 }}>
+            Close
+          </M3Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Soft Delete Confirmation Modal */}
+      <DeleteBeneficiaryDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setTargetDeleteBen(null);
+        }}
+        beneficiary={targetDeleteBen}
+        onConfirmDelete={async (bId, reason) => {
+          await deleteBeneficiary(bId, reason);
+          setDeleteDialogOpen(false);
+          setTargetDeleteBen(null);
+          notificationEngine.notify("BENEFICIARY_VERIFIED", `Beneficiary account soft-deleted successfully (${reason})`);
+        }}
+      />
 
       </main>
     </div>

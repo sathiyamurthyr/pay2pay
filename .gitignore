@@ -16,4 +16,7 @@ frontend/out/
 *.log
 *.exe
 bw.exe
+scratch/
+backend/scratch/
+
 

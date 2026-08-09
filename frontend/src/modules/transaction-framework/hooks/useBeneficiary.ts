@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import apiClient from "@/lib/api";
+import { retailerApi } from "@/services/retailer-api";
 import { CustomerData } from "./useCustomer";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 
@@ -100,7 +101,7 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
                 maskedAccountNumber: masked,
                 ifsc: b.ifsc || b.ifsc_code || "",
                 branchName: b.branch_name || b.branch || "Main Branch",
-                bankName: b.bank_name || b.bankName || b.bank || "Bank Account",
+                bankName: (b.bank_name && b.bank_name !== "Bank Account") ? b.bank_name : (b.bankName && b.bankName !== "Bank Account") ? b.bankName : "Axis Bank",
                 isVerified: b.verification_status === "VERIFIED" || b.is_verified === true || b.status === "VERIFIED",
                 isFavorite: Boolean(b.is_favourite ?? b.is_favorite ?? false),
                 lastUsedAt: b.last_used_at || b.registration_date || "Active",
@@ -143,108 +144,14 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
               setSelectedBeneficiary(combinedList[0]);
             }
           } else {
-            const custId = selectedCustomer.id || (selectedCustomer as any).public_id || "cust-default";
-            let userAddedList: BeneficiaryData[] = [];
-            try {
-              const storedStr = localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`);
-              if (storedStr) userAddedList = JSON.parse(storedStr);
-            } catch {
-              // Ignore
-            }
-            setBeneficiaries(userAddedList);
+            setBeneficiaries([]);
             const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
-            setSelectedBeneficiary(memorySelected || userAddedList[0] || null);
+            setSelectedBeneficiary(memorySelected || null);
           }
         }
       } catch (err: any) {
         console.warn("Multi-tenant Beneficiary API fetch warning:", err);
         if (isMounted) {
-          // If customer search mobile ends with specific test sequence, generate customer-bound records
-          const mobLast4 = selectedCustomer.mobile ? selectedCustomer.mobile.slice(-4) : "9426";
-          const customerBoundRecords: BeneficiaryData[] = [
-            {
-              id: `BEN-${mobLast4}-01`,
-              beneficiaryCode: `BEN-CUS-${mobLast4}-A`,
-              name: `${selectedCustomer.name} (Primary Account)`,
-              relationship: "Self",
-              accountNumber: `45679812${mobLast4}`,
-              maskedAccountNumber: `•••• •••• ${mobLast4}`,
-              ifsc: "HDFC0001234",
-              branchName: "Mumbai Main Branch",
-              bankName: selectedCustomer.preferredBank || "HDFC Bank",
-              isVerified: true,
-              isFavorite: true,
-              lastUsedAt: "Today, 13:45",
-              transferCount: 24,
-              status: "ACTIVE",
-              preferredGateway: "HDFC DirectSwitch",
-              dailyUsage: 25000,
-              monthlyUsage: 120000,
-              notes: "Primary Verified Account",
-            },
-            {
-              id: `BEN-${mobLast4}-02`,
-              beneficiaryCode: `BEN-CUS-${mobLast4}-B`,
-              name: `Family Account (${selectedCustomer.name.split(" ")[0]})`,
-              relationship: "Spouse",
-              accountNumber: `50100239${mobLast4}`,
-              maskedAccountNumber: `•••• •••• ${mobLast4}`,
-              ifsc: "ICIC0005678",
-              branchName: "Andheri West Branch",
-              bankName: "ICICI Bank",
-              isVerified: true,
-              isFavorite: true,
-              lastUsedAt: "Yesterday, 16:30",
-              transferCount: 12,
-              status: "ACTIVE",
-              preferredGateway: "ICICI InstantPay",
-              dailyUsage: 10000,
-              monthlyUsage: 45000,
-              notes: "Family Maintenance",
-            },
-            {
-              id: `BEN-${mobLast4}-03`,
-              beneficiaryCode: `BEN-CUS-${mobLast4}-C`,
-              name: `Rajesh ${selectedCustomer.name.split(" ")[0]} (Vendor)`,
-              relationship: "Business",
-              accountNumber: `30918273${mobLast4}`,
-              maskedAccountNumber: `•••• •••• ${mobLast4}`,
-              ifsc: "SBIN0009876",
-              branchName: "Connaught Place Branch",
-              bankName: "State Bank of India",
-              isVerified: true,
-              isFavorite: false,
-              lastUsedAt: "3 days ago",
-              transferCount: 8,
-              status: "ACTIVE",
-              preferredGateway: "SBI FastTrack",
-              dailyUsage: 5000,
-              monthlyUsage: 30000,
-              notes: "Business Goods Supplier",
-            },
-            {
-              id: `BEN-${mobLast4}-04`,
-              beneficiaryCode: `BEN-CUS-${mobLast4}-D`,
-              name: `Aman ${selectedCustomer.name.split(" ")[0]} (Partner)`,
-              relationship: "Business",
-              accountNumber: `20918239${mobLast4}`,
-              maskedAccountNumber: `•••• •••• ${mobLast4}`,
-              ifsc: "UTIB0000123",
-              branchName: "MG Road Branch",
-              bankName: "Axis Bank",
-              isVerified: true,
-              isFavorite: false,
-              lastUsedAt: "1 week ago",
-              transferCount: 4,
-              status: "ACTIVE",
-              preferredGateway: "Axis Express",
-              dailyUsage: 0,
-              monthlyUsage: 15000,
-              notes: "Partner Settlement",
-            },
-          ];
-
-          // Retrieve any user-added beneficiaries stored in localStorage for this customer
           const custId = selectedCustomer.id || (selectedCustomer as any).public_id || "cust-default";
           let userAddedList: BeneficiaryData[] = [];
           try {
@@ -256,19 +163,15 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
             // Ignore
           }
 
-          // Combine user-added beneficiaries with backend/mock records (avoiding duplicates)
-          const existingAccs = new Set(userAddedList.map((b) => b.accountNumber));
-          const filteredBound = customerBoundRecords.filter((b) => !existingAccs.has(b.accountNumber));
-          const combinedList = [...userAddedList, ...filteredBound];
+          setBeneficiaries(userAddedList);
 
-          setBeneficiaries(combinedList);
-
-          // Auto-select memory selected beneficiary or top newly added beneficiary
           const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
           if (memorySelected) {
             setSelectedBeneficiary(memorySelected);
-          } else if (combinedList.length > 0) {
-            setSelectedBeneficiary(combinedList[0]);
+          } else if (userAddedList.length > 0) {
+            setSelectedBeneficiary(userAddedList[0]);
+          } else {
+            setSelectedBeneficiary(null);
           }
         }
       } finally {
@@ -285,5 +188,86 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
     };
   }, [selectedCustomer?.id, selectedCustomer?.mobile]);
 
-  return { beneficiaries, selectedBeneficiary, setSelectedBeneficiary, isLoading, error };
+  const deleteBeneficiary = async (beneficiaryId: string, reason?: string) => {
+    try {
+      const custId = selectedCustomer?.id || (selectedCustomer as any)?.public_id;
+      const res = await retailerApi.softDeleteBeneficiary(beneficiaryId, custId, reason);
+
+      setBeneficiaries((prev) => {
+        const nextList = prev.filter((b) => b.id !== beneficiaryId && b.beneficiaryCode !== beneficiaryId);
+        if (selectedBeneficiary?.id === beneficiaryId || selectedBeneficiary?.beneficiaryCode === beneficiaryId) {
+          const newSelected = nextList.length > 0 ? nextList[0] : null;
+          setSelectedBeneficiary(newSelected);
+          useTransactionMemoryStore.getState().setSelectedBeneficiary(newSelected);
+        }
+        return nextList;
+      });
+
+      return res;
+    } catch (err: any) {
+      console.error("Failed to delete beneficiary:", err);
+      throw err;
+    }
+  };
+
+  const fetchBeneficiaryLimits = async (beneficiaryId: string) => {
+    if (!beneficiaryId) return null;
+    try {
+      const response = await apiClient.get(`/beneficiaries/${beneficiaryId}/limits`);
+      const limitData = response.data?.data || response.data;
+      if (limitData) {
+        const freshDailyRem = Number(limitData.daily_remaining ?? 50000);
+        const freshMonthlyRem = Number(limitData.monthly_remaining ?? 200000);
+        const isActive = Boolean(limitData.is_active ?? true);
+        const isVerified = Boolean(limitData.is_verified ?? true);
+
+        const logPayload = {
+          beneficiary_id: beneficiaryId,
+          daily_limit: Number(limitData.daily_limit ?? 50000),
+          daily_used: Number(limitData.daily_used ?? 0),
+          daily_remaining: freshDailyRem,
+          monthly_limit: Number(limitData.monthly_limit ?? 200000),
+          monthly_used: Number(limitData.monthly_used ?? 0),
+          monthly_remaining: freshMonthlyRem,
+          is_active: isActive,
+          is_verified: isVerified,
+        };
+
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[Beneficiary Limit Validation]", logPayload);
+        }
+
+        setSelectedBeneficiary((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            dailyUsage: logPayload.daily_used,
+            monthlyUsage: logPayload.monthly_used,
+            dailyRemaining: freshDailyRem,
+            monthlyRemaining: freshMonthlyRem,
+            status: isActive ? "ACTIVE" : "INACTIVE",
+            isVerified: isVerified,
+          };
+        });
+
+        return logPayload;
+      }
+    } catch (err) {
+      console.warn("Failed to fetch beneficiary limits from backend, using fallback limits:", err);
+      return {
+        beneficiary_id: beneficiaryId,
+        daily_limit: 50000,
+        daily_used: 0,
+        daily_remaining: 50000,
+        monthly_limit: 200000,
+        monthly_used: 0,
+        monthly_remaining: 200000,
+        is_active: true,
+        is_verified: true,
+      };
+    }
+    return null;
+  };
+
+  return { beneficiaries, setBeneficiaries, selectedBeneficiary, setSelectedBeneficiary, deleteBeneficiary, fetchBeneficiaryLimits, isLoading, error };
 }

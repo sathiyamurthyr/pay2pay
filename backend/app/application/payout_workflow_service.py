@@ -14,12 +14,15 @@ Implements end-to-end enterprise payout workflow including:
 import uuid
 import random
 import hashlib
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
+from app.core.config import settings
+from app.infrastructure.adapters.whatsapp_service import whatsapp_service
+from app.infrastructure.adapters.cashfree_aadhaar_adapter import CashfreeAadhaarAdapter
 from app.infrastructure.db.customer_models import CustomerModel, CustomerKycModel
 from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
 from app.infrastructure.db.models import AdminUserModel, CompanyModel
@@ -214,17 +217,54 @@ class PayoutWorkflowService:
         db.add(otp_record)
         await db.commit()
 
-        # Format simulated SMS retriever text for Android auto-read support
+        # Format simulated SMS retriever text for Android auto-read support (WebOTP / SMS Retriever API)
         android_sms_format = f"<#> Your Pay2Pay Move to Bank OTP is {otp_code}. Valid for 5 mins. 7+F9kL2x"
+
+        # Production Meta Approved WhatsApp Template Payload (ss_auth_otp_v1)
+        whatsapp_payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": f"91{mobile_number}",
+            "type": "template",
+            "template": {
+                "name": "ss_auth_otp_v1",
+                "language": {"code": "en"},
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": [{"type": "text", "text": otp_code}]
+                    },
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": "0",
+                        "parameters": [{"type": "text", "text": otp_code}]
+                    }
+                ]
+            }
+        }
+
+        # Dispatch Real Meta WhatsApp Cloud API Message using WhatsAppService
+        wa_result = await whatsapp_service.send_otp(mobile_number, otp_code)
+        whatsapp_delivered = wa_result.get("delivered", False)
+        whatsapp_api_response = wa_result.get("meta_response")
+
+        whatsapp_direct_url = f"https://wa.me/91{mobile_number}?text=Your%20Pay2Pay%20Verification%20OTP%20is%20{otp_code}"
 
         return {
             "otp_id": str(otp_record.public_id),
             "mobile_number": mobile_number,
             "channel": channel,
             "expires_in_seconds": 300,
-            "simulated_otp": otp_code,  # For testing/demo
+            "simulated_otp": otp_code,  # For testing/demo & auto-fill
             "android_sms_format": android_sms_format,
-            "message": f"OTP sent successfully via {channel}"
+            "whatsapp_payload": whatsapp_payload,
+            "whatsapp_status": "DELIVERED" if whatsapp_delivered else "SENT_SIMULATED",
+            "whatsapp_delivered": whatsapp_delivered,
+            "whatsapp_meta_response": whatsapp_api_response,
+            "whatsapp_direct_url": whatsapp_direct_url,
+            "auto_read_supported": True,
+            "message": f"OTP sent successfully via {channel} to +91 {mobile_number}"
         }
 
     @staticmethod
@@ -241,13 +281,15 @@ class PayoutWorkflowService:
                 CustomerOtpModel.mobile_number == mobile_number,
                 CustomerOtpModel.is_verified == False
             )
-        ).order_by(CustomerOtpModel.created_at.desc())
+        ).order_by(CustomerOtpModel.created_date.desc())
         
         otp_record = (await db.execute(stmt)).scalars().first()
         if not otp_record:
             raise HTTPException(status_code=400, detail="No active OTP found. Please request a new OTP.")
 
-        if datetime.now() > otp_record.expires_at:
+        now_utc = datetime.now(timezone.utc)
+        exp_time = otp_record.expires_at.astimezone(timezone.utc) if otp_record.expires_at.tzinfo else otp_record.expires_at.replace(tzinfo=timezone.utc)
+        if now_utc > exp_time:
             raise HTTPException(status_code=400, detail="OTP expired. Please request a new OTP.")
 
         if otp_record.attempts >= otp_record.max_attempts:
@@ -257,10 +299,10 @@ class PayoutWorkflowService:
             otp_record.attempts += 1
             await db.commit()
             remaining = otp_record.max_attempts - otp_record.attempts
-            raise HTTPException(status_code=400, detail=f"Invalid OTP. {remaining} attempts remaining.")
+            raise HTTPException(status_code=400, detail=f"Invalid OTP code '{otp_code}'. {remaining} attempts remaining.")
 
         otp_record.is_verified = True
-        otp_record.verified_at = datetime.now()
+        otp_record.verified_at = datetime.now(timezone.utc)
         await db.commit()
 
         return {
@@ -398,33 +440,6 @@ class PayoutWorkflowService:
                     "city": "CHENNAI",
                 })
 
-        # 2. Fallback: If no customer-specific mappings exist, fetch all active verified BeneficiaryMaster records
-        if not results:
-            stmt_all_master = select(BeneficiaryMasterModel).where(
-                BeneficiaryMasterModel.verification_status == "VERIFIED"
-            ).limit(20)
-            masters = (await db.execute(stmt_all_master)).scalars().all()
-            for master in masters:
-                results.append({
-                    "beneficiary_id": str(master.public_id),
-                    "account_holder_name": master.account_holder_name,
-                    "full_name": master.registered_name_in_bank or master.account_holder_name,
-                    "registered_name_in_bank": master.registered_name_in_bank or master.account_holder_name,
-                    "nickname": f"{master.bank_name} Account",
-                    "account_number": master.account_number,
-                    "account_number_masked": master.account_number_masked,
-                    "ifsc_code": master.ifsc_code,
-                    "bank_name": master.bank_name,
-                    "verification_status": master.verification_status,
-                    "beneficiary_status": "ACTIVE",
-                    "penny_drop_status": master.penny_drop_status or "SUCCESS",
-                    "utr": master.utr or "621819407998",
-                    "verification_reference": master.verification_reference,
-                    "account_status_code": "ACCOUNT_IS_VALID",
-                    "branch": "NUNGAMBAKKAM, CHENNAI",
-                    "city": "CHENNAI",
-                })
-
         # 3. Also fetch legacy BeneficiaryModel records
         stmt_legacy = select(BeneficiaryModel).where(
             and_(
@@ -477,6 +492,20 @@ class PayoutWorkflowService:
         ifsc = req_data.get("ifsc", "").strip().upper()
         bank_name = req_data.get("bank_name", "State Bank of India").strip()
         nickname = req_data.get("nickname", acc_holder)
+
+        # MPIN Security Check
+        stmt_c = select(CustomerModel).where(CustomerModel.public_id == customer_id)
+        cust_obj = (await db.execute(stmt_c)).scalars().first()
+        if cust_obj and (not getattr(cust_obj, "mpin_enabled", False) or getattr(cust_obj, "is_locked", False)):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "MPIN_REQUIRED",
+                    "message": "Customer must create an MPIN before performing financial transactions.",
+                    "customer_id": str(customer_id),
+                    "redirect_url": f"/customers/create-pin?customer_id={customer_id}"
+                }
+            )
 
         if not acc_holder or not acc_num or not ifsc:
             raise HTTPException(status_code=400, detail="Account holder, Account Number, and IFSC are required")
@@ -579,6 +608,20 @@ class PayoutWorkflowService:
         """Precheck: Wallet balance, Monthly limit, Customer status."""
         if amount <= 0:
             raise HTTPException(status_code=400, detail="Payout amount must be greater than zero")
+
+        # MPIN Security Check
+        stmt_c = select(CustomerModel).where(CustomerModel.public_id == customer_id)
+        cust_obj = (await db.execute(stmt_c)).scalars().first()
+        if cust_obj and (not getattr(cust_obj, "mpin_enabled", False) or getattr(cust_obj, "is_locked", False)):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "MPIN_REQUIRED",
+                    "message": "Customer must create an MPIN before performing financial transactions.",
+                    "customer_id": str(customer_id),
+                    "redirect_url": f"/customers/create-pin?customer_id={customer_id}"
+                }
+            )
 
         limit_info = await PayoutWorkflowService.get_customer_monthly_limit(db, tenant_id, customer_id)
         
@@ -809,7 +852,8 @@ class PayoutWorkflowService:
             )
 
         # Generate Reference Numbers
-        txn_num = f"TXN{datetime.now().strftime('%Y%m%d%H%M%S')}{random.randint(100, 999)}"
+        from app.core.transaction_id_generator import generate_transaction_number
+        txn_num = await generate_transaction_number(db, service_prefix="PO", model_class=PayoutWorkflowTransactionModel)
         ref_num = f"PAY2PAY-{uuid.uuid4().hex[:12].upper()}"
         utr_num = f"UTR{random.randint(100000000000, 999999999999)}"
 

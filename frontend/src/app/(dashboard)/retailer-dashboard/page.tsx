@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { NexusEnterpriseBankingView } from "@/components/dashboard/NexusEnterpriseBankingView";
+import { RetailerDashboardView } from "@/modules/dashboard/RetailerDashboardView";
 
 export default function RetailerDashboardPage() {
-  return <NexusEnterpriseBankingView />;
+  return <RetailerDashboardView />;
 }

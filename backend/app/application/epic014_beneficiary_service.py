@@ -26,6 +26,54 @@ class Epic014BeneficiaryService:
     """Enterprise Beneficiary Registration & Cashfree V2 Penny Drop Workflow Service."""
 
     @classmethod
+    async def soft_delete_beneficiary(
+        cls,
+        db: AsyncSession,
+        beneficiary_id: str,
+        customer_id: Optional[str] = None,
+        reason: Optional[str] = "Soft delete requested",
+    ) -> Dict[str, Any]:
+        """
+        Soft delete beneficiary record: updates is_active=False, is_deleted=True, status='INACTIVE'.
+        Does NOT physically delete DB rows.
+        """
+        try:
+            b_uuid = uuid.UUID(beneficiary_id)
+        except Exception:
+            b_uuid = None
+
+        if b_uuid:
+            if customer_id:
+                try:
+                    c_uuid = uuid.UUID(customer_id)
+                    stmt_m = select(BeneficiaryCustomerMappingModel).where(
+                        BeneficiaryCustomerMappingModel.beneficiary_id == b_uuid,
+                        BeneficiaryCustomerMappingModel.customer_id == c_uuid
+                    )
+                    mappings = (await db.execute(stmt_m)).scalars().all()
+                    for m in mappings:
+                        m.is_active = False
+                except Exception:
+                    pass
+
+            stmt_b = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.public_id == b_uuid)
+            master = (await db.execute(stmt_b)).scalars().first()
+            if master:
+                master.is_active = False
+                master.is_deleted = True
+                master.status = "INACTIVE"
+
+            await db.commit()
+
+        return {
+            "status": "SUCCESS",
+            "message": "Beneficiary soft deleted successfully (status updated to INACTIVE)",
+            "beneficiary_id": beneficiary_id,
+            "is_deleted": True,
+            "is_active": False,
+        }
+
+    @classmethod
     async def check_existing_account_for_customer(
         cls,
         db: AsyncSession,
@@ -121,12 +169,51 @@ class Epic014BeneficiaryService:
         masked_account = f"XXXX-XXXX-{clean_account[-4:]}"
 
         # ----------------------------------------------------
-        # 1. DUPLICATE CHECK & IDEMPOTENCY REUSE
+        # 1. DUPLICATE CHECK WITH ROW LOCKING & 409 CONFLICT
         # ----------------------------------------------------
+        stmt_active_dup = (
+            select(BeneficiaryMasterModel)
+            .join(
+                BeneficiaryCustomerMappingModel,
+                BeneficiaryCustomerMappingModel.beneficiary_id == BeneficiaryMasterModel.public_id
+            )
+            .where(
+                and_(
+                    BeneficiaryCustomerMappingModel.customer_id == customer_id,
+                    BeneficiaryCustomerMappingModel.is_active == True,
+                    BeneficiaryMasterModel.account_number == clean_account,
+                    BeneficiaryMasterModel.ifsc_code == clean_ifsc,
+                    BeneficiaryMasterModel.status != "MERGED",
+                    BeneficiaryMasterModel.is_deleted == False
+                )
+            )
+            .with_for_update()
+        )
+        existing_active = (await db.execute(stmt_active_dup)).scalars().first()
+        if existing_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "BENEFICIARY_ALREADY_EXISTS",
+                    "message": "This beneficiary is already registered.",
+                    "existing_beneficiary": {
+                        "beneficiary_id": str(existing_active.public_id),
+                        "account_holder_name": existing_active.account_holder_name,
+                        "registered_name_in_bank": existing_active.registered_name_in_bank or existing_active.account_holder_name,
+                        "account_number_masked": existing_active.account_number_masked,
+                        "ifsc_code": existing_active.ifsc_code,
+                        "bank_name": existing_active.bank_name,
+                        "verification_status": existing_active.verification_status,
+                        "status": getattr(existing_active, "status", "ACTIVE") or "ACTIVE"
+                    }
+                }
+            )
+
         stmt_master = select(BeneficiaryMasterModel).where(
             and_(
                 BeneficiaryMasterModel.account_number == clean_account,
                 BeneficiaryMasterModel.ifsc_code == clean_ifsc,
+                BeneficiaryMasterModel.status != "MERGED",
             )
         )
         existing_master = (await db.execute(stmt_master)).scalars().first()
@@ -202,7 +289,8 @@ class Epic014BeneficiaryService:
             )
 
         ref_id = f"CFV2-PD-{int(time.time() * 1000)}"
-        txn_id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
+        from app.core.transaction_id_generator import generate_transaction_number
+        txn_id = await generate_transaction_number(db, service_prefix="RPD")
 
         opening_balance = current_wallet_balance
         closing_balance = opening_balance - net_amount

@@ -20,6 +20,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
+import { DeleteBeneficiaryDialog } from "@/components/payout/delete-beneficiary-dialog";
 
 export interface BeneficiaryDrawerProps {
   open: boolean;
@@ -27,6 +28,7 @@ export interface BeneficiaryDrawerProps {
   onClose: () => void;
   onToggleFavorite?: (id: string) => void;
   onSelectForTransfer?: (ben: BeneficiaryData) => void;
+  onDelete?: (beneficiaryId: string, reason: string) => Promise<void>;
 }
 
 export const BeneficiaryDrawer: React.FC<BeneficiaryDrawerProps> = ({
@@ -35,7 +37,10 @@ export const BeneficiaryDrawer: React.FC<BeneficiaryDrawerProps> = ({
   onClose,
   onToggleFavorite,
   onSelectForTransfer,
+  onDelete,
 }) => {
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+
   if (!beneficiary) return null;
 
   const dailyUsagePercent = Math.min(100, Math.round(((beneficiary.dailyUsage || 15000) / 50000) * 100));
@@ -237,6 +242,7 @@ export const BeneficiaryDrawer: React.FC<BeneficiaryDrawerProps> = ({
               fullWidth
               variant="outlined"
               color="error"
+              onClick={() => setDeleteDialogOpen(true)}
               startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
               sx={{
                 height: 40,
@@ -245,6 +251,7 @@ export const BeneficiaryDrawer: React.FC<BeneficiaryDrawerProps> = ({
                 fontWeight: 700,
                 borderColor: "rgba(239, 68, 68, 0.4)",
                 color: "#EF4444",
+                "&:hover": { borderColor: "#EF4444", bgcolor: "rgba(239, 68, 68, 0.1)" },
               }}
             >
               Delete
@@ -252,6 +259,20 @@ export const BeneficiaryDrawer: React.FC<BeneficiaryDrawerProps> = ({
           </Stack>
         </Stack>
       </Stack>
+
+      {/* Soft Delete Modal */}
+      <DeleteBeneficiaryDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        beneficiary={beneficiary}
+        onConfirmDelete={async (bId, reason) => {
+          if (onDelete) {
+            await onDelete(bId, reason);
+          }
+          setDeleteDialogOpen(false);
+          onClose();
+        }}
+      />
     </Drawer>
   );
 };

@@ -45,12 +45,24 @@ class AadhaarVerificationModel(Base):
     __tablename__ = "aadhaar_verification"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    verification_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("customer_verification.verification_id", ondelete="CASCADE"), nullable=False, index=True)
+    public_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, nullable=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    verification_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     masked_aadhaar: Mapped[str] = mapped_column(String(20), nullable=False)
-    aadhaar_ref_token: Mapped[str] = mapped_column(String(255), nullable=False) # Tokenized reference (AES-256 hashed)
-    mode: Mapped[str] = mapped_column(String(50), nullable=False) # QR_SCAN, UPLOAD_IMAGE, CAMERA_CAPTURE, MANUAL_OTP
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    aadhaar_ref_token: Mapped[str] = mapped_column(String(255), nullable=False) # Tokenized reference (SHA-256 hashed)
+    mode: Mapped[str] = mapped_column(String(50), default="MANUAL_OTP") # QR_SCAN, UPLOAD_IMAGE, CAMERA_CAPTURE, MANUAL_OTP
+    full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    dob: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    gender: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    care_of: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    photo_base64: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    photo_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    address_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    encrypted_pii: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    verification_status: Mapped[str] = mapped_column(String(50), default="VERIFIED")
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=True)
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class AadhaarOcrResultModel(Base):

@@ -14,8 +14,6 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import StarIcon from "@mui/icons-material/Star";
-import StarBorderIcon from "@mui/icons-material/StarBorder";
-
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import SendIcon from "@mui/icons-material/Send";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
@@ -45,7 +43,6 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
 
-  // Load saved favorites on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("p2p_sidebar_favorites");
@@ -73,11 +70,11 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 
   const categories = [
     {
-      title: "MAIN",
+      title: "Main Navigation",
       items: [{ label: "Dashboard", path: "/retailer-dashboard", icon: DashboardIcon }],
     },
     {
-      title: "PAYMENTS",
+      title: "Payment Services",
       items: [
         { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, badge: "IMPS" },
         { label: "Card To Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon },
@@ -88,110 +85,83 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       ],
     },
     {
-      title: "WALLET",
+      title: "Reports & Analytics",
       items: [
-        { label: "Wallet & Top-Up", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
-        { label: "Wallet Statement", path: "/retailer/wallet-statement", icon: ReceiptLongIcon },
-        { label: "Move To Bank", path: "/retailer/settlement", icon: AccountBalanceIcon },
-      ],
-    },
-    {
-      title: "CUSTOMERS",
-      items: [
-        { label: "Customer Directory", path: "/retailer/customers", icon: PersonIcon },
-        { label: "Beneficiaries", path: "/retailer/beneficiaries", icon: PersonIcon },
-      ],
-    },
-    {
-      title: "BUSINESS",
-      items: [
-        { label: "Reports & Tax Forms", path: "/retailer/reports", icon: AssessmentIcon },
-        { label: "Analytics", path: "/retailer/analytics", icon: AssessmentIcon },
-        { label: "Commission Slabs", path: "/retailer/commission", icon: AssessmentIcon },
-        { label: "Transaction Ledger", path: "/retailer/transactions", icon: ReceiptLongIcon },
-      ],
-    },
-    {
-      title: "SUPPORT",
-      items: [
-        { label: "Notifications", path: "/retailer/notifications", icon: NotificationsIcon },
-        { label: "Support Desk", path: "/retailer/support", icon: AssessmentIcon },
-        { label: "Settings", path: "/retailer/settings", icon: AssessmentIcon },
-        { label: "Retailer Profile", path: "/retailer/profile", icon: PersonIcon },
+        { label: "Payout Report", path: "/retailer/dmt/reports", icon: AssessmentIcon },
+        { label: "Enterprise Report Center", path: "/retailer/reports", icon: AssessmentIcon },
+        { label: "POS Settlement Report", path: "/retailer/pos/settlement-report", icon: AccountBalanceIcon },
+        { label: "Passbook Ledger Statement", path: "/retailer/dmt/ledger", icon: ReceiptLongIcon },
       ],
     },
   ];
 
-  // Flattened item list for easy lookup in favorites
   const allItems = categories.flatMap((cat) => cat.items);
   const favoriteItems = allItems.filter((item) => favorites.includes(item.path));
 
-  // Filter categories & items by search query
   const filteredCategories = categories
     .map((cat) => ({
       ...cat,
-      items: cat.items.filter(
-        (item) =>
-          item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          cat.title.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
+      items: cat.items.filter((item) => item.label.toLowerCase().includes(searchQuery.toLowerCase())),
     }))
     .filter((cat) => cat.items.length > 0);
 
   return (
     <Box
       sx={{
-        width: isCollapsed ? 72 : 300,
-        height: "100%",
+        width: isCollapsed ? 76 : 280,
+        height: "100vh",
+        bgcolor: "#0B132B",
+        borderRight: "1px solid rgba(255, 255, 255, 0.14)",
         display: "flex",
         flexDirection: "column",
-        bgcolor: tokens.colors.neutral.dark.bg,
-        borderRight: `1px solid ${tokens.colors.neutral.dark.border}`,
+        position: "sticky",
+        top: 0,
+        zIndex: 1200,
         transition: tokens.transitions.fast,
       }}
     >
       {/* Sidebar Top Header & Collapse Toggle */}
-      <Box sx={{ p: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         {!isCollapsed && (
-          <Typography variant="caption" sx={{ fontWeight: 800, color: "#60A5FA", letterSpacing: "1px", textTransform: "uppercase", fontSize: "11px" }}>
-            NAVIGATION
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "16px" }}>
+            Workspace Menu
           </Typography>
         )}
-        <IconButton onClick={onToggle} size="small" sx={{ color: tokens.colors.neutral.dark.textSecondary }}>
+        <IconButton onClick={onToggle} size="medium" sx={{ color: "#FFFFFF", bgcolor: "rgba(255,255,255,0.08)" }}>
           {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
         </IconButton>
       </Box>
 
-      {/* ── SEARCH MENU INPUT BAR ── */}
+      {/* SEARCH MENU INPUT BAR */}
       {!isCollapsed && (
-        <Box sx={{ px: 1.5, pb: 1 }}>
+        <Box sx={{ px: 2, pb: 1.5 }}>
           <TextField
             fullWidth
-            size="small"
+            size="medium"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search menu items..."
+            placeholder="Search menu..."
             slotProps={{
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#60A5FA", fontSize: 16 }} />
+                    <SearchIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
                   </InputAdornment>
                 ),
                 endAdornment: searchQuery ? (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setSearchQuery("")} sx={{ p: 0.2, color: "rgba(255, 255, 255, 0.5)" }}>
-                      <ClearIcon sx={{ fontSize: 14 }} />
+                    <IconButton size="small" onClick={() => setSearchQuery("")} sx={{ p: 0.5, color: "rgba(255, 255, 255, 0.7)" }}>
+                      <ClearIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                   </InputAdornment>
                 ) : null,
                 sx: {
-                  height: 34,
-                  fontSize: "12px",
+                  height: 44,
+                  fontSize: "16px",
                   color: "#FFFFFF",
-                  borderRadius: "8px",
-                  bgcolor: "rgba(255, 255, 255, 0.05)",
-                  "& fieldset": { borderColor: "rgba(255, 255, 255, 0.12)" },
+                  borderRadius: "10px",
+                  bgcolor: "rgba(255, 255, 255, 0.08)",
+                  "& fieldset": { borderColor: "rgba(255, 255, 255, 0.16)" },
                   "&:hover fieldset": { borderColor: "#3B82F6" },
                   "&.Mui-focused fieldset": { borderColor: "#2563EB" },
                 },
@@ -201,11 +171,11 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
         </Box>
       )}
 
-      {/* Clean Navigation Groups (No Scrollbars, Compact Fonts) */}
+      {/* Navigation Menu List */}
       <Box
         sx={{
           flex: 1,
-          px: isCollapsed ? 1 : 1.5,
+          px: isCollapsed ? 1 : 2,
           py: 1,
           overflowY: "auto",
           scrollbarWidth: "none",
@@ -213,27 +183,18 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
           "&::-webkit-scrollbar": { display: "none" },
         }}
       >
-        {/* ── 1. FAVORITES CATEGORY (If any favorited & no active search query) ── */}
+        {/* FAVORITES CATEGORY */}
         {!searchQuery && favoriteItems.length > 0 && (
-          <Box sx={{ mb: 1.5 }}>
+          <Box sx={{ mb: 2 }}>
             {!isCollapsed && (
-              <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", px: "14px", mb: 0.5 }}>
-                <StarIcon sx={{ color: "#FFD54F", fontSize: 13 }} />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "#FFD54F",
-                    fontWeight: 800,
-                    fontSize: "11px",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  FAVORITES
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center", px: "14px", mb: 1 }}>
+                <StarIcon sx={{ color: "#FFD54F", fontSize: 16 }} />
+                <Typography variant="body1" sx={{ color: "#FFD54F", fontWeight: 800, fontSize: "15px" }}>
+                  Favorites
                 </Typography>
               </Stack>
             )}
-            <Stack spacing={0.4}>
+            <Stack spacing={0.6}>
               {favoriteItems.map((item) => {
                 const IconComp = item.icon;
                 const isActive = activePath === item.path;
@@ -246,23 +207,22 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         position: "relative",
                         display: "flex",
                         alignItems: "center",
-                        height: 44,
-                        borderRadius: "10px",
+                        height: 48,
+                        borderRadius: "12px",
                         px: isCollapsed ? 0 : "14px",
                         justifyContent: isCollapsed ? "center" : "space-between",
-                        bgcolor: isActive ? "#2563EB" : "rgba(255, 213, 79, 0.08)",
-                        color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
+                        bgcolor: isActive ? "#2563EB" : "rgba(255, 213, 79, 0.10)",
+                        color: "#FFFFFF",
                         cursor: "pointer",
-                        boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
+                        boxShadow: isActive ? "0 4px 14px rgba(37, 99, 235, 0.40)" : "none",
                         transition: "all 150ms ease",
-                        "&:hover": { bgcolor: isActive ? "#1D4ED8" : "rgba(255, 255, 255, 0.12)", color: "#FFFFFF" },
-                        "&:hover .fav-star": { opacity: 1 },
+                        "&:hover": { bgcolor: isActive ? "#1D4ED8" : "rgba(255, 255, 255, 0.14)" },
                       }}
                     >
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                        <IconComp sx={{ fontSize: 20, color: isActive ? "#FFFFFF" : "#FFD54F" }} />
+                      <Stack direction="row" spacing={1.8} sx={{ alignItems: "center" }}>
+                        <IconComp sx={{ fontSize: 22, color: isActive ? "#FFFFFF" : "#FFD54F" }} />
                         {!isCollapsed && (
-                          <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 600, lineHeight: "20px" }}>
+                          <Typography sx={{ fontSize: "17px", fontWeight: isActive ? 700 : 600 }}>
                             {item.label}
                           </Typography>
                         )}
@@ -271,11 +231,10 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                       {!isCollapsed && (
                         <IconButton
                           size="small"
-                          className="fav-star"
                           onClick={(e) => toggleFavorite(item.path, e)}
-                          sx={{ p: 0.3, color: isFav ? "#FFD54F" : "rgba(255,255,255,0.4)" }}
+                          sx={{ p: 0.5, color: isFav ? "#FFD54F" : "rgba(255,255,255,0.5)" }}
                         >
-                          <StarIcon sx={{ fontSize: 16 }} />
+                          <StarIcon sx={{ fontSize: 18 }} />
                         </IconButton>
                       )}
                     </Box>
@@ -286,31 +245,18 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
           </Box>
         )}
 
-        {/* ── 2. CATEGORIZED MENU ITEMS ── */}
+        {/* CATEGORIZED MENU ITEMS */}
         {filteredCategories.map((cat) => (
-          <Box key={cat.title} sx={{ mb: 1.5 }}>
+          <Box key={cat.title} sx={{ mb: 2.5 }}>
             {!isCollapsed && (
-              <Typography
-                variant="caption"
-                sx={{
-                  color: "#60A5FA",
-                  fontWeight: 800,
-                  fontSize: "11px",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  px: "14px",
-                  mb: 0.5,
-                  display: "block",
-                }}
-              >
+              <Typography variant="body1" sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "15px", px: "14px", mb: 1, display: "block" }}>
                 {cat.title}
               </Typography>
             )}
-            <Stack spacing={0.4}>
+            <Stack spacing={0.6}>
               {cat.items.map((item) => {
                 const IconComp = item.icon;
                 const isActive = activePath === item.path;
-                const isFav = favorites.includes(item.path);
 
                 return (
                   <Tooltip key={item.path} title={isCollapsed ? item.label : ""} placement="right" arrow>
@@ -319,58 +265,29 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         position: "relative",
                         display: "flex",
                         alignItems: "center",
-                        height: 44,
-                        borderRadius: "10px",
+                        height: 48,
+                        borderRadius: "12px",
                         px: isCollapsed ? 0 : "14px",
                         justifyContent: isCollapsed ? "center" : "space-between",
                         bgcolor: isActive ? "#2563EB" : "transparent",
-                        color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.88)",
+                        color: "#FFFFFF",
                         cursor: "pointer",
-                        boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
+                        boxShadow: isActive ? "0 4px 14px rgba(37, 99, 235, 0.40)" : "none",
                         transition: "all 150ms ease",
-                        "&:hover": { bgcolor: isActive ? "#1D4ED8" : "rgba(255, 255, 255, 0.08)", color: "#FFFFFF" },
-                        "&:hover .fav-star": { opacity: 1 },
+                        "&:hover": { bgcolor: isActive ? "#1D4ED8" : "rgba(255, 255, 255, 0.12)" },
                       }}
                     >
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                        <IconComp sx={{ fontSize: 20, color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.88)" }} />
+                      <Stack direction="row" spacing={1.8} sx={{ alignItems: "center" }}>
+                        <IconComp sx={{ fontSize: 22, color: isActive ? "#FFFFFF" : "#CBD5E1" }} />
                         {!isCollapsed && (
-                          <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 500, lineHeight: "20px" }}>
+                          <Typography sx={{ fontSize: "17px", fontWeight: isActive ? 700 : 600 }}>
                             {item.label}
                           </Typography>
                         )}
                       </Stack>
 
-                      {!isCollapsed && (
-                        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                          {item.badge && (
-                            <Chip
-                              label={item.badge}
-                              size="small"
-                              sx={{
-                                height: 18,
-                                fontSize: "9px",
-                                fontWeight: 800,
-                                bgcolor: isActive ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.12)",
-                                color: "#FFFFFF",
-                              }}
-                            />
-                          )}
-
-                          <IconButton
-                            size="small"
-                            className="fav-star"
-                            onClick={(e) => toggleFavorite(item.path, e)}
-                            sx={{
-                              p: 0.3,
-                              color: isFav ? "#FFD54F" : "rgba(255, 255, 255, 0.4)",
-                              opacity: isFav ? 1 : 0.4,
-                              "&:hover": { opacity: 1, color: "#FFD54F" },
-                            }}
-                          >
-                            {isFav ? <StarIcon sx={{ fontSize: 16 }} /> : <StarBorderIcon sx={{ fontSize: 16 }} />}
-                          </IconButton>
-                        </Stack>
+                      {!isCollapsed && item.badge && (
+                        <Chip label={item.badge} size="small" sx={{ bgcolor: "rgba(59, 130, 246, 0.25)", color: "#60A5FA", fontWeight: 800, fontSize: "12px", height: 22 }} />
                       )}
                     </Box>
                   </Tooltip>

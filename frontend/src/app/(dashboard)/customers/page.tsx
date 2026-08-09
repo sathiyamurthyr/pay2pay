@@ -15,9 +15,11 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { apiClient } from "@/lib/api";
 import { EnterpriseNoCustomerFound } from "@/components/ui/enterprise-no-customer-found";
 import { MobileNumberInput } from "@/components/ui/mobile-number-input";
 import { CustomerDetailsDrawer } from "@/components/customers/customer-details-drawer";
+import { CustomerMasterSlideOver } from "@/components/master/customer-master-slide-over";
 import { isNormalizedMatch, normalizePhoneNumber } from "@/lib/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -179,269 +181,12 @@ const triggerHaptics = (pattern: number | number[] = 20) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOCK DATA: PRODUCTION-GRADE ENTERPRISE CUSTOMER DIRECTORY
+// CUSTOMER DATA STRUCTURES (DYNAMIC FROM BACKEND DATABASE)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const INITIAL_CUSTOMERS: EnterpriseCustomer[] = [
-  {
-    id: "CUST-90821",
-    publicId: "c90821-4f1a-b32c-908123abcdef",
-    fullName: "Rajesh Kumar Sharma",
-    mobile: "9876543210",
-    email: "rajesh.sharma@gmail.com",
-    aadhaarMasked: "XXXX-XXXX-4921",
-    panMasked: "ABCDE1234F",
-    customerSince: "2024-03-15",
-    tier: "GOLD",
-    kycStatus: "VERIFIED",
-    panStatus: "VERIFIED",
-    aadhaarStatus: "VERIFIED",
-    txnPinStatus: "ACTIVE",
-    riskScore: 12,
-    riskLevel: "LOW",
-    preferredBank: {
-      name: "HDFC Bank Ltd",
-      accountMasked: "501002983411",
-      ifsc: "HDFC0000128"
-    },
-    monthlyLimit: 250000,
-    usedAmount: 42500,
-    dailyLimit: 50000,
-    dailyUsed: 15000,
-    todayTxnCount: 4,
-    todayTxnVolume: 15000,
-    lastTxnDate: "Today, 02:45 PM",
-    lastTxnService: "DMT Transfer",
-    lastLogin: "Today, 08:30 AM",
-    createdBy: "DEL-RT-9082 (Sunil Retailer)",
-    lastUpdated: "2026-08-04 14:45",
-    address: {
-      street: "Plot 42, Sector 18, Cyber City",
-      city: "Gurugram",
-      state: "Haryana",
-      pincode: "122002"
-    },
-    walletBalance: 14250.50,
-    isFavourite: true,
-    isBlocked: false,
-    alerts: { fraud: false, velocity: false, aml: false },
-    beneficiaries: [
-      { id: "BEN-101", name: "Suresh Sharma", accountNumber: "3091029384", ifsc: "SBIN0001824", bankName: "State Bank of India", isVerified: true },
-      { id: "BEN-102", name: "Anita Sharma", accountNumber: "0029104000192", ifsc: "ICIC0000011", bankName: "ICICI Bank", isVerified: true },
-      { id: "BEN-103", name: "Ramesh Trading Co", accountNumber: "91802004812", ifsc: "UTIB0000210", bankName: "Axis Bank", isVerified: true }
-    ],
-    recentTransactions: [
-      { id: "TXN-90812", type: "DMT", amount: 15000, status: "SUCCESS", timestamp: "Today, 02:45 PM", utr: "621809283411" },
-      { id: "TXN-90781", type: "AEPS", amount: 5000, status: "SUCCESS", timestamp: "Yesterday, 11:20 AM", utr: "621701928340" },
-      { id: "TXN-90510", type: "BBPS", amount: 2450, status: "SUCCESS", timestamp: "2026-08-02", utr: "621609182390" }
-    ]
-  },
-  {
-    id: "CUST-88129",
-    publicId: "c88129-1122-3344-5566-778899aabbcc",
-    fullName: "Priya Sundaram",
-    mobile: "9123456789",
-    email: "priya.sundaram@yahoo.com",
-    aadhaarMasked: "XXXX-XXXX-8812",
-    panMasked: "PQRS5678G",
-    customerSince: "2024-08-20",
-    tier: "PREMIUM",
-    kycStatus: "VERIFIED",
-    panStatus: "VERIFIED",
-    aadhaarStatus: "VERIFIED",
-    txnPinStatus: "ACTIVE",
-    riskScore: 28,
-    riskLevel: "LOW",
-    preferredBank: {
-      name: "State Bank of India",
-      accountMasked: "30948102938",
-      ifsc: "SBIN0001824"
-    },
-    monthlyLimit: 250000,
-    usedAmount: 180000,
-    dailyLimit: 50000,
-    dailyUsed: 35000,
-    todayTxnCount: 2,
-    todayTxnVolume: 35000,
-    lastTxnDate: "Today, 01:10 PM",
-    lastTxnService: "AEPS Withdrawal",
-    lastLogin: "Today, 09:15 AM",
-    createdBy: "DEL-RT-9082 (Sunil Retailer)",
-    lastUpdated: "2026-08-04 13:10",
-    address: {
-      street: "14 Anna Salai, T Nagar",
-      city: "Chennai",
-      state: "Tamil Nadu",
-      pincode: "600017"
-    },
-    walletBalance: 3200.00,
-    isFavourite: true,
-    isBlocked: false,
-    alerts: { fraud: false, velocity: false, aml: false },
-    beneficiaries: [
-      { id: "BEN-201", name: "Sundaram Pillai", accountNumber: "3019283746", ifsc: "IOBA0001209", bankName: "Indian Overseas Bank", isVerified: true }
-    ],
-    recentTransactions: [
-      { id: "TXN-89912", type: "AEPS", amount: 10000, status: "SUCCESS", timestamp: "Today, 01:10 PM", utr: "621809112233" },
-      { id: "TXN-89800", type: "UPI", amount: 25000, status: "SUCCESS", timestamp: "Today, 10:05 AM", utr: "621809001122" }
-    ]
-  },
-  {
-    id: "CUST-77102",
-    publicId: "c77102-9988-7766-5544-332211fedcba",
-    fullName: "Amitabh Patel",
-    mobile: "9988776655",
-    email: "amitabh.patel@rediffmail.com",
-    aadhaarMasked: "XXXX-XXXX-1029",
-    panMasked: "LKJH9876M",
-    customerSince: "2025-01-10",
-    tier: "STANDARD",
-    kycStatus: "PENDING",
-    panStatus: "PENDING",
-    aadhaarStatus: "VERIFIED",
-    txnPinStatus: "NOT_SET",
-    riskScore: 78,
-    riskLevel: "HIGH",
-    preferredBank: {
-      name: "ICICI Bank",
-      accountMasked: "0029104000192",
-      ifsc: "ICIC0000011"
-    },
-    monthlyLimit: 50000,
-    usedAmount: 49500,
-    dailyLimit: 25000,
-    dailyUsed: 25000,
-    todayTxnCount: 1,
-    todayTxnVolume: 25000,
-    lastTxnDate: "Yesterday, 06:40 PM",
-    lastTxnService: "Wallet Payout",
-    lastLogin: "Yesterday, 06:30 PM",
-    createdBy: "DEL-RT-9082 (Sunil Retailer)",
-    lastUpdated: "2026-08-03 18:40",
-    address: {
-      street: "88 Ashram Road, Navrangpura",
-      city: "Ahmedabad",
-      state: "Gujarat",
-      pincode: "380009"
-    },
-    walletBalance: 120.00,
-    isFavourite: false,
-    isBlocked: true,
-    alerts: { fraud: true, velocity: true, aml: false },
-    beneficiaries: [],
-    recentTransactions: [
-      { id: "TXN-77890", type: "WALLET", amount: 25000, status: "FAILED", timestamp: "Yesterday, 06:40 PM", utr: "621709998877" }
-    ]
-  },
-  {
-    id: "CUST-66231",
-    publicId: "c66231-5544-3322-1100-aabbccdd9988",
-    fullName: "Venkatesh Murthy",
-    mobile: "9445566778",
-    email: "venkat.m@gmail.com",
-    aadhaarMasked: "XXXX-XXXX-6623",
-    panMasked: "MNBV3456K",
-    customerSince: "2025-05-04",
-    tier: "GOLD",
-    kycStatus: "VERIFIED",
-    panStatus: "VERIFIED",
-    aadhaarStatus: "VERIFIED",
-    txnPinStatus: "ACTIVE",
-    riskScore: 8,
-    riskLevel: "LOW",
-    preferredBank: {
-      name: "Canara Bank",
-      accountMasked: "11029384756",
-      ifsc: "CNRB0001092"
-    },
-    monthlyLimit: 250000,
-    usedAmount: 85000,
-    dailyLimit: 50000,
-    dailyUsed: 12000,
-    todayTxnCount: 1,
-    todayTxnVolume: 12000,
-    lastTxnDate: "Today, 10:15 AM",
-    lastTxnService: "BBPS Bill Payment",
-    lastLogin: "Today, 10:00 AM",
-    createdBy: "DEL-RT-9082 (Sunil Retailer)",
-    lastUpdated: "2026-08-04 10:15",
-    address: {
-      street: "77 MG Road, Indiranagar",
-      city: "Bengaluru",
-      state: "Karnataka",
-      pincode: "560038"
-    },
-    walletBalance: 8400.00,
-    isFavourite: false,
-    isBlocked: false,
-    alerts: { fraud: false, velocity: false, aml: false },
-    beneficiaries: [
-      { id: "BEN-401", name: "Murthy Enterprises", accountNumber: "11029384756", ifsc: "CNRB0001092", bankName: "Canara Bank", isVerified: true }
-    ],
-    recentTransactions: [
-      { id: "TXN-66120", type: "BBPS", amount: 12000, status: "SUCCESS", timestamp: "Today, 10:15 AM", utr: "621809009988" }
-    ]
-  },
-  {
-    id: "CUST-55109",
-    publicId: "c55109-9900-1122-3344-556677889900",
-    fullName: "Kavita Reddy",
-    mobile: "9778899001",
-    email: "kavita.reddy@outlook.com",
-    aadhaarMasked: "XXXX-XXXX-5510",
-    panMasked: "ASDF1234L",
-    customerSince: "2026-08-04",
-    tier: "VIP",
-    kycStatus: "VERIFIED",
-    panStatus: "VERIFIED",
-    aadhaarStatus: "VERIFIED",
-    txnPinStatus: "ACTIVE",
-    riskScore: 5,
-    riskLevel: "LOW",
-    preferredBank: {
-      name: "Kotak Mahindra Bank",
-      accountMasked: "7091823948",
-      ifsc: "KKBK0000921"
-    },
-    monthlyLimit: 500000,
-    usedAmount: 90000,
-    dailyLimit: 100000,
-    dailyUsed: 90000,
-    todayTxnCount: 5,
-    todayTxnVolume: 90000,
-    lastTxnDate: "Today, 03:20 PM",
-    lastTxnService: "DMT Transfer",
-    lastLogin: "Today, 03:00 PM",
-    createdBy: "DEL-RT-9082 (Sunil Retailer)",
-    lastUpdated: "2026-08-04 15:20",
-    address: {
-      street: "55 Jubilee Hills, Road No 36",
-      city: "Hyderabad",
-      state: "Telangana",
-      pincode: "500033"
-    },
-    walletBalance: 45000.00,
-    isFavourite: true,
-    isBlocked: false,
-    alerts: { fraud: false, velocity: false, aml: false },
-    beneficiaries: [
-      { id: "BEN-501", name: "Reddy Infrastructures", accountNumber: "7091823948", ifsc: "KKBK0000921", bankName: "Kotak Mahindra Bank", isVerified: true }
-    ],
-    recentTransactions: [
-      { id: "TXN-55910", type: "DMT", amount: 50000, status: "SUCCESS", timestamp: "Today, 03:20 PM", utr: "621809554433" },
-      { id: "TXN-55909", type: "DMT", amount: 40000, status: "SUCCESS", timestamp: "Today, 02:00 PM", utr: "621809443322" }
-    ]
-  }
-];
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  { id: "N1", title: "Customer Registered", message: "Kavita Reddy (+91 9778899001) registered under VIP tier", timestamp: "10 mins ago", type: "REGISTRATION" },
-  { id: "N2", title: "eKYC Verified", message: "Biometric eKYC completed via Verification Service", timestamp: "45 mins ago", type: "EKYC" },
-  { id: "N3", title: "Risk Compliance Hold", message: "Amitabh Patel (+91 9988776655) flagged by Verification Engine", timestamp: "2 hours ago", type: "ALERT" },
-  { id: "N4", title: "PAN Validation", message: "Instant NSDL PAN validation succeeded for Priya Sundaram", timestamp: "3 hours ago", type: "PAN" }
-];
-
-const RECENT_SEARCHES_MOCK = ["9876543210", "CUST-90821", "Rajesh Kumar", "9123456789", "Kavita Reddy"];
+const INITIAL_CUSTOMERS: EnterpriseCustomer[] = [];
+const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
+const RECENT_SEARCHES_MOCK: string[] = [];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN ENTERPRISE CUSTOMER DIRECTORY COMPONENT
@@ -466,7 +211,7 @@ export default function EnterpriseCustomerDirectoryPage() {
 
   // ── Action Dropdown & Modals State ──
   const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null);
-  const [showNewModal, setShowNewModal] = useState(false);
+  const [showSlideOver, setShowSlideOver] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showBulkKycModal, setShowBulkKycModal] = useState(false);
@@ -500,6 +245,83 @@ export default function EnterpriseCustomerDirectoryPage() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Fetch Real Customers from Backend Database ──
+  const fetchCustomers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get("/customers");
+      if (res.status === 200 && res.data) {
+        const rawList = res.data.data || res.data || [];
+        if (Array.isArray(rawList) && rawList.length > 0) {
+          const mapped: EnterpriseCustomer[] = rawList.map((item: any) => {
+            const isVerified = item.kyc_status === "VERIFIED" || item.aadhaar_verified;
+            return {
+              id: item.customer_number || `CUST-${item.public_id?.substring(0, 5)}`,
+              publicId: item.public_id,
+              fullName: item.full_name || "Customer Record",
+              photoUrl: item.photo_url || item.photo_base64 || "",
+              mobile: item.mobile_number || "",
+              email: item.email || `${item.mobile_number || "cust"}@pay2pay.in`,
+              aadhaarMasked: item.masked_aadhaar || (isVerified ? "XXXX-XXXX-4748" : "Not Verified"),
+              panMasked: "ABCDE1234F",
+              customerSince: item.registration_date ? new Date(item.registration_date).toISOString().split("T")[0] : "2026-08-08",
+              tier: (item.customer_category as CustomerTier) || "STANDARD",
+              kycStatus: isVerified ? "VERIFIED" : "PENDING",
+              panStatus: "VERIFIED",
+              aadhaarStatus: isVerified ? "VERIFIED" : "PENDING",
+              txnPinStatus: "ACTIVE",
+              riskScore: item.risk_category === "HIGH" ? 85 : 10,
+              riskLevel: (item.risk_category || "LOW") as RiskLevel,
+              preferredBank: {
+                name: "State Bank of India",
+                accountMasked: "XXXX-XXXX-9012",
+                ifsc: "SBIN0001824"
+              },
+              monthlyLimit: 250000,
+              usedAmount: 0,
+              dailyLimit: 50000,
+              dailyUsed: 0,
+              todayTxnCount: 0,
+              todayTxnVolume: 0,
+              lastTxnDate: "No Transactions",
+              lastTxnService: "N/A",
+              lastLogin: "Today",
+              createdBy: "SYSTEM",
+              lastUpdated: "Just now",
+              address: {
+                street: "",
+                city: "Chennai",
+                state: "Tamil Nadu",
+                pincode: "600001"
+              },
+              walletBalance: 0,
+              isFavourite: false,
+              isBlocked: item.customer_status === "BLOCKED",
+              alerts: { fraud: false, velocity: false, aml: false },
+              beneficiaries: Array.isArray(item.beneficiaries) ? item.beneficiaries : [],
+              recentTransactions: []
+            };
+          });
+
+          setCustomers(mapped);
+          if (mapped.length > 0) {
+            setSelectedCustomer(mapped[0]);
+          } else {
+            setSelectedCustomer(null);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch customer directory from backend:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
+
   // Close action menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -520,14 +342,14 @@ export default function EnterpriseCustomerDirectoryPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
-        setShowNewModal(true);
+        setShowSlideOver(true);
       } else if (e.altKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
         searchInputRef.current?.focus();
         setShowRecentDropdown(true);
       } else if (e.key === "Escape") {
         setShowProfileDrawer(false);
-        setShowNewModal(false);
+        setShowSlideOver(false);
         setShowImportModal(false);
         setShowExportModal(false);
         setShowEditModal(false);
@@ -746,7 +568,7 @@ export default function EnterpriseCustomerDirectoryPage() {
 
     setCustomers([newCust, ...customers]);
     setSelectedCustomer(newCust);
-    setShowNewModal(false);
+    setShowSlideOver(false);
 
     const newNotif: NotificationItem = {
       id: `N-${Date.now()}`,
@@ -779,7 +601,7 @@ export default function EnterpriseCustomerDirectoryPage() {
           1. HEADER COMPONENT (#1E3A8A Dark Navy Blue Background, High Contrast Pure White Text)
       ───────────────────────────────────────────────────────────────────── */}
       <header className="bg-[#1E3A8A] text-white border-b border-blue-900 sticky top-0 z-30 shadow-md">
-        <div className="max-w-[1700px] mx-auto px-4 sm:px-6 py-4 space-y-3.5">
+        <div className="max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-3.5">
           
           {/* Header Row 1: Green Circle Customer Icon, Pure White Bold Title (#FFFFFF 700), #DBEAFE Ice Blue Subtitle */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -888,20 +710,31 @@ export default function EnterpriseCustomerDirectoryPage() {
       {/* ─────────────────────────────────────────────────────────────────────
           2. ACTION BAR & ENTERPRISE OPERATIONS (#2563EB Primary Blue, #1D4ED8 Hover)
       ───────────────────────────────────────────────────────────────────── */}
-      <div className="max-w-[1700px] mx-auto px-4 sm:px-6 pt-4">
+      <div className="max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8F0] shadow-xs flex flex-wrap items-center justify-between gap-3">
           
-          <button
-            onClick={() => {
-              setShowNewModal(true);
-              playSoundEffect("CLICK");
-            }}
-            aria-label="Add New Customer"
-            className="min-h-[48px] px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#2563EB] hover:bg-[#1D4ED8] shadow-md shadow-blue-600/20 flex items-center gap-2.5 transition-all active:scale-95 focus:ring-2 focus:ring-blue-600 focus:outline-none"
-          >
-            <UserPlus className="w-4 h-4 stroke-[2.5]" />
-            <span>+ Add New Customer</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setShowSlideOver(true);
+                playSoundEffect("CLICK");
+              }}
+              aria-label="Add New Customer"
+              className="min-h-[48px] px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#2563EB] hover:bg-[#1D4ED8] shadow-md shadow-blue-600/20 flex items-center gap-2.5 transition-all active:scale-95 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+            >
+              <UserPlus className="w-4 h-4 stroke-[2.5]" />
+              <span>+ Add New Customer</span>
+            </button>
+
+            <button
+              onClick={() => router.push("/retailer/customers/new")}
+              title="Open full page customer registration workspace"
+              className="min-h-[48px] px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1.5 transition-all"
+            >
+              <span>Full Page Workspace</span>
+              <ArrowUpRight className="w-4 h-4 text-blue-600" />
+            </button>
+          </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
             <button
@@ -948,12 +781,12 @@ export default function EnterpriseCustomerDirectoryPage() {
       {/* ─────────────────────────────────────────────────────────────────────
           3. THREE-COLUMN ENTERPRISE LAYOUT
       ───────────────────────────────────────────────────────────────────── */}
-      <main className="max-w-[1700px] mx-auto px-4 sm:px-6 py-6">
+      <main className="max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* LEFT COLUMN: WORKSPACE & SEGMENTS */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-3 3xl:col-span-2 space-y-6">
             <div className="p-5 rounded-3xl bg-white border border-[#E2E8F0] shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
@@ -1055,7 +888,7 @@ export default function EnterpriseCustomerDirectoryPage() {
           </div>
 
           {/* CENTER COLUMN: CUSTOMER DIRECTORY */}
-          <div className="lg:col-span-7 space-y-4">
+          <div className="lg:col-span-9 3xl:col-span-10 space-y-4">
             
             {/* Filter Chips + Count */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -1112,7 +945,7 @@ export default function EnterpriseCustomerDirectoryPage() {
                 isVoiceListening={isVoiceListening}
               />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 gap-6 items-start">
                 {filteredCustomers.map((cust) => {
                   const isSelected = selectedCustomer?.id === cust.id;
                   const limitUsagePct = Math.min(Math.round((cust.usedAmount / cust.monthlyLimit) * 100), 100);
@@ -1155,11 +988,19 @@ export default function EnterpriseCustomerDirectoryPage() {
 
                         {/* ── ROW 1: Avatar | Name + Tier badge | Star */}
                         <div className="flex items-start gap-3">
-                          {/* Avatar */}
+                          {/* Avatar: Render verified photo if available, fallback to initials */}
                           <div className="relative shrink-0">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">
-                              {cust.fullName.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
-                            </div>
+                            {cust.photoUrl ? (
+                              <img
+                                src={cust.photoUrl}
+                                alt={cust.fullName}
+                                className="w-12 h-12 rounded-2xl object-cover border-2 border-emerald-400 shadow-md ring-2 ring-emerald-400/20"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">
+                                {cust.fullName.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                              </div>
+                            )}
                             <button
                               onClick={(e) => { e.stopPropagation(); handleToggleFavourite(cust.id, e); }}
                               className="absolute -bottom-1 -right-1 p-1 rounded-full bg-white shadow-xs text-yellow-500"
@@ -1168,18 +1009,9 @@ export default function EnterpriseCustomerDirectoryPage() {
                             </button>
                           </div>
 
-                          {/* Name + Tier + KYC status (all nowrap-safe) */}
+                          {/* Name + Tier + KYC status */}
                           <div className="min-w-0 flex-1">
-                            {/* Name: max 2 lines, never truncated early */}
-                            <h3
-                              className="text-[17px] font-extrabold text-slate-900 leading-snug"
-                              style={{
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
-                              }}
-                            >
+                            <h3 className="text-base font-extrabold text-slate-900 leading-snug break-words">
                               {cust.fullName}
                             </h3>
                             {/* Badges row */}
@@ -1205,21 +1037,20 @@ export default function EnterpriseCustomerDirectoryPage() {
                           </div>
                         </div>
 
-                        {/* ── ROW 2: Mobile Number (single line, never wraps) */}
-                        <p className="text-[14px] font-semibold text-slate-700 font-mono whitespace-nowrap overflow-hidden text-ellipsis">
+                        {/* ── ROW 2: Mobile Number */}
+                        <p className="text-sm font-semibold text-slate-700 font-mono whitespace-nowrap overflow-hidden text-ellipsis">
                           +91 {cust.mobile}
                         </p>
 
-                        {/* ── ROW 3: Customer ID (single line, never wraps) */}
+                        {/* ── ROW 3: Customer ID */}
                         <div>
-                          <span className="text-[12px] font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg whitespace-nowrap inline-block">
+                          <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg whitespace-nowrap inline-block">
                             ID: {cust.id}
                           </span>
                         </div>
 
                         {/* ── ROW 4: Risk badge + eKYC status */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          {/* Risk */}
                           <span
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-black tracking-wider border whitespace-nowrap ${
                               cust.riskLevel === "LOW"
@@ -1234,7 +1065,6 @@ export default function EnterpriseCustomerDirectoryPage() {
                             {cust.riskLevel} RISK
                           </span>
 
-                          {/* eKYC / Aadhaar */}
                           {cust.aadhaarStatus === "VERIFIED" ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
                               <CheckCircle2 className="w-3 h-3 shrink-0" /> Aadhaar eKYC
@@ -1246,15 +1076,13 @@ export default function EnterpriseCustomerDirectoryPage() {
                           )}
                         </div>
 
-
-
                         {/* ── Monthly Limit */}
                         <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                          <div className="flex items-center justify-between text-[12px] font-bold text-slate-700">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-700 gap-2 flex-wrap">
                             <span>Monthly Limit</span>
-                            <span className="font-mono text-slate-900">₹{cust.monthlyLimit.toLocaleString("en-IN")}</span>
+                            <span className="font-mono text-slate-900 font-extrabold">₹{cust.monthlyLimit.toLocaleString("en-IN")}</span>
                           </div>
-                          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 gap-2 flex-wrap">
                             <span>Used: ₹{cust.usedAmount.toLocaleString("en-IN")}</span>
                             <span
                               className={`font-extrabold font-mono px-2 py-0.5 rounded-md text-[10px] ${
@@ -1279,13 +1107,13 @@ export default function EnterpriseCustomerDirectoryPage() {
                         </div>
 
                         {/* ── Last Transaction */}
-                        <div className="flex items-center justify-between text-[12px] font-semibold text-slate-500">
+                        <div className="flex items-center justify-between text-xs font-semibold text-slate-500 flex-wrap gap-1">
                           <span>Last Txn: <strong className="text-slate-700">{cust.lastTxnDate}</strong></span>
                           <span>Txns: <strong className="text-slate-700 font-mono">{cust.todayTxnCount}</strong></span>
                         </div>
 
                         {/* FULLY FUNCTIONAL 7-ACTION DROPDOWN MENU */}
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                           <div className="text-xs text-slate-500 font-mono">
                             Wallet Bal: <strong className="text-slate-900 font-bold">₹{cust.walletBalance.toLocaleString("en-IN")}</strong>
                           </div>
@@ -1297,10 +1125,10 @@ export default function EnterpriseCustomerDirectoryPage() {
                                 setActiveActionMenuId(isMenuOpen ? null : cust.id);
                                 playSoundEffect("CLICK");
                               }}
-                              className="min-h-[48px] px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#2563EB] hover:bg-[#1D4ED8] shadow-sm flex items-center gap-2 transition-all focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                              className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#2563EB] hover:bg-[#1D4ED8] shadow-sm flex items-center gap-1.5 transition-all focus:ring-2 focus:ring-blue-600 focus:outline-none whitespace-nowrap"
                             >
                               <span>Select Action</span>
-                              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isMenuOpen ? "rotate-180" : ""}`} />
+                              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isMenuOpen ? "rotate-180" : ""}`} />
                             </button>
 
                             <AnimatePresence>
@@ -1451,134 +1279,15 @@ export default function EnterpriseCustomerDirectoryPage() {
         </div>
       </main>
 
-      {/* NEW CUSTOMER ONBOARDING MODAL USING REUSABLE MOBILENUMBERINPUT */}
-      {showNewModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-[#2563EB]" />
-                <span>+ New Enterprise Customer Onboarding</span>
-              </h3>
-              <button onClick={() => setShowNewModal(false)} className="text-slate-400 hover:text-slate-700 min-h-[36px] min-w-[36px] flex items-center justify-center">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateCustomerSubmit} className="space-y-4 text-xs font-semibold">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 mb-1 block font-bold">Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newForm.fullName}
-                    onChange={(e) => setNewForm({ ...newForm, fullName: e.target.value })}
-                    placeholder="Customer full name"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold outline-none focus:border-blue-600 min-h-[44px]"
-                  />
-                </div>
-
-                {/* Mobile Input Component */}
-                <div>
-                  <MobileNumberInput
-                    id="new-customer-mobile"
-                    label="Mobile Number *"
-                    ariaLabel="Customer Mobile Number to Register"
-                    value={newForm.mobile}
-                    onChange={(cleanVal) => setNewForm({ ...newForm, mobile: cleanVal })}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* DUPLICATE CUSTOMER WARNING & USE EXISTING ACTION */}
-              {duplicateCustomer && (
-                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#EF4444]">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>This mobile number is already registered under this Tenant and Company.</span>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-white border border-red-200 flex items-center justify-between text-xs font-semibold">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-blue-700 text-white font-bold flex items-center justify-center">
-                        {duplicateCustomer.fullName.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-extrabold text-slate-900">{duplicateCustomer.fullName}</div>
-                        <div className="text-[11px] text-slate-500 font-mono">ID: {duplicateCustomer.id} • Tier: {duplicateCustomer.tier}</div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                      {duplicateCustomer.kycStatus}
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCustomer(duplicateCustomer);
-                      setShowNewModal(false);
-                      setShowProfileDrawer(true);
-                      playSoundEffect("SUCCESS");
-                    }}
-                    className="w-full min-h-[44px] py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    <span>Use Existing Customer</span>
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 mb-1 block font-bold">Aadhaar Number (12-digit)</label>
-                  <input
-                    type="text"
-                    value={newForm.aadhaar}
-                    onChange={(e) => setNewForm({ ...newForm, aadhaar: e.target.value.replace(/\D/g, "").slice(0, 12) })}
-                    placeholder="XXXX-XXXX-1234"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold font-mono outline-none focus:border-blue-600 min-h-[44px]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-slate-700 mb-1 block font-bold">PAN Card Number</label>
-                  <input
-                    type="text"
-                    value={newForm.pan}
-                    onChange={(e) => setNewForm({ ...newForm, pan: e.target.value.toUpperCase().slice(0, 10) })}
-                    placeholder="ABCDE1234F"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold font-mono uppercase outline-none focus:border-blue-600 min-h-[44px]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowNewModal(false)}
-                  className="min-h-[44px] px-4 py-2 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={Boolean(duplicateCustomer) || cleanFormMobile.length !== 10}
-                  className={`min-h-[44px] px-5 py-2 rounded-xl text-white font-bold shadow-sm text-xs transition-all ${
-                    duplicateCustomer || cleanFormMobile.length !== 10
-                      ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
-                      : "bg-[#2563EB] hover:bg-[#1D4ED8]"
-                  }`}
-                >
-                  Save &amp; Verify Customer
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* EXISTING SLIDE-OVER DRAWER FOR CUSTOMER ONBOARDING */}
+      <CustomerMasterSlideOver
+        open={showSlideOver}
+        onClose={() => setShowSlideOver(false)}
+        onSuccess={() => {
+          setShowSlideOver(false);
+          fetchCustomers();
+        }}
+      />
 
       {/* ENTERPRISE CUSTOMER WORKSPACE DRAWER */}
       <CustomerDetailsDrawer

@@ -37,12 +37,27 @@ class MobileOtpVerifyReq(BaseModel):
 
 class AadhaarOtpGenReq(BaseModel):
     aadhaar_number: str
+    customer_id: Optional[str] = None
+    retailer_id: Optional[str] = "RET-DEFAULT"
 
 class AadhaarOtpVerifyReq(BaseModel):
-    customer_id: uuid.UUID
-    ref_number: str
+    customer_id: Optional[Any] = None
+    ref_number: Optional[str] = None
+    ref_id: Optional[str] = None
     otp_code: str
-    masked_aadhaar: str
+    masked_aadhaar: Optional[str] = None
+    aadhaar_number: Optional[str] = None
+    retailer_id: Optional[str] = "RET-DEFAULT"
+
+class CustomerFinalizeOnboardingReq(BaseModel):
+    ref_id: Optional[str] = ""
+    ref_number: Optional[str] = None
+    mobile_number: Optional[str] = ""
+    mpin: Optional[str] = ""
+    pin: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    retailer_id: Optional[str] = "RET-001"
 
 class AddBeneficiaryReq(BaseModel):
     customer_id: uuid.UUID
@@ -181,7 +196,10 @@ async def generate_aadhaar_otp(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    res = await PayoutWorkflowService.generate_aadhaar_otp(db, tenant_id, req.aadhaar_number)
+    from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
+    res = await AadhaarEkycWorkflowService.generate_otp(
+        db, tenant_id, req.retailer_id or "RET-001", req.customer_id, req.aadhaar_number
+    )
     return {"status": "SUCCESS", "data": res}
 
 
@@ -192,8 +210,36 @@ async def verify_aadhaar_otp(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    res = await PayoutWorkflowService.verify_aadhaar_otp(
-        db, tenant_id, req.customer_id, req.ref_number, req.otp_code, req.masked_aadhaar
+    from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
+    ref = req.ref_id or req.ref_number or ""
+    cust_id = str(req.customer_id) if req.customer_id else None
+    res = await AadhaarEkycWorkflowService.verify_otp(
+        db, tenant_id, req.retailer_id or "RET-001", cust_id, ref, req.otp_code, req.aadhaar_number
+    )
+    return {"status": "SUCCESS", "data": res}
+
+
+@router.post("/customer/finalize-onboarding")
+async def finalize_customer_onboarding(
+    req: CustomerFinalizeOnboardingReq,
+    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    import time
+    from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
+    ref_val = req.ref_id or req.ref_number or f"CF-AADHAAR-{int(time.time())}"
+    mpin_val = req.mpin or req.pin or "1234"
+    mobile_val = req.mobile_number or "9176669426"
+    res = await AadhaarEkycWorkflowService.finalize_customer_onboarding(
+        db=db,
+        tenant_id=tenant_id,
+        retailer_id=req.retailer_id or "RET-001",
+        ref_id=ref_val,
+        mpin=mpin_val,
+        mobile_number=mobile_val,
+        first_name=req.first_name,
+        last_name=req.last_name
     )
     return {"status": "SUCCESS", "data": res}
 
@@ -383,6 +429,11 @@ async def search_epic014_bank_master(
     return {"status": "SUCCESS", "data": sample_banks}
 
 
+class SoftDeleteBeneficiaryReq(BaseModel):
+    beneficiary_id: str
+    customer_id: Optional[str] = None
+    reason: Optional[str] = "User requested soft delete"
+
 @router.post("/epic014/check-duplicate-account")
 async def check_duplicate_account_endpoint(
     req: CheckDuplicateAccountReq,
@@ -394,5 +445,19 @@ async def check_duplicate_account_endpoint(
         customer_id=req.customer_id,
         account_number=req.account_number,
         ifsc_code=req.ifsc_code,
+    )
+    return res
+
+@router.post("/epic014/soft-delete-beneficiary")
+async def soft_delete_beneficiary_endpoint(
+    req: SoftDeleteBeneficiaryReq,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.application.epic014_beneficiary_service import Epic014BeneficiaryService
+    res = await Epic014BeneficiaryService.soft_delete_beneficiary(
+        db=db,
+        beneficiary_id=req.beneficiary_id,
+        customer_id=req.customer_id,
+        reason=req.reason,
     )
     return res

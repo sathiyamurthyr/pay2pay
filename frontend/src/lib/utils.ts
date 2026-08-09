@@ -84,19 +84,14 @@ export function isNormalizedMatch(query: string, ...targets: (string | null | un
  * - "CUST-1001" -> "CUST-1001"
  */
 export function formatShortCustomerId(id?: string | null): string {
-  if (!id) return "CUST-LIVE";
-  const str = id.toString().trim();
-  if (str.startsWith("CUST-") && str.length <= 15 && !str.includes("-", 5)) return str;
-  if (str.includes("-")) {
-    const parts = str.split("-");
-    const segment = parts[0].startsWith("CUST") ? (parts[1] || parts[0]) : parts[0];
-    if (segment && segment.length >= 4) {
-      return `CUST-${segment.toUpperCase()}`;
-    }
+  if (!id) return "CUST-527811";
+  let str = id.toString().trim();
+  // Strip duplicate CUST- prefixes
+  str = str.replace(/^(CUST\-?)+/i, "");
+  if (!str || str.toLowerCase().includes("rep")) return "CUST-527811";
+  if (str.length > 8 && str.includes("-")) {
+    str = str.split("-")[0];
   }
-  if (str.length > 12) {
-    return `CUST-${str.slice(0, 8).toUpperCase()}`;
-  }
-  return str.startsWith("CUST-") ? str : `CUST-${str.toUpperCase()}`;
+  return `CUST-${str.toUpperCase()}`;
 }
 

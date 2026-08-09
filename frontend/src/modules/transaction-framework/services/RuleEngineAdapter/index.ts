@@ -178,6 +178,9 @@ export interface PricingEvaluationRequest {
   beneficiaryBankName?: string;
   beneficiaryDailyRemaining?: number;
   beneficiaryMonthlyRemaining?: number;
+  beneficiaryStatus?: string;
+  isBeneficiaryActive?: boolean;
+  limitLoadFailed?: boolean;
 }
 
 export interface RuleValidationError {
@@ -237,6 +240,8 @@ export interface ComprehensiveValidationResult {
   suggestedAmount: number;
   validationErrors: RuleValidationError[];
   validationWarnings: RuleValidationError[];
+  limitLoadFailed: boolean;
+  isBeneficiaryActive: boolean;
 }
 
 export type PricingEvaluationResult = ComprehensiveValidationResult;
@@ -260,12 +265,22 @@ export class RuleEngineService {
       amount,
       transactionMode = "IMPS",
       walletBalance = 0,
-      dailyRemaining = 0,
-      monthlyRemaining = 0,
+      // -1 sentinel means: not provided by caller — do NOT treat as exhausted
+      dailyRemaining = -1,
+      monthlyRemaining = -1,
       beneficiaryBankName = "HDFC Bank",
-      beneficiaryDailyRemaining = 50000,
-      beneficiaryMonthlyRemaining = 200000,
+      beneficiaryDailyRemaining = -1,
+      beneficiaryMonthlyRemaining = -1,
+      beneficiaryStatus = "ACTIVE",
+      isBeneficiaryActive = true,
+      limitLoadFailed = false,
     } = req;
+
+    // Resolve actual remaining values — if sentinel -1, treat as unlimited (50000/200000)
+    const effectiveDailyRemaining   = dailyRemaining   >= 0 ? dailyRemaining   : 50000;
+    const effectiveMonthlyRemaining = monthlyRemaining >= 0 ? monthlyRemaining : 200000;
+    const effectiveBeneDailyRem     = beneficiaryDailyRemaining   >= 0 ? beneficiaryDailyRemaining   : 50000;
+    const effectiveBeneMonthlyRem   = beneficiaryMonthlyRemaining  >= 0 ? beneficiaryMonthlyRemaining  : 200000;
 
     const modeInfo = DATABASE_TRANSACTION_MODES.find((m) => m.mode_code === transactionMode) || DATABASE_TRANSACTION_MODES[0];
 
@@ -280,20 +295,20 @@ export class RuleEngineService {
 
     const convenienceFee =
       matchingSlab.feeType === "PERCENTAGE"
-        ? Math.round((amount * matchingSlab.fee * modeMultiplier) / 100)
-        : Math.round(matchingSlab.fee * modeMultiplier);
+        ? Number(((amount * matchingSlab.fee * modeMultiplier) / 100).toFixed(2))
+        : Number((matchingSlab.fee * modeMultiplier).toFixed(2));
 
-    const gstAmount = matchingSlab.gstEnabled ? Math.round((convenienceFee * matchingSlab.gstPercentage) / 100) : 0;
-    const tdsAmount = matchingSlab.tdsEnabled ? Math.round((convenienceFee * matchingSlab.tdsPercentage) / 100) : 0;
+    const gstAmount = matchingSlab.gstEnabled ? Number(((convenienceFee * matchingSlab.gstPercentage) / 100).toFixed(2)) : 0;
+    const tdsAmount = matchingSlab.tdsEnabled ? Number(((convenienceFee * matchingSlab.tdsPercentage) / 100).toFixed(2)) : 0;
 
     const commission =
       matchingSlab.commissionType === "PERCENTAGE"
-        ? Math.round((amount * matchingSlab.commission) / 100)
+        ? Number(((amount * matchingSlab.commission) / 100).toFixed(2))
         : matchingSlab.commission;
 
-    const netFee = convenienceFee + gstAmount;
-    const totalPayable = amount > 0 ? amount + netFee : 0;
-    const walletBalanceAfter = Math.max(0, walletBalance - totalPayable);
+    const netFee = Number((convenienceFee + gstAmount).toFixed(2));
+    const totalPayable = amount > 0 ? Number((amount + netFee).toFixed(2)) : 0;
+    const walletBalanceAfter = Math.max(0, Number((walletBalance - totalPayable).toFixed(2)));
 
     const validationErrors: RuleValidationError[] = [];
     const validationWarnings: RuleValidationError[] = [];
@@ -365,9 +380,9 @@ export class RuleEngineService {
       });
     }
 
-    const beneficiaryRemaining = Math.min(beneficiaryDailyRemaining, beneficiaryMonthlyRemaining);
-    const customerRemaining = Math.min(dailyRemaining, monthlyRemaining);
-    const maximumAllowed = Math.min(50000, dailyRemaining, monthlyRemaining, beneficiaryRemaining, Math.max(0, walletBalance - netFee));
+    const beneficiaryRemaining = Math.min(effectiveBeneDailyRem, effectiveBeneMonthlyRem);
+    const customerRemaining = Math.min(effectiveDailyRemaining, effectiveMonthlyRemaining);
+    const maximumAllowed = Math.min(50000, effectiveDailyRemaining, effectiveMonthlyRemaining, beneficiaryRemaining, Math.max(0, walletBalance - netFee));
     const allowed = amount > 0 && validationErrors.length === 0;
     const canProceed = allowed;
 
@@ -412,8 +427,8 @@ export class RuleEngineService {
       recommendedGateway,
       minLimit: modeInfo.minimum_amount,
       maxLimit: modeInfo.maximum_amount,
-      dailyLimitRemaining: dailyRemaining,
-      monthlyLimitRemaining: monthlyRemaining,
+      dailyLimitRemaining: effectiveDailyRemaining,
+      monthlyLimitRemaining: effectiveMonthlyRemaining,
       beneficiaryRemaining,
       customerRemaining,
       maximumAllowed,
@@ -425,6 +440,8 @@ export class RuleEngineService {
       suggestedAmount: amount > maximumAllowed ? maximumAllowed : amount,
       validationErrors,
       validationWarnings,
+      limitLoadFailed,
+      isBeneficiaryActive,
     };
   }
 }

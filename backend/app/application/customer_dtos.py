@@ -65,6 +65,10 @@ class CustomerResponse(BaseModel):
     registration_date: Optional[datetime]
     activation_date: Optional[datetime]
     created_date: Optional[datetime] = None
+    photo_url: Optional[str] = None
+    photo_base64: Optional[str] = None
+    masked_aadhaar: Optional[str] = None
+    beneficiaries: List[Dict[str, Any]] = []
 
 
 # ── Address ───────────────────────────────────────────────────────────────────

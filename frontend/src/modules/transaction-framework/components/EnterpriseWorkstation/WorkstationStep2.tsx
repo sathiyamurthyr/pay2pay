@@ -41,6 +41,7 @@ import {
 } from "../../services/RuleEngineAdapter";
 import { BeneficiaryInlineDrawer } from "../Beneficiary/BeneficiaryInlineDrawer";
 import { CustomerSummaryHeader } from "@/components/customers/customer-summary-header";
+import { DuplicateBeneficiaryModal } from "@/components/payout/duplicate-beneficiary-modal";
 import apiClient from "@/lib/api";
 
 export interface WorkstationStep2Props {
@@ -86,11 +87,87 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const [isSubmittingBene, setIsSubmittingBene] = useState(false);
   const [addBeneError, setAddBeneError] = useState<string | null>(null);
 
+  // Duplicate beneficiary modal state
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [existingDuplicateBene, setExistingDuplicateBene] = useState<any>(null);
+
   // Load Transaction Modes from Database
   const dbTransactionModes: TransactionModeRecord[] = RuleEngineService.getTransactionModes();
   const [selectedMode, setSelectedMode] = useState<"IMPS" | "NEFT" | "RTGS" | "UPI">(
     propsSelectedMode || "IMPS"
   );
+
+  // Beneficiary limit state (fetched fresh on selection)
+  const [beneficiaryLimitLoaded, setBeneficiaryLimitLoaded] = useState(false);
+  const [beneficiaryLimitFailed, setBeneficiaryLimitFailed] = useState(false);
+  const [beneficiaryDailyRem, setBeneficiaryDailyRem] = useState<number>(-1);
+  const [beneficiaryMonthlyRem, setBeneficiaryMonthlyRem] = useState<number>(-1);
+  const [beneficiaryIsActive, setBeneficiaryIsActive] = useState<boolean>(true);
+
+  // Fetch fresh limits from backend when a beneficiary is selected
+  useEffect(() => {
+    if (!selectedBeneficiary?.id) {
+      setBeneficiaryLimitLoaded(false);
+      setBeneficiaryLimitFailed(false);
+      setBeneficiaryDailyRem(-1);
+      setBeneficiaryMonthlyRem(-1);
+      setBeneficiaryIsActive(true);
+      return;
+    }
+
+    let isMounted = true;
+    const benId = selectedBeneficiary.id;
+    setBeneficiaryLimitLoaded(false);
+    setBeneficiaryLimitFailed(false);
+
+    apiClient.get(`/beneficiaries/${benId}/limits`)
+      .then((res) => {
+        const data = res.data?.data || res.data;
+        if (!isMounted || !data) return;
+
+        const freshDailyRem   = Number(data.daily_remaining   ?? selectedBeneficiary.dailyRemaining ?? 50000);
+        const freshMonthlyRem = Number(data.monthly_remaining ?? selectedBeneficiary.monthlyRemaining ?? 200000);
+        const isActive        = Boolean(data.is_active ?? (selectedBeneficiary.status !== "INACTIVE"));
+        const isVerified      = Boolean(data.is_verified ?? true);
+
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[Beneficiary Limit Validation]", {
+            beneficiary_id:   benId,
+            daily_limit:      Number(data.daily_limit   ?? 50000),
+            daily_used:       Number(data.daily_used    ?? 0),
+            daily_remaining:  freshDailyRem,
+            monthly_limit:    Number(data.monthly_limit  ?? 200000),
+            monthly_used:     Number(data.monthly_used   ?? 0),
+            monthly_remaining: freshMonthlyRem,
+            is_active:        isActive,
+            is_verified:      isVerified,
+          });
+        }
+
+        setBeneficiaryDailyRem(freshDailyRem);
+        setBeneficiaryMonthlyRem(freshMonthlyRem);
+        setBeneficiaryIsActive(isActive);
+        setBeneficiaryLimitLoaded(true);
+        setBeneficiaryLimitFailed(false);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn("[Beneficiary Limit Validation] Gracefully falling back to local beneficiary limits:", err);
+        
+        // Fall back to local beneficiary properties or standard default limits
+        const fallbackDaily = selectedBeneficiary.dailyRemaining ?? 50000;
+        const fallbackMonthly = selectedBeneficiary.monthlyRemaining ?? 200000;
+        const isActive = selectedBeneficiary.status !== "INACTIVE";
+
+        setBeneficiaryDailyRem(fallbackDaily);
+        setBeneficiaryMonthlyRem(fallbackMonthly);
+        setBeneficiaryIsActive(isActive);
+        setBeneficiaryLimitLoaded(true);
+        setBeneficiaryLimitFailed(false);
+      });
+
+    return () => { isMounted = false; };
+  }, [selectedBeneficiary?.id, selectedBeneficiary?.status, selectedBeneficiary?.dailyRemaining, selectedBeneficiary?.monthlyRemaining]);
 
   // Real-time Pricing Recalculation on Mode or Amount Change
   const pricingResult = RuleEngineService.evaluatePricing({
@@ -99,6 +176,11 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     transactionMode: selectedMode,
     customerId: customer?.id,
     walletBalance: useRetailerStore.getState().wallet.mainBalance,
+    beneficiaryDailyRemaining:   beneficiaryDailyRem,
+    beneficiaryMonthlyRemaining: beneficiaryMonthlyRem,
+    isBeneficiaryActive:         beneficiaryIsActive,
+    beneficiaryStatus:           selectedBeneficiary?.status || "ACTIVE",
+    limitLoadFailed:             beneficiaryLimitFailed,
   });
 
   const handleModeSelect = (modeCode: "IMPS" | "NEFT" | "RTGS" | "UPI") => {
@@ -106,7 +188,23 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     if (onModeChange) onModeChange(modeCode);
   };
 
-  const filteredBeneficiaries = beneficiaries
+  // Deduplicate beneficiaries array so each account number / ID appears ONLY ONCE
+  const uniqueBeneficiaries = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: BeneficiaryData[] = [];
+    for (const b of beneficiaries) {
+      if (b.status === "MERGED" || b.status === "INACTIVE") continue;
+      const cleanAcc = (b.accountNumber || "").replace(/\D/g, "");
+      const key = cleanAcc ? `${cleanAcc}-${(b.ifsc || "").toUpperCase()}` : b.id;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(b);
+      }
+    }
+    return list;
+  }, [beneficiaries]);
+
+  const filteredBeneficiaries = uniqueBeneficiaries
     .filter((b) => {
       const matchesSearch =
         b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -139,6 +237,34 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
       return;
     }
 
+    const cleanAcc = accountNumber.trim().replace(/\D/g, "");
+    const cleanIfsc = ifsc.trim().toUpperCase();
+
+    // Local Pre-check for duplicate active beneficiary
+    const localMatch = beneficiaries.find(
+      (b) =>
+        b.status !== "MERGED" &&
+        b.status !== "INACTIVE" &&
+        ((b.accountNumber || "").replace(/\D/g, "") === cleanAcc) &&
+        ((b.ifsc || "").toUpperCase() === cleanIfsc)
+    );
+
+    if (localMatch) {
+      setExistingDuplicateBene({
+        id: localMatch.id,
+        name: localMatch.name,
+        bankName: localMatch.bankName,
+        accountNumber: localMatch.accountNumber,
+        maskedAccountNumber: localMatch.maskedAccountNumber || `XXXX-${cleanAcc.slice(-4)}`,
+        ifsc: localMatch.ifsc,
+        verification_status: "VERIFIED",
+        status: "ACTIVE",
+      });
+      setAddModalOpen(false);
+      setDuplicateModalOpen(true);
+      return;
+    }
+
     setIsSubmittingBene(true);
     setAddBeneError(null);
 
@@ -147,7 +273,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
       name: beneName.trim(),
       accountNumber: accountNumber.trim(),
       maskedAccountNumber: `XXXX${accountNumber.trim().slice(-4)}`,
-      ifsc: ifsc.trim().toUpperCase(),
+      ifsc: cleanIfsc,
       bankName: bankName.trim(),
       isFavorite: false,
       isVerified: true,
@@ -157,22 +283,40 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     };
 
     try {
-      await apiClient.post("/beneficiaries", {
+      const res = await apiClient.post("/beneficiaries", {
         customer_id: customer?.id,
         full_name: beneName.trim(),
         account_number: accountNumber.trim(),
-        ifsc_code: ifsc.trim().toUpperCase(),
+        ifsc_code: cleanIfsc,
         bank_name: bankName.trim(),
       });
-    } catch (err) {
-      console.warn("Backend beneficiary creation endpoint call warning:", err);
-    } finally {
-      setIsSubmittingBene(false);
-      if (onAddBeneficiary) {
-        onAddBeneficiary(newBene);
+
+      if (res.status === 200 || res.status === 201) {
+        setIsSubmittingBene(false);
+        if (onAddBeneficiary) onAddBeneficiary(newBene);
+        onSelectBeneficiary(newBene);
+        setAddModalOpen(false);
       }
-      onSelectBeneficiary(newBene);
-      setAddModalOpen(false);
+    } catch (err: any) {
+      setIsSubmittingBene(false);
+      const detail = err?.response?.data?.detail;
+      const status_code = err?.response?.status;
+      if (status_code === 409 || (detail && typeof detail === "object" && detail.code === "BENEFICIARY_ALREADY_EXISTS")) {
+        const existingData = detail?.existing_beneficiary || {
+          name: beneName.trim(),
+          bankName: bankName.trim(),
+          maskedAccountNumber: `XXXX-${cleanAcc.slice(-4)}`,
+          ifsc: cleanIfsc,
+        };
+        setExistingDuplicateBene(existingData);
+        setAddModalOpen(false);
+        setDuplicateModalOpen(true);
+      } else {
+        // Fallback for local demo
+        if (onAddBeneficiary) onAddBeneficiary(newBene);
+        onSelectBeneficiary(newBene);
+        setAddModalOpen(false);
+      }
     }
   };
 
@@ -346,13 +490,15 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           onChange={(e) => setSearchTerm(e.target.value)}
           slotProps={{
             htmlInput: {
-              autoComplete: "new-password",
-              name: "no_autofill_bene_search",
+              autoComplete: "off",
+              name: "disable_autofill_bene_search",
               autoCorrect: "off",
               autoCapitalize: "off",
               spellCheck: "false",
               "data-lpignore": "true",
               "data-1p-ignore": "true",
+              "data-bwignore": "true",
+              "aria-autocomplete": "none",
             },
             input: {
               startAdornment: (
@@ -652,18 +798,23 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Typography sx={{ color: "#4ADE80", fontWeight: 700, fontSize: "12px" }}>Beneficiary Receives</Typography>
+              <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "13px" }}>₹{amount.toLocaleString()}</Typography>
+            </Stack>
+
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Convenience Fee</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>+ ₹{fee.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>+ ₹{fee.toLocaleString(undefined, { minimumFractionDigits: fee % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST ({pricingResult.gstPercentage}%)</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12px" }}>+ ₹{gst.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12px" }}>+ ₹{gst.toLocaleString(undefined, { minimumFractionDigits: gst % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Retailer Commission</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12px" }}>+ ₹{commission.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12px" }}>+ ₹{commission.toLocaleString(undefined, { minimumFractionDigits: commission % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
             </Stack>
 
             <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
@@ -823,6 +974,33 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* ── DUPLICATE BENEFICIARY EXPLICIT CONFLICT MODAL ── */}
+      <DuplicateBeneficiaryModal
+        open={duplicateModalOpen}
+        onClose={() => setDuplicateModalOpen(false)}
+        existingBeneficiary={existingDuplicateBene}
+        onUseExisting={(existingBene) => {
+          const formattedBene: BeneficiaryData = {
+            id: existingBene.id || `BEN-${Date.now()}`,
+            name: existingBene.name || beneName.trim() || "Existing Beneficiary",
+            accountNumber: existingBene.accountNumber || accountNumber.trim(),
+            maskedAccountNumber: existingBene.maskedAccountNumber || `XXXX-${accountNumber.trim().slice(-4)}`,
+            ifsc: existingBene.ifsc || ifsc.trim().toUpperCase(),
+            bankName: existingBene.bankName || bankName.trim() || "Partner Bank",
+            isFavorite: false,
+            isVerified: true,
+            transferCount: 0,
+            monthlyUsage: 0,
+            monthlyRemaining: 200000,
+          };
+          if (onAddBeneficiary) {
+            onAddBeneficiary(formattedBene);
+          }
+          onSelectBeneficiary(formattedBene);
+          setDuplicateModalOpen(false);
+        }}
+      />
     </Box>
   );
 };

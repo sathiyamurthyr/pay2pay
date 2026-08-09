@@ -31,6 +31,7 @@ import {
   Fingerprint,
 } from "lucide-react";
 import apiClient from "@/lib/api";
+import { DigitalAadhaarCard } from "@/components/ui/digital-aadhaar-card";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & INTERFACES
@@ -531,6 +532,14 @@ export function AadhaarEkycWizard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCustomerSearch()}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-bwignore="true"
+                aria-autocomplete="none"
                 className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none focus:border-blue-600"
               />
             </div>
@@ -922,9 +931,18 @@ export function AadhaarEkycWizard() {
               <div className="flex gap-2">
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={aadhaarInput}
                   onChange={(e) => setAadhaarInput(e.target.value)}
                   placeholder="XXXX XXXX 2837"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  aria-autocomplete="none"
                   className="flex-1 h-11 px-4 rounded-xl bg-slate-50 border font-mono text-sm font-extrabold outline-none focus:border-blue-600"
                 />
                 <button
@@ -948,10 +966,19 @@ export function AadhaarEkycWizard() {
 
                 <input
                   type="text"
+                  inputMode="numeric"
                   maxLength={6}
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value)}
                   placeholder="999999"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  aria-autocomplete="none"
                   className="w-full h-12 text-center tracking-[0.5em] text-xl font-mono font-black rounded-xl border border-blue-300 bg-white"
                 />
 
@@ -1141,19 +1168,23 @@ export function AadhaarEkycWizard() {
             </p>
           </div>
 
-          {/* Auto-populated Customer Profile Summary */}
-          <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-4">
-            <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider">Auto-Populated Customer Profile</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold">
-              <div><span className="text-slate-400">Full Name:</span> <div className="text-slate-900 dark:text-white font-extrabold">{formData.first_name} {formData.last_name}</div></div>
-              <div><span className="text-slate-400">DOB:</span> <div className="text-slate-900 dark:text-white font-mono">{formData.dob}</div></div>
-              <div><span className="text-slate-400">Gender:</span> <div className="text-slate-900 dark:text-white">{formData.gender}</div></div>
-              <div><span className="text-slate-400">Masked Aadhaar:</span> <div className="text-blue-600 font-mono">XXXX XXXX 2837</div></div>
-              <div><span className="text-slate-400">Mobile:</span> <div className="text-slate-900 dark:text-white font-mono">+91 {formData.mobile}</div></div>
-              <div><span className="text-slate-400">Verification Status:</span> <div className="text-emerald-600 font-extrabold">APPROVED</div></div>
-              <div className="sm:col-span-3"><span className="text-slate-400">Verified Address:</span> <div className="text-slate-900 dark:text-white">{formData.address} - {formData.pincode}</div></div>
-            </div>
-          </div>
+          {/* Digital Aadhaar Card Visual Component */}
+          <DigitalAadhaarCard
+            aadhaarData={{
+              full_name: `${formData.first_name} ${formData.last_name}`,
+              dob: formData.dob || "1992-05-15",
+              gender: formData.gender || "M",
+              full_address: `${formData.address || "Chromepet, Chennai"}, ${formData.pincode || "600044"}`,
+              masked_aadhaar: "XXXX-XXXX-4748",
+              billing: {
+                base_fee: 10.00,
+                cgst: 0.90,
+                sgst: 0.90,
+                total_debited: 11.80,
+                debit_txn_id: "TXN-EKYC-VERIFIED"
+              }
+            }}
+          />
 
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button onClick={() => setCurrentStep(1)} className="h-11 px-6 rounded-xl bg-slate-900 text-white text-xs font-extrabold">

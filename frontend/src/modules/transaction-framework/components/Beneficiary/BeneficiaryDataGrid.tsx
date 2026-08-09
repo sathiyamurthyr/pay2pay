@@ -13,6 +13,7 @@ import {
   Typography,
   Chip,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -26,6 +27,7 @@ export interface BeneficiaryDataGridProps {
   onSelect: (ben: BeneficiaryData) => void;
   onOpenDrawer: (ben: BeneficiaryData) => void;
   onToggleFavorite?: (benId: string) => void;
+  onDeleteRequest?: (ben: BeneficiaryData) => void;
 }
 
 export const BeneficiaryDataGrid: React.FC<BeneficiaryDataGridProps> = ({
@@ -34,6 +36,7 @@ export const BeneficiaryDataGrid: React.FC<BeneficiaryDataGridProps> = ({
   onSelect,
   onOpenDrawer,
   onToggleFavorite,
+  onDeleteRequest,
 }) => {
   return (
     <TableContainer
@@ -73,7 +76,7 @@ export const BeneficiaryDataGrid: React.FC<BeneficiaryDataGridProps> = ({
             <TableCell style={{ width: "20%" }}>ACCOUNT NUMBER</TableCell>
             <TableCell style={{ width: "12%" }} align="center">VERIFIED</TableCell>
             <TableCell style={{ width: "14%" }}>LAST USED</TableCell>
-            <TableCell style={{ width: 64 }} align="center">DETAILS</TableCell>
+            <TableCell style={{ width: 90 }} align="center">ACTIONS</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -186,25 +189,46 @@ export const BeneficiaryDataGrid: React.FC<BeneficiaryDataGridProps> = ({
                   {b.lastUsedAt || "Today"}
                 </TableCell>
 
-                {/* Action: Open Right Drawer */}
+                {/* Action: Open Right Drawer & Delete */}
                 <TableCell align="center">
-                  <Tooltip title="View Full Details & History">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenDrawer(b);
-                      }}
-                      sx={{
-                        color: "#60A5FA",
-                        bgcolor: "rgba(37, 99, 235, 0.15)",
-                        "&:hover": { bgcolor: "rgba(37, 99, 235, 0.3)" },
-                        p: 0.5,
-                      }}
-                    >
-                      <InfoOutlinedIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </Tooltip>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
+                    <Tooltip title="View Full Details & History">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenDrawer(b);
+                        }}
+                        sx={{
+                          color: "#60A5FA",
+                          bgcolor: "rgba(37, 99, 235, 0.15)",
+                          "&:hover": { bgcolor: "rgba(37, 99, 235, 0.3)" },
+                          p: 0.5,
+                        }}
+                      >
+                        <InfoOutlinedIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                    {onDeleteRequest && (
+                      <Tooltip title="Soft-Delete Beneficiary">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteRequest(b);
+                          }}
+                          sx={{
+                            color: "#EF4444",
+                            bgcolor: "rgba(239, 68, 68, 0.15)",
+                            "&:hover": { bgcolor: "rgba(239, 68, 68, 0.3)" },
+                            p: 0.5,
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
                 </TableCell>
               </TableRow>
             );

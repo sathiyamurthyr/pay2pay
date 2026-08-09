@@ -288,36 +288,60 @@ export default function DmtPresentationPage() {
                   </Button>
                 </Stack>
 
-                {/* CUSTOMER CARD */}
+                {/* CUSTOMER CARD WITH EKYC PROFILE & PHOTO */}
                 <Paper elevation={0} sx={{ p: 2.5, borderRadius: "14px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
                   <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                    <Avatar sx={{ bgcolor: NAVY_PRIMARY, color: GOLD_PREMIUM, width: 52, height: 52, fontWeight: 900, fontSize: "20px" }}>
-                      RK
+                    <Avatar
+                      alt="Sathiya Murthy.R"
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
+                      sx={{ bgcolor: NAVY_PRIMARY, color: GOLD_PREMIUM, width: 56, height: 56, fontWeight: 900, fontSize: "20px", border: `2px solid ${GOLD_PREMIUM}` }}
+                    >
+                      SM
                     </Avatar>
-                    <Box>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", gap: 0.5 }}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 800, color: NAVY_PRIMARY, fontSize: "17px" }}>
-                          Ramesh Kumar
+                          Sathiya Murthy.R
                         </Typography>
-                        <Chip label="eKYC Verified ✓" size="small" sx={{ bgcolor: "#ECFDF3", color: "#16A34A", fontWeight: 800, fontSize: "11px" }} />
+                        <Chip label="✓ Cashfree eKYC Verified" size="small" sx={{ bgcolor: "#ECFDF3", color: "#16A34A", fontWeight: 800, fontSize: "11px" }} />
                         <Chip label="Low Risk" size="small" sx={{ bgcolor: "#ECFDF3", color: "#16A34A", fontWeight: 800, fontSize: "11px" }} />
                       </Stack>
-                      <Typography variant="caption" sx={{ color: "#64748B" }}>
-                        Customer ID: CUST991428 • Mobile: +91 98765 43210
+                      <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
+                        Customer ID: CUST-992664 • Mobile: +91 91766 69426
                       </Typography>
                     </Box>
                   </Stack>
+
+                  {/* VERIFIED EKYC & AADHAAR DETAILS BAR */}
+                  <Box sx={{ mt: 2, p: 1.5, borderRadius: "10px", bgcolor: "rgba(15,44,89,0.06)", border: "1px solid rgba(15,44,89,0.15)" }}>
+                    <Grid container spacing={1.5}>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "11px" }}>Masked Aadhaar</Typography>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F2C59", fontFamily: "monospace" }}>XXXX-XXXX-4748</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "11px" }}>DOB / Gender</Typography>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0F2C59" }}>09-06-1983 (Male)</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12 }}>
+                        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600, fontSize: "11px", display: "block" }}>Verified Address</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: "#334155", fontSize: "12px", lineHeight: "1.3" }}>
+                          S/O RAMASAMY, No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chengalpattu, Tamil Nadu - 600044
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
 
                   <Divider sx={{ my: 2 }} />
 
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
                       <Typography variant="caption" sx={{ color: "#64748B" }}>Monthly Limit Remaining</Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 800, color: NAVY_PRIMARY }}>₹75,000.00</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: NAVY_PRIMARY }}>₹200,000.00</Typography>
                     </Grid>
                     <Grid size={{ xs: 6 }}>
                       <Typography variant="caption" sx={{ color: "#64748B" }}>Recent Activity</Typography>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0F172A" }}>IMPS ₹5,000 (12m ago)</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0F172A" }}>eKYC Verified (Just now)</Typography>
                     </Grid>
                   </Grid>
                 </Paper>

@@ -31,6 +31,7 @@ import ContactsIcon from "@mui/icons-material/Contacts";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import PersonIcon from "@mui/icons-material/Person";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
@@ -63,7 +64,7 @@ const KPI_THEMES: { id: KpiTheme; label: string; swatch: string }[] = [
 export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const { logout } = useAuth();
-  const { outlet, wallet, isSyncing, syncBalance, soundboxEnabled, toggleSoundbox, unreadNotifications, kpiTheme, setKpiTheme } = useRetailerStore();
+  const { outlet, wallet, isSyncing, syncBalance, soundboxEnabled, toggleSoundbox, unreadNotifications, setUnreadNotifications, kpiTheme, setKpiTheme } = useRetailerStore();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
@@ -139,9 +140,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       ],
     },
     {
-      title: "BUSINESS",
+      title: "BUSINESS & REPORTS",
       items: [
-        { label: "Reports & Tax Forms", path: "/retailer/reports", icon: AssessmentIcon },
+        { label: "Payout Report", path: "/retailer/dmt/reports", icon: AssessmentIcon },
+        { label: "Enterprise Report Center", path: "/retailer/reports", icon: AssessmentIcon },
+        { label: "POS Swipe Settlement", path: "/retailer/pos/settlement-report", icon: PointOfSaleIcon },
         { label: "Commission Slabs", path: "/retailer/commission", icon: AssessmentIcon },
         { label: "Move To Bank", path: "/retailer/settlement", icon: AccountBalanceIcon },
         { label: "Transactions Ledger", path: "/retailer/transactions", icon: ReceiptLongIcon },

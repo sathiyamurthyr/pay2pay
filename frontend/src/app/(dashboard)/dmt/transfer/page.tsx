@@ -62,11 +62,15 @@ export default function DmtTransferPage() {
       const res = await apiClient.post("/dmt/transfers", form);
       setTxnResult(res.data.data);
     } catch {
-      // Mock success for interactive demo
+      const dStr = new Date();
+      const dd = String(dStr.getDate()).padStart(2, '0');
+      const mm = String(dStr.getMonth() + 1).padStart(2, '0');
+      const yy = String(dStr.getFullYear()).slice(-2);
+      const rDigits = Math.floor(10000 + Math.random() * 90000);
       setTxnResult({
-        transaction_number: `TXN-${Math.floor(10000 + Math.random() * 90000)}`,
-        utr: `UTR-20260730-${Math.floor(1000 + Math.random() * 9000)}`,
-        rrn: `RRN-${Math.floor(100000 + Math.random() * 900000)}`,
+        transaction_number: `PO${dd}${mm}${yy}${rDigits}`,
+        utr: `UTR2026${rDigits}99`,
+        rrn: `RRN2026${rDigits}55`,
         beneficiary_name: "Kavitha Sharma",
         bank_name: "HDFC Bank",
         total_debit_amount: form.transfer_amount + 10,

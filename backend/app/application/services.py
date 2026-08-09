@@ -4399,7 +4399,8 @@ class EnterprisePayoutService:
         # Generate Bank UTR & RRN
         utr = f"UTR2026{random.randint(1000000000, 9999999999)}"
         rrn = f"RRN2026{random.randint(1000000000, 9999999999)}"
-        ptxn_num = f"PTXN-2026-{random.randint(10000, 99999)}"
+        from app.core.transaction_id_generator import generate_transaction_number
+        ptxn_num = await generate_transaction_number(db, service_prefix="PO", model_class=PayoutTransactionModel)
 
         ptxn = PayoutTransactionModel(
             public_id=uuid.uuid4(),

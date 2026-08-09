@@ -89,7 +89,7 @@ async def search_customers_post(
 
 @router.get("/{customer_id}", response_model=APIResponse)
 async def get_customer(
-    customer_id: uuid.UUID,
+    customer_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: AdminUserModel = Depends(get_current_user)
 ):
@@ -102,7 +102,7 @@ async def get_customer(
 
 @router.get("/{customer_id}/360", response_model=APIResponse)
 async def get_customer_360(
-    customer_id: uuid.UUID,
+    customer_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: AdminUserModel = Depends(get_current_user)
 ):

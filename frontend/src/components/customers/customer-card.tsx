@@ -36,6 +36,10 @@ export interface CustomerCardData {
   isBlocked?: boolean;
   isFavourite?: boolean;
   customerSince?: string;
+  aadhaarMasked?: string;
+  dob?: string;
+  gender?: string;
+  fullAddress?: string;
 }
 
 export interface CustomerCardProps {
@@ -45,6 +49,7 @@ export interface CustomerCardProps {
   onSelect?: (customer: CustomerCardData) => void;
   onStartPayout?: (customer: CustomerCardData) => void;
   onViewProfile?: (customer: CustomerCardData) => void;
+  onChangeMpin?: (customer: CustomerCardData) => void;
   onToggleFavourite?: (id: string, e: React.MouseEvent) => void;
   onToggleMenu?: (id: string, e: React.MouseEvent) => void;
 }
@@ -56,6 +61,7 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
   onSelect,
   onStartPayout,
   onViewProfile,
+  onChangeMpin,
   onToggleFavourite,
   onToggleMenu,
 }) => {
@@ -74,10 +80,10 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
       onClick={() => onSelect?.(customer)}
       className={`w-full max-w-[420px] mx-auto h-full flex flex-col justify-between p-5 rounded-[18px] border transition-all cursor-pointer relative space-y-4 ${
         isSelected
-          ? "bg-white dark:bg-slate-900 border-[#2563EB] ring-2 ring-blue-500/20 shadow-lg"
+          ? "bg-slate-900 border-[#2563EB] ring-2 ring-blue-500/30 shadow-xl shadow-blue-500/10 text-white"
           : customer.isBlocked
-          ? "bg-slate-100/80 dark:bg-slate-900/50 border-slate-300 dark:border-slate-800 opacity-75"
-          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-md hover:-translate-y-1 hover:shadow-xl"
+          ? "bg-slate-900/60 border-slate-800 text-slate-300 opacity-75"
+          : "bg-slate-900/90 border-slate-800 hover:border-slate-700 text-slate-100 shadow-lg hover:-translate-y-1 hover:shadow-2xl"
       }`}
     >
       {/* Top Content Section */}
@@ -107,10 +113,10 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
 
             {/* Center Details: Full Customer Name (18px, full width), Mobile Number (15px), Customer ID (13px) */}
             <div className="min-w-0 flex-1 space-y-1">
-              {/* Line 1: Full Customer Name (Allow 2 lines before clipping) + Star Favourite Button */}
+              {/* Line 1: Full Customer Name + Star Favourite Button */}
               <div className="flex items-start justify-between gap-2">
                 <h3
-                  className="text-[17px] sm:text-[18px] font-bold text-slate-900 dark:text-white leading-snug break-words"
+                  className="text-[17px] sm:text-[18px] font-bold text-white leading-snug break-words"
                   style={{
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
@@ -124,44 +130,44 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
                 <button
                   onClick={(e) => onToggleFavourite?.(customer.id, e)}
                   aria-label="Toggle favourite customer"
-                  className="p-1 rounded-full text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950/50 transition-colors shrink-0 -mt-0.5"
+                  className="p-1 rounded-full text-yellow-500 hover:bg-yellow-950/50 transition-colors shrink-0 -mt-0.5"
                 >
                   <Star
                     className={`w-4.5 h-4.5 ${
-                      customer.isFavourite ? "fill-yellow-400 text-yellow-500" : "text-slate-300 dark:text-slate-600"
+                      customer.isFavourite ? "fill-yellow-400 text-yellow-500" : "text-slate-600"
                     }`}
                   />
                 </button>
               </div>
 
-              {/* Line 2: Mobile Number (Full width, single line, no truncation/overlap) */}
-              <p className="text-[14px] sm:text-[15px] font-semibold text-slate-700 dark:text-slate-300 font-mono whitespace-nowrap overflow-hidden text-ellipsis">
+              {/* Line 2: Mobile Number */}
+              <p className="text-[14px] sm:text-[15px] font-semibold text-slate-300 font-mono whitespace-nowrap overflow-hidden text-ellipsis">
                 {customer.mobile}
               </p>
 
               {/* Line 3: Customer ID + Status Tag Badge */}
               <div className="flex items-center justify-between gap-2 pt-0.5 flex-wrap">
-                <span className="text-[12px] sm:text-[13px] font-mono font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md inline-block whitespace-nowrap">
+                <span className="text-[12px] sm:text-[13px] font-mono font-bold text-slate-300 bg-slate-800/80 border border-slate-700/60 px-2 py-0.5 rounded-md inline-block whitespace-nowrap">
                   ID: {customer.id}
                 </span>
 
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap shrink-0">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide bg-blue-950/80 text-blue-300 border border-blue-800 whitespace-nowrap shrink-0">
                   {customer.statusTag}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Metadata Row: eKYC Status Badge + Risk Badge (No Overlap/Collision) */}
+          {/* Metadata Row: eKYC Status Badge + Risk Badge */}
           <div className="flex items-center justify-between gap-2 text-[12px] pt-1 font-bold">
             {customer.kycStatus === "VERIFIED" ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap shrink-0">
-                <VerifiedIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-800 whitespace-nowrap shrink-0">
+                <VerifiedIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>✓ eKYC Verified</span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 whitespace-nowrap shrink-0">
-                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-950/80 text-amber-400 border border-amber-800 whitespace-nowrap shrink-0">
+                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span>Pending eKYC</span>
               </span>
             )}
@@ -169,24 +175,46 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
             <span
               className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold tracking-wider border whitespace-nowrap shrink-0 ${
                 customer.riskScore === "LOW"
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800"
+                  ? "bg-emerald-950 text-emerald-300 border-emerald-800"
                   : customer.riskScore === "MEDIUM"
-                  ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800"
-                  : "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800"
+                  ? "bg-amber-950 text-amber-300 border-amber-800"
+                  : "bg-red-950 text-red-300 border-red-800"
               }`}
             >
               {customer.riskScore} RISK
             </span>
           </div>
 
+          {/* Verified Aadhaar & PII Details Box */}
+          {(customer.aadhaarMasked || customer.fullAddress || customer.dob) && (
+            <div className="p-2.5 rounded-xl bg-blue-950/60 border border-blue-800/60 text-[11px] space-y-1 text-slate-300">
+              {customer.aadhaarMasked && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 font-semibold">Masked Aadhaar:</span>
+                  <span className="font-mono font-bold text-amber-300">{customer.aadhaarMasked}</span>
+                </div>
+              )}
+              {customer.dob && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 font-semibold">DOB / Gender:</span>
+                  <span className="font-semibold text-slate-200">{customer.dob} ({customer.gender || 'M'})</span>
+                </div>
+              )}
+              {customer.fullAddress && (
+                <div className="pt-1 border-t border-blue-900/50 mt-1">
+                  <span className="text-slate-400 block font-semibold text-[10px] uppercase tracking-wider">Verified Address</span>
+                  <span className="text-slate-200 font-medium text-[11px] leading-tight block">{customer.fullAddress}</span>
+                </div>
+              )}
+            </div>
+          )}
 
-
-          {/* Redesigned Monthly Limit Section: Clear Separation of Label, Amount, %, and Bar */}
-          <div className="p-3 rounded-xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 space-y-2">
+          {/* Redesigned Monthly Limit Section */}
+          <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2">
             {/* Line 1: Label & Amount */}
-            <div className="flex items-center justify-between text-[12px] font-bold text-slate-700 dark:text-slate-300">
+            <div className="flex items-center justify-between text-[12px] font-bold text-slate-300">
               <span>Monthly Limit</span>
-              <span className="font-mono text-slate-900 dark:text-white">
+              <span className="font-mono text-white">
                 ₹{customer.monthlyLimitUsed.toLocaleString("en-IN")} / ₹{customer.monthlyLimitTotal.toLocaleString("en-IN")}
               </span>
             </div>

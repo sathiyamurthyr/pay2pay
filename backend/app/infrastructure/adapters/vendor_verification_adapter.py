@@ -6,6 +6,7 @@ Supported Vendors:
 - Paytm
 - InternalSwitch
 """
+import os
 import abc
 import time
 import uuid
@@ -90,8 +91,8 @@ class CashfreeVerificationAdapter(BaseVerificationVendorAdapter):
         client_secret: Optional[str] = None
     ):
         self.api_endpoint = api_endpoint
-        self.client_id = client_id or ""
-        self.client_secret = client_secret or ""
+        self.client_id = client_id or os.getenv("CASHFREE_CLIENT_ID", "")
+        self.client_secret = client_secret or os.getenv("CASHFREE_CLIENT_SECRET", "")
 
     async def verify_bank_account(
         self,

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import apiClient from "@/lib/api";
+import { retailerApi } from "@/services/retailer-api";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 
@@ -15,6 +16,9 @@ export interface CustomerData {
   riskRating?: "LOW" | "MEDIUM" | "HIGH";
   walletBalance: number;
   relationshipManager?: string;
+  mpin_enabled?: boolean;
+  category?: string;
+  kycLevel?: string;
 }
 
 export function useCustomer() {
@@ -32,24 +36,12 @@ export function useCustomer() {
     setError(null);
 
     try {
-      // 1. Execute API search call to backend endpoint
-      const response = await apiClient.get("/customers/search", {
-        params: { query: trimmedQuery },
-      });
-
-      // Requirement Debug Logs
-      console.log("response:", response);
-      console.log("response.data:", response.data);
-      console.log("Array.isArray(response.data):", Array.isArray(response.data));
+      // 1. Execute API search call to retailerApi.searchPayoutCustomer
+      const searchRes = await retailerApi.searchPayoutCustomer(trimmedQuery);
       
-      // Read customers array from response.data.data or response.data
-      const customers = Array.isArray(response.data?.data)
-        ? response.data.data
-        : Array.isArray(response.data)
-        ? response.data
-        : [];
+      const customers = searchRes && Array.isArray(searchRes.data) ? searchRes.data : [];
 
-      console.log("response.data.length:", customers.length);
+      console.log("customers match count:", customers.length);
 
       // Explicit array length checks only
       if (customers.length > 0) {

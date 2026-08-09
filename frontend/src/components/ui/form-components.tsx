@@ -27,10 +27,14 @@ export const M3TextField = React.forwardRef<HTMLInputElement, M3TextFieldProps>(
         helperText={errorText}
         slotProps={{
           htmlInput: {
-            autoComplete: "new-password",
+            autoComplete: "off",
             autoCorrect: "off",
             autoCapitalize: "off",
             spellCheck: "false",
+            "data-lpignore": "true",
+            "data-1p-ignore": "true",
+            "data-bwignore": "true",
+            "aria-autocomplete": "none",
             ...(slotProps?.htmlInput || {}),
           },
           input: {

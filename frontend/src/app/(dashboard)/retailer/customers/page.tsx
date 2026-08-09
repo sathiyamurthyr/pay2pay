@@ -24,12 +24,15 @@ import {
   Filter,
   Menu,
   Bell,
+  KeyRound,
 } from "lucide-react";
+import { Dialog, DialogContent } from "@mui/material";
 
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
 import { CustomerCard } from "@/components/customers/customer-card";
 import { CustomerDetailsDrawer } from "@/components/customers/customer-details-drawer";
+import { MpinSetupCard } from "@/components/customers/mpin-setup-card";
 import { isNormalizedMatch, formatShortCustomerId } from "@/lib/utils";
 import { retailerApi } from "@/services/retailer-api";
 
@@ -79,153 +82,7 @@ export type SortOption =
 // MOCK DATA
 // ─────────────────────────────────────────────────────────────────────────────
 
-const INITIAL_CUSTOMERS: CustomerRecord[] = [
-  {
-    id: "CUST-1001",
-    name: "Kavitha Sharma",
-    mobile: "+91 98401 92837",
-    email: "kavitha.s@domain.com",
-    kycStatus: "VERIFIED",
-    aadhaarStatus: "VERIFIED",
-    totalTxns: 24,
-    totalVolume: 85000,
-    dailyLimitUsed: 15000,
-    dailyLimitTotal: 75000,
-    monthlyLimitUsed: 45000,
-    monthlyLimitTotal: 200000,
-    lastVisit: "Today, 18:24 PM",
-    lastTxnDate: "Today",
-    linkedBeneficiaries: 3,
-    riskScore: "LOW",
-    bankName: "State Bank of India",
-    accountMasked: "••••4589",
-    ifsc: "SBIN0001824",
-    statusTag: "⭐ Frequent",
-    isFavourite: true,
-    customerSince: "2024-03-15",
-  },
-  {
-    id: "CUST-1002",
-    name: "Ramesh Kumar",
-    mobile: "+91 97102 83746",
-    email: "ramesh.k@domain.com",
-    kycStatus: "VERIFIED",
-    aadhaarStatus: "VERIFIED",
-    totalTxns: 15,
-    totalVolume: 42000,
-    dailyLimitUsed: 8000,
-    dailyLimitTotal: 75000,
-    monthlyLimitUsed: 28000,
-    monthlyLimitTotal: 200000,
-    lastVisit: "Today, 18:10 PM",
-    lastTxnDate: "Yesterday",
-    linkedBeneficiaries: 2,
-    riskScore: "LOW",
-    bankName: "HDFC Bank",
-    accountMasked: "••••3411",
-    ifsc: "HDFC0000128",
-    statusTag: "Recently Used",
-    isFavourite: false,
-    customerSince: "2024-06-10",
-  },
-  {
-    id: "CUST-1003",
-    name: "Suresh Patel",
-    mobile: "+91 94441 02938",
-    email: "suresh.p@domain.com",
-    kycStatus: "VERIFIED",
-    aadhaarStatus: "VERIFIED",
-    totalTxns: 32,
-    totalVolume: 120000,
-    dailyLimitUsed: 25000,
-    dailyLimitTotal: 75000,
-    monthlyLimitUsed: 110000,
-    monthlyLimitTotal: 200000,
-    lastVisit: "Yesterday",
-    lastTxnDate: "2 Days Ago",
-    linkedBeneficiaries: 5,
-    riskScore: "LOW",
-    bankName: "ICICI Bank",
-    accountMasked: "••••0192",
-    ifsc: "ICIC0000011",
-    statusTag: "VIP",
-    isFavourite: true,
-    customerSince: "2023-11-20",
-  },
-  {
-    id: "CUST-1004",
-    name: "Meena Sundaram",
-    mobile: "+91 98840 11928",
-    email: "meena.s@domain.com",
-    kycStatus: "PENDING",
-    aadhaarStatus: "PENDING",
-    totalTxns: 4,
-    totalVolume: 8500,
-    dailyLimitUsed: 5000,
-    dailyLimitTotal: 75000,
-    monthlyLimitUsed: 8500,
-    monthlyLimitTotal: 200000,
-    lastVisit: "3 days ago",
-    lastTxnDate: "3 Days Ago",
-    linkedBeneficiaries: 1,
-    riskScore: "MEDIUM",
-    bankName: "Axis Bank",
-    accountMasked: "••••8120",
-    ifsc: "UTIB0000210",
-    statusTag: "NEW",
-    isFavourite: false,
-    customerSince: "2026-08-01",
-  },
-  {
-    id: "CUST-1005",
-    name: "Amitabh Verma",
-    mobile: "+91 99887 76655",
-    email: "amitabh.v@domain.com",
-    kycStatus: "PENDING",
-    aadhaarStatus: "PENDING",
-    totalTxns: 1,
-    totalVolume: 25000,
-    dailyLimitUsed: 25000,
-    dailyLimitTotal: 75000,
-    monthlyLimitUsed: 185000,
-    monthlyLimitTotal: 200000,
-    lastVisit: "5 days ago",
-    lastTxnDate: "5 Days Ago",
-    linkedBeneficiaries: 0,
-    riskScore: "HIGH",
-    bankName: "Kotak Mahindra Bank",
-    accountMasked: "••••9218",
-    ifsc: "KKBK0000921",
-    statusTag: "NEW",
-    isBlocked: true,
-    isFavourite: false,
-    customerSince: "2026-07-28",
-  },
-  {
-    id: "CUST-1006",
-    name: "Priya Rajan",
-    mobile: "+91 91234 56789",
-    email: "priya.r@domain.com",
-    kycStatus: "VERIFIED",
-    aadhaarStatus: "VERIFIED",
-    totalTxns: 18,
-    totalVolume: 65000,
-    dailyLimitUsed: 12000,
-    dailyLimitTotal: 75000,
-    monthlyLimitUsed: 52000,
-    monthlyLimitTotal: 200000,
-    lastVisit: "Today",
-    lastTxnDate: "Today",
-    linkedBeneficiaries: 4,
-    riskScore: "LOW",
-    bankName: "Canara Bank",
-    accountMasked: "••••6623",
-    ifsc: "CNRB0001092",
-    statusTag: "⭐ Frequent",
-    isFavourite: true,
-    customerSince: "2024-01-15",
-  },
-];
+const INITIAL_CUSTOMERS: CustomerRecord[] = [];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENT
@@ -256,6 +113,7 @@ function CustomersContent() {
   // Modals & Overlay state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [selectedProfileCustomer, setSelectedProfileCustomer] = useState<CustomerRecord | null>(null);
+  const [selectedChangePinCustomer, setSelectedChangePinCustomer] = useState<CustomerRecord | null>(null);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [universalSearchOpen, setUniversalSearchOpen] = useState<boolean>(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState<boolean>(false);
@@ -289,35 +147,29 @@ function CustomersContent() {
           const mapped: CustomerRecord[] = res.data.map((c: any) => ({
             id: formatShortCustomerId(c.customer_number || c.public_id || c.id),
             name: c.full_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Verified Customer",
-            mobile: c.mobile_number ? (c.mobile_number.startsWith("+91") ? c.mobile_number : `+91 ${c.mobile_number}`) : "+91 9176669426",
-            email: c.email || "customer@example.com",
+            mobile: c.mobile_number ? (c.mobile_number.startsWith("+91") ? c.mobile_number : `+91 ${c.mobile_number}`) : "",
+            email: c.email || "",
             kycStatus: (c.kyc_status === "VERIFIED" || c.kyc_level === "FULL_KYC") ? "VERIFIED" : "PENDING",
-            aadhaarStatus: "VERIFIED",
-            totalTxns: c.total_txns || 12,
-            totalVolume: c.total_volume || 45000,
-            dailyLimitUsed: c.daily_limit_used || 15000,
-            dailyLimitTotal: c.daily_limit_total || 75000,
-            monthlyLimitUsed: c.monthly_limit_used || 45000,
-            monthlyLimitTotal: c.monthly_limit || 200000,
+            aadhaarStatus: c.aadhaar_verified ? "VERIFIED" : "PENDING",
+            totalTxns: c.total_txns || 0,
+            totalVolume: c.total_volume || 0,
+            dailyLimitUsed: c.daily_limit_used || 0,
+            dailyLimitTotal: c.daily_limit_total || 50000,
+            monthlyLimitUsed: c.monthly_limit_used || 0,
+            monthlyLimitTotal: c.monthly_limit || 250000,
             lastVisit: "Today",
             lastTxnDate: "Today",
-            linkedBeneficiaries: 2,
+            linkedBeneficiaries: 0,
             riskScore: (c.risk_category || "LOW") as any,
-            bankName: c.bank_name || "State Bank of India",
-            accountMasked: c.account_masked || "••••4589",
-            ifsc: c.ifsc || "SBIN0001824",
-            statusTag: "⭐ Frequent",
-            isFavourite: true,
-            customerSince: c.registration_date ? c.registration_date.split("T")[0] : "2024-03-15",
+            bankName: c.bank_name || "",
+            accountMasked: c.account_masked || "",
+            ifsc: c.ifsc || "",
+            statusTag: "NEW",
+            isFavourite: false,
+            customerSince: c.registration_date ? c.registration_date.split("T")[0] : "2026-08-08",
           }));
 
-          setCustomers((prev) => {
-            const backendMobileSet = new Set(mapped.map((m) => m.mobile.replace(/\D/g, "").slice(-10)));
-            const nonDuplicates = prev.filter(
-              (p) => !backendMobileSet.has(p.mobile.replace(/\D/g, "").slice(-10))
-            );
-            return [...mapped, ...nonDuplicates];
-          });
+          setCustomers(mapped);
         }
       } catch (e) {
         // Fallback to local customers on network issues
@@ -805,12 +657,19 @@ function CustomersContent() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 min-[1600px]:grid-cols-4 gap-6 justify-center items-stretch max-w-[1600px] mx-auto">
               <AnimatePresence>
-                {visibleCustomers.map((cust) => {
+                {visibleCustomers.map((cust, idx) => {
+                  const uniqueKey = cust.id || cust.mobile || `cust-${idx}`;
                   const isSelected = selectedCustomerId === cust.id;
                   const isMenuOpen = activeMenuId === cust.id;
 
                   return (
-                    <div key={cust.id} className="relative flex justify-center h-full">
+                    <motion.div
+                      key={uniqueKey}
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      className="relative flex justify-center h-full"
+                    >
                       <CustomerCard
                         customer={cust}
                         isSelected={isSelected}
@@ -818,6 +677,7 @@ function CustomersContent() {
                         onSelect={(c) => setSelectedCustomerId(c.id)}
                         onStartPayout={(c) => handleSelectCustomerForPayout(c)}
                         onViewProfile={(c) => setSelectedProfileCustomer(c)}
+                        onChangeMpin={(c) => setSelectedChangePinCustomer(c)}
                         onToggleFavourite={(id, e) => toggleFavourite(id, e)}
                         onToggleMenu={(id, e) => {
                           e.stopPropagation();
@@ -833,7 +693,7 @@ function CustomersContent() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -5 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute right-4 bottom-14 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden text-xs font-bold py-1 card-action-menu"
+                            className="absolute right-4 bottom-14 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden text-xs font-bold py-1 card-action-menu"
                           >
                             <button
                               onClick={(e) => {
@@ -862,6 +722,18 @@ function CustomersContent() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setActiveMenuId(null);
+                                setSelectedChangePinCustomer(cust);
+                              }}
+                              className="w-full px-4 py-2.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center gap-2 text-left"
+                            >
+                              <KeyRound className="w-4 h-4 text-indigo-500" />
+                              <span>Change / Reset MPIN</span>
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 toggleFreezeAccount(cust);
                               }}
                               className={`w-full px-4 py-2.5 flex items-center gap-2 text-left ${
@@ -885,7 +757,7 @@ function CustomersContent() {
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </AnimatePresence>
@@ -961,6 +833,28 @@ function CustomersContent() {
           </div>
         </div>
       )}
+
+      {/* Change / Reset MPIN Dialog */}
+      <Dialog
+        open={Boolean(selectedChangePinCustomer)}
+        onClose={() => setSelectedChangePinCustomer(null)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          paper: { style: { borderRadius: "24px", overflow: "hidden" } }
+        }}
+      >
+        <DialogContent style={{ padding: 0 }}>
+          {selectedChangePinCustomer && (
+            <MpinSetupCard
+              customerId={selectedChangePinCustomer.id}
+              customerName={selectedChangePinCustomer.name}
+              customerMobile={selectedChangePinCustomer.mobile}
+              onSuccessRedirect=""
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Universal Search Dialog Trigger */}
       <UniversalSearchDialog open={universalSearchOpen} onClose={() => setUniversalSearchOpen(false)} />

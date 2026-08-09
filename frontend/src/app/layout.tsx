@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
 import Providers from "./providers";
 
@@ -21,31 +22,74 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="light" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <script
+      <body className="antialiased min-h-screen bg-[#F8FAFC] text-[#111827]" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
+        <Script
+          id="form-input-sanitizer"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                document.addEventListener('focusin', function(e) {
-                  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
-                    if (!e.target.hasAttribute('data-autofill-disabled')) {
-                      e.target.setAttribute('autocomplete', 'new-password');
-                      e.target.setAttribute('autocorrect', 'off');
-                      e.target.setAttribute('autocapitalize', 'off');
-                      e.target.setAttribute('spellcheck', 'false');
-                      e.target.setAttribute('data-lpignore', 'true');
-                      e.target.setAttribute('data-1p-ignore', 'true');
-                      e.target.setAttribute('data-autofill-disabled', 'true');
+                function sanitizeInput(el) {
+                  if (!el) return;
+                  if (el.tagName === 'FORM') {
+                    el.setAttribute('autocomplete', 'off');
+                    return;
+                  }
+                  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    const isPasswordType = el.type === 'password';
+                    if (!isPasswordType) {
+                      el.setAttribute('autocomplete', 'off');
+                      el.setAttribute('autocorrect', 'off');
+                      el.setAttribute('autocapitalize', 'off');
+                      el.setAttribute('spellcheck', 'false');
+                      el.setAttribute('aria-autocomplete', 'none');
+                      el.setAttribute('data-lpignore', 'true');
+                      el.setAttribute('data-1p-ignore', 'true');
+                      el.setAttribute('data-bwignore', 'true');
+                      el.setAttribute('data-bitwarden-watching', 'false');
+                      
+                      const nameOrPlaceholder = (el.name || el.placeholder || el.id || '').toLowerCase();
+                      if (nameOrPlaceholder.includes('mobile') || nameOrPlaceholder.includes('phone') || nameOrPlaceholder.includes('aadhaar') || nameOrPlaceholder.includes('account') || nameOrPlaceholder.includes('amount') || nameOrPlaceholder.includes('pincode') || nameOrPlaceholder.includes('pin') || nameOrPlaceholder.includes('otp')) {
+                        if (!el.hasAttribute('inputmode')) {
+                          el.setAttribute('inputmode', 'numeric');
+                        }
+                      }
                     }
                   }
-                }, true);
+                }
+
+                function processAll() {
+                  document.querySelectorAll('form').forEach(sanitizeInput);
+                  document.querySelectorAll('input, textarea').forEach(sanitizeInput);
+                }
+
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', processAll);
+                } else {
+                  processAll();
+                }
+
+                document.addEventListener('focusin', function(e) { sanitizeInput(e.target); }, true);
+                document.addEventListener('click', function(e) { sanitizeInput(e.target); }, true);
+                document.addEventListener('touchstart', function(e) { sanitizeInput(e.target); }, true);
+
+                var observer = new MutationObserver(function(mutations) {
+                  mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                      if (node.nodeType === 1) {
+                        sanitizeInput(node);
+                        if (node.querySelectorAll) {
+                          node.querySelectorAll('form, input, textarea').forEach(sanitizeInput);
+                        }
+                      }
+                    });
+                  });
+                });
+                observer.observe(document.documentElement, { childList: true, subtree: true });
               })();
             `,
           }}
         />
-      </head>
-      <body className="antialiased min-h-screen bg-[#F8FAFC] text-[#111827]" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
         <Providers>{children}</Providers>
       </body>
     </html>

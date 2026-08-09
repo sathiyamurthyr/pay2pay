@@ -31,6 +31,7 @@ class BeneficiaryMasterModel(BaseEntity, EnterpriseBaseMixin):
     penny_drop_status: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     registered_name_in_bank: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     utr: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(30), nullable=True, default="ACTIVE", index=True)
 
 
 class BeneficiaryCustomerMappingModel(BaseEntity, EnterpriseBaseMixin):

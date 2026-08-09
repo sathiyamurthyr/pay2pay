@@ -2,6 +2,7 @@
 EPIC — Production Cashfree Reverse Penny Drop (VRS v2) Adapter
 Official API Endpoint: POST https://api.cashfree.com/verification/reverse-penny-drop
 """
+import os
 import time
 import uuid
 import json
@@ -26,12 +27,12 @@ class CashfreeReversePennyDropAdapter:
     def __init__(
         self,
         api_endpoint: str = "https://api.cashfree.com/verification/reverse-penny-drop",
-        client_id: str = "",
-        client_secret: str = ""
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None
     ):
         self.api_endpoint = api_endpoint
-        self.client_id = client_id
-        self.client_secret = client_secret
+        self.client_id = client_id or os.getenv("CASHFREE_CLIENT_ID", "")
+        self.client_secret = client_secret or os.getenv("CASHFREE_CLIENT_SECRET", "")
 
     async def create_reverse_penny_drop_request(
         self,

@@ -32,6 +32,7 @@ import BlockIcon from "@mui/icons-material/Block";
 import TuneIcon from "@mui/icons-material/Tune";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { motion, AnimatePresence } from "framer-motion";
+import { DigitalAadhaarCard } from "@/components/ui/digital-aadhaar-card";
 
 import { M3TextField } from "@/components/ui/form-components";
 import { M3Button } from "@/components/ui/m3-components";
@@ -70,8 +71,15 @@ export default function NewCustomerWorkspacePage() {
   const [existingCustomer, setExistingCustomer] = useState<any | null>(null);
   const [serviceHealth, setServiceHealth] = useState<{ healthy: boolean; message: string; api_status?: string; db_status?: string } | null>(null);
   const [otpSent, setOtpSent] = useState(false);
+  const [demoOtpHint, setDemoOtpHint] = useState<string | null>(null);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
   const [aadhaarVerified, setAadhaarVerified] = useState(false);
+  const [aadhaarLoading, setAadhaarLoading] = useState(false);
+  const [aadhaarError, setAadhaarError] = useState("");
+  const [aadhaarRefId, setAadhaarRefId] = useState("");
+  const [verifiedAadhaarData, setVerifiedAadhaarData] = useState<any>(null);
   const [createdCustomer, setCreatedCustomer] = useState<any | null>(null);
 
   // Initial Health Check on page load
@@ -88,6 +96,18 @@ export default function NewCustomerWorkspacePage() {
   const handleMobileChange = (val: string) => {
     const clean = val.replace(/\D/g, "").slice(0, 10);
     setMobileNumber(clean);
+    
+    if (clean.length > 0 && !/^[6789]/.test(clean)) {
+      setLookupError("Mobile number must start with 6, 7, 8, or 9");
+      setExistingCustomer(null);
+      return;
+    }
+    if (clean.length > 0 && clean.length < 10) {
+      setLookupError(`Incomplete: 10 digits required (${clean.length}/10)`);
+      setExistingCustomer(null);
+      return;
+    }
+
     setLookupError("");
     if (clean.length < 10) {
       setExistingCustomer(null);
@@ -95,9 +115,9 @@ export default function NewCustomerWorkspacePage() {
   };
 
   useEffect(() => {
-    if (mobileNumber.length === 10) {
+    if (mobileNumber.length === 10 && /^[6789]/.test(mobileNumber)) {
       handleSearchCustomer(mobileNumber);
-    } else {
+    } else if (mobileNumber.length === 0) {
       setExistingCustomer(null);
       setLookupError("");
     }
@@ -156,24 +176,137 @@ export default function NewCustomerWorkspacePage() {
     }
   };
 
-  const handleSendMobileOtp = () => {
-    setOtpSent(true);
-    setActiveStep(1);
-    notificationEngine.notify("OTP_RECEIVED", "WhatsApp OTP Sent to +91 " + mobileNumber);
+  const handleSendMobileOtp = async () => {
+    if (mobileNumber.length !== 10) return;
+    setOtpLoading(true);
+    setOtpError("");
+
+    // Register customer profile if new
+    let cust = createdCustomer;
+    if (!cust && firstName && lastName) {
+      try {
+        const regRes = await retailerApi.registerPayoutCustomer({
+          first_name: firstName,
+          last_name: lastName,
+          mobile_number: mobileNumber,
+          email: email || undefined,
+        });
+        if (regRes.status === "SUCCESS") {
+          cust = regRes.data;
+          setCreatedCustomer(cust);
+        }
+      } catch {
+        // Continue to OTP generation
+      }
+    }
+
+    try {
+      const res = await retailerApi.generateMobileOtp(mobileNumber, "WHATSAPP");
+      setOtpLoading(false);
+      const simulated = res?.data?.simulated_otp || res?.simulated_otp || "778899";
+      setDemoOtpHint(simulated);
+      setOtpSent(true);
+      setActiveStep(1);
+      notificationEngine.notify(
+        "OTP_RECEIVED",
+        `WhatsApp OTP Dispatched to +91 ${mobileNumber}. OTP Code: ${simulated}`
+      );
+    } catch (err: any) {
+      setOtpLoading(false);
+      setOtpError(err?.message || "Failed to generate Mobile OTP");
+    }
   };
 
-  const handleVerifyMobileOtp = () => {
-    setActiveStep(2);
+  const handleVerifyMobileOtp = async () => {
+    if (otpValue.length < 4) {
+      setOtpError("Please enter complete 6-digit OTP code");
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError("");
+
+    try {
+      const res = await retailerApi.verifyMobileOtp(mobileNumber, otpValue);
+      setOtpLoading(false);
+
+      if (res.status === "SUCCESS") {
+        setOtpError("");
+        notificationEngine.notify(
+          "CUSTOMER_VERIFIED",
+          `✓ Mobile OTP ${otpValue} Verified Successfully! Proceeding to Step 3 — Aadhaar eKYC`
+        );
+        setActiveStep(2);
+      } else {
+        const errMsg = res.detail || res.message || "Invalid Mobile OTP code. Please check and try again.";
+        setOtpError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+      }
+    } catch (err: any) {
+      setOtpLoading(false);
+      const errMsg = err?.response?.data?.detail || err?.message || "Invalid Mobile OTP code";
+      setOtpError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+    }
   };
 
-  const handleGenerateAadhaarOtp = () => {
-    setAadhaarOtpSent(true);
-    notificationEngine.notify("AADHAAR_EKYC_COMPLETED", "Aadhaar OTP generated successfully");
+  const handleGenerateAadhaarOtp = async () => {
+    if (aadhaarNumber.length !== 12) {
+      setAadhaarError("Aadhaar Number must be exactly 12 digits");
+      return;
+    }
+    setAadhaarLoading(true);
+    setAadhaarError("");
+    try {
+      const res = await retailerApi.generateAadhaarOtp(aadhaarNumber, existingCustomer?.public_id);
+      setAadhaarLoading(false);
+      if (res.status === "SUCCESS" && res.data) {
+        setAadhaarOtpSent(true);
+        setAadhaarRefId(res.data.ref_id || res.data.ref_number);
+        notificationEngine.notify(
+          "AADHAAR_EKYC_COMPLETED",
+          `Cashfree OTP sent for ${res.data.masked_aadhaar}. Fee Billed: ₹10.00 (+ ₹1.80 GST)`
+        );
+      } else {
+        setAadhaarError(res.detail || res.message || "Failed to generate Cashfree Aadhaar OTP.");
+      }
+    } catch (err: any) {
+      setAadhaarLoading(false);
+      setAadhaarError(err?.response?.data?.detail || err?.message || "Aadhaar OTP generation failed due to a server error.");
+    }
   };
 
-  const handleVerifyAadhaarOtp = () => {
-    setAadhaarVerified(true);
-    setActiveStep(3);
+  const handleVerifyAadhaarOtp = async () => {
+    if (aadhaarOtp.length < 4) return;
+    setAadhaarLoading(true);
+    setAadhaarError("");
+    try {
+      const res = await retailerApi.verifyAadhaarOtp({
+        customer_id: existingCustomer?.public_id || "NEW-CUST",
+        ref_number: aadhaarRefId,
+        otp_code: aadhaarOtp,
+        masked_aadhaar: `XXXX-XXXX-${aadhaarNumber.slice(-4)}`,
+        aadhaar_number: aadhaarNumber
+      });
+      setAadhaarLoading(false);
+
+      if (res.status === "FAILED" || res.error) {
+        setAadhaarError(res.error || "Aadhaar verification failed. Verification fee ₹10.00 (+ GST) has been fully refunded to your wallet.");
+        notificationEngine.notify("TRANSACTION_FAILED", "Invalid Aadhaar OTP. Verification fee refunded to wallet.");
+        return;
+      }
+
+      if (res.status === "SUCCESS" && res.data) {
+        setAadhaarVerified(true);
+        setVerifiedAadhaarData(res.data);
+        notificationEngine.notify(
+          "CUSTOMER_VERIFIED",
+          `Aadhaar eKYC Verified via Cashfree API! Fee Billed: ₹${res.data.billing?.total_debited || 11.80}`
+        );
+      }
+    } catch (err: any) {
+      setAadhaarLoading(false);
+      setAadhaarError(err?.response?.data?.detail || err?.message || "Aadhaar OTP verification failed. Fee refunded.");
+    }
   };
 
   const handleCreateCustomer = async () => {
@@ -391,7 +524,7 @@ export default function NewCustomerWorkspacePage() {
 
                         {/* Requirement 3 & 7: Real-time mobile validation with Searching customer... spinner and status */}
                         <M3TextField
-                          label="Mobile Number *"
+                          label="Mobile Number"
                           value={mobileNumber}
                           onChange={(e) => handleMobileChange(e.target.value)}
                           placeholder="e.g. 9876543210"
@@ -611,13 +744,19 @@ export default function NewCustomerWorkspacePage() {
                         Step 2 — Mobile OTP Verification
                       </Typography>
                       <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
-                        OTP sent via WhatsApp first to <strong>+91 {mobileNumber}</strong>. (Auto fallback to SMS in 30s)
+                        OTP sent via WhatsApp API to <strong>+91 {mobileNumber}</strong>.
                       </Typography>
+
+                      {otpError && (
+                        <Alert severity="error" sx={{ mb: 2.5, borderRadius: 3, fontWeight: 700 }}>
+                          {otpError}
+                        </Alert>
+                      )}
 
                       <Stack spacing={2.5}>
                         <M3TextField label="6-Digit OTP Code *" value={otpValue} onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Enter 123456" />
 
-                        <M3Button variant="contained" disabled={otpValue.length !== 6} onClick={handleVerifyMobileOtp} sx={{ py: 1.75, bgcolor: "#0F172A" }}>
+                        <M3Button variant="contained" loading={otpLoading} disabled={otpValue.length < 4} onClick={handleVerifyMobileOtp} sx={{ py: 1.75, bgcolor: "#0F172A" }}>
                           Verify Mobile OTP →
                         </M3Button>
                       </Stack>
@@ -631,29 +770,87 @@ export default function NewCustomerWorkspacePage() {
                 <motion.div key="step2" style={{ flex: 1, display: "flex", flexDirection: "column" }} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}>
                   <Paper elevation={0} sx={{ p: 3.5, borderRadius: 4, border: "1px solid #E2E8F0", backgroundColor: "#FFF", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A", mb: 0.5 }}>
-                        Step 3 — Cashfree Aadhaar eKYC Verification
-                      </Typography>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A" }}>
+                          Step 3 — Cashfree Aadhaar eKYC Verification
+                        </Typography>
+                        <Chip label="Fee: ₹10.00 + GST (Auto-Refund on Fail)" size="small" sx={{ bgcolor: "#F1F5F9", color: "#2563EB", fontWeight: 800, fontSize: "0.7rem" }} />
+                      </Box>
                       <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
                         Real-time Aadhaar OTP verification via Cashfree APIs for instant verification status.
                       </Typography>
 
-                      <Stack spacing={2.5}>
-                        <M3TextField label="12-Digit Aadhaar Number *" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))} placeholder="1234 5678 9012" />
+                      {aadhaarError && (
+                        <Alert severity="error" sx={{ mb: 2.5, borderRadius: 3, fontWeight: 700 }}>
+                          {aadhaarError}
+                        </Alert>
+                      )}
 
-                        {!aadhaarOtpSent ? (
-                          <M3Button variant="outlined" disabled={aadhaarNumber.length !== 12} onClick={handleGenerateAadhaarOtp}>
-                            Generate Aadhaar OTP
-                          </M3Button>
-                        ) : (
-                          <>
-                            <M3TextField label="Aadhaar OTP *" value={aadhaarOtp} onChange={(e) => setAadhaarOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Enter Aadhaar OTP" />
-                            <M3Button variant="contained" disabled={aadhaarOtp.length !== 6} onClick={handleVerifyAadhaarOtp} sx={{ py: 1.75, bgcolor: "#0F172A" }}>
-                              Verify Aadhaar eKYC →
+                      {!aadhaarVerified ? (
+                        <Stack spacing={2.5}>
+                          <M3TextField
+                            label="12-Digit Aadhaar Number *"
+                            value={aadhaarNumber}
+                            onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                            placeholder="1234 5678 9012"
+                            disabled={aadhaarLoading || aadhaarOtpSent}
+                          />
+
+                          {!aadhaarOtpSent ? (
+                            <M3Button
+                              variant="contained"
+                              disabled={aadhaarNumber.length !== 12 || aadhaarLoading}
+                              onClick={handleGenerateAadhaarOtp}
+                              sx={{ py: 1.75, bgcolor: "#0F172A" }}
+                            >
+                              {aadhaarLoading ? "Connecting Cashfree API..." : "Generate Aadhaar OTP →"}
                             </M3Button>
-                          </>
-                        )}
-                      </Stack>
+                          ) : (
+                            <>
+                              <Alert severity="info" sx={{ borderRadius: 3, fontWeight: 600 }}>
+                                OTP dispatched to Aadhaar linked mobile number for XXXX-XXXX-{aadhaarNumber.slice(-4)}. ₹10.00 (+ GST) fee debited from wallet.
+                              </Alert>
+                              <M3TextField
+                                label="Enter 6-Digit Aadhaar OTP *"
+                                value={aadhaarOtp}
+                                onChange={(e) => setAadhaarOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                                placeholder="654321"
+                                disabled={aadhaarLoading}
+                              />
+                              <Stack direction="row" spacing={2}>
+                                <M3Button
+                                  variant="outlined"
+                                  onClick={() => { setAadhaarOtpSent(false); setAadhaarOtp(""); }}
+                                  disabled={aadhaarLoading}
+                                >
+                                  ← Change Number
+                                </M3Button>
+                                <M3Button
+                                  variant="contained"
+                                  disabled={aadhaarOtp.length < 4 || aadhaarLoading}
+                                  onClick={handleVerifyAadhaarOtp}
+                                  sx={{ flex: 1, py: 1.75, bgcolor: "#0F172A" }}
+                                >
+                                  {aadhaarLoading ? "Verifying eKYC..." : "Verify Aadhaar eKYC →"}
+                                </M3Button>
+                              </Stack>
+                            </>
+                          )}
+                        </Stack>
+                      ) : (
+                        <Stack spacing={3}>
+                          <Alert severity="success" icon={<CheckCircleIcon fontSize="inherit" />} sx={{ borderRadius: 3, fontWeight: 800 }}>
+                            Cashfree Aadhaar eKYC Verification Successful! PII encrypted & saved.
+                          </Alert>
+
+                          {/* Digital Aadhaar Card Component */}
+                          <DigitalAadhaarCard aadhaarData={verifiedAadhaarData} />
+
+                          <M3Button variant="contained" onClick={() => setActiveStep(3)} sx={{ py: 1.75, bgcolor: "#0F172A" }}>
+                            Proceed to Security PIN →
+                          </M3Button>
+                        </Stack>
+                      )}
                     </Box>
                   </Paper>
                 </motion.div>

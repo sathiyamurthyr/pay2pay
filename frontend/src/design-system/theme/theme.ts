@@ -4,24 +4,24 @@ import { tokens } from "../tokens/design-tokens";
 const baseOptions: ThemeOptions = {
   typography: {
     fontFamily: tokens.typography.fontFamily,
-    h1: { fontSize: tokens.typography.fontSizes.h1, fontWeight: tokens.typography.fontWeights.bold },
-    h2: { fontSize: tokens.typography.fontSizes.h2, fontWeight: tokens.typography.fontWeights.bold },
-    h3: { fontSize: tokens.typography.fontSizes.h3, fontWeight: tokens.typography.fontWeights.semibold },
-    subtitle1: { fontSize: tokens.typography.fontSizes.lg, fontWeight: tokens.typography.fontWeights.semibold },
-    subtitle2: { fontSize: tokens.typography.fontSizes.md, fontWeight: tokens.typography.fontWeights.medium },
-    body1: { fontSize: tokens.typography.fontSizes.md, fontWeight: tokens.typography.fontWeights.regular },
-    body2: { fontSize: tokens.typography.fontSizes.sm, fontWeight: tokens.typography.fontWeights.regular },
-    caption: { fontSize: tokens.typography.fontSizes.xs, fontWeight: tokens.typography.fontWeights.medium },
-    button: { textTransform: "none", fontWeight: tokens.typography.fontWeights.semibold },
+    h1: { fontSize: "36px", fontWeight: 800, lineHeight: 1.2 }, // Large KPI values 36-42px bold
+    h2: { fontSize: "28px", fontWeight: 800, lineHeight: 1.25 },
+    h3: { fontSize: "22px", fontWeight: 800, lineHeight: 1.3 }, // Section headings: 22px
+    subtitle1: { fontSize: "18px", fontWeight: 700, lineHeight: 1.4 }, // KPI titles: 18px
+    subtitle2: { fontSize: "17px", fontWeight: 600, lineHeight: 1.4 }, // Menu items: 17px medium
+    body1: { fontSize: "16px", fontWeight: 500, lineHeight: 1.6 }, // Minimum body text: 16px
+    body2: { fontSize: "16px", fontWeight: 400, lineHeight: 1.6 }, // Minimum body text: 16px
+    caption: { fontSize: "14px", fontWeight: 600, lineHeight: 1.4 },
+    button: { fontSize: "17px", textTransform: "none", fontWeight: 600, lineHeight: 1.2 }, // Button text: 17px semibold
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 16,
   },
   breakpoints: {
     values: {
       xs: 0,
-      sm: 1366,
-      md: 1600,
+      sm: 1280,
+      md: 1536,
       lg: 1920,
       xl: 2560,
     },
@@ -30,10 +30,12 @@ const baseOptions: ThemeOptions = {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: tokens.radii.md,
+          fontSize: "17px",
+          fontWeight: 600,
+          borderRadius: "12px",
           textTransform: "none",
-          fontWeight: tokens.typography.fontWeights.semibold,
-          padding: "10px 20px",
+          padding: "14px 28px",
+          minHeight: "50px",
           transition: tokens.transitions.fast,
         },
         contained: {
@@ -41,27 +43,45 @@ const baseOptions: ThemeOptions = {
           color: "#FFFFFF",
           boxShadow: tokens.shadows.glow,
           "&:hover": {
-            boxShadow: "0 6px 20px rgba(37, 99, 235, 0.5)",
+            boxShadow: "0 8px 24px rgba(37, 99, 235, 0.5)",
             color: "#FFFFFF",
           },
         },
         outlined: {
           color: "#FFFFFF",
-          borderColor: "rgba(255, 255, 255, 0.25)",
+          borderColor: "rgba(255, 255, 255, 0.30)",
           "&:hover": {
-            backgroundColor: "rgba(255, 255, 255, 0.08)",
-            borderColor: "rgba(255, 255, 255, 0.40)",
+            backgroundColor: "rgba(255, 255, 255, 0.10)",
+            borderColor: "rgba(255, 255, 255, 0.50)",
             color: "#FFFFFF",
           },
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        head: {
+          fontSize: "16px",
+          fontWeight: 800,
+          color: "#FFFFFF",
+          backgroundColor: "#0F172A",
+          padding: "18px 20px",
+        },
+        body: {
+          fontSize: "16px",
+          fontWeight: 500,
+          color: "#E2E8F0",
+          padding: "18px 20px",
         },
       },
     },
     MuiInputBase: {
       styleOverrides: {
         input: {
+          fontSize: "16px",
           color: "#FFFFFF",
           "&::placeholder": {
-            color: "rgba(255, 255, 255, 0.70)",
+            color: "rgba(255, 255, 255, 0.75)",
             opacity: 1,
           },
         },
@@ -70,7 +90,8 @@ const baseOptions: ThemeOptions = {
     MuiInputLabel: {
       styleOverrides: {
         root: {
-          color: "rgba(255, 255, 255, 0.85)",
+          fontSize: "16px",
+          color: "rgba(255, 255, 255, 0.90)",
         },
       },
     },
@@ -78,14 +99,16 @@ const baseOptions: ThemeOptions = {
       styleOverrides: {
         root: {
           backgroundImage: "none",
+          padding: "28px", // Card padding 24-32px
         },
       },
     },
     MuiChip: {
       styleOverrides: {
         root: {
-          fontWeight: tokens.typography.fontWeights.bold,
-          borderRadius: tokens.radii.sm,
+          fontSize: "13px",
+          fontWeight: 700,
+          borderRadius: "8px",
         },
       },
     },

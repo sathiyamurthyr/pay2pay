@@ -119,6 +119,45 @@ class BeneficiaryService:
 
     @staticmethod
     async def register_beneficiary(db: AsyncSession, req: BeneficiaryRegisterRequest) -> BeneficiaryResponse:
+        # Pre-check & row lock for active duplicate account number + IFSC code for customer
+        if req.account_number and req.ifsc_code:
+            clean_acc = req.account_number.strip().replace(" ", "")
+            clean_ifsc = req.ifsc_code.strip().upper()
+            
+            stmt_dup = (
+                select(BeneficiaryModel, BeneficiaryBankAccountModel)
+                .join(BeneficiaryBankAccountModel, BeneficiaryBankAccountModel.beneficiary_id == BeneficiaryModel.public_id)
+                .where(
+                    and_(
+                        BeneficiaryModel.customer_id == req.customer_id,
+                        BeneficiaryModel.is_active == True,
+                        BeneficiaryModel.beneficiary_status != "MERGED",
+                        BeneficiaryBankAccountModel.account_number == clean_acc,
+                        BeneficiaryBankAccountModel.ifsc_code == clean_ifsc,
+                    )
+                )
+                .with_for_update()
+            )
+            existing_dup = (await db.execute(stmt_dup)).first()
+            if existing_dup:
+                bm, ba = existing_dup[0], existing_dup[1]
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "code": "BENEFICIARY_ALREADY_EXISTS",
+                        "message": "This beneficiary is already registered.",
+                        "existing_beneficiary": {
+                            "beneficiary_id": str(bm.public_id),
+                            "account_holder_name": ba.account_holder_name or bm.full_name,
+                            "account_number_masked": ba.account_number_masked or f"XXXX-{clean_acc[-4:]}",
+                            "bank_name": ba.bank_name,
+                            "ifsc_code": ba.ifsc_code,
+                            "verification_status": ba.verification_status,
+                            "status": bm.beneficiary_status or "ACTIVE"
+                        }
+                    }
+                )
+
         # Default 24-hour cooling period for new beneficiaries
         cooling_end = _now() + timedelta(hours=24)
 
@@ -233,7 +272,12 @@ class BeneficiaryService:
     @staticmethod
     async def list_beneficiaries(db: AsyncSession, req: BeneficiarySearchRequest) -> List[BeneficiaryResponse]:
         # 1. Fetch legacy BeneficiaryModel records
-        stmt = select(BeneficiaryModel).where(BeneficiaryModel.is_active == True)
+        stmt = select(BeneficiaryModel).where(
+            and_(
+                BeneficiaryModel.is_active == True,
+                BeneficiaryModel.beneficiary_status != "MERGED"
+            )
+        )
         if req.customer_id:
             stmt = stmt.where(BeneficiaryModel.customer_id == req.customer_id)
         if req.beneficiary_status:
@@ -301,41 +345,6 @@ class BeneficiaryService:
                         cooling_period_ends_at=None,
                         is_favourite=False,
                     ))
-
-        # 3. Fallback: If no results exist for customer, fetch all verified BeneficiaryMaster records
-        if not results:
-            stmt_all_masters = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.verification_status == "VERIFIED").limit(20)
-            all_masters = (await db.execute(stmt_all_masters)).scalars().all()
-            for master in all_masters:
-                results.append(BeneficiaryResponse(
-                    public_id=master.public_id,
-                    beneficiary_number=f"BEN-{str(master.public_id)[:6].upper()}",
-                    beneficiary_type="INDIVIDUAL",
-                    beneficiary_category="RETAIL",
-                    title=None,
-                    first_name=master.account_holder_name.split()[0] if master.account_holder_name else "Beneficiary",
-                    last_name=master.account_holder_name.split()[-1] if master.account_holder_name and len(master.account_holder_name.split()) > 1 else "",
-                    full_name=master.registered_name_in_bank or master.account_holder_name,
-                    nickname=f"{master.bank_name} Account",
-                    mobile_number="9176669426",
-                    email=None,
-                    relationship="FAMILY",
-                    customer_id=req.customer_id or uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1"),
-                    tenant_id=master.tenant_id,
-                    company_id=master.company_id,
-                    verification_status=master.verification_status or "VERIFIED",
-                    beneficiary_status="ACTIVE",
-                    risk_category="LOW",
-                    registration_date=master.created_date or datetime.now(),
-                    activation_date=master.created_date or datetime.now(),
-                    account_number=master.account_number,
-                    masked_account_number=master.account_number_masked,
-                    ifsc=master.ifsc_code,
-                    bank_name=master.bank_name,
-                    branch_name="Main Branch",
-                    cooling_period_ends_at=None,
-                    is_favourite=False,
-                ))
 
         return results
 

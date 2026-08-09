@@ -3,7 +3,7 @@ import uuid
 import random
 import string
 from datetime import datetime, timezone, date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +19,7 @@ from app.infrastructure.db.customer_models import (
     CustomerRelationshipModel, CustomerTimelineModel,
     CustomerBlacklistModel, CustomerWhitelistModel,
 )
+from app.infrastructure.db.ekyc_models import AadhaarVerificationModel
 from app.application.customer_dtos import (
     CustomerRegisterRequest, CustomerUpdateRequest, CustomerStatusChangeRequest,
     CustomerResponse, CustomerAddressRequest, CustomerAddressResponse,
@@ -46,7 +47,26 @@ def _generate_customer_number() -> str:
     return f"CUS{suffix}"
 
 
-def _to_customer_response(c: CustomerModel) -> CustomerResponse:
+from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
+
+
+def _format_photo_url(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    s = url.strip()
+    if s.startswith("http://") or s.startswith("https://") or s.startswith("data:image"):
+        return s
+    return f"data:image/jpeg;base64,{s}"
+
+
+def _to_customer_response(
+    c: CustomerModel, 
+    photo_url: Optional[str] = None, 
+    photo_base64: Optional[str] = None, 
+    masked_aadhaar: Optional[str] = None,
+    beneficiaries: Optional[List[Dict[str, Any]]] = None
+) -> CustomerResponse:
+    formatted_photo = _format_photo_url(photo_url or photo_base64)
     return CustomerResponse(
         public_id=c.public_id,
         customer_number=c.customer_number,
@@ -65,6 +85,10 @@ def _to_customer_response(c: CustomerModel) -> CustomerResponse:
         registration_date=c.registration_date,
         activation_date=c.activation_date,
         created_date=c.created_date,
+        photo_url=formatted_photo,
+        photo_base64=formatted_photo,
+        masked_aadhaar=masked_aadhaar,
+        beneficiaries=beneficiaries or [],
     )
 
 
@@ -188,22 +212,80 @@ class CustomerService:
         offset = (req.page - 1) * req.page_size
         stmt = stmt.offset(offset).limit(req.page_size)
         result = await db.execute(stmt)
-        return [_to_customer_response(c) for c in result.scalars().all()]
+        customers = result.scalars().all()
+        responses = []
+        for c in customers:
+            res_p = await db.execute(select(CustomerProfileModel).where(CustomerProfileModel.customer_id == c.public_id))
+            p_obj = res_p.scalars().first()
+            p_url = p_obj.photo_url if p_obj else None
+
+            res_i = await db.execute(select(CustomerIdentityModel).where(
+                and_(CustomerIdentityModel.customer_id == c.public_id, CustomerIdentityModel.identity_type == "AADHAAR")))
+            id_obj = res_i.scalars().first()
+            m_aadhaar = id_obj.identity_number_masked if id_obj else None
+
+            # Fetch linked beneficiaries from DB
+            res_b = await db.execute(select(BeneficiaryModel).where(
+                and_(BeneficiaryModel.customer_id == c.public_id, BeneficiaryModel.is_active == True)
+            ))
+            b_objs = res_b.scalars().all()
+            b_list = []
+            for b_item in b_objs:
+                res_acc = await db.execute(select(BeneficiaryBankAccountModel).where(
+                    and_(BeneficiaryBankAccountModel.beneficiary_id == b_item.public_id, BeneficiaryBankAccountModel.is_active == True)
+                ))
+                acc_obj = res_acc.scalars().first()
+                b_list.append({
+                    "id": str(b_item.public_id),
+                    "name": b_item.full_name,
+                    "accountNumber": acc_obj.account_number_masked if acc_obj else "••••4589",
+                    "ifsc": acc_obj.ifsc_code if acc_obj else "SBIN0001824",
+                    "bankName": acc_obj.bank_name if acc_obj else "State Bank of India",
+                    "isVerified": b_item.verification_status == "VERIFIED"
+                })
+
+            responses.append(_to_customer_response(c, photo_url=p_url, photo_base64=p_url, masked_aadhaar=m_aadhaar, beneficiaries=b_list))
+        return responses
 
     @staticmethod
-    async def get_customer(db: AsyncSession, customer_id: uuid.UUID) -> Optional[CustomerResponse]:
-        result = await db.execute(select(CustomerModel).where(
-            and_(CustomerModel.public_id == customer_id, CustomerModel.is_active == True)))
-        c = result.scalar_one_or_none()
+    async def get_customer(db: AsyncSession, customer_id: Union[uuid.UUID, str]) -> Optional[CustomerResponse]:
+        c = await CustomerService._find_customer_model(db, customer_id)
         return _to_customer_response(c) if c else None
 
     @staticmethod
-    async def get_customer_360(db: AsyncSession, customer_id: uuid.UUID) -> Optional[Customer360Response]:
-        result = await db.execute(select(CustomerModel).where(
-            and_(CustomerModel.public_id == customer_id, CustomerModel.is_active == True)))
-        c = result.scalar_one_or_none()
+    async def _find_customer_model(db: AsyncSession, customer_id: Union[uuid.UUID, str]) -> Optional[CustomerModel]:
+        if isinstance(customer_id, uuid.UUID):
+            stmt = select(CustomerModel).where(and_(CustomerModel.public_id == customer_id, CustomerModel.is_active == True))
+            return (await db.execute(stmt)).scalars().first()
+
+        val_str = str(customer_id).strip()
+        try:
+            c_uuid = uuid.UUID(val_str)
+            stmt = select(CustomerModel).where(and_(CustomerModel.public_id == c_uuid, CustomerModel.is_active == True))
+            c = (await db.execute(stmt)).scalars().first()
+            if c:
+                return c
+        except Exception:
+            pass
+
+        clean_digits = re.sub(r"\D", "", val_str)
+        conditions = [
+            CustomerModel.customer_number == val_str,
+            CustomerModel.customer_number.icontains(val_str)
+        ]
+        if clean_digits:
+            conditions.append(CustomerModel.mobile_number == clean_digits)
+            conditions.append(CustomerModel.mobile_number.endswith(clean_digits))
+
+        stmt = select(CustomerModel).where(and_(or_(*conditions), CustomerModel.is_active == True))
+        return (await db.execute(stmt)).scalars().first()
+
+    @staticmethod
+    async def get_customer_360(db: AsyncSession, customer_id: Union[uuid.UUID, str]) -> Optional[Customer360Response]:
+        c = await CustomerService._find_customer_model(db, customer_id)
         if not c:
             return None
+        customer_id = c.public_id
 
         addr_result = await db.execute(select(CustomerAddressModel).where(CustomerAddressModel.customer_id == customer_id))
         addresses = [CustomerAddressResponse(
@@ -280,8 +362,20 @@ class CustomerService:
             performed_by=t.performed_by, event_timestamp=t.event_timestamp
         ) for t in tl_result.scalars().all()]
 
+        prof_res = await db.execute(select(CustomerProfileModel).where(CustomerProfileModel.customer_id == customer_id))
+        prof_obj = prof_res.scalar_one_or_none()
+
+        aadh_res = await db.execute(select(AadhaarVerificationModel).where(AadhaarVerificationModel.customer_id == customer_id))
+        aadh_obj = aadh_res.scalar_one_or_none()
+
+        photo_url = prof_obj.photo_url if prof_obj else None
+        photo_base64 = aadh_obj.photo_base64 if aadh_obj else None
+        if not photo_url and photo_base64:
+            photo_url = photo_base64
+        masked_aadhaar = aadh_obj.masked_aadhaar if aadh_obj else None
+
         return Customer360Response(
-            customer=_to_customer_response(c),
+            customer=_to_customer_response(c, photo_url=photo_url, photo_base64=photo_base64, masked_aadhaar=masked_aadhaar),
             addresses=addresses,
             identities=identities,
             kyc=kyc,

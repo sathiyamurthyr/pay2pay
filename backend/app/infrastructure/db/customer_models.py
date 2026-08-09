@@ -41,6 +41,14 @@ class CustomerModel(BaseEntity, EnterpriseBaseMixin):
     last_active_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # MPIN Security Fields
+    mpin_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    mpin_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    mpin_created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    mpin_last_changed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+
     cust_profile: Mapped[Optional["CustomerProfileModel"]] = relationship("CustomerProfileModel", back_populates="customer", uselist=False, cascade="all, delete-orphan")
     cust_addresses: Mapped[List["CustomerAddressModel"]] = relationship("CustomerAddressModel", back_populates="customer", cascade="all, delete-orphan")
     cust_identities: Mapped[List["CustomerIdentityModel"]] = relationship("CustomerIdentityModel", back_populates="customer", cascade="all, delete-orphan")

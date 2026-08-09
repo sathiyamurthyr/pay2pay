@@ -93,6 +93,8 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Reports",
     items: [
+      { label: "Payout Report", href: "/retailer/dmt/reports", icon: FileText },
+      { label: "Report Center", href: "/retailer/reports", icon: FileText },
       { label: "Settlement", href: "/settlement-processing/batches", icon: FileText },
       { label: "Wallet", href: "/settlement-processing/journals", icon: FileText },
       { label: "Retailers", href: "/retailer-dashboard", icon: BarChart3 },

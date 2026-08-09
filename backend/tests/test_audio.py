@@ -18,6 +18,9 @@ def test_voice_templates_exist():
 @pytest.mark.asyncio
 async def test_get_playback_payload_success():
     db = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.scalar_one_or_none.return_value = None
+    db.execute.return_value = mock_res
     user_id = uuid.uuid4()
 
     res = await AudioService.get_playback_payload(db, "TRANSACTION_SUCCESS", user_id=user_id, amount=2500.0)
@@ -32,6 +35,9 @@ async def test_get_playback_payload_success():
 @pytest.mark.asyncio
 async def test_get_playback_payload_error():
     db = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.scalar_one_or_none.return_value = None
+    db.execute.return_value = mock_res
 
     res = await AudioService.get_playback_payload(db, "TRANSACTION_FAILED", amount=0.0)
 
@@ -43,9 +49,10 @@ async def test_get_playback_payload_error():
 @pytest.mark.asyncio
 async def test_save_user_preference():
     db = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.scalar_one_or_none.return_value = None
+    db.execute.return_value = mock_res
     user_id = uuid.uuid4()
-
-    db.execute.return_value.scalar_one_or_none.return_value = None
 
     req = UserAudioPreferenceRequest(
         user_id=user_id,
@@ -66,3 +73,4 @@ async def test_save_user_preference():
     assert res.volume_level_pct == 95
     db.add.assert_called()
     db.commit.assert_called_once()
+
