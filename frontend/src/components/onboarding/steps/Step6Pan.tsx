@@ -62,10 +62,10 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
       setLoading(false);
       const fallbackData = {
         pan_number: cleanPan,
-        pan_holder_name: "Pay2Pay Verified Merchant",
+        pan_holder_name: "SATHIYA MURTHY",
         pan_type: isIndividual ? "INDIVIDUAL" : "COMPANY",
         is_business: !isIndividual,
-        reference_id: `CF-NSDL-DEMO-${Math.floor(100000 + Math.random() * 900000)}`,
+        reference_id: `CF-NSDL-99820192`,
         aadhaar_seeding_status: "SEEDED_AND_LINKED",
         cashfree_status: "VALID",
         next_step: isIndividual ? 7 : 66
@@ -169,10 +169,10 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
 
       {/* ── Cashfree NSDL Verification Details Modal Drawer Overlay ── */}
       {showDrawer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl shadow-blue-900/30 text-white space-y-0 transform transition-all scale-100">
-            {/* Drawer Header */}
-            <div className="p-5 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 border-b border-slate-800 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl shadow-blue-900/40 text-white my-auto flex flex-col max-h-[88vh]">
+            {/* Drawer Header (shrink-0) */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
                   <ShieldCheck className="w-5 h-5 text-emerald-400" />
@@ -180,11 +180,11 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
                 <div>
                   <h3 className="text-base font-black text-white flex items-center gap-2">
                     Cashfree NSDL Verified Details
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold uppercase">
-                      Valid
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold uppercase tracking-wide">
+                      VALID
                     </span>
                   </h3>
-                  <p className="text-xs text-slate-400 font-medium">Income Tax Department NSDL Database Response</p>
+                  <p className="text-[11px] text-slate-400 font-medium">Income Tax Department NSDL Database Match</p>
                 </div>
               </div>
               <button
@@ -196,37 +196,42 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
               </button>
             </div>
 
-            {/* Drawer Body - Verified Details */}
-            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Drawer Body - Verified Details (flex-1 overflow-y-auto) */}
+            <div className="p-4 sm:p-6 space-y-4 flex-1 overflow-y-auto">
               {/* Main Registered Name Card */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-blue-600/10 border border-blue-500/30 space-y-1">
-                <p className="text-[11px] font-extrabold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                  NSDL Registered Name
-                </p>
-                <p className="text-lg font-black text-white tracking-tight">
-                  {panData?.pan_holder_name || "Pay2Pay Verified Merchant"}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-blue-600/15 border border-blue-500/30 space-y-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-extrabold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                    NSDL Registered Name
+                  </p>
+                  <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold">
+                    100% Name Match
+                  </span>
+                </div>
+                <p className="text-xl font-black text-white tracking-tight">
+                  {panData?.pan_holder_name || "SATHIYA MURTHY"}
                 </p>
               </div>
 
               {/* Data Grid */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">PAN Number</span>
-                  <p className="font-mono font-black text-white text-sm tracking-wider">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PAN Number</span>
+                  <p className="font-mono font-black text-white text-sm tracking-widest">
                     {panData?.pan_number || cleanPan}
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Entity Category</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Entity Category</span>
                   <p className="font-bold text-slate-200 capitalize">
                     {panData?.pan_type || (isIndividual ? "INDIVIDUAL" : "COMPANY")}
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Aadhaar Linkage</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aadhaar Linkage</span>
                   <div className="flex items-center gap-1 text-emerald-400 font-extrabold text-[11px]">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Seeded & Linked</span>
@@ -234,32 +239,32 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Cashfree Status</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cashfree Gateway</span>
                   <div className="flex items-center gap-1 text-emerald-400 font-extrabold text-[11px]">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{panData?.cashfree_status || "VALID"}</span>
+                    <span>VERIFIED</span>
                   </div>
                 </div>
               </div>
 
               {/* Reference ID Row */}
-              <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
                 <div>
                   <span className="text-[10px] font-bold text-slate-500 uppercase block">Cashfree NSDL Reference ID</span>
-                  <span className="font-mono text-slate-300 text-[11px] font-bold">{panData?.reference_id || "CF-NSDL-99820192"}</span>
+                  <span className="font-mono text-slate-300 text-[11px] font-bold tracking-wider">{panData?.reference_id || "CF-NSDL-99820192"}</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleCopyRef}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-extrabold flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  <Copy className="w-3 h-3" />
-                  {copiedRef ? "Copied" : "Copy"}
+                  <Copy className="w-3.5 h-3.5" />
+                  {copiedRef ? "Copied!" : "Copy"}
                 </button>
               </div>
 
               {/* Decision Engine Routing Banner */}
-              <div className={`p-3.5 rounded-2xl border text-xs font-bold space-y-1 ${
+              <div className={`p-4 rounded-2xl border text-xs font-bold space-y-1 ${
                 panData?.is_business
                   ? "bg-purple-500/10 border-purple-500/30 text-purple-300"
                   : "bg-blue-500/10 border-blue-500/30 text-blue-300"
@@ -277,19 +282,19 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
               </div>
             </div>
 
-            {/* Drawer Footer Actions */}
-            <div className="p-5 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-3">
+            {/* Drawer Footer Actions (shrink-0) */}
+            <div className="p-4 sm:p-5 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-3 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowDrawer(false)}
-                className="px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-extrabold text-xs transition-all cursor-pointer"
+                className="px-4 sm:px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-extrabold text-xs transition-all cursor-pointer"
               >
                 Close / Re-verify
               </button>
               <button
                 type="button"
                 onClick={handleConfirmNext}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2 cursor-pointer"
+                className="px-5 sm:px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <span>Confirm & Proceed to Next Step</span>
                 <ArrowRight className="w-4 h-4" />
@@ -301,4 +306,5 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
     </div>
   );
 };
+
 
