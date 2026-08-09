@@ -9,9 +9,9 @@ interface Step8Props {
 }
 
 export const Step8Bank: React.FC<Step8Props> = ({ registrationId, onSuccess }) => {
-  const [accountNumber, setAccountNumber] = useState("50100012345678");
-  const [ifsc, setIfsc] = useState("HDFC0001234");
-  const [name, setName] = useState("SATHIYA MURTHY");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [ifsc, setIfsc] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [bankResult, setBankResult] = useState<any>(null);

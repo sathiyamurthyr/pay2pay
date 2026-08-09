@@ -9,7 +9,7 @@ interface Step7Props {
 }
 
 export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess }) => {
-  const [aadhaarNumber, setAadhaarNumber] = useState("123456789012");
+  const [aadhaarNumber, setAadhaarNumber] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [refId, setRefId] = useState("");
   const [otpCode, setOtpCode] = useState("");

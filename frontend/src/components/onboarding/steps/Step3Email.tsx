@@ -9,7 +9,7 @@ interface Step3Props {
 }
 
 export const Step3Email: React.FC<Step3Props> = ({ registrationId, onSuccess }) => {
-  const [email, setEmail] = useState("retailer@pay2pay.in");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 

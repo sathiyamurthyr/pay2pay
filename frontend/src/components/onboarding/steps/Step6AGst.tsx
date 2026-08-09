@@ -9,7 +9,7 @@ interface Step6AProps {
 }
 
 export const Step6AGst: React.FC<Step6AProps> = ({ registrationId, onSuccess }) => {
-  const [gstNumber, setGstNumber] = useState("33ABCDE1234F1Z5");
+  const [gstNumber, setGstNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 

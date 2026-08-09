@@ -9,8 +9,8 @@ interface Step5Props {
 }
 
 export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSuccess }) => {
-  const [password, setPassword] = useState("Retailer#2026");
-  const [mpin, setMpin] = useState("1234");
+  const [password, setPassword] = useState("");
+  const [mpin, setMpin] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showMpin, setShowMpin] = useState(false);
   const [loading, setLoading] = useState(false);

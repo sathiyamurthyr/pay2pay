@@ -23,7 +23,7 @@ interface Step6Props {
 }
 
 export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) => {
-  const [panNumber, setPanNumber] = useState("ABCPV1234D");
+  const [panNumber, setPanNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showDrawer, setShowDrawer] = useState(false);
@@ -62,28 +62,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
       }
     } catch {
       setLoading(false);
-      const fallbackData = {
-        pan: cleanPan,
-        pan_number: cleanPan,
-        registered_name: "JOHN DOE",
-        name_pan_card: "JOHN DOE",
-        name_provided: "JOHN DOE",
-        type: isIndividual ? "Individual" : "Company",
-        pan_type: isIndividual ? "INDIVIDUAL" : "COMPANY",
-        is_business: !isIndividual,
-        reference_id: 161,
-        valid: true,
-        message: "PAN verified successfully",
-        name_match_score: 100,
-        name_match_result: "DIRECT_MATCH",
-        aadhaar_seeding_status: "Y",
-        aadhaar_seeding_status_desc: "Aadhaar is linked to PAN",
-        last_updated_at: "01/01/2019",
-        pan_status: "VALID",
-        next_step: isIndividual ? 7 : 66
-      };
-      setPanData(fallbackData);
-      setShowDrawer(true);
+      setErrorMsg("Unable to connect to Cashfree PAN API. Please check your connection and try again.");
     }
   };
 
@@ -104,14 +83,14 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
     }
   };
 
-  const registeredName = panData?.registered_name || panData?.name_pan_card || panData?.pan_holder_name || "JOHN DOE";
+  const registeredName = panData?.registered_name || panData?.name_pan_card || panData?.pan_holder_name || "VERIFIED PAN HOLDER";
   const panCode = panData?.pan || panData?.pan_number || cleanPan;
   const panType = panData?.type || panData?.pan_type || (isIndividual ? "Individual" : "Company");
-  const referenceId = panData?.reference_id ?? 161;
+  const referenceId = panData?.reference_id ?? "-";
   const nameMatchScore = panData?.name_match_score ?? 100;
-  const nameMatchResult = panData?.name_match_result || "DIRECT_MATCH";
+  const nameMatchResult = panData?.name_match_result || "MATCH";
   const aadhaarDesc = panData?.aadhaar_seeding_status_desc || "Aadhaar is linked to PAN";
-  const lastUpdated = panData?.last_updated_at || "01/01/2019";
+  const lastUpdated = panData?.last_updated_at || "N/A";
   const panStatus = panData?.pan_status || "VALID";
 
   return (

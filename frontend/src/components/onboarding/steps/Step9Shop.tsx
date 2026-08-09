@@ -9,10 +9,10 @@ interface Step9Props {
 }
 
 export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) => {
-  const [shopName, setShopName] = useState("Sri Venkateswara Telecom");
+  const [shopName, setShopName] = useState("");
   const [category, setCategory] = useState("Recharge & FinTech");
-  const [yearsInBusiness, setYearsInBusiness] = useState("5");
-  const [employees, setEmployees] = useState("3");
+  const [yearsInBusiness, setYearsInBusiness] = useState("");
+  const [employees, setEmployees] = useState("");
   const [annualTurnover, setAnnualTurnover] = useState("₹50 Lakhs - ₹1 Crore");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");

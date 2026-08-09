@@ -9,14 +9,14 @@ interface Step10Props {
 }
 
 export const Step10Address: React.FC<Step10Props> = ({ registrationId, onSuccess }) => {
-  const [street, setStreet] = useState("100 GST Road");
-  const [city, setCity] = useState("Chennai");
-  const [district, setDistrict] = useState("Chengalpattu");
-  const [stateName, setStateName] = useState("Tamil Nadu");
-  const [pincode, setPincode] = useState("600045");
-  const [latitude, setLatitude] = useState<number | null>(12.9249);
-  const [longitude, setLongitude] = useState<number | null>(80.1000);
-  const [shopPhotoUrl, setShopPhotoUrl] = useState("https://cdn.pay2pay.in/shops/shop_front.jpg");
+  const [street, setStreet] = useState("");
+  const [city, setCity] = useState("");
+  const [district, setDistrict] = useState("");
+  const [stateName, setStateName] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [shopPhotoUrl, setShopPhotoUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetchingGps, setFetchingGps] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
