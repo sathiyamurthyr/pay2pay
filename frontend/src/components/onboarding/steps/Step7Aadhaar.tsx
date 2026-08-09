@@ -24,8 +24,8 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
   const [ekycResult, setEkycResult] = useState<any>(null);
 
   // Editable fields for Screen 3
-  const [editableHouse, setEditableHouse] = useState("15");
-  const [editableLandmark, setEditableLandmark] = useState("Near Gandhi Statue");
+  const [editableHouse, setEditableHouse] = useState("");
+  const [editableLandmark, setEditableLandmark] = useState("");
   const [editableAltAddress, setEditableAltAddress] = useState("");
 
   const otpInputRef = useRef<HTMLInputElement>(null);
@@ -432,12 +432,12 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Read-Only Customer Profile
                 </span>
                 <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                  {ekycResult.full_name || ekycResult.name || "SATHIYA MURTHY R"}
+                  {ekycResult.full_name || ekycResult.name || "—"}
                 </h4>
                 <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
-                  <span>DOB: {ekycResult.dob || "1994-05-10"}</span>
+                  <span>DOB: {ekycResult.dob || "—"}</span>
                   <span>•</span>
-                  <span>Gender: {ekycResult.gender || "MALE"}</span>
+                  <span>Gender: {ekycResult.gender || "—"}</span>
                 </div>
               </div>
             </div>
@@ -449,7 +449,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Masked Aadhaar
                 </span>
                 <p className="font-mono font-black text-slate-900 dark:text-white text-sm tracking-wider">
-                  {ekycResult.aadhaar_masked || maskedAadhaarDisplay}
+                  {ekycResult.aadhaar_masked || ekycResult.aadhaar_number || maskedAadhaarDisplay}
                 </p>
               </div>
 
@@ -458,7 +458,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Street
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.street || "GANDHI STREET"}
+                  {ekycResult.street || ekycResult.address?.street || "—"}
                 </p>
               </div>
 
@@ -467,7 +467,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Locality
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.locality || "VELACHERY"}
+                  {ekycResult.locality || ekycResult.address?.locality || ekycResult.address?.loc || "—"}
                 </p>
               </div>
 
@@ -476,7 +476,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   City / Town
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.city || ekycResult.village || "CHENNAI"}
+                  {ekycResult.city || ekycResult.village || ekycResult.address?.city || ekycResult.address?.vtc || "—"}
                 </p>
               </div>
 
@@ -485,7 +485,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   District
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.district || "CHENNAI"}
+                  {ekycResult.district || ekycResult.address?.district || ekycResult.address?.dist || "—"}
                 </p>
               </div>
 
@@ -494,7 +494,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   State
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.state || "TAMIL NADU"}
+                  {ekycResult.state || ekycResult.address?.state || "—"}
                 </p>
               </div>
 
@@ -503,7 +503,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   PIN Code
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.pincode || "600042"}
+                  {ekycResult.pincode || ekycResult.address?.pincode || ekycResult.address?.zip || "—"}
                 </p>
               </div>
 
@@ -512,7 +512,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Country
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.country || "INDIA"}
+                  {ekycResult.country || ekycResult.address?.country || "INDIA"}
                 </p>
               </div>
             </div>
