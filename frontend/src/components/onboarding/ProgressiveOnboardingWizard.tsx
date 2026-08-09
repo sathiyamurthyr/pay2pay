@@ -91,6 +91,19 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
     setTimeout(() => setAutoSaveToast(""), 3000);
   };
 
+  const handleBack = () => {
+    if (currentStep <= 1) return;
+    if (currentStep === 66) {
+      setCurrentStep(6);
+    } else if (currentStep === 7 && !isBusiness) {
+      setCurrentStep(6);
+    } else if (currentStep === 7 && isBusiness) {
+      setCurrentStep(66);
+    } else {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   const handleStepComplete = (nextStepNum: number, updatedDraftData?: any) => {
     triggerAutoSaveToast();
     if (updatedDraftData) {
@@ -176,17 +189,17 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
             return (
               <button
                 key={stepNum}
-                onClick={() => isDone && setCurrentStep(stepNum)}
-                disabled={!isDone && !isCurrent}
+                onClick={() => (isDone || stepNum <= currentStep) && setCurrentStep(stepNum)}
+                disabled={!isDone && stepNum > currentStep}
                 className={`px-2.5 py-1 rounded-xl text-[10px] font-black shrink-0 transition-all flex items-center gap-1 ${
                   isCurrent
                     ? "bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-400"
-                    : isDone
+                    : isDone || stepNum < currentStep
                     ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 cursor-pointer hover:bg-emerald-500/20"
                     : "bg-slate-900 border border-slate-800 text-slate-600 cursor-not-allowed"
                 }`}
               >
-                {isDone ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Lock className="w-2.5 h-2.5" />}
+                {isDone || stepNum < currentStep ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Lock className="w-2.5 h-2.5" />}
                 <span>{stepNum === 66 ? "6A: GST" : `Step ${stepNum}`}</span>
               </button>
             );
@@ -205,6 +218,17 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
             transition={{ duration: 0.3 }}
             className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl"
           >
+            {currentStep > 1 && (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-xs font-extrabold text-slate-700 dark:text-slate-300 transition-all border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-blue-500" />
+                <span>Back</span>
+              </button>
+            )}
+
             {currentStep === 1 && (
               <Step1Mobile
                 onSuccess={(regId, mob, isResumed, savedStep) => {
@@ -254,6 +278,7 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
             {currentStep === 6 && (
               <Step6Pan
                 registrationId={registrationId}
+                onBack={handleBack}
                 onSuccess={(nextStepNum, isBiz, panData) => {
                   setIsBusiness(isBiz);
                   handleStepComplete(nextStepNum, { pan: panData });

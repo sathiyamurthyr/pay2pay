@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import {
   FileText,
   ArrowRight,
+  ArrowLeft,
   Loader2,
   AlertCircle,
   CheckCircle2,
@@ -16,9 +17,10 @@ import {
 interface Step6Props {
   registrationId: string;
   onSuccess: (nextStepNum: number, isBusiness: boolean, panData: any) => void;
+  onBack?: () => void;
 }
 
-export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) => {
+export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess, onBack }) => {
   const [panNumber, setPanNumber] = useState("DAQPS8535F");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -117,23 +119,35 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading || !isValidFormat}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Verifying PAN...</span>
-              </>
-            ) : (
-              <>
-                <span>Verify PAN & Proceed</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-4 py-4 rounded-2xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <ArrowLeft className="w-4 h-4 text-slate-400" />
+                <span>Back</span>
+              </button>
             )}
-          </button>
+            <button
+              type="submit"
+              disabled={loading || !isValidFormat}
+              className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verifying PAN...</span>
+                </>
+              ) : (
+                <>
+                  <span>Verify PAN & Proceed</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
         </form>
       ) : (
         /* After Verification: Minimal Retailer-Focused Screen */
@@ -210,6 +224,16 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
 
           {/* Buttons */}
           <div className="pt-2 flex items-center justify-between gap-3">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setPanData(null)}
