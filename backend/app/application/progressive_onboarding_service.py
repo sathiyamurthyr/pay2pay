@@ -490,8 +490,7 @@ class ProgressiveOnboardingService:
             "status": "SUCCESS",
             "message": cf_res.get("message") or "Aadhaar OTP sent via Cashfree eKYC Gateway.",
             "ref_id": ref_id,
-            "masked_aadhaar": masked_aadhaar,
-            "simulated_otp": "778899"
+            "masked_aadhaar": masked_aadhaar
         }
 
     @staticmethod
@@ -541,7 +540,13 @@ class ProgressiveOnboardingService:
         country_val = ekyc_profile.get("country") or "INDIA"
         pincode_val = ekyc_profile.get("pincode") or "600042"
         care_of_val = ekyc_profile.get("care_of") or "S/O R MURTHY"
-        photo_url_val = ekyc_profile.get("photo_url") or ekyc_profile.get("photo_avatar") or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
+        photo_url_val = (
+            ekyc_profile.get("photo_url")
+            or ekyc_profile.get("photo_base64")
+            or ekyc_profile.get("photo_avatar")
+            or ekyc_profile.get("photo")
+            or ""
+        )
 
         address_dict = {
             "care_of": care_of_val,
@@ -628,7 +633,8 @@ class ProgressiveOnboardingService:
             "full_name": retailer_name,
             "dob": aadhaar_model.dob,
             "gender": aadhaar_model.gender,
-            "photo_url": photo_url_val,
+            "photo_url": photo_url_val if photo_url_val.startswith("http") else "",
+            "photo_base64": photo_url_val if not photo_url_val.startswith("http") else "",
             "care_of": care_of_val,
             "house": house_val,
             "street": street_val,

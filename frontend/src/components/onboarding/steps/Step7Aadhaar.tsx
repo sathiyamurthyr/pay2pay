@@ -57,6 +57,19 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
     return `data:image/jpeg;base64,${raw}`;
   };
 
+  // Helper to extract properties from ekycResult across top-level, aadhaar, address, or raw_response
+  const getVal = (res: any, keys: string[], defaultVal: string = "—") => {
+    if (!res) return defaultVal;
+    for (const k of keys) {
+      if (res[k]) return res[k];
+      if (res.aadhaar && res.aadhaar[k]) return res.aadhaar[k];
+      if (res.address && res.address[k]) return res.address[k];
+      if (res.raw_response && res.raw_response[k]) return res.raw_response[k];
+      if (res.raw_response?.address && res.raw_response.address[k]) return res.raw_response.address[k];
+    }
+    return defaultVal;
+  };
+
   // Countdown timer effect
   useEffect(() => {
     let timer: any;
@@ -150,51 +163,14 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
         setEkycResult(data);
         if (data.house) setEditableHouse(data.house);
       } else {
-        // Fallback eKYC Profile
-        const fallbackData = {
-          aadhaar_masked: maskedAadhaarDisplay,
-          full_name: "SATHIYA MURTHY R",
-          dob: "1994-05-10",
-          gender: "MALE",
-          photo_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          care_of: "S/O R MURTHY",
-          house: "15",
-          street: "GANDHI STREET",
-          locality: "VELACHERY",
-          village: "CHENNAI",
-          city: "CHENNAI",
-          district: "CHENNAI",
-          state: "TAMIL NADU",
-          country: "INDIA",
-          pincode: "600042",
-          full_address: "15, GANDHI STREET, VELACHERY, CHENNAI, TAMIL NADU - 600042"
-        };
-        setEkycResult(fallbackData);
-        setEditableHouse("15");
+        const errMsg = data.detail || data.message || "OTP verification failed. Please check the code and try again.";
+        setErrorMsg(errMsg);
+        setRemainingAttempts((prev) => prev - 1);
       }
     } catch {
       setLoading(false);
       setRemainingAttempts((prev) => prev - 1);
-      const fallbackData = {
-        aadhaar_masked: maskedAadhaarDisplay,
-        full_name: "SATHIYA MURTHY R",
-        dob: "1994-05-10",
-        gender: "MALE",
-        photo_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-        care_of: "S/O R MURTHY",
-        house: "15",
-        street: "GANDHI STREET",
-        locality: "VELACHERY",
-        village: "CHENNAI",
-        city: "CHENNAI",
-        district: "CHENNAI",
-        state: "TAMIL NADU",
-        country: "INDIA",
-        pincode: "600042",
-        full_address: "15, GANDHI STREET, VELACHERY, CHENNAI, TAMIL NADU - 600042"
-      };
-      setEkycResult(fallbackData);
-      setEditableHouse("15");
+      setErrorMsg("Network error. Please check your connection and try again.");
     }
   };
 
@@ -443,12 +419,12 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Read-Only Customer Profile
                 </span>
                 <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                  {ekycResult.full_name || ekycResult.name || "—"}
+                  {getVal(ekycResult, ["full_name", "name"], "—")}
                 </h4>
                 <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
-                  <span>DOB: {ekycResult.dob || "—"}</span>
+                  <span>DOB: {getVal(ekycResult, ["dob", "date_of_birth"], "—")}</span>
                   <span>•</span>
-                  <span>Gender: {ekycResult.gender || "—"}</span>
+                  <span>Gender: {getVal(ekycResult, ["gender"], "—")}</span>
                 </div>
               </div>
             </div>
@@ -460,7 +436,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Masked Aadhaar
                 </span>
                 <p className="font-mono font-black text-slate-900 dark:text-white text-sm tracking-wider">
-                  {ekycResult.aadhaar_masked || ekycResult.aadhaar_number || maskedAadhaarDisplay}
+                  {getVal(ekycResult, ["aadhaar_masked", "aadhaar_number", "masked_aadhaar"], maskedAadhaarDisplay)}
                 </p>
               </div>
 
@@ -469,7 +445,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Street
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.street || ekycResult.address?.street || "—"}
+                  {getVal(ekycResult, ["street"], "—")}
                 </p>
               </div>
 
@@ -478,7 +454,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Locality
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.locality || ekycResult.address?.locality || ekycResult.address?.loc || "—"}
+                  {getVal(ekycResult, ["locality", "loc"], "—")}
                 </p>
               </div>
 
@@ -487,7 +463,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   City / Town
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.city || ekycResult.village || ekycResult.address?.city || ekycResult.address?.vtc || "—"}
+                  {getVal(ekycResult, ["city", "village", "vtc", "village_town_city"], "—")}
                 </p>
               </div>
 
@@ -496,7 +472,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   District
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.district || ekycResult.address?.district || ekycResult.address?.dist || "—"}
+                  {getVal(ekycResult, ["district", "dist"], "—")}
                 </p>
               </div>
 
@@ -505,7 +481,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   State
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.state || ekycResult.address?.state || "—"}
+                  {getVal(ekycResult, ["state"], "—")}
                 </p>
               </div>
 
@@ -514,7 +490,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   PIN Code
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.pincode || ekycResult.address?.pincode || ekycResult.address?.zip || "—"}
+                  {getVal(ekycResult, ["pincode", "zip"], "—")}
                 </p>
               </div>
 
@@ -523,7 +499,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
                   Country
                 </span>
                 <p className="font-extrabold text-slate-800 dark:text-slate-200">
-                  {ekycResult.country || ekycResult.address?.country || "INDIA"}
+                  {getVal(ekycResult, ["country"], "INDIA")}
                 </p>
               </div>
             </div>
