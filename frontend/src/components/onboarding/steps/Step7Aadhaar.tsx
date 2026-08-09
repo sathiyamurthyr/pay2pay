@@ -46,6 +46,17 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
     ? `XXXXXXXX${cleanAadhaar.slice(-4)}` 
     : "XXXXXXXX4748";
 
+  // Helper to format profile photo source (handles base64 strings & HTTP URLs)
+  const getPhotoSrc = (res: any) => {
+    if (!res) return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200";
+    const raw = res.photo || res.photo_url || res.photo_base64 || res.photo_avatar;
+    if (!raw) return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200";
+    if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://")) {
+      return raw;
+    }
+    return `data:image/jpeg;base64,${raw}`;
+  };
+
   // Countdown timer effect
   useEffect(() => {
     let timer: any;
@@ -423,9 +434,9 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
             {/* Header: Photo + Name + DOB + Gender */}
             <div className="flex items-center gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <img
-                src={ekycResult.photo_url || ekycResult.photo || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"}
+                src={getPhotoSrc(ekycResult)}
                 alt="Profile Photo"
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-md shrink-0"
+                className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-md shrink-0 bg-slate-200 dark:bg-slate-800"
               />
               <div className="space-y-1">
                 <span className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">
