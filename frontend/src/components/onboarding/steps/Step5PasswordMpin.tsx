@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Lock, KeyRound, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Lock, KeyRound, ArrowRight, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 
 interface Step5Props {
   registrationId: string;
@@ -11,6 +11,8 @@ interface Step5Props {
 export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSuccess }) => {
   const [password, setPassword] = useState("Retailer#2026");
   const [mpin, setMpin] = useState("1234");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showMpin, setShowMpin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -86,7 +88,7 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
           <div className="relative">
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
@@ -94,8 +96,15 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
               }}
               placeholder="••••••••••••"
               required
-              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+              className="w-full pl-11 pr-11 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none cursor-pointer"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
 
           {/* Strength Bar */}
@@ -137,7 +146,7 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
           <div className="relative">
             <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
-              type="password"
+              type={showMpin ? "text" : "password"}
               value={mpin}
               onChange={(e) => {
                 setMpin(e.target.value.replace(/\D/g, "").slice(0, 4));
@@ -145,8 +154,15 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
               }}
               placeholder="1234"
               required
-              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black tracking-widest text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+              className="w-full pl-11 pr-11 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black tracking-widest text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
+            <button
+              type="button"
+              onClick={() => setShowMpin(!showMpin)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none cursor-pointer"
+            >
+              {showMpin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
           <p className="text-[11px] font-medium text-slate-400 mt-1">
             Used for approving high-value transactions & settlement payouts.
