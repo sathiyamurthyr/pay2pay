@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from app.application.cashfree_service import CashfreeVerificationService
 from app.infrastructure.adapters.whatsapp_service import whatsapp_service
+from app.infrastructure.adapters.email_service import email_service
 from app.infrastructure.db.auth_models import AuthUserModel
 from app.infrastructure.db.registration_models import (
     RegistrationDraftModel, RegistrationProgressModel, RegistrationPanModel,
@@ -161,6 +162,17 @@ class ProgressiveOnboardingService:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
         email_otp = "556677"
+
+        # Dispatch real or simulated Email OTP via EmailService
+        email_dispatch_status = "PENDING"
+        try:
+            email_res = await email_service.send_otp(clean_email, email_otp)
+            print(f"[EMAIL DISPATCH] Email: {clean_email} | OTP: {email_otp} | Result: {email_res}")
+            email_dispatch_status = email_res.get("status", "SIMULATED")
+        except Exception as e:
+            print(f"[EMAIL DISPATCH ERROR] {e}")
+            email_dispatch_status = "FAILED"
+
         draft_data = dict(draft.draft_data)
         draft_data["email"] = clean_email
         draft_data["email_otp"] = email_otp
@@ -179,7 +191,8 @@ class ProgressiveOnboardingService:
             "status": "SUCCESS",
             "message": f"OTP dispatched to email {clean_email}.",
             "email": clean_email,
-            "simulated_otp": email_otp
+            "simulated_otp": email_otp,
+            "email_status": email_dispatch_status
         }
 
     @staticmethod

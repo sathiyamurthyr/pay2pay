@@ -212,12 +212,26 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
           ) : (
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 setCountdown(60);
                 setErrorMsg("");
                 setOtpDigits(["", "", "", "", "", ""]);
+                try {
+                  const res = await fetch("http://localhost:8000/api/v1/onboarding/check-email", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ registration_id: registrationId, email })
+                  });
+                  const data = await res.json();
+                  if (data.simulated_otp) {
+                    setSimulatedOtp(data.simulated_otp);
+                    localStorage.setItem("pay2pay_email_otp_hint", data.simulated_otp);
+                  }
+                } catch (err) {
+                  console.error("Failed to resend email OTP:", err);
+                }
               }}
-              className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
               <RefreshCw className="w-3 h-3" />
               <span>Resend Email OTP</span>
