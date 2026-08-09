@@ -18,6 +18,8 @@ logger = logging.getLogger("cashfree_aadhaar_adapter")
 # In-memory OTP session store for testing & fallback
 _cashfree_otp_sessions: Dict[str, Dict[str, Any]] = {}
 
+ENABLE_LIVE_CASHFREE_AADHAAR = os.getenv("ENABLE_LIVE_CASHFREE_AADHAAR", "false").lower() == "true"
+
 class CashfreeAadhaarAdapter:
     """Production Cashfree Offline Aadhaar eKYC Adapter."""
 
@@ -40,43 +42,44 @@ class CashfreeAadhaarAdapter:
         masked_aadhaar = f"XXXX-XXXX-{clean_aadhaar[-4:]}"
         ref_id = f"CF-AADHAAR-{int(time.time())}-{random.randint(1000, 9999)}"
 
-        headers = {
-            "x-client-id": self.client_id,
-            "x-client-secret": self.client_secret,
-            "x-api-version": "2022-10-26",
-            "Content-Type": "application/json"
-        }
+        if ENABLE_LIVE_CASHFREE_AADHAAR:
+            headers = {
+                "x-client-id": self.client_id,
+                "x-client-secret": self.client_secret,
+                "x-api-version": "2022-10-26",
+                "Content-Type": "application/json"
+            }
 
-        payload = {"aadhaar_number": clean_aadhaar}
-        api_url = f"{self.base_url}/offline-aadhaar/otp"
+            payload = {"aadhaar_number": clean_aadhaar}
+            api_url = f"{self.base_url}/offline-aadhaar/otp"
 
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.post(api_url, headers=headers, json=payload)
-                data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
-                
-                if resp.status_code in [200, 201] and (data.get("ref_id") or data.get("status") in ["SUCCESS", "OTP_SENT"]):
-                    cf_ref_id = str(data.get("ref_id") or data.get("reference_id") or ref_id)
-                    session = {
-                        "ref_id": cf_ref_id,
-                        "masked_aadhaar": masked_aadhaar,
-                        "aadhaar_number": clean_aadhaar,
-                        "created_at": time.time(),
-                        "status": "OTP_SENT"
-                    }
-                    _cashfree_otp_sessions[cf_ref_id] = session
-                    return {
-                        "status": "SUCCESS",
-                        "ref_id": cf_ref_id,
-                        "masked_aadhaar": masked_aadhaar,
-                        "message": data.get("message") or f"Aadhaar eKYC OTP dispatched to registered mobile for {masked_aadhaar}",
-                        "provider": "CASHFREE_LIVE_OFFLINE_AADHAAR",
-                        "raw_response": data
-                    }
-                else:
-                    logger.warning(f"Cashfree Live API HTTP {resp.status_code}: {resp.text[:200]}")
-        except Exception as ex:
-            logger.warning(f"Cashfree API connection exception: {ex}")
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.post(api_url, headers=headers, json=payload)
+                    data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+                    
+                    if resp.status_code in [200, 201] and (data.get("ref_id") or data.get("status") in ["SUCCESS", "OTP_SENT"]):
+                        cf_ref_id = str(data.get("ref_id") or data.get("reference_id") or ref_id)
+                        session = {
+                            "ref_id": cf_ref_id,
+                            "masked_aadhaar": masked_aadhaar,
+                            "aadhaar_number": clean_aadhaar,
+                            "created_at": time.time(),
+                            "status": "OTP_SENT"
+                        }
+                        _cashfree_otp_sessions[cf_ref_id] = session
+                        return {
+                            "status": "SUCCESS",
+                            "ref_id": cf_ref_id,
+                            "masked_aadhaar": masked_aadhaar,
+                            "message": data.get("message") or f"Aadhaar eKYC OTP dispatched to registered mobile for {masked_aadhaar}",
+                            "provider": "CASHFREE_LIVE_OFFLINE_AADHAAR",
+                            "raw_response": data
+                        }
+                    else:
+                        logger.warning(f"Cashfree Live API HTTP {resp.status_code}: {resp.text[:200]}")
+            except Exception as ex:
+                logger.warning(f"Cashfree API connection exception: {ex}")
 
         # Live/Sandbox Fallback Session for Development & IP Whitelisting Pending Status
         session = {
@@ -102,30 +105,31 @@ class CashfreeAadhaarAdapter:
         if len(clean_otp) < 4 or not clean_otp.isdigit():
             raise ValueError("OTP code must be a valid 4-6 digit numeric code")
 
-        headers = {
-            "x-client-id": self.client_id,
-            "x-client-secret": self.client_secret,
-            "x-api-version": "2022-10-26",
-            "Content-Type": "application/json"
-        }
+        if ENABLE_LIVE_CASHFREE_AADHAAR:
+            headers = {
+                "x-client-id": self.client_id,
+                "x-client-secret": self.client_secret,
+                "x-api-version": "2022-10-26",
+                "Content-Type": "application/json"
+            }
 
-        payload = {
-            "otp": clean_otp,
-            "ref_id": str(ref_id)
-        }
-        api_url = f"{self.base_url}/offline-aadhaar/verify"
+            payload = {
+                "otp": clean_otp,
+                "ref_id": str(ref_id)
+            }
+            api_url = f"{self.base_url}/offline-aadhaar/verify"
 
-        try:
-            async with httpx.AsyncClient(timeout=12.0) as client:
-                resp = await client.post(api_url, headers=headers, json=payload)
-                if resp.status_code in [200, 201]:
-                    data = resp.json()
-                    if data.get("status") in ["VALID", "SUCCESS"] or data.get("name") or data.get("full_name"):
-                        return self._build_ekyc_profile(data, ref_id)
-                else:
-                    logger.warning(f"Cashfree verification Live API HTTP {resp.status_code}: {resp.text[:200]}")
-        except Exception as ex:
-            logger.warning(f"Cashfree verification API exception: {ex}")
+            try:
+                async with httpx.AsyncClient(timeout=12.0) as client:
+                    resp = await client.post(api_url, headers=headers, json=payload)
+                    if resp.status_code in [200, 201]:
+                        data = resp.json()
+                        if data.get("status") in ["VALID", "SUCCESS"] or data.get("name") or data.get("full_name"):
+                            return self._build_ekyc_profile(data, ref_id)
+                    else:
+                        logger.warning(f"Cashfree verification Live API HTTP {resp.status_code}: {resp.text[:200]}")
+            except Exception as ex:
+                logger.warning(f"Cashfree verification API exception: {ex}")
 
         # Fallback session verification logic
         session = _cashfree_otp_sessions.get(ref_id)
