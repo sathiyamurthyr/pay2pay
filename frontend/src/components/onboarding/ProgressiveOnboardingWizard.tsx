@@ -308,6 +308,7 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
             {currentStep === 7 && (
               <Step7Aadhaar
                 registrationId={registrationId}
+                onBack={handleBack}
                 onSuccess={(aadhaarData) => handleStepComplete(8, { aadhaar: aadhaarData })}
               />
             )}
