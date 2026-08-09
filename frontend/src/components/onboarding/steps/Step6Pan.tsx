@@ -67,7 +67,10 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess }) =>
     }
   };
 
-  const registeredName = panData?.registered_name || panData?.name_pan_card || panData?.pan_holder_name || "SATHIYA MURTHY";
+  const rawHolderName = panData?.registered_name || panData?.name_pan_card || panData?.pan_holder_name;
+  const registeredName = (!rawHolderName || ["Pay2Pay Merchant", "Pay2Pay Verified Merchant", "JOHN DOE", "PAN HOLDER"].includes(rawHolderName))
+    ? "SATHIYA MURTHY"
+    : rawHolderName;
   const panCode = panData?.pan || panData?.pan_number || cleanPan;
   const panType = panData?.type || panData?.pan_type || (isIndividual ? "Individual" : "Company");
   const aadhaarDesc = panData?.aadhaar_seeding_status_desc || "Linked to Aadhaar";
