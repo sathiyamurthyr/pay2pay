@@ -148,12 +148,16 @@ from app.presentation.api.v1 import retailer_dashboard_router
 from app.presentation.api.v1 import session_security_router
 from app.presentation.api.v1 import report_center_router
 from app.presentation.api.v1 import progressive_onboarding_router
+from app.presentation.api.v1 import admin_verification_router
+from app.presentation.api.v1 import retailer_verification_router
 app.include_router(retailer_dashboard_router.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(session_security_router.router, prefix=settings.API_V1_STR)
 app.include_router(report_center_router.router, prefix=settings.API_V1_STR)
 app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_verification_router.router, prefix=settings.API_V1_STR)
+app.include_router(retailer_verification_router.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])

@@ -659,6 +659,26 @@ class ProgressiveOnboardingService:
         )
         db.add(audit)
 
+        # Trigger Verification Workflow Creation
+        from app.application.verification_service import VerificationService
+        draft_d = draft.draft_data or {}
+        ret_name = draft_d.get("pan", {}).get("holder_name") or draft_d.get("aadhaar", {}).get("full_name") or "Retailer Partner"
+        shop_n = draft_d.get("shop", {}).get("shop_name") or "Sri Venkateswara Telecom"
+        
+        await VerificationService.create_verification_request(
+            db=db,
+            registration_id=registration_id,
+            retailer_name=ret_name,
+            mobile_number=draft.mobile_number,
+            email=draft.email,
+            shop_name=shop_n,
+            is_business=draft.is_business,
+            pan_number=draft_d.get("pan", {}).get("pan_number"),
+            gst_number=draft_d.get("gst", {}).get("gst_number"),
+            state=draft_d.get("address", {}).get("state", "Tamil Nadu"),
+            district=draft_d.get("address", {}).get("district", "Chennai")
+        )
+
         await db.commit()
 
         return {
