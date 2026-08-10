@@ -71,7 +71,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
       const mob = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile")) : null;
       const targetQuery = identifier || regId || mob || "9176669426";
 
-      fetch(`http://localhost:8000/api/v1/onboarding/support-info/${targetQuery}`)
+      fetch(`/api/v1/onboarding/support-info/${targetQuery}`)
         .then((res) => res.json())
         .then((resData) => {
           if (resData.status === "SUCCESS" || resData.company) {

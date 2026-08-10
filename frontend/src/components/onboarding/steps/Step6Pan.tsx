@@ -42,7 +42,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess, onBa
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/verify-pan", {
+      const res = await fetch("/api/v1/onboarding/verify-pan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId, pan_number: cleanPan })

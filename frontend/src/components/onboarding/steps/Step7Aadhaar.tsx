@@ -103,7 +103,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/send-aadhaar-otp", {
+      const res = await fetch("/api/v1/onboarding/send-aadhaar-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId, aadhaar_number: cleanAadhaar })
@@ -151,7 +151,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/verify-aadhaar-otp", {
+      const res = await fetch("/api/v1/onboarding/verify-aadhaar-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId, ref_id: refId, otp_code: otpCode })

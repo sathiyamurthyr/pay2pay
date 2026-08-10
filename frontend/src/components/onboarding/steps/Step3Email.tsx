@@ -25,7 +25,7 @@ export const Step3Email: React.FC<Step3Props> = ({ registrationId, onSuccess }) 
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/check-email", {
+      const res = await fetch("/api/v1/onboarding/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId, email: clean })

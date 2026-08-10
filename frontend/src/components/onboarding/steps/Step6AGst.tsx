@@ -25,7 +25,7 @@ export const Step6AGst: React.FC<Step6AProps> = ({ registrationId, onSuccess }) 
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/verify-gst", {
+      const res = await fetch("/api/v1/onboarding/verify-gst", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId, gst_number: clean })

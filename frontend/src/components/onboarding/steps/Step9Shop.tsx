@@ -37,7 +37,7 @@ export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) =
     };
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/shop-details", {
+      const res = await fetch("/api/v1/onboarding/shop-details", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

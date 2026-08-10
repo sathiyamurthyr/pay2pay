@@ -43,7 +43,7 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
     setRefreshMsg("");
     try {
       const mobile = localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile") || "9176669426";
-      const res = await fetch(`http://localhost:8000/api/v1/onboarding/status/${mobile}`);
+      const res = await fetch(`/api/v1/onboarding/status/${mobile}`);
       const data = await res.json();
       setIsRefreshing(false);
       if (data.status === "SUCCESS") {

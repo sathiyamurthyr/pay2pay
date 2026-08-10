@@ -235,7 +235,7 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({
   const handleSubmitFinal = async () => {
     setSubmitting(true);
     try {
-      const res  = await fetch("http://localhost:8000/api/v1/onboarding/submit", {
+      const res = await fetch("/api/v1/onboarding/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId })

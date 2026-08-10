@@ -42,7 +42,7 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/create-credentials", {
+      const res = await fetch("/api/v1/onboarding/create-credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId, password, mpin })

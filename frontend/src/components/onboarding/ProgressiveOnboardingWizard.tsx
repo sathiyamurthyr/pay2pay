@@ -69,7 +69,7 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
     const savedMobile = localStorage.getItem("pay2pay_reg_mobile");
 
     if (savedRegId || savedMobile) {
-      fetch(`http://localhost:8000/api/v1/onboarding/resume/${savedRegId || savedMobile}`)
+      fetch(`/api/v1/onboarding/resume/${savedRegId || savedMobile}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.status === "SUCCESS") {

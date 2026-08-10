@@ -143,10 +143,10 @@ export const Step12Video: React.FC<Step12Props> = ({ registrationId, onSuccess }
         form.append("video", videoBlob, "kyc_video.webm");
         form.append("duration_seconds", String(seconds || RECORD_SECS));
         form.append("script_text", scriptText);
-        const res = await fetch("http://localhost:8000/api/v1/onboarding/upload-video-file", { method: "POST", body: form });
+        const res = await fetch("/api/v1/onboarding/upload-video-file", { method: "POST", body: form });
         if (!res.ok) throw new Error("upload");
       } else {
-        await fetch("http://localhost:8000/api/v1/onboarding/upload-video", {
+        await fetch("/api/v1/onboarding/upload-video", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ registration_id: registrationId, video_url: "https://cdn.pay2pay.in/videos/kyc_teleprompter.mp4", duration_seconds: seconds || RECORD_SECS, script_text: scriptText })
         });

@@ -38,7 +38,7 @@ export const Step8Bank: React.FC<Step8Props> = ({ registrationId, onSuccess }) =
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/verify-bank", {
+      const res = await fetch("/api/v1/onboarding/verify-bank", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

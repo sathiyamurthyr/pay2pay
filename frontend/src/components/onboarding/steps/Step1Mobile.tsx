@@ -24,7 +24,7 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/check-mobile", {
+      const res = await fetch("/api/v1/onboarding/check-mobile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile_number: clean })

@@ -83,7 +83,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/verify-email-otp", {
+      const res = await fetch("/api/v1/onboarding/verify-email-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId, otp_code: otpValue })
@@ -184,7 +184,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
                 setErrorMsg("");
                 setOtpDigits(["", "", "", "", "", ""]);
                 try {
-                  const res = await fetch("http://localhost:8000/api/v1/onboarding/check-email", {
+                  const res = await fetch("/api/v1/onboarding/check-email", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ registration_id: registrationId, email })

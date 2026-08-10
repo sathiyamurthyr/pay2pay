@@ -82,13 +82,13 @@ export const Step11Documents: React.FC<Step11Props> = ({
       formData.append("registration_id", registrationId);
       formData.append("doc_type", key.toUpperCase());
       formData.append("file", file);
-      const res = await fetch("http://localhost:8000/api/v1/onboarding/upload-document-file", { method: "POST", body: formData });
+      const res = await fetch("/api/v1/onboarding/upload-document-file", { method: "POST", body: formData });
       if (!res.ok) throw new Error();
       setDocState(key, { state: "done" });
     } catch {
       // Fallback JSON endpoint or mark done locally (file is selected & previewed)
       try {
-        await fetch("http://localhost:8000/api/v1/onboarding/upload-document", {
+        await fetch("/api/v1/onboarding/upload-document", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ registration_id: registrationId, doc_type: key.toUpperCase(), file_name: file.name, file_url: `https://cdn.pay2pay.in/docs/${key}.jpg` })
@@ -103,7 +103,7 @@ export const Step11Documents: React.FC<Step11Props> = ({
   const handleNext = async () => {
     setSubmitting(true);
     try {
-      await fetch("http://localhost:8000/api/v1/onboarding/save-documents", {
+      await fetch("/api/v1/onboarding/save-documents", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId })
       });

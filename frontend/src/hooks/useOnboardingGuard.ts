@@ -43,7 +43,7 @@ export function useOnboardingGuard() {
     const regId = localStorage.getItem("pay2pay_reg_id");
     const queryKey = mobile;
 
-    fetch(`http://localhost:8000/api/v1/onboarding/status/${queryKey}`)
+    fetch(`/api/v1/onboarding/status/${queryKey}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === "SUCCESS") {

@@ -27,7 +27,7 @@ export const OnboardingStatusDashboard: React.FC<OnboardingStatusDashboardProps>
     setLoading(true);
     const identifier = mobileNumber || localStorage.getItem("pay2pay_reg_mobile") || "9972334411";
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/retailer/verification/status?identifier=${identifier}`);
+      const res = await fetch(`/api/v1/retailer/verification/status?identifier=${identifier}`);
       const data = await res.json();
       setLoading(false);
       setStatusData(data);
