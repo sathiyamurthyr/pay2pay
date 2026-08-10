@@ -34,33 +34,35 @@ class CashfreeVerificationService:
     @classmethod
     def verify_pan(cls, pan_number: str, name: Optional[str] = None) -> Dict[str, Any]:
         """
-        Verify PAN Number with Cashfree v2 API.
-        URL: POST https://api.cashfree.com/verification/pan
+        Verify PAN Number with Cashfree v2 Advance API.
+        URL: POST https://api.cashfree.com/verification/pan/advance
         """
-        url = f"{CASHFREE_BASE_URL}/pan"
+        url = f"{CASHFREE_BASE_URL}/pan/advance"
         clean_pan = pan_number.strip().upper()
         fourth_char = clean_pan[3] if len(clean_pan) >= 4 else "P"
         pan_type = "Individual" if fourth_char == "P" else "Company"
 
+        headers = cls._get_headers()
+        headers["x-api-version"] = "2022-10-26"
+
+        import time
+        verif_id = f"PAN_{int(time.time() * 1000)}"
+
         payload = {
+            "verification_id": verif_id,
             "pan": clean_pan,
             "name": name or "SATHIYA MURTHY",
         }
 
-        if clean_pan in ["DAQPS8535F", "ABCPE1234F"]:
-            resolved_name = "SATHIYA MURTHY"
-        elif name and name not in ["Pay2Pay Merchant", "Pay2Pay Verified Merchant", "JOHN DOE", "Merchant"]:
-            resolved_name = name
-        else:
-            resolved_name = "SATHIYA MURTHY"
+        resolved_name = name or "SATHIYA MURTHY"
 
         try:
-            res = requests.post(url, json=payload, headers=cls._get_headers(), timeout=10)
+            res = requests.post(url, json=payload, headers=headers, timeout=10)
             data = res.json()
 
             if res.status_code == 200:
-                is_valid = data.get("valid", False)
-                fetched_name = data.get("registered_name") or data.get("name")
+                is_valid = data.get("valid", False) or data.get("status") == "VALID"
+                fetched_name = data.get("registered_name") or data.get("name_pan_card") or data.get("name")
                 if fetched_name and fetched_name not in ["Pay2Pay Merchant", "Pay2Pay Verified Merchant", "JOHN DOE"]:
                     resolved_name = fetched_name
 
@@ -76,48 +78,35 @@ class CashfreeVerificationService:
                     "message": data.get("message") or "PAN verified successfully",
                     "name_match_score": data.get("name_match_score", 100),
                     "name_match_result": data.get("name_match_result", "DIRECT_MATCH"),
-                    "aadhaar_seeding_status": data.get("aadhaar_seeding_status", "Y"),
-                    "aadhaar_seeding_status_desc": data.get("aadhaar_seeding_status_desc", "Aadhaar is linked to PAN"),
-                    "last_updated_at": data.get("last_updated_at", "01/01/2019"),
-                    "pan_status": data.get("pan_status", "VALID" if is_valid else "INVALID"),
+                    "aadhaar_seeding_status": "Y" if data.get("aadhaar_linked") else "N",
+                    "aadhaar_seeding_status_desc": "Aadhaar is linked to PAN" if data.get("aadhaar_linked") else "Aadhaar status checked",
+                    "last_updated_at": "01/01/2026",
+                    "pan_status": "VALID" if is_valid else "INVALID",
                     "cashfree_response": data,
                 }
             else:
                 return {
-                    "status": "VALID",
+                    "status": "INVALID",
                     "pan": clean_pan,
                     "type": pan_type,
                     "reference_id": 161,
                     "name_provided": resolved_name,
                     "registered_name": resolved_name,
                     "name_pan_card": resolved_name,
-                    "valid": True,
-                    "message": "PAN verified successfully",
-                    "name_match_score": 100,
-                    "name_match_result": "DIRECT_MATCH",
-                    "aadhaar_seeding_status": "Y",
-                    "aadhaar_seeding_status_desc": "Aadhaar is linked to PAN",
-                    "last_updated_at": "01/01/2019",
-                    "pan_status": "VALID",
+                    "valid": False,
+                    "message": data.get("message", "PAN Verification Failed"),
+                    "pan_status": "INVALID",
+                    "cashfree_response": data,
                 }
         except Exception as err:
             return {
-                "status": "VALID",
+                "status": "ERROR",
                 "pan": clean_pan,
                 "type": pan_type,
-                "reference_id": 161,
-                "name_provided": resolved_name if 'resolved_name' in locals() else "SATHIYA MURTHY",
-                "registered_name": resolved_name if 'resolved_name' in locals() else "SATHIYA MURTHY",
-                "name_pan_card": resolved_name if 'resolved_name' in locals() else "SATHIYA MURTHY",
-                "valid": True,
-                "message": f"PAN verified successfully ({err})",
-                "name_match_score": 100,
-                "name_match_result": "DIRECT_MATCH",
-                "aadhaar_seeding_status": "Y",
-                "aadhaar_seeding_status_desc": "Aadhaar is linked to PAN",
-                "last_updated_at": "01/01/2019",
-                "pan_status": "VALID",
+                "valid": False,
+                "message": f"PAN verification error: {err}",
             }
+
 
     @classmethod
     def verify_aadhaar(cls, aadhaar_number: str) -> Dict[str, Any]:
