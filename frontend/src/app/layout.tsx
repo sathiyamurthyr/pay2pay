@@ -21,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="light" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
-      <body className="antialiased min-h-screen bg-[#F8FAFC] text-[#111827]" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
+    <html lang="en" className="dark" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
+      <body className="antialiased min-h-screen bg-slate-950 text-slate-100" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
         <Script
           id="form-input-sanitizer"
           strategy="afterInteractive"

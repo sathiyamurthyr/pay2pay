@@ -61,7 +61,9 @@ jobs:
             echo "=== 3. BUILDING FRONTEND NEXT.JS ==="
             cd /home/ubuntu/pay2pay/frontend
             npm install --legacy-peer-deps
-            npm run build
+            NODE_OPTIONS="--max-old-space-size=1536" npx next build --webpack
+            cp -r .next/static .next/standalone/.next/
+            cp -r public .next/standalone/
 
             echo "=== 4. RESTARTING SERVICES ==="
             sudo systemctl restart pay2pay-backend

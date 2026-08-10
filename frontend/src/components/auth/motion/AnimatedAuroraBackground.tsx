@@ -74,10 +74,12 @@ export const AnimatedAuroraBackground: React.FC = () => {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent opacity-80" />
 
       {/* 4. Background Animated Line Graph SVG with Telemetry Data Nodes */}
-      <div className="absolute top-1/4 left-0 w-full opacity-15">
-        <svg viewBox="0 0 1000 300" className="w-full h-auto text-blue-500 stroke-current fill-none">
+      <div className="absolute top-1/4 left-0 w-full opacity-20 pointer-events-none">
+        <svg viewBox="0 0 1000 300" fill="none" stroke="currentColor" className="w-full h-auto text-blue-500">
           <motion.path
             d="M 0,150 Q 150,80 300,160 T 600,120 T 900,180 L 1000,100"
+            fill="none"
+            stroke="#3b82f6"
             strokeWidth="2"
             strokeDasharray="6 6"
             initial={{ pathLength: 0 }}
@@ -92,11 +94,13 @@ export const AnimatedAuroraBackground: React.FC = () => {
             { cx: 900, cy: 180 }
           ].map((dot, i) => (
             <g key={i}>
-              <circle cx={dot.cx} cy={dot.cy} r="4" className="fill-blue-400" />
+              <circle cx={dot.cx} cy={dot.cy} r="4" fill="#60a5fa" className="fill-blue-400" />
               <motion.circle
                 cx={dot.cx}
                 cy={dot.cy}
                 r="10"
+                fill="none"
+                stroke="#60a5fa"
                 className="stroke-blue-400 stroke-1 fill-none"
                 animate={{ scale: [1, 1.8, 1], opacity: [0.8, 0, 0.8] }}
                 transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.5 }}
@@ -132,11 +136,11 @@ export const AnimatedAuroraBackground: React.FC = () => {
         ))}
 
       {/* 6. Subtle Noise Texture Filter Layer */}
-      <svg className="absolute inset-0 w-full h-full opacity-[0.035] mix-blend-overlay">
+      <svg className="absolute inset-0 w-full h-full opacity-[0.035] pointer-events-none">
         <filter id="noiseFilter">
           <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" />
         </filter>
-        <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+        <rect width="100%" height="100%" filter="url(#noiseFilter)" fill="none" />
       </svg>
     </div>
   );

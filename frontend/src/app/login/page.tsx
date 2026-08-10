@@ -6,7 +6,7 @@ import { AuthPanel } from "@/components/auth/AuthPanel";
 
 export default function EnterpriseLoginPage() {
   return (
-    <main className="w-full min-h-screen bg-slate-950 font-sans antialiased flex flex-col lg:flex-row 2xl:max-w-[2560px] 2xl:mx-auto">
+    <main className="w-full min-h-screen bg-slate-950 text-slate-50 font-sans antialiased flex flex-col lg:flex-row 2xl:max-w-[2560px] 2xl:mx-auto">
       {/* Left 58% Hero Section — hidden on mobile, sticky on desktop */}
       <div className="hidden lg:flex lg:w-[58%] xl:w-[60%] 2xl:w-[62%] min-h-screen sticky top-0 h-screen overflow-hidden flex-col justify-between shrink-0">
         <HeroSection />
