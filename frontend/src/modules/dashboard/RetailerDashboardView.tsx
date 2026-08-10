@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Box,
   Typography,
@@ -21,14 +22,17 @@ import {
   Badge,
   Tab,
   Tabs,
-  Stack
+  Stack,
+  Dialog
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import WarningIcon from "@mui/icons-material/Warning";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HistoryIcon from "@mui/icons-material/History";
+import LockIcon from "@mui/icons-material/Lock";
 import { useWalletSync } from "@/context/WalletSyncProvider";
+import { useRetailerApprovalGuard } from "@/hooks/useRetailerApprovalGuard";
 import {
   AreaChart,
   Area,
@@ -123,6 +127,8 @@ interface ActivityItem {
   time: string;
 }
 
+import { useContactSupportModal } from "@/context/ContactSupportModalContext";
+
 interface SystemHealthService {
   name: string;
   status: string;
@@ -133,6 +139,9 @@ interface SystemHealthService {
 export const RetailerDashboardView: React.FC = () => {
   const router = useRouter();
   const { walletData: headerWallet, refreshWallet } = useWalletSync();
+  const { isApproved, setApprovalStatus } = useRetailerApprovalGuard();
+  const { openContactSupportModal } = useContactSupportModal();
+  const [dashboardLockedModal, setDashboardLockedModal] = useState<{ label: string } | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   // API State Data
@@ -255,6 +264,66 @@ export const RetailerDashboardView: React.FC = () => {
         fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif"
       }}
     >
+      {/* ── ACCOUNT UNDER REVIEW WARNING BANNER FOR UNAPPROVED RETAILER ── */}
+      {!isApproved && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: 3.5,
+            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.20) 0%, rgba(217, 119, 6, 0.15) 100%)",
+            border: "1.5px solid #F59E0B",
+            boxShadow: "0 8px 24px rgba(245, 158, 11, 0.25)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                bgcolor: "rgba(245, 158, 11, 0.25)",
+                border: "2px solid #F59E0B",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#FBBF24",
+                flexShrink: 0,
+              }}
+            >
+              <WarningIcon sx={{ fontSize: 26 }} />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "17px", lineHeight: 1.2 }}>
+                ⚠️ ACCOUNT UNDER REVIEW — ADMIN APPROVAL PENDING
+              </Typography>
+              <Typography variant="body2" sx={{ color: "#E2E8F0", fontSize: "13.5px", mt: 0.4, fontWeight: 500 }}>
+                Retailer application for <strong>Mobile +91 9176669426</strong> is currently pending Admin KYC verification. All financial payment menus and transactions are restricted until approval.
+              </Typography>
+            </Box>
+          </Box>
+          <Chip
+            icon={<LockIcon sx={{ "&&": { fontSize: 14, color: "#FBBF24" } }} />}
+            label="MENUS LOCKED"
+            sx={{
+              bgcolor: "#92400E",
+              color: "#FDE68A",
+              fontWeight: 900,
+              fontSize: "12px",
+              py: 0.5,
+              px: 1,
+              border: "1px solid #F59E0B",
+            }}
+          />
+        </Paper>
+      )}
+
       {/* 1. STICKY HEADER */}
       <Paper
         elevation={0}
@@ -332,16 +401,28 @@ export const RetailerDashboardView: React.FC = () => {
             <Stack direction="row" spacing={1.5}>
               <Button
                 variant="contained"
-                startIcon={<AddCircleIcon sx={{ fontSize: 22 }} />}
-                onClick={() => router.push("/retailer/wallet")}
-                sx={{ py: 1.5, px: 2.5, fontSize: "16px", fontWeight: 700, borderRadius: 3, backgroundColor: "#2563EB" }}
+                startIcon={!isApproved ? <LockIcon sx={{ fontSize: 20, color: "#FBBF24" }} /> : <AddCircleIcon sx={{ fontSize: 22 }} />}
+                onClick={() => {
+                  if (!isApproved) {
+                    setDashboardLockedModal({ label: "Top-Up Main Wallet" });
+                    return;
+                  }
+                  router.push("/retailer/wallet");
+                }}
+                sx={{ py: 1.5, px: 2.5, fontSize: "16px", fontWeight: 700, borderRadius: 3, backgroundColor: !isApproved ? "#D97706" : "#2563EB" }}
               >
-                Top-Up Main Wallet
+                {!isApproved ? "Wallet Locked" : "Top-Up Main Wallet"}
               </Button>
               <Button
                 variant="outlined"
-                startIcon={<HistoryIcon sx={{ fontSize: 22 }} />}
-                onClick={() => router.push("/retailer/dmt/ledger")}
+                startIcon={!isApproved ? <LockIcon sx={{ fontSize: 20, color: "#FBBF24" }} /> : <HistoryIcon sx={{ fontSize: 22 }} />}
+                onClick={() => {
+                  if (!isApproved) {
+                    setDashboardLockedModal({ label: "Passbook Ledger" });
+                    return;
+                  }
+                  router.push("/retailer/dmt/ledger");
+                }}
                 sx={{ py: 1.5, px: 2.5, fontSize: "16px", fontWeight: 700, borderRadius: 3, borderColor: "rgba(255,255,255,0.3)", color: "#FFFFFF" }}
               >
                 Passbook Ledger
@@ -439,41 +520,61 @@ export const RetailerDashboardView: React.FC = () => {
       </Typography>
       <Grid container spacing={2.5} sx={{ mb: 4.5 }}>
         {[
-          { label: "💸 Send Money", key: "Alt+S", path: "/retailer/dmt", color: "#3B82F6" },
-          { label: "👤 Add Customer", key: "Alt+C", path: "/retailer/customers", color: "#10B981" },
-          { label: "🏦 Add Beneficiary", key: "Alt+B", path: "/retailer/beneficiaries", color: "#EC4899" },
-          { label: "💰 Wallet Top-up", key: "Alt+W", path: "/retailer/wallet", color: "#F59E0B" },
-          { label: "📊 Payout Reports", key: "Alt+P", path: "/retailer/dmt/reports", color: "#8B5CF6" },
-          { label: "🏦 POS Settlement", key: "Alt+M", path: "/retailer/pos/settlement-report", color: "#06B6D4" }
-        ].map((act) => (
-          <Grid size={{ xs: 12, sm: 6, md: 2 }} key={act.label}>
-            <Paper
-              onClick={() => router.push(act.path)}
-              elevation={0}
-              sx={{
-                p: 3,
-                borderRadius: 3,
-                backgroundColor: "rgba(15, 23, 42, 0.85)",
-                border: "1px solid rgba(255, 255, 255, 0.14)",
-                cursor: "pointer",
-                transition: "all 0.2s ease-in-out",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  borderColor: act.color,
-                  backgroundColor: "rgba(15, 23, 42, 0.95)",
-                  boxShadow: `0 12px 28px -6px ${act.color}40`
-                }
-              }}
-            >
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "17px" }}>
-                  {act.label}
-                </Typography>
-                <Chip label={act.key} size="small" sx={{ height: 22, fontSize: "12px", fontWeight: 700, backgroundColor: "rgba(255,255,255,0.12)", color: "#E2E8F0" }} />
-              </Box>
-            </Paper>
-          </Grid>
-        ))}
+          { label: "💸 Send Money", key: "Alt+S", path: "/retailer/dmt", color: "#3B82F6", isFinancial: true },
+          { label: "👤 Add Customer", key: "Alt+C", path: "/retailer/customers", color: "#10B981", isFinancial: true },
+          { label: "🏦 Add Beneficiary", key: "Alt+B", path: "/retailer/beneficiaries", color: "#EC4899", isFinancial: true },
+          { label: "💰 Wallet Top-up", key: "Alt+W", path: "/retailer/wallet", color: "#F59E0B", isFinancial: true },
+          { label: "📊 Payout Reports", key: "Alt+P", path: "/retailer/dmt/reports", color: "#8B5CF6", isFinancial: false },
+          { label: "🏦 POS Settlement", key: "Alt+M", path: "/retailer/pos/settlement-report", color: "#06B6D4", isFinancial: false }
+        ].map((act) => {
+          const locked = !isApproved && act.isFinancial;
+          return (
+            <Grid size={{ xs: 12, sm: 6, md: 2 }} key={act.label}>
+              <Paper
+                onClick={() => {
+                  if (locked) {
+                    setDashboardLockedModal({ label: act.label });
+                    return;
+                  }
+                  router.push(act.path);
+                }}
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  backgroundColor: "rgba(15, 23, 42, 0.85)",
+                  border: locked ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid rgba(255, 255, 255, 0.14)",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease-in-out",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    borderColor: locked ? "#F59E0B" : act.color,
+                    backgroundColor: "rgba(15, 23, 42, 0.95)",
+                    boxShadow: locked ? "0 12px 28px -6px rgba(245, 158, 11, 0.3)" : `0 12px 28px -6px ${act.color}40`
+                  }
+                }}
+              >
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: locked ? "#94A3B8" : "#FFFFFF", fontSize: "17px" }}>
+                    {act.label}
+                  </Typography>
+                  <Chip
+                    label={locked ? "LOCKED" : act.key}
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      backgroundColor: locked ? "rgba(245, 158, 11, 0.2)" : "rgba(255,255,255,0.12)",
+                      color: locked ? "#FBBF24" : "#E2E8F0",
+                      border: locked ? "1px solid rgba(245, 158, 11, 0.4)" : "none"
+                    }}
+                  />
+                </Box>
+              </Paper>
+            </Grid>
+          );
+        })}
       </Grid>
 
       {/* 4. FINANCIAL ACCOUNTING KPIS */}
@@ -727,6 +828,81 @@ export const RetailerDashboardView: React.FC = () => {
           </Grid>
         ))}
       </Grid>
+      {/* ── Dashboard Locked Feature Modal ────────────────────────────────────── */}
+      <Dialog
+        open={Boolean(dashboardLockedModal)}
+        onClose={() => setDashboardLockedModal(null)}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "24px",
+              bgcolor: "#0F172A",
+              color: "#FFFFFF",
+              p: 3.5,
+              maxWidth: 440,
+              width: "100%",
+              border: "1px solid rgba(245, 158, 11, 0.4)",
+              boxShadow: "0 24px 48px rgba(0,0,0,0.6)",
+            },
+          },
+        }}
+      >
+        <Box sx={{ textCenter: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: "rgba(245, 158, 11, 0.15)", border: "2px solid rgba(245, 158, 11, 0.4)", color: "#FBBF24", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <LockIcon sx={{ fontSize: 32 }} />
+          </Box>
+          <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", textAlign: "center" }}>
+            {dashboardLockedModal?.label || "Action"} Restricted
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
+            Your retailer account is currently <strong>PENDING ADMIN APPROVAL</strong>. Financial services, wallet top-ups, and transaction actions are restricted until Admin approves your application.
+          </Typography>
+
+          <Stack spacing={1.5} sx={{ mt: 3, width: "100%" }}>
+            <Button
+              component={Link}
+              href="/register/submitted"
+              onClick={() => setDashboardLockedModal(null)}
+              variant="contained"
+              fullWidth
+              sx={{ bgcolor: "#2563EB", color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px" }}
+            >
+              View Application Status
+            </Button>
+            <Button
+              onClick={() => {
+                setDashboardLockedModal(null);
+                openContactSupportModal();
+              }}
+              variant="outlined"
+              fullWidth
+              sx={{ borderColor: "#3B82F6", color: "#60A5FA", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: "rgba(59, 130, 246, 0.1)" } }}
+            >
+              Contact Admin Support
+            </Button>
+            <Button
+              onClick={() => {
+                setApprovalStatus("APPROVED");
+                setDashboardLockedModal(null);
+              }}
+              variant="contained"
+              color="success"
+              fullWidth
+              sx={{ fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px" }}
+            >
+              Simulate Admin Approval (Unlock Now)
+            </Button>
+            <Button
+              onClick={() => setDashboardLockedModal(null)}
+              variant="text"
+              fullWidth
+              sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "none", fontSize: "13px" }}
+            >
+              Dismiss
+            </Button>
+          </Stack>
+        </Box>
+      </Dialog>
     </Box>
   );
 };

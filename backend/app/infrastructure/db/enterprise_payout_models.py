@@ -3,10 +3,11 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional, List
 from sqlalchemy import (
-    String, Boolean, Float, Integer, DateTime, Text, ForeignKey, UniqueConstraint, Enum
+    String, Boolean, Float, Integer, DateTime, Text, ForeignKey, UniqueConstraint, Enum, JSON
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB as PG_JSONB
+JSONB = JSON().with_variant(PG_JSONB(), 'postgresql')
 
 from app.core.database import Base
 from app.infrastructure.db.models import BaseEntity, EnterpriseBaseMixin

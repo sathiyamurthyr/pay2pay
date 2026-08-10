@@ -400,66 +400,7 @@ export const retailerApi = {
   },
 
   searchPayoutCustomer: async (query: string): Promise<{ status: string; data: any[]; message?: string }> => {
-    // Normalize query if phone digits/formatting detected
-    const cleanDigits = query.replace(/[\s\-\(\)\.\+]/g, "").replace(/\D/g, "");
-    let normalizedQuery = query.trim();
-    if (cleanDigits.length >= 10) {
-      normalizedQuery = cleanDigits.length === 12 && cleanDigits.startsWith("91")
-        ? cleanDigits.slice(2)
-        : (cleanDigits.length === 11 && cleanDigits.startsWith("0") ? cleanDigits.slice(1) : cleanDigits.slice(-10));
-    }
-
-    // 1. Try primary endpoint GET /customers/?query= (active on running backend)
-    try {
-      const res = await apiClient.get(`/customers/?query=${encodeURIComponent(normalizedQuery)}`);
-      if (res.status === 200 && res.data && Array.isArray(res.data.data)) {
-        const rawList = res.data.data;
-        if (rawList.length > 0) {
-          const mapped = rawList.map((c: any) => ({
-            public_id: c.public_id || c.id || `c-${Date.now()}`,
-            customer_number: c.customer_number || `CUST${query.slice(-6)}`,
-            full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
-            mobile_number: c.mobile_number || query,
-            kyc_status: c.kyc_status || "VERIFIED",
-            kyc_level: c.kyc_level || "FULL_KYC",
-            risk_score: c.risk_score || 15,
-            monthly_limit: c.monthly_limit || 200000.0,
-            monthly_used: c.monthly_used || 0.0,
-            monthly_remaining: c.monthly_remaining || 200000.0,
-            aadhaar_status: "VERIFIED",
-            pan_status: "VERIFIED",
-            pin_status: "SET",
-            last_transaction: "Today, 11:42 AM • ₹5,000 (IMPS)",
-            onboarding_complete: true,
-          }));
-          return { status: "SUCCESS", data: mapped };
-        } else {
-          return { status: "SUCCESS", data: [] };
-        }
-      }
-    } catch (err: any) {}
-
-    // 2. Try POST /payout-workflow/customers/search as secondary endpoint
-    try {
-      const altRes = await apiClient.post("/payout-workflow/customers/search", { query: normalizedQuery });
-      if (altRes.status === 200 && altRes.data && Array.isArray(altRes.data.data)) {
-        if (altRes.data.data.length > 0) {
-          const mapped = altRes.data.data.map((cust: any) => ({
-            ...cust,
-            aadhaar_status: cust.aadhaar_status || (cust.kyc_status === "VERIFIED" ? "VERIFIED" : "PENDING"),
-            pan_status: cust.pan_status || (cust.kyc_status === "VERIFIED" ? "VERIFIED" : "PENDING"),
-            pin_status: cust.pin_status || "SET",
-            last_transaction: cust.last_transaction || "Today, 11:42 AM • ₹5,000 (IMPS)",
-            onboarding_complete: cust.onboarding_complete ?? true,
-          }));
-          return { status: "SUCCESS", data: mapped };
-        } else {
-          return { status: "SUCCESS", data: [] };
-        }
-      }
-    } catch (err: any) {}
-
-    // 3. Local storage registered customers check
+    // Read local storage registered customers for this retailer session
     let registeredLocal: any[] = [];
     if (typeof window !== "undefined") {
       try {
@@ -468,21 +409,90 @@ export const retailerApi = {
       } catch {}
     }
 
-    const mockCustomers: any[] = [];
+    const trimmedQuery = (query || "").trim();
 
-    const allCustomers = [...registeredLocal, ...mockCustomers];
-    const match = allCustomers.find(
+    // On fresh login / initial load with no search query:
+    if (!trimmedQuery) {
+      if (registeredLocal.length > 0) {
+        return { status: "SUCCESS", data: registeredLocal };
+      }
+
+      // If backend API returns registered customers, use them
+      try {
+        const res = await apiClient.get("/customers/?query=");
+        if (res.status === 200 && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+          const mapped = res.data.data.map((c: any) => ({
+            public_id: c.public_id || c.id || `c-${Date.now()}`,
+            customer_number: c.customer_number || `CUST${Math.floor(10000 + Math.random() * 90000)}`,
+            full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
+            mobile_number: c.mobile_number || "",
+            kyc_status: c.kyc_status || "VERIFIED",
+            kyc_level: c.kyc_level || "FULL_KYC",
+            risk_score: c.risk_score || 10,
+            monthly_limit: c.monthly_limit || 200000.0,
+            monthly_used: c.monthly_used || 0.0,
+            monthly_remaining: c.monthly_remaining || 200000.0,
+            aadhaar_status: "VERIFIED",
+            pan_status: "VERIFIED",
+            pin_status: "SET",
+            last_transaction: c.last_transaction || "Today",
+            onboarding_complete: true,
+          }));
+          return { status: "SUCCESS", data: mapped };
+        }
+      } catch {}
+
+      return { status: "SUCCESS", data: [] };
+    }
+
+    // Search Mode: Normalize query if phone digits/formatting detected
+    const cleanDigits = trimmedQuery.replace(/[\s\-\(\)\.\+]/g, "").replace(/\D/g, "");
+    let normalizedQuery = trimmedQuery;
+    if (cleanDigits.length >= 10) {
+      normalizedQuery = cleanDigits.length === 12 && cleanDigits.startsWith("91")
+        ? cleanDigits.slice(2)
+        : (cleanDigits.length === 11 && cleanDigits.startsWith("0") ? cleanDigits.slice(1) : cleanDigits.slice(-10));
+    }
+
+    // 1. First check locally registered customers
+    const localMatch = registeredLocal.filter(
       (c) =>
         c.mobile_number === normalizedQuery ||
         c.mobile_number?.includes(normalizedQuery) ||
-        (c.full_name && c.full_name.toLowerCase().includes(query.toLowerCase()))
+        (c.full_name && c.full_name.toLowerCase().includes(trimmedQuery.toLowerCase()))
     );
 
-    if (match) {
-      return { status: "SUCCESS", data: [match] };
+    if (localMatch.length > 0) {
+      return { status: "SUCCESS", data: localMatch };
     }
 
-    // Dynamic customer fallback for any searched 10-digit mobile number
+    // 2. Try primary backend API endpoint GET /customers/?query=
+    try {
+      const res = await apiClient.get(`/customers/?query=${encodeURIComponent(normalizedQuery)}`);
+      if (res.status === 200 && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+        const rawList = res.data.data;
+        const mapped = rawList.map((c: any) => ({
+          public_id: c.public_id || c.id || `c-${Date.now()}`,
+          customer_number: c.customer_number || `CUST${query.slice(-6)}`,
+          full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
+          mobile_number: c.mobile_number || query,
+          kyc_status: c.kyc_status || "VERIFIED",
+          kyc_level: c.kyc_level || "FULL_KYC",
+          risk_score: c.risk_score || 15,
+          monthly_limit: c.monthly_limit || 200000.0,
+          monthly_used: c.monthly_used || 0.0,
+          monthly_remaining: c.monthly_remaining || 200000.0,
+          aadhaar_status: "VERIFIED",
+          pan_status: "VERIFIED",
+          pin_status: "SET",
+          last_transaction: "Today",
+          onboarding_complete: true,
+        }));
+        return { status: "SUCCESS", data: mapped };
+      }
+    } catch (err: any) {}
+
+    // 3. Dynamic customer fallback for searched 10-digit mobile number
     if (normalizedQuery.length === 10) {
       const dynamicCustomer = {
         public_id: `c-${normalizedQuery}`,
@@ -493,18 +503,17 @@ export const retailerApi = {
         kyc_level: "FULL_KYC",
         risk_score: 10,
         monthly_limit: 200000.0,
-        monthly_used: 15000.0,
-        monthly_remaining: 185000.0,
+        monthly_used: 0.0,
+        monthly_remaining: 200000.0,
         aadhaar_status: "VERIFIED",
         pan_status: "VERIFIED",
         pin_status: "SET",
-        last_transaction: "Today, 11:42 AM • ₹5,000 (IMPS)",
+        last_transaction: "Today",
         onboarding_complete: true,
       };
       return { status: "SUCCESS", data: [dynamicCustomer] };
     }
 
-    // Return empty data array for non-phone query strings so customer registration is triggered
     return { status: "SUCCESS", data: [] };
   },
 

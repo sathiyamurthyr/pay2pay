@@ -186,6 +186,60 @@ class BackblazeStorageService:
         }
 
     @classmethod
+    def save_base64_photo(
+        cls,
+        base64_data: str,
+        entity_type: str = "RET",
+        filename: str = "profile_photo.jpg"
+    ) -> str:
+        """
+        Decodes base64/data-URL image string, saves to local uploads folder (or B2 if available),
+        and returns local/server URL path to store in DB.
+        """
+        import base64
+        if not base64_data:
+            return ""
+        
+        # If it's already a regular HTTP URL or local static URL, return as is
+        if base64_data.startswith("http://") or base64_data.startswith("https://") or base64_data.startswith("/uploads/"):
+            return base64_data
+
+        try:
+            # Strip data URL prefix if present (e.g. data:image/jpeg;base64,)
+            clean_b64 = base64_data
+            if "," in base64_data:
+                clean_b64 = base64_data.split(",", 1)[1]
+
+            image_bytes = base64.b64decode(clean_b64)
+            b2_path = _build_b2_path(entity_type, filename)
+            
+            # Save to local uploads folder structure
+            local_filepath = Path("uploads") / b2_path
+            local_filepath.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(local_filepath, "wb") as f:
+                f.write(image_bytes)
+
+            # Try uploading to B2 asynchronously/sync if B2 API is available
+            api_obj, bucket = cls._get_api()
+            if api_obj and bucket:
+                try:
+                    file_info = bucket.upload_bytes(
+                        data_bytes=image_bytes,
+                        file_name=b2_path,
+                        content_type="image/jpeg"
+                    )
+                    return api_obj.get_download_url_for_fileid(file_info.id_)
+                except Exception as b2_err:
+                    print(f"[StorageService] B2 Base64 upload error: {b2_err}, serving local static URL.")
+
+            # Return relative static server route URL for local file
+            return f"/uploads/{b2_path}"
+        except Exception as ex:
+            print(f"[StorageService Warning] Base64 photo decode/save failed: {ex}")
+            return base64_data
+
+    @classmethod
     def get_download_url(cls, file_path: str) -> str:
         """Get download URL for a file path."""
         api_obj, bucket = cls._get_api()

@@ -19,4 +19,6 @@ bw.exe
 scratch/
 backend/scratch/
 
-
+# Uploads & Media
+uploads/
+backend/uploads/

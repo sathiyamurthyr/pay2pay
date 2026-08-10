@@ -6,6 +6,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { AuthProvider } from "@/lib/auth";
 import { WalletSyncProvider } from "@/context/WalletSyncProvider";
+import { ContactSupportModalProvider } from "@/context/ContactSupportModalContext";
 import { m3Theme } from "@/styles/m3-theme";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -28,7 +29,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <CssBaseline />
         <AuthProvider>
           <WalletSyncProvider>
-            {children}
+            <ContactSupportModalProvider>
+              {children}
+            </ContactSupportModalProvider>
           </WalletSyncProvider>
         </AuthProvider>
       </ThemeProvider>

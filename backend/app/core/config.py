@@ -70,6 +70,16 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = Field(default="noreply@pay2pay.in")
     SMTP_FROM_NAME: str = Field(default="Pay2Pay Enterprise")
 
+    # ── Support Metadata Configuration ──────────────────────────────────────
+    COMPANY_NAME: str = Field(default="Pay2Pay Financial Technologies Pvt. Ltd.")
+    COMPANY_LOGO_URL: str = Field(default="/logo.png")
+    SUPPORT_EMAIL: str = Field(default="support@pay2pay.com")
+    SUPPORT_PHONE: str = Field(default="+91 1800 292 982")
+    SUPPORT_WHATSAPP: str = Field(default="+91 91766 69426")
+    SUPPORT_HOURS: str = Field(default="Monday - Saturday | 09:00 AM - 07:00 PM IST")
+    LIVE_CHAT_ENABLED: bool = Field(default=True)
+    SUPPORT_URL: str = Field(default="https://pay2pay.in/support")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

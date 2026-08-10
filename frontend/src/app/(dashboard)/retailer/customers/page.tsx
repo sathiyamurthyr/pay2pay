@@ -872,10 +872,14 @@ function VerifiedIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+import { ApprovalGuardOverlay } from "@/components/common/ApprovalGuardOverlay";
+
 export default function CustomersPage() {
   return (
     <Suspense fallback={<div className="p-6 text-sm text-slate-500 font-medium">Loading customer catalog…</div>}>
-      <CustomersContent />
+      <ApprovalGuardOverlay featureName="Customer Directory & Transact">
+        <CustomersContent />
+      </ApprovalGuardOverlay>
     </Suspense>
   );
 }

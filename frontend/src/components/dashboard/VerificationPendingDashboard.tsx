@@ -25,6 +25,8 @@ import {
   ShieldCheck,
   Info
 } from "lucide-react";
+import { useRetailerStore } from "@/stores/use-retailer-store";
+import { useContactSupportModal } from "@/context/ContactSupportModalContext";
 
 interface VerificationPendingProps {
   verificationStatus: "PENDING" | "UNDER_REVIEW" | "ON_HOLD" | "APPROVED" | "REJECTED";
@@ -38,6 +40,7 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
   adminRemarks
 }) => {
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
+  const { openContactSupportModal } = useContactSupportModal();
 
   const TIMELINE_STEPS = [
     { label: "Registration", status: "COMPLETED", date: "Today" },
@@ -83,13 +86,14 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
           </div>
         </div>
 
-        <Link
-          href="/support"
+        <button
+          type="button"
+          onClick={() => openContactSupportModal()}
           className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-xs flex items-center gap-1.5 hover:bg-slate-800 transition-colors shrink-0"
         >
           <PhoneCall className="w-3.5 h-3.5 text-blue-400" />
           <span>Need Help? Contact Support</span>
-        </Link>
+        </button>
       </div>
 
       {/* 2. ON HOLD / REJECTED ALERT CARDS (Case 5) */}

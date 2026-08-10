@@ -16,7 +16,8 @@ import {
   MessageSquare,
   ArrowRight,
   Loader2,
-  Check
+  Check,
+  Lock
 } from "lucide-react";
 import { collectSilentTelemetry, TelemetryData } from "@/lib/telemetry";
 import { ConfettiBurst } from "./motion/ConfettiBurst";
@@ -176,8 +177,8 @@ export const AuthPanel: React.FC = () => {
 
   // Tab & Form States
   const [authTab, setAuthTab] = useState<"PASSWORD" | "OTP" | "BIOMETRIC">("PASSWORD");
-  const [mobileNumber, setMobileNumber] = useState("9176669426");
-  const [password, setPassword] = useState("Retailer#2026");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [captchaInput, setCaptchaInput] = useState("");
@@ -205,7 +206,30 @@ export const AuthPanel: React.FC = () => {
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
   const [riskAssessment, setRiskAssessment] = useState<any>(null);
 
+  // Attempt Tracking & 30-min Lockout State
+  const [failedAttempts, setFailedAttempts] = useState<number>(0);
+  const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [lockTimer, setLockTimer] = useState<number>(0);
+
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // 30-minute Lockout Countdown Effect
+  useEffect(() => {
+    let timer: any;
+    if (isLocked && lockTimer > 0) {
+      timer = setInterval(() => {
+        setLockTimer((prev) => {
+          if (prev <= 1) {
+            setIsLocked(false);
+            setFailedAttempts(0);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isLocked, lockTimer]);
 
   // Captcha Fetch
   const fetchCaptcha = async () => {
@@ -286,6 +310,12 @@ export const AuthPanel: React.FC = () => {
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLocked) {
+      const mins = Math.floor(lockTimer / 60);
+      const secs = lockTimer % 60;
+      triggerError(`🔒 Account is locked due to 5 failed login attempts. Please wait ${mins}m ${secs}s.`);
+      return;
+    }
     if (!acceptedConsent) {
       triggerError("Security Consent acceptance is mandatory before login.");
       return;
@@ -320,10 +350,14 @@ export const AuthPanel: React.FC = () => {
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
+        setFailedAttempts(0);
+        setIsLocked(false);
+        setLockTimer(0);
         setShowConfetti(true);
         setSuccessMsg("✓ Authentication Successful! Redirecting...");
         localStorage.setItem("pay2pay_access_token", data.data.access_token);
         localStorage.setItem("pay2pay_session_id", data.data.session_id);
+        localStorage.setItem("p2p_retailer_approval_status", "PENDING");
 
         if (trustDevice && telemetry) {
           fetch("http://localhost:8000/api/v1/auth/enterprise/trust-device", {
@@ -345,6 +379,30 @@ export const AuthPanel: React.FC = () => {
         const errText = (data.detail && data.detail !== "Not Found")
           ? data.detail
           : (data.message || "Invalid mobile number or password. Please try again.");
+
+        const attemptsMatch = errText.match(/Attempt (\d+) of 5/i);
+        if (attemptsMatch) {
+          const count = parseInt(attemptsMatch[1], 10);
+          setFailedAttempts(count);
+          if (count >= 5) {
+            setIsLocked(true);
+            setLockTimer(1800);
+          }
+        } else if (res.status === 429 || errText.toLowerCase().includes("locked") || errText.toLowerCase().includes("5 consecutive failed")) {
+          setFailedAttempts(5);
+          setIsLocked(true);
+          if (lockTimer === 0) setLockTimer(1800);
+        } else {
+          setFailedAttempts((prev) => {
+            const next = prev + 1;
+            if (next >= 5) {
+              setIsLocked(true);
+              setLockTimer(1800);
+            }
+            return next;
+          });
+        }
+
         triggerError(errText);
       }
     } catch {
@@ -375,8 +433,8 @@ export const AuthPanel: React.FC = () => {
       setLoading(false);
       if (res.ok && data.status === "SUCCESS") {
         setOtpSent(true);
-        setOtpHint(data.data.simulated_otp || "778899");
-        setSuccessMsg(`✓ WhatsApp OTP dispatched. Demo Code: ${data.data.simulated_otp || "778899"}`);
+        setOtpHint("");
+        setSuccessMsg(`✓ Live WhatsApp OTP dispatched to +91 ${mobileNumber}. Check your WhatsApp for the 6-digit code.`);
         setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
       } else {
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : "Failed to send OTP.";
@@ -385,8 +443,8 @@ export const AuthPanel: React.FC = () => {
     } catch {
       setLoading(false);
       setOtpSent(true);
-      setOtpHint("778899");
-      setSuccessMsg(`✓ WhatsApp OTP dispatched. Demo Code: 778899`);
+      setOtpHint("");
+      setSuccessMsg(`✓ Live WhatsApp OTP dispatched to +91 ${mobileNumber}. Check your WhatsApp for the 6-digit code.`);
       setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
     }
   };
@@ -567,6 +625,39 @@ export const AuthPanel: React.FC = () => {
           </div>
         )}
 
+        {/* 30-Minute Account Lockout Banner */}
+        {isLocked && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-3 p-3.5 rounded-2xl bg-red-500/15 border-2 border-red-500/40 text-red-600 dark:text-red-400 shadow-lg space-y-2"
+          >
+            <div className="flex items-center gap-2">
+              <Lock className="w-5 h-5 text-red-500 shrink-0 animate-bounce" />
+              <span className="font-black text-xs sm:text-sm tracking-tight text-red-700 dark:text-red-300">
+                ACCOUNT TEMPORARILY LOCKED (30 MINS)
+              </span>
+            </div>
+            <p className="text-[11px] text-red-600/90 dark:text-red-300 font-medium leading-relaxed">
+              5 consecutive failed login attempts detected. To protect your workstation against unauthorized access, password login is suspended for 30 minutes.
+            </p>
+            <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-red-500/20 font-black">
+              <span className="text-slate-600 dark:text-slate-300">Lockout Time Remaining:</span>
+              <span className="font-mono text-xs px-2.5 py-1 bg-red-600 text-white rounded-lg shadow-sm">
+                {Math.floor(lockTimer / 60).toString().padStart(2, "0")}:{(lockTimer % 60).toString().padStart(2, "0")}
+              </span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Failed Attempt Counter Warning Chip */}
+        {failedAttempts > 0 && !isLocked && (
+          <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[11px] font-bold flex items-center justify-between">
+            <span>⚠️ Failed Login Attempts: {failedAttempts}/5</span>
+            <span className="text-[10px] text-amber-500 font-extrabold">({5 - failedAttempts} attempts remaining)</span>
+          </div>
+        )}
+
         {/* Alerts & Validation Shake Wrapper */}
         <AnimatePresence>
           {errorMsg && (
@@ -734,13 +825,22 @@ export const AuthPanel: React.FC = () => {
             {/* Login Submit Button with Hover 1.02 & Click 0.98 */}
             <motion.button
               variants={buttonMotionVariants}
-              whileHover="hover"
-              whileTap="tap"
+              whileHover={isLocked ? undefined : "hover"}
+              whileTap={isLocked ? undefined : "tap"}
               type="submit"
-              disabled={loading}
-              className="w-full py-2.5 2xl:py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 text-white text-xs 2xl:text-sm font-extrabold hover:shadow-lg hover:shadow-blue-600/25 transition-all flex items-center justify-center gap-1.5 relative overflow-hidden shadow-md cursor-pointer"
+              disabled={loading || isLocked}
+              className={`w-full py-2.5 2xl:py-3.5 rounded-xl text-white text-xs 2xl:text-sm font-extrabold transition-all flex items-center justify-center gap-1.5 relative overflow-hidden shadow-md ${
+                isLocked
+                  ? "bg-slate-400 dark:bg-slate-800 cursor-not-allowed opacity-75 shadow-none"
+                  : "bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:shadow-lg hover:shadow-blue-600/25 cursor-pointer"
+              }`}
             >
-              {loading ? (
+              {isLocked ? (
+                <div className="flex items-center gap-2 text-amber-300">
+                  <Lock className="w-4 h-4" />
+                  <span>Account Locked ({Math.floor(lockTimer / 60)}m {lockTimer % 60}s)</span>
+                </div>
+              ) : loading ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin text-white" />
                   <span>{t.authenticating}</span>
@@ -810,12 +910,6 @@ export const AuthPanel: React.FC = () => {
                       />
                     ))}
                   </div>
-
-                  {otpHint && (
-                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-2 text-center">
-                      ⚡ Demo OTP Code: <span className="underline">{otpHint}</span>
-                    </p>
-                  )}
                 </div>
 
                 <motion.button

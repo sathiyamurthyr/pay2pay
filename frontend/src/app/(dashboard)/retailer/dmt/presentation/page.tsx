@@ -54,18 +54,17 @@ const GLASS_CARD = {
   boxShadow: "0 8px 32px rgba(15, 44, 89, 0.08)",
 };
 
+import { ApprovalGuardOverlay } from "@/components/common/ApprovalGuardOverlay";
+
 export default function DmtPresentationPage() {
   const [activeTab, setActiveTab] = useState<"SPLIT" | "NEW_ONLY">("SPLIT");
 
   return (
-    <Box sx={{ width: "100vw", minHeight: "100vh", bgcolor: "#0B132B", color: WHITE, overflowX: "hidden", p: 0 }}>
-      {/* ── TOP PRESENTATION CONTROLS BAR ── */}
-      <Box sx={{ px: 4, py: 2, bgcolor: "#070D1E", borderBottom: "1px solid rgba(212,175,55,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: GOLD_PREMIUM, fontSize: "20px", letterSpacing: "1px" }}>
-            ENTERPRISE DMT WORKSPACE REDESIGN
-          </Typography>
-          <Chip label="4K Presentation Canvas (3840 × 2160)" size="small" sx={{ bgcolor: "rgba(212,175,55,0.15)", color: GOLD_PREMIUM, border: "1px solid #D4AF37", fontWeight: 700 }} />
+    <ApprovalGuardOverlay featureName="Money Transfer (DMT)">
+      <Box sx={{ width: "100vw", minHeight: "100vh", bgcolor: "#0B132B", color: WHITE, overflowX: "hidden", p: 0 }}>
+        {/* ── TOP PRESENTATION CONTROLS BAR ── */}
+        <Box sx={{ px: 4, py: 2, bgcolor: "#070D1E", borderBottom: "1px solid rgba(212,175,55,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
         </Stack>
 
         <Stack direction="row" spacing={2}>
@@ -385,6 +384,7 @@ export default function DmtPresentationPage() {
           </Grid>
         </Grid>
       </Grid>
-    </Box>
+      </Box>
+    </ApprovalGuardOverlay>
   );
 }

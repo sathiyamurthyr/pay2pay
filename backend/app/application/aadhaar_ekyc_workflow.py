@@ -26,6 +26,7 @@ from app.infrastructure.db.customer_models import (
 )
 from app.infrastructure.db.ekyc_models import AadhaarVerificationModel, CustomerVerificationModel
 from app.application.mpin_service import _hash_mpin
+from app.application.storage_service import BackblazeStorageService
 
 logger = logging.getLogger("aadhaar_ekyc_workflow")
 
@@ -273,8 +274,8 @@ class AadhaarEkycWorkflowService:
                     cust_obj.kyc_level = "FULL_KYC"
                     cust_obj.aadhaar_verified = True
                     cust_obj.full_name = ekyc_profile.get("full_name", cust_obj.full_name)
-                    c_id = cust_obj.public_id
-                    photo_data = ekyc_profile.get("photo_base64", "")
+                    raw_photo = ekyc_profile.get("photo_base64") or ekyc_profile.get("photo_url") or ""
+                    photo_data = BackblazeStorageService.save_base64_photo(raw_photo, entity_type="RET", filename=f"customer_photo_{c_id}.jpg")
 
                     # Extract exact address from eKYC profile
                     addr_dict = ekyc_profile.get("address", {}) if isinstance(ekyc_profile.get("address"), dict) else {}
@@ -518,8 +519,8 @@ class AadhaarEkycWorkflowService:
             last_name_str = ekyc_profile.get("last_name") or last_name or ""
             gender_str = ekyc_profile.get("gender") or "M"
             dob_str = ekyc_profile.get("dob") or "1992-05-15"
-            masked_aadhaar = ekyc_profile.get("masked_aadhaar") or f"XXXX-XXXX-{c_mobile[-4:]}"
-            photo_data = ekyc_profile.get("photo_url") or ekyc_profile.get("photo_base64") or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
+            raw_photo = ekyc_profile.get("photo_url") or ekyc_profile.get("photo_base64") or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
+            photo_data = BackblazeStorageService.save_base64_photo(raw_photo, entity_type="RET", filename=f"customer_photo_{c_mobile}.jpg")
 
             try:
                 dob_val = datetime.strptime(dob_str, "%Y-%m-%d").date()

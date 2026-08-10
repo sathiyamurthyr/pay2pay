@@ -176,3 +176,76 @@ class EnterpriseAuthService:
         )
         db.add(audit)
         await db.commit()
+
+    @staticmethod
+    async def check_lockout(db: AsyncSession, mobile_number: str) -> Dict[str, Any]:
+        """Checks if account is currently locked due to >= 5 failed login attempts in past 30 minutes."""
+        now = datetime.now(timezone.utc)
+        stmt = select(FailedLoginAttemptModel).where(FailedLoginAttemptModel.mobile_number == mobile_number)
+        record = (await db.execute(stmt)).scalars().first()
+
+        if not record:
+            return {"is_locked": False, "failed_count": 0, "remaining_seconds": 0}
+
+        if record.failed_count >= 5:
+            elapsed = (now - record.last_failed_at).total_seconds()
+            lock_duration = 1800  # 30 minutes
+            if elapsed < lock_duration:
+                remaining_seconds = int(lock_duration - elapsed)
+                return {
+                    "is_locked": True,
+                    "failed_count": record.failed_count,
+                    "remaining_seconds": remaining_seconds,
+                    "remaining_minutes": max(1, int(remaining_seconds / 60))
+                }
+            else:
+                record.failed_count = 0
+                await db.commit()
+
+        return {"is_locked": False, "failed_count": record.failed_count, "remaining_seconds": 0}
+
+    @staticmethod
+    async def record_failed_attempt(db: AsyncSession, mobile_number: str, ip_address: str) -> Dict[str, Any]:
+        """Increments failed attempt counter for mobile_number and checks 30-min block threshold."""
+        now = datetime.now(timezone.utc)
+        stmt = select(FailedLoginAttemptModel).where(FailedLoginAttemptModel.mobile_number == mobile_number)
+        record = (await db.execute(stmt)).scalars().first()
+
+        if not record:
+            record = FailedLoginAttemptModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                mobile_number=mobile_number,
+                ip_address=ip_address,
+                failed_count=1,
+                last_failed_at=now
+            )
+            db.add(record)
+        else:
+            elapsed = (now - record.last_failed_at).total_seconds()
+            if elapsed > 1800:
+                record.failed_count = 1
+            else:
+                record.failed_count += 1
+            record.last_failed_at = now
+            record.ip_address = ip_address
+
+        await db.commit()
+
+        is_locked = record.failed_count >= 5
+        remaining_seconds = 1800 if is_locked else 0
+        return {
+            "failed_count": record.failed_count,
+            "attempts_remaining": max(0, 5 - record.failed_count),
+            "is_locked": is_locked,
+            "remaining_seconds": remaining_seconds,
+            "remaining_minutes": int(remaining_seconds / 60)
+        }
+
+    @staticmethod
+    async def reset_failed_attempts(db: AsyncSession, mobile_number: str) -> None:
+        """Resets failed attempts count upon successful login."""
+        stmt = select(FailedLoginAttemptModel).where(FailedLoginAttemptModel.mobile_number == mobile_number)
+        record = (await db.execute(stmt)).scalars().first()
+        if record:
+            record.failed_count = 0
+            await db.commit()

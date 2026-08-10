@@ -54,8 +54,11 @@ def _format_photo_url(url: Optional[str]) -> Optional[str]:
     if not url:
         return None
     s = url.strip()
-    if s.startswith("http://") or s.startswith("https://") or s.startswith("data:image"):
+    if s.startswith("http://") or s.startswith("https://") or s.startswith("/uploads/"):
         return s
+    if s.startswith("data:image") or len(s) > 200:
+        from app.application.storage_service import BackblazeStorageService
+        return BackblazeStorageService.save_base64_photo(s, entity_type="RET", filename="profile_photo.jpg")
     return f"data:image/jpeg;base64,{s}"
 
 

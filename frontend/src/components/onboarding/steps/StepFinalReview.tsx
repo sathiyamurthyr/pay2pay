@@ -6,6 +6,7 @@ import {
   Building2, User, ShieldCheck, Clock, BadgeCheck,
   Headphones, LogIn, Copy, CheckCheck, Zap
 } from "lucide-react";
+import { useContactSupportModal } from "@/context/ContactSupportModalContext";
 
 interface StepFinalProps {
   registrationId: string;
@@ -21,6 +22,7 @@ function SuccessScreen({ appRef, estimatedApproval = "Usually within 2–24 hour
   estimatedApproval?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const { openContactSupportModal } = useContactSupportModal();
 
   // Generate Application ID: RET-YYYYMMDD-XXXXXX
   const appId = (() => {
@@ -209,10 +211,11 @@ function SuccessScreen({ appRef, estimatedApproval = "Usually within 2–24 hour
 
         {/* Outline */}
         <button
-          onClick={() => (window.location.href = "/support")}
+          type="button"
+          onClick={() => openContactSupportModal(appId)}
           className="w-full py-3 rounded-xl bg-transparent border-2 border-slate-300 dark:border-slate-700 hover:border-blue-400 text-slate-600 dark:text-slate-300 text-sm font-bold transition-colors flex items-center justify-center gap-2"
         >
-          <Headphones className="w-4 h-4" />
+          <Headphones className="w-4 h-4 text-blue-500" />
           Contact Support
         </button>
       </div>

@@ -7,7 +7,7 @@ import {
   AppBar, Toolbar, Drawer, Box, Typography, IconButton, Badge, Menu,
   MenuItem, Divider, List, ListItem, ListItemButton, ListItemIcon,
   ListItemText, Button, Avatar, Chip, Tooltip, Stack, Paper, InputBase,
-  Popover, TextField, InputAdornment
+  Popover, TextField, InputAdornment, Dialog
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import StarIcon from "@mui/icons-material/Star";
@@ -44,10 +44,14 @@ import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import PaletteIcon from "@mui/icons-material/Palette";
 import { useAuth } from "@/lib/auth";
 import { useRetailerStore, KpiTheme } from "@/stores/use-retailer-store";
+import { useRetailerApprovalGuard } from "@/hooks/useRetailerApprovalGuard";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
 import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
 import { RightContextPanel } from "./right-context-panel";
+import { UnapprovedRetailerFullPageModal } from "@/components/common/UnapprovedRetailerFullPageModal";
+import { ApprovalGuardOverlay } from "@/components/common/ApprovalGuardOverlay";
+import { useContactSupportModal } from "@/context/ContactSupportModalContext";
 
 const FULL_DRAWER_WIDTH = 310;
 const COLLAPSED_DRAWER_WIDTH = 72;
@@ -65,7 +69,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const pathname = usePathname();
   const { logout } = useAuth();
   const { outlet, wallet, isSyncing, syncBalance, soundboxEnabled, toggleSoundbox, unreadNotifications, setUnreadNotifications, kpiTheme, setKpiTheme } = useRetailerStore();
+  const { isApproved, approvalStatus, isPathLocked, setApprovalStatus } = useRetailerApprovalGuard();
+  const { openContactSupportModal } = useContactSupportModal();
 
+  const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [profileAnchor, setProfileAnchor] = useState<null | HTMLElement>(null);
@@ -106,6 +113,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  // HARD UNCLOSEABLE FULL-PAGE SECURITY MODAL: If Admin has NOT approved, block 100% of app access
+  if (!isApproved) {
+    return <UnapprovedRetailerFullPageModal />;
+  }
 
   const activeDrawerWidth = desktopCollapsed ? COLLAPSED_DRAWER_WIDTH : FULL_DRAWER_WIDTH;
 
@@ -148,6 +160,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         { label: "Commission Slabs", path: "/retailer/commission", icon: AssessmentIcon },
         { label: "Move To Bank", path: "/retailer/settlement", icon: AccountBalanceIcon },
         { label: "Transactions Ledger", path: "/retailer/transactions", icon: ReceiptLongIcon },
+      ],
+    },
+    {
+      title: "ADMIN & APPROVALS",
+      items: [
+        { label: "Admin Verification Desk", path: "/admin", icon: ShieldIcon, badge: "ADMIN" },
+        { label: "Approvals Queue", path: "/approvals", icon: WorkspacePremiumIcon, badge: "KYC" },
       ],
     },
     {
@@ -312,13 +331,22 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 {favItems.map((item) => {
                   const IconComponent = item.icon;
                   const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
+                  const favLocked = isPathLocked(item.path);
 
                   return (
-                    <Tooltip key={`fav-${item.path}`} title={isCollapsed ? item.label : ""} placement="right" arrow>
+                    <Tooltip key={`fav-${item.path}`} title={favLocked ? "Locked: Account verification pending admin approval" : isCollapsed ? item.label : ""} placement="right" arrow>
                       <Box
                         component={Link}
                         href={item.path}
-                        onClick={() => setMobileOpen(false)}
+                        onClick={(e: React.MouseEvent) => {
+                          if (favLocked) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setLockedModalItem({ label: item.label, path: item.path });
+                            return;
+                          }
+                          setMobileOpen(false);
+                        }}
                         sx={{
                           position: "relative",
                           display: "flex",
@@ -346,14 +374,31 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                         </Stack>
 
                         {!isCollapsed && (
-                          <IconButton
-                            size="small"
-                            className="fav-star"
-                            onClick={(e) => toggleFavorite(item.path, e)}
-                            sx={{ p: 0.3, color: "#FFD54F" }}
-                          >
-                            <StarIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            {favLocked && (
+                              <Chip
+                                icon={<LockIcon sx={{ "&&": { fontSize: 10, color: "#F59E0B" } }} />}
+                                label="LOCKED"
+                                size="small"
+                                sx={{
+                                  height: 18,
+                                  fontSize: "8.5px",
+                                  fontWeight: 800,
+                                  backgroundColor: "rgba(245, 158, 11, 0.15)",
+                                  color: "#F59E0B",
+                                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                                }}
+                              />
+                            )}
+                            <IconButton
+                              size="small"
+                              className="fav-star"
+                              onClick={(e) => toggleFavorite(item.path, e)}
+                              sx={{ p: 0.3, color: "#FFD54F" }}
+                            >
+                              <StarIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Stack>
                         )}
                       </Box>
                     </Tooltip>
@@ -387,13 +432,27 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   const IconComponent = item.icon;
                   const isActive = pathname === item.path || (item.path !== "/retailer-dashboard" && pathname?.startsWith(item.path));
                   const isFav = favorites.includes(item.path);
+                  const itemLocked = isPathLocked(item.path);
 
                   return (
-                    <Tooltip key={item.path} title={isCollapsed ? item.label : ""} placement="right" arrow>
+                    <Tooltip
+                      key={item.path}
+                      title={itemLocked ? "Locked: Account verification pending admin approval" : isCollapsed ? item.label : ""}
+                      placement="right"
+                      arrow
+                    >
                       <Box
                         component={Link}
                         href={item.path}
-                        onClick={() => setMobileOpen(false)}
+                        onClick={(e: React.MouseEvent) => {
+                          if (itemLocked) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setLockedModalItem({ label: item.label, path: item.path });
+                            return;
+                          }
+                          setMobileOpen(false);
+                        }}
                         sx={{
                           position: "relative",
                           display: "flex",
@@ -403,7 +462,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                           px: isCollapsed ? 0 : "14px",
                           justifyContent: isCollapsed ? "center" : "space-between",
                           backgroundColor: isActive ? "rgba(37, 99, 235, 0.35)" : "transparent",
-                          color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
+                          color: isActive ? "#FFFFFF" : itemLocked ? "rgba(255, 255, 255, 0.50)" : "rgba(255, 255, 255, 0.90)",
                           textDecoration: "none",
                           boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.35)" : "none",
                           transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -427,9 +486,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                         }}
                       >
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#60A5FA" : "rgba(255, 255, 255, 0.88)" }} />
+                          <IconComponent sx={{ fontSize: 20, color: isActive ? "#60A5FA" : itemLocked ? "#F59E0B" : "rgba(255, 255, 255, 0.88)" }} />
                           {!isCollapsed && (
-                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 500, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)" }}>
+                            <Typography sx={{ fontSize: "13.5px", fontWeight: isActive ? 700 : 500, lineHeight: "20px", whiteSpace: "nowrap", color: isActive ? "#FFFFFF" : itemLocked ? "rgba(255, 255, 255, 0.60)" : "rgba(255, 255, 255, 0.90)" }}>
                               {item.label}
                             </Typography>
                           )}
@@ -437,7 +496,23 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
                         {!isCollapsed && (
                           <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                            {item.badge && (
+                            {itemLocked && (
+                              <Chip
+                                icon={<LockIcon sx={{ "&&": { fontSize: 10, color: "#F59E0B" } }} />}
+                                label="LOCKED"
+                                size="small"
+                                sx={{
+                                  height: 18,
+                                  fontSize: "8.5px",
+                                  fontWeight: 800,
+                                  backgroundColor: "rgba(245, 158, 11, 0.15)",
+                                  color: "#F59E0B",
+                                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                                }}
+                              />
+                            )}
+
+                            {item.badge && !itemLocked && (
                               <Chip
                                 label={item.badge}
                                 size="small"
@@ -853,12 +928,31 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Account Approval</Typography>
+                  <Chip
+                    icon={isApproved ? <ShieldIcon sx={{ "&&": { color: "#16A34A", fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: "#D97706", fontSize: 12 } }} />}
+                    label={isApproved ? "Approved & Active" : "Pending Admin Review"}
+                    size="small"
+                    onClick={() => setApprovalStatus(isApproved ? "PENDING" : "APPROVED")}
+                    sx={{
+                      backgroundColor: isApproved ? "#DCFCE7" : "#FEF3C7",
+                      color: isApproved ? "#16A34A" : "#D97706",
+                      fontWeight: 800,
+                      height: 22,
+                      fontSize: "0.68rem",
+                      cursor: "pointer",
+                      "&:hover": { opacity: 0.85 },
+                    }}
+                  />
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>KYC Status</Typography>
                   <Chip
-                    icon={<ShieldIcon sx={{ "&&": { color: "#16A34A", fontSize: 12 } }} />}
-                    label="KYC Verified"
+                    icon={<ShieldIcon sx={{ "&&": { color: isApproved ? "#16A34A" : "#D97706", fontSize: 12 } }} />}
+                    label={isApproved ? "KYC Verified" : "Pending Review"}
                     size="small"
-                    sx={{ backgroundColor: "#DCFCE7", color: "#16A34A", fontWeight: 800, height: 20, fontSize: "0.68rem" }}
+                    sx={{ backgroundColor: isApproved ? "#DCFCE7" : "#FEF3C7", color: isApproved ? "#16A34A" : "#D97706", fontWeight: 800, height: 20, fontSize: "0.68rem" }}
                   />
                 </Box>
 
@@ -966,7 +1060,70 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         }}
       >
         <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflow: pathname === "/retailer/dmt" ? "hidden" : "visible" }}>
-          {children}
+          {/* Account Verification Warning Banner for Unapproved Retailer */}
+          {!isApproved && (
+            <Paper
+              elevation={0}
+              sx={{
+                mb: 3,
+                p: 2,
+                borderRadius: "16px",
+                background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.10) 100%)",
+                border: "1px solid rgba(245, 158, 11, 0.35)",
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: { xs: "flex-start", sm: "center" },
+                justifyContent: "space-between",
+                gap: 2,
+                boxShadow: "0 6px 20px rgba(245, 158, 11, 0.12)",
+              }}
+            >
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                <Box sx={{ p: 1, borderRadius: "12px", bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FBBF24" }}>
+                  <LockIcon sx={{ fontSize: 24 }} />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "14px" }}>
+                    ⚠️ Account Verification Pending Admin Approval
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", fontWeight: 500 }}>
+                    Your retailer account (Mobile: <strong>+91 9176669426</strong>) is currently <strong>PENDING ADMIN APPROVAL</strong>. All financial services (DMT, Card to Cash, AEPS, UPI, BBPS, Recharge, Wallet Top-Up) are restricted until Admin approves your application.
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                <Button
+                  component={Link}
+                  href="/register/submitted"
+                  size="small"
+                  variant="contained"
+                  sx={{ bgcolor: "#F59E0B", color: "#000", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { bgcolor: "#D97706" } }}
+                >
+                  Check KYC Status
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => openContactSupportModal()}
+                  sx={{ borderColor: "rgba(255,255,255,0.3)", color: "#FFFFFF", fontWeight: 800, textTransform: "none", fontSize: "12px", "&:hover": { borderColor: "#FFFFFF", bgcolor: "rgba(255,255,255,0.1)" } }}
+                >
+                  Contact Admin Support
+                </Button>
+              </Stack>
+            </Paper>
+          )}
+
+          {/* HARD LOCKED ROUTE ENFORCEMENT: Block page content if unapproved & path is locked */}
+          {isPathLocked(pathname) ? (
+            <ApprovalGuardOverlay featureName={activeMenuItem?.label || "Financial Service"}>
+              <Box sx={{ p: 4, textAlign: "center", color: "#94A3B8" }}>
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>Service Restricted</Typography>
+              </Box>
+            </ApprovalGuardOverlay>
+          ) : (
+            children
+          )}
         </Box>
 
         {/* Enterprise Footer (Hidden on DMT Workspace to prevent height overflow) */}
@@ -1019,6 +1176,70 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
     {/* ── Mobile FAB + Quick Actions Sheet (xs / sm only) ─────────────────── */}
     <MobileQuickActionsFAB bottomOffset={36} />
+
+    {/* ── Locked Feature Dialog Modal ────────────────────────────────────────── */}
+    <Dialog
+      open={Boolean(lockedModalItem)}
+      onClose={() => setLockedModalItem(null)}
+      slotProps={{
+        paper: {
+          sx: {
+            borderRadius: "24px",
+            bgcolor: "#0F172A",
+            color: "#FFFFFF",
+            p: 3.5,
+            maxWidth: 440,
+            width: "100%",
+            border: "1px solid rgba(245, 158, 11, 0.4)",
+            boxShadow: "0 24px 48px rgba(0,0,0,0.6)",
+          },
+        },
+      }}
+    >
+      <Box sx={{ textCenter: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: "rgba(245, 158, 11, 0.15)", border: "2px solid rgba(245, 158, 11, 0.4)", color: "#FBBF24", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <LockIcon sx={{ fontSize: 32 }} />
+        </Box>
+        <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", textAlign: "center" }}>
+          {lockedModalItem?.label || "Feature"} Restricted
+        </Typography>
+        <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
+          Your retailer account (Mobile: <strong>+91 9176669426</strong>) is currently <strong>PENDING ADMIN APPROVAL</strong>. All financial services, wallet top-ups, and transaction tools remain locked until Admin completes verification.
+        </Typography>
+
+        <Stack spacing={1.5} sx={{ mt: 3, width: "100%" }}>
+          <Button
+            component={Link}
+            href="/register/submitted"
+            onClick={() => setLockedModalItem(null)}
+            variant="contained"
+            fullWidth
+            sx={{ bgcolor: "#2563EB", color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px" }}
+          >
+            Check Application & KYC Status
+          </Button>
+          <Button
+            onClick={() => {
+              setLockedModalItem(null);
+              openContactSupportModal();
+            }}
+            variant="outlined"
+            fullWidth
+            sx={{ borderColor: "#3B82F6", color: "#60A5FA", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: "rgba(59, 130, 246, 0.1)" } }}
+          >
+            Contact Admin Support
+          </Button>
+          <Button
+            onClick={() => setLockedModalItem(null)}
+            variant="text"
+            fullWidth
+            sx={{ color: "#94A3B8", fontWeight: 700, borderRadius: "12px", height: 38, textTransform: "none", fontSize: "13px" }}
+          >
+            Close Window
+          </Button>
+        </Stack>
+      </Box>
+    </Dialog>
 
     {/* ── Universal Search Dialog (Ctrl+K) ────────────────────────────────── */}
     <UniversalSearchDialog open={universalSearchOpen} onClose={() => setUniversalSearchOpen(false)} />

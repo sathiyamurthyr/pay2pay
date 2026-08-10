@@ -222,3 +222,14 @@ async def submit_registration(payload: SubmitPayload, db: AsyncSession = Depends
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=400, detail=res["message"])
     return res
+
+
+@router.get("/status/{identifier}")
+async def get_onboarding_status(identifier: str, db: AsyncSession = Depends(get_db)):
+    return await ProgressiveOnboardingService.get_onboarding_status(db, identifier)
+
+
+@router.get("/support-info/{identifier}")
+async def get_support_info(identifier: str, db: AsyncSession = Depends(get_db)):
+    return await ProgressiveOnboardingService.get_support_info(db, identifier)
+

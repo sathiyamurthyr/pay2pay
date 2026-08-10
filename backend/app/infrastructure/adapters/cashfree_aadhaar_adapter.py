@@ -40,7 +40,7 @@ class CashfreeAadhaarAdapter:
             raise ValueError("Aadhaar number must be a valid 12-digit number")
 
         masked_aadhaar = f"XXXX-XXXX-{clean_aadhaar[-4:]}"
-        ref_id = f"CF-AADHAAR-{int(time.time())}-{random.randint(1000, 9999)}"
+        ref_id = str(int(time.time() * 1000))
 
         if ENABLE_LIVE_CASHFREE_AADHAAR:
             headers = {
@@ -121,7 +121,7 @@ class CashfreeAadhaarAdapter:
 
             try:
                 last_502_body = None
-                for attempt in range(1, 4):  # Retry up to 3 times on 502
+                for attempt in range(1, 5):  # Retry up to 4 times on 502 or 409 (pending)
                     async with httpx.AsyncClient(timeout=12.0) as client:
                         resp = await client.post(api_url, headers=headers, json=payload)
                         if resp.status_code in [200, 201]:
@@ -131,12 +131,12 @@ class CashfreeAadhaarAdapter:
                             # Successful HTTP but unusual status — still build profile
                             logger.info(f"Cashfree verify HTTP 200 data: {str(data)[:200]}")
                             return self._build_ekyc_profile(data, ref_id)
-                        elif resp.status_code == 502:
+                        elif resp.status_code in [409, 502]:
                             last_502_body = resp.text[:200]
-                            logger.warning(f"Cashfree verify attempt {attempt}/3 HTTP 502: {last_502_body}")
-                            if attempt < 3:
+                            logger.warning(f"Cashfree verify attempt {attempt}/4 HTTP {resp.status_code}: {last_502_body}")
+                            if attempt < 4:
                                 import asyncio as _asyncio
-                                await _asyncio.sleep(2)
+                                await _asyncio.sleep(4)
                             continue
                         elif resp.status_code in [400, 401, 403, 404]:
                             logger.warning(f"Cashfree verification Live API HTTP {resp.status_code}: {resp.text[:200]}")

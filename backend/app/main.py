@@ -27,11 +27,17 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    docs_url=f"{settings.API_V1_STR}/docs",
-    redoc_url=f"{settings.API_V1_STR}/redoc",
 )
 
+import os
 import asyncio
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
+# Ensure uploads directory exists and mount it
+uploads_dir = Path("uploads")
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 async def background_pending_reconciliation_poller():
     """
