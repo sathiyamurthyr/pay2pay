@@ -1,5 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 
 @layer base {
   :root {
@@ -104,13 +107,26 @@
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
 }
 
-/* Custom scrollbar-none utility */
-.scrollbar-none {
+/* Custom scrollbar-none / no-scrollbar utility */
+.scrollbar-none,
+.no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.scrollbar-none::-webkit-scrollbar {
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Gradient animation for hero text */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-gradient-slow {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
 }
 
 body {
