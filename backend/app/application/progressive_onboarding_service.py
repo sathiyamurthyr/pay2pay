@@ -120,9 +120,9 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        stored_otp = draft.draft_data.get("otp_code", "778899")
-        if otp_code not in [stored_otp, "778899", "123456"]:
-            return {"status": "ERROR", "message": "Invalid OTP code. Please try again."}
+        stored_otp = draft.draft_data.get("otp_code")
+        if not stored_otp or otp_code != stored_otp:
+            return {"status": "ERROR", "message": "Invalid OTP code. Please check your WhatsApp messages and try again."}
 
         # Update draft progress
         draft.status = "MOBILE_VERIFIED"
@@ -206,9 +206,9 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        stored_otp = draft.draft_data.get("email_otp", "556677")
-        if otp_code not in [stored_otp, "556677", "123456"]:
-            return {"status": "ERROR", "message": "Invalid Email OTP."}
+        stored_otp = draft.draft_data.get("email_otp")
+        if not stored_otp or otp_code != stored_otp:
+            return {"status": "ERROR", "message": "Invalid Email OTP. Please check your inbox and try again."}
 
         draft.status = "EMAIL_VERIFIED"
         draft.current_step = max(draft.current_step, 5)

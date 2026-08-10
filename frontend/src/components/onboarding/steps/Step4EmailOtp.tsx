@@ -118,7 +118,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
         </p>
       </div>
 
-      {/* ── Demo OTP Banner ── */}
+      {/* ── Live Email Notification Banner ── */}
       <div className="p-3.5 rounded-2xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
@@ -126,33 +126,12 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
           </div>
           <div>
             <p className="text-[11px] font-extrabold text-violet-700 dark:text-violet-400 uppercase tracking-wider">
-              Demo / Test Email OTP
+              Live Email OTP Dispatched
             </p>
-            <p className="text-xl font-black text-violet-800 dark:text-violet-300 tracking-[0.3em]">
-              {simulatedOtp}
-            </p>
-            <p className="text-[10px] text-violet-600/80 dark:text-violet-400/80 font-medium mt-0.5">
-              Click Auto-Fill to test instantly, or set SMTP credentials in backend .env for real inbox delivery.
+            <p className="text-xs font-semibold text-violet-800 dark:text-violet-300">
+              Check your inbox at {email}
             </p>
           </div>
-        </div>
-        <div className="flex flex-col gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={handleAutoFill}
-            className="px-3 py-1.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-[11px] font-extrabold transition-all flex items-center gap-1"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Auto-Fill
-          </button>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-400 text-[11px] font-extrabold transition-all flex items-center gap-1"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            {copied ? "Copied!" : "Copy"}
-          </button>
         </div>
       </div>
 
@@ -188,19 +167,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
                   focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20`}
                 style={{ width: 44, height: 52 }}
               />
-            ))}
           </div>
-          <p className="text-[11px] font-semibold text-slate-400 mt-2 text-center">
-            Click{" "}
-            <button
-              type="button"
-              onClick={handleAutoFill}
-              className="text-violet-600 dark:text-violet-400 font-extrabold underline"
-            >
-              Auto-Fill
-            </button>{" "}
-            to instantly fill the demo OTP
-          </p>
         </div>
 
         {/* Countdown / Resend */}

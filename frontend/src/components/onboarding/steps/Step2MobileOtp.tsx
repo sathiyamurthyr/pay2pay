@@ -155,41 +155,20 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
         </p>
       </div>
 
-      {/* ── Demo OTP Banner ── */}
-      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+      {/* ── Live WhatsApp Notification Banner ── */}
+      <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
-            <MessageSquare className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+            <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
-            <p className="text-[11px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
-              Demo / Test OTP
+            <p className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+              Live WhatsApp OTP Dispatched
             </p>
-            <p className="text-xl font-black text-amber-800 dark:text-amber-300 tracking-[0.3em]">
-              {simulatedOtp}
-            </p>
-            <p className="text-[10px] text-amber-600/70 dark:text-amber-500/70 font-medium mt-0.5">
-              Dispatched via Meta WhatsApp API (+91 {mobileNumber})
+            <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+              Check your WhatsApp messages on +91 {mobileNumber}
             </p>
           </div>
-        </div>
-        <div className="flex flex-col gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={handleAutoFill}
-            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-extrabold transition-all flex items-center gap-1"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Auto-Fill
-          </button>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 text-[11px] font-extrabold transition-all flex items-center gap-1"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            {copied ? "Copied!" : "Copy"}
-          </button>
         </div>
       </div>
 
@@ -223,21 +202,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
                     : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
                   }
                   focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20`}
-                style={{ width: 44, height: 52 }}
-              />
-            ))}
           </div>
-          <p className="text-[11px] font-semibold text-slate-400 mt-2 text-center">
-            Tip: Click{" "}
-            <button
-              type="button"
-              onClick={handleAutoFill}
-              className="text-amber-600 dark:text-amber-400 font-extrabold underline"
-            >
-              Auto-Fill
-            </button>{" "}
-            above to fill the demo OTP instantly
-          </p>
         </div>
 
         {/* Attempts & Resend */}
