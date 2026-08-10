@@ -7,7 +7,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB as PG_JSONB
-JSONB = JSON().with_variant(PG_JSONB(), 'postgresql')
+JSONB = JSON
 
 from app.core.database import Base
 from app.infrastructure.db.models import BaseEntity, EnterpriseBaseMixin

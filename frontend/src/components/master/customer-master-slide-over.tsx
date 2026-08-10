@@ -254,12 +254,10 @@ export function CustomerMasterSlideOver({
     setOtpChannel(channel);
     setResendTimer(30);
     setCanResend(false);
-    const res = await retailerApi.generateMobileOtp(mobileNumber, channel);
-    const simulated = res?.data?.simulated_otp || res?.simulated_otp || "556677";
-    setDemoOtpHint(simulated);
+    await retailerApi.generateMobileOtp(mobileNumber, channel);
     notificationEngine.notify(
       "OTP_RECEIVED",
-      `OTP Dispatched via ${channel === "WHATSAPP" ? "WhatsApp API" : "SMS"}. Your OTP code is: ${simulated}`
+      `OTP Dispatched via ${channel === "WHATSAPP" ? "WhatsApp API" : "SMS"}`
     );
   };
 

@@ -72,7 +72,6 @@ class ProgressiveOnboardingService:
                 "current_step": existing_draft.current_step,
                 "completed_steps": existing_draft.completed_steps,
                 "draft_data": existing_draft.draft_data,
-                "simulated_otp": otp_code,
                 "whatsapp_status": wa_dispatch_status
             }
 
@@ -108,7 +107,6 @@ class ProgressiveOnboardingService:
             "message": "Draft created successfully. WhatsApp OTP dispatched to your phone.",
             "registration_id": reg_id,
             "correlation_id": correlation_id,
-            "simulated_otp": otp_code,
             "whatsapp_status": wa_dispatch_status
         }
 
@@ -164,7 +162,7 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        email_otp = "556677"
+        email_otp = f"{random.randint(100000, 999999)}"
 
         # Dispatch real or simulated Email OTP via EmailService
         email_dispatch_status = "PENDING"
@@ -194,7 +192,6 @@ class ProgressiveOnboardingService:
             "status": "SUCCESS",
             "message": f"OTP dispatched to email {clean_email}.",
             "email": clean_email,
-            "simulated_otp": email_otp,
             "email_status": email_dispatch_status
         }
 

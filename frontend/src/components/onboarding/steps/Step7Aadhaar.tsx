@@ -115,14 +115,10 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
         setOtpSent(true);
         setRefId(data.ref_id || `CF-${cleanAadhaar.slice(-4)}`);
         setOtpCode("");
-        setReceivedOtpNotice(data.simulated_otp || "SMS OTP sent to registered mobile number");
+        setReceivedOtpNotice("SMS OTP sent to registered mobile number");
         setCountdown(60);
       } else {
-        setOtpSent(true);
-        setRefId(`CF-${cleanAadhaar.slice(-4)}`);
-        setOtpCode("");
-        setReceivedOtpNotice("778899");
-        setCountdown(60);
+        setErrorMsg(data.detail || "Failed to generate Aadhaar OTP. Please verify your Aadhaar number.");
       }
     } catch {
       setLoading(false);

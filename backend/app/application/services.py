@@ -6127,6 +6127,14 @@ class NotificationService:
         otp_code = "".join([str(secrets.randbelow(10)) for _ in range(req.otp_length)])
         otp_hash = hashlib.sha256(otp_code.encode()).hexdigest()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=req.expiry_minutes)
+
+        if req.channel == "EMAIL":
+            from app.infrastructure.adapters.email_service import email_service
+            await email_service.send_otp(req.recipient_address, otp_code)
+        elif req.channel in ("SMS", "WHATSAPP"):
+            from app.infrastructure.adapters.whatsapp_service import whatsapp_service
+            await whatsapp_service.send_otp(req.recipient_address, otp_code)
+
         otp = OtpRequestModel(
             channel=req.channel, recipient_address=req.recipient_address,
             otp_purpose=req.otp_purpose, otp_hash=otp_hash,

@@ -61,8 +61,11 @@ async def background_pending_reconciliation_poller():
 async def startup_db():
     # Reload trigger for bank master 1000 limit
     print("ALL REGISTERED ROUTES:", [r.path for r in app.routes if hasattr(r, 'path')])
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        print(f"[STARTUP DB WARNING] Table creation notice: {str(e)}")
     asyncio.create_task(background_pending_reconciliation_poller())
 
 # Enterprise CORS Configuration

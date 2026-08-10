@@ -256,7 +256,6 @@ class PayoutWorkflowService:
             "mobile_number": mobile_number,
             "channel": channel,
             "expires_in_seconds": 300,
-            "simulated_otp": otp_code,  # For testing/demo & auto-fill
             "android_sms_format": android_sms_format,
             "whatsapp_payload": whatsapp_payload,
             "whatsapp_status": "DELIVERED" if whatsapp_delivered else "SENT_SIMULATED",

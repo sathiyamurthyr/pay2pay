@@ -26,12 +26,12 @@ class EmailService:
         from_email: Optional[str] = None,
         from_name: Optional[str] = None
     ):
-        self.smtp_server = smtp_server or getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
-        self.smtp_port = smtp_port or getattr(settings, "SMTP_PORT", 587)
-        self.smtp_username = smtp_username or getattr(settings, "SMTP_USERNAME", "")
-        self.smtp_password = smtp_password or getattr(settings, "SMTP_PASSWORD", "")
-        self.from_email = from_email or getattr(settings, "SMTP_FROM_EMAIL", "noreply@pay2pay.in")
-        self.from_name = from_name or getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+        self.smtp_server = smtp_server if smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
+        self.smtp_port = smtp_port if smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
+        self.smtp_username = smtp_username if smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
+        self.smtp_password = smtp_password if smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
+        self.from_email = from_email if from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", "noreply@pay2pay.in")
+        self.from_name = from_name if from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
 
     def _build_otp_html(self, otp_code: str, recipient_email: str) -> str:
         return f"""
@@ -86,15 +86,22 @@ class EmailService:
         if not recipient_email or "@" not in recipient_email:
             return {"status": "ERROR", "message": "Invalid recipient email address."}
 
+        smtp_server = self.smtp_server if self.smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
+        smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
+        smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
+        from_email = self.from_email if self.from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", "noreply@pay2pay.in")
+        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"{otp_code} is your Pay2Pay Email Verification Code"
-        msg["From"] = f"{self.from_name} <{self.from_email}>"
+        msg["From"] = f"{from_name} <{from_email}>"
         msg["To"] = recipient_email
 
         html_content = self._build_otp_html(otp_code, recipient_email)
         msg.attach(MIMEText(html_content, "html"))
 
-        if not self.smtp_username or not self.smtp_password:
+        if not smtp_username or not smtp_password:
             logger.info(f"[EMAIL SERVICE SIMULATED] OTP {otp_code} for {recipient_email} (No SMTP Credentials configured)")
             return {
                 "status": "SIMULATED",
@@ -105,9 +112,9 @@ class EmailService:
             }
 
         try:
-            with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=10.0) as server:
+            with smtplib.SMTP(smtp_server, smtp_port, timeout=10.0) as server:
                 server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
+                server.login(smtp_username, smtp_password)
                 server.send_message(msg)
             logger.info(f"[EMAIL SERVICE SUCCESS] Real Email OTP {otp_code} sent to {recipient_email}")
             return {

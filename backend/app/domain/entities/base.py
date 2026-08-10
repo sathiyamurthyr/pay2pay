@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, Uuid, func
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+UUID = Uuid(as_uuid=True)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -13,7 +14,7 @@ class BaseEntity(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     public_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True
+        UUID, default=uuid.uuid4, unique=True, nullable=False, index=True
     )
 
 
@@ -21,11 +22,11 @@ class EnterpriseBaseMixin:
     """
     Mandatory Enterprise Base Entity fields adhering to enterprise standards.
     """
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
-    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
-    business_unit_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    branch_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False, index=True)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID, nullable=True, index=True)
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID, nullable=True, index=True)
+    business_unit_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID, nullable=True)
+    branch_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID, nullable=True)
 
     # Date & Partition Keys
     day_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

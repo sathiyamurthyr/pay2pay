@@ -203,13 +203,11 @@ export default function NewCustomerWorkspacePage() {
     try {
       const res = await retailerApi.generateMobileOtp(mobileNumber, "WHATSAPP");
       setOtpLoading(false);
-      const simulated = res?.data?.simulated_otp || res?.simulated_otp || "778899";
-      setDemoOtpHint(simulated);
       setOtpSent(true);
       setActiveStep(1);
       notificationEngine.notify(
         "OTP_RECEIVED",
-        `WhatsApp OTP Dispatched to +91 ${mobileNumber}. OTP Code: ${simulated}`
+        `WhatsApp OTP Dispatched to +91 ${mobileNumber}`
       );
     } catch (err: any) {
       setOtpLoading(false);

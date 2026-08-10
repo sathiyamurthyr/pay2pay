@@ -269,11 +269,11 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     )
     otp_tx = (await db.execute(stmt)).scalars().first()
 
-    valid_codes = ["778899", "123456", "556677"]
+    valid_codes = []
     if otp_tx:
         valid_codes.append(otp_tx.otp_code_hash)
 
-    if payload.otp_code not in valid_codes:
+    if not valid_codes or payload.otp_code not in valid_codes:
         raise HTTPException(status_code=400, detail="Invalid OTP code. Please check your WhatsApp and try again.")
 
     if otp_tx:

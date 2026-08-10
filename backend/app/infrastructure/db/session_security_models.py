@@ -2,9 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import (
-    Boolean, DateTime, ForeignKey, Integer, String, Text
+    Boolean, DateTime, ForeignKey, Integer, String, Text, JSON
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB, UUID
+JSONB = JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.entities.base import BaseEntity, EnterpriseBaseMixin

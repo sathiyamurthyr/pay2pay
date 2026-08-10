@@ -15,14 +15,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [copied, setCopied] = useState(false);
-  const [simulatedOtp, setSimulatedOtp] = useState("556677");
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  // Read simulated email OTP from localStorage (set by Step 3)
-  useEffect(() => {
-    const stored = localStorage.getItem("pay2pay_email_otp_hint");
-    if (stored) setSimulatedOtp(stored);
-  }, []);
 
   // Countdown timer
   useEffect(() => {
@@ -59,19 +52,6 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
     inputRefs.current[Math.min(text.length, 5)]?.focus();
   };
 
-  const handleAutoFill = () => {
-    const digits = simulatedOtp.split("").slice(0, 6);
-    setOtpDigits(digits.concat(Array(6).fill("")).slice(0, 6));
-    setErrorMsg("");
-    inputRefs.current[5]?.focus();
-  };
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(simulatedOtp);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpValue.length !== 6) {
@@ -92,15 +72,13 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
-        localStorage.removeItem("pay2pay_email_otp_hint");
         onSuccess();
       } else {
         setErrorMsg(data.detail || "Invalid Email OTP. Please try again.");
       }
     } catch {
       setLoading(false);
-      localStorage.removeItem("pay2pay_email_otp_hint");
-      onSuccess();
+      setErrorMsg("Verification failed. Please check your network connection.");
     }
   };
 
@@ -167,6 +145,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
                   focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20`}
                 style={{ width: 44, height: 52 }}
               />
+            ))}
           </div>
         </div>
 
@@ -184,18 +163,13 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
                 setErrorMsg("");
                 setOtpDigits(["", "", "", "", "", ""]);
                 try {
-                  const res = await fetch("/api/v1/onboarding/check-email", {
+                  await fetch("/api/v1/onboarding/check-email", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ registration_id: registrationId, email })
                   });
-                  const data = await res.json();
-                  if (data.simulated_otp) {
-                    setSimulatedOtp(data.simulated_otp);
-                    localStorage.setItem("pay2pay_email_otp_hint", data.simulated_otp);
-                  }
-                } catch (err) {
-                  console.error("Failed to resend email OTP:", err);
+                } catch {
+                  // Ignore
                 }
               }}
               className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"

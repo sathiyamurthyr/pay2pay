@@ -18,14 +18,6 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
   const [copied, setCopied] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Read simulated OTP from localStorage (set by Step 1)
-  const [simulatedOtp, setSimulatedOtp] = useState("778899");
-
-  useEffect(() => {
-    const stored = localStorage.getItem("pay2pay_otp_hint");
-    if (stored) setSimulatedOtp(stored);
-  }, []);
-
   // Countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
@@ -61,20 +53,6 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
     inputRefs.current[Math.min(text.length, 5)]?.focus();
   };
 
-  // Auto-fill the simulated OTP
-  const handleAutoFill = () => {
-    const digits = simulatedOtp.split("").slice(0, 6);
-    setOtpDigits(digits.concat(Array(6).fill("")).slice(0, 6));
-    setErrorMsg("");
-    inputRefs.current[5]?.focus();
-  };
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(simulatedOtp);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpValue.length !== 6) {
@@ -99,7 +77,6 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
-        localStorage.removeItem("pay2pay_otp_hint");
         onSuccess();
       } else {
         setAttemptsLeft((prev) => prev - 1);
@@ -107,9 +84,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
       }
     } catch {
       setLoading(false);
-      // Fallback: accept in offline/demo mode
-      localStorage.removeItem("pay2pay_otp_hint");
-      onSuccess();
+      setErrorMsg("Verification failed. Please check your network connection.");
     }
   };
 
@@ -117,21 +92,16 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
     if (!mobileNumber) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/onboarding/check-mobile", {
+      await fetch("/api/v1/onboarding/check-mobile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile_number: mobileNumber })
       });
-      const data = await res.json();
       setLoading(false);
       setCountdown(60);
       setAttemptsLeft(5);
       setErrorMsg("");
       setOtpDigits(["", "", "", "", "", ""]);
-      if (data.simulated_otp) {
-        setSimulatedOtp(data.simulated_otp);
-        localStorage.setItem("pay2pay_otp_hint", data.simulated_otp);
-      }
     } catch {
       setLoading(false);
       setCountdown(60);
@@ -202,6 +172,9 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
                     : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
                   }
                   focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20`}
+                style={{ width: 44, height: 52 }}
+              />
+            ))}
           </div>
         </div>
 
