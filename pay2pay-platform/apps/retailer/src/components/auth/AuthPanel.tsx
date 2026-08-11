@@ -174,40 +174,22 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
 // Use relative API URL so it works on all environments via Next.js rewrites
 const API_BASE = "/api/v1";
 
-interface AuthPanelProps {
-  portalRole?: "RETAILER" | "DISTRIBUTOR" | "SUPER_DISTRIBUTOR" | "ADMIN";
-}
-
-export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" }) => {
+export const AuthPanel: React.FC = () => {
   const router = useRouter();
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>("English");
   const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;
 
-  const [authTab, setAuthTab] = useState<"PASSWORD" | "OTP" | "AADHAAR" | "BIOMETRIC">("PASSWORD");
+  const [authTab, setAuthTab] = useState<"PASSWORD" | "OTP" | "BIOMETRIC">("PASSWORD");
   const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
-  const [aadhaarNumber, setAadhaarNumber] = useState("");
-  const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
-  const [aadhaarOtpDigits, setAadhaarOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaCode, setCaptchaCode] = useState("K7N8P2");
 
-  const regenerateCaptcha = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let result = "";
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setCaptchaCode(result);
-    setCaptchaInput("");
-  };
-
   const [mobileFocused, setMobileFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  const [aadhaarFocused, setAadhaarFocused] = useState(false);
   const [captchaFocused, setCaptchaFocused] = useState(false);
   const [isShakeError, setIsShakeError] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -216,7 +198,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
   const [acceptedConsent, setAcceptedConsent] = useState(true);
   const [trustDevice, setTrustDevice] = useState(true);
   const [trustDays, setTrustDays] = useState<number>(30);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -230,65 +212,6 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
   const [lockTimer, setLockTimer] = useState<number>(0);
 
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const aadhaarOtpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  const formatAadhaar = (val: string) => {
-    const raw = val.replace(/\D/g, "").slice(0, 12);
-    return raw.replace(/(\d{4})(?=\d)/g, "$1 ");
-  };
-
-  const handleAadhaarOtpDigitChange = (index: number, val: string) => {
-    if (!/^\d*$/.test(val)) return;
-    const newDigits = [...aadhaarOtpDigits];
-    newDigits[index] = val.slice(-1);
-    setAadhaarOtpDigits(newDigits);
-    if (val && index < 5) {
-      aadhaarOtpInputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleAadhaarOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !aadhaarOtpDigits[index] && index > 0) {
-      aadhaarOtpInputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleSendAadhaarOtp = async () => {
-    const rawAadhaar = aadhaarNumber.replace(/\D/g, "");
-    if (rawAadhaar.length !== 12) {
-      triggerError("Please enter a valid 12-digit Aadhaar number.");
-      return;
-    }
-    setErrorMsg("");
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setAadhaarOtpSent(true);
-      setSuccessMsg(`✓ Aadhaar OTP sent to UIDAI registered mobile (XXXX-XXXX-${rawAadhaar.slice(8)})`);
-      setTimeout(() => aadhaarOtpInputRefs.current[0]?.focus(), 200);
-    }, 500);
-  };
-
-  const handleAadhaarOtpVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const fullOtp = aadhaarOtpDigits.join("");
-    if (!acceptedConsent) {
-      triggerError("Security Consent acceptance is mandatory.");
-      return;
-    }
-    if (fullOtp.length < 6) {
-      triggerError("Please enter the complete 6-digit Aadhaar OTP code.");
-      return;
-    }
-    setLoading(true);
-    setErrorMsg("");
-    setTimeout(() => {
-      setLoading(false);
-      setShowConfetti(true);
-      setSuccessMsg("✓ Aadhaar eKYC Verified. Redirecting...");
-      setTimeout(() => router.push("/retailer-dashboard"), 600);
-    }, 600);
-  };
 
   useEffect(() => {
     let timer: any;
@@ -446,20 +369,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
           }).catch(() => {});
         }
 
-        const getPortalDashboard = (role: string) => {
-          switch (role) {
-            case "DISTRIBUTOR": return "/distributor/dashboard";
-            case "SUPER_DISTRIBUTOR": return "/super-distributor/dashboard";
-            case "ADMIN": return "/admin/dashboard";
-            default: return "/retailer/dashboard";
-          }
-        };
-
-        const targetDashboard = getPortalDashboard(portalRole);
-        document.cookie = `p2p_user_role=${portalRole}; path=/; max-age=2592000; SameSite=Lax`;
-        document.cookie = `p2p_access_token=${data.data?.access_token || "auth-token"}; path=/; max-age=2592000; SameSite=Lax`;
-
-        setTimeout(() => { router.push(targetDashboard); }, 800);
+        setTimeout(() => { router.push("/retailer-dashboard"); }, 800);
       } else {
         const errText = (data.detail && data.detail !== "Not Found")
           ? data.detail
@@ -487,10 +397,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
       setLoading(false);
       setShowConfetti(true);
       setSuccessMsg("✓ Authenticated. Redirecting...");
-      const targetDashboard = portalRole === "DISTRIBUTOR" ? "/distributor/dashboard" : portalRole === "SUPER_DISTRIBUTOR" ? "/super-distributor/dashboard" : portalRole === "ADMIN" ? "/admin/dashboard" : "/retailer/dashboard";
-      document.cookie = `p2p_user_role=${portalRole}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `p2p_access_token=dev-token; path=/; max-age=2592000; SameSite=Lax`;
-      setTimeout(() => { router.push(targetDashboard); }, 600);
+      setTimeout(() => { router.push("/retailer-dashboard"); }, 600);
     }
   };
 
@@ -570,10 +477,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
   // ─────────────────────────────────────────────────────────────────
   // Shared input class helper
   // ─────────────────────────────────────────────────────────────────
-  const inputBase = `w-full rounded-xl text-sm font-medium transition-all outline-none border ${
+  const inputBase = `w-full rounded-xl border text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none transition-all duration-200 ${
     darkMode
-      ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
-      : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+      ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500"
+      : "bg-white border-slate-200 text-slate-900"
   }`;
 
   const inputFocusRing = (focused: boolean) =>
@@ -583,25 +490,16 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
 
   return (
     <div
-      className={`relative w-full h-screen max-h-screen overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 ${
+      className={`relative w-full min-h-screen flex flex-col transition-colors duration-300 ${
         darkMode
-          ? "bg-[#0B0F19] text-white"
+          ? "bg-slate-950 text-white"
           : "bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900"
       }`}
     >
       {showConfetti && <ConfettiBurst />}
 
-      {/* ── Ambient 3D Glowing Orbs (Diffuses through frosted glass card) ── */}
-      {darkMode && (
-        <>
-          <div className="absolute top-1/4 -left-12 w-56 h-56 rounded-full bg-blue-600/30 filter blur-[90px] pointer-events-none animate-pulse" />
-          <div className="absolute bottom-1/4 -right-12 w-64 h-64 rounded-full bg-cyan-500/25 filter blur-[100px] pointer-events-none" />
-          <div className="absolute top-1/2 left-1/3 w-40 h-40 rounded-full bg-indigo-500/20 filter blur-[70px] pointer-events-none" />
-        </>
-      )}
-
       {/* ── Outer Padding Wrapper ── */}
-      <div className="flex flex-col flex-1 justify-between px-4 py-2 sm:px-6 sm:py-3 lg:px-7 lg:py-3 max-w-md mx-auto w-full h-full overflow-hidden relative z-10">
+      <div className="flex flex-col flex-1 px-5 py-5 sm:px-6 sm:py-6 lg:px-7 lg:py-6 2xl:px-10 2xl:py-8 max-w-lg mx-auto w-full">
 
         {/* ─── Mobile Top Header ─── */}
         <div className="lg:hidden flex items-center justify-between mb-5 pb-4 border-b border-slate-200/80 dark:border-slate-800">
@@ -696,63 +594,56 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
           </div>
         </div>
 
-        {/* ─── Main Auth Card (Frosted Glassmorphism) ─── */}
+        {/* ─── Main Auth Card ─── */}
         <motion.div
           variants={glassPanelVariants}
           initial="hidden"
           animate="visible"
-          className={`my-auto w-full rounded-3xl transition-all duration-300 relative overflow-y-auto max-h-[85vh] scrollbar-none backdrop-blur-2xl ${
+          className={`my-auto w-full rounded-3xl border shadow-xl transition-colors duration-300 ${
             darkMode
-              ? "bg-slate-900/40 border border-white/20 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.3)]"
-              : "bg-white/80 border border-white/70 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)]"
+              ? "bg-slate-900/95 border-slate-800/80 shadow-slate-950/60"
+              : "bg-white/98 border-slate-200/80 shadow-slate-200/60"
           }`}
-          style={{ padding: "clamp(0.85rem, 2vw, 1.25rem)" }}
+          style={{ padding: "clamp(1.25rem, 3vw, 1.75rem)" }}
         >
-          {/* Top Specular Glass Reflection Sheen */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
-          <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-white/10 to-transparent rounded-full filter blur-lg pointer-events-none" />
           {/* ── Card Header ── */}
-          <div className="text-center mb-2">
+          <div className="text-center mb-5">
             {/* Logo mark (visible in auth panel on all sizes) */}
-            <div className="flex items-center justify-center gap-2 mb-1.5">
-              <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 p-0.5 shadow-lg shadow-amber-500/25">
-                <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${darkMode ? "bg-slate-900" : "bg-white"}`}>
-                  <span className="text-[11px] font-black tracking-tighter bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200 bg-clip-text text-transparent">
+            <div className="flex items-center justify-center gap-2.5 mb-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
+                <div className={`w-full h-full rounded-[14px] flex items-center justify-center ${darkMode ? "bg-slate-900" : "bg-white"}`}>
+                  <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 bg-clip-text text-transparent">
                     P2P
                   </span>
                 </div>
               </div>
             </div>
-            <h2 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
+            <h2 className={`text-2xl font-black tracking-tight leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
               {t.welcomeBack}
             </h2>
-            <p className={`text-[11px] font-medium mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+            <p className={`text-sm font-medium mt-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
               {t.subtitle}
             </p>
           </div>
 
           {/* ── Tab Switcher ── */}
-          <div className={`flex p-1 rounded-xl mb-2.5 ${darkMode ? "bg-slate-800/80" : "bg-slate-100"}`}>
-            {(["PASSWORD", "OTP", "AADHAAR", "BIOMETRIC"] as const).map((tab) => (
+          <div className={`flex p-1 rounded-2xl mb-5 ${darkMode ? "bg-slate-800/80" : "bg-slate-100"}`}>
+            {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
-                onClick={() => { setAuthTab(tab); setErrorMsg(""); setSuccessMsg(""); }}
-                className={`flex-1 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                   authTab === tab
-                    ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
+                    ? darkMode
+                      ? "bg-slate-700 text-blue-400 shadow-sm"
+                      : "bg-white text-blue-600 shadow-sm shadow-slate-200/80"
                     : darkMode
                     ? "text-slate-400 hover:text-slate-200"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
-                {tab === "PASSWORD"
-                  ? t.passwordLogin
-                  : tab === "OTP"
-                  ? "WhatsApp OTP"
-                  : tab === "AADHAAR"
-                  ? "Aadhaar OTP"
-                  : t.biometricLogin}
+                {tab === "PASSWORD" ? t.passwordLogin : tab === "OTP" ? t.otpLogin : t.biometricLogin}
               </button>
             ))}
           </div>
@@ -819,9 +710,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                 initial={{ opacity: 0, y: -6 }}
                 animate={isShakeError ? "shake" : { opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="mb-2 p-2 sm:p-2.5 rounded-xl bg-red-500/10 border border-red-400/30 text-xs font-semibold flex items-center gap-2"
+                className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-400/30 text-sm font-semibold flex items-start gap-2.5"
               >
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
                 <span className={darkMode ? "text-red-300" : "text-red-700"}>{errorMsg}</span>
               </motion.div>
             )}
@@ -830,9 +721,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="mb-2 p-2 sm:p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-400/30 text-xs font-semibold flex items-center gap-2"
+                className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-400/30 text-sm font-semibold flex items-start gap-2.5"
               >
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
                 <span className={darkMode ? "text-emerald-300" : "text-emerald-700"}>{successMsg}</span>
               </motion.div>
             )}
@@ -842,7 +733,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
               TAB 1 — PASSWORD LOGIN
           ════════════════════════════════════════════════════════ */}
           {authTab === "PASSWORD" && (
-            <form onSubmit={handlePasswordLogin} className="space-y-2.5">
+            <form onSubmit={handlePasswordLogin} className="space-y-4">
 
               {/* Mobile Number */}
               <div>
@@ -908,38 +799,40 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                 </div>
               </div>
 
-              {/* Security Captcha */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className={`text-xs font-bold ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                    Security Captcha <span className="text-red-500">*</span>
-                  </label>
+              {/* Captcha */}
+              <div className={`rounded-xl border p-3 ${
+                darkMode ? "bg-slate-800/60 border-slate-700/80" : "bg-slate-50 border-slate-200"
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-xs font-bold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                    {t.captchaChallenge}
+                  </span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-black text-xs tracking-widest px-2.5 py-1 rounded-lg bg-amber-400/10 text-amber-300 border border-amber-400/30">
+                    <div className="px-3 py-1 bg-slate-900 text-amber-300 font-mono font-black text-sm tracking-widest rounded-lg select-none">
                       {captchaCode}
-                    </span>
+                    </div>
                     <button
                       type="button"
-                      onClick={regenerateCaptcha}
+                      onClick={fetchCaptcha}
                       className={`p-1.5 rounded-lg border transition-colors ${
-                        darkMode ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-white" : "bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900"
+                        darkMode
+                          ? "bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600"
+                          : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
                       }`}
-                      title="Refresh Captcha"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-                <div className={`relative rounded-xl transition-all duration-200 ${inputFocusRing(captchaFocused)}`}>
+                <div className={`relative rounded-lg transition-all duration-200 ${inputFocusRing(captchaFocused)}`}>
                   <input
                     type="text"
                     value={captchaInput}
                     onFocus={() => setCaptchaFocused(true)}
                     onBlur={() => setCaptchaFocused(false)}
                     onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
-                    placeholder="ENTER CAPTCHA CODE"
-                    required
-                    className={`${inputBase} px-4 py-2.5 uppercase tracking-wider text-xs sm:text-sm font-mono`}
+                    placeholder={t.enterCaptcha}
+                    className={`${inputBase} rounded-lg px-3.5 py-2.5 text-sm font-mono uppercase`}
                   />
                 </div>
               </div>
@@ -989,17 +882,17 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
               </div>
 
               {/* Security Consent */}
-              <div className={`rounded-xl border p-2 sm:p-2.5 ${
+              <div className={`rounded-xl border p-3 ${
                 darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/60 border-blue-200/60"
               }`}>
-                <label className="flex items-start gap-2 cursor-pointer">
+                <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={acceptedConsent}
                     onChange={(e) => setAcceptedConsent(e.target.checked)}
-                    className="w-3.5 h-3.5 mt-0.5 rounded text-blue-600 accent-amber-500 cursor-pointer shrink-0"
+                    className="w-4 h-4 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
                   />
-                  <span className={`text-[11px] font-medium leading-normal ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                  <span className={`text-xs font-medium leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
                     {t.securityConsent}
                   </span>
                 </label>
@@ -1012,14 +905,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                 whileTap={isLocked ? undefined : "tap"}
                 type="submit"
                 disabled={loading || isLocked}
-                className={`w-full py-3 rounded-xl text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
+                className={`w-full py-3.5 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-md ${
                   isLocked
-                    ? "bg-slate-700 text-slate-400 cursor-not-allowed opacity-70 shadow-none"
-                    : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-600/25 cursor-pointer active:scale-[0.98]"
+                    ? "bg-slate-400 cursor-not-allowed opacity-70 shadow-none"
+                    : "bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:shadow-lg hover:shadow-blue-600/30 cursor-pointer active:scale-[0.98]"
                 }`}
               >
                 {isLocked ? (
-                  <div className="flex items-center gap-2 text-red-200">
+                  <div className="flex items-center gap-2 text-amber-200">
                     <Lock className="w-4 h-4" />
                     <span>Locked — {Math.floor(lockTimer / 60)}m {lockTimer % 60}s</span>
                   </div>
@@ -1039,7 +932,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
           )}
 
           {/* ════════════════════════════════════════════════════════
-              TAB 2 — OTP LOGIN (WhatsApp)
+              TAB 2 — OTP LOGIN
           ════════════════════════════════════════════════════════ */}
           {authTab === "OTP" && (
             <div className="space-y-4">
@@ -1116,17 +1009,17 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                   </div>
 
                   {/* Security consent for OTP tab */}
-                  <div className={`rounded-xl border p-2.5 ${
+                  <div className={`rounded-xl border p-3 ${
                     darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/60 border-blue-200/60"
                   }`}>
-                    <label className="flex items-start gap-2 cursor-pointer">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={acceptedConsent}
                         onChange={(e) => setAcceptedConsent(e.target.checked)}
-                        className="w-3.5 h-3.5 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
+                        className="w-4 h-4 mt-0.5 rounded accent-blue-600 cursor-pointer shrink-0"
                       />
-                      <span className={`text-[11px] font-medium leading-normal ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                      <span className={`text-xs font-medium leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
                         {t.securityConsent}
                       </span>
                     </label>
@@ -1138,7 +1031,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                     whileTap="tap"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold shadow-md cursor-pointer hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold shadow-md cursor-pointer hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1155,121 +1048,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
           )}
 
           {/* ════════════════════════════════════════════════════════
-              TAB 3 — AADHAAR OTP LOGIN
-          ════════════════════════════════════════════════════════ */}
-          {authTab === "AADHAAR" && (
-            <div className="space-y-3">
-              <div>
-                <label className={`block text-xs font-bold mb-1.5 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                  Aadhaar Number <span className="text-red-500">*</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className={`relative flex-1 rounded-xl transition-all duration-200 ${inputFocusRing(aadhaarFocused)}`}>
-                    <input
-                      type="text"
-                      value={aadhaarNumber}
-                      onFocus={() => setAadhaarFocused(true)}
-                      onBlur={() => setAadhaarFocused(false)}
-                      onChange={(e) => setAadhaarNumber(formatAadhaar(e.target.value))}
-                      placeholder="1234 5678 9012"
-                      maxLength={14}
-                      className={`${inputBase} px-3.5 py-2.5 font-mono tracking-wider text-xs sm:text-sm`}
-                    />
-                    {aadhaarNumber.replace(/\D/g, "").length === 12 && (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute right-3 top-1/2 -translate-y-1/2" />
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleSendAadhaarOtp}
-                    disabled={aadhaarNumber.replace(/\D/g, "").length !== 12 || loading}
-                    className={`px-3.5 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
-                      aadhaarNumber.replace(/\D/g, "").length !== 12 || loading
-                        ? "bg-slate-400 cursor-not-allowed shadow-none"
-                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25 cursor-pointer"
-                    }`}
-                  >
-                    {loading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Fingerprint className="w-3.5 h-3.5" />
-                    )}
-                    <span>{aadhaarOtpSent ? t.resend : "Send OTP"}</span>
-                  </button>
-                </div>
-              </div>
-
-              {aadhaarOtpSent && (
-                <form onSubmit={handleAadhaarOtpVerify} className="space-y-3 pt-1">
-                  <div>
-                    <label className={`block text-xs font-bold mb-2 text-center ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                      Enter 6-Digit Aadhaar OTP <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex items-center justify-center gap-2">
-                      {aadhaarOtpDigits.map((digit, idx) => (
-                        <input
-                          key={idx}
-                          ref={(el) => { aadhaarOtpInputRefs.current[idx] = el; }}
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleAadhaarOtpDigitChange(idx, e.target.value)}
-                          onKeyDown={(e) => handleAadhaarOtpKeyDown(idx, e)}
-                          className={`w-10 h-11 text-center font-black text-lg rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
-                            digit
-                              ? "border-blue-500 bg-blue-50 text-blue-700"
-                              : darkMode
-                              ? "border-slate-700 bg-slate-800 text-white focus:border-blue-500"
-                              : "border-slate-200 bg-slate-50 text-slate-900 focus:border-blue-500"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Security consent for Aadhaar OTP tab */}
-                  <div className={`rounded-xl border p-2.5 ${
-                    darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/60 border-blue-200/60"
-                  }`}>
-                    <label className="flex items-start gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={acceptedConsent}
-                        onChange={(e) => setAcceptedConsent(e.target.checked)}
-                        className="w-3.5 h-3.5 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
-                      />
-                      <span className={`text-[11px] font-medium leading-normal ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
-                        {t.securityConsent}
-                      </span>
-                    </label>
-                  </div>
-
-                  <motion.button
-                    variants={buttonMotionVariants}
-                    whileHover="hover"
-                    whileTap="tap"
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <span>Verify Aadhaar & Sign In</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </motion.button>
-                </form>
-              )}
-            </div>
-          )}
-
-          {/* ════════════════════════════════════════════════════════
-              TAB 4 — BIOMETRIC LOGIN
+              TAB 3 — BIOMETRIC LOGIN
           ════════════════════════════════════════════════════════ */}
           {authTab === "BIOMETRIC" && (
             <div className="py-4 text-center space-y-4">
@@ -1311,7 +1090,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
           )}
 
           {/* ── Register Link ── */}
-          <div className={`mt-3 pt-2.5 border-t flex items-center justify-between text-xs ${
+          <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
             darkMode ? "border-slate-800" : "border-slate-100"
           }`}>
             <span className={`font-medium ${darkMode ? "text-slate-500" : "text-slate-500"}`}>
@@ -1327,15 +1106,15 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
         </motion.div>
 
         {/* ── Footer Links ── */}
-        <div className={`mt-2 text-center space-y-0.5 ${darkMode ? "text-slate-600" : "text-slate-400"}`}>
-          <div className="flex items-center justify-center gap-2.5 text-[11px] font-medium">
+        <div className={`mt-5 text-center space-y-1 ${darkMode ? "text-slate-600" : "text-slate-400"}`}>
+          <div className="flex items-center justify-center gap-3 text-xs font-medium">
             <a href="#" className="hover:underline hover:text-blue-500 transition-colors">{t.privacyPolicy}</a>
             <span>·</span>
             <a href="#" className="hover:underline hover:text-blue-500 transition-colors">{t.terms}</a>
             <span>·</span>
             <a href="#" className="hover:underline hover:text-blue-500 transition-colors">{t.refundPolicy}</a>
           </div>
-          <p className="text-[10px]">{t.rbiFooter}</p>
+          <p className="text-[11px]">{t.rbiFooter}</p>
         </div>
 
       </div>
