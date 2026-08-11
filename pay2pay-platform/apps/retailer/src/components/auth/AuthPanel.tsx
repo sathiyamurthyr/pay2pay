@@ -477,10 +477,10 @@ export const AuthPanel: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────
   // Shared input class helper
   // ─────────────────────────────────────────────────────────────────
-  const inputBase = `w-full rounded-xl border text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none transition-all duration-200 ${
+  const inputBase = `w-full rounded-xl text-sm font-medium transition-all outline-none border ${
     darkMode
-      ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500"
-      : "bg-white border-slate-200 text-slate-900"
+      ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+      : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
   }`;
 
   const inputFocusRing = (focused: boolean) =>
@@ -610,9 +610,9 @@ export const AuthPanel: React.FC = () => {
           <div className="text-center mb-3">
             {/* Logo mark (visible in auth panel on all sizes) */}
             <div className="flex items-center justify-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 p-0.5 shadow-lg shadow-amber-500/25">
                 <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${darkMode ? "bg-slate-900" : "bg-white"}`}>
-                  <span className="text-xs font-black tracking-tighter bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 bg-clip-text text-transparent">
+                  <span className="text-xs font-black tracking-tighter bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200 bg-clip-text text-transparent">
                     P2P
                   </span>
                 </div>
@@ -633,11 +633,11 @@ export const AuthPanel: React.FC = () => {
                 key={tab}
                 type="button"
                 onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${
                   authTab === tab
                     ? darkMode
-                      ? "bg-slate-700 text-blue-400 shadow-sm"
-                      : "bg-white text-blue-600 shadow-sm shadow-slate-200/80"
+                      ? "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/25"
+                      : "bg-amber-500 text-white shadow-sm shadow-amber-500/20"
                     : darkMode
                     ? "text-slate-400 hover:text-slate-200"
                     : "text-slate-500 hover:text-slate-700"
@@ -905,10 +905,10 @@ export const AuthPanel: React.FC = () => {
                 whileTap={isLocked ? undefined : "tap"}
                 type="submit"
                 disabled={loading || isLocked}
-                className={`w-full py-3.5 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-md ${
+                className={`w-full py-3.5 rounded-xl text-slate-950 font-black text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
                   isLocked
-                    ? "bg-slate-400 cursor-not-allowed opacity-70 shadow-none"
-                    : "bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:shadow-lg hover:shadow-blue-600/30 cursor-pointer active:scale-[0.98]"
+                    ? "bg-slate-700 text-slate-400 cursor-not-allowed opacity-70 shadow-none"
+                    : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 hover:shadow-lg hover:shadow-amber-500/30 cursor-pointer active:scale-[0.98]"
                 }`}
               >
                 {isLocked ? (
