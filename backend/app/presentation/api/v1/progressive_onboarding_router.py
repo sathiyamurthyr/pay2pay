@@ -11,6 +11,8 @@ router = APIRouter(prefix="/onboarding", tags=["Progressive Onboarding & KYC"])
 
 class CheckMobilePayload(BaseModel):
     mobile_number: str = Field(..., example="9176669426")
+    tenant_id: Optional[str] = Field(None, example="00000000-0000-0000-0000-000000000001")
+    company_id: Optional[str] = Field(None, example="COMP-001")
 
 class VerifyMobileOtpPayload(BaseModel):
     registration_id: str
@@ -98,7 +100,12 @@ class SubmitPayload(BaseModel):
 
 @router.post("/check-mobile")
 async def check_mobile(payload: CheckMobilePayload, db: AsyncSession = Depends(get_db)):
-    res = await ProgressiveOnboardingService.check_mobile(db, payload.mobile_number)
+    res = await ProgressiveOnboardingService.check_mobile(
+        db,
+        payload.mobile_number,
+        tenant_id=payload.tenant_id,
+        company_id=payload.company_id
+    )
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=400, detail=res["message"])
     return res
