@@ -1121,3 +1121,6 @@ export const AuthPanel: React.FC = () => {
     </div>
   );
 };
+
+
+export default AuthPanel;
