@@ -477,15 +477,11 @@ export const AuthPanel: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────
   // Shared input class helper
   // ─────────────────────────────────────────────────────────────────
-  const inputBase = `w-full rounded-xl border text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none transition-all duration-200 ${
-    darkMode
-      ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500"
-      : "bg-white border-slate-200 text-slate-900"
-  }`;
+  const inputBase = "w-full rounded-xl border text-sm font-medium text-white placeholder-slate-500 focus:outline-none transition-all duration-200 bg-[#121c35] border-[#1e2c4d]";
 
   const inputFocusRing = (focused: boolean) =>
     focused
-      ? "ring-2 ring-blue-500/40 border-blue-500 shadow-sm shadow-blue-500/10"
+      ? "ring-2 ring-amber-400/30 border-amber-400 shadow-sm shadow-amber-400/10"
       : "";
 
   return (
@@ -599,39 +595,31 @@ export const AuthPanel: React.FC = () => {
           variants={glassPanelVariants}
           initial="hidden"
           animate="visible"
-          className={`my-auto w-full rounded-3xl transition-all duration-300 relative overflow-y-auto max-h-[85vh] scrollbar-none backdrop-blur-2xl ${
-            darkMode
-              ? "bg-slate-950/90 border border-slate-800/90 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.08)]"
-              : "bg-slate-950/90 border border-slate-800/90 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.08)]"
-          }`}
+          className="my-auto w-full rounded-3xl transition-all duration-300 relative overflow-y-auto max-h-[85vh] scrollbar-none backdrop-blur-2xl bg-[#0c1427]/90 border border-[#1e2d4a] shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
           style={{ padding: "clamp(1.25rem, 3vw, 1.75rem)" }}
         >
-          {/* Top Specular Glass Reflection Sheen */}
+          {/* Top Specular Reflection Sheen */}
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent pointer-events-none" />
           <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-amber-400/5 to-transparent rounded-full filter blur-lg pointer-events-none" />
 
           {/* ── Card Header ── */}
           <div className="text-center mb-5">
-            {/* Logo mark (visible in auth panel on all sizes) */}
+            {/* Circular P2P Gold Badge matching screenshot */}
             <div className="flex items-center justify-center gap-2.5 mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 p-0.5 shadow-lg shadow-amber-500/25">
-                <div className="w-full h-full rounded-[14px] flex items-center justify-center bg-slate-950">
-                  <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200 bg-clip-text text-transparent">
-                    P2P
-                  </span>
-                </div>
+              <div className="w-10 h-10 rounded-full border-2 border-amber-400 bg-amber-400/15 flex items-center justify-center shadow-md shadow-amber-400/20">
+                <span className="text-xs font-black text-amber-400 tracking-tighter">P2P</span>
               </div>
             </div>
             <h2 className="text-2xl font-black tracking-tight leading-tight text-white">
               {t.welcomeBack}
             </h2>
-            <p className="text-sm font-medium mt-1 text-slate-400">
+            <p className="text-xs font-semibold mt-1 text-slate-400">
               {t.subtitle}
             </p>
           </div>
 
           {/* ── Tab Switcher ── */}
-          <div className="flex p-1 rounded-2xl mb-5 bg-slate-900/90 border border-slate-800/80">
+          <div className="flex p-1 rounded-2xl mb-5 bg-[#131d36] border border-[#1e2c4d]">
             {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
               <button
                 key={tab}
@@ -802,25 +790,19 @@ export const AuthPanel: React.FC = () => {
               </div>
 
               {/* Captcha */}
-              <div className={`rounded-xl border p-3 ${
-                darkMode ? "bg-slate-800/60 border-slate-700/80" : "bg-slate-50 border-slate-200"
-              }`}>
+              <div className="rounded-xl border p-3 bg-[#121c35] border-[#1e2c4d]">
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`text-xs font-bold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                  <span className="text-xs font-bold text-slate-300">
                     {t.captchaChallenge}
                   </span>
                   <div className="flex items-center gap-2">
-                    <div className="px-3 py-1 bg-slate-900 text-amber-300 font-mono font-black text-sm tracking-widest rounded-lg select-none">
+                    <div className="px-3 py-1 bg-[#090f1f] text-amber-400 font-mono font-black text-sm tracking-widest rounded-lg select-none border border-amber-400/20">
                       {captchaCode}
                     </div>
                     <button
                       type="button"
                       onClick={fetchCaptcha}
-                      className={`p-1.5 rounded-lg border transition-colors ${
-                        darkMode
-                          ? "bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600"
-                          : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
-                      }`}
+                      className="p-1.5 rounded-lg border transition-colors bg-[#1a2647] border-[#263761] text-slate-300 hover:bg-[#203059]"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
@@ -846,9 +828,9 @@ export const AuthPanel: React.FC = () => {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                    className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer"
                   />
-                  <span className={`text-xs font-semibold ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                  <span className="text-xs font-semibold text-slate-300">
                     {t.rememberSession}
                   </span>
                 </label>
@@ -859,9 +841,9 @@ export const AuthPanel: React.FC = () => {
                       type="checkbox"
                       checked={trustDevice}
                       onChange={(e) => setTrustDevice(e.target.checked)}
-                      className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                      className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer"
                     />
-                    <span className={`text-xs font-semibold ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    <span className="text-xs font-semibold text-slate-300">
                       {t.trustDevice}
                     </span>
                   </label>
@@ -869,11 +851,7 @@ export const AuthPanel: React.FC = () => {
                     <select
                       value={trustDays}
                       onChange={(e) => setTrustDays(Number(e.target.value))}
-                      className={`text-xs font-bold rounded-lg px-1.5 py-1 outline-none border ${
-                        darkMode
-                          ? "bg-slate-800 border-slate-700 text-slate-300"
-                          : "bg-slate-100 border-slate-200 text-slate-600"
-                      }`}
+                      className="text-xs font-bold rounded-lg px-2 py-1 outline-none border bg-[#121c35] border-[#1e2c4d] text-slate-200"
                     >
                       <option value={30}>{t.days30}</option>
                       <option value={90}>{t.days90}</option>
@@ -884,17 +862,15 @@ export const AuthPanel: React.FC = () => {
               </div>
 
               {/* Security Consent */}
-              <div className={`rounded-xl border p-3 ${
-                darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/60 border-blue-200/60"
-              }`}>
+              <div className="rounded-xl border p-3 bg-[#111b33]/80 border-[#1e2c4d]">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={acceptedConsent}
                     onChange={(e) => setAcceptedConsent(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
+                    className="w-4 h-4 mt-0.5 rounded text-amber-500 accent-amber-500 cursor-pointer shrink-0"
                   />
-                  <span className={`text-xs font-medium leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                  <span className="text-xs font-medium leading-relaxed text-slate-400">
                     {t.securityConsent}
                   </span>
                 </label>

@@ -477,15 +477,11 @@ export const AuthPanel: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────
   // Shared input class helper
   // ─────────────────────────────────────────────────────────────────
-  const inputBase = `w-full rounded-xl border text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none transition-all duration-200 ${
-    darkMode
-      ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500"
-      : "bg-white border-slate-200 text-slate-900"
-  }`;
+  const inputBase = "w-full rounded-xl border text-sm font-medium text-white placeholder-slate-500 focus:outline-none transition-all duration-200 bg-[#121c35] border-[#1e2c4d]";
 
   const inputFocusRing = (focused: boolean) =>
     focused
-      ? "ring-2 ring-blue-500/40 border-blue-500 shadow-sm shadow-blue-500/10"
+      ? "ring-2 ring-amber-400/30 border-amber-400 shadow-sm shadow-amber-400/10"
       : "";
 
   return (
@@ -802,25 +798,19 @@ export const AuthPanel: React.FC = () => {
               </div>
 
               {/* Captcha */}
-              <div className={`rounded-xl border p-3 ${
-                darkMode ? "bg-slate-800/60 border-slate-700/80" : "bg-slate-50 border-slate-200"
-              }`}>
+              <div className="rounded-xl border p-3 bg-[#121c35] border-[#1e2c4d]">
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`text-xs font-bold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                  <span className="text-xs font-bold text-slate-300">
                     {t.captchaChallenge}
                   </span>
                   <div className="flex items-center gap-2">
-                    <div className="px-3 py-1 bg-slate-900 text-amber-300 font-mono font-black text-sm tracking-widest rounded-lg select-none">
+                    <div className="px-3 py-1 bg-[#090f1f] text-amber-400 font-mono font-black text-sm tracking-widest rounded-lg select-none border border-amber-400/20">
                       {captchaCode}
                     </div>
                     <button
                       type="button"
                       onClick={fetchCaptcha}
-                      className={`p-1.5 rounded-lg border transition-colors ${
-                        darkMode
-                          ? "bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600"
-                          : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
-                      }`}
+                      className="p-1.5 rounded-lg border transition-colors bg-[#1a2647] border-[#263761] text-slate-300 hover:bg-[#203059]"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
@@ -846,9 +836,9 @@ export const AuthPanel: React.FC = () => {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                    className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer"
                   />
-                  <span className={`text-xs font-semibold ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                  <span className="text-xs font-semibold text-slate-300">
                     {t.rememberSession}
                   </span>
                 </label>
@@ -859,9 +849,9 @@ export const AuthPanel: React.FC = () => {
                       type="checkbox"
                       checked={trustDevice}
                       onChange={(e) => setTrustDevice(e.target.checked)}
-                      className="w-4 h-4 rounded text-blue-600 accent-blue-600 cursor-pointer"
+                      className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer"
                     />
-                    <span className={`text-xs font-semibold ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    <span className="text-xs font-semibold text-slate-300">
                       {t.trustDevice}
                     </span>
                   </label>
@@ -869,11 +859,7 @@ export const AuthPanel: React.FC = () => {
                     <select
                       value={trustDays}
                       onChange={(e) => setTrustDays(Number(e.target.value))}
-                      className={`text-xs font-bold rounded-lg px-1.5 py-1 outline-none border ${
-                        darkMode
-                          ? "bg-slate-800 border-slate-700 text-slate-300"
-                          : "bg-slate-100 border-slate-200 text-slate-600"
-                      }`}
+                      className="text-xs font-bold rounded-lg px-2 py-1 outline-none border bg-[#121c35] border-[#1e2c4d] text-slate-200"
                     >
                       <option value={30}>{t.days30}</option>
                       <option value={90}>{t.days90}</option>
@@ -884,17 +870,15 @@ export const AuthPanel: React.FC = () => {
               </div>
 
               {/* Security Consent */}
-              <div className={`rounded-xl border p-3 ${
-                darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/60 border-blue-200/60"
-              }`}>
+              <div className="rounded-xl border p-3 bg-[#111b33]/80 border-[#1e2c4d]">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={acceptedConsent}
                     onChange={(e) => setAcceptedConsent(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
+                    className="w-4 h-4 mt-0.5 rounded text-amber-500 accent-amber-500 cursor-pointer shrink-0"
                   />
-                  <span className={`text-xs font-medium leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                  <span className="text-xs font-medium leading-relaxed text-slate-400">
                     {t.securityConsent}
                   </span>
                 </label>
