@@ -34,13 +34,21 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.status === "ALREADY_REGISTERED") {
-          setErrorMsg("This mobile number is already registered. Please Login or reset your password.");
-        } else if (data.status === "RESUME_DRAFT") {
-          onSuccess(data.registration_id || `REG_${clean}`, clean, true, data.current_step);
-        } else {
-          onSuccess(data.registration_id || `REG_${clean}`, clean, false, undefined);
+        
+        // CASE 2 - EXISTING RETAILER (COMPLETED -> Redirect to Dashboard)
+        if (data.isExisting && data.status === "COMPLETED") {
+          window.location.href = data.nextRoute || "/retailer-dashboard";
+          return;
         }
+        
+        // CASE 2 - EXISTING RETAILER (IN_PROGRESS -> Resume saved step, DO NOT show step 1, 2, 3 again)
+        if (data.isExisting && data.status === "IN_PROGRESS") {
+          onSuccess(data.registration_id || `REG_${clean}`, clean, true, data.currentStep || data.current_step);
+          return;
+        }
+        
+        // CASE 1 - NEW RETAILER (Send OTP -> Verify OTP -> Step 1)
+        onSuccess(data.registration_id || `REG_${clean}`, clean, false, undefined);
       } else {
         onSuccess(`REG_${clean}_${Date.now()}`, clean, false, undefined);
       }
@@ -54,10 +62,10 @@ export const Step1Mobile: React.FC<Step1Props> = ({ onSuccess }) => {
     <div className="space-y-5 select-none">
       <div className="text-center">
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-          Create Your Retailer Account
+          Enter Mobile Number
         </h2>
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
-          Let's start with your 10-digit mobile number.
+          Validate your 10-digit mobile number to access your enterprise portal.
         </p>
       </div>
 
