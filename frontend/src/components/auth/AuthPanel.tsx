@@ -619,36 +619,36 @@ export const AuthPanel: React.FC = () => {
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
           <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-white/10 to-transparent rounded-full filter blur-lg pointer-events-none" />
           {/* ── Card Header ── */}
-          <div className="text-center mb-3">
+          <div className="text-center mb-2">
             {/* Logo mark (visible in auth panel on all sizes) */}
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 p-0.5 shadow-lg shadow-amber-500/25">
+            <div className="flex items-center justify-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 p-0.5 shadow-lg shadow-amber-500/25">
                 <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${darkMode ? "bg-slate-900" : "bg-white"}`}>
-                  <span className="text-xs font-black tracking-tighter bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200 bg-clip-text text-transparent">
+                  <span className="text-[11px] font-black tracking-tighter bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200 bg-clip-text text-transparent">
                     P2P
                   </span>
                 </div>
               </div>
             </div>
-            <h2 className={`text-xl font-black tracking-tight leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
+            <h2 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
               {t.welcomeBack}
             </h2>
-            <p className={`text-xs font-medium mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+            <p className={`text-[11px] font-medium mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
               {t.subtitle}
             </p>
           </div>
 
           {/* ── Tab Switcher ── */}
-          <div className={`flex p-1 rounded-xl mb-3 ${darkMode ? "bg-slate-800/80" : "bg-slate-100"}`}>
+          <div className={`flex p-1 rounded-xl mb-2.5 ${darkMode ? "bg-slate-800/80" : "bg-slate-100"}`}>
             {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
-                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${
+                className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
                   authTab === tab
                     ? darkMode
-                      ? "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/25"
+                      ? "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-white shadow-md shadow-amber-500/30"
                       : "bg-amber-500 text-white shadow-sm shadow-amber-500/20"
                     : darkMode
                     ? "text-slate-400 hover:text-slate-200"
@@ -812,27 +812,27 @@ export const AuthPanel: React.FC = () => {
               </div>
 
               {/* Captcha */}
-              <div className={`rounded-xl border p-3 ${
+              <div className={`rounded-xl border p-2 sm:p-2.5 ${
                 darkMode ? "bg-slate-800/60 border-slate-700/80" : "bg-slate-50 border-slate-200"
               }`}>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1.5">
                   <span className={`text-xs font-bold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                     {t.captchaChallenge}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <div className="px-3 py-1 bg-slate-900 text-amber-300 font-mono font-black text-sm tracking-widest rounded-lg select-none">
+                  <div className="flex items-center gap-1.5">
+                    <div className="px-2.5 py-0.5 bg-slate-900 text-amber-300 font-mono font-black text-xs tracking-widest rounded-md select-none">
                       {captchaCode}
                     </div>
                     <button
                       type="button"
                       onClick={fetchCaptcha}
-                      className={`p-1.5 rounded-lg border transition-colors ${
+                      className={`p-1 rounded-md border transition-colors ${
                         darkMode
                           ? "bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600"
                           : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
                       }`}
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      <RefreshCw className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -844,7 +844,7 @@ export const AuthPanel: React.FC = () => {
                     onBlur={() => setCaptchaFocused(false)}
                     onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
                     placeholder={t.enterCaptcha}
-                    className={`${inputBase} rounded-lg px-3.5 py-2.5 text-sm font-mono uppercase`}
+                    className={`${inputBase} rounded-lg px-3 py-2 text-xs font-mono uppercase`}
                   />
                 </div>
               </div>
@@ -894,17 +894,17 @@ export const AuthPanel: React.FC = () => {
               </div>
 
               {/* Security Consent */}
-              <div className={`rounded-xl border p-3 ${
+              <div className={`rounded-xl border p-2 sm:p-2.5 ${
                 darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/60 border-blue-200/60"
               }`}>
-                <label className="flex items-start gap-2.5 cursor-pointer">
+                <label className="flex items-start gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={acceptedConsent}
                     onChange={(e) => setAcceptedConsent(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
+                    className="w-3.5 h-3.5 mt-0.5 rounded text-blue-600 accent-amber-500 cursor-pointer shrink-0"
                   />
-                  <span className={`text-xs font-medium leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                  <span className={`text-[11px] font-medium leading-normal ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
                     {t.securityConsent}
                   </span>
                 </label>
@@ -917,10 +917,10 @@ export const AuthPanel: React.FC = () => {
                 whileTap={isLocked ? undefined : "tap"}
                 type="submit"
                 disabled={loading || isLocked}
-                className={`w-full py-3.5 rounded-xl text-slate-950 font-black text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
+                className={`w-full py-3 rounded-xl text-white font-extrabold text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
                   isLocked
                     ? "bg-slate-700 text-slate-400 cursor-not-allowed opacity-70 shadow-none"
-                    : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 hover:shadow-lg hover:shadow-amber-500/30 cursor-pointer active:scale-[0.98]"
+                    : "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:via-yellow-400 hover:to-amber-500 hover:shadow-lg hover:shadow-amber-500/35 cursor-pointer active:scale-[0.98]"
                 }`}
               >
                 {isLocked ? (
