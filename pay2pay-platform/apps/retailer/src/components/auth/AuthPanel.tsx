@@ -485,58 +485,44 @@ export const AuthPanel: React.FC = () => {
       : "";
 
   return (
-    <div
-      className={`relative w-full h-screen max-h-screen overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 ${
-        darkMode
-          ? "bg-slate-950 text-white"
-          : "bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900"
-      }`}
-    >
+    <div className="relative w-full h-screen max-h-screen overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 bg-slate-950 text-white">
       {showConfetti && <ConfettiBurst />}
 
       {/* ── Outer Padding Wrapper ── */}
       <div className="flex flex-col flex-1 justify-between px-4 py-2 sm:px-6 sm:py-3 lg:px-7 lg:py-3 max-w-md mx-auto w-full h-full overflow-hidden relative z-10">
 
         {/* ─── Mobile Top Header ─── */}
-        <div className="lg:hidden flex items-center justify-between mb-5 pb-4 border-b border-slate-200/80 dark:border-slate-800">
+        <div className="lg:hidden flex items-center justify-between mb-5 pb-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20">
-              <span className="text-white font-black text-xs tracking-tight">P2P</span>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 flex items-center justify-center shadow-md shadow-amber-500/20">
+              <span className="text-slate-950 font-black text-xs tracking-tight">P2P</span>
             </div>
             <div>
-              <h1 className={`text-sm font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
+              <h1 className="text-sm font-black tracking-tight text-white">
                 Pay2Pay Enterprise
               </h1>
-              <p className="text-[10px] font-semibold text-slate-500">Retailer Workstation</p>
+              <p className="text-[10px] font-semibold text-slate-400">Retailer Workstation</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className={`flex items-center text-xs font-bold rounded-xl px-2.5 py-1.5 border gap-1 ${
-              darkMode
-                ? "bg-slate-900 border-slate-700 text-slate-200"
-                : "bg-white border-slate-200 text-slate-700 shadow-sm"
-            }`}>
-              <Globe className="w-3.5 h-3.5 text-blue-500" />
+            <div className="flex items-center text-xs font-bold rounded-xl px-2.5 py-1.5 border gap-1 bg-[#131d36] border-[#1e2c4d] text-slate-200">
+              <Globe className="w-3.5 h-3.5 text-amber-400" />
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
-                className="bg-transparent outline-none cursor-pointer text-xs"
+                className="bg-transparent outline-none cursor-pointer text-xs font-bold"
               >
-                <option value="English">EN</option>
-                <option value="Hindi">हिं</option>
-                <option value="Tamil">தமி</option>
-                <option value="Telugu">తెలు</option>
+                <option value="English" className="bg-slate-900 text-white">EN</option>
+                <option value="Hindi" className="bg-slate-900 text-white">हिं</option>
+                <option value="Tamil" className="bg-slate-900 text-white">தமி</option>
+                <option value="Telugu" className="bg-slate-900 text-white">తెలు</option>
               </select>
             </div>
 
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-xl border transition-colors ${
-                darkMode
-                  ? "bg-slate-900 border-slate-700 text-amber-400"
-                  : "bg-white border-slate-200 text-slate-600 shadow-sm"
-              }`}
+              className="p-2 rounded-xl border transition-colors bg-[#131d36] border-[#1e2c4d] text-amber-400 hover:bg-[#1c2a4d]"
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -546,44 +532,32 @@ export const AuthPanel: React.FC = () => {
         {/* ─── Desktop Top Bar ─── */}
         <div className="hidden lg:flex items-center justify-between mb-6 2xl:mb-8">
           <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-              darkMode ? "bg-blue-500/20" : "bg-blue-50"
-            }`}>
-              <Shield className="w-4 h-4 text-blue-500" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-500/20 border border-amber-500/30">
+              <Shield className="w-4 h-4 text-amber-400" />
             </div>
-            <span className={`text-[11px] font-black uppercase tracking-widest ${
-              darkMode ? "text-slate-400" : "text-slate-500"
-            }`}>
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
               {t.securityAuth}
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className={`flex items-center text-xs font-bold rounded-xl px-3 py-1.5 border gap-1.5 transition-colors ${
-              darkMode
-                ? "bg-slate-900 border-slate-700 text-slate-200 hover:border-blue-500/40"
-                : "bg-white border-slate-200 text-slate-700 shadow-sm hover:border-blue-400/40"
-            }`}>
-              <Globe className="w-3.5 h-3.5 text-blue-500" />
+            <div className="flex items-center text-xs font-bold rounded-xl px-3 py-1.5 border gap-1.5 transition-colors bg-[#131d36] border-[#1e2c4d] text-slate-200 hover:border-amber-400/40">
+              <Globe className="w-3.5 h-3.5 text-amber-400" />
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
                 className="bg-transparent outline-none cursor-pointer font-bold"
               >
-                <option value="English">English (EN)</option>
-                <option value="Hindi">हिंदी (Hindi)</option>
-                <option value="Tamil">தமிழ் (Tamil)</option>
-                <option value="Telugu">తెలుగు (Telugu)</option>
+                <option value="English" className="bg-slate-900 text-white">English (EN)</option>
+                <option value="Hindi" className="bg-slate-900 text-white">हिंदी (Hindi)</option>
+                <option value="Tamil" className="bg-slate-900 text-white">தமிழ் (Tamil)</option>
+                <option value="Telugu" className="bg-slate-900 text-white">తెలుగు (Telugu)</option>
               </select>
             </div>
 
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-xl border transition-colors ${
-                darkMode
-                  ? "bg-slate-900 border-slate-700 text-amber-400 hover:bg-slate-800"
-                  : "bg-white border-slate-200 text-slate-600 shadow-sm hover:bg-slate-50"
-              }`}
+              className="p-2 rounded-xl border transition-colors bg-[#131d36] border-[#1e2c4d] text-amber-400 hover:bg-[#1c2a4d]"
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
