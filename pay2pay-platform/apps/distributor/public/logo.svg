@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="28" fill="url(#logoGrad)" />
+  <path d="M28 32 L52 32 C62 32 68 37 68 45 C68 53 62 58 52 58 L42 58 L42 70 L28 70 Z M42 44 L50 44 C53 44 55 42 55 40 C55 38 53 36 50 36 L42 36 Z" fill="#FFFFFF" />
+  <path d="M54 48 L72 48 C77 48 80 51 80 55 C80 59 77 62 72 62 L62 62 L62 70 L54 70 Z" fill="url(#accentGrad)" opacity="0.9" />
+  <circle cx="76" cy="28" r="6" fill="#60A5FA" />
+</svg>

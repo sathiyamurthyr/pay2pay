@@ -1,0 +1,28 @@
+{
+  "name": "pay2pay-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pay2Pay Enterprise Platform Monorepo Architecture",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:website": "npm run dev --workspace=apps/website",
+    "dev:super-admin": "npm run dev --workspace=apps/super-admin",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "dev:super-distributor": "npm run dev --workspace=apps/super-distributor",
+    "dev:distributor": "npm run dev --workspace=apps/distributor",
+    "dev:retailer": "npm run dev --workspace=apps/retailer",
+    "dev:share-pages": "npm run dev --workspace=apps/share-pages",
+    "dev:auth": "npm run dev --workspace=apps/auth",
+    "build:all": "npm run build --workspaces --if-present",
+    "lint:all": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^7.0.2"
+  }
+}

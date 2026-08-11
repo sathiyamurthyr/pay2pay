@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pay2pay-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: pay2pay_db
+      POSTGRES_USER: pay2pay_user
+      POSTGRES_PASSWORD: pay2pay_secure_password
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: pay2pay-redis
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: ../../docker/Dockerfile.api
+    container_name: pay2pay-api
+    restart: always
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pay2pay_user:pay2pay_secure_password@postgres:5432/pay2pay_db
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+
+  website:
+    build:
+      context: ../apps/website
+      dockerfile: ../../docker/Dockerfile.nextjs
+    container_name: pay2pay-website
+    restart: always
+    ports:
+      - "127.0.0.1:3001:3000"
+
+  super-admin:
+    build:
+      context: ../apps/super-admin
+      dockerfile: ../../docker/Dockerfile.nextjs
+    container_name: pay2pay-super-admin
+    restart: always
+    ports:
+      - "127.0.0.1:3002:3000"
+
+  admin:
+    build:
+      context: ../apps/admin
+      dockerfile: ../../docker/Dockerfile.nextjs
+    container_name: pay2pay-admin
+    restart: always
+    ports:
+      - "127.0.0.1:3003:3000"
+
+  super-distributor:
+    build:
+      context: ../apps/super-distributor
+      dockerfile: ../../docker/Dockerfile.nextjs
+    container_name: pay2pay-super-distributor
+    restart: always
+    ports:
+      - "127.0.0.1:3004:3000"
+
+  distributor:
+    build:
+      context: ../apps/distributor
+      dockerfile: ../../docker/Dockerfile.nextjs
+    container_name: pay2pay-distributor
+    restart: always
+    ports:
+      - "127.0.0.1:3005:3000"
+
+  retailer:
+    build:
+      context: ../apps/retailer
+      dockerfile: ../../docker/Dockerfile.nextjs
+    container_name: pay2pay-retailer
+    restart: always
+    ports:
+      - "127.0.0.1:3006:3000"
+
+  share-pages:
+    build:
+      context: ../apps/share-pages
+      dockerfile: ../../docker/Dockerfile.nextjs
+    container_name: pay2pay-share-pages
+    restart: always
+    ports:
+      - "127.0.0.1:3007:3000"
+
+  auth:
+    build:
+      context: ../apps/auth
+      dockerfile: ../../docker/Dockerfile.nextjs
+    container_name: pay2pay-auth
+    restart: always
+    ports:
+      - "127.0.0.1:3008:3000"
+
+volumes:
+  postgres_data:

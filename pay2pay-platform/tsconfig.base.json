@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "types": ["node"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "paths": {
+      "@pay2pay/ui": ["./packages/ui/src"],
+      "@pay2pay/ui/*": ["./packages/ui/src/*"],
+      "@pay2pay/components": ["./packages/components/src"],
+      "@pay2pay/components/*": ["./packages/components/src/*"],
+      "@pay2pay/common": ["./packages/common/src"],
+      "@pay2pay/common/*": ["./packages/common/src/*"],
+      "@pay2pay/api-sdk": ["./packages/api-sdk/src"],
+      "@pay2pay/api-sdk/*": ["./packages/api-sdk/src/*"],
+      "@pay2pay/auth-sdk": ["./packages/auth-sdk/src"],
+      "@pay2pay/auth-sdk/*": ["./packages/auth-sdk/src/*"],
+      "@pay2pay/types": ["./packages/types/src"],
+      "@pay2pay/types/*": ["./packages/types/src/*"],
+      "@pay2pay/utils": ["./packages/utils/src"],
+      "@pay2pay/utils/*": ["./packages/utils/src/*"],
+      "@pay2pay/hooks": ["./packages/hooks/src"],
+      "@pay2pay/hooks/*": ["./packages/hooks/src/*"],
+      "@pay2pay/constants": ["./packages/constants/src"],
+      "@pay2pay/constants/*": ["./packages/constants/src/*"],
+      "@pay2pay/theme": ["./packages/theme/src"],
+      "@pay2pay/theme/*": ["./packages/theme/src/*"]
+    }
+  },
+  "include": ["packages/**/*.ts", "packages/**/*.tsx"]
+}
