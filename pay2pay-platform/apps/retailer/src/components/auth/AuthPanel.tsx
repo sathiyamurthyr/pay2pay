@@ -811,44 +811,6 @@ export const AuthPanel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Captcha */}
-              <div className={`rounded-xl border p-2 sm:p-2.5 ${
-                darkMode ? "bg-slate-800/60 border-slate-700/80" : "bg-slate-50 border-slate-200"
-              }`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`text-xs font-bold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                    {t.captchaChallenge}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <div className="px-2.5 py-0.5 bg-slate-900 text-amber-300 font-mono font-black text-xs tracking-widest rounded-md select-none">
-                      {captchaCode}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={fetchCaptcha}
-                      className={`p-1 rounded-md border transition-colors ${
-                        darkMode
-                          ? "bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600"
-                          : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
-                      }`}
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-                <div className={`relative rounded-lg transition-all duration-200 ${inputFocusRing(captchaFocused)}`}>
-                  <input
-                    type="text"
-                    value={captchaInput}
-                    onFocus={() => setCaptchaFocused(true)}
-                    onBlur={() => setCaptchaFocused(false)}
-                    onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
-                    placeholder={t.enterCaptcha}
-                    className={`${inputBase} rounded-lg px-3 py-2 text-xs font-mono uppercase`}
-                  />
-                </div>
-              </div>
-
               {/* Security Options Row */}
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 cursor-pointer">
