@@ -206,7 +206,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
   const [acceptedConsent, setAcceptedConsent] = useState(true);
   const [trustDevice, setTrustDevice] = useState(true);
   const [trustDays, setTrustDays] = useState<number>(30);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -728,11 +728,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                 key={tab}
                 type="button"
                 onClick={() => { setAuthTab(tab); setErrorMsg(""); setSuccessMsg(""); }}
-                className={`flex-1 py-1.5 rounded-lg text-[10px] sm:text-xs font-black transition-all ${
+                className={`flex-1 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
                   authTab === tab
-                    ? darkMode
-                      ? "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/25"
-                      : "bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/20"
+                    ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
                     : darkMode
                     ? "text-slate-400 hover:text-slate-200"
                     : "text-slate-500 hover:text-slate-700"
@@ -968,14 +966,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                 whileTap={isLocked ? undefined : "tap"}
                 type="submit"
                 disabled={loading || isLocked}
-                className={`w-full py-3 rounded-xl text-slate-950 font-black text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
+                className={`w-full py-3 rounded-xl text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
                   isLocked
                     ? "bg-slate-700 text-slate-400 cursor-not-allowed opacity-70 shadow-none"
-                    : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 hover:shadow-lg hover:shadow-amber-500/30 cursor-pointer active:scale-[0.98]"
+                    : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-600/25 cursor-pointer active:scale-[0.98]"
                 }`}
               >
                 {isLocked ? (
-                  <div className="flex items-center gap-2 text-amber-200">
+                  <div className="flex items-center gap-2 text-red-200">
                     <Lock className="w-4 h-4" />
                     <span>Locked — {Math.floor(lockTimer / 60)}m {lockTimer % 60}s</span>
                   </div>
@@ -1026,10 +1024,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                     type="button"
                     onClick={handleSendOtp}
                     disabled={loading || mobileNumber.length !== 10}
-                    className={`px-4 py-3 rounded-xl text-slate-950 text-xs font-black flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
+                    className={`px-4 py-3 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
                       mobileNumber.length !== 10 || loading
-                        ? "bg-slate-700 text-slate-400 cursor-not-allowed shadow-none"
-                        : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 cursor-pointer"
+                        ? "bg-slate-400 cursor-not-allowed shadow-none"
+                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25 cursor-pointer"
                     }`}
                   >
                     {loading ? (
@@ -1061,10 +1059,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                           onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                           className={`w-11 h-12 text-center font-black text-xl rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
                             digit
-                              ? "border-amber-400 bg-amber-500/10 text-amber-300"
+                              ? "border-blue-500 bg-blue-50 text-blue-700"
                               : darkMode
-                              ? "border-slate-700 bg-slate-800 text-white focus:border-amber-400"
-                              : "border-slate-200 bg-slate-50 text-slate-900 focus:border-amber-500"
+                              ? "border-slate-700 bg-slate-800 text-white focus:border-blue-500"
+                              : "border-slate-200 bg-slate-50 text-slate-900 focus:border-blue-500"
                           }`}
                         />
                       ))}
@@ -1073,14 +1071,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
 
                   {/* Security consent for OTP tab */}
                   <div className={`rounded-xl border p-2.5 ${
-                    darkMode ? "bg-amber-500/5 border-amber-500/20" : "bg-amber-50/60 border-amber-200/60"
+                    darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/60 border-blue-200/60"
                   }`}>
                     <label className="flex items-start gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={acceptedConsent}
                         onChange={(e) => setAcceptedConsent(e.target.checked)}
-                        className="w-3.5 h-3.5 mt-0.5 rounded text-amber-500 accent-amber-500 cursor-pointer shrink-0"
+                        className="w-3.5 h-3.5 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
                       />
                       <span className={`text-[11px] font-medium leading-normal ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
                         {t.securityConsent}
@@ -1094,7 +1092,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                     whileTap="tap"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 text-sm font-black shadow-md cursor-pointer hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold shadow-md cursor-pointer hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1140,10 +1138,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                     type="button"
                     onClick={handleSendAadhaarOtp}
                     disabled={aadhaarNumber.replace(/\D/g, "").length !== 12 || loading}
-                    className={`px-3.5 py-2.5 rounded-xl text-slate-950 text-xs font-black flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
+                    className={`px-3.5 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
                       aadhaarNumber.replace(/\D/g, "").length !== 12 || loading
-                        ? "bg-slate-700 text-slate-400 cursor-not-allowed shadow-none"
-                        : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 cursor-pointer"
+                        ? "bg-slate-400 cursor-not-allowed shadow-none"
+                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25 cursor-pointer"
                     }`}
                   >
                     {loading ? (
@@ -1175,10 +1173,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                           onKeyDown={(e) => handleAadhaarOtpKeyDown(idx, e)}
                           className={`w-10 h-11 text-center font-black text-lg rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
                             digit
-                              ? "border-amber-400 bg-amber-500/10 text-amber-300"
+                              ? "border-blue-500 bg-blue-50 text-blue-700"
                               : darkMode
-                              ? "border-slate-700 bg-slate-800 text-white focus:border-amber-400"
-                              : "border-slate-200 bg-slate-50 text-slate-900 focus:border-amber-500"
+                              ? "border-slate-700 bg-slate-800 text-white focus:border-blue-500"
+                              : "border-slate-200 bg-slate-50 text-slate-900 focus:border-blue-500"
                           }`}
                         />
                       ))}
@@ -1187,14 +1185,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
 
                   {/* Security consent for Aadhaar OTP tab */}
                   <div className={`rounded-xl border p-2.5 ${
-                    darkMode ? "bg-amber-500/5 border-amber-500/20" : "bg-amber-50/60 border-amber-200/60"
+                    darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/60 border-blue-200/60"
                   }`}>
                     <label className="flex items-start gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={acceptedConsent}
                         onChange={(e) => setAcceptedConsent(e.target.checked)}
-                        className="w-3.5 h-3.5 mt-0.5 rounded text-amber-500 accent-amber-500 cursor-pointer shrink-0"
+                        className="w-3.5 h-3.5 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
                       />
                       <span className={`text-[11px] font-medium leading-normal ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
                         {t.securityConsent}
@@ -1208,7 +1206,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                     whileTap="tap"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-md cursor-pointer hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1234,11 +1232,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border-2 shadow-xl ${
                   darkMode
-                    ? "bg-amber-500/10 border-amber-500/30 shadow-amber-500/10"
-                    : "bg-amber-50 border-amber-200 shadow-amber-100"
+                    ? "bg-blue-500/10 border-blue-500/30 shadow-blue-500/10"
+                    : "bg-blue-50 border-blue-200 shadow-blue-100"
                 }`}
               >
-                <Fingerprint className="w-8 h-8 text-amber-400" />
+                <Fingerprint className="w-8 h-8 text-blue-500" />
               </motion.div>
               <div className="space-y-1.5">
                 <h3 className={`text-base font-black ${darkMode ? "text-white" : "text-slate-900"}`}>
@@ -1258,7 +1256,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                   setSuccessMsg("✓ Biometric Authenticated. Redirecting...");
                   setTimeout(() => router.push("/retailer-dashboard"), 800);
                 }}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-sm inline-flex items-center gap-2 shadow-md hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg hover:shadow-blue-600/25 cursor-pointer"
               >
                 <Fingerprint className="w-4 h-4" />
                 <span>{t.authPasskey}</span>
