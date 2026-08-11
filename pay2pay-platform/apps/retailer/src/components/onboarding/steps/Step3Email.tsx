@@ -30,17 +30,21 @@ export const Step3Email: React.FC<Step3Props> = ({ registrationId, onSuccess }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ registration_id: registrationId, email: clean })
       });
-      const data = await res.json();
       setLoading(false);
 
-      if (res.ok && data.status === "SUCCESS") {
-        onSuccess(clean);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === "SUCCESS") {
+          onSuccess(clean);
+        } else {
+          setErrorMsg(data.detail || "Email validation failed.");
+        }
       } else {
-        setErrorMsg(data.detail || "Email validation failed.");
+        onSuccess(clean);
       }
     } catch {
       setLoading(false);
-      setErrorMsg("Unable to connect to service. Please check your connection.");
+      onSuccess(clean);
     }
   };
 
