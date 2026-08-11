@@ -490,7 +490,7 @@ export const AuthPanel: React.FC = () => {
 
   return (
     <div
-      className={`relative w-full min-h-screen flex flex-col transition-colors duration-300 ${
+      className={`relative w-full h-screen max-h-screen overflow-hidden flex flex-col justify-between transition-colors duration-300 ${
         darkMode
           ? "bg-slate-950 text-white"
           : "bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900"
@@ -499,7 +499,7 @@ export const AuthPanel: React.FC = () => {
       {showConfetti && <ConfettiBurst />}
 
       {/* ── Outer Padding Wrapper ── */}
-      <div className="flex flex-col flex-1 px-5 py-5 sm:px-6 sm:py-6 lg:px-7 lg:py-6 2xl:px-10 2xl:py-8 max-w-lg mx-auto w-full">
+      <div className="flex flex-col flex-1 justify-between px-4 py-3 sm:px-6 sm:py-4 lg:px-7 lg:py-4 max-w-lg mx-auto w-full h-full overflow-y-auto">
 
         {/* ─── Mobile Top Header ─── */}
         <div className="lg:hidden flex items-center justify-between mb-5 pb-4 border-b border-slate-200/80 dark:border-slate-800">
