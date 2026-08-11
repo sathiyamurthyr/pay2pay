@@ -206,7 +206,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
   const [acceptedConsent, setAcceptedConsent] = useState(true);
   const [trustDevice, setTrustDevice] = useState(true);
   const [trustDays, setTrustDays] = useState<number>(30);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
 
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -895,6 +895,42 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
+                </div>
+              </div>
+
+              {/* Security Captcha */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={`text-xs font-bold ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    Security Captcha <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-black text-xs tracking-widest px-2.5 py-1 rounded-lg bg-amber-400/10 text-amber-300 border border-amber-400/30">
+                      {captchaCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={regenerateCaptcha}
+                      className={`p-1.5 rounded-lg border transition-colors ${
+                        darkMode ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-white" : "bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900"
+                      }`}
+                      title="Refresh Captcha"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className={`relative rounded-xl transition-all duration-200 ${inputFocusRing(captchaFocused)}`}>
+                  <input
+                    type="text"
+                    value={captchaInput}
+                    onFocus={() => setCaptchaFocused(true)}
+                    onBlur={() => setCaptchaFocused(false)}
+                    onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
+                    placeholder="ENTER CAPTCHA CODE"
+                    required
+                    className={`${inputBase} px-4 py-2.5 uppercase tracking-wider text-xs sm:text-sm font-mono`}
+                  />
                 </div>
               </div>
 
