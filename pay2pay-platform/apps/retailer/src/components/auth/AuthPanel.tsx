@@ -648,8 +648,8 @@ export const AuthPanel: React.FC = () => {
                 className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
                   authTab === tab
                     ? darkMode
-                      ? "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-white shadow-md shadow-amber-500/30"
-                      : "bg-amber-500 text-white shadow-sm shadow-amber-500/20"
+                      ? "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/25"
+                      : "bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/20"
                     : darkMode
                     ? "text-slate-400 hover:text-slate-200"
                     : "text-slate-500 hover:text-slate-700"
@@ -917,10 +917,10 @@ export const AuthPanel: React.FC = () => {
                 whileTap={isLocked ? undefined : "tap"}
                 type="submit"
                 disabled={loading || isLocked}
-                className={`w-full py-3 rounded-xl text-white font-extrabold text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
+                className={`w-full py-3 rounded-xl text-slate-950 font-black text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
                   isLocked
                     ? "bg-slate-700 text-slate-400 cursor-not-allowed opacity-70 shadow-none"
-                    : "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:via-yellow-400 hover:to-amber-500 hover:shadow-lg hover:shadow-amber-500/35 cursor-pointer active:scale-[0.98]"
+                    : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 hover:shadow-lg hover:shadow-amber-500/30 cursor-pointer active:scale-[0.98]"
                 }`}
               >
                 {isLocked ? (
