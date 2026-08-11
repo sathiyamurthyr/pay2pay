@@ -195,6 +195,16 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" })
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaCode, setCaptchaCode] = useState("K7N8P2");
 
+  const regenerateCaptcha = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let result = "";
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCaptchaCode(result);
+    setCaptchaInput("");
+  };
+
   const [mobileFocused, setMobileFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [aadhaarFocused, setAadhaarFocused] = useState(false);
