@@ -159,6 +159,13 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
             details={"risk_score": risk_info["risk_score"], "action": "LOGIN_SUCCESS"}
         )
 
+        from app.application.company_onboarding_service import CompanyOnboardingService
+        tenant_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+        company_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+        onboarding_rec = await CompanyOnboardingService.get_or_create_status(db, tenant_id, company_id)
+        is_completed = onboarding_rec.status == "COMPLETED" or onboarding_rec.current_step > 10
+        redirect_target = "/dashboard" if is_completed else f"/register/step-{onboarding_rec.current_step}"
+
         return {
             "status": "SUCCESS",
             "message": "Authentication successful",
@@ -174,6 +181,14 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                     "role": "RETAILER",
                     "outlet_name": "Sri Venkateswara Telecom & FinTech"
                 },
+                "onboarding": {
+                    "completed": is_completed,
+                    "current_step": onboarding_rec.current_step,
+                    "progress_percentage": onboarding_rec.progress_percentage,
+                    "status": onboarding_rec.status,
+                    "redirect_url": redirect_target
+                },
+                "redirect_url": redirect_target,
                 "risk_assessment": risk_info,
                 "require_otp": risk_info["recommended_action"] == "OTP_VERIFICATION"
             }
