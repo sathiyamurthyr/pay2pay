@@ -765,38 +765,6 @@ export const AuthPanel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Captcha */}
-              <div className="rounded-xl border p-3 bg-[#121c35] border-[#1e2c4d]">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-300">
-                    {t.captchaChallenge}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <div className="px-3 py-1 bg-[#090f1f] text-amber-400 font-mono font-black text-sm tracking-widest rounded-lg select-none border border-amber-400/20">
-                      {captchaCode}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={fetchCaptcha}
-                      className="p-1.5 rounded-lg border transition-colors bg-[#1a2647] border-[#263761] text-slate-300 hover:bg-[#203059]"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className={`relative rounded-lg transition-all duration-200 ${inputFocusRing(captchaFocused)}`}>
-                  <input
-                    type="text"
-                    value={captchaInput}
-                    onFocus={() => setCaptchaFocused(true)}
-                    onBlur={() => setCaptchaFocused(false)}
-                    onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
-                    placeholder={t.enterCaptcha}
-                    className={`${inputBase} rounded-lg px-3.5 py-2.5 text-sm font-mono uppercase`}
-                  />
-                </div>
-              </div>
-
               {/* Security Options Row */}
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 cursor-pointer">
