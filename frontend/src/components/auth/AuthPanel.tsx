@@ -498,8 +498,17 @@ export const AuthPanel: React.FC = () => {
     >
       {showConfetti && <ConfettiBurst />}
 
+      {/* ── Ambient 3D Glowing Orbs (Diffuses through frosted glass card) ── */}
+      {darkMode && (
+        <>
+          <div className="absolute top-1/4 -left-12 w-56 h-56 rounded-full bg-blue-600/30 filter blur-[90px] pointer-events-none animate-pulse" />
+          <div className="absolute bottom-1/4 -right-12 w-64 h-64 rounded-full bg-cyan-500/25 filter blur-[100px] pointer-events-none" />
+          <div className="absolute top-1/2 left-1/3 w-40 h-40 rounded-full bg-indigo-500/20 filter blur-[70px] pointer-events-none" />
+        </>
+      )}
+
       {/* ── Outer Padding Wrapper ── */}
-      <div className="flex flex-col flex-1 justify-between px-4 py-2 sm:px-6 sm:py-3 lg:px-7 lg:py-3 max-w-md mx-auto w-full h-full overflow-hidden">
+      <div className="flex flex-col flex-1 justify-between px-4 py-2 sm:px-6 sm:py-3 lg:px-7 lg:py-3 max-w-md mx-auto w-full h-full overflow-hidden relative z-10">
 
         {/* ─── Mobile Top Header ─── */}
         <div className="lg:hidden flex items-center justify-between mb-5 pb-4 border-b border-slate-200/80 dark:border-slate-800">
@@ -594,18 +603,21 @@ export const AuthPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* ─── Main Auth Card ─── */}
+        {/* ─── Main Auth Card (Frosted Glassmorphism) ─── */}
         <motion.div
           variants={glassPanelVariants}
           initial="hidden"
           animate="visible"
-          className={`my-auto w-full rounded-3xl border shadow-xl transition-colors duration-300 ${
+          className={`my-auto w-full rounded-3xl transition-all duration-300 relative overflow-hidden backdrop-blur-2xl ${
             darkMode
-              ? "bg-slate-900/95 border-slate-800/80 shadow-slate-950/60"
-              : "bg-white/98 border-slate-200/80 shadow-slate-200/60"
+              ? "bg-slate-900/40 border border-white/20 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.3)]"
+              : "bg-white/80 border border-white/70 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)]"
           }`}
           style={{ padding: "clamp(1rem, 2.5vw, 1.35rem)" }}
         >
+          {/* Top Specular Glass Reflection Sheen */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
+          <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-white/10 to-transparent rounded-full filter blur-lg pointer-events-none" />
           {/* ── Card Header ── */}
           <div className="text-center mb-3">
             {/* Logo mark (visible in auth panel on all sizes) */}
