@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { getApiBaseUrl } from "@/lib/api-config";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -27,7 +28,7 @@ export default function TrackVerificationPage() {
     const mobile = localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile");
     const queryKey = regId || mobile || "DEMO_RETAILER";
 
-    fetch(`http://localhost:8000/api/v1/onboarding/status/${queryKey}`)
+    fetch(`${getApiBaseUrl()}/onboarding/status/${queryKey}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === "SUCCESS") {

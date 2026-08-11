@@ -35,13 +35,16 @@ class WhatsAppService:
         Dispatch WhatsApp Authentication OTP using official approved Meta template.
         Default Template: ss_auth_otp_v1
         """
-        clean_mobile = "".join(filter(str.isdigit, mobile_number))
-        if clean_mobile.startswith("91") and len(clean_mobile) == 12:
-            formatted_mobile = clean_mobile
-        elif len(clean_mobile) == 10:
-            formatted_mobile = f"91{clean_mobile}"
+        # Normalize mobile number to exact 10 digits
+        clean_digits = "".join(filter(str.isdigit, str(mobile_number)))
+        if clean_digits.startswith("91") and len(clean_digits) == 12:
+            clean_mobile = clean_digits[2:]
+        elif clean_digits.startswith("0") and len(clean_digits) == 11:
+            clean_mobile = clean_digits[1:]
         else:
-            formatted_mobile = clean_mobile
+            clean_mobile = clean_digits
+
+        formatted_mobile = f"91{clean_mobile}" if len(clean_mobile) == 10 else clean_mobile
 
         payload = {
             "messaging_product": "whatsapp",

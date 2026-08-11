@@ -62,11 +62,16 @@ async def startup_db():
     # Reload trigger for bank master 1000 limit
     print("ALL REGISTERED ROUTES:", [r.path for r in app.routes if hasattr(r, 'path')])
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+        async def _create_tables():
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        await asyncio.wait_for(_create_tables(), timeout=5.0)
+    except asyncio.TimeoutError:
+        print("[STARTUP DB WARNING] Table creation timed out (DB may be locked) — continuing startup.")
     except Exception as e:
         print(f"[STARTUP DB WARNING] Table creation notice: {str(e)}")
     asyncio.create_task(background_pending_reconciliation_poller())
+
 
 # Enterprise CORS Configuration
 app.add_middleware(

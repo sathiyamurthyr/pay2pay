@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { getApiBaseUrl } from "@/lib/api-config";
 import {
   X,
   CheckCircle2,
@@ -52,7 +53,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
     setSubmitting(true);
 
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/admin/verification/requests/${verif.id}/action`, {
+      const res = await fetch(`${getApiBaseUrl()}/admin/verification/requests/${verif.id}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

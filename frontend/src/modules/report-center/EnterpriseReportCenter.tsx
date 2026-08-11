@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { getApiBaseUrl } from "@/lib/api-config";
 import {
   Box,
   Typography,
@@ -107,7 +108,7 @@ const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
 const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
 const DEFAULT_COMPANY_ID = "8899aabb-1122-3344-5566-77889900aabb";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_BASE_URL = getApiBaseUrl();
 
 const REPORT_TABS = [
   { key: "payout", label: "Payout", icon: "💸" },

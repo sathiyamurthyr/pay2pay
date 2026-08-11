@@ -1,0 +1,17 @@
+﻿[Unit]
+Description=Pay2Pay Next.js Frontend Service
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/pay2pay/frontend
+ExecStartPre=/bin/sh -c "fuser -k 3000/tcp || true"
+ExecStart=/usr/bin/node /home/ubuntu/pay2pay/frontend/server.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
+
+[Install]
+WantedBy=multi-user.target

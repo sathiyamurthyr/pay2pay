@@ -12,7 +12,7 @@ from app.core.database import Base
 class BaseEntity(Base):
     __abstract__ = True
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     public_id: Mapped[uuid.UUID] = mapped_column(
         UUID, default=uuid.uuid4, unique=True, nullable=False, index=True
     )

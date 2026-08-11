@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { getApiBaseUrl } from "@/lib/api-config";
 import {
   ShieldCheck,
   Search,
@@ -40,7 +41,7 @@ export const RetailerVerificationDashboard: React.FC = () => {
       if (search) params.append("search", search);
       if (stateFilter) params.append("state", stateFilter);
 
-      const res = await fetch(`http://localhost:8000/api/v1/admin/verification/requests?${params.toString()}`);
+      const res = await fetch(`${getApiBaseUrl()}/admin/verification/requests?${params.toString()}`);
       const data = await res.json();
       setLoading(false);
       setRequests(data.items || []);
@@ -80,7 +81,7 @@ export const RetailerVerificationDashboard: React.FC = () => {
   const handleOpenDetail = async (id: string) => {
     setSelectedVerificationId(id);
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/admin/verification/requests/${id}`);
+      const res = await fetch(`${getApiBaseUrl()}/admin/verification/requests/${id}`);
       const data = await res.json();
       setDetailData(data);
     } catch {

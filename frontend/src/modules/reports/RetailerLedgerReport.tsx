@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApiBaseUrl } from "@/lib/api-config";
 import {
   Box,
   Typography,
@@ -93,7 +94,7 @@ export const RetailerLedgerReport: React.FC = () => {
 
   const fetchSummary = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/payout/reports/ledger/summary?retailer_id=${retailerId}&tenant_id=${tenantId}`);
+      const res = await fetch(`${getApiBaseUrl()}/payout/reports/ledger/summary?retailer_id=${retailerId}&tenant_id=${tenantId}`);
       if (res.ok) {
         setSummary(await res.json());
       }
@@ -121,7 +122,7 @@ export const RetailerLedgerReport: React.FC = () => {
       if (amountFrom) queryParams.append("amount_from", amountFrom);
       if (amountTo) queryParams.append("amount_to", amountTo);
 
-      const res = await fetch(`http://localhost:8000/api/v1/payout/reports/ledger/grid?${queryParams.toString()}`);
+      const res = await fetch(`${getApiBaseUrl()}/payout/reports/ledger/grid?${queryParams.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setItems(data.items || []);

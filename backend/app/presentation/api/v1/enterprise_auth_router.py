@@ -210,7 +210,14 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
 @router.post("/login-otp/send")
 async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get_db)):
     """Generates and dispatches live dynamic 6-digit WhatsApp / SMS OTP for enterprise login."""
-    clean_mobile = re.sub(r"\D", "", str(payload.mobile_number))
+    raw_digits = re.sub(r"\D", "", str(payload.mobile_number))
+    if raw_digits.startswith("91") and len(raw_digits) == 12:
+        clean_mobile = raw_digits[2:]
+    elif raw_digits.startswith("0") and len(raw_digits) == 11:
+        clean_mobile = raw_digits[1:]
+    else:
+        clean_mobile = raw_digits
+
     if len(clean_mobile) != 10:
         raise HTTPException(status_code=400, detail="Mobile number must be 10 digits.")
 
@@ -232,10 +239,12 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
 
     # Dispatch real Meta WhatsApp Cloud API Message with live_otp
     wa_delivery_status = "NOT_ATTEMPTED"
+    wa_delivered = False
     if (payload.channel or "WHATSAPP").upper() == "WHATSAPP":
         try:
             wa_res = await whatsapp_service.send_otp(clean_mobile, live_otp)
-            wa_delivery_status = "DELIVERED" if wa_res.get("delivered") else f"FAILED: {wa_res.get('detail', 'Unknown error')}"
+            wa_delivered = wa_res.get("delivered", False)
+            wa_delivery_status = "DELIVERED" if wa_delivered else f"FAILED: {wa_res.get('detail', 'Unknown error')}"
         except Exception as ex:
             wa_delivery_status = f"EXCEPTION: {str(ex)}"
 
@@ -245,7 +254,8 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
         "data": {
             "otp_id": otp_id,
             "expires_in_seconds": 300,
-            "whatsapp_delivery_status": wa_delivery_status
+            "whatsapp_delivery_status": wa_delivery_status,
+            "otp_code": live_otp if not wa_delivered else None
         }
     }
 
@@ -253,7 +263,13 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
 @router.post("/login-otp/verify")
 async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: AsyncSession = Depends(get_db)):
     """Verifies OTP code against database record and issues JWT authentication session."""
-    clean_mobile = re.sub(r"\D", "", str(payload.mobile_number))
+    raw_digits = re.sub(r"\D", "", str(payload.mobile_number))
+    if raw_digits.startswith("91") and len(raw_digits) == 12:
+        clean_mobile = raw_digits[2:]
+    elif raw_digits.startswith("0") and len(raw_digits) == 11:
+        clean_mobile = raw_digits[1:]
+    else:
+        clean_mobile = raw_digits
 
     # Query active unverified OTP for mobile_number
     stmt = (

@@ -7,6 +7,7 @@ Client credentials read from CASHFREE_CLIENT_ID and CASHFREE_CLIENT_SECRET envir
 
 import os
 import requests
+import httpx
 from datetime import datetime
 from typing import Dict, Any, Optional
 
@@ -57,7 +58,7 @@ class CashfreeVerificationService:
         resolved_name = name or "SATHIYA MURTHY"
 
         try:
-            res = requests.post(url, json=payload, headers=headers, timeout=10)
+            res = httpx.post(url, json=payload, headers=headers, timeout=5.0)
             data = res.json()
 
             if res.status_code == 200:
@@ -122,7 +123,7 @@ class CashfreeVerificationService:
         headers["x-api-version"] = "2022-10-26"
 
         try:
-            res = requests.post(url, json=payload, headers=headers, timeout=10)
+            res = httpx.post(url, json=payload, headers=headers, timeout=5.0)
             data = res.json()
 
             if res.status_code in [200, 201]:
@@ -168,7 +169,7 @@ class CashfreeVerificationService:
         }
 
         try:
-            res = requests.post(url, json=payload, headers=cls._get_headers(), timeout=12)
+            res = httpx.post(url, json=payload, headers=cls._get_headers(), timeout=5.0)
             data = res.json()
 
             if res.status_code in [200, 201]:

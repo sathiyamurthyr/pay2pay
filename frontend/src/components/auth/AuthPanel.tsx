@@ -419,7 +419,8 @@ export const AuthPanel: React.FC = () => {
       setLoading(false);
       if (res.ok && data.status === "SUCCESS") {
         setOtpSent(true);
-        setSuccessMsg(`✓ OTP sent to WhatsApp +91 ${mobileNumber}`);
+        const otpCodeHint = data.data?.otp_code ? ` (Code: ${data.data.otp_code})` : "";
+        setSuccessMsg(`✓ OTP sent to WhatsApp +91 ${mobileNumber}${otpCodeHint}`);
         setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
       } else {
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : "Failed to send OTP.";

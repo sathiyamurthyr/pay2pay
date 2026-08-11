@@ -1,0 +1,26 @@
+[Unit]
+Description=Pay2Pay FastAPI Backend Service
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/pay2pay/backend
+ExecStart=/home/ubuntu/pay2pay/backend/venv/bin/gunicorn app.main:app \
+    --workers 2 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 127.0.0.1:8000 \
+    --timeout 120 \
+    --keepalive 5 \
+    --log-level info \
+    --access-logfile - \
+    --error-logfile -
+Restart=on-failure
+RestartSec=5
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Environment=PYTHONPATH=/home/ubuntu/pay2pay/backend
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

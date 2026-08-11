@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { getApiBaseUrl } from "@/lib/api-config";
 import Link from "next/link";
 import {
   Box,
@@ -166,7 +167,7 @@ export const RetailerDashboardView: React.FC = () => {
     setLoading(true);
     refreshWallet();
     try {
-      const baseUrl = "http://localhost:8000/api/v1/payout/dashboard/retailer";
+      const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
 
       const [finRes, opsRes, chRes, feedRes, altRes, actRes, sysRes] = await Promise.all([
         fetch(`${baseUrl}/financial-kpis?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`),

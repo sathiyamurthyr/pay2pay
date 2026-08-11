@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { getApiBaseUrl } from "@/lib/api-config";
 import {
   Box,
   Typography,
@@ -116,7 +117,7 @@ export const SwipeMachineSettlementReport: React.FC = () => {
 
   const fetchSummary = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/payout/reports/swipe-settlement/summary?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`);
+      const res = await fetch(`${getApiBaseUrl()}/payout/reports/swipe-settlement/summary?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`);
       if (res.ok) setSummary(await res.json());
     } catch (e) {
       console.error("Failed to fetch settlement summary", e);
@@ -140,7 +141,7 @@ export const SwipeMachineSettlementReport: React.FC = () => {
       if (cardType !== "ALL") queryParams.append("card_type", cardType);
       if (statusFilter !== "ALL") queryParams.append("status", statusFilter);
 
-      const res = await fetch(`http://localhost:8000/api/v1/payout/reports/swipe-settlement/grid?${queryParams.toString()}`);
+      const res = await fetch(`${getApiBaseUrl()}/payout/reports/swipe-settlement/grid?${queryParams.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setItems(data.items || []);

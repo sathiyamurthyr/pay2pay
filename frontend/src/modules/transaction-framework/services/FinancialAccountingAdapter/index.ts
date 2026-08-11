@@ -2,6 +2,7 @@
 // Strict Double-Entry Accounting Architecture satisfying Enterprise Reconciliation & Audit standards
 
 import apiClient from "@/lib/api";
+import { getApiBaseUrl } from "@/lib/api-config";
 
 export interface DoubleEntryLedgerRecord {
   ledgerId: string;
@@ -156,7 +157,7 @@ class FinancialAccountingService {
         } else {
           // Direct raw fetch fallback
           try {
-            const rawRes = await fetch("http://127.0.0.1:8000/api/v1/payout/bulkpe/initiate", {
+            const rawRes = await fetch(`${getApiBaseUrl()}/payout/bulkpe/initiate`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
