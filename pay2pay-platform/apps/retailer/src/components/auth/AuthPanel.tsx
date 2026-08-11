@@ -477,11 +477,11 @@ export const AuthPanel: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────
   // Shared input class helper
   // ─────────────────────────────────────────────────────────────────
-  const inputBase = "w-full rounded-xl border text-sm font-medium text-white placeholder-slate-500 focus:outline-none transition-all duration-200 bg-[#121c35] border-[#1e2c4d]";
+  const inputBase = "w-full rounded-xl border text-sm font-medium text-white placeholder-slate-500 focus:outline-none transition-all duration-200 bg-slate-900/90 border-slate-800";
 
   const inputFocusRing = (focused: boolean) =>
     focused
-      ? "ring-2 ring-amber-400/30 border-amber-400 shadow-sm shadow-amber-400/10"
+      ? "ring-2 ring-blue-500/40 border-blue-500 shadow-sm shadow-blue-500/10"
       : "";
 
   return (
@@ -494,8 +494,8 @@ export const AuthPanel: React.FC = () => {
         {/* ─── Mobile Top Header ─── */}
         <div className="lg:hidden flex items-center justify-between mb-5 pb-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 flex items-center justify-center shadow-md shadow-amber-500/20">
-              <span className="text-slate-950 font-black text-xs tracking-tight">P2P</span>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-md shadow-blue-500/20">
+              <span className="text-white font-black text-xs tracking-tight">P2P</span>
             </div>
             <div>
               <h1 className="text-sm font-black tracking-tight text-white">
@@ -506,8 +506,8 @@ export const AuthPanel: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center text-xs font-bold rounded-xl px-2.5 py-1.5 border gap-1 bg-[#131d36] border-[#1e2c4d] text-slate-200">
-              <Globe className="w-3.5 h-3.5 text-amber-400" />
+            <div className="flex items-center text-xs font-bold rounded-xl px-2.5 py-1.5 border gap-1 bg-slate-900 border-slate-800 text-slate-200">
+              <Globe className="w-3.5 h-3.5 text-blue-500" />
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
@@ -522,7 +522,7 @@ export const AuthPanel: React.FC = () => {
 
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-xl border transition-colors bg-[#131d36] border-[#1e2c4d] text-amber-400 hover:bg-[#1c2a4d]"
+              className="p-2 rounded-xl border transition-colors bg-slate-900 border-slate-800 text-blue-400 hover:bg-slate-800"
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -532,8 +532,8 @@ export const AuthPanel: React.FC = () => {
         {/* ─── Desktop Top Bar ─── */}
         <div className="hidden lg:flex items-center justify-between mb-6 2xl:mb-8">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-500/20 border border-amber-500/30">
-              <Shield className="w-4 h-4 text-amber-400" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/20 border border-blue-500/30">
+              <Shield className="w-4 h-4 text-blue-400" />
             </div>
             <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
               {t.securityAuth}
@@ -541,8 +541,8 @@ export const AuthPanel: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center text-xs font-bold rounded-xl px-3 py-1.5 border gap-1.5 transition-colors bg-[#131d36] border-[#1e2c4d] text-slate-200 hover:border-amber-400/40">
-              <Globe className="w-3.5 h-3.5 text-amber-400" />
+            <div className="flex items-center text-xs font-bold rounded-xl px-3 py-1.5 border gap-1.5 transition-colors bg-slate-900 border-slate-800 text-slate-200 hover:border-blue-500/40">
+              <Globe className="w-3.5 h-3.5 text-blue-500" />
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value as LanguageKey)}
@@ -557,7 +557,7 @@ export const AuthPanel: React.FC = () => {
 
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-xl border transition-colors bg-[#131d36] border-[#1e2c4d] text-amber-400 hover:bg-[#1c2a4d]"
+              className="p-2 rounded-xl border transition-colors bg-slate-900 border-slate-800 text-blue-400 hover:bg-slate-800"
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -569,19 +569,23 @@ export const AuthPanel: React.FC = () => {
           variants={glassPanelVariants}
           initial="hidden"
           animate="visible"
-          className="my-auto w-full rounded-3xl transition-all duration-300 relative overflow-y-auto max-h-[85vh] scrollbar-none backdrop-blur-2xl bg-[#0c1427]/90 border border-[#1e2d4a] shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
+          className="my-auto w-full rounded-3xl transition-all duration-300 relative overflow-y-auto max-h-[85vh] scrollbar-none backdrop-blur-2xl bg-slate-900/90 border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)]"
           style={{ padding: "clamp(1.25rem, 3vw, 1.75rem)" }}
         >
           {/* Top Specular Reflection Sheen */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent pointer-events-none" />
-          <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-amber-400/5 to-transparent rounded-full filter blur-lg pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/30 to-transparent pointer-events-none" />
+          <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-blue-400/10 to-transparent rounded-full filter blur-lg pointer-events-none" />
 
           {/* ── Card Header ── */}
           <div className="text-center mb-5">
-            {/* Circular P2P Gold Badge matching screenshot */}
+            {/* Blue P2P Logo Mark matching left section */}
             <div className="flex items-center justify-center gap-2.5 mb-3">
-              <div className="w-10 h-10 rounded-full border-2 border-amber-400 bg-amber-400/15 flex items-center justify-center shadow-md shadow-amber-400/20">
-                <span className="text-xs font-black text-amber-400 tracking-tighter">P2P</span>
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
+                <div className="w-full h-full rounded-[14px] flex items-center justify-center bg-slate-900">
+                  <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+                    P2P
+                  </span>
+                </div>
               </div>
             </div>
             <h2 className="text-2xl font-black tracking-tight leading-tight text-white">
@@ -593,18 +597,16 @@ export const AuthPanel: React.FC = () => {
           </div>
 
           {/* ── Tab Switcher ── */}
-          <div className="flex p-1 rounded-2xl mb-5 bg-[#131d36] border border-[#1e2c4d]">
+          <div className="flex p-1 rounded-2xl mb-5 bg-slate-950/80 border border-slate-800">
             {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
-                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                   authTab === tab
-                    ? "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/25"
-                    : darkMode
-                    ? "text-slate-400 hover:text-slate-200"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md shadow-blue-500/25"
+                    : "text-slate-400 hover:text-slate-200"
                 }`}
               >
                 {tab === "PASSWORD" ? t.passwordLogin : tab === "OTP" ? t.otpLogin : t.biometricLogin}
@@ -857,14 +859,14 @@ export const AuthPanel: React.FC = () => {
                 whileTap={isLocked ? undefined : "tap"}
                 type="submit"
                 disabled={loading || isLocked}
-                className={`w-full py-3.5 rounded-xl text-slate-950 font-black text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
+                className={`w-full py-3.5 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-md ${
                   isLocked
-                    ? "bg-slate-700 text-slate-400 cursor-not-allowed opacity-70 shadow-none"
-                    : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 cursor-pointer active:scale-[0.98]"
+                    ? "bg-slate-800 text-slate-500 cursor-not-allowed opacity-70 shadow-none"
+                    : "bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:shadow-lg hover:shadow-blue-600/30 cursor-pointer active:scale-[0.98]"
                 }`}
               >
                 {isLocked ? (
-                  <div className="flex items-center gap-2 text-amber-200">
+                  <div className="flex items-center gap-2 text-red-300">
                     <Lock className="w-4 h-4" />
                     <span>Locked — {Math.floor(lockTimer / 60)}m {lockTimer % 60}s</span>
                   </div>
@@ -889,15 +891,15 @@ export const AuthPanel: React.FC = () => {
           {authTab === "OTP" && (
             <div className="space-y-4">
               <div>
-                <label className={`block text-xs font-bold mb-1.5 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                <label className="block text-xs font-bold mb-1.5 text-slate-300">
                   {t.mobileNumber} <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-2.5">
                   <div className={`relative flex-1 rounded-xl transition-all ${inputFocusRing(mobileFocused)}`}>
-                    <div className={`absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-slate-400">
                       <Phone className="w-3.5 h-3.5" />
                       <span className="text-xs font-bold">+91</span>
-                      <span className={`text-xs ${darkMode ? "text-slate-700" : "text-slate-300"}`}>|</span>
+                      <span className="text-xs text-slate-700">|</span>
                     </div>
                     <input
                       type="tel"
@@ -915,10 +917,10 @@ export const AuthPanel: React.FC = () => {
                     type="button"
                     onClick={handleSendOtp}
                     disabled={loading || mobileNumber.length !== 10}
-                    className={`px-4 py-3 rounded-xl text-slate-950 text-xs font-black flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
+                    className={`px-4 py-3 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
                       mobileNumber.length !== 10 || loading
-                        ? "bg-slate-700 text-slate-400 cursor-not-allowed shadow-none"
-                        : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 cursor-pointer"
+                        ? "bg-slate-800 text-slate-500 cursor-not-allowed shadow-none"
+                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25 cursor-pointer"
                     }`}
                   >
                     {loading ? (
@@ -934,7 +936,7 @@ export const AuthPanel: React.FC = () => {
               {otpSent && (
                 <form onSubmit={handleOtpVerify} className="space-y-4 pt-1">
                   <div>
-                    <label className={`block text-xs font-bold mb-3 text-center ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    <label className="block text-xs font-bold mb-3 text-center text-slate-300">
                       {t.enterOtp} <span className="text-red-500">*</span>
                     </label>
                     <div className="flex items-center justify-center gap-2.5">
@@ -950,10 +952,8 @@ export const AuthPanel: React.FC = () => {
                           onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                           className={`w-11 h-12 text-center font-black text-xl rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
                             digit
-                              ? "border-amber-400 bg-amber-500/10 text-amber-300"
-                              : darkMode
-                              ? "border-slate-700 bg-slate-800 text-white focus:border-amber-400"
-                              : "border-slate-200 bg-slate-50 text-slate-900 focus:border-amber-500"
+                              ? "border-blue-500 bg-blue-500/10 text-cyan-300"
+                              : "border-slate-800 bg-slate-900 text-white focus:border-blue-500"
                           }`}
                         />
                       ))}
@@ -961,17 +961,15 @@ export const AuthPanel: React.FC = () => {
                   </div>
 
                   {/* Security consent for OTP tab */}
-                  <div className={`rounded-xl border p-3 ${
-                    darkMode ? "bg-amber-500/5 border-amber-500/20" : "bg-amber-50/60 border-amber-200/60"
-                  }`}>
+                  <div className="rounded-xl border p-3 bg-blue-500/5 border-blue-500/20">
                     <label className="flex items-start gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={acceptedConsent}
                         onChange={(e) => setAcceptedConsent(e.target.checked)}
-                        className="w-4 h-4 mt-0.5 rounded text-amber-500 accent-amber-500 cursor-pointer shrink-0"
+                        className="w-4 h-4 mt-0.5 rounded text-blue-600 accent-blue-600 cursor-pointer shrink-0"
                       />
-                      <span className={`text-xs font-medium leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                      <span className="text-xs font-medium leading-relaxed text-slate-400">
                         {t.securityConsent}
                       </span>
                     </label>
@@ -983,7 +981,7 @@ export const AuthPanel: React.FC = () => {
                     whileTap="tap"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 text-sm font-black shadow-md cursor-pointer hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold shadow-md cursor-pointer hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1007,19 +1005,15 @@ export const AuthPanel: React.FC = () => {
               <motion.div
                 animate={{ scale: [1, 1.06, 1] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border-2 shadow-xl ${
-                  darkMode
-                    ? "bg-amber-500/10 border-amber-500/30 shadow-amber-500/10"
-                    : "bg-amber-50 border-amber-200 shadow-amber-100"
-                }`}
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto border-2 shadow-xl bg-blue-500/10 border-blue-500/30 shadow-blue-500/10"
               >
-                <Fingerprint className="w-8 h-8 text-amber-400" />
+                <Fingerprint className="w-8 h-8 text-blue-400" />
               </motion.div>
               <div className="space-y-1.5">
-                <h3 className={`text-base font-black ${darkMode ? "text-white" : "text-slate-900"}`}>
+                <h3 className="text-base font-black text-white">
                   {t.webauthnTitle}
                 </h3>
-                <p className={`text-sm font-medium max-w-xs mx-auto leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                <p className="text-sm font-medium max-w-xs mx-auto leading-relaxed text-slate-400">
                   {t.webauthnDesc}
                 </p>
               </div>
@@ -1033,7 +1027,7 @@ export const AuthPanel: React.FC = () => {
                   setSuccessMsg("✓ Biometric Authenticated. Redirecting...");
                   setTimeout(() => router.push("/retailer-dashboard"), 800);
                 }}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-sm inline-flex items-center gap-2 shadow-md hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg hover:shadow-blue-600/25 cursor-pointer"
               >
                 <Fingerprint className="w-4 h-4" />
                 <span>{t.authPasskey}</span>
@@ -1042,15 +1036,13 @@ export const AuthPanel: React.FC = () => {
           )}
 
           {/* ── Register Link ── */}
-          <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
-            darkMode ? "border-slate-800" : "border-slate-100"
-          }`}>
-            <span className={`font-medium ${darkMode ? "text-slate-500" : "text-slate-500"}`}>
+          <div className="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between text-sm">
+            <span className="font-medium text-slate-400">
               {t.newRetailer}
             </span>
             <Link
               href="/register"
-              className="font-bold text-blue-500 hover:text-blue-400 hover:underline transition-colors"
+              className="font-bold text-blue-400 hover:text-blue-300 hover:underline transition-colors"
             >
               {t.registerAccount}
             </Link>
@@ -1058,15 +1050,15 @@ export const AuthPanel: React.FC = () => {
         </motion.div>
 
         {/* ── Footer Links ── */}
-        <div className={`mt-5 text-center space-y-1 ${darkMode ? "text-slate-600" : "text-slate-400"}`}>
+        <div className="mt-5 text-center space-y-1 text-slate-400">
           <div className="flex items-center justify-center gap-3 text-xs font-medium">
-            <a href="#" className="hover:underline hover:text-blue-500 transition-colors">{t.privacyPolicy}</a>
+            <a href="#" className="hover:underline hover:text-blue-400 transition-colors">{t.privacyPolicy}</a>
             <span>·</span>
-            <a href="#" className="hover:underline hover:text-blue-500 transition-colors">{t.terms}</a>
+            <a href="#" className="hover:underline hover:text-blue-400 transition-colors">{t.terms}</a>
             <span>·</span>
-            <a href="#" className="hover:underline hover:text-blue-500 transition-colors">{t.refundPolicy}</a>
+            <a href="#" className="hover:underline hover:text-blue-400 transition-colors">{t.refundPolicy}</a>
           </div>
-          <p className="text-[11px]">{t.rbiFooter}</p>
+          <p className="text-[11px] text-slate-500">{t.rbiFooter}</p>
         </div>
 
       </div>
