@@ -601,37 +601,37 @@ export const AuthPanel: React.FC = () => {
           animate="visible"
           className={`my-auto w-full rounded-3xl transition-all duration-300 relative overflow-y-auto max-h-[85vh] scrollbar-none backdrop-blur-2xl ${
             darkMode
-              ? "bg-slate-900/40 border border-white/20 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.3)]"
-              : "bg-white/80 border border-white/70 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)]"
+              ? "bg-slate-950/90 border border-slate-800/90 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.08)]"
+              : "bg-slate-950/90 border border-slate-800/90 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.08)]"
           }`}
           style={{ padding: "clamp(1.25rem, 3vw, 1.75rem)" }}
         >
           {/* Top Specular Glass Reflection Sheen */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
-          <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-white/10 to-transparent rounded-full filter blur-lg pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent pointer-events-none" />
+          <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-amber-400/5 to-transparent rounded-full filter blur-lg pointer-events-none" />
 
           {/* ── Card Header ── */}
           <div className="text-center mb-5">
             {/* Logo mark (visible in auth panel on all sizes) */}
             <div className="flex items-center justify-center gap-2.5 mb-3">
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 p-0.5 shadow-lg shadow-amber-500/25">
-                <div className={`w-full h-full rounded-[14px] flex items-center justify-center ${darkMode ? "bg-slate-900" : "bg-white"}`}>
+                <div className="w-full h-full rounded-[14px] flex items-center justify-center bg-slate-950">
                   <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200 bg-clip-text text-transparent">
                     P2P
                   </span>
                 </div>
               </div>
             </div>
-            <h2 className={`text-2xl font-black tracking-tight leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
+            <h2 className="text-2xl font-black tracking-tight leading-tight text-white">
               {t.welcomeBack}
             </h2>
-            <p className={`text-sm font-medium mt-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+            <p className="text-sm font-medium mt-1 text-slate-400">
               {t.subtitle}
             </p>
           </div>
 
           {/* ── Tab Switcher ── */}
-          <div className={`flex p-1 rounded-2xl mb-5 ${darkMode ? "bg-slate-800/80" : "bg-slate-100"}`}>
+          <div className="flex p-1 rounded-2xl mb-5 bg-slate-900/90 border border-slate-800/80">
             {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
               <button
                 key={tab}
