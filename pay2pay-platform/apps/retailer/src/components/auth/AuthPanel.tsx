@@ -599,20 +599,24 @@ export const AuthPanel: React.FC = () => {
           variants={glassPanelVariants}
           initial="hidden"
           animate="visible"
-          className={`my-auto w-full rounded-3xl border shadow-xl transition-colors duration-300 ${
+          className={`my-auto w-full rounded-3xl transition-all duration-300 relative overflow-y-auto max-h-[85vh] scrollbar-none backdrop-blur-2xl ${
             darkMode
-              ? "bg-slate-900/95 border-slate-800/80 shadow-slate-950/60"
-              : "bg-white/98 border-slate-200/80 shadow-slate-200/60"
+              ? "bg-slate-900/40 border border-white/20 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.3)]"
+              : "bg-white/80 border border-white/70 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)]"
           }`}
           style={{ padding: "clamp(1.25rem, 3vw, 1.75rem)" }}
         >
+          {/* Top Specular Glass Reflection Sheen */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
+          <div className="absolute top-0 left-1/4 w-1/2 h-20 bg-gradient-to-b from-white/10 to-transparent rounded-full filter blur-lg pointer-events-none" />
+
           {/* ── Card Header ── */}
           <div className="text-center mb-5">
             {/* Logo mark (visible in auth panel on all sizes) */}
             <div className="flex items-center justify-center gap-2.5 mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 p-0.5 shadow-lg shadow-amber-500/25">
                 <div className={`w-full h-full rounded-[14px] flex items-center justify-center ${darkMode ? "bg-slate-900" : "bg-white"}`}>
-                  <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 bg-clip-text text-transparent">
+                  <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200 bg-clip-text text-transparent">
                     P2P
                   </span>
                 </div>
@@ -633,11 +637,9 @@ export const AuthPanel: React.FC = () => {
                 key={tab}
                 type="button"
                 onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${
                   authTab === tab
-                    ? darkMode
-                      ? "bg-slate-700 text-blue-400 shadow-sm"
-                      : "bg-white text-blue-600 shadow-sm shadow-slate-200/80"
+                    ? "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/25"
                     : darkMode
                     ? "text-slate-400 hover:text-slate-200"
                     : "text-slate-500 hover:text-slate-700"
@@ -905,10 +907,10 @@ export const AuthPanel: React.FC = () => {
                 whileTap={isLocked ? undefined : "tap"}
                 type="submit"
                 disabled={loading || isLocked}
-                className={`w-full py-3.5 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-md ${
+                className={`w-full py-3.5 rounded-xl text-slate-950 font-black text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
                   isLocked
-                    ? "bg-slate-400 cursor-not-allowed opacity-70 shadow-none"
-                    : "bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:shadow-lg hover:shadow-blue-600/30 cursor-pointer active:scale-[0.98]"
+                    ? "bg-slate-700 text-slate-400 cursor-not-allowed opacity-70 shadow-none"
+                    : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 cursor-pointer active:scale-[0.98]"
                 }`}
               >
                 {isLocked ? (
@@ -963,10 +965,10 @@ export const AuthPanel: React.FC = () => {
                     type="button"
                     onClick={handleSendOtp}
                     disabled={loading || mobileNumber.length !== 10}
-                    className={`px-4 py-3 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
+                    className={`px-4 py-3 rounded-xl text-slate-950 text-xs font-black flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md ${
                       mobileNumber.length !== 10 || loading
-                        ? "bg-slate-400 cursor-not-allowed shadow-none"
-                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/25 cursor-pointer"
+                        ? "bg-slate-700 text-slate-400 cursor-not-allowed shadow-none"
+                        : "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 cursor-pointer"
                     }`}
                   >
                     {loading ? (
@@ -998,10 +1000,10 @@ export const AuthPanel: React.FC = () => {
                           onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                           className={`w-11 h-12 text-center font-black text-xl rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
                             digit
-                              ? "border-blue-500 bg-blue-50 text-blue-700"
+                              ? "border-amber-400 bg-amber-500/10 text-amber-300"
                               : darkMode
-                              ? "border-slate-700 bg-slate-800 text-white focus:border-blue-500"
-                              : "border-slate-200 bg-slate-50 text-slate-900 focus:border-blue-500"
+                              ? "border-slate-700 bg-slate-800 text-white focus:border-amber-400"
+                              : "border-slate-200 bg-slate-50 text-slate-900 focus:border-amber-500"
                           }`}
                         />
                       ))}
@@ -1010,14 +1012,14 @@ export const AuthPanel: React.FC = () => {
 
                   {/* Security consent for OTP tab */}
                   <div className={`rounded-xl border p-3 ${
-                    darkMode ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50/60 border-blue-200/60"
+                    darkMode ? "bg-amber-500/5 border-amber-500/20" : "bg-amber-50/60 border-amber-200/60"
                   }`}>
                     <label className="flex items-start gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={acceptedConsent}
                         onChange={(e) => setAcceptedConsent(e.target.checked)}
-                        className="w-4 h-4 mt-0.5 rounded accent-blue-600 cursor-pointer shrink-0"
+                        className="w-4 h-4 mt-0.5 rounded text-amber-500 accent-amber-500 cursor-pointer shrink-0"
                       />
                       <span className={`text-xs font-medium leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
                         {t.securityConsent}
@@ -1031,7 +1033,7 @@ export const AuthPanel: React.FC = () => {
                     whileTap="tap"
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold shadow-md cursor-pointer hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 text-sm font-black shadow-md cursor-pointer hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1057,11 +1059,11 @@ export const AuthPanel: React.FC = () => {
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto border-2 shadow-xl ${
                   darkMode
-                    ? "bg-blue-500/10 border-blue-500/30 shadow-blue-500/10"
-                    : "bg-blue-50 border-blue-200 shadow-blue-100"
+                    ? "bg-amber-500/10 border-amber-500/30 shadow-amber-500/10"
+                    : "bg-amber-50 border-amber-200 shadow-amber-100"
                 }`}
               >
-                <Fingerprint className="w-8 h-8 text-blue-500" />
+                <Fingerprint className="w-8 h-8 text-amber-400" />
               </motion.div>
               <div className="space-y-1.5">
                 <h3 className={`text-base font-black ${darkMode ? "text-white" : "text-slate-900"}`}>
@@ -1081,7 +1083,7 @@ export const AuthPanel: React.FC = () => {
                   setSuccessMsg("✓ Biometric Authenticated. Redirecting...");
                   setTimeout(() => router.push("/retailer-dashboard"), 800);
                 }}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg hover:shadow-blue-600/25 cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-sm inline-flex items-center gap-2 shadow-md hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 shadow-amber-500/25 cursor-pointer"
               >
                 <Fingerprint className="w-4 h-4" />
                 <span>{t.authPasskey}</span>
