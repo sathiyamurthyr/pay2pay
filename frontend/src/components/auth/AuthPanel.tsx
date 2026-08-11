@@ -608,12 +608,12 @@ export const AuthPanel: React.FC = () => {
           variants={glassPanelVariants}
           initial="hidden"
           animate="visible"
-          className={`my-auto w-full rounded-3xl transition-all duration-300 relative overflow-hidden backdrop-blur-2xl ${
+          className={`my-auto w-full rounded-3xl transition-all duration-300 relative overflow-y-auto max-h-[85vh] scrollbar-none backdrop-blur-2xl ${
             darkMode
               ? "bg-slate-900/40 border border-white/20 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.3)]"
               : "bg-white/80 border border-white/70 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)]"
           }`}
-          style={{ padding: "clamp(1rem, 2.5vw, 1.35rem)" }}
+          style={{ padding: "clamp(0.85rem, 2vw, 1.25rem)" }}
         >
           {/* Top Specular Glass Reflection Sheen */}
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none" />
@@ -722,9 +722,9 @@ export const AuthPanel: React.FC = () => {
                 initial={{ opacity: 0, y: -6 }}
                 animate={isShakeError ? "shake" : { opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-400/30 text-sm font-semibold flex items-start gap-2.5"
+                className="mb-2 p-2 sm:p-2.5 rounded-xl bg-red-500/10 border border-red-400/30 text-xs font-semibold flex items-center gap-2"
               >
-                <AlertTriangle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-red-500" />
                 <span className={darkMode ? "text-red-300" : "text-red-700"}>{errorMsg}</span>
               </motion.div>
             )}
@@ -733,9 +733,9 @@ export const AuthPanel: React.FC = () => {
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-400/30 text-sm font-semibold flex items-start gap-2.5"
+                className="mb-2 p-2 sm:p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-400/30 text-xs font-semibold flex items-center gap-2"
               >
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
                 <span className={darkMode ? "text-emerald-300" : "text-emerald-700"}>{successMsg}</span>
               </motion.div>
             )}
@@ -745,7 +745,7 @@ export const AuthPanel: React.FC = () => {
               TAB 1 — PASSWORD LOGIN
           ════════════════════════════════════════════════════════ */}
           {authTab === "PASSWORD" && (
-            <form onSubmit={handlePasswordLogin} className="space-y-4">
+            <form onSubmit={handlePasswordLogin} className="space-y-2.5">
 
               {/* Mobile Number */}
               <div>
