@@ -3,7 +3,7 @@
 import React from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
-export const AnimatedAuroraBackground: React.FC = () => {
+export const AnimatedAuroraBackground: React.FC<{ darkMode?: boolean }> = ({ darkMode = true }) => {
   const shouldReduceMotion = useReducedMotion();
 
   // Floating currency & FinTech symbols data
@@ -20,8 +20,10 @@ export const AnimatedAuroraBackground: React.FC = () => {
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none">
-      {/* 1. Dark Base Gradient */}
-      <div className="absolute inset-0 bg-slate-950" />
+      {/* 1. Base Background Gradient */}
+      <div className={`absolute inset-0 transition-colors duration-300 ${
+        darkMode ? "bg-slate-950" : "bg-gradient-to-br from-slate-50 via-blue-50/60 to-indigo-50/50"
+      }`} />
 
       {/* 2. Animated Aurora HSL Blobs */}
       {!shouldReduceMotion && (

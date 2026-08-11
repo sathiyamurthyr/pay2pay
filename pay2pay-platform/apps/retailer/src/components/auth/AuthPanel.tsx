@@ -174,7 +174,17 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
 // Use relative API URL so it works on all environments via Next.js rewrites
 const API_BASE = "/api/v1";
 
-export const AuthPanel: React.FC = () => {
+interface AuthPanelProps {
+  portalRole?: "RETAILER" | "DISTRIBUTOR" | "SUPER_DISTRIBUTOR" | "ADMIN";
+  darkMode?: boolean;
+  setDarkMode?: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+export const AuthPanel: React.FC<AuthPanelProps> = ({
+  portalRole = "RETAILER",
+  darkMode: externalDarkMode,
+  setDarkMode: externalSetDarkMode
+}) => {
   const router = useRouter();
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>("English");
@@ -198,7 +208,17 @@ export const AuthPanel: React.FC = () => {
   const [acceptedConsent, setAcceptedConsent] = useState(true);
   const [trustDevice, setTrustDevice] = useState(true);
   const [trustDays, setTrustDays] = useState<number>(30);
-  const [darkMode, setDarkMode] = useState(false);
+  
+  const [internalDarkMode, setInternalDarkMode] = useState(true);
+  const darkMode = externalDarkMode !== undefined ? externalDarkMode : internalDarkMode;
+
+  const setDarkMode = (val: boolean | ((prev: boolean) => boolean)) => {
+    if (externalSetDarkMode) {
+      externalSetDarkMode(val);
+    } else {
+      setInternalDarkMode(val);
+    }
+  };
 
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
