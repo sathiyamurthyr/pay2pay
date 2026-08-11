@@ -490,7 +490,7 @@ export const AuthPanel: React.FC = () => {
 
   return (
     <div
-      className={`relative w-full h-full min-h-screen lg:min-h-0 flex flex-col justify-between transition-colors duration-300 ${
+      className={`relative w-full h-screen max-h-screen overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 ${
         darkMode
           ? "bg-[#0B0F19] text-white"
           : "bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900"
@@ -499,7 +499,7 @@ export const AuthPanel: React.FC = () => {
       {showConfetti && <ConfettiBurst />}
 
       {/* ── Outer Padding Wrapper ── */}
-      <div className="flex flex-col flex-1 justify-between px-5 py-4 sm:px-6 sm:py-6 lg:px-7 lg:py-6 max-w-md mx-auto w-full h-full overflow-y-auto">
+      <div className="flex flex-col flex-1 justify-between px-4 py-2 sm:px-6 sm:py-3 lg:px-7 lg:py-3 max-w-md mx-auto w-full h-full overflow-hidden">
 
         {/* ─── Mobile Top Header ─── */}
         <div className="lg:hidden flex items-center justify-between mb-5 pb-4 border-b border-slate-200/80 dark:border-slate-800">
@@ -604,30 +604,30 @@ export const AuthPanel: React.FC = () => {
               ? "bg-slate-900/95 border-slate-800/80 shadow-slate-950/60"
               : "bg-white/98 border-slate-200/80 shadow-slate-200/60"
           }`}
-          style={{ padding: "clamp(1.25rem, 3vw, 1.75rem)" }}
+          style={{ padding: "clamp(1rem, 2.5vw, 1.35rem)" }}
         >
           {/* ── Card Header ── */}
-          <div className="text-center mb-5">
+          <div className="text-center mb-3">
             {/* Logo mark (visible in auth panel on all sizes) */}
-            <div className="flex items-center justify-center gap-2.5 mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
-                <div className={`w-full h-full rounded-[14px] flex items-center justify-center ${darkMode ? "bg-slate-900" : "bg-white"}`}>
-                  <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 bg-clip-text text-transparent">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
+                <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${darkMode ? "bg-slate-900" : "bg-white"}`}>
+                  <span className="text-xs font-black tracking-tighter bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 bg-clip-text text-transparent">
                     P2P
                   </span>
                 </div>
               </div>
             </div>
-            <h2 className={`text-2xl font-black tracking-tight leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
+            <h2 className={`text-xl font-black tracking-tight leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
               {t.welcomeBack}
             </h2>
-            <p className={`text-sm font-medium mt-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+            <p className={`text-xs font-medium mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
               {t.subtitle}
             </p>
           </div>
 
           {/* ── Tab Switcher ── */}
-          <div className={`flex p-1 rounded-2xl mb-5 ${darkMode ? "bg-slate-800/80" : "bg-slate-100"}`}>
+          <div className={`flex p-1 rounded-xl mb-3 ${darkMode ? "bg-slate-800/80" : "bg-slate-100"}`}>
             {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
               <button
                 key={tab}
@@ -1090,7 +1090,7 @@ export const AuthPanel: React.FC = () => {
           )}
 
           {/* ── Register Link ── */}
-          <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
+          <div className={`mt-3 pt-2.5 border-t flex items-center justify-between text-xs ${
             darkMode ? "border-slate-800" : "border-slate-100"
           }`}>
             <span className={`font-medium ${darkMode ? "text-slate-500" : "text-slate-500"}`}>
@@ -1106,15 +1106,15 @@ export const AuthPanel: React.FC = () => {
         </motion.div>
 
         {/* ── Footer Links ── */}
-        <div className={`mt-5 text-center space-y-1 ${darkMode ? "text-slate-600" : "text-slate-400"}`}>
-          <div className="flex items-center justify-center gap-3 text-xs font-medium">
+        <div className={`mt-2 text-center space-y-0.5 ${darkMode ? "text-slate-600" : "text-slate-400"}`}>
+          <div className="flex items-center justify-center gap-2.5 text-[11px] font-medium">
             <a href="#" className="hover:underline hover:text-blue-500 transition-colors">{t.privacyPolicy}</a>
             <span>·</span>
             <a href="#" className="hover:underline hover:text-blue-500 transition-colors">{t.terms}</a>
             <span>·</span>
             <a href="#" className="hover:underline hover:text-blue-500 transition-colors">{t.refundPolicy}</a>
           </div>
-          <p className="text-[11px]">{t.rbiFooter}</p>
+          <p className="text-[10px]">{t.rbiFooter}</p>
         </div>
 
       </div>

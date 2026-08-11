@@ -11,7 +11,7 @@ export default function RetailerLoginPage() {
       </div>
 
       {/* Right 42% Auth Panel — full width mobile, fixed right panel desktop */}
-      <div className="w-full lg:w-[42%] xl:w-[40%] 2xl:w-[38%] h-screen flex flex-col shrink-0 bg-[#0B0F19] overflow-y-auto">
+      <div className="w-full lg:w-[42%] xl:w-[40%] 2xl:w-[38%] h-screen overflow-hidden flex flex-col shrink-0 bg-[#0B0F19]">
         <AuthPanel />
       </div>
     </main>
