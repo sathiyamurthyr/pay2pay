@@ -148,34 +148,6 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
         </div>
       </div>
 
-      {/* ── Instant Auto-Fill Sandbox OTP Banner ── */}
-      <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="text-base shrink-0">🔑</span>
-          <div>
-            <p className="text-[11px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-              Sandbox / Demo Test OTP
-            </p>
-            <p className="text-xs font-black text-slate-900 dark:text-white font-mono">
-              Use Code: <span className="text-blue-600 dark:text-blue-400">123456</span>
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setOtpDigits(["1", "2", "3", "4", "5", "6"]);
-            setErrorMsg("");
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white text-xs font-extrabold transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
-        >
-          {copied ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-          <span>{copied ? "Filled 123456!" : "Auto-Fill 123456"}</span>
-        </button>
-      </div>
-
       {errorMsg && (
         <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />

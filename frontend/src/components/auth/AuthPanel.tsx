@@ -959,27 +959,6 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
               {otpSent && (
                 <form onSubmit={handleOtpVerify} className="space-y-4 pt-1">
-                  {/* Sandbox OTP Helper Pill */}
-                  <div className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-bold ${
-                    darkMode ? "bg-blue-500/10 border-blue-500/30 text-blue-300" : "bg-blue-50 border-blue-200 text-blue-700"
-                  }`}>
-                    <span className="flex items-center gap-1.5 font-mono">
-                      <span>🔑 Demo OTP:</span>
-                      <strong className="font-extrabold underline">123456</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpDigits(["1", "2", "3", "4", "5", "6"]);
-                        setErrorMsg("");
-                        setTimeout(() => otpInputRefs.current[5]?.focus(), 100);
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-extrabold transition-all shadow-sm cursor-pointer"
-                    >
-                      Auto-Fill 123456
-                    </button>
-                  </div>
-
                   <div>
                     <label className={`block text-xs font-bold mb-3 text-center ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
                       {t.enterOtp} <span className="text-red-500">*</span>
