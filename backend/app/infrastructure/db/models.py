@@ -545,6 +545,11 @@ class RetailerModel(BaseEntity, EnterpriseBaseMixin):
 
 class RetailerContactModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "retailer_contact"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "company_id", "mobile", name="uq_retailer_contact_tenant_company_mobile"),
+        UniqueConstraint("tenant_id", "company_id", "email", name="uq_retailer_contact_tenant_company_email"),
+        {"extend_existing": True}
+    )
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
     primary_contact: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -576,11 +581,17 @@ class RetailerAddressModel(BaseEntity, EnterpriseBaseMixin):
 
 class RetailerBankModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "retailer_bank"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "company_id", "account_number", name="uq_retailer_bank_tenant_company_account"),
+        UniqueConstraint("tenant_id", "company_id", "upi_id", name="uq_retailer_bank_tenant_company_upi"),
+        {"extend_existing": True}
+    )
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
     settlement_bank_name: Mapped[str] = mapped_column(String(150), nullable=False)
     account_holder: Mapped[str] = mapped_column(String(255), nullable=False)
-    account_number: Mapped[str] = mapped_column(String(50), nullable=False)
+    account_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    upi_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     ifsc: Mapped[str] = mapped_column(String(11), nullable=False)
     branch: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
     verification_status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)
@@ -590,8 +601,15 @@ class RetailerBankModel(BaseEntity, EnterpriseBaseMixin):
 
 class RetailerKycModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "retailer_kyc"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "company_id", "pan_number", name="uq_retailer_kyc_tenant_company_pan"),
+        UniqueConstraint("tenant_id", "company_id", "gst_number", name="uq_retailer_kyc_tenant_company_gst"),
+        UniqueConstraint("tenant_id", "company_id", "aadhaar_number", name="uq_retailer_kyc_tenant_company_aadhaar"),
+        {"extend_existing": True}
+    )
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    aadhaar_number: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
     aadhaar_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     pan_number: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
     gst_number: Mapped[Optional[str]] = mapped_column(String(15), nullable=True, index=True)
@@ -602,6 +620,21 @@ class RetailerKycModel(BaseEntity, EnterpriseBaseMixin):
     rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="kyc")
+
+
+class RetailerDuplicateAuditLogModel(BaseEntity, EnterpriseBaseMixin):
+    """Audit log for duplicate validation hits and attempts."""
+    __tablename__ = "retailer_duplicate_audit_log"
+    __table_args__ = {"extend_existing": True}
+
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    user_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    field_name: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    masked_value: Mapped[str] = mapped_column(String(255), nullable=False)
+    attempt_type: Mapped[str] = mapped_column(String(50), nullable=False, default="CREATE")  # CREATE, UPDATE, REALTIME_CHECK
+    request_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
 
 
 class RetailerWalletModel(BaseEntity, EnterpriseBaseMixin):

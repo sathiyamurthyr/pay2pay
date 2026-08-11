@@ -13,7 +13,48 @@ from app.application.services import RetailerManagementService
 from app.application.dependencies import get_current_user, get_current_tenant_id, require_permission
 from app.infrastructure.db.models import AdminUserModel
 
+from app.application.retailer_duplicate_validation_service import (
+    RetailerDuplicateValidationService, DuplicateRetailerException
+)
+
 router = APIRouter(prefix="/retailers", tags=["Retailer Management (EPIC-004)"])
+
+
+class ValidateDuplicateRequest(BaseModel):
+    field: str
+    value: str
+    exclude_retailer_id: Optional[uuid.UUID] = None
+
+
+class ValidateDuplicateResponse(BaseModel):
+    success: bool
+    valid: bool
+    field: str
+    message: Optional[str] = None
+
+
+@router.post("/validate-duplicate", response_model=ValidateDuplicateResponse)
+async def validate_retailer_duplicate_field(
+    req: ValidateDuplicateRequest,
+    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    company_id = current_user.company_id if hasattr(current_user, "company_id") and current_user.company_id else tenant_id
+    is_dup, err_msg = await RetailerDuplicateValidationService.check_duplicate_field(
+        db=db,
+        tenant_id=tenant_id,
+        company_id=company_id,
+        field_name=req.field,
+        raw_value=req.value,
+        exclude_retailer_id=req.exclude_retailer_id,
+        user_id=current_user.public_id if hasattr(current_user, "public_id") else None,
+        user_email=current_user.email if hasattr(current_user, "email") else None,
+        attempt_type="REALTIME_CHECK"
+    )
+    if is_dup:
+        raise DuplicateRetailerException(field=req.field, message=err_msg or "Duplicate value detected.")
+    return ValidateDuplicateResponse(success=True, valid=True, field=req.field)
 
 
 @router.post("", response_model=RetailerResponse)
@@ -23,6 +64,34 @@ async def onboard_retailer(
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    company_id = current_user.company_id if hasattr(current_user, "company_id") and current_user.company_id else tenant_id
+    
+    # Extract fields from nested DTOs if available
+    mobile = getattr(req.contact, "mobile", None) if hasattr(req, "contact") else None
+    email = getattr(req.contact, "email", None) if hasattr(req, "contact") else None
+    pan = getattr(req.kyc, "pan_number", None) if hasattr(req, "kyc") else None
+    gst = getattr(req.kyc, "gst_number", None) if hasattr(req, "kyc") else None
+    aadhaar = getattr(req.kyc, "aadhaar_number", None) if hasattr(req, "kyc") else None
+    bank_acc = getattr(req.bank, "account_number", None) if hasattr(req, "bank") else None
+    upi = getattr(req.bank, "upi_id", None) if hasattr(req, "bank") else None
+
+    # Enforce enterprise multi-tenant scoped duplicate validation
+    await RetailerDuplicateValidationService.validate_all_retailer_fields(
+        db=db,
+        tenant_id=tenant_id,
+        company_id=company_id,
+        mobile_number=mobile,
+        pan_number=pan,
+        aadhaar_number=aadhaar,
+        bank_account_number=bank_acc,
+        gst_number=gst,
+        email_address=email,
+        upi_id=upi,
+        user_id=current_user.public_id if hasattr(current_user, "public_id") else None,
+        user_email=current_user.email if hasattr(current_user, "email") else None,
+        attempt_type="CREATE"
+    )
+
     r = await RetailerManagementService.onboard_retailer(db, tenant_id, req, current_user)
     return RetailerResponse(
         public_id=r.public_id,
