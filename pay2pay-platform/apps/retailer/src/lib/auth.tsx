@@ -219,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user_info");
     setUser(null);
-    router.push("/login");
+    router.push("/retailer/login");
   };
 
   const isRetailer = activeRole === "RETAILER";

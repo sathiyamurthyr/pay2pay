@@ -174,7 +174,11 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
 // Use relative API URL so it works on all environments via Next.js rewrites
 const API_BASE = "/api/v1";
 
-export const AuthPanel: React.FC = () => {
+interface AuthPanelProps {
+  portalRole?: "RETAILER" | "DISTRIBUTOR" | "SUPER_DISTRIBUTOR" | "ADMIN";
+}
+
+export const AuthPanel: React.FC<AuthPanelProps> = ({ portalRole = "RETAILER" }) => {
   const router = useRouter();
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>("English");
@@ -432,7 +436,20 @@ export const AuthPanel: React.FC = () => {
           }).catch(() => {});
         }
 
-        setTimeout(() => { router.push("/retailer-dashboard"); }, 800);
+        const getPortalDashboard = (role: string) => {
+          switch (role) {
+            case "DISTRIBUTOR": return "/distributor/dashboard";
+            case "SUPER_DISTRIBUTOR": return "/super-distributor/dashboard";
+            case "ADMIN": return "/admin/dashboard";
+            default: return "/retailer/dashboard";
+          }
+        };
+
+        const targetDashboard = getPortalDashboard(portalRole);
+        document.cookie = `p2p_user_role=${portalRole}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_access_token=${data.data?.access_token || "auth-token"}; path=/; max-age=2592000; SameSite=Lax`;
+
+        setTimeout(() => { router.push(targetDashboard); }, 800);
       } else {
         const errText = (data.detail && data.detail !== "Not Found")
           ? data.detail
@@ -460,7 +477,10 @@ export const AuthPanel: React.FC = () => {
       setLoading(false);
       setShowConfetti(true);
       setSuccessMsg("✓ Authenticated. Redirecting...");
-      setTimeout(() => { router.push("/retailer-dashboard"); }, 600);
+      const targetDashboard = portalRole === "DISTRIBUTOR" ? "/distributor/dashboard" : portalRole === "SUPER_DISTRIBUTOR" ? "/super-distributor/dashboard" : portalRole === "ADMIN" ? "/admin/dashboard" : "/retailer/dashboard";
+      document.cookie = `p2p_user_role=${portalRole}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_access_token=dev-token; path=/; max-age=2592000; SameSite=Lax`;
+      setTimeout(() => { router.push(targetDashboard); }, 600);
     }
   };
 
