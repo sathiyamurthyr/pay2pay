@@ -35,6 +35,7 @@ class OnboardingStatusResponse(BaseModel):
 
 @router.get("/status", response_model=OnboardingStatusResponse)
 async def get_onboarding_status(
+    app_type: Optional[str] = "SD",
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -42,8 +43,9 @@ async def get_onboarding_status(
     company_id = current_user.company_id if hasattr(current_user, "company_id") and current_user.company_id else tenant_id
     rec = await CompanyOnboardingService.get_or_create_status(db, tenant_id, company_id)
 
+    normalized_role = "DIST" if (app_type and app_type.upper() == "DIST") else "SD"
     is_completed = rec.status == "COMPLETED" or rec.current_step > TOTAL_ONBOARDING_STEPS
-    redirect = "/dashboard" if is_completed else f"/register/step-{rec.current_step}"
+    redirect = f"/{normalized_role.lower()}/dashboard" if is_completed else f"/{normalized_role.lower()}/onboarding"
 
     return OnboardingStatusResponse(
         completed=is_completed,
@@ -62,6 +64,7 @@ async def get_onboarding_status(
 @router.post("/save", response_model=OnboardingStatusResponse)
 async def save_onboarding_step(
     req: OnboardingSaveRequest,
+    app_type: Optional[str] = "SD",
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -80,8 +83,9 @@ async def save_onboarding_step(
         updated_by=user_id
     )
 
+    normalized_role = "DIST" if (app_type and app_type.upper() == "DIST") else "SD"
     is_completed = rec.status == "COMPLETED" or rec.current_step > TOTAL_ONBOARDING_STEPS
-    redirect = "/dashboard" if is_completed else f"/register/step-{rec.current_step}"
+    redirect = f"/{normalized_role.lower()}/dashboard" if is_completed else f"/{normalized_role.lower()}/onboarding"
 
     return OnboardingStatusResponse(
         completed=is_completed,

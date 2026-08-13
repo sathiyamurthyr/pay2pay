@@ -16,6 +16,7 @@ import app.infrastructure.db.error_management_models as _error_management_models
 import app.infrastructure.db.enterprise_payout_models as _enterprise_payout_models
 import app.infrastructure.db.swipe_settlement_models as _swipe_settlement_models
 import app.infrastructure.db.registration_models  # Registration Draft & KYC tables for progressive onboarding
+import app.infrastructure.db.session_security_models  # Session security & PIN authentication tables
 from app.presentation.api.v1 import beneficiary_verification
 from app.presentation.api.v1 import enterprise_payout_execution_router
 from app.presentation.api.v1 import payout_report_router
@@ -155,26 +156,39 @@ app.include_router(beneficiary_verification.router, prefix=settings.API_V1_STR)
 app.include_router(reverse_penny_drop_router.router, prefix=settings.API_V1_STR)
 app.include_router(bulkpe_payout_router.router, prefix=settings.API_V1_STR)
 app.include_router(enterprise_auth_router.router, prefix=settings.API_V1_STR)
+app.include_router(enterprise_auth_router.router, prefix="/api")
+app.include_router(enterprise_auth_router.router, prefix="")
 app.include_router(admin_error_management_router.router, prefix=settings.API_V1_STR)
 app.include_router(enterprise_payout_execution_router.router, prefix=settings.API_V1_STR)
 app.include_router(payout_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(payout_ledger_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
-from app.presentation.api.v1 import retailer_dashboard_router
+from app.presentation.api.v1 import retailer_verification_router
+from app.presentation.api.v1 import company_onboarding_router
+from app.presentation.api.v1 import admin_reports_router
+from app.presentation.api.v1 import portal_reports_router
 from app.presentation.api.v1 import session_security_router
 from app.presentation.api.v1 import report_center_router
 from app.presentation.api.v1 import progressive_onboarding_router
 from app.presentation.api.v1 import admin_verification_router
-from app.presentation.api.v1 import retailer_verification_router
-from app.presentation.api.v1 import company_onboarding_router
+
 app.include_router(retailer_dashboard_router.router, prefix=settings.API_V1_STR)
-app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(session_security_router.router, prefix=settings.API_V1_STR)
 app.include_router(report_center_router.router, prefix=settings.API_V1_STR)
-app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)
 app.include_router(admin_verification_router.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_verification_router.router, prefix=settings.API_V1_STR)
 app.include_router(company_onboarding_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_reports_router.router, prefix=settings.API_V1_STR)
+app.include_router(portal_reports_router.router, prefix=settings.API_V1_STR)
+app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
+app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
+app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)
+app.include_router(progressive_onboarding_router.router, prefix="")
+app.include_router(progressive_onboarding_router.router, prefix="/api")
+app.include_router(admin_verification_router.router, prefix=settings.API_V1_STR)
+app.include_router(retailer_verification_router.router, prefix=settings.API_V1_STR)
+app.include_router(company_onboarding_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_reports_router.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])

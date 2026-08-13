@@ -168,3 +168,24 @@ class RegistrationAuditModel(BaseEntity, EnterpriseBaseMixin):
     device_fingerprint: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     browser: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     details: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+
+
+class CompanyOnboardingModel(BaseEntity, EnterpriseBaseMixin):
+    """P0 Single Source of Truth for Enterprise Onboarding Persistence."""
+    __tablename__ = "company_onboarding"
+    __table_args__ = (
+        {"extend_existing": True}
+    )
+
+    workspace_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    current_step: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    completed_steps: Mapped[List[int]] = mapped_column(JSONB, nullable=False, default=list)
+    progress_percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="DRAFT")  # DRAFT, IN_PROGRESS, PENDING_APPROVAL, COMPLETED, RESET
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    last_saved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    draft_data: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+

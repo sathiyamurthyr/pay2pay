@@ -204,3 +204,33 @@ class LocationHistoryModel(BaseEntity, EnterpriseBaseMixin):
     latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     ip_address: Mapped[str] = mapped_column(String(45), nullable=False)
+
+
+class PasswordResetTokenModel(BaseEntity, EnterpriseBaseMixin):
+    """Secure One-Time Password Reset Token tracking table."""
+    __tablename__ = "password_reset_tokens"
+    __table_args__ = {"extend_existing": True}
+
+    token_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    mobile_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    is_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PasswordResetAuditModel(BaseEntity, EnterpriseBaseMixin):
+    """Audit log for enterprise password reset requests."""
+    __tablename__ = "password_reset_audits"
+    __table_args__ = {"extend_existing": True}
+
+    audit_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    mobile_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    ip_address: Mapped[str] = mapped_column(String(45), nullable=False)
+    browser: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False)
