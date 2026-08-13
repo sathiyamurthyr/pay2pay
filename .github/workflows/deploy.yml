@@ -39,19 +39,21 @@ jobs:
           npm ci || npm install --legacy-peer-deps
           npm run build
 
-      - name: Deploy to Remote Production VPS (68.233.107.186)
+      - name: Deploy to Remote Production VPS (144.24.139.93)
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 68.233.107.186
+          host: ${{ secrets.SERVER_HOST || '144.24.139.93' }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            echo "=== 1. PULLING LATEST MAIN BRANCH ==="
+            echo "=== 1. PULLING LATEST MAIN BRANCH & PROVISIONING SOFTWARE ==="
             cd /home/ubuntu/pay2pay
             git fetch --all
             git checkout main
             git pull origin main
+            chmod +x setup_server.sh
+            bash setup_server.sh
 
             echo "=== 2. BUILDING BACKEND DEPENDENCIES ==="
             cd /home/ubuntu/pay2pay/backend
