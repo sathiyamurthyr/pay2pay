@@ -39,10 +39,10 @@ jobs:
           npm ci || npm install --legacy-peer-deps
           npm run build
 
-      - name: Deploy to Remote Production VPS (144.24.139.93)
+      - name: Deploy to Remote Production VPS (129.225.91.190)
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST || '144.24.139.93' }}
+          host: ${{ secrets.SERVER_HOST || '129.225.91.190' }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
@@ -63,13 +63,14 @@ jobs:
             echo "=== 3. BUILDING FRONTEND NEXT.JS ==="
             cd /home/ubuntu/pay2pay/frontend
             npm install --legacy-peer-deps
-            NODE_OPTIONS="--max-old-space-size=1536" npx next build --webpack
+            NODE_OPTIONS="--max-old-space-size=1536" npx next build
             cp -r .next/static .next/standalone/.next/
             cp -r public .next/standalone/
 
-            echo "=== 4. RESTARTING SERVICES ==="
-            sudo systemctl restart pay2pay-backend
-            sudo systemctl restart pay2pay-frontend
+            echo "=== 4. RESTARTING PM2 SERVICES & NGINX ==="
+            pm2 restart pay2pay-backend
+            pm2 restart pay2pay-frontend
             sudo systemctl reload nginx
 
             echo "=== CI/CD DEPLOYMENT SUCCESSFUL ==="
+
