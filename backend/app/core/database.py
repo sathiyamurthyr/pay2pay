@@ -9,6 +9,10 @@ from app.core.config import settings
 # concurrent request deadlocks. PostgreSQL uses standard connection pooling.
 _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 
+# Detect Supabase transaction pooler (port 6543) — requires statement_cache_size=0
+# because pgbouncer transaction mode does not support prepared statements.
+_is_supabase_pooler = ":6543/" in settings.DATABASE_URL
+
 if _is_sqlite:
     engine = create_async_engine(
         settings.DATABASE_URL,
@@ -16,6 +20,15 @@ if _is_sqlite:
         future=True,
         connect_args={"check_same_thread": False},
         poolclass=NullPool,
+    )
+elif _is_supabase_pooler:
+    # Supabase transaction pooler: disable prepared statements, use NullPool
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.DEBUG,
+        future=True,
+        poolclass=NullPool,
+        connect_args={"statement_cache_size": 0},
     )
 else:
     engine = create_async_engine(
