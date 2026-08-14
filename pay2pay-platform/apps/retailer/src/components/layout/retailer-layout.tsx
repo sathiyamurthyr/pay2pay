@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NotificationCenter } from "@/app-shell/components/NotificationCenter";
 import {
   AppBar, Toolbar, Drawer, Box, Typography, IconButton, Badge, Menu,
   MenuItem, Divider, List, ListItem, ListItemButton, ListItemIcon,
@@ -921,42 +922,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               ))}
             </Menu>
 
-            {/* Notification Bell */}
-            <IconButton color="inherit" onClick={(e) => setNotifAnchor(e.currentTarget)} size="small" sx={{ p: 0.75 }}>
-              <Badge badgeContent={unreadNotifications} color="error">
-                <NotificationsIcon sx={{ color: "#4B5563", fontSize: 22 }} />
-              </Badge>
-            </IconButton>
-
-            <Menu
-              anchorEl={notifAnchor}
-              open={Boolean(notifAnchor)}
-              onClose={() => setNotifAnchor(null)}
-              slotProps={{ paper: { sx: { borderRadius: 3, width: 320, mt: 1, p: 0.5 } } }}
-            >
-              <Box sx={{ p: 1.5, borderBottom: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "13px" }}>Recent Alerts</Typography>
-                {unreadNotifications > 0 && (
-                  <Button size="small" onClick={() => setUnreadNotifications(0)} sx={{ fontSize: "10px", fontWeight: 800, color: "#2563EB" }}>
-                    Mark all read
-                  </Button>
-                )}
-              </Box>
-              {liveAlerts.length === 0 ? (
-                <Box sx={{ p: 3, textAlign: "center" }}>
-                  <Typography variant="body2" sx={{ color: "#64748B" }}>No recent alerts or notifications.</Typography>
-                </Box>
-              ) : (
-                liveAlerts.map((act) => (
-                  <MenuItem key={act.id} onClick={() => setNotifAnchor(null)} sx={{ py: 1.25 }}>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "13px", color: "#1E293B" }}>{act.title}</Typography>
-                      <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "11px", display: "block" }}>{act.desc}</Typography>
-                    </Box>
-                  </MenuItem>
-                ))
-              )}
-            </Menu>
+            {/* Dynamic DB-Backed Notification Center */}
+            <NotificationCenter />
 
             {/* User Profile Avatar Icon (Clicking this opens the full Retailer Profile Card!) */}
             <Tooltip title="View Retailer Profile Info">

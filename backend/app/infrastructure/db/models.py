@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional, List
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON
+    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, Numeric
 )
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB, UUID
 JSONB = JSON
@@ -3523,6 +3523,33 @@ class NotificationModel(BaseEntity, EnterpriseBaseMixin):
     __table_args__ = (
         UniqueConstraint("idempotency_key", name="uq_notification_idempotency_key"),
         Index("ix_notification_status_channel", "notif_status", "channel"),
+    )
+
+
+class UserNotificationAlertModel(BaseEntity, EnterpriseBaseMixin):
+    """Production-ready Notification & Recent Alerts model for authenticated users & retailers."""
+    __tablename__ = "user_notification_alerts"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    notification_type: Mapped[str] = mapped_column(String(50), nullable=False, default="TRANSACTION", index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    transaction_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    amount: Mapped[Optional[float]] = mapped_column(Numeric(15, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="INR")
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="SUCCESS", index=True)
+    reference_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index("ix_user_notif_tenant_user_read", "tenant_id", "user_id", "is_read"),
+        Index("ix_user_notif_user_created", "user_id", "created_at"),
+        {"extend_existing": True}
     )
 
 
