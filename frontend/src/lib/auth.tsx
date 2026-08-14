@@ -210,6 +210,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    try {
+      fetch("/api/v1/auth/enterprise/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_info: typeof navigator !== "undefined" ? navigator.userAgent : "Browser" }),
+      }).catch(() => {});
+    } catch {}
+
     if (typeof document !== "undefined") {
       const cookieNames = [
         "pay2pay_access_token",

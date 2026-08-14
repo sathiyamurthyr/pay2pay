@@ -102,10 +102,11 @@ export function middleware(request: NextRequest) {
 
   const token =
     request.cookies.get("p2p_access_token")?.value ||
+    request.cookies.get("pay2pay_access_token")?.value ||
     request.cookies.get("pay2pay_auth_token")?.value ||
     request.headers.get("authorization");
 
-  const isAuthenticated = Boolean(token) || devBypass;
+  const isAuthenticated = Boolean(token);
 
   // 1. Legacy /retailer-dashboard -> /retailer/dashboard redirect
   if (pathname === "/retailer-dashboard") {
