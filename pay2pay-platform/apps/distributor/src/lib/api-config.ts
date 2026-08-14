@@ -1,6 +1,7 @@
 export const getApiBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+    const url = process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
+    return url.endsWith("/api/v1") ? url : `${url}/api/v1`;
   }
   if (typeof window !== "undefined") {
     // Relative path /api/v1 works seamlessly on any domain, IP, or port over HTTP or HTTPS
