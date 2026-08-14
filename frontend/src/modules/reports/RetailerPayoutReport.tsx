@@ -462,29 +462,36 @@ export const RetailerPayoutReport: React.FC = () => {
 
   return (
     <Box sx={{ width: "100%", color: "#F8FAFC" }}>
-      {/* 1. COMPACT HEADER */}
+      {/* 1. PAGE HEADER */}
       <Box sx={{ mb: 2 }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, fontSize: "24px", color: "#FFFFFF", letterSpacing: "-0.5px" }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, fontSize: "28px", color: "#FFFFFF", letterSpacing: "-0.5px" }}>
           Payouts
         </Typography>
-        <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "13px", mt: 0.2 }}>
+        <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "14px", mt: 0.2 }}>
           View and manage retailer payout transactions
         </Typography>
       </Box>
 
-      {/* 2. PRIMARY SEARCH & QUICK DATE PRESETS ROW */}
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={1.5}
+      {/* 2. SEARCH & DATE RANGE TOOLBAR */}
+      <Paper
+        elevation={0}
         sx={{
           mb: 2,
-          alignItems: { xs: "stretch", md: "center" },
+          p: 1,
+          px: 1.5,
+          bgcolor: "#121B28",
+          border: "1px solid #1E293B",
+          borderRadius: "8px",
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: "center",
           justifyContent: "space-between",
+          gap: 1.5,
         }}
       >
-        {/* Prominent Search Input */}
+        {/* Universal Payout Search Input */}
         <TextField
-          placeholder="Search payouts..."
+          placeholder="Search transaction, UTR, customer, beneficiary..."
           value={globalSearch}
           onChange={(e) => {
             setGlobalSearch(e.target.value);
@@ -493,12 +500,14 @@ export const RetailerPayoutReport: React.FC = () => {
           size="small"
           sx={{
             flexGrow: 1,
+            width: { xs: "100%", md: "auto" },
             maxWidth: { xs: "100%", md: "520px" },
             "& .MuiOutlinedInput-root": {
-              bgcolor: "#121B28",
-              borderRadius: "10px",
+              bgcolor: "#090D16",
+              borderRadius: "6px",
               fontSize: "13px",
               color: "#F8FAFC",
+              height: "40px",
               "& fieldset": { borderColor: "#1E293B" },
               "&:hover fieldset": { borderColor: "#3B82F6" },
               "&.Mui-focused fieldset": { borderColor: "#3B82F6", borderWidth: "1.5px" },
@@ -522,8 +531,8 @@ export const RetailerPayoutReport: React.FC = () => {
           }}
         />
 
-        {/* Compact Segmented Control for Quick Date Filters */}
-        <Stack direction="row" spacing={0.5} sx={{ bgcolor: "#121B28", p: 0.5, borderRadius: "10px", border: "1px solid #1E293B" }}>
+        {/* Date Range Presets */}
+        <Stack direction="row" spacing={0.5} sx={{ bgcolor: "#090D16", p: 0.5, borderRadius: "6px", border: "1px solid #1E293B" }}>
           {[
             { key: "TODAY", label: "Today" },
             { key: "YESTERDAY", label: "Yesterday" },
@@ -542,7 +551,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 fontWeight: activePreset === preset.key ? 700 : 500,
                 color: activePreset === preset.key ? "#FFFFFF" : "#94A3B8",
                 bgcolor: activePreset === preset.key ? "#2563EB" : "transparent",
-                borderRadius: "7px",
+                borderRadius: "5px",
                 textTransform: "none",
                 minWidth: "auto",
                 "&:hover": {
@@ -555,120 +564,91 @@ export const RetailerPayoutReport: React.FC = () => {
             </Button>
           ))}
         </Stack>
-      </Stack>
+      </Paper>
 
-      {/* 3. SUMMARY KPI SECTION - 4 COMPACT HORIZONTAL CARDS */}
-      <Grid container spacing={1.5} sx={{ mb: 2 }}>
-        {/* KPI 1: Total Payouts */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              bgcolor: "#121B28",
-              border: "1px solid #1E293B",
-              borderRadius: "10px",
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "17px", lineHeight: 1.2 }}>
-              ₹{(summary?.todays_transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Typography>
-            <Stack direction="row" spacing={0.8} alignItems="center" sx={{ mt: 0.5 }}>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>
-                Total Payouts
+      {/* 3. PAYOUT SUMMARY STRIP */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 2,
+          p: 2,
+          bgcolor: "#121B28",
+          border: "1px solid #1E293B",
+          borderRadius: "8px",
+        }}
+      >
+        <Grid container spacing={2} alignItems="center">
+          {/* TOTAL PAYOUTS */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{ pr: { md: 2 } }}>
+              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                TOTAL PAYOUTS
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "22px", my: 0.3 }}>
+                ₹{(summary?.todays_transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
               <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
-                • {summary?.todays_transactions || 0} total
+                {summary?.todays_transactions || 0} transactions
               </Typography>
-            </Stack>
-          </Paper>
-        </Grid>
+            </Box>
+          </Grid>
 
-        {/* KPI 2: Successful */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              bgcolor: "#121B28",
-              border: "1px solid #1E293B",
-              borderRadius: "10px",
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "17px", lineHeight: 1.2 }}>
-              ₹{(summary?.successful_amount || summary?.todays_transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Typography>
-            <Stack direction="row" spacing={0.8} alignItems="center" sx={{ mt: 0.5 }}>
-              <Typography variant="caption" sx={{ color: "#4ADE80", fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>
-                Successful
+          {/* SUCCESSFUL */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{ borderLeft: { md: "1px solid #1E293B" }, pl: { md: 2 } }}>
+              <Typography variant="caption" sx={{ color: "#4ADE80", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                SUCCESSFUL
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "22px", my: 0.3 }}>
+                ₹{(summary?.successful_amount || summary?.todays_transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
               <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
-                • {summary?.successful_transactions || 0} count
+                {summary?.successful_transactions || 0} successful
               </Typography>
-            </Stack>
-          </Paper>
-        </Grid>
+            </Box>
+          </Grid>
 
-        {/* KPI 3: Pending */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              bgcolor: "#121B28",
-              border: "1px solid #1E293B",
-              borderRadius: "10px",
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "17px", lineHeight: 1.2 }}>
-              ₹{(summary?.pending_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Typography>
-            <Stack direction="row" spacing={0.8} alignItems="center" sx={{ mt: 0.5 }}>
-              <Typography variant="caption" sx={{ color: "#FBBF24", fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>
-                Pending
+          {/* PENDING */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{ borderLeft: { md: "1px solid #1E293B" }, pl: { md: 2 } }}>
+              <Typography variant="caption" sx={{ color: "#FBBF24", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                PENDING
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "22px", my: 0.3 }}>
+                ₹{(summary?.pending_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
               <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
-                • {summary?.pending_transactions || 0} processing
+                {summary?.pending_transactions || 0} processing
               </Typography>
-            </Stack>
-          </Paper>
-        </Grid>
+            </Box>
+          </Grid>
 
-        {/* KPI 4: Failed / Reversed */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              bgcolor: "#121B28",
-              border: "1px solid #1E293B",
-              borderRadius: "10px",
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 800, color: "#F87171", fontSize: "17px", lineHeight: 1.2 }}>
-              ₹{(summary?.failed_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Typography>
-            <Stack direction="row" spacing={0.8} alignItems="center" sx={{ mt: 0.5 }}>
-              <Typography variant="caption" sx={{ color: "#F87171", fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>
-                Failed / Reversed
+          {/* FAILED / REVERSED */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{ borderLeft: { md: "1px solid #1E293B" }, pl: { md: 2 } }}>
+              <Typography variant="caption" sx={{ color: "#F87171", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                FAILED / REVERSED
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: "#F87171", fontSize: "22px", my: 0.3 }}>
+                ₹{(summary?.failed_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
               <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
-                • {summary?.failed_transactions || 0} count
+                {summary?.failed_transactions || 0} transactions
               </Typography>
-            </Stack>
-          </Paper>
+            </Box>
+          </Grid>
         </Grid>
-      </Grid>
+      </Paper>
 
       {/* 4. FILTER DESIGN & EXPORT TOOLBAR */}
       <Paper
         elevation={0}
         sx={{
-          p: 1.2,
-          px: 2,
+          p: 1,
+          px: 1.5,
           bgcolor: "#121B28",
           border: "1px solid #1E293B",
-          borderRadius: "10px",
+          borderRadius: "8px",
           mb: 2,
           display: "flex",
           flexWrap: "wrap",
@@ -1023,7 +1003,7 @@ export const RetailerPayoutReport: React.FC = () => {
             width: "100%",
             bgcolor: "#121B28",
             border: "1px solid #1E293B",
-            borderRadius: "10px",
+            borderRadius: "8px",
             overflow: "hidden",
           }}
         >
