@@ -12,11 +12,11 @@ router = APIRouter(prefix="/retailer", tags=["Retailer Platform"])
 
 # ── Dynamic Retailer Wallet State ──
 RETAILER_WALLET_STATE = {
-    "mainBalance": 48250.75,
-    "commissionBalance": 3420.50,
-    "todayMargin": 1480.00,
-    "todayTxnCount": 42,
-    "todaySettlement": 25000.00,
+    "mainBalance": 0.00,
+    "commissionBalance": 0.00,
+    "todayMargin": 0.00,
+    "todayTxnCount": 0,
+    "todaySettlement": 0.00,
 }
 
 def get_current_wallet_balance() -> float:

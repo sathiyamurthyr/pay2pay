@@ -211,21 +211,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     if (typeof document !== "undefined") {
-      document.cookie = "p2p_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-      document.cookie = "pay2pay_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      const cookieNames = [
+        "pay2pay_access_token",
+        "p2p_access_token",
+        "pay2pay_auth_token",
+        "p2p_user_role",
+        "pay2pay_user_role",
+        "p2p_session_locked",
+      ];
+      cookieNames.forEach((name) => {
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+        document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+      });
     }
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("pay2pay_auth_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user_info");
-    const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("pay2pay_access_token");
+      localStorage.removeItem("pay2pay_auth_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_info");
+      localStorage.removeItem("p2p_user_role");
+      localStorage.removeItem("pay2pay_user_role");
+      localStorage.removeItem("p2p_active_retailer_wallet_balance");
+    }
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.clear();
+    }
     setUser(null);
-    if (currentPath.startsWith("/retailer")) {
-      router.push("/retailer/login");
-    } else if (currentPath.startsWith("/distributor")) {
-      router.push("/distributor/login");
-    } else if (currentPath.startsWith("/super-distributor")) {
-      router.push("/super-distributor/login");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
     } else {
       router.push("/login");
     }

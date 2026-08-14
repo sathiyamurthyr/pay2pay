@@ -164,7 +164,7 @@ export const retailerApi = {
       const res = await apiClient.get("/retailer/wallet/balance");
       return res.data;
     } catch {
-      let savedBalance = 48250.75;
+      let savedBalance = 0.00;
       if (typeof window !== "undefined") {
         const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
         if (saved && !isNaN(parseFloat(saved))) {
@@ -1024,8 +1024,8 @@ export const retailerApi = {
           charges,
           commission,
           net_debit: payload.amount + charges,
-          wallet_before: payload.wallet_balance || 48250.75,
-          wallet_after: (payload.wallet_balance || 48250.75) - (payload.amount + charges) + commission,
+          wallet_before: payload.wallet_balance || 0.00,
+          wallet_after: (payload.wallet_balance || 0.00) - (payload.amount + charges) + commission,
           beneficiary_name: "Kavitha Sharma",
           account_number: "50100998822",
           bank_name: "HDFC Bank",

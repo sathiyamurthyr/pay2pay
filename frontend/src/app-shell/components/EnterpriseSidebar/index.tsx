@@ -29,9 +29,11 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import GavelIcon from "@mui/icons-material/Gavel";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import DescriptionIcon from "@mui/icons-material/Description";
+import LogoutIcon from "@mui/icons-material/Logout";
 import { tokens } from "@/design-system/tokens/design-tokens";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { normalizeUserRole } from "@/lib/portal-resolver";
+import { useAuth } from "@/lib/auth";
 
 const FINANCIAL_PATHS = new Set([
   "/retailer/dmt",
@@ -56,6 +58,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   onToggle,
   activePath = "/retailer/dashboard",
 }) => {
+  const { logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
 
@@ -507,6 +510,41 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             </Stack>
           </Box>
         ))}
+      </Box>
+
+      {/* Bottom Logout Action */}
+      <Box sx={{ p: 2, borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+        <Tooltip title={isCollapsed ? "Sign Out / Logout" : ""} placement="right">
+          <Box
+            onClick={logout}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: isCollapsed ? "center" : "flex-start",
+              gap: 1.8,
+              py: 1.4,
+              px: isCollapsed ? 0 : 2,
+              borderRadius: "12px",
+              cursor: "pointer",
+              bgcolor: "rgba(239, 68, 68, 0.12)",
+              color: "#EF4444",
+              border: "1px solid rgba(239, 68, 68, 0.25)",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                bgcolor: "rgba(239, 68, 68, 0.25)",
+                color: "#FCA5A5",
+                boxShadow: "0 4px 14px rgba(239, 68, 68, 0.3)",
+              },
+            }}
+          >
+            <LogoutIcon sx={{ fontSize: 22, flexShrink: 0 }} />
+            {!isCollapsed && (
+              <Typography sx={{ fontSize: "15px", fontWeight: 700, whiteSpace: "nowrap" }}>
+                Sign Out / Logout
+              </Typography>
+            )}
+          </Box>
+        </Tooltip>
       </Box>
     </Box>
   );
