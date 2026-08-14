@@ -19,6 +19,7 @@ export interface EnterpriseWorkstationProps {
   onSelectBeneficiary: (b: BeneficiaryData) => void;
   onSearchCustomer: (q: string) => void;
   isSearching?: boolean;
+  hasSearched?: boolean;
   pricingResult?: PricingEvaluationResult;
 }
 
@@ -34,6 +35,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
   onSelectBeneficiary,
   onSearchCustomer,
   isSearching = false,
+  hasSearched = false,
   pricingResult: propsPricingResult,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -99,6 +101,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
             }}
             onContinue={() => setCurrentStep(2)}
             isSearching={isSearching}
+            hasSearched={hasSearched}
           />
         )}
 

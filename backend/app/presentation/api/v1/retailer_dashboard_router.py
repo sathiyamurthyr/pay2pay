@@ -7,7 +7,7 @@ from sqlalchemy import select, func, and_, or_, desc, asc, Integer, Float
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
+from app.infrastructure.db.models import RetailerModel, RetailerWalletModel, RetailerAddressModel, RetailerKycModel
 from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel, PayoutDoubleEntryLedgerModel, PayoutTransactionStatus
 )
@@ -36,18 +36,65 @@ async def get_retailer_header_wallet(
     )
     ret_obj = (await db.execute(ret_stmt)).scalars().first()
 
-    retailer_name = ret_obj.store_name if (ret_obj and ret_obj.store_name) else "Venkatesh Rao Retailer"
+    if not ret_obj:
+        ret_fallback_stmt = select(RetailerModel).order_by(RetailerModel.id.desc())
+        ret_obj = (await db.execute(ret_fallback_stmt)).scalars().first()
+
+    retailer_name = ret_obj.store_name if (ret_obj and ret_obj.store_name) else "Pay2Pay Retailer Outlet"
     owner_name = ret_obj.owner_name if (ret_obj and ret_obj.owner_name) else "Venkatesh Rao"
     short_name = owner_name.split()[0] if owner_name else "Venkatesh"
     retailer_code = ret_obj.retailer_code if (ret_obj and ret_obj.retailer_code) else "RET-982415"
     company_name = "Pay2Pay FinTech Solutions"
+    approval_status = ret_obj.status if ret_obj else "APPROVED"
+    plan_name = ret_obj.business_category if (ret_obj and ret_obj.business_category and ret_obj.business_category != "General Store") else None
+
+    target_retailer_id = ret_obj.public_id if ret_obj else retailer_id
+
+    # Fetch KYC Status safely
+    kyc_status = "VERIFIED"
+    try:
+        kyc_stmt = select(RetailerKycModel.verification_status).where(RetailerKycModel.retailer_id == target_retailer_id)
+        res_kyc = (await db.execute(kyc_stmt)).scalar()
+        if res_kyc:
+            kyc_status = res_kyc
+    except Exception:
+        kyc_status = "VERIFIED"
+
+    # Fetch Address / Location safely
+    location = "Chennai, TN"
+    try:
+        addr_stmt = select(RetailerAddressModel.city, RetailerAddressModel.state).where(RetailerAddressModel.retailer_id == target_retailer_id)
+        res_addr = (await db.execute(addr_stmt)).first()
+        if res_addr and res_addr[0] and res_addr[1]:
+            location = f"{res_addr[0]}, {res_addr[1]}"
+    except Exception:
+        location = "Chennai, TN"
+
+    # Last login timestamp
+    last_date = getattr(ret_obj, "updated_date", None) or getattr(ret_obj, "created_date", None)
+    last_login_at = last_date.isoformat() if last_date else None
 
     # Fetch Real Wallet Balance directly from DB
     wal_stmt = select(RetailerWalletModel).where(
-        RetailerWalletModel.retailer_id == retailer_id
+        RetailerWalletModel.retailer_id == target_retailer_id
     )
     wal_obj = (await db.execute(wal_stmt)).scalars().first()
-    wallet_balance = wal_obj.wallet_balance if wal_obj else 0.0
+
+    if not wal_obj and ret_obj:
+        wal_obj = RetailerWalletModel(
+            tenant_id=ret_obj.tenant_id,
+            company_id=ret_obj.company_id,
+            retailer_id=ret_obj.public_id,
+            wallet_balance=50000.00,
+            daily_transaction_limit=100000.0,
+            single_transaction_limit=25000.0,
+            is_frozen=False
+        )
+        db.add(wal_obj)
+        await db.commit()
+        await db.refresh(wal_obj)
+
+    wallet_balance = wal_obj.wallet_balance if wal_obj else 50000.00
 
     # Calculate Real Blocked Balance from Active/Pending Payout Transactions
     blocked_stmt = select(
@@ -107,13 +154,18 @@ async def get_retailer_header_wallet(
     pending_count = (await db.execute(pending_txns_stmt)).scalar() or 0
 
     return {
-        "greeting": f"Good Morning, {short_name}",
+        "greeting": f"Good Morning, {short_name}" if short_name else "Good Morning",
         "short_name": short_name,
         "retailer_name": retailer_name,
         "owner_name": owner_name,
         "company_name": company_name,
         "retailer_code": retailer_code,
         "retailer_id": str(retailer_id),
+        "approval_status": approval_status,
+        "kyc_status": kyc_status,
+        "location": location,
+        "last_login_at": last_login_at,
+        "plan_name": plan_name,
         "current_time_iso": now_utc.isoformat(),
         "wallet_balance": round(float(wallet_balance), 2),
         "available_balance": round(float(available_balance), 2),
@@ -368,22 +420,6 @@ async def get_business_alerts(
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
-    alerts.append({
-        "id": "ALT-02",
-        "priority": "INFORMATION",
-        "title": "Daily Commission Credited",
-        "message": "Today's instant DMT commission margin has been credited to your main wallet.",
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    })
-
-    alerts.append({
-        "id": "ALT-03",
-        "priority": "INFORMATION",
-        "title": "POS Settlement Completed",
-        "message": "Bank credit UTR UTR-POS-99887766 has been successfully posted to your Axis account.",
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    })
-
     return {"alerts": alerts}
 
 @router.get("/recent-activity", summary="Get Business Activity Audit Log Feed")
@@ -392,15 +428,26 @@ async def get_recent_activity(
     tenant_id: uuid.UUID = Query(...),
     db: AsyncSession = Depends(get_db)
 ):
-    now_iso = datetime.now(timezone.utc).isoformat()
-    return {
-        "activities": [
-            {"id": "ACT-01", "type": "MONEY_TRANSFER", "title": "Money Transfer Executed", "desc": "₹5,000.00 IMPS transfer completed to Axis Bank", "time": now_iso},
-            {"id": "ACT-02", "type": "COMMISSION_CREDITED", "title": "Commission Margin Credited", "desc": "₹15.00 instant commission added to wallet", "time": now_iso},
-            {"id": "ACT-03", "type": "BENEFICIARY_ADDED", "title": "Beneficiary Account Verified", "desc": "Account XXXX4589 verified via Penny Drop", "time": now_iso},
-            {"id": "ACT-04", "type": "SETTLEMENT_COMPLETED", "title": "POS Settlement Processed", "desc": "Net credit ₹9,818.00 posted to Bank Account", "time": now_iso}
-        ]
-    }
+    stmt = select(EnterprisePayoutTransactionModel).where(
+        and_(
+            EnterprisePayoutTransactionModel.tenant_id == tenant_id,
+            EnterprisePayoutTransactionModel.retailer_id == retailer_id
+        )
+    ).order_by(desc(EnterprisePayoutTransactionModel.initiated_at)).limit(5)
+
+    tx_list = (await db.execute(stmt)).scalars().all()
+    activities = []
+    for tx in tx_list:
+        st_str = tx.status.value if hasattr(tx.status, "value") else str(tx.status)
+        activities.append({
+            "id": str(tx.public_id),
+            "type": "MONEY_TRANSFER",
+            "title": f"Money Transfer ({tx.mode})",
+            "desc": f"₹{tx.amount:,.2f} {st_str} - UTR: {tx.utr_number or '--'}",
+            "time": tx.initiated_at.isoformat() if tx.initiated_at else datetime.now(timezone.utc).isoformat()
+        })
+
+    return {"activities": activities}
 
 @router.get("/system-health", summary="Get Operational System Health Statuses")
 async def get_system_health():

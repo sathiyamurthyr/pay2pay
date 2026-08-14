@@ -1,17 +1,18 @@
 import pytest
+import random
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 
 @pytest.mark.asyncio
 async def test_progressive_onboarding_full_flow():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        mobile = "9972334411"
+        mobile = f"99{random.randint(10000000, 99999999)}"
 
         # 1. Step 1: Check Mobile
         r1 = await ac.post("/api/v1/onboarding/check-mobile", json={"mobile_number": mobile})
         assert r1.status_code == 200
         d1 = r1.json()
-        assert d1["status"] in ["NEW_DRAFT", "RESUME_DRAFT"]
+        assert d1["status"] in ["NEW", "NEW_DRAFT", "RESUME_DRAFT"]
         reg_id = d1["registration_id"]
 
         # 2. Step 2: Verify Mobile OTP

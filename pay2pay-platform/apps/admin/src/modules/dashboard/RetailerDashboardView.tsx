@@ -515,68 +515,7 @@ export const RetailerDashboardView: React.FC = () => {
         </Box>
       </Paper>
 
-      {/* 3. QUICK ACTIONS & SHORTCUTS BAR */}
-      <Typography variant="h3" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "22px", mb: 2 }}>
-        Quick Actions & Shortcuts
-      </Typography>
-      <Grid container spacing={2.5} sx={{ mb: 4.5 }}>
-        {[
-          { label: "💸 Send Money", key: "Alt+S", path: "/retailer/dmt", color: "#3B82F6", isFinancial: true },
-          { label: "👤 Add Customer", key: "Alt+C", path: "/retailer/customers", color: "#10B981", isFinancial: true },
-          { label: "🏦 Add Beneficiary", key: "Alt+B", path: "/retailer/beneficiaries", color: "#EC4899", isFinancial: true },
-          { label: "💰 Wallet Top-up", key: "Alt+W", path: "/retailer/wallet", color: "#F59E0B", isFinancial: true },
-          { label: "📊 Payout Reports", key: "Alt+P", path: "/retailer/dmt/reports", color: "#8B5CF6", isFinancial: false },
-          { label: "🏦 POS Settlement", key: "Alt+M", path: "/retailer/pos/settlement-report", color: "#06B6D4", isFinancial: false }
-        ].map((act) => {
-          const locked = !isApproved && act.isFinancial;
-          return (
-            <Grid size={{ xs: 12, sm: 6, md: 2 }} key={act.label}>
-              <Paper
-                onClick={() => {
-                  if (locked) {
-                    setDashboardLockedModal({ label: act.label });
-                    return;
-                  }
-                  router.push(act.path);
-                }}
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  backgroundColor: "rgba(15, 23, 42, 0.85)",
-                  border: locked ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid rgba(255, 255, 255, 0.14)",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease-in-out",
-                  "&:hover": {
-                    transform: "translateY(-4px)",
-                    borderColor: locked ? "#F59E0B" : act.color,
-                    backgroundColor: "rgba(15, 23, 42, 0.95)",
-                    boxShadow: locked ? "0 12px 28px -6px rgba(245, 158, 11, 0.3)" : `0 12px 28px -6px ${act.color}40`
-                  }
-                }}
-              >
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: locked ? "#94A3B8" : "#FFFFFF", fontSize: "17px" }}>
-                    {act.label}
-                  </Typography>
-                  <Chip
-                    label={locked ? "LOCKED" : act.key}
-                    size="small"
-                    sx={{
-                      height: 22,
-                      fontSize: "11px",
-                      fontWeight: 800,
-                      backgroundColor: locked ? "rgba(245, 158, 11, 0.2)" : "rgba(255,255,255,0.12)",
-                      color: locked ? "#FBBF24" : "#E2E8F0",
-                      border: locked ? "1px solid rgba(245, 158, 11, 0.4)" : "none"
-                    }}
-                  />
-                </Box>
-              </Paper>
-            </Grid>
-          );
-        })}
-      </Grid>
+
 
       {/* 4. FINANCIAL ACCOUNTING KPIS */}
       <Typography variant="h3" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "22px", mb: 2 }}>

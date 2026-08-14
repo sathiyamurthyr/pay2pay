@@ -32,9 +32,9 @@ export const BOTTOM_NAV_ROUTES = [
   {
     id: "dashboard",
     label: "Dashboard",
-    href: "/retailer-dashboard",
+    href: "/retailer/dashboard",
     icon: DashboardRoundedIcon,
-    matchPaths: ["/retailer-dashboard"],
+    matchPaths: ["/retailer/dashboard", "/retailer-dashboard"],
   },
   {
     id: "transfer",

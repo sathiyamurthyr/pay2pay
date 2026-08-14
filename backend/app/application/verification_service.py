@@ -25,6 +25,7 @@ from app.infrastructure.db.registration_models import (
     RegistrationShopModel,
     RegistrationAddressModel
 )
+from app.application.storage_service import BackblazeStorageService
 
 
 class VerificationService:
@@ -238,7 +239,7 @@ class VerificationService:
                 )
             )
         )
-        verif = q.scalar_one_or_none()
+        verif = q.scalars().first()
         if not verif:
             return {"status": "ERROR", "message": "Verification request not found."}
 
@@ -246,22 +247,30 @@ class VerificationService:
 
         # Fetch draft data & verified tables
         draft_q = await db.execute(select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id))
-        draft = draft_q.scalar_one_or_none()
+        draft = draft_q.scalars().first()
 
         pan_q = await db.execute(select(RegistrationPanModel).where(RegistrationPanModel.registration_id == reg_id))
-        pan = pan_q.scalar_one_or_none()
+        pan = pan_q.scalars().first()
 
         gst_q = await db.execute(select(RegistrationGstModel).where(RegistrationGstModel.registration_id == reg_id))
-        gst = gst_q.scalar_one_or_none()
+        gst = gst_q.scalars().first()
 
         bank_q = await db.execute(select(RegistrationBankModel).where(RegistrationBankModel.registration_id == reg_id))
-        bank = bank_q.scalar_one_or_none()
+        bank = bank_q.scalars().first()
 
         shop_q = await db.execute(select(RegistrationShopModel).where(RegistrationShopModel.registration_id == reg_id))
-        shop = shop_q.scalar_one_or_none()
+        shop = shop_q.scalars().first()
 
         addr_q = await db.execute(select(RegistrationAddressModel).where(RegistrationAddressModel.registration_id == reg_id))
-        addr = addr_q.scalar_one_or_none()
+        addr = addr_q.scalars().first()
+
+        # Verification Documents from DB
+        docs_q = await db.execute(
+            select(VerificationDocumentModel).where(
+                VerificationDocumentModel.verification_id == str(verif.id)
+            )
+        )
+        db_docs = {d.doc_type: d.file_url for d in docs_q.scalars().all()}
 
         # History logs
         hist_q = await db.execute(
@@ -304,7 +313,7 @@ class VerificationService:
                 "pan": {"number": pan.pan_number if pan else verif.pan_number, "holder_name": pan.pan_holder_name if pan else verif.retailer_name, "status": "VERIFIED"},
                 "gst": {"number": gst.gst_number if gst else verif.gst_number, "trade_name": gst.trade_name if gst else "N/A", "status": "VERIFIED" if verif.is_business else "SKIPPED"},
                 "aadhaar": {"status": "VERIFIED", "uidai_auth": "SUCCESS"},
-                "bank": {"account_number": bank.account_number if bank else "N/A", "ifsc": bank.ifsc if bank else "N/A", "name": bank.account_holder_name if bank else verif.retailer_name, "penny_drop": "VERIFIED"}
+                "bank": {"account_number": bank.account_number_masked if bank else "N/A", "ifsc": bank.ifsc if bank else "N/A", "name": bank.name_at_bank if bank else verif.retailer_name, "penny_drop": "VERIFIED"}
             },
             "shop_details": {
                 "name": shop.shop_name if shop else verif.shop_name,
@@ -323,8 +332,13 @@ class VerificationService:
                 "shop_photo_url": addr.shop_photo_url if addr else "https://cdn.pay2pay.in/shops/shop_front.jpg"
             },
             "media": {
-                "selfie_url": "https://cdn.pay2pay.in/docs/selfie.jpg",
-                "video_url": "https://cdn.pay2pay.in/videos/verification.mp4",
+                "selfie_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT", "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png")),
+                "video_url": BackblazeStorageService.get_download_url(db_docs.get("VIDEO", "cmp/ret/2026/08/09/sathus_Ret_video.mp4")),
+                "pan_card_url": BackblazeStorageService.get_download_url(db_docs.get("PAN", "cmp/ret/2026/08/02/22b28d04_sathus_ret_pan_card.png")),
+                "aadhaar_front_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT", "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png")),
+                "aadhaar_back_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_BACK", "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_back.png")),
+                "bank_proof_url": BackblazeStorageService.get_download_url(db_docs.get("BANK_PROOF", "cmp/ret/2026/08/02/92aae09b_sathus_ret_bank_account.png")),
+                "gst_proof_url": BackblazeStorageService.get_download_url(db_docs.get("GST_CERT", "cmp/dist/2026/08/02/eb0204a1_sathus_dist_gst_certificate.png")),
                 "script_text": "I confirm that I am registering as a Pay2Pay Retailer for Sri Venkateswara Telecom."
             },
             "history": [
@@ -383,23 +397,23 @@ class VerificationService:
         prev_v_status = verif.verification_status
         prev_a_status = verif.account_status
 
-        if action_clean == "APPROVE":
+        if action_clean in ("APPROVE", "APPROVED"):
             verif.verification_status = "APPROVED"
             verif.account_status = "ACTIVE"
             verif.retailer_status = "ACTIVE"
-        elif action_clean == "REJECT":
+        elif action_clean in ("REJECT", "REJECTED"):
             verif.verification_status = "REJECTED"
             verif.account_status = "ONBOARDING"
             verif.retailer_status = "REJECTED"
-        elif action_clean == "ON_HOLD":
+        elif action_clean in ("ON_HOLD", "HOLD"):
             verif.verification_status = "ON_HOLD"
             verif.account_status = "ONBOARDING"
             verif.retailer_status = "ON_HOLD"
-        elif action_clean == "NEED_INFO":
+        elif action_clean in ("NEED_INFO", "NEEDINFO"):
             verif.verification_status = "NEED_INFO"
             verif.account_status = "ONBOARDING"
             verif.retailer_status = "ON_HOLD"
-        elif action_clean == "UNDER_REVIEW":
+        elif action_clean in ("UNDER_REVIEW", "UNDERREVIEW"):
             verif.verification_status = "UNDER_REVIEW"
             verif.account_status = "ONBOARDING"
             verif.retailer_status = "UNDER_REVIEW"

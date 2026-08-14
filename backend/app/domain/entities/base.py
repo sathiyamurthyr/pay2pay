@@ -11,6 +11,7 @@ from app.core.database import Base
 
 class BaseEntity(Base):
     __abstract__ = True
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     public_id: Mapped[uuid.UUID] = mapped_column(

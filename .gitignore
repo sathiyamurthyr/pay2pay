@@ -3,6 +3,7 @@ backend/venv/
 backend/.pytest_cache/
 backend/__pycache__/
 *.pyc
+*.db
 .env
 
 # Node / Next.js
@@ -10,14 +11,21 @@ frontend/node_modules/
 frontend/.next/
 frontend/out/
 
+# Deploy & Scratch Artifacts
+*.zip
+bw.exe
+scratch/
+backend/scratch/
+test_*.py
+check_real_db.py
+convert_ppk.py
+sync_backend_to_server.py
+nginx_pay2pay.conf
+
 # IDE / System
 .vscode/
 .idea/
 *.log
-*.exe
-bw.exe
-scratch/
-backend/scratch/
 
 # Uploads & Media
 uploads/

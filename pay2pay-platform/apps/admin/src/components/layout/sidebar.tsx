@@ -72,7 +72,7 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Approvals",
     items: [
-      { label: "KYC & Onboarding", href: "/approvals", icon: CheckSquare },
+      { label: "Partner Approvals", href: "/admin/approvals", icon: ShieldCheck, badge: "KYC" },
       { label: "Settlement", href: "/settlements/batches", icon: Receipt },
       { label: "Wallet Adjustments", href: "/wallet-ledger/wallets", icon: Wallet },
       { label: "Configuration", href: "/bpm/approvals", icon: CheckSquare },
@@ -93,14 +93,11 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Reports",
     items: [
-      { label: "Payout Report", href: "/retailer/dmt/reports", icon: FileText },
-      { label: "Report Center", href: "/retailer/reports", icon: FileText },
-      { label: "Settlement", href: "/settlement-processing/batches", icon: FileText },
-      { label: "Wallet", href: "/settlement-processing/journals", icon: FileText },
-      { label: "Retailers", href: "/retailer-dashboard", icon: BarChart3 },
-      { label: "Machines", href: "/machine-dashboard", icon: CreditCard },
-      { label: "Audit", href: "/compliance/audit-explorer", icon: ScrollText },
-      { label: "Reconciliation", href: "/mis-dashboard", icon: Scale },
+      { label: "Payout Transactions", href: "/admin/reports/payout-transactions", icon: Receipt },
+      { label: "Transaction Ledger", href: "/admin/reports/transaction-ledger", icon: BookOpen },
+      { label: "Tax Report", href: "/admin/reports/tax", icon: Scale },
+      { label: "Daily Open & Close", href: "/admin/reports/daily-open-close", icon: FileText, badge: "Recon" },
+      { label: "Audit Explorer", href: "/compliance/audit-explorer", icon: ScrollText },
     ],
   },
 ];
@@ -127,7 +124,7 @@ export const Sidebar: React.FC = () => {
         "Main": ["Dashboard"],
         "Administration": ["Super Distributor", "Distributor", "Retailer", "POS Machine"],
         "Configuration": ["Customer Policy", "Notifications"],
-        "Approvals": ["KYC & Onboarding"],
+        "Approvals": ["Partner Approvals"],
         "Reports": ["Settlement", "Wallet", "Retailers", "Machines", "Audit", "Reconciliation"],
       };
 
@@ -143,7 +140,7 @@ export const Sidebar: React.FC = () => {
       const allowedLabels: Record<string, string[]> = {
         "Main": ["Dashboard"],
         "Administration": ["Organization", "RM", "Super Distributor", "Distributor", "Retailer", "POS Machine"],
-        "Approvals": ["KYC & Onboarding"],
+        "Approvals": ["Partner Approvals"],
         "Reports": ["Retailers", "Machines"],
       };
 
@@ -176,7 +173,7 @@ export const Sidebar: React.FC = () => {
       const allowedLabels: Record<string, string[]> = {
         "Main": ["Dashboard"],
         "Configuration": ["Customer Policy", "Beneficiary Policy", "Risk", "AML", "Security"],
-        "Approvals": ["KYC & Onboarding", "High Value"],
+        "Approvals": ["Partner Approvals", "High Value"],
         "Reports": ["Audit"],
       };
 

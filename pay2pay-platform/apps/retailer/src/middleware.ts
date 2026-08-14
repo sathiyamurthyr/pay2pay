@@ -1,60 +1,161 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const LOGIN_ROUTES = [
-  "/login",
-  "/retailer/login",
-  "/distributor/login",
-  "/super-distributor/login",
-  "/admin/login",
-];
+export type UserPortalRole = "RETAILER" | "DIST" | "SD" | "ADMIN" | "SUPER_ADMIN";
 
-const PORTAL_MAP: Record<string, string> = {
-  RETAILER: "/retailer/dashboard",
-  DISTRIBUTOR: "/distributor/dashboard",
-  SUPER_DISTRIBUTOR: "/super-distributor/dashboard",
-  ADMIN: "/admin/dashboard",
+export interface PortalConfig {
+  portal: UserPortalRole;
+  prefix: string;
+  dashboard: string;
+  login: string;
+}
+
+export const PORTAL_CONFIGS: Record<UserPortalRole, PortalConfig> = {
+  RETAILER: {
+    portal: "RETAILER",
+    prefix: "/retailer",
+    dashboard: "/retailer/dashboard",
+    login: "/retailer/login",
+  },
+  DIST: {
+    portal: "DIST",
+    prefix: "/dist",
+    dashboard: "/dist/dashboard",
+    login: "/dist/login",
+  },
+  SD: {
+    portal: "SD",
+    prefix: "/sd",
+    dashboard: "/sd/dashboard",
+    login: "/sd/login",
+  },
+  ADMIN: {
+    portal: "ADMIN",
+    prefix: "/admin",
+    dashboard: "/admin/dashboard",
+    login: "/admin/login",
+  },
+  SUPER_ADMIN: {
+    portal: "SUPER_ADMIN",
+    prefix: "/super-admin",
+    dashboard: "/super-admin/dashboard",
+    login: "/super-admin/login",
+  },
 };
+
+export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
+  if (!rawRole) return "RETAILER";
+  const upper = rawRole.trim().toUpperCase();
+
+  if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN") {
+    return "SUPER_ADMIN";
+  }
+  if (upper === "ADMIN") {
+    return "ADMIN";
+  }
+  if (upper === "SD" || upper === "SUPER_DISTRIBUTOR" || upper === "SUPER DISTRIBUTOR") {
+    return "SD";
+  }
+  if (upper === "DIST" || upper === "DISTRIBUTOR") {
+    return "DIST";
+  }
+  return "RETAILER";
+}
+
+export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
+  const role = normalizeUserRole(rawRole);
+  return PORTAL_CONFIGS[role];
+}
+
+export function isPathAllowedForRole(pathname: string, rawRole?: string | null): boolean {
+  const role = normalizeUserRole(rawRole);
+  const config = PORTAL_CONFIGS[role];
+
+  if (pathname === "/retailer-dashboard") {
+    return role === "RETAILER";
+  }
+
+  const allPrefixes = Object.values(PORTAL_CONFIGS).map((c) => c.prefix);
+  const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
+
+  if (!targetPrefix) {
+    return true;
+  }
+
+  return targetPrefix === config.prefix;
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const userRole = request.cookies.get("p2p_user_role")?.value?.toUpperCase() || "RETAILER";
+  const devBypass =
+    process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" &&
+    process.env.NODE_ENV === "development";
+
+  const rawRole =
+    request.cookies.get("p2p_user_role")?.value ||
+    request.cookies.get("pay2pay_user_role")?.value ||
+    "RETAILER";
+
+  const userRole = normalizeUserRole(rawRole);
+  const portalConfig = resolvePortalRoute(userRole);
+
   const token =
     request.cookies.get("p2p_access_token")?.value ||
     request.cookies.get("pay2pay_auth_token")?.value ||
     request.headers.get("authorization");
 
-  const isAuthenticated = Boolean(token);
+  const isAuthenticated = Boolean(token) || devBypass;
 
-  // 1. Deprecate generic /login -> redirect to /retailer/login or user portal
-  if (pathname === "/login") {
-    const target = isAuthenticated ? (PORTAL_MAP[userRole] || "/retailer/dashboard") : "/retailer/login";
+  // 1. Legacy /retailer-dashboard -> /retailer/dashboard redirect
+  if (pathname === "/retailer-dashboard") {
+    return NextResponse.redirect(new URL("/retailer/dashboard", request.url));
+  }
+
+  // 2. Legacy /admin-dashboard -> /admin/dashboard redirect
+  if (pathname === "/admin-dashboard") {
+    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+  }
+
+  // 3. Generic /login or / or /dashboard -> resolve to canonical portal route
+  if (pathname === "/login" || pathname === "/" || pathname === "/dashboard") {
+    const target = isAuthenticated ? portalConfig.dashboard : portalConfig.login;
     return NextResponse.redirect(new URL(target, request.url));
   }
 
-  // 2. Deprecate generic /dashboard -> redirect to /[role]/dashboard
-  if (pathname === "/dashboard") {
-    const target = PORTAL_MAP[userRole] || "/retailer/dashboard";
-    return NextResponse.redirect(new URL(target, request.url));
-  }
+  // 4. Portal Login Pages (e.g. /retailer/login, /sd/login, /dist/login, /admin/login)
+  const isLoginRoute =
+    pathname === "/retailer/login" ||
+    pathname === "/dist/login" ||
+    pathname === "/sd/login" ||
+    pathname === "/admin/login" ||
+    pathname === "/super-admin/login";
 
-  // 3. Auto-redirect authenticated users trying to access ANY login page
-  if (isAuthenticated && LOGIN_ROUTES.includes(pathname)) {
-    const target = PORTAL_MAP[userRole] || "/retailer/dashboard";
-    return NextResponse.redirect(new URL(target, request.url));
-  }
-
-  // 4. Role-based access control (RBAC) cross-role protection
-  if (isAuthenticated) {
-    if (pathname.startsWith("/admin") && userRole !== "ADMIN" && !pathname.endsWith("/login")) {
-      return NextResponse.rewrite(new URL("/403", request.url), { status: 403 });
+  if (isLoginRoute) {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL(portalConfig.dashboard, request.url));
     }
-    if (pathname.startsWith("/distributor") && userRole !== "DISTRIBUTOR" && !pathname.endsWith("/login")) {
-      return NextResponse.rewrite(new URL("/403", request.url), { status: 403 });
+    return NextResponse.next();
+  }
+
+  // 5. Protected Portal Paths (/retailer/*, /sd/*, /dist/*, /admin/*, /super-admin/*)
+  const isPortalPath =
+    pathname.startsWith("/retailer") ||
+    pathname.startsWith("/dist") ||
+    pathname.startsWith("/sd") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/super-admin");
+
+  if (isPortalPath) {
+    if (!isAuthenticated) {
+      const targetLogin = portalConfig.login;
+      const loginUrl = new URL(targetLogin, request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
     }
-    if (pathname.startsWith("/super-distributor") && userRole !== "SUPER_DISTRIBUTOR" && !pathname.endsWith("/login")) {
-      return NextResponse.rewrite(new URL("/403", request.url), { status: 403 });
+
+    if (!isPathAllowedForRole(pathname, userRole)) {
+      return NextResponse.redirect(new URL(portalConfig.dashboard, request.url));
     }
   }
 
@@ -63,11 +164,15 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/login",
     "/dashboard",
+    "/retailer-dashboard",
+    "/admin-dashboard",
     "/retailer/:path*",
-    "/distributor/:path*",
-    "/super-distributor/:path*",
+    "/sd/:path*",
+    "/dist/:path*",
     "/admin/:path*",
+    "/super-admin/:path*",
   ],
 };

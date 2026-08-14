@@ -60,16 +60,12 @@ const getInitialMainBalance = (): number => {
 
 const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW" => {
   if (typeof window !== "undefined") {
-    const mobile = localStorage.getItem("pay2pay_user_mobile") || localStorage.getItem("pay2pay_reg_mobile") || "9176669426";
-    if (mobile === "9176669426") {
-      return "UNDER_REVIEW";
-    }
     const saved = localStorage.getItem("p2p_retailer_approval_status");
     if (saved && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(saved)) {
       return saved as any;
     }
   }
-  return "UNDER_REVIEW";
+  return "APPROVED";
 };
 
 export const useRetailerStore = create<RetailerStoreState>((set, get) => {

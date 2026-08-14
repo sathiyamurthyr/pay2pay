@@ -21,7 +21,7 @@ import { useRetailerStore } from "@/stores/use-retailer-store";
 import { useContactSupportModal } from "@/context/ContactSupportModalContext";
 
 export const UnapprovedRetailerFullPageModal: React.FC = () => {
-  const { outlet, setApprovalStatus } = useRetailerStore();
+  return null;
   const { openContactSupportModal } = useContactSupportModal();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [supportModalOpen, setSupportModalOpen] = useState(false);

@@ -54,7 +54,11 @@ export const STEP_NAMES: Record<number, string> = {
   13: "Final Review & Submit"
 };
 
-export const ProgressiveOnboardingWizard: React.FC = () => {
+interface ProgressiveOnboardingWizardProps {
+  appType?: "SD" | "DIST";
+}
+
+export const ProgressiveOnboardingWizard: React.FC<ProgressiveOnboardingWizardProps> = ({ appType: propAppType }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [registrationId, setRegistrationId] = useState<string>("");
@@ -63,28 +67,36 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
   const [draftData, setDraftData] = useState<any>({});
   const [autoSaveToast, setAutoSaveToast] = useState<string>("");
 
-  // Check if draft exists in localStorage on mount & resume
+  const appType: "SD" | "DIST" = propAppType ||
+    (typeof window !== "undefined" && (localStorage.getItem("p2p_user_role") === "DIST" ? "DIST" : "SD")) || "SD";
+
+  const wizardTitle = appType === "SD" ? "Pay2Pay SD Onboarding" : "Pay2Pay Distributor Onboarding";
+  const wizardSubtitle = appType === "SD"
+    ? "Complete your Super Distributor verification & business profile"
+    : "Complete your Distributor verification & business profile";
+
+  // Check if draft exists in localStorage/backend on mount & resume
   useEffect(() => {
     const savedRegId = localStorage.getItem("pay2pay_reg_id");
     const savedMobile = localStorage.getItem("pay2pay_reg_mobile");
 
     if (savedRegId || savedMobile) {
-      fetch(`/api/v1/onboarding/resume/${savedRegId || savedMobile}`)
+      fetch(`/api/v1/onboarding/resume/${savedRegId || savedMobile}?app_type=${appType}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.status === "SUCCESS") {
             setRegistrationId(data.registration_id);
             setMobileNumber(data.mobile_number);
-            setCurrentStep(data.current_step);
+            setCurrentStep(data.current_step || 1);
             setCompletedSteps(data.completed_steps || []);
             setIsBusiness(data.is_business || false);
             setDraftData(data.draft_data || {});
-            triggerAutoSaveToast("Welcome back! Resuming your onboarding draft.");
+            triggerAutoSaveToast("Welcome back! Resuming your persisted onboarding step.");
           }
         })
         .catch(() => {});
     }
-  }, []);
+  }, [appType]);
 
   const triggerAutoSaveToast = (msg: string = "Progress Auto-Saved") => {
     setAutoSaveToast(msg);

@@ -65,11 +65,13 @@ export function useCustomer() {
       } else if (customers.length === 0) {
         // Hide customer details card & trigger Customer NotFound empty state card
         setSelectedCustomer(null);
+        useTransactionMemoryStore.getState().setSelectedCustomer(null);
         setError("Customer Not Found");
       }
     } catch (err: any) {
       console.warn("Backend customer API lookup error:", err);
       setSelectedCustomer(null);
+      useTransactionMemoryStore.getState().setSelectedCustomer(null);
       setError("Customer Not Found");
     } finally {
       setIsSearching(false);

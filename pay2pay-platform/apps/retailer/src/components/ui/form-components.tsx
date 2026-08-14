@@ -50,12 +50,34 @@ export const M3TextField = React.forwardRef<HTMLInputElement, M3TextFieldProps>(
         }}
         sx={{
           "& .MuiOutlinedInput-root": {
-            "& fieldset": { borderColor: errorText ? "#DC2626" : "#E5E7EB" },
-            "&:hover fieldset": { borderColor: errorText ? "#DC2626" : "#94A3B8" },
+            "& fieldset": { borderColor: errorText ? "#DC2626" : "#CBD5E1" },
+            "&:hover fieldset": { borderColor: errorText ? "#DC2626" : "#64748B" },
             "&.Mui-focused fieldset": { borderColor: errorText ? "#DC2626" : "#2563EB" },
+            "&.Mui-disabled": {
+              backgroundColor: "#F8FAFC",
+              "& fieldset": { borderColor: "#CBD5E1" },
+            },
           },
-          "& .MuiInputLabel-root": { color: "#6B7280" },
-          "& .MuiInputLabel-root.Mui-focused": { color: errorText ? "#DC2626" : "#2563EB" },
+          "& .MuiInputBase-input": {
+            color: "#0F172A",
+            fontWeight: 600,
+            "&.Mui-disabled": {
+              WebkitTextFillColor: "#0F172A !important",
+              color: "#0F172A !important",
+              fontWeight: 700,
+              opacity: 1,
+            },
+          },
+          "& .MuiInputLabel-root": {
+            color: "#475569",
+            fontWeight: 600,
+            "&.Mui-focused": { color: errorText ? "#DC2626" : "#2563EB" },
+            "&.Mui-disabled": {
+              color: "#475569 !important",
+              fontWeight: 700,
+              opacity: 1,
+            },
+          },
         }}
         {...props}
       />

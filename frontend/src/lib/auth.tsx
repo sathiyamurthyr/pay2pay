@@ -218,8 +218,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("pay2pay_auth_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user_info");
+    const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
     setUser(null);
-    router.push("/login");
+    if (currentPath.startsWith("/retailer")) {
+      router.push("/retailer/login");
+    } else if (currentPath.startsWith("/distributor")) {
+      router.push("/distributor/login");
+    } else if (currentPath.startsWith("/super-distributor")) {
+      router.push("/super-distributor/login");
+    } else {
+      router.push("/login");
+    }
   };
 
   const isRetailer = activeRole === "RETAILER";

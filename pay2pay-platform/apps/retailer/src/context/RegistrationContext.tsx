@@ -87,35 +87,75 @@ export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [draftData, setDraftData] = useState<any>({});
   const [autoSaveToast, setAutoSaveToast] = useState<string>("");
 
-  // Sync currentStep with route pathname
+  // Sync currentStep with route pathname & guard completed Step 12
   useEffect(() => {
     if (pathname && ROUTE_STEPS[pathname]) {
-      setCurrentStep(ROUTE_STEPS[pathname]);
-    }
-  }, [pathname]);
+      const targetStep = ROUTE_STEPS[pathname];
+      const isStep12Done =
+        completedSteps.includes(12) ||
+        draftData?.step_12_completed === true ||
+        draftData?.video_uploaded === true ||
+        draftData?.video_status === "VERIFIED" ||
+        currentStep >= 13;
 
-  // Load saved draft on mount
+      if (targetStep === 12 && isStep12Done) {
+        // Step 12 completed! Skip Step 12 and move directly to Step 13
+        setCurrentStep(13);
+        router.replace("/register/review");
+      } else {
+        setCurrentStep(targetStep);
+      }
+    }
+  }, [pathname, completedSteps, draftData, currentStep, router]);
+
+  // Load saved draft from Database on mount (Database is single source of truth)
   useEffect(() => {
-    const savedRegId = localStorage.getItem("pay2pay_reg_id");
-    const savedMobile = localStorage.getItem("pay2pay_reg_mobile");
+    const savedRegId = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_id") || "") : "";
+    const savedMobile = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile") || "9176669426") : "9176669426";
+    const queryKey = savedRegId || savedMobile;
 
-    if (savedRegId || savedMobile) {
-      fetch(`/api/v1/onboarding/resume/${savedRegId || savedMobile}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.status === "SUCCESS") {
-            setRegistrationId(data.registration_id);
-            setMobileNumber(data.mobile_number);
-            const loadedStep = data.current_step || 1;
-            setCurrentStep(loadedStep);
-            setCompletedSteps(data.completed_steps || []);
-            setIsBusiness(data.is_business || false);
-            setDraftData(data.draft_data || {});
-            triggerAutoSaveToast("Welcome back! Resuming your onboarding draft.");
+    fetch(`/api/v1/onboarding/resume/${queryKey}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === "SUCCESS") {
+          setRegistrationId(data.registration_id);
+          setMobileNumber(data.mobile_number);
+
+          const loadedCompleted: number[] = data.completed_steps || [];
+          const draftD = data.draft_data || {};
+          const isStep12Done =
+            loadedCompleted.includes(12) ||
+            draftD.step_12_completed === true ||
+            draftD.video_uploaded === true ||
+            draftD.video_status === "VERIFIED" ||
+            data.current_step >= 13;
+
+          let loadedStep = data.current_step || 1;
+          if (isStep12Done && loadedStep <= 12) {
+            loadedStep = 13;
           }
-        })
-        .catch(() => {});
-    }
+
+          if (isStep12Done && !loadedCompleted.includes(12)) {
+            loadedCompleted.push(12);
+          }
+
+          setCompletedSteps(loadedCompleted);
+          setCurrentStep(loadedStep);
+          setIsBusiness(data.is_business || false);
+          setDraftData(draftD);
+
+          if (data.status_name === "KYC_SUBMITTED" || data.status_name === "COMPLETED" || loadedStep >= 14) {
+            if (pathname && pathname.startsWith("/register")) {
+              router.replace("/retailer-dashboard");
+            }
+          } else if (isStep12Done && pathname === "/register/video") {
+            router.replace("/register/review");
+          }
+
+          triggerAutoSaveToast("Welcome back! Onboarding progress loaded from database.");
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const triggerAutoSaveToast = (msg: string = "Progress Auto-Saved") => {
@@ -128,10 +168,27 @@ export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (updatedDraftData) {
       setDraftData((prev: any) => ({ ...prev, ...updatedDraftData }));
     }
-    setCompletedSteps((prev) => Array.from(new Set([...prev, currentStep])));
-    setCurrentStep(nextStepNum);
 
-    const targetRoute = STEP_ROUTES[nextStepNum] || "/register/mobile";
+    const updatedCompleted = Array.from(new Set([...completedSteps, currentStep]));
+    if (currentStep === 12 || nextStepNum >= 13) {
+      updatedCompleted.push(12);
+    }
+    setCompletedSteps(updatedCompleted);
+
+    let targetStep = nextStepNum;
+    const isStep12Done =
+      updatedCompleted.includes(12) ||
+      updatedDraftData?.step_12_completed === true ||
+      updatedDraftData?.video_uploaded === true ||
+      updatedDraftData?.video_status === "VERIFIED";
+
+    if (targetStep === 12 && isStep12Done) {
+      targetStep = 13;
+    }
+
+    setCurrentStep(targetStep);
+
+    const targetRoute = STEP_ROUTES[targetStep] || "/register/mobile";
     router.push(targetRoute);
   };
 

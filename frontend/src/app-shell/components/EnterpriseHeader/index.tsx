@@ -14,7 +14,7 @@ export interface EnterpriseHeaderProps {
 }
 
 export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
-  pageTitle = "Money Transfer (DMT)",
+  pageTitle = "Pay2Pay Portal",
 }) => {
   const { walletData, isLoading } = useWalletSync();
 
@@ -22,8 +22,8 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
     ? `₹${walletData.wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
     : "₹0.00";
 
-  const shortName = walletData?.short_name || (walletData?.owner_name ? walletData.owner_name.split(" ")[0] : "Venkatesh");
-  const retailerCode = walletData?.retailer_code || "RET-982415";
+  const shortName = walletData?.short_name || (walletData?.owner_name ? walletData.owner_name.split(" ")[0] : "Partner");
+  const partnerCode = walletData?.retailer_code || walletData?.user_code || "P2P-MASTER";
 
   return (
     <Paper
@@ -104,7 +104,7 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
 
         <QuickActions />
         <NotificationCenter />
-        <ProfileMenu ownerName={shortName} code={retailerCode} />
+        <ProfileMenu ownerName={shortName} code={partnerCode} />
       </Stack>
     </Paper>
   );

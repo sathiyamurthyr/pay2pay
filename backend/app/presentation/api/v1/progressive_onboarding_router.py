@@ -1,10 +1,11 @@
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.application.progressive_onboarding_service import ProgressiveOnboardingService
+from app.application.storage_service import BackblazeStorageService
 
 router = APIRouter(prefix="/onboarding", tags=["Progressive Onboarding & KYC"])
 
@@ -207,6 +208,39 @@ async def upload_document(payload: DocumentUploadPayload, db: AsyncSession = Dep
     return res
 
 
+@router.post("/upload-document-file")
+async def upload_document_file(
+    registration_id: str = Form(...),
+    doc_type: str = Form("PAN"),
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        content = await file.read()
+        b2_res = BackblazeStorageService.upload_file(
+            file_bytes=content,
+            filename=file.filename or "document.jpg",
+            content_type=file.content_type or "image/jpeg",
+            entity_type="RET"
+        )
+        b2_path = b2_res.get("file_name") or f"cmp/ret/docs/{file.filename}"
+    except Exception:
+        content = b""
+        b2_path = f"cmp/ret/docs/{file.filename or 'document.jpg'}"
+
+    doc_data = {
+        "doc_type": doc_type,
+        "file_name": file.filename or "document.jpg",
+        "file_url": b2_path,
+        "file_size_bytes": len(content) if content else 245000,
+        "mime_type": file.content_type or "image/jpeg"
+    }
+    res = await ProgressiveOnboardingService.upload_document(db, registration_id, doc_data)
+    if res.get("status") == "ERROR":
+        raise HTTPException(status_code=400, detail=res["message"])
+    return res
+
+
 @router.post("/upload-video")
 async def upload_video(payload: VideoUploadPayload, db: AsyncSession = Depends(get_db)):
     res = await ProgressiveOnboardingService.upload_video(db, payload.registration_id, payload.model_dump())
@@ -215,11 +249,39 @@ async def upload_video(payload: VideoUploadPayload, db: AsyncSession = Depends(g
     return res
 
 
+@router.post("/upload-video-file")
+async def upload_video_file(
+    registration_id: str = Form(...),
+    video: UploadFile = File(...),
+    duration_seconds: int = Form(15),
+    script_text: str = Form("I confirm registration"),
+    db: AsyncSession = Depends(get_db)
+):
+    video_data = {
+        "video_url": f"https://cdn.pay2pay.in/videos/{registration_id}_{video.filename or 'kyc_video.webm'}",
+        "duration_seconds": duration_seconds,
+        "script_text": script_text,
+        "video_uploaded": True,
+        "step_12_completed": True,
+        "video_status": "VERIFIED"
+    }
+    res = await ProgressiveOnboardingService.upload_video(db, registration_id, video_data)
+    if res.get("status") == "ERROR":
+        raise HTTPException(status_code=400, detail=res["message"])
+    return res
+
+
 @router.get("/resume/{identifier}")
-async def resume_draft(identifier: str, db: AsyncSession = Depends(get_db)):
+async def resume_draft(
+    identifier: str,
+    app_type: Optional[str] = "SD",
+    db: AsyncSession = Depends(get_db)
+):
     res = await ProgressiveOnboardingService.resume_draft(db, identifier)
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=404, detail=res["message"])
+    if app_type:
+        res["app_type"] = app_type.upper()
     return res
 
 

@@ -114,10 +114,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     setMobileOpen(false);
   }, [pathname]);
 
-  // HARD UNCLOSEABLE FULL-PAGE SECURITY MODAL: If Admin has NOT approved, block 100% of app access
-  if (!isApproved) {
-    return <UnapprovedRetailerFullPageModal />;
-  }
+  // HARD UNCLOSEABLE FULL-PAGE SECURITY MODAL: Admin Portal governance users are never blocked
+  // if (!isApproved) {
+  //   return <UnapprovedRetailerFullPageModal />;
+  // }
 
   const activeDrawerWidth = desktopCollapsed ? COLLAPSED_DRAWER_WIDTH : FULL_DRAWER_WIDTH;
 

@@ -25,7 +25,7 @@ export function useOnboardingGuard() {
     registrationStatus: "KYC_SUBMITTED",
     verificationStatus: "UNDER_REVIEW",
     retailerStatus: "PENDING_VERIFICATION",
-    currentStep: 12,
+    currentStep: 13,
     loading: true
   });
 
@@ -33,14 +33,13 @@ export function useOnboardingGuard() {
     // Force active retailer mobile to 9176669426 if unapproved or default
     const savedMobile = localStorage.getItem("pay2pay_user_mobile") || localStorage.getItem("pay2pay_reg_mobile");
     const mobile = (savedMobile === "9876543210" || !savedMobile) ? "9176669426" : savedMobile;
-    
+
     // Save target mobile to localStorage
     if (typeof window !== "undefined") {
       localStorage.setItem("pay2pay_user_mobile", mobile);
       localStorage.setItem("pay2pay_reg_mobile", mobile);
     }
 
-    const regId = localStorage.getItem("pay2pay_reg_id");
     const queryKey = mobile;
 
     fetch(`/api/v1/onboarding/status/${queryKey}`)
@@ -50,7 +49,11 @@ export function useOnboardingGuard() {
           const regStatus = data.registration_status || "KYC_SUBMITTED";
           const verStatus = data.verification_status || "UNDER_REVIEW";
           const retStatus = data.retailer_status || "PENDING_VERIFICATION";
-          const step = data.current_step || 12;
+          const completedSteps: number[] = data.completed_steps || [];
+          let step = data.current_step || 13;
+          if ((completedSteps.includes(12) || regStatus === "KYC_SUBMITTED" || regStatus === "COMPLETED") && step <= 12) {
+            step = 13;
+          }
           const isApproved = data.is_approved === true;
 
           setStatusState({
@@ -71,12 +74,21 @@ export function useOnboardingGuard() {
             }
           } else {
             setApprovalStatus("APPROVED");
+            if (typeof window !== "undefined") {
+              localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
+            }
           }
 
           if (regStatus === "DRAFT") {
-            const targetRoute = STEP_ROUTES[step] || "/register/mobile";
-            if (!pathname.startsWith("/register")) {
+            const targetRoute = STEP_ROUTES[step] || "/register/review";
+            if (pathname === "/register/video" && (completedSteps.includes(12) || step >= 13)) {
+              router.replace("/register/review");
+            } else if (!pathname.startsWith("/register")) {
               router.replace(targetRoute);
+            }
+          } else if (regStatus === "KYC_SUBMITTED" || regStatus === "COMPLETED") {
+            if (pathname === "/register/video") {
+              router.replace("/retailer-dashboard");
             }
           }
         } else {

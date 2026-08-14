@@ -21,17 +21,18 @@ import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import SendIcon from "@mui/icons-material/Send";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
-import FingerprintIcon from "@mui/icons-material/Fingerprint";
-import QrCodeIcon from "@mui/icons-material/QrCode";
 import ReceiptIcon from "@mui/icons-material/Receipt";
-import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
-import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
-import AssessmentIcon from "@mui/icons-material/Assessment";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import PersonIcon from "@mui/icons-material/Person";
+import HelpIcon from "@mui/icons-material/Help";
+import SettingsIcon from "@mui/icons-material/Settings";
+import GavelIcon from "@mui/icons-material/Gavel";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+import DescriptionIcon from "@mui/icons-material/Description";
 import { tokens } from "@/design-system/tokens/design-tokens";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
+import { normalizeUserRole } from "@/lib/portal-resolver";
 
-/** Financial service paths locked until verification is APPROVED */
 const FINANCIAL_PATHS = new Set([
   "/retailer/dmt",
   "/retailer/card-to-cash",
@@ -40,8 +41,8 @@ const FINANCIAL_PATHS = new Set([
   "/retailer/bbps",
   "/retailer/recharge",
   "/retailer/wallet",
-  "/retailer/settlement",
-  "/retailer/wallet-statement",
+  "/retailer/settlements",
+  "/retailer/reports/transaction-ledger",
 ]);
 
 export interface EnterpriseSidebarProps {
@@ -53,33 +54,25 @@ export interface EnterpriseSidebarProps {
 export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   isCollapsed = false,
   onToggle,
-  activePath = "/retailer/dmt",
+  activePath = "/retailer/dashboard",
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
 
-  // Verification guard — locks financial menu items until APPROVED & ACTIVE
   const { verificationStatus, retailerStatus, loading: guardLoading } = useOnboardingGuard();
   const isApproved = !guardLoading && verificationStatus === "APPROVED" && retailerStatus === "ACTIVE";
 
-  /** Returns true when a nav item should be locked behind verification */
   const isLocked = (item: { financial?: boolean; path: string }) =>
     !isApproved && (item.financial || FINANCIAL_PATHS.has(item.path));
 
   const lockTooltip = "Available after account verification & approval";
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("p2p_sidebar_favorites");
-      if (saved) {
-        setFavorites(JSON.parse(saved));
-      } else {
-        setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
-      }
-    } catch {
-      setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
-    }
-  }, []);
+  const rawRoleStr =
+    typeof window !== "undefined"
+      ? localStorage.getItem("p2p_user_role") || localStorage.getItem("pay2pay_user_role") || "RETAILER"
+      : "RETAILER";
+
+  const userRole = normalizeUserRole(rawRoleStr);
 
   const toggleFavorite = (path: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -93,32 +86,108 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
     });
   };
 
-  const categories = [
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("p2p_sidebar_favorites");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const prefix = userRole === "SD" ? "/sd" : userRole === "DIST" ? "/dist" : "/retailer";
+        const clean = parsed.filter((p: string) => p.startsWith(prefix));
+        setFavorites(clean.length > 0 ? clean : [userRole === "SD" ? "/sd/dashboard" : userRole === "DIST" ? "/dist/dashboard" : "/retailer/dashboard"]);
+      } else {
+        setFavorites([userRole === "SD" ? "/sd/dashboard" : userRole === "DIST" ? "/dist/dashboard" : "/retailer/dashboard"]);
+      }
+    } catch {
+      setFavorites([userRole === "SD" ? "/sd/dashboard" : userRole === "DIST" ? "/dist/dashboard" : "/retailer/dashboard"]);
+    }
+  }, [userRole]);
+
+  // PORTAL SPECIFIC NAVIGATION CONFIGURATIONS
+  const retailerNavigation = [
     {
-      title: "Main Navigation",
-      items: [{ label: "Dashboard", path: "/retailer-dashboard", icon: DashboardIcon, financial: false }],
-    },
-    {
-      title: "Payment Services",
+      title: "Retailer Console",
       items: [
-        { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, badge: "IMPS", financial: true },
-        { label: "Card To Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon, financial: true },
-        { label: "AEPS Cash Out", path: "/retailer/aeps", icon: FingerprintIcon, badge: "Biometric", financial: true },
-        { label: "UPI Services", path: "/retailer/upi", icon: QrCodeIcon, financial: true },
-        { label: "Bill Payment (BBPS)", path: "/retailer/bbps", icon: ReceiptIcon, financial: true },
-        { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon, financial: true },
+        { label: "Dashboard", path: "/retailer/dashboard", icon: DashboardIcon },
+        { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, financial: true },
+        { label: "POS Settlement", path: "/retailer/settlements", icon: ReceiptIcon, financial: true },
       ],
     },
     {
-      title: "Reports & Analytics",
+      title: "Financial Reports",
       items: [
-        { label: "Payout Report", path: "/retailer/dmt/reports", icon: AssessmentIcon, financial: false },
-        { label: "Enterprise Report Center", path: "/retailer/reports", icon: AssessmentIcon, financial: false },
-        { label: "POS Settlement Report", path: "/retailer/pos/settlement-report", icon: AccountBalanceIcon, financial: false },
-        { label: "Passbook Ledger Statement", path: "/retailer/dmt/ledger", icon: ReceiptLongIcon, financial: false },
+        { label: "Payout Transactions", path: "/retailer/reports/payout-transactions", icon: ReceiptIcon },
+        { label: "Transaction Ledger", path: "/retailer/reports/transaction-ledger", icon: MenuBookIcon, financial: true },
+        { label: "Tax Report", path: "/retailer/reports/tax", icon: GavelIcon },
+        { label: "Daily Open & Close", path: "/retailer/reports/daily-open-close", icon: DescriptionIcon, badge: "Recon" },
+      ],
+    },
+    {
+      title: "Account & Support",
+      items: [
+        { label: "Profile", path: "/retailer/profile", icon: PersonIcon },
+        { label: "Settings", path: "/retailer/settings", icon: SettingsIcon },
+        { label: "Support", path: "/retailer/support", icon: HelpIcon },
       ],
     },
   ];
+
+  const distNavigation = [
+    {
+      title: "Distributor Portal",
+      items: [
+        { label: "Dashboard", path: "/dist/dashboard", icon: DashboardIcon },
+        { label: "Retail Partners", path: "/dist/retailers", icon: SendIcon },
+        { label: "Territory Topology", path: "/dist/organization", icon: AccountBalanceIcon },
+      ],
+    },
+    {
+      title: "Liquidity & Settlements",
+      items: [
+        { label: "Partner Top-up", path: "/dist/transfers", icon: CreditCardIcon, badge: "Instant" },
+        { label: "Settlement Batches", path: "/dist/settlements", icon: ReceiptIcon },
+      ],
+    },
+    {
+      title: "Reports & Settings",
+      items: [
+        { label: "Payout Transactions", path: "/dist/reports/payout-transactions", icon: ReceiptIcon },
+        { label: "Transaction Ledger", path: "/dist/reports/transaction-ledger", icon: MenuBookIcon },
+        { label: "Tax Report", path: "/dist/reports/tax", icon: GavelIcon },
+        { label: "Daily Open & Close", path: "/dist/reports/daily-open-close", icon: DescriptionIcon, badge: "Recon" },
+        { label: "Account Settings", path: "/dist/settings", icon: VerifiedUserIcon },
+      ],
+    },
+  ];
+
+  const sdNavigation = [
+    {
+      title: "SD Master Console",
+      items: [
+        { label: "Dashboard", path: "/sd/dashboard", icon: DashboardIcon },
+        { label: "Network Distributors", path: "/sd/distributors", icon: SendIcon },
+        { label: "Organization Topology", path: "/sd/organization", icon: AccountBalanceIcon },
+      ],
+    },
+    {
+      title: "Master Liquidity",
+      items: [
+        { label: "Bulk Wallet Transfer", path: "/sd/transfers", icon: CreditCardIcon, badge: "Master" },
+        { label: "Settlement Operations", path: "/sd/settlements", icon: ReceiptIcon },
+      ],
+    },
+    {
+      title: "Reports & Settings",
+      items: [
+        { label: "Payout Transactions", path: "/sd/reports/payout-transactions", icon: ReceiptIcon },
+        { label: "Transaction Ledger", path: "/sd/reports/transaction-ledger", icon: MenuBookIcon },
+        { label: "Tax Report", path: "/sd/reports/tax", icon: GavelIcon },
+        { label: "Daily Open & Close", path: "/sd/reports/daily-open-close", icon: DescriptionIcon, badge: "Recon" },
+        { label: "Security & Settings", path: "/sd/settings", icon: VerifiedUserIcon },
+      ],
+    },
+  ];
+
+  const categories = userRole === "SD" ? sdNavigation : userRole === "DIST" ? distNavigation : retailerNavigation;
 
   const allItems = categories.flatMap((cat) => cat.items);
   const favoriteItems = allItems.filter((item) => favorites.includes(item.path));
@@ -158,7 +227,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       </Box>
 
       {/* ── Verification Pending Banner (shown when not approved) ── */}
-      {!isApproved && !guardLoading && !isCollapsed && (
+      {!isApproved && !guardLoading && !isCollapsed && userRole === "RETAILER" && (
         <Box
           sx={{
             mx: 2,
@@ -261,6 +330,9 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                     arrow
                   >
                     <Box
+                      onClick={() => {
+                        if (!locked) window.location.href = item.path;
+                      }}
                       sx={{
                         position: "relative",
                         display: "flex",
@@ -352,6 +424,9 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                     arrow
                   >
                     <Box
+                      onClick={() => {
+                        if (!locked) window.location.href = item.path;
+                      }}
                       sx={{
                         position: "relative",
                         display: "flex",

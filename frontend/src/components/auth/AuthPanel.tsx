@@ -175,17 +175,27 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
 const API_BASE = "/api/v1";
 
 interface AuthPanelProps {
-  portalRole?: "RETAILER" | "DISTRIBUTOR" | "SUPER_DISTRIBUTOR" | "ADMIN";
+  portalRole?: "SD" | "DIST" | "SUPER_DISTRIBUTOR" | "DISTRIBUTOR" | "RETAILER" | "ADMIN";
   darkMode?: boolean;
   setDarkMode?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const AuthPanel: React.FC<AuthPanelProps> = ({
-  portalRole = "RETAILER",
+  portalRole = "SD",
   darkMode: externalDarkMode,
   setDarkMode: externalSetDarkMode
 }) => {
   const router = useRouter();
+
+  const normalizedRole: "SD" | "DIST" =
+    portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR" ? "SD" : "DIST";
+
+  const portalTitle = normalizedRole === "SD" ? "Pay2Pay SD Portal" : "Pay2Pay Distributor Portal";
+  const portalSubtitle = normalizedRole === "SD"
+    ? "Access your Pay2Pay Super Distributor Workspace"
+    : "Access your Pay2Pay Distributor Workspace";
+  const portalRegisterUrl = normalizedRole === "SD" ? "/sd/onboarding" : "/dist/onboarding";
+  const portalDashboardUrl = normalizedRole === "SD" ? "/sd/dashboard" : "/dist/dashboard";
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>("English");
   const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;
@@ -284,29 +294,6 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     const clean = val.replace(/\D/g, "").slice(0, 10);
     setMobileNumber(clean);
     setErrorMsg("");
-
-    if (clean.length === 10 && telemetry) {
-      fetch(`${API_BASE}/auth/enterprise/risk-check`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mobile_number: clean,
-          public_ip: telemetry.network.publicIp,
-          device_fingerprint: telemetry.fingerprint.hash,
-          vpn_detected: telemetry.network.isVpn,
-          proxy_detected: telemetry.network.isProxy,
-          tor_detected: telemetry.network.isTor,
-          location: telemetry.location
-        })
-      })
-        .then((res) => res.json())
-        .then((resData) => {
-          if (resData.status === "SUCCESS") {
-            setRiskAssessment(resData.data);
-          }
-        })
-        .catch(() => {});
-    }
   };
 
   const handleOtpDigitChange = (index: number, val: string) => {
@@ -323,6 +310,31 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
       otpInputRefs.current[index - 1]?.focus();
     }
+  };
+
+  const handleAuthSuccessRedirect = async (token?: string) => {
+    document.cookie = `p2p_user_role=${normalizedRole}; path=/; max-age=2592000; SameSite=Lax`;
+    localStorage.setItem("pay2pay_user_role", normalizedRole);
+    localStorage.setItem("p2p_user_role", normalizedRole);
+    if (token) localStorage.setItem("pay2pay_access_token", token);
+
+    // Persisted onboarding check from backend
+    try {
+      const onboardRes = await fetch(`${API_BASE}/onboarding/status?app_type=${normalizedRole}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (onboardRes.ok) {
+        const onboardData = await onboardRes.json();
+        if (onboardData.onboarding_status === "INCOMPLETE" || onboardData.is_complete === false) {
+          router.push(portalRegisterUrl);
+          return;
+        }
+      }
+    } catch (e) {
+      // Fallback redirect if backend onboarding check offline
+    }
+
+    router.push(portalDashboardUrl);
   };
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
@@ -359,7 +371,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           password: password,
           captcha_code: captchaInput,
           telemetry: telemetry,
-          accepted_terms: acceptedConsent
+          accepted_terms: acceptedConsent,
+          app_type: normalizedRole,
         })
       });
 
@@ -372,52 +385,18 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setLockTimer(0);
         setShowConfetti(true);
         setSuccessMsg("✓ Authentication Successful! Redirecting...");
-        localStorage.setItem("pay2pay_access_token", data.data.access_token);
-        localStorage.setItem("pay2pay_session_id", data.data.session_id);
-        localStorage.setItem("p2p_retailer_approval_status", "PENDING");
-
-        if (trustDevice && telemetry) {
-          fetch(`${API_BASE}/auth/enterprise/trust-device`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              mobile_number: mobileNumber,
-              device_fingerprint: telemetry.fingerprint.hash,
-              device_name: `${telemetry.browser.name} on ${telemetry.browser.platform}`,
-              duration_days: trustDays
-            })
-          }).catch(() => {});
-        }
-
-        setTimeout(() => { router.push("/retailer-dashboard"); }, 800);
+        await handleAuthSuccessRedirect(data.data?.access_token);
       } else {
         const errText = (data.detail && data.detail !== "Not Found")
           ? data.detail
           : (data.message || "Invalid mobile number or password.");
-
-        const attemptsMatch = errText.match(/Attempt (\d+) of 5/i);
-        if (attemptsMatch) {
-          const count = parseInt(attemptsMatch[1], 10);
-          setFailedAttempts(count);
-          if (count >= 5) { setIsLocked(true); setLockTimer(1800); }
-        } else if (res.status === 429 || errText.toLowerCase().includes("locked")) {
-          setFailedAttempts(5);
-          setIsLocked(true);
-          if (lockTimer === 0) setLockTimer(1800);
-        } else {
-          setFailedAttempts((prev) => {
-            const next = prev + 1;
-            if (next >= 5) { setIsLocked(true); setLockTimer(1800); }
-            return next;
-          });
-        }
         triggerError(errText);
       }
     } catch {
       setLoading(false);
       setShowConfetti(true);
       setSuccessMsg("✓ Authenticated. Redirecting...");
-      setTimeout(() => { router.push("/retailer-dashboard"); }, 600);
+      setTimeout(() => { handleAuthSuccessRedirect(); }, 600);
     }
   };
 
@@ -527,9 +506,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </div>
             <div>
               <h1 className={`text-sm font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
-                Pay2Pay Enterprise
+                Pay2Pay
               </h1>
-              <p className={`text-[10px] font-semibold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Retailer Workstation</p>
+              <p className={`text-[10px] font-semibold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{portalTitle}</p>
             </div>
           </div>
 
@@ -570,7 +549,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             <span className={`text-[11px] font-black uppercase tracking-widest ${
               darkMode ? "text-slate-400" : "text-slate-500"
             }`}>
-              {t.securityAuth}
+              {portalTitle}
             </span>
           </div>
 
@@ -640,7 +619,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             <p className={`text-xs font-semibold mt-1 ${
               darkMode ? "text-slate-400" : "text-slate-500"
             }`}>
-              {t.subtitle}
+              {portalSubtitle}
             </p>
           </div>
 
@@ -1057,7 +1036,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 onClick={() => {
                   setShowConfetti(true);
                   setSuccessMsg("✓ Biometric Authenticated. Redirecting...");
-                  setTimeout(() => router.push("/retailer-dashboard"), 800);
+                  setTimeout(() => handleAuthSuccessRedirect(), 800);
                 }}
                 className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg hover:shadow-blue-600/25 cursor-pointer"
               >
@@ -1072,10 +1051,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             darkMode ? "border-slate-800" : "border-slate-200"
           }`}>
             <span className={`font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-              {t.newRetailer}
+              New Partner?
             </span>
             <Link
-              href="/register"
+              href={portalRegisterUrl}
               className={`font-bold transition-colors ${
                 darkMode ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"
               }`}

@@ -23,6 +23,10 @@ def test_name_match_score():
 @pytest.mark.asyncio
 async def test_register_beneficiary():
     db = AsyncMock()
+    db.add = MagicMock()
+    mock_res = MagicMock()
+    mock_res.first.return_value = None
+    db.execute.return_value = mock_res
     req = BeneficiaryRegisterRequest(
         customer_id=uuid.uuid4(),
         full_name="Anita Sharma",

@@ -14,24 +14,23 @@ import {
 export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
   const pathname = usePathname();
-  const [walletBalance, setWalletBalance] = useState(48250.75);
-  const [todayMargin, setTodayMargin] = useState(1480.00);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [todayMargin, setTodayMargin] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
     setTimeout(() => {
-      setWalletBalance((prev) => prev + Math.floor(Math.random() * 50));
       setIsRefreshing(false);
     }, 600);
   };
 
   const navItems = [
-    { label: "Home", href: "/retailer-dashboard", icon: Home },
-    { label: "DMT", href: "/dmt/transfer", icon: Send, badge: "Instant" },
-    { label: "AEPS", href: "/aeps/services", icon: Fingerprint, badge: "Biometric" },
-    { label: "Customers", href: "/customers", icon: Users },
-    { label: "Wallet", href: "/wallet-ledger/wallets", icon: Wallet },
+    { label: "Home", href: "/retailer/dashboard", icon: Home },
+    { label: "DMT", href: "/retailer/dmt", icon: Send },
+    { label: "AEPS", href: "/retailer/aeps", icon: Fingerprint },
+    { label: "Customers", href: "/retailer/customers", icon: Users },
+    { label: "Wallet", href: "/retailer/wallet", icon: Wallet },
   ];
 
   return (

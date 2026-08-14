@@ -36,6 +36,11 @@ export const AppShellContent: React.FC<AppShellProps> = ({
   const dimensions = typeof window !== "undefined" ? getResponsiveGridDimensions(window.innerWidth) : { sidebarWidth: "300px", operationsWidth: "360px" };
   const activeSidebarWidth = isCollapsed ? "76px" : dimensions.sidebarWidth;
 
+  // Only render 6-step transaction footer on transaction workstation routes (e.g. /retailer/dmt)
+  const isTransactionWorkstation = Boolean(activePath?.startsWith("/retailer/dmt") || activePath?.includes("/workstation"));
+  const actualFooter = footerContent !== undefined ? footerContent : (isTransactionWorkstation ? <StickyFooter /> : null);
+  const showFooter = actualFooter !== null;
+
   return (
     <>
       <Box
@@ -47,7 +52,7 @@ export const AppShellContent: React.FC<AppShellProps> = ({
           display: "grid",
           gridTemplateAreas: gridLayoutAreas,
           gridTemplateColumns: `${activeSidebarWidth} minmax(0, 1fr) ${dimensions.operationsWidth}`,
-          gridTemplateRows: "80px minmax(0, 1fr) 64px",
+          gridTemplateRows: showFooter ? "80px minmax(0, 1fr) 64px" : "80px minmax(0, 1fr) 0px",
           overflow: "hidden",
           position: "fixed",
           top: 0,
@@ -84,9 +89,11 @@ export const AppShellContent: React.FC<AppShellProps> = ({
         </Box>
 
         {/* FOOTER AREA */}
-        <Box sx={{ gridArea: "footer", width: "100%", zIndex: 1000 }}>
-          {footerContent || <StickyFooter />}
-        </Box>
+        {showFooter && (
+          <Box sx={{ gridArea: "footer", width: "100%", zIndex: 1000 }}>
+            {actualFooter}
+          </Box>
+        )}
       </Box>
 
       {/* SESSION SECURITY MODALS */}

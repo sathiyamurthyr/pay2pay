@@ -36,7 +36,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
   English: {
     securityAuth: "Pay2Pay Security Auth v2.6.4",
     welcomeBack: "Welcome Back",
-    subtitle: "Access your Pay2Pay Retailer Business Workstation",
+    subtitle: "Access your Pay2Pay Company Admin Workstation",
     passwordLogin: "Password",
     otpLogin: "WhatsApp OTP",
     biometricLogin: "Biometric",
@@ -57,7 +57,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     webauthnTitle: "WebAuthn Biometric Auth",
     webauthnDesc: "Touch ID, Face ID, or Windows Hello Security Key.",
     authPasskey: "Authenticate with Passkey",
-    newRetailer: "New Retailer?",
+    newRetailer: "Company Admin?",
     registerAccount: "Create Account →",
     privacyPolicy: "Privacy Policy",
     terms: "Terms of Service",
@@ -511,7 +511,7 @@ export const AuthPanel: React.FC = () => {
               <h1 className={`text-sm font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
                 Pay2Pay Enterprise
               </h1>
-              <p className="text-[10px] font-semibold text-slate-500">Retailer Workstation</p>
+              <p className="text-[10px] font-semibold text-slate-500">Company Admin Workstation</p>
             </div>
           </div>
 

@@ -31,8 +31,8 @@ try:
     B2_APP_KEY     = _settings.B2_APP_KEY
     B2_BUCKET_NAME = _settings.B2_BUCKET_NAME
 except Exception:
-    B2_KEY_ID      = os.getenv("B2_KEY_ID",      "003069b02f3e5f824becfcbcad231096ef5a0950c6")
-    B2_APP_KEY     = os.getenv("B2_APP_KEY",     "Sathus@SV162127")
+    B2_KEY_ID      = os.getenv("B2_KEY_ID",      "008e0d1d842b")
+    B2_APP_KEY     = os.getenv("B2_APP_KEY",     "0030f1320724707dc33f380426ddf3371c3fedb37a")
     B2_BUCKET_NAME = os.getenv("B2_BUCKET_NAME", "sathus-pay2pay")
 
 # ---------------------------------------------------------------------------
@@ -241,11 +241,22 @@ class BackblazeStorageService:
 
     @classmethod
     def get_download_url(cls, file_path: str) -> str:
-        """Get download URL for a file path."""
+        """Get signed download URL with Backblaze B2 authorization token."""
+        if not file_path:
+            return ""
+        
+        clean_path = file_path.replace(f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/", "")
+        clean_path = clean_path.split("?")[0].lstrip("/")
+
         api_obj, bucket = cls._get_api()
         if api_obj and bucket:
             try:
-                return bucket.get_download_url(file_path)
-            except Exception:
-                pass
-        return f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/{file_path}"
+                token = bucket.get_download_authorization(
+                    file_name_prefix="",
+                    valid_duration_in_seconds=86400
+                )
+                return f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/{clean_path}?Authorization={token}"
+            except Exception as err:
+                print(f"[StorageService] Failed to generate B2 download auth token: {err}")
+        
+        return f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/{clean_path}"
