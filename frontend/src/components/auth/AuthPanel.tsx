@@ -181,21 +181,46 @@ interface AuthPanelProps {
 }
 
 export const AuthPanel: React.FC<AuthPanelProps> = ({
-  portalRole = "SD",
+  portalRole = "RETAILER",
   darkMode: externalDarkMode,
   setDarkMode: externalSetDarkMode
 }) => {
   const router = useRouter();
 
-  const normalizedRole: "SD" | "DIST" =
-    portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR" ? "SD" : "DIST";
+  const normalizedRole: "RETAILER" | "SD" | "DIST" =
+    portalRole === "RETAILER"
+      ? "RETAILER"
+      : portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR"
+      ? "SD"
+      : "DIST";
 
-  const portalTitle = normalizedRole === "SD" ? "Pay2Pay SD Portal" : "Pay2Pay Distributor Portal";
-  const portalSubtitle = normalizedRole === "SD"
-    ? "Access your Pay2Pay Super Distributor Workspace"
-    : "Access your Pay2Pay Distributor Workspace";
-  const portalRegisterUrl = normalizedRole === "SD" ? "/sd/onboarding" : "/dist/onboarding";
-  const portalDashboardUrl = normalizedRole === "SD" ? "/sd/dashboard" : "/dist/dashboard";
+  const portalTitle =
+    normalizedRole === "RETAILER"
+      ? "Pay2Pay Retailer Portal"
+      : normalizedRole === "SD"
+      ? "Pay2Pay SD Portal"
+      : "Pay2Pay Distributor Portal";
+
+  const portalSubtitle =
+    normalizedRole === "RETAILER"
+      ? "Access your Pay2Pay Retailer Business Workstation"
+      : normalizedRole === "SD"
+      ? "Access your Pay2Pay Super Distributor Workspace"
+      : "Access your Pay2Pay Distributor Workspace";
+
+  const portalRegisterUrl =
+    normalizedRole === "RETAILER"
+      ? "/register"
+      : normalizedRole === "SD"
+      ? "/sd/onboarding"
+      : "/dist/onboarding";
+
+  const portalDashboardUrl =
+    normalizedRole === "RETAILER"
+      ? "/retailer/dashboard"
+      : normalizedRole === "SD"
+      ? "/sd/dashboard"
+      : "/dist/dashboard";
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>("English");
   const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;
@@ -460,8 +485,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       if (res.ok && data.status === "SUCCESS") {
         setShowConfetti(true);
         setSuccessMsg("✓ OTP Verified! Redirecting...");
-        localStorage.setItem("pay2pay_access_token", data.data.access_token);
-        setTimeout(() => { router.push("/retailer-dashboard"); }, 800);
+        handleAuthSuccessRedirect(data.data?.access_token);
       } else {
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : "Invalid OTP code.";
         triggerError(errText);
@@ -469,7 +493,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     } catch {
       setLoading(false);
       setShowConfetti(true);
-      setTimeout(() => { router.push("/retailer-dashboard"); }, 600);
+      handleAuthSuccessRedirect();
     }
   };
 
