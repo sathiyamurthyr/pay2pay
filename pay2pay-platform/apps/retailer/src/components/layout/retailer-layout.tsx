@@ -752,108 +752,116 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             </Tooltip>
 
             {/* Prominent Wallet Balance Card Pill */}
-            <Tooltip title="Click to view Wallet details or Top-up">
-              <Paper
-                elevation={0}
-                onClick={() => router.push("/retailer/wallet")}
-                sx={{
-                  px: { xs: 1.4, sm: 2 },
-                  py: 0.6,
-                  borderRadius: "14px",
-                  bgcolor: "rgba(15, 23, 42, 0.85)",
-                  border: "1px solid rgba(59, 130, 246, 0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: { xs: 1, sm: 1.5 },
-                  flexShrink: 0,
-                  height: { xs: 44, sm: 46 },
-                  cursor: "pointer",
-                  boxShadow: "0 4px 14px rgba(37, 99, 235, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
-                  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                  "&:hover": {
-                    bgcolor: "rgba(30, 58, 138, 0.35)",
-                    borderColor: "rgba(96, 165, 250, 0.7)",
-                    boxShadow: "0 6px 20px rgba(37, 99, 235, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
-                    transform: "translateY(-1px)",
-                  },
-                }}
-              >
+            <Paper
+              elevation={0}
+              sx={{
+                px: { xs: 1.4, sm: 2 },
+                py: 0.6,
+                borderRadius: "14px",
+                bgcolor: "rgba(15, 23, 42, 0.85)",
+                border: "1px solid rgba(59, 130, 246, 0.4)",
+                display: "flex",
+                alignItems: "center",
+                gap: { xs: 1, sm: 1.5 },
+                flexShrink: 0,
+                height: { xs: 44, sm: 46 },
+                boxShadow: "0 4px 14px rgba(37, 99, 235, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                "&:hover": {
+                  bgcolor: "rgba(30, 58, 138, 0.35)",
+                  borderColor: "rgba(96, 165, 250, 0.7)",
+                  boxShadow: "0 6px 20px rgba(37, 99, 235, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+                  transform: "translateY(-1px)",
+                },
+              }}
+            >
+              <Tooltip title="Wallet Details & Top-Up" arrow placement="bottom">
                 <Box
+                  onClick={() => router.push("/retailer/wallet")}
                   sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "10px",
-                    bgcolor: "rgba(37, 99, 235, 0.25)",
-                    border: "1px solid rgba(59, 130, 246, 0.3)",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
+                    gap: { xs: 1, sm: 1.5 },
+                    cursor: "pointer",
                   }}
                 >
-                  <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
-                </Box>
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "10px",
+                      bgcolor: "rgba(37, 99, 235, 0.25)",
+                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+                  </Box>
 
-                <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#94A3B8",
-                      fontWeight: 800,
-                      fontSize: "11px",
-                      letterSpacing: "0.5px",
-                      lineHeight: 1,
-                      textTransform: "uppercase",
-                      display: { xs: "none", sm: "block" },
-                    }}
-                  >
-                    MAIN WALLET
-                  </Typography>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{
-                      fontWeight: 900,
-                      color: "#4ADE80",
-                      fontSize: { xs: "15px", sm: "17px" },
-                      lineHeight: 1.15,
-                      letterSpacing: "-0.2px",
-                      textShadow: "0 0 12px rgba(74, 222, 128, 0.25)",
-                    }}
-                  >
-                    ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </Typography>
-                </Box>
-
-                <Tooltip title="Refresh Balance">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      syncBalance();
-                    }}
-                    disabled={isSyncing}
-                    sx={{
-                      p: 0.5,
-                      ml: 0.5,
-                      color: "#94A3B8",
-                      borderRadius: "8px",
-                      "&:hover": {
-                        color: "#FFFFFF",
-                        bgcolor: "rgba(255, 255, 255, 0.15)",
-                      },
-                    }}
-                  >
-                    <RefreshIcon
+                  <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    <Typography
+                      variant="caption"
                       sx={{
-                        fontSize: 18,
-                        color: "#60A5FA",
-                        animation: isSyncing ? "spin 1s linear infinite" : "none",
+                        color: "#94A3B8",
+                        fontWeight: 800,
+                        fontSize: "11px",
+                        letterSpacing: "0.5px",
+                        lineHeight: 1,
+                        textTransform: "uppercase",
+                        display: { xs: "none", sm: "block" },
                       }}
-                    />
-                  </IconButton>
-                </Tooltip>
-              </Paper>
-            </Tooltip>
+                    >
+                      MAIN WALLET
+                    </Typography>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: 900,
+                        color: "#4ADE80",
+                        fontSize: { xs: "15px", sm: "17px" },
+                        lineHeight: 1.15,
+                        letterSpacing: "-0.2px",
+                        textShadow: "0 0 12px rgba(74, 222, 128, 0.25)",
+                      }}
+                    >
+                      ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Tooltip>
+
+              <Tooltip title="Refresh Balance" arrow placement="bottom">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    syncBalance();
+                  }}
+                  disabled={isSyncing}
+                  sx={{
+                    p: 0.5,
+                    ml: 0.5,
+                    color: "#94A3B8",
+                    borderRadius: "8px",
+                    "&:hover": {
+                      color: "#FFFFFF",
+                      bgcolor: "rgba(255, 255, 255, 0.15)",
+                    },
+                  }}
+                >
+                  <RefreshIcon
+                    sx={{
+                      fontSize: 18,
+                      color: "#60A5FA",
+                      animation: isSyncing ? "spin 1s linear infinite" : "none",
+                    }}
+                  />
+                </IconButton>
+              </Tooltip>
+            </Paper>
 
             {/* KPI Theme Selector Icon & Menu */}
             <Tooltip title="App Theme & Color Palette">
