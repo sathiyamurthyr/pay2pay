@@ -393,3 +393,5 @@ export const NotificationCenter: React.FC<{
     </>
   );
 };
+
+export default NotificationCenter;
