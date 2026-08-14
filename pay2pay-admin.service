@@ -1,0 +1,22 @@
+
+[Unit]
+Description=Pay2Pay Admin Next.js App Service
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/pay2pay/admin
+Environment=NODE_ENV=production
+Environment=PORT=3003
+Environment=HOSTNAME=0.0.0.0
+Environment=NEXT_PUBLIC_API_URL=https://pay2pay.in
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pay2pay-admin
+
+[Install]
+WantedBy=multi-user.target
