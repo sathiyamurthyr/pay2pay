@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Box, Avatar, Typography, Stack, Menu, MenuItem, ListItemIcon, Divider } from "@mui/material";
-import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import SecurityIcon from "@mui/icons-material/Security";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
@@ -92,29 +92,31 @@ export const ProfileMenu: React.FC<{ ownerName?: string; code?: string }> = ({
         onClose={handleClose}
         transformOrigin={{ horizontal: "right", vertical: "top" }}
         anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-        PaperProps={{
-          elevation: 8,
-          sx: {
-            mt: 1.5,
-            width: 220,
-            bgcolor: "#0F172A",
-            color: "#FFFFFF",
-            border: `1px solid ${tokens.colors.neutral.dark.border}`,
-            borderRadius: "14px",
-            overflow: "visible",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
-            "& .MuiMenuItem-root": {
-              px: 2,
-              py: 1.2,
-              borderRadius: "8px",
-              mx: 0.8,
-              my: 0.3,
-              fontSize: "14px",
-              fontWeight: 600,
-              color: "#CBD5E1",
-              "&:hover": {
-                bgcolor: "rgba(59, 130, 246, 0.15)",
-                color: "#FFFFFF",
+        slotProps={{
+          paper: {
+            elevation: 8,
+            sx: {
+              mt: 1.5,
+              width: 220,
+              bgcolor: "#0F172A",
+              color: "#FFFFFF",
+              border: `1px solid ${tokens.colors.neutral.dark.border}`,
+              borderRadius: "14px",
+              overflow: "visible",
+              boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+              "& .MuiMenuItem-root": {
+                px: 2,
+                py: 1.2,
+                borderRadius: "8px",
+                mx: 0.8,
+                my: 0.3,
+                fontSize: "14px",
+                fontWeight: 600,
+                color: "#CBD5E1",
+                "&:hover": {
+                  bgcolor: "rgba(59, 130, 246, 0.15)",
+                  color: "#FFFFFF",
+                },
               },
             },
           },
@@ -132,7 +134,7 @@ export const ProfileMenu: React.FC<{ ownerName?: string; code?: string }> = ({
 
         <MenuItem onClick={handleNavigateProfile}>
           <ListItemIcon>
-            <PersonOutlineIcon sx={{ color: "#3B82F6", fontSize: 20 }} />
+            <PersonOutlinedIcon sx={{ color: "#3B82F6", fontSize: 20 }} />
           </ListItemIcon>
           My Profile
         </MenuItem>
@@ -165,3 +167,4 @@ export const ProfileMenu: React.FC<{ ownerName?: string; code?: string }> = ({
     </>
   );
 };
+

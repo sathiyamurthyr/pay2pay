@@ -88,19 +88,25 @@ async def get_retailer_payout_summary(
 
     today_res = (await db.execute(today_stmt)).fetchone()
 
-    # Status counts for selected date range for this retailer
+    # Status counts & amounts for selected date range for this retailer
     status_stmt = select(
         EnterprisePayoutTransactionModel.status,
-        func.count(EnterprisePayoutTransactionModel.id)
+        func.count(EnterprisePayoutTransactionModel.id),
+        func.coalesce(func.sum(EnterprisePayoutTransactionModel.amount), 0.0)
     ).where(and_(*range_filter)).group_by(EnterprisePayoutTransactionModel.status)
 
     status_rows = (await db.execute(status_stmt)).fetchall()
     status_map = {(r[0].value if hasattr(r[0], "value") else str(r[0]).upper()): r[1] for r in status_rows}
+    status_amount_map = {(r[0].value if hasattr(r[0], "value") else str(r[0]).upper()): float(r[2]) for r in status_rows}
 
     pending_count = status_map.get("PENDING", 0) + status_map.get("PROCESSING", 0) + status_map.get("INITIATED", 0)
     success_count = status_map.get("SUCCESS", 0)
     failed_count = status_map.get("FAILED", 0) + status_map.get("TIMEOUT", 0) + status_map.get("REJECTED", 0) + status_map.get("REVERSED", 0)
     reversed_count = status_map.get("REVERSED", 0)
+
+    pending_amount = round(status_amount_map.get("PENDING", 0.0) + status_amount_map.get("PROCESSING", 0.0) + status_amount_map.get("INITIATED", 0.0), 2)
+    successful_amount = round(status_amount_map.get("SUCCESS", 0.0), 2)
+    failed_amount = round(status_amount_map.get("FAILED", 0.0) + status_amount_map.get("TIMEOUT", 0.0) + status_amount_map.get("REJECTED", 0.0) + status_amount_map.get("REVERSED", 0.0), 2)
 
     return {
         "todays_transactions": today_res.todays_txns if today_res else 0,
@@ -113,6 +119,9 @@ async def get_retailer_payout_summary(
         "successful_transactions": success_count,
         "failed_transactions": failed_count,
         "reversed_transactions": reversed_count,
+        "successful_amount": successful_amount,
+        "pending_amount": pending_amount,
+        "failed_amount": failed_amount,
     }
 
 @router.get("/list", summary="Get Filtered Paginated Retailer Payout Report")

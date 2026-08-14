@@ -165,17 +165,19 @@ export const NotificationCenter: React.FC<{
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleClose}
-        PaperProps={{
-          elevation: 8,
-          sx: {
-            width: 380,
-            maxHeight: 480,
-            borderRadius: "12px",
-            mt: 1,
-            backgroundColor: "#1E293B",
-            color: "#F8FAFC",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            overflow: "hidden",
+        slotProps={{
+          paper: {
+            elevation: 8,
+            sx: {
+              width: 380,
+              maxHeight: 480,
+              borderRadius: "12px",
+              mt: 1,
+              backgroundColor: "#1E293B",
+              color: "#F8FAFC",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              overflow: "hidden",
+            },
           },
         }}
         transformOrigin={{ horizontal: "right", vertical: "top" }}
@@ -291,11 +293,11 @@ export const NotificationCenter: React.FC<{
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.25 }}>
                       <Typography
                         variant="body2"
+                        noWrap
                         sx={{
                           fontWeight: item.is_read ? 600 : 800,
                           fontSize: "13px",
                           color: "#0F172A",
-                          truncate: true,
                         }}
                       >
                         {item.title}

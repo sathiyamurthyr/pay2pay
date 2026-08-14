@@ -205,15 +205,14 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   return (
     <Box
       sx={{
-        width: isCollapsed ? 76 : 280,
-        height: "100vh",
+        width: "100%",
+        height: "100%",
         bgcolor: "#0B132B",
-        borderRight: "1px solid rgba(255, 255, 255, 0.14)",
+        borderRight: "1px solid #1E293B",
         display: "flex",
         flexDirection: "column",
-        position: "sticky",
-        top: 0,
-        zIndex: 1200,
+        position: "relative",
+        boxSizing: "border-box",
         transition: tokens.transitions.fast,
       }}
     >

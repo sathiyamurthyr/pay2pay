@@ -161,6 +161,7 @@ app.include_router(enterprise_auth_router.router, prefix="")
 app.include_router(admin_error_management_router.router, prefix=settings.API_V1_STR)
 app.include_router(enterprise_payout_execution_router.router, prefix=settings.API_V1_STR)
 app.include_router(payout_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
+app.include_router(payout_report_router.router, prefix=settings.API_V1_STR)
 app.include_router(payout_ledger_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
 from app.presentation.api.v1 import retailer_verification_router
 from app.presentation.api.v1 import company_onboarding_router

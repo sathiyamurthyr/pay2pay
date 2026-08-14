@@ -18,9 +18,8 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
 }) => {
   const { walletData, isLoading } = useWalletSync();
 
-  const formattedBalance = walletData
-    ? `₹${walletData.wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-    : "₹0.00";
+  const balanceNum = Number(walletData?.wallet_balance ?? 0);
+  const formattedBalance = `₹${(isNaN(balanceNum) ? 0 : balanceNum).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const shortName = walletData?.short_name || (walletData?.owner_name ? walletData.owner_name.split(" ")[0] : "Partner");
   const partnerCode = walletData?.retailer_code || walletData?.user_code || "P2P-MASTER";
@@ -29,17 +28,16 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
     <Paper
       elevation={0}
       sx={{
-        height: 80,
-        px: 3.5,
+        height: 64,
+        px: 2.5,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        bgcolor: "rgba(15, 23, 42, 0.90)",
-        backdropFilter: "blur(20px)",
+        bgcolor: "#0D1526",
         borderBottom: `1px solid ${tokens.colors.neutral.dark.border}`,
-        position: "sticky",
-        top: 0,
-        zIndex: 1100,
+        borderRadius: 0,
+        width: "100%",
+        boxSizing: "border-box",
       }}
     >
       {/* Left: Brand Logo & Title & Breadcrumb */}
@@ -47,16 +45,16 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Box
             sx={{
-              width: 48,
-              height: 48,
-              borderRadius: "12px",
+              width: 36,
+              height: 36,
+              borderRadius: "8px",
               background: tokens.colors.gradients.brand,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#FFFFFF",
-              fontWeight: 900,
-              fontSize: "18px",
+              fontWeight: 800,
+              fontSize: "14px",
               boxShadow: tokens.shadows.glow,
             }}
           >

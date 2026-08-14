@@ -19,6 +19,7 @@ interface SessionSecurityContextType {
   sessionState: SessionState;
   remainingWarningSeconds: number;
   securitySettings: SecuritySettings;
+  lockedAt: number | null;
   lockSession: () => void;
   stayActive: () => void;
   unlockSession: (pin?: string) => Promise<{ success: boolean; message?: string }>;
@@ -29,7 +30,7 @@ interface SessionSecurityContextType {
 
 const DEFAULT_SETTINGS: SecuritySettings = {
   auto_lock_enabled: true,
-  idle_timeout_minutes: 1,
+  idle_timeout_minutes: 15,
   warning_seconds: 15,
   lock_on_minimize: false,
   lock_on_sleep: true,
@@ -73,8 +74,17 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
   useEffect(() => {
     if (typeof window !== "undefined") {
       const isSavedLocked = localStorage.getItem("p2p_session_locked") === "true";
-      const savedLastActive = Number(localStorage.getItem("p2p_session_last_active") || Date.now());
-      const elapsedMs = Date.now() - savedLastActive;
+      const savedLastActiveStr = localStorage.getItem("p2p_session_last_active");
+      const now = Date.now();
+
+      if (!savedLastActiveStr) {
+        localStorage.setItem("p2p_session_last_active", String(now));
+        lastActivityRef.current = now;
+        return;
+      }
+
+      const savedLastActive = Number(savedLastActiveStr);
+      const elapsedMs = now - savedLastActive;
       const timeoutMs = securitySettings.idle_timeout_minutes * 60 * 1000;
 
       if (isSavedLocked || elapsedMs >= timeoutMs) {
@@ -188,11 +198,22 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     return () => clearInterval(checkInterval);
   }, [sessionState, securitySettings]);
 
+  const [lockedAt, setLockedAt] = useState<number | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("p2p_session_locked_at");
+      return saved ? Number(saved) : null;
+    }
+    return null;
+  });
+
   // Lock Session Action
   const lockSession = () => {
+    const now = Date.now();
     setSessionState("LOCKED");
+    setLockedAt(now);
     try {
       localStorage.setItem("p2p_session_locked", "true");
+      localStorage.setItem("p2p_session_locked_at", String(now));
     } catch (e) {}
 
     playLockChime();
@@ -248,10 +269,12 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
 
       if (response.data && response.data.success === true && response.data.unlocked === true) {
         setSessionState("ACTIVE");
+        setLockedAt(null);
         const now = Date.now();
         lastActivityRef.current = now;
         try {
           localStorage.removeItem("p2p_session_locked");
+          localStorage.removeItem("p2p_session_locked_at");
           localStorage.setItem("p2p_session_last_active", String(now));
         } catch (e) {}
 
@@ -324,6 +347,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         sessionState,
         remainingWarningSeconds,
         securitySettings,
+        lockedAt,
         lockSession,
         stayActive,
         unlockSession,
