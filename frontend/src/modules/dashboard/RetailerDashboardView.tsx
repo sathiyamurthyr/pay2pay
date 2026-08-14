@@ -137,6 +137,11 @@ interface SystemHealthService {
   latency_ms: number;
 }
 
+const formatAmount = (val?: number | null): string => {
+  if (val === undefined || val === null || isNaN(Number(val))) return "0.00";
+  return Number(val).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export const RetailerDashboardView: React.FC = () => {
   const router = useRouter();
   const { walletData: headerWallet, refreshWallet } = useWalletSync();
@@ -440,7 +445,7 @@ export const RetailerDashboardView: React.FC = () => {
               <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "rgba(34, 197, 94, 0.12)", border: "1px solid rgba(34, 197, 94, 0.35)" }}>
                 <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "15px", fontWeight: 700 }}>Available Balance</Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "24px", mt: 0.5 }}>
-                  ₹{headerWallet ? headerWallet.available_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+                  ₹{formatAmount(headerWallet?.available_balance)}
                 </Typography>
               </Box>
             </Grid>
@@ -450,7 +455,7 @@ export const RetailerDashboardView: React.FC = () => {
               <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "rgba(245, 158, 11, 0.12)", border: "1px solid rgba(245, 158, 11, 0.35)" }}>
                 <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "15px", fontWeight: 700 }}>Blocked Reserve</Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "24px", mt: 0.5 }}>
-                  ₹{headerWallet ? headerWallet.blocked_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+                  ₹{formatAmount(headerWallet?.blocked_balance)}
                 </Typography>
               </Box>
             </Grid>
@@ -460,7 +465,7 @@ export const RetailerDashboardView: React.FC = () => {
               <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.35)" }}>
                 <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "15px", fontWeight: 700 }}>Today's Total Debit</Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "#F87171", fontSize: "24px", mt: 0.5 }}>
-                  -₹{headerWallet ? headerWallet.todays_debit.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+                  -₹{formatAmount(headerWallet?.todays_debit)}
                 </Typography>
               </Box>
             </Grid>
@@ -470,7 +475,7 @@ export const RetailerDashboardView: React.FC = () => {
               <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "rgba(59, 130, 246, 0.12)", border: "1px solid rgba(59, 130, 246, 0.35)" }}>
                 <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "15px", fontWeight: 700 }}>Today's Reversal Credit</Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "24px", mt: 0.5 }}>
-                  +₹{headerWallet ? headerWallet.todays_credit.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+                  +₹{formatAmount(headerWallet?.todays_credit)}
                 </Typography>
               </Box>
             </Grid>
@@ -480,7 +485,7 @@ export const RetailerDashboardView: React.FC = () => {
               <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "rgba(168, 85, 247, 0.12)", border: "1px solid rgba(168, 85, 247, 0.35)" }}>
                 <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "15px", fontWeight: 700 }}>Today's Commission</Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "#C084FC", fontSize: "24px", mt: 0.5 }}>
-                  +₹{headerWallet ? headerWallet.todays_commission.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+                  +₹{formatAmount(headerWallet?.todays_commission)}
                 </Typography>
               </Box>
             </Grid>
@@ -490,7 +495,7 @@ export const RetailerDashboardView: React.FC = () => {
               <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.14)" }}>
                 <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "15px", fontWeight: 700 }}>Today's GST Paid (18%)</Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "#E2E8F0", fontSize: "24px", mt: 0.5 }}>
-                  ₹{headerWallet ? headerWallet.todays_gst.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+                  ₹{formatAmount(headerWallet?.todays_gst)}
                 </Typography>
               </Box>
             </Grid>
@@ -500,7 +505,7 @@ export const RetailerDashboardView: React.FC = () => {
               <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.14)" }}>
                 <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "15px", fontWeight: 700 }}>Today's TDS Deducted</Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "#E2E8F0", fontSize: "24px", mt: 0.5 }}>
-                  ₹{headerWallet ? headerWallet.todays_tds.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+                  ₹{formatAmount(headerWallet?.todays_tds)}
                 </Typography>
               </Box>
             </Grid>
@@ -510,7 +515,7 @@ export const RetailerDashboardView: React.FC = () => {
               <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: "rgba(20, 184, 166, 0.12)", border: "1px solid rgba(20, 184, 166, 0.35)" }}>
                 <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "15px", fontWeight: 700 }}>POS Settlement Pending</Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: "#2DD4BF", fontSize: "24px", mt: 0.5 }}>
-                  ₹{headerWallet ? headerWallet.settlement_pending_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+                  ₹{formatAmount(headerWallet?.settlement_pending_amount)}
                 </Typography>
               </Box>
             </Grid>
@@ -526,14 +531,14 @@ export const RetailerDashboardView: React.FC = () => {
       </Typography>
       <Grid container spacing={3} sx={{ mb: 4.5 }}>
         {[
-          { label: "Today's Transfer", value: `₹${finKpis ? finKpis.todays_transfer.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}`, color: "#3B82F6", sub: "Gross Beneficiary Credit" },
-          { label: "Today's Wallet Debit", value: `₹${finKpis ? finKpis.todays_wallet_debit.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}`, color: "#F87171", sub: "Amount + Fee + GST" },
-          { label: "Today's Commission", value: `₹${finKpis ? finKpis.todays_commission.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}`, color: "#4ADE80", sub: "Instant Net Revenue" },
-          { label: "Today's GST", value: `₹${finKpis ? finKpis.todays_gst.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}`, color: "#FBBF24", sub: "18% GST Deduction" },
-          { label: "Today's TDS", value: `₹${finKpis ? finKpis.todays_tds.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}`, color: "#C084FC", sub: "Sec 194O Tax Withheld" },
-          { label: "Settlement Pending", value: `₹${finKpis ? finKpis.settlement_pending_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}`, color: "#FBBF24", sub: "Awaiting Bank Settlement" },
-          { label: "Settlement Settled", value: `₹${finKpis ? finKpis.settlement_completed_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}`, color: "#4ADE80", sub: "Credited to Bank Account" },
-          { label: "Current Wallet Balance", value: `₹${finKpis ? finKpis.wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}`, color: "#38BDF8", sub: "Live Account Ledger" }
+          { label: "Today's Transfer", value: `₹${formatAmount(finKpis?.todays_transfer)}`, color: "#3B82F6", sub: "Gross Beneficiary Credit" },
+          { label: "Today's Wallet Debit", value: `₹${formatAmount(finKpis?.todays_wallet_debit)}`, color: "#F87171", sub: "Amount + Fee + GST" },
+          { label: "Today's Commission", value: `₹${formatAmount(finKpis?.todays_commission)}`, color: "#4ADE80", sub: "Instant Net Revenue" },
+          { label: "Today's GST", value: `₹${formatAmount(finKpis?.todays_gst)}`, color: "#FBBF24", sub: "18% GST Deduction" },
+          { label: "Today's TDS", value: `₹${formatAmount(finKpis?.todays_tds)}`, color: "#C084FC", sub: "Sec 194O Tax Withheld" },
+          { label: "Settlement Pending", value: `₹${formatAmount(finKpis?.settlement_pending_amount)}`, color: "#FBBF24", sub: "Awaiting Bank Settlement" },
+          { label: "Settlement Settled", value: `₹${formatAmount(finKpis?.settlement_completed_amount)}`, color: "#4ADE80", sub: "Credited to Bank Account" },
+          { label: "Current Wallet Balance", value: `₹${formatAmount(finKpis?.wallet_balance)}`, color: "#38BDF8", sub: "Live Account Ledger" }
         ].map((k) => (
           <Grid size={{ xs: 12, sm: 6, md: 3 }} key={k.label}>
             <Paper elevation={0} sx={{ p: 3.5, borderRadius: 3.5, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.14)", borderLeft: `6px solid ${k.color}` }}>
@@ -713,8 +718,8 @@ export const RetailerDashboardView: React.FC = () => {
                     <TableRow key={tx.transaction_id} hover sx={{ "& td": { borderColor: "rgba(255,255,255,0.08)", color: "#E2E8F0", fontSize: "16px", fontWeight: 500, py: 2 } }}>
                       <TableCell sx={{ color: "#CBD5E1" }}>{tx.initiated_at ? new Date(tx.initiated_at).toLocaleTimeString("en-IN", { timeStyle: "medium" }) : "--"}</TableCell>
                       <TableCell sx={{ fontWeight: 700, color: "#60A5FA" }}>{tx.transaction_number}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 800, color: "#FFFFFF" }}>₹{tx.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell align="right" sx={{ color: "#F87171", fontWeight: 700 }}>₹{tx.net_debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, color: "#FFFFFF" }}>₹{formatAmount(tx?.amount)}</TableCell>
+                      <TableCell align="right" sx={{ color: "#F87171", fontWeight: 700 }}>₹{formatAmount(tx?.net_debit)}</TableCell>
                       <TableCell>{tx.mode}</TableCell>
                       <TableCell sx={{ fontFamily: "monospace", fontSize: "15px" }}>{tx.utr_number}</TableCell>
                       <TableCell align="center">{getStatusChip(tx.status)}</TableCell>
