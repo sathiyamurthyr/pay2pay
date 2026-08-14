@@ -106,7 +106,9 @@ async def get_recent_notifications(
 
 
 @router.put("/mark-all-read", summary="Mark All Notifications as Read for Authenticated User")
+@router.patch("/mark-all-read", summary="Mark All Notifications as Read (PATCH)")
 @router.put("/read-all", summary="Mark All Notifications as Read (Alias)")
+@router.patch("/read-all", summary="Mark All Notifications as Read (Alias PATCH)")
 async def mark_all_notifications_read(
     user_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
@@ -138,7 +140,8 @@ async def mark_all_notifications_read(
     return {"status": "SUCCESS", "message": "All notifications marked as read."}
 
 
-@router.put("/{notification_id}/read", summary="Mark Single Notification as Read")
+@router.patch("/{notification_id}/read", summary="Mark Single Notification as Read (PATCH)")
+@router.put("/{notification_id}/read", summary="Mark Single Notification as Read (PUT)")
 @router.post("/{notification_id}/read", summary="Mark Single Notification as Read (POST)")
 async def mark_single_notification_read(
     notification_id: str,

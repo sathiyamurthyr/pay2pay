@@ -93,7 +93,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       todaySettlement: 25000.00,
     },
     isSyncing: false,
-    unreadNotifications: 3,
+    unreadNotifications: 0,
     soundboxEnabled: true,
     activeDrawer: null,
     kpiTheme: "classic-blue",

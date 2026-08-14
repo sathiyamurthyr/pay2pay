@@ -1,9 +1,13 @@
+from datetime import datetime, timezone
 from typing import List, Optional
 import uuid
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_, desc, func, update
 
 from app.core.database import get_db
+from app.application.dependencies import get_current_token_payload
+from app.infrastructure.db.models import UserNotificationAlertModel
 from app.application.services import NotificationService
 from app.application.dtos import (
     APIResponse,
@@ -18,6 +22,148 @@ from app.application.dtos import (
 )
 
 router = APIRouter(prefix="/notifications", tags=["EPIC-020: Notification & Engagement"])
+
+
+# ── Recent Alerts & Real-Time User Notifications ─────────────────────────────
+
+@router.get("/recent", summary="Fetch Recent Alerts & Notifications for Authenticated User")
+async def get_recent_notifications(
+    limit: int = Query(10, ge=1, le=50),
+    unread_only: bool = Query(False),
+    user_id: Optional[str] = Query(None),
+    tenant_id: Optional[str] = Query(None),
+    payload: dict = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns database-backed notifications for the authenticated user, scoped by tenant & user isolation.
+    """
+    u_id_str = user_id or payload.get("sub")
+    if not u_id_str or u_id_str == "00000000-0000-0000-0000-000000000000":
+        u_id_str = "00000000-0000-0000-0000-000000000001"
+
+    t_id_str = tenant_id or payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+
+    try:
+        u_uuid = uuid.UUID(str(u_id_str))
+    except Exception:
+        u_uuid = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+    try:
+        t_uuid = uuid.UUID(str(t_id_str))
+    except Exception:
+        t_uuid = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+
+    filters = [
+        UserNotificationAlertModel.user_id == u_uuid,
+        UserNotificationAlertModel.tenant_id == t_uuid
+    ]
+    if unread_only:
+        filters.append(UserNotificationAlertModel.is_read == False)
+
+    # Count unread items
+    unread_stmt = select(func.count()).select_from(UserNotificationAlertModel).where(
+        and_(
+            UserNotificationAlertModel.user_id == u_uuid,
+            UserNotificationAlertModel.tenant_id == t_uuid,
+            UserNotificationAlertModel.is_read == False
+        )
+    )
+    unread_count = (await db.execute(unread_stmt)).scalar() or 0
+
+    # Count total matching items
+    total_stmt = select(func.count()).select_from(UserNotificationAlertModel).where(and_(*filters))
+    total_count = (await db.execute(total_stmt)).scalar() or 0
+
+    # Query newest items first
+    stmt = (
+        select(UserNotificationAlertModel)
+        .where(and_(*filters))
+        .order_by(desc(UserNotificationAlertModel.created_at))
+        .limit(limit)
+    )
+    results = (await db.execute(stmt)).scalars().all()
+
+    formatted_data = []
+    for item in results:
+        formatted_data.append({
+            "id": str(item.public_id),
+            "type": item.notification_type,
+            "title": item.title,
+            "message": item.message,
+            "amount": float(item.amount) if item.amount is not None else None,
+            "reference": item.reference_number,
+            "status": item.status,
+            "is_read": item.is_read,
+            "created_at": item.created_at.isoformat() if item.created_at else datetime.now(timezone.utc).isoformat()
+        })
+
+    return {
+        "data": formatted_data,
+        "total": total_count,
+        "unread_count": unread_count
+    }
+
+
+@router.put("/mark-all-read", summary="Mark All Notifications as Read for Authenticated User")
+@router.patch("/mark-all-read", summary="Mark All Notifications as Read (PATCH)")
+@router.put("/read-all", summary="Mark All Notifications as Read (Alias)")
+@router.patch("/read-all", summary="Mark All Notifications as Read (Alias PATCH)")
+async def mark_all_notifications_read(
+    user_id: Optional[str] = Query(None),
+    tenant_id: Optional[str] = Query(None),
+    payload: dict = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    u_id_str = user_id or payload.get("sub")
+    if not u_id_str or u_id_str == "00000000-0000-0000-0000-000000000000":
+        u_id_str = "00000000-0000-0000-0000-000000000001"
+
+    try:
+        u_uuid = uuid.UUID(str(u_id_str))
+    except Exception:
+        u_uuid = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+    stmt = (
+        update(UserNotificationAlertModel)
+        .where(
+            and_(
+                UserNotificationAlertModel.user_id == u_uuid,
+                UserNotificationAlertModel.is_read == False
+            )
+        )
+        .values(is_read=True)
+    )
+    await db.execute(stmt)
+    await db.commit()
+
+    return {"status": "SUCCESS", "message": "All notifications marked as read."}
+
+
+@router.patch("/{notification_id}/read", summary="Mark Single Notification as Read (PATCH)")
+@router.put("/{notification_id}/read", summary="Mark Single Notification as Read (PUT)")
+@router.post("/{notification_id}/read", summary="Mark Single Notification as Read (POST)")
+async def mark_single_notification_read(
+    notification_id: str,
+    payload: dict = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        notif_uuid = uuid.UUID(notification_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid notification ID format.")
+
+    stmt = select(UserNotificationAlertModel).where(
+        (UserNotificationAlertModel.public_id == notif_uuid) |
+        (UserNotificationAlertModel.public_id == str(notif_uuid))
+    )
+    item = (await db.execute(stmt)).scalars().first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Notification not found.")
+
+    item.is_read = True
+    await db.commit()
+    return {"status": "SUCCESS", "message": "Notification marked as read.", "id": notification_id}
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
@@ -138,3 +284,4 @@ async def get_communication_timeline(
 async def list_notification_events(db: AsyncSession = Depends(get_db)):
     events = await NotificationService.list_events(db)
     return APIResponse(data=[e.model_dump() for e in events])
+

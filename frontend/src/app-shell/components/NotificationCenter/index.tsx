@@ -66,7 +66,7 @@ export const NotificationCenter: React.FC<{
       setUnreadCount(json.unread_count ?? items.filter((i) => !i.is_read).length);
     } catch (err: any) {
       console.warn("[NotificationCenter] Error fetching notifications:", err);
-      setError("Failed to load alerts.");
+      setError("Unable to load notifications");
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ export const NotificationCenter: React.FC<{
   const handleMarkAllRead = async () => {
     try {
       await fetch("/api/v1/notifications/mark-all-read", {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
@@ -104,7 +104,7 @@ export const NotificationCenter: React.FC<{
     if (!item.is_read) {
       try {
         await fetch(`/api/v1/notifications/${item.id}/read`, {
-          method: "PUT",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
         });
         setNotifications((prev) =>
@@ -149,14 +149,11 @@ export const NotificationCenter: React.FC<{
   return (
     <>
       <IconButton
-        color="inherit"
         onClick={handleOpen}
-        size="small"
         sx={{
-          p: 0.75,
           color: "#94A3B8",
-          transition: "all 0.2s",
-          "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.1)" },
+          transition: "all 0.2s ease-in-out",
+          "&:hover": { color: "#F8FAFC", backgroundColor: "rgba(255, 255, 255, 0.08)" },
         }}
       >
         <Badge badgeContent={unreadCount} color="error" max={99}>
@@ -168,84 +165,68 @@ export const NotificationCenter: React.FC<{
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleClose}
-        slotProps={{
-          paper: {
-            sx: {
-              borderRadius: 3,
-              width: 360,
-              mt: 1.5,
-              p: 0,
-              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.2)",
-              border: "1px solid #E2E8F0",
-              overflow: "hidden",
-            },
+        PaperProps={{
+          elevation: 8,
+          sx: {
+            width: 380,
+            maxHeight: 480,
+            borderRadius: "12px",
+            mt: 1,
+            backgroundColor: "#1E293B",
+            color: "#F8FAFC",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            overflow: "hidden",
           },
         }}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
       >
-        {/* Header Bar */}
+        {/* Header */}
         <Box
           sx={{
-            p: 1.75,
-            bgcolor: "#0F172A",
-            color: "#FFFFFF",
+            px: 2,
+            py: 1.5,
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
+            justifyContent: "space-between",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "14px", color: "#F8FAFC" }}>
+            Recent Alerts
+          </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <NotificationsIcon sx={{ fontSize: 18, color: "#60A5FA" }} />
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "14px", letterSpacing: "0.2px" }}>
-              Recent Alerts
-            </Typography>
-            {unreadCount > 0 && (
-              <Chip
-                label={`${unreadCount} new`}
-                size="small"
-                sx={{
-                  bgcolor: "#EF4444",
-                  color: "#FFFFFF",
-                  fontWeight: 800,
-                  height: 18,
-                  fontSize: "10px",
-                }}
-              />
-            )}
-          </Box>
-
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <IconButton size="small" onClick={fetchNotifications} sx={{ color: "#94A3B8", p: 0.5 }}>
-              <RefreshIcon sx={{ fontSize: 16 }} />
-            </IconButton>
             {unreadCount > 0 && (
               <Button
                 size="small"
                 onClick={handleMarkAllRead}
                 sx={{
                   fontSize: "11px",
-                  fontWeight: 700,
-                  color: "#60A5FA",
+                  color: "#38BDF8",
                   textTransform: "none",
-                  p: "2px 8px",
+                  padding: "2px 6px",
                   minWidth: 0,
+                  "&:hover": { backgroundColor: "rgba(56, 189, 248, 0.1)" },
                 }}
               >
                 Mark all read
               </Button>
             )}
+            <IconButton
+              size="small"
+              onClick={fetchNotifications}
+              sx={{ color: "#94A3B8", padding: "4px" }}
+            >
+              <RefreshIcon sx={{ fontSize: 16 }} />
+            </IconButton>
           </Box>
         </Box>
 
-        <Divider />
-
-        {/* Content Body */}
-        <Box sx={{ maxHeight: 380, overflowY: "auto", py: 0.5 }}>
+        {/* List Content */}
+        <Box sx={{ overflowY: "auto", maxHeight: 400 }}>
           {loading && notifications.length === 0 ? (
-            <Box sx={{ p: 4, textAlign: "center" }}>
-              <CircularProgress size={24} sx={{ color: "#2563EB" }} />
-              <Typography variant="caption" sx={{ display: "block", mt: 1, color: "#64748B" }}>
-                Fetching live notifications...
-              </Typography>
+            <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+              <CircularProgress size={24} sx={{ color: "#38BDF8" }} />
             </Box>
           ) : error ? (
             <Box sx={{ p: 3, textAlign: "center" }}>
@@ -254,16 +235,16 @@ export const NotificationCenter: React.FC<{
                 {error}
               </Typography>
               <Button size="small" onClick={fetchNotifications} sx={{ mt: 1, fontSize: "12px" }}>
-                Retry
+                Try again
               </Button>
             </Box>
           ) : notifications.length === 0 ? (
             <Box sx={{ p: 4, textAlign: "center" }}>
               <InfoIcon sx={{ color: "#94A3B8", fontSize: 32, mb: 0.5 }} />
-              <Typography variant="body2" sx={{ fontWeight: 600, color: "#475569" }}>
-                No recent alerts or notifications
+              <Typography variant="body2" sx={{ fontWeight: 600, color: "#94A3B8" }}>
+                No recent notifications
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: 0.5 }}>
+              <Typography variant="caption" sx={{ color: "#64748B", display: "block", mt: 0.5 }}>
                 Transaction updates will appear here dynamically.
               </Typography>
             </Box>
