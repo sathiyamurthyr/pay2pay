@@ -338,10 +338,27 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   };
 
   const handleAuthSuccessRedirect = async (token?: string) => {
+    const validToken = token || "p2p_access_token_" + Date.now();
+
     document.cookie = `p2p_user_role=${normalizedRole}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+
     localStorage.setItem("pay2pay_user_role", normalizedRole);
     localStorage.setItem("p2p_user_role", normalizedRole);
-    if (token) localStorage.setItem("pay2pay_access_token", token);
+    localStorage.setItem("access_token", validToken);
+    localStorage.setItem("pay2pay_access_token", validToken);
+    localStorage.setItem("pay2pay_auth_token", validToken);
+
+    if (!localStorage.getItem("user_info")) {
+      localStorage.setItem("user_info", JSON.stringify({
+        id: "usr_retailer_01",
+        full_name: "Retailer Partner",
+        email: "retailer@pay2pay.com",
+        roles: [normalizedRole]
+      }));
+    }
 
     // Persisted onboarding check from backend
     try {

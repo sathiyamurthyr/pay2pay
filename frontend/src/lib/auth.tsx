@@ -92,7 +92,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Check localStorage & session cookies for stored session
-      const token = localStorage.getItem("access_token") || localStorage.getItem("pay2pay_auth_token");
+      const token =
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("pay2pay_auth_token");
       const storedUser = localStorage.getItem("user_info");
       if (token && storedUser) {
         try {
