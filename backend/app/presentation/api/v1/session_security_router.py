@@ -43,12 +43,15 @@ class PinSetupRequest(BaseModel):
 class SecuritySettingsUpdateRequest(BaseModel):
     retailer_id: Optional[str] = None
     tenant_id: Optional[str] = None
+    theme_mode: Optional[str] = Field("AUTO", description="AUTO | LIGHT | DARK")
+    timezone: Optional[str] = Field("Asia/Kolkata", description="Configured Retailer Timezone")
     auto_lock_enabled: bool = True
     idle_timeout_minutes: int = Field(1, ge=0, le=60)
     warning_seconds: int = Field(30, ge=10, le=60)
     lock_on_minimize: bool = True
     lock_on_sleep: bool = True
     biometric_enabled: Optional[bool] = None
+
 
 class SessionAuditRequest(BaseModel):
     retailer_id: Optional[str] = None
@@ -211,48 +214,131 @@ async def log_session_audit(
     return {"status": "LOGGED", "event": req.event_type, "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
-@router.get("/session/settings", summary="Get Security Settings")
+@router.get("/session/settings", summary="Get Security & Theme Preference Settings")
+@router.get("/retailer/preferences", summary="Get Retailer Preferences")
 async def get_security_settings(
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
-    key = retailer_id or payload.get("sub", "default")
+    user_sub = payload.get("sub") or payload.get("retailer_id") or "default"
+    key = retailer_id or user_sub
+
+    # 1. Try DB lookup first
+    try:
+        if user_sub != "default":
+            rid = uuid.UUID(user_sub)
+            stmt = select(RetailerSecuritySettingsModel).where(RetailerSecuritySettingsModel.retailer_id == rid)
+            sec = (await db.execute(stmt)).scalars().first()
+            if sec:
+                return {
+                    "status": "SUCCESS",
+                    "user_id": str(sec.retailer_id),
+                    "theme_mode": sec.theme_mode or "AUTO",
+                    "timezone": sec.timezone or "Asia/Kolkata",
+                    "auto_lock_enabled": sec.auto_lock_enabled,
+                    "idle_timeout_minutes": sec.idle_timeout_minutes,
+                    "warning_seconds": sec.warning_seconds,
+                    "lock_on_minimize": sec.lock_on_minimize,
+                    "lock_on_sleep": sec.lock_on_sleep,
+                    "biometric_enabled": sec.biometric_enabled,
+                    "pin_configured": True,
+                    "failed_attempt_count": 0
+                }
+    except Exception as e:
+        print(f"DB lookup for security settings exception: {e}")
+
+    # 2. Check in-memory SETTINGS_STORE fallback
     if key in SETTINGS_STORE:
         return SETTINGS_STORE[key]
 
     return {
         "status": "SUCCESS",
         "user_id": key,
+        "theme_mode": "AUTO",
+        "timezone": "Asia/Kolkata",
         "auto_lock_enabled": True,
         "idle_timeout_minutes": 1,
         "warning_seconds": 30,
         "lock_on_minimize": True,
         "lock_on_sleep": True,
+        "biometric_enabled": True,
         "pin_configured": True,
         "failed_attempt_count": 0
     }
 
 
-@router.put("/session/settings", summary="Update Security Settings")
+@router.put("/session/settings", summary="Update Security & Theme Preference Settings")
+@router.patch("/session/settings", summary="Patch Security & Theme Preference Settings")
+@router.put("/retailer/preferences", summary="Update Retailer Preferences")
+@router.patch("/retailer/preferences", summary="Patch Retailer Preferences")
 async def update_security_settings(
     req: SecuritySettingsUpdateRequest,
     payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
-    key = req.retailer_id or payload.get("sub", "default")
+    user_sub = payload.get("sub") or payload.get("retailer_id") or "default"
+    key = req.retailer_id or user_sub
+
+    # Determine theme_mode (AUTO, LIGHT, DARK) with uppercase normalization
+    clean_theme_mode = (req.theme_mode or "AUTO").upper()
+    if clean_theme_mode not in ("AUTO", "LIGHT", "DARK"):
+        clean_theme_mode = "AUTO"
+
+    clean_timezone = req.timezone or "Asia/Kolkata"
+
+    # Persist to DB if valid UUID retailer context
+    try:
+        if user_sub != "default":
+            rid = uuid.UUID(user_sub)
+            stmt = select(RetailerSecuritySettingsModel).where(RetailerSecuritySettingsModel.retailer_id == rid)
+            sec = (await db.execute(stmt)).scalars().first()
+            if not sec:
+                sec = RetailerSecuritySettingsModel(
+                    public_id=uuid.uuid4(),
+                    retailer_id=rid,
+                    tenant_id=uuid.UUID(payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8")),
+                    theme_mode=clean_theme_mode,
+                    timezone=clean_timezone,
+                    auto_lock_enabled=req.auto_lock_enabled,
+                    idle_timeout_minutes=req.idle_timeout_minutes,
+                    warning_seconds=req.warning_seconds,
+                    lock_on_minimize=req.lock_on_minimize,
+                    lock_on_sleep=req.lock_on_sleep,
+                    biometric_enabled=req.biometric_enabled if req.biometric_enabled is not None else True
+                )
+                db.add(sec)
+            else:
+                sec.theme_mode = clean_theme_mode
+                sec.timezone = clean_timezone
+                sec.auto_lock_enabled = req.auto_lock_enabled
+                sec.idle_timeout_minutes = req.idle_timeout_minutes
+                sec.warning_seconds = req.warning_seconds
+                sec.lock_on_minimize = req.lock_on_minimize
+                sec.lock_on_sleep = req.lock_on_sleep
+                if req.biometric_enabled is not None:
+                    sec.biometric_enabled = req.biometric_enabled
+
+            await db.commit()
+            await db.refresh(sec)
+    except Exception as e:
+        print(f"Error persisting security/theme settings to DB: {e}")
+
     updated = {
         "status": "UPDATED",
         "user_id": key,
+        "theme_mode": clean_theme_mode,
+        "timezone": clean_timezone,
         "auto_lock_enabled": req.auto_lock_enabled,
         "idle_timeout_minutes": req.idle_timeout_minutes,
         "warning_seconds": req.warning_seconds,
         "lock_on_minimize": req.lock_on_minimize,
         "lock_on_sleep": req.lock_on_sleep,
-        "biometric_enabled": req.biometric_enabled,
+        "biometric_enabled": req.biometric_enabled if req.biometric_enabled is not None else True,
         "pin_configured": True,
         "failed_attempt_count": 0
     }
     SETTINGS_STORE[key] = updated
     return updated
+

@@ -456,7 +456,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile_number: mobileNumber, channel: "WHATSAPP" })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setLoading(false);
       if (res.ok && data.status === "SUCCESS") {
         setOtpSent(true);
@@ -464,14 +464,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setSuccessMsg(`✓ OTP sent to WhatsApp +91 ${mobileNumber}${otpCodeHint}`);
         setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
       } else {
-        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : "Failed to send OTP.";
+        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Failed to send OTP.");
         triggerError(errText);
       }
     } catch {
       setLoading(false);
-      setOtpSent(true);
-      setSuccessMsg(`✓ OTP sent to WhatsApp +91 ${mobileNumber}`);
-      setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
+      triggerError("Unable to connect to OTP dispatch service. Please check your network connection.");
     }
   };
 
@@ -496,7 +494,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile_number: mobileNumber, otp_code: fullOtp, telemetry })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
@@ -504,13 +502,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setSuccessMsg("✓ OTP Verified! Redirecting...");
         handleAuthSuccessRedirect(data.data?.access_token);
       } else {
-        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : "Invalid OTP code.";
+        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please enter the correct 6-digit OTP.");
         triggerError(errText);
       }
     } catch {
       setLoading(false);
-      setShowConfetti(true);
-      handleAuthSuccessRedirect();
+      triggerError("Failed to verify OTP code. Please enter the correct 6-digit WhatsApp OTP.");
     }
   };
 

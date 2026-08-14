@@ -89,6 +89,15 @@ class DocumentUploadPayload(BaseModel):
     file_size_bytes: Optional[int] = 245000
     mime_type: Optional[str] = "image/jpeg"
 
+class ValidateMobilePayload(BaseModel):
+    mobile_number: str = Field(..., example="9176669426")
+    tenant_id: Optional[str] = Field(None, example="00000000-0000-0000-0000-000000000001")
+
+class SendOtpPayload(BaseModel):
+    mobile_number: str = Field(..., example="9176669426")
+    validation_token: str = Field(...)
+    tenant_id: Optional[str] = Field(None, example="00000000-0000-0000-0000-000000000001")
+
 class VideoUploadPayload(BaseModel):
     registration_id: str
     video_url: str
@@ -97,6 +106,30 @@ class VideoUploadPayload(BaseModel):
 
 class SubmitPayload(BaseModel):
     registration_id: str
+
+
+@router.post("/validate-mobile")
+async def validate_mobile(payload: ValidateMobilePayload, db: AsyncSession = Depends(get_db)):
+    res = await ProgressiveOnboardingService.validate_mobile(db, payload.mobile_number, tenant_id=payload.tenant_id)
+    if res.get("status") == "ERROR":
+        raise HTTPException(status_code=400, detail=res["message"])
+    return res
+
+
+@router.post("/send-otp")
+async def send_otp(payload: SendOtpPayload, db: AsyncSession = Depends(get_db)):
+    res = await ProgressiveOnboardingService.send_otp(db, payload.mobile_number, payload.validation_token, tenant_id=payload.tenant_id)
+    if res.get("status") == "ERROR":
+        raise HTTPException(status_code=400, detail=res["message"])
+    return res
+
+
+@router.get("/check-mobile")
+async def check_mobile_get():
+    return {
+        "status": "ONLINE",
+        "message": "Onboarding Check Mobile API. Please submit POST request with {'mobile_number': '10-digits'}."
+    }
 
 
 @router.post("/check-mobile")

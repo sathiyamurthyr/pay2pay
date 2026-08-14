@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { NotificationCenter } from "@/app-shell/components/NotificationCenter";
 import {
   AppBar, Toolbar, Drawer, Box, Typography, IconButton, Badge, Menu,
   MenuItem, Divider, List, ListItem, ListItemButton, ListItemIcon,
@@ -43,8 +44,11 @@ import LockIcon from "@mui/icons-material/Lock";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import PaletteIcon from "@mui/icons-material/Palette";
 import { useAuth } from "@/lib/auth";
-import { useRetailerStore, KpiTheme } from "@/stores/use-retailer-store";
+import { useRetailerStore, KpiTheme, THEME_CONFIGS } from "@/stores/use-retailer-store";
+import { useTheme } from "@/context/ThemeContext";
+
 import { useRetailerApprovalGuard } from "@/hooks/useRetailerApprovalGuard";
+
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
 import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
@@ -65,9 +69,42 @@ const KPI_THEMES: { id: KpiTheme; label: string; swatch: string }[] = [
   { id: "corporate-white", label: "Corporate White", swatch: "#FFFFFF" },
 ];
 
+let cachedHeaderWalletData: any = null;
+let lastHeaderWalletFetchTime = 0;
+let inFlightHeaderWalletPromise: Promise<any> | null = null;
+
+async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
+  const now = Date.now();
+  if (!forceRefresh && cachedHeaderWalletData && now - lastHeaderWalletFetchTime < 30000) {
+    return cachedHeaderWalletData;
+  }
+  if (inFlightHeaderWalletPromise) {
+    return inFlightHeaderWalletPromise;
+  }
+
+  inFlightHeaderWalletPromise = (async () => {
+    try {
+      const res = await fetch(
+        "/api/v1/payout/dashboard/retailer/header-wallet?retailer_id=f89239b5-4dbb-41a9-9ba7-0f97580c9368&tenant_id=93538c98-0b19-493c-a247-4cdb02a46c68"
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      cachedHeaderWalletData = data;
+      lastHeaderWalletFetchTime = Date.now();
+      return data;
+    } finally {
+      inFlightHeaderWalletPromise = null;
+    }
+  })();
+
+  return inFlightHeaderWalletPromise;
+}
+
 export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const { themeMode, effectiveTheme, setThemeMode } = useTheme();
   const { outlet, wallet, isSyncing, syncBalance, soundboxEnabled, toggleSoundbox, unreadNotifications, setUnreadNotifications, kpiTheme, setKpiTheme } = useRetailerStore();
   const { isApproved, approvalStatus, isPathLocked, setApprovalStatus } = useRetailerApprovalGuard();
   const { openContactSupportModal } = useContactSupportModal();
@@ -83,6 +120,75 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [menuSearchQuery, setMenuSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [liveAlerts, setLiveAlerts] = useState<any[]>([]);
+  const [profileDetails, setProfileDetails] = useState<{
+    owner_name?: string | null;
+    retailer_name?: string | null;
+    retailer_code?: string | null;
+    approval_status?: string | null;
+    kyc_status?: string | null;
+    location?: string | null;
+    last_login_at?: string | null;
+    plan_name?: string | null;
+    loading?: boolean;
+    error?: boolean;
+  }>({ loading: true });
+
+  const fetchProfileDetails = useCallback(async (force = false) => {
+    setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
+    try {
+      const data = await getCachedHeaderWalletData(force);
+      setProfileDetails({
+        owner_name: data.owner_name || null,
+        retailer_name: data.retailer_name || null,
+        retailer_code: data.retailer_code || null,
+        approval_status: data.approval_status || null,
+        kyc_status: data.kyc_status || null,
+        location: data.location || null,
+        last_login_at: data.last_login_at || null,
+        plan_name: data.plan_name || null,
+        loading: false,
+        error: false,
+      });
+    } catch (err) {
+      console.warn("Profile details fetch error:", err);
+      setProfileDetails({ loading: false, error: true });
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfileDetails();
+    syncBalance();
+  }, [fetchProfileDetails, syncBalance]);
+
+  const formatLastLogin = (isoString?: string | null) => {
+    if (!isoString) return "Not available";
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return "Not available";
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      const timeStr = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+      if (isToday) {
+        return `Today, ${timeStr}`;
+      }
+      return `${date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}, ${timeStr}`;
+    } catch {
+      return "Not available";
+    }
+  };
+
+  useEffect(() => {
+    fetch("/api/v1/payout/dashboard/retailer/recent-activity?retailer_id=f89239b5-4dbb-41a9-9ba7-0f97580c9368&tenant_id=93538c98-0b19-493c-a247-4cdb02a46c68")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.activities)) {
+          setLiveAlerts(data.activities);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
@@ -124,58 +230,48 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const navCategories = [
     {
       title: "MAIN",
-      items: [{ label: "Dashboard", path: "/retailer-dashboard", icon: DashboardIcon }],
+      items: [{ label: "Dashboard", path: "/retailer/dashboard", icon: DashboardIcon }],
     },
     {
       title: "PAYMENTS",
       items: [
-        { label: "Money Transfer (DMT)", path: "/retailer/dmt", icon: SendIcon, badge: "IMPS" },
+        { label: "DMT", path: "/retailer/dmt", icon: SendIcon },
         { label: "Card to Cash", path: "/retailer/card-to-cash", icon: CreditCardIcon },
-        { label: "AEPS Cash Out", path: "/retailer/aeps", icon: FingerprintIcon, badge: "Biometric" },
-        { label: "UPI Services", path: "/retailer/upi", icon: QrCodeIcon },
-        { label: "Bill Payment (BBPS)", path: "/retailer/bbps", icon: ReceiptIcon },
+        { label: "AEPS", path: "/retailer/aeps", icon: FingerprintIcon },
+        { label: "UPI", path: "/retailer/upi", icon: QrCodeIcon },
+        { label: "BBPS", path: "/retailer/bbps", icon: ReceiptIcon },
         { label: "Recharge", path: "/retailer/recharge", icon: PhoneAndroidIcon },
-      ],
-    },
-    {
-      title: "WALLET",
-      items: [
-        { label: "Wallet & Top-Up", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
-        { label: "Wallet Statement", path: "/retailer/wallet-statement", icon: ReceiptLongIcon },
       ],
     },
     {
       title: "CUSTOMERS",
       items: [
-        { label: "Customer Directory", path: "/retailer/customers", icon: PersonIcon },
-        { label: "Beneficiaries", path: "/retailer/beneficiaries", icon: PersonIcon },
+        { label: "Customers", path: "/retailer/customers", icon: PersonIcon },
+        { label: "Beneficiaries", path: "/retailer/beneficiaries", icon: ContactsIcon },
       ],
     },
     {
-      title: "BUSINESS & REPORTS",
+      title: "WALLET",
       items: [
-        { label: "Payout Report", path: "/retailer/dmt/reports", icon: AssessmentIcon },
-        { label: "Enterprise Report Center", path: "/retailer/reports", icon: AssessmentIcon },
-        { label: "POS Swipe Settlement", path: "/retailer/pos/settlement-report", icon: PointOfSaleIcon },
-        { label: "Commission Slabs", path: "/retailer/commission", icon: AssessmentIcon },
-        { label: "Move To Bank", path: "/retailer/settlement", icon: AccountBalanceIcon },
-        { label: "Transactions Ledger", path: "/retailer/transactions", icon: ReceiptLongIcon },
+        { label: "Wallet", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
+        { label: "Wallet Top-up", path: "/retailer/wallet-topup", icon: AccountBalanceWalletIcon },
+        { label: "Wallet Ledger", path: "/retailer/wallet-ledger", icon: ReceiptLongIcon },
       ],
     },
     {
-      title: "ADMIN & APPROVALS",
+      title: "REPORTS",
       items: [
-        { label: "Admin Verification Desk", path: "/admin", icon: ShieldIcon, badge: "ADMIN" },
-        { label: "Approvals Queue", path: "/approvals", icon: WorkspacePremiumIcon, badge: "KYC" },
+        { label: "Transactions", path: "/retailer/reports/transactions", icon: AssessmentIcon },
+        { label: "Payouts", path: "/retailer/reports/payouts", icon: ReceiptLongIcon },
+        { label: "Tax", path: "/retailer/reports/tax", icon: AssessmentIcon },
+        { label: "Settlement", path: "/retailer/reports/settlement", icon: PointOfSaleIcon },
       ],
     },
     {
-      title: "SUPPORT",
+      title: "ACCOUNT",
       items: [
-        { label: "Notifications", path: "/retailer/notifications", icon: NotificationsIcon },
-        { label: "Support Desk", path: "/retailer/support", icon: AssessmentIcon },
-        { label: "Settings", path: "/retailer/settings", icon: AssessmentIcon },
-        { label: "Retailer Profile", path: "/retailer/profile", icon: PersonIcon },
+        { label: "Profile", path: "/retailer/profile", icon: PersonIcon },
+        { label: "Security", path: "/retailer/security", icon: ShieldIcon },
       ],
     },
   ];
@@ -338,6 +434,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       <Box
                         component={Link}
                         href={item.path}
+                        onMouseEnter={() => {
+                          try { router.prefetch(item.path); } catch {}
+                        }}
                         onClick={(e: React.MouseEvent) => {
                           if (favLocked) {
                             e.preventDefault();
@@ -444,6 +543,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       <Box
                         component={Link}
                         href={item.path}
+                        onMouseEnter={() => {
+                          try { router.prefetch(item.path); } catch {}
+                        }}
                         onClick={(e: React.MouseEvent) => {
                           if (itemLocked) {
                             e.preventDefault();
@@ -512,9 +614,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                               />
                             )}
 
-                            {item.badge && !itemLocked && (
+                            {(item as any).badge && !itemLocked && (
                               <Chip
-                                label={item.badge}
+                                label={(item as any).badge}
+
                                 size="small"
                                 sx={{
                                   height: 18,
@@ -593,14 +696,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     </Box>
   );
 
+  const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["classic-blue"];
+
   return (
     <Box
       sx={{
         display: "flex",
         minHeight: "100vh",
-        backgroundColor: "#08111F",
-        backgroundImage: "radial-gradient(ellipse at 50% 0%, #0F172A 0%, #08111F 100%)",
-        color: "#F8FAFC",
+        backgroundColor: activeTheme.pageBg,
+        color: activeTheme.textColor,
+        transition: "background-color 0.3s ease",
       }}
     >
       {/* ── Sticky Header (Height: 56px Exact) ── */}
@@ -611,13 +716,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           height: 56,
           width: { lg: `calc(100% - ${activeDrawerWidth}px)` },
           ml: { lg: `${activeDrawerWidth}px` },
-          backgroundColor: "rgba(15, 23, 42, 0.85)",
+          backgroundColor: activeTheme.headerBg,
           backdropFilter: "blur(20px)",
-          color: "#FFFFFF",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          color: activeTheme.headerText,
+          borderBottom: `1px solid ${activeTheme.cardBorder}`,
           zIndex: (theme) => theme.zIndex.drawer + 1,
           justifyContent: "center",
-          transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease",
         }}
       >
         <Toolbar sx={{ justifyContent: "space-between", px: { xs: 2, sm: 3 }, minHeight: "56px !important", height: 56 }}>
@@ -689,43 +794,130 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               </Button>
             </Tooltip>
 
-            {/* Wallet Balance Display Pill */}
+            {/* Prominent Wallet Balance Card Pill */}
             <Paper
               elevation={0}
               sx={{
-                px: { xs: 1, sm: 1.5 },
-                py: 0.4,
-                borderRadius: 2.5,
-                backgroundColor: "#EFF6FF",
-                border: "1px solid #BFDBFE",
+                px: { xs: 1.4, sm: 2 },
+                py: 0.6,
+                borderRadius: "14px",
+                bgcolor: "rgba(15, 23, 42, 0.85)",
+                border: "1px solid rgba(59, 130, 246, 0.4)",
                 display: "flex",
                 alignItems: "center",
-                gap: 1,
+                gap: { xs: 1, sm: 1.5 },
                 flexShrink: 0,
-                height: 36,
+                height: { xs: 44, sm: 46 },
+                boxShadow: "0 4px 14px rgba(37, 99, 235, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                "&:hover": {
+                  bgcolor: "rgba(30, 58, 138, 0.35)",
+                  borderColor: "rgba(96, 165, 250, 0.7)",
+                  boxShadow: "0 6px 20px rgba(37, 99, 235, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+                  transform: "translateY(-1px)",
+                },
               }}
             >
-              <AccountBalanceWalletIcon sx={{ color: "#2563EB", fontSize: 18 }} />
-              <Box>
-                <Typography variant="caption" sx={{ color: "#1D4ED8", fontWeight: 700, display: { xs: "none", sm: "block" }, lineHeight: 1, fontSize: "10px" }}>
-                  WALLET
-                </Typography>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#111827", fontFamily: "monospace", fontSize: "13px" }}>
-                  ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </Typography>
-              </Box>
-              <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ p: 0.25 }}>
-                <RefreshIcon sx={{ fontSize: 15, color: "#2563EB", animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
-              </IconButton>
+              <Tooltip title="Wallet Details & Top-Up" arrow placement="bottom">
+                <Box
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.location.href = "/retailer/wallet";
+                    }
+                  }}
+
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: { xs: 1, sm: 1.5 },
+                    cursor: "pointer",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "10px",
+                      bgcolor: "rgba(37, 99, 235, 0.25)",
+                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+                  </Box>
+
+                  <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "#94A3B8",
+                        fontWeight: 800,
+                        fontSize: "11px",
+                        letterSpacing: "0.5px",
+                        lineHeight: 1,
+                        textTransform: "uppercase",
+                        display: { xs: "none", sm: "block" },
+                      }}
+                    >
+                      MAIN WALLET
+                    </Typography>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: 900,
+                        color: "#4ADE80",
+                        fontSize: { xs: "15px", sm: "17px" },
+                        lineHeight: 1.15,
+                        letterSpacing: "-0.2px",
+                        textShadow: "0 0 12px rgba(74, 222, 128, 0.25)",
+                      }}
+                    >
+                      ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Tooltip>
+
+              <Tooltip title="Refresh Balance" arrow placement="bottom">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    syncBalance();
+                  }}
+                  disabled={isSyncing}
+                  sx={{
+                    p: 0.5,
+                    ml: 0.5,
+                    color: "#94A3B8",
+                    borderRadius: "8px",
+                    "&:hover": {
+                      color: "#FFFFFF",
+                      bgcolor: "rgba(255, 255, 255, 0.15)",
+                    },
+                  }}
+                >
+                  <RefreshIcon
+                    sx={{
+                      fontSize: 18,
+                      color: "#60A5FA",
+                      animation: isSyncing ? "spin 1s linear infinite" : "none",
+                    }}
+                  />
+                </IconButton>
+              </Tooltip>
             </Paper>
 
-            {/* KPI Theme Selector Icon & Menu */}
-            <Tooltip title="App Theme & Color Palette">
+            {/* Header Theme Quick Switch Control */}
+            <Tooltip title="Theme (Auto / Light / Dark)">
               <IconButton
                 color="inherit"
                 onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
                 size="small"
-                sx={{ p: 0.75, color: "#4B5563" }}
+                sx={{ p: 0.75, color: effectiveTheme === "dark" ? "#94A3B8" : "#4B5563" }}
               >
                 <PaletteIcon sx={{ fontSize: 20 }} />
               </IconButton>
@@ -735,94 +927,83 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               anchorEl={kpiThemeAnchor}
               open={Boolean(kpiThemeAnchor)}
               onClose={() => setKpiThemeAnchor(null)}
-              slotProps={{ paper: { sx: { borderRadius: 3, width: 220, mt: 1, p: 0.5 } } }}
+              slotProps={{
+                paper: {
+                  sx: {
+                    borderRadius: "10px",
+                    width: 180,
+                    mt: 1,
+                    p: 0.5,
+                    bgcolor: effectiveTheme === "dark" ? "#0F172A" : "#FFFFFF",
+                    color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A",
+                    border: effectiveTheme === "dark" ? "1px solid #1E293B" : "1px solid #E2E8F0",
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+                  },
+                },
+              }}
             >
-              <Box sx={{ p: 1.5, borderBottom: "1px solid #E5E7EB" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "13px", color: "#0F172A" }}>
-                  🎨 Color & Layout Theme
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#64748B", fontSize: "10px" }}>
-                  Select visual theme & color palette
+              <Box sx={{ p: 1, px: 1.5, borderBottom: effectiveTheme === "dark" ? "1px solid #1E293B" : "1px solid #F1F5F9" }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A" }}>
+                  Theme
                 </Typography>
               </Box>
-              {KPI_THEMES.map((theme) => (
-                <MenuItem
-                  key={theme.id}
-                  selected={kpiTheme === theme.id}
-                  onClick={() => {
-                    setKpiTheme(theme.id);
-                    if (typeof window !== "undefined") {
-                      localStorage.setItem("kpi_card_theme", theme.id);
-                      localStorage.setItem("pay2pay_app_theme", theme.id);
-                      if (theme.id === "dark") {
-                        document.documentElement.classList.add("dark");
-                        document.body.classList.add("dark");
-                      } else {
-                        document.documentElement.classList.remove("dark");
-                        document.body.classList.remove("dark");
-                      }
-                    }
-                    setKpiThemeAnchor(null);
-                  }}
-                  sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1, px: 1.5, borderRadius: 2 }}
-                >
-                  <Box sx={{ width: 18, height: 18, borderRadius: "50%", backgroundColor: theme.swatch, border: "2px solid #CBD5E1", boxShadow: "0 2px 4px rgba(0,0,0,0.15)" }} />
-                  <Typography variant="body2" sx={{ fontWeight: kpiTheme === theme.id ? 800 : 500, fontSize: "13px", color: kpiTheme === theme.id ? "#2563EB" : "#1E293B" }}>
-                    {theme.label}
-                  </Typography>
-                  {kpiTheme === theme.id && (
-                    <Box sx={{ ml: "auto", width: 6, height: 6, borderRadius: "50%", bgcolor: "#2563EB" }} />
-                  )}
-                </MenuItem>
-              ))}
+
+              {[
+                { mode: "AUTO", label: "Auto", desc: "Follows your local day/night schedule" },
+                { mode: "LIGHT", label: "Light", desc: "Always use light mode" },
+                { mode: "DARK", label: "Dark", desc: "Always use dark mode" },
+              ].map((item) => {
+                const isSelected = themeMode === item.mode;
+                return (
+                  <MenuItem
+                    key={item.mode}
+                    onClick={() => {
+                      setThemeMode(item.mode as any);
+                      setKpiThemeAnchor(null);
+                    }}
+                    sx={{
+                      py: 1,
+                      px: 1.5,
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: isSelected ? 700 : 400,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      bgcolor: isSelected
+                        ? effectiveTheme === "dark"
+                          ? "rgba(59, 130, 246, 0.15)"
+                          : "rgba(37, 99, 235, 0.08)"
+                        : "transparent",
+                      color: isSelected
+                        ? effectiveTheme === "dark"
+                          ? "#60A5FA"
+                          : "#2563EB"
+                        : effectiveTheme === "dark"
+                        ? "#CBD5E1"
+                        : "#334155",
+                      "&:hover": {
+                        bgcolor: effectiveTheme === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.04)",
+                      },
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: isSelected ? 800 : 500, fontSize: "13px" }}>
+                      {isSelected ? `✓ ${item.label}` : `   ${item.label}`}
+                    </Typography>
+                  </MenuItem>
+                );
+              })}
             </Menu>
 
-            {/* Notification Bell */}
-            <IconButton color="inherit" onClick={(e) => setNotifAnchor(e.currentTarget)} size="small" sx={{ p: 0.75 }}>
-              <Badge badgeContent={unreadNotifications} color="error">
-                <NotificationsIcon sx={{ color: "#4B5563", fontSize: 22 }} />
-              </Badge>
-            </IconButton>
 
-            <Menu
-              anchorEl={notifAnchor}
-              open={Boolean(notifAnchor)}
-              onClose={() => setNotifAnchor(null)}
-              slotProps={{ paper: { sx: { borderRadius: 3, width: 320, mt: 1, p: 0.5 } } }}
-            >
-              <Box sx={{ p: 1.5, borderBottom: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "13px" }}>Recent Alerts</Typography>
-                {unreadNotifications > 0 && (
-                  <Button size="small" onClick={() => setUnreadNotifications(0)} sx={{ fontSize: "10px", fontWeight: 800, color: "#2563EB" }}>
-                    Mark all read
-                  </Button>
-                )}
-              </Box>
-              <MenuItem onClick={() => setNotifAnchor(null)} sx={{ py: 1.25 }}>
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "13px", color: "#166534" }}>✅ Penny Drop Verification Succeeded</Typography>
-                  <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "11px", display: "block" }}>Beneficiary verified & saved · ₹3.54 debited</Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem onClick={() => setNotifAnchor(null)} sx={{ py: 1.25 }}>
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "13px", color: "#1E40AF" }}>💸 DMT Transfer Successful</Typography>
-                  <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "11px", display: "block" }}>₹5,000 sent via IMPS · UTR992817263541</Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem onClick={() => setNotifAnchor(null)} sx={{ py: 1.25 }}>
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "13px", color: "#D97706" }}>⚡ AEPS Cash Withdrawal</Typography>
-                  <Typography variant="caption" sx={{ color: "#6B7280", fontSize: "11px", display: "block" }}>₹2,000 credited to wallet · 15 mins ago</Typography>
-                </Box>
-              </MenuItem>
-            </Menu>
+            {/* Dynamic DB-Backed Notification Center */}
+            <NotificationCenter />
 
             {/* User Profile Avatar Icon (Clicking this opens the full Retailer Profile Card!) */}
             <Tooltip title="View Retailer Profile Info">
               <IconButton onClick={(e) => setProfileAnchor(e.currentTarget)} size="small" sx={{ p: 0.25 }}>
                 <Avatar sx={{ bgcolor: "#1E3A8A", width: 36, height: 36, fontWeight: 800, fontSize: "0.85rem", boxShadow: "0 2px 6px rgba(30,58,138,0.25)" }}>
-                  {outlet.ownerName.charAt(0)}
+                  {(profileDetails.owner_name || outlet.ownerName || "R").charAt(0).toUpperCase()}
                 </Avatar>
               </IconButton>
             </Tooltip>
@@ -838,11 +1019,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 paper: {
                   sx: {
                     borderRadius: "20px",
-                    width: 320,
+                    width: 330,
                     mt: 1.5,
                     p: "20px",
-                    boxShadow: "0 12px 36px rgba(0,0,0,0.12)",
-                    border: "1px solid #E5E7EB",
+                    bgcolor: effectiveTheme === "dark" ? "#111B2B" : "#FFFFFF",
+                    color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A",
+                    boxShadow: effectiveTheme === "dark" ? "0 16px 48px rgba(0,0,0,0.5)" : "0 12px 36px rgba(0,0,0,0.12)",
+                    border: effectiveTheme === "dark" ? "1px solid rgba(148, 163, 184, 0.2)" : "1px solid rgba(15, 23, 42, 0.12)",
                   },
                 },
               }}
@@ -857,36 +1040,39 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     color: "#FFFFFF",
                     fontWeight: 800,
                     fontSize: "1.2rem",
-                    boxShadow: "0 4px 12px rgba(30, 58, 138, 0.25)",
+                    boxShadow: "0 4px 12px rgba(30, 58, 138, 0.3)",
                     flexShrink: 0,
                   }}
                 >
-                  {outlet.ownerName.charAt(0)}
+                  {(profileDetails.owner_name || outlet.ownerName || user?.full_name || "R").charAt(0).toUpperCase()}
                 </Avatar>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontSize: "15px", fontWeight: 800, color: "#111827", lineHeight: 1.2 }}>
-                    {outlet.ownerName}
+                  <Typography variant="subtitle1" sx={{ fontSize: "16px", fontWeight: 800, color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", lineHeight: 1.2 }}>
+                    {profileDetails.owner_name || outlet.ownerName || user?.full_name || "Retailer Agent"}
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
+                    {profileDetails.plan_name && (
+                      <Chip
+                        icon={<WorkspacePremiumIcon sx={{ "&&": { color: "#D4AF37", fontSize: 13 } }} />}
+                        label={profileDetails.plan_name}
+                        size="small"
+                        sx={{
+                          backgroundColor: effectiveTheme === "dark" ? "rgba(234, 179, 8, 0.15)" : "#FEF9C3",
+                          color: effectiveTheme === "dark" ? "#FACC15" : "#854D0E",
+                          fontWeight: 800,
+                          fontSize: "0.65rem",
+                          height: 20,
+                          border: effectiveTheme === "dark" ? "1px solid rgba(250, 204, 21, 0.3)" : "1px solid #FDE047",
+                        }}
+                      />
+                    )}
                     <Chip
-                      icon={<WorkspacePremiumIcon sx={{ "&&": { color: "#D4AF37", fontSize: 13 } }} />}
-                      label="Premium"
+                      label="● Active Session"
                       size="small"
                       sx={{
-                        backgroundColor: "#FEF9C3",
-                        color: "#854D0E",
-                        fontWeight: 800,
-                        fontSize: "0.65rem",
-                        height: 20,
-                        border: "1px solid #FDE047",
-                      }}
-                    />
-                    <Chip
-                      label="● Online"
-                      size="small"
-                      sx={{
-                        backgroundColor: "#DCFCE7",
-                        color: "#16A34A",
+                        backgroundColor: effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7",
+                        color: effectiveTheme === "dark" ? "#4ADE80" : "#16A34A",
+                        border: effectiveTheme === "dark" ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid #BBF7D0",
                         fontWeight: 800,
                         fontSize: "0.65rem",
                         height: 20,
@@ -896,19 +1082,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
               </Box>
 
-              <Divider sx={{ my: 1.5 }} />
+              <Divider sx={{ my: 1.5, borderColor: effectiveTheme === "dark" ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.12)" }} />
 
               {/* Wallet Balance Display */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, mb: 1.5 }}>
-                <Typography variant="caption" sx={{ fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Wallet Balance
+                <Typography variant="caption" sx={{ fontSize: "10px", fontWeight: 700, color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  WALLET BALANCE
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography variant="h5" sx={{ fontSize: "24px", fontWeight: 800, color: "#111827", fontFamily: "monospace", lineHeight: 1.1 }}>
-                    ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  <Typography variant="h5" sx={{ fontSize: "22px", fontWeight: 800, color: effectiveTheme === "dark" ? "#FFFFFF" : "#0F172A", fontFamily: "monospace", lineHeight: 1.1 }}>
+                    ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
                   <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ p: 0.25 }}>
-                    <RefreshIcon sx={{ fontSize: 16, color: "#2563EB", animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
+                    <RefreshIcon sx={{ fontSize: 16, color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB", animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
                   </IconButton>
                 </Box>
               </Box>
@@ -916,62 +1102,88 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               {/* Details List */}
               <Stack spacing={1} sx={{ mb: 2 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Retailer ID</Typography>
-                  <Chip label={outlet.code} size="small" sx={{ backgroundColor: "#EFF6FF", color: "#2563EB", fontWeight: 800, height: 20, fontSize: "0.68rem" }} />
-                </Box>
-
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Merchant Outlet</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#111827", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {outlet.name}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Account Approval</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Retailer ID</Typography>
                   <Chip
-                    icon={isApproved ? <ShieldIcon sx={{ "&&": { color: "#16A34A", fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: "#D97706", fontSize: 12 } }} />}
-                    label={isApproved ? "Approved & Active" : "Pending Admin Review"}
+                    label={profileDetails.retailer_code || outlet.code || "RET-CHE-108"}
                     size="small"
-                    onClick={() => setApprovalStatus(isApproved ? "PENDING" : "APPROVED")}
                     sx={{
-                      backgroundColor: isApproved ? "#DCFCE7" : "#FEF3C7",
-                      color: isApproved ? "#16A34A" : "#D97706",
+                      backgroundColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.15)" : "#EFF6FF",
+                      color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB",
+                      border: effectiveTheme === "dark" ? "1px solid rgba(96, 165, 250, 0.3)" : "1px solid #BFDBFE",
                       fontWeight: 800,
-                      height: 22,
+                      height: 20,
                       fontSize: "0.68rem",
-                      cursor: "pointer",
-                      "&:hover": { opacity: 0.85 },
                     }}
                   />
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>KYC Status</Typography>
-                  <Chip
-                    icon={<ShieldIcon sx={{ "&&": { color: isApproved ? "#16A34A" : "#D97706", fontSize: 12 } }} />}
-                    label={isApproved ? "KYC Verified" : "Pending Review"}
-                    size="small"
-                    sx={{ backgroundColor: isApproved ? "#DCFCE7" : "#FEF3C7", color: isApproved ? "#16A34A" : "#D97706", fontWeight: 800, height: 20, fontSize: "0.68rem" }}
-                  />
-                </Box>
-
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Location</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#374151", fontWeight: 600, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {outlet.location}
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Merchant Outlet</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {profileDetails.retailer_name || outlet.name || "Pay2Pay Retailer Outlet"}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Last Login</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#374151", fontWeight: 600 }}>
-                    Today, 07:56 pm
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Account Approval</Typography>
+                  {(() => {
+                    const isAppr = profileDetails.approval_status === "ACTIVE" || profileDetails.approval_status === "APPROVED" || isApproved;
+                    return (
+                      <Chip
+                        icon={isAppr ? <ShieldIcon sx={{ "&&": { color: effectiveTheme === "dark" ? "#4ADE80" : "#16A34A", fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: effectiveTheme === "dark" ? "#FBBF24" : "#D97706", fontSize: 12 } }} />}
+                        label={profileDetails.approval_status ? (isAppr ? "Approved & Active" : profileDetails.approval_status) : (isApproved ? "Approved & Active" : "Pending Admin Review")}
+                        size="small"
+                        sx={{
+                          backgroundColor: isAppr ? (effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7") : (effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7"),
+                          color: isAppr ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"),
+                          border: isAppr ? (effectiveTheme === "dark" ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid #BBF7D0") : (effectiveTheme === "dark" ? "1px solid rgba(251, 191, 36, 0.3)" : "1px solid #FDE68A"),
+                          fontWeight: 800,
+                          height: 22,
+                          fontSize: "0.68rem",
+                        }}
+                      />
+                    );
+                  })()}
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>KYC Status</Typography>
+                  {(() => {
+                    const isKyc = profileDetails.kyc_status === "VERIFIED" || (isApproved && profileDetails.kyc_status !== "PENDING");
+                    return (
+                      <Chip
+                        icon={<ShieldIcon sx={{ "&&": { color: isKyc ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"), fontSize: 12 } }} />}
+                        label={profileDetails.kyc_status ? (profileDetails.kyc_status === "VERIFIED" ? "KYC Verified" : profileDetails.kyc_status) : (isApproved ? "KYC Verified" : "Pending Review")}
+                        size="small"
+                        sx={{
+                          backgroundColor: isKyc ? (effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7") : (effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7"),
+                          color: isKyc ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"),
+                          border: isKyc ? (effectiveTheme === "dark" ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid #BBF7D0") : (effectiveTheme === "dark" ? "1px solid rgba(251, 191, 36, 0.3)" : "1px solid #FDE68A"),
+                          fontWeight: 800,
+                          height: 20,
+                          fontSize: "0.68rem",
+                        }}
+                      />
+                    );
+                  })()}
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Location</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 600, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {profileDetails.location || outlet.location || "Chennai, TN"}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Last Login</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>
+                    {formatLastLogin(profileDetails.last_login_at)}
                   </Typography>
                 </Box>
               </Stack>
 
-              <Divider sx={{ my: 1.5 }} />
+              <Divider sx={{ my: 1.5, borderColor: effectiveTheme === "dark" ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.12)" }} />
 
               {/* Action Buttons */}
               <Stack spacing={1}>
@@ -981,9 +1193,21 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   fullWidth
                   size="small"
                   variant="outlined"
-                  startIcon={<PersonIcon sx={{ fontSize: 18 }} />}
+                  startIcon={<PersonIcon sx={{ fontSize: 18, color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB" }} />}
                   onClick={() => setProfileAnchor(null)}
-                  sx={{ borderRadius: "10px", height: 36, fontWeight: 700, textTransform: "none", fontSize: "12px" }}
+                  sx={{
+                    borderRadius: "10px",
+                    height: 36,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    fontSize: "12px",
+                    borderColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.5)" : "#3B82F6",
+                    color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB",
+                    "&:hover": {
+                      borderColor: "#3B82F6",
+                      backgroundColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.12)" : "#EFF6FF",
+                    },
+                  }}
                 >
                   View Full Profile
                 </Button>
@@ -991,10 +1215,20 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   fullWidth
                   size="small"
                   variant="contained"
-                  color="error"
-                  startIcon={<LogoutIcon sx={{ fontSize: 18 }} />}
+                  startIcon={<LogoutIcon sx={{ fontSize: 18, color: "#FFFFFF" }} />}
                   onClick={logout}
-                  sx={{ borderRadius: "10px", height: 36, fontWeight: 700, textTransform: "none", fontSize: "12px" }}
+                  sx={{
+                    borderRadius: "10px",
+                    height: 36,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    fontSize: "12px",
+                    backgroundColor: "#DC2626",
+                    color: "#FFFFFF",
+                    "&:hover": {
+                      backgroundColor: "#B91C1C",
+                    },
+                  }}
                 >
                   Logout Session
                 </Button>

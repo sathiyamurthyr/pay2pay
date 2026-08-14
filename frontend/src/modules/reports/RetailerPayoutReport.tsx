@@ -21,14 +21,24 @@ import {
   IconButton,
   Drawer,
   Divider,
-  CircularProgress,
   TablePagination,
-  Grid,
   Skeleton,
   Menu,
   InputAdornment,
   Popover,
   Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Snackbar,
+  Alert,
+  CircularProgress,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
+  Tooltip,
 } from "@mui/material";
 
 // Icons
@@ -38,9 +48,6 @@ import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import CloseIcon from "@mui/icons-material/Close";
-import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
-import ErrorOutlinedIcon from "@mui/icons-material/ErrorOutlined";
 import PrintIcon from "@mui/icons-material/Print";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -50,9 +57,18 @@ import TableChartIcon from "@mui/icons-material/TableChart";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import SyncIcon from "@mui/icons-material/Sync";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import ErrorOutlinedIcon from "@mui/icons-material/ErrorOutlined";
+import ShareIcon from "@mui/icons-material/Share";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import EmailIcon from "@mui/icons-material/Email";
+import ImageIcon from "@mui/icons-material/Image";
+import SendIcon from "@mui/icons-material/Send";
+import { CopyButton } from "@/components/common/CopyButton";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import RotateLeftIcon from "@mui/icons-material/RotateLeft";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 export interface PayoutReportSummary {
   todays_transactions: number;
@@ -130,24 +146,27 @@ const getFirstDayOfMonthIso = (monthOffset: number = 0) => {
   return d.toISOString().split("T")[0];
 };
 
-const getLastDayOfMonthIso = (monthOffset: number = -1) => {
-  const d = new Date();
-  d.setMonth(d.getMonth() + monthOffset + 1, 0);
-  return d.toISOString().split("T")[0];
-};
-
 export const RetailerPayoutReport: React.FC = () => {
   // State for Summary & Report Grid
   const [summary, setSummary] = useState<PayoutReportSummary | null>(null);
+  const [summaryError, setSummaryError] = useState<boolean>(false);
   const [items, setItems] = useState<PayoutReportItem[]>([]);
   const [footerTotals, setFooterTotals] = useState<FooterTotals | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSummaryLoading, setIsSummaryLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Selected Transaction for Drawer
   const [selectedTxn, setSelectedTxn] = useState<PayoutReportItem | null>(null);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+
+  // Share Modal & Toast State
+  const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
+  const [shareTxn, setShareTxn] = useState<PayoutReportItem | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
+  const [snackbarMsg, setSnackbarMsg] = useState<string>("");
+  const [isDownloadingSinglePdf, setIsDownloadingSinglePdf] = useState<boolean>(false);
 
   // Pagination & Sorting
   const [page, setPage] = useState<number>(0);
@@ -156,6 +175,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
   // Quick Search & Date Filters
   const [globalSearch, setGlobalSearch] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>(getTodayIso());
   const [toDate, setToDate] = useState<string>(getTodayIso());
   const [activePreset, setActivePreset] = useState<string>("TODAY");
@@ -182,6 +202,15 @@ export const RetailerPayoutReport: React.FC = () => {
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [actionRowItem, setActionRowItem] = useState<PayoutReportItem | null>(null);
 
+  // Debounce search query changes
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(globalSearch);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [globalSearch]);
+
   // Calculate active filter count
   const activeFilterCount = [
     searchTxnId,
@@ -200,6 +229,8 @@ export const RetailerPayoutReport: React.FC = () => {
 
   // Fetch Summary KPIs
   const fetchSummary = useCallback(async (fDate: string, tDate: string) => {
+    setIsSummaryLoading(true);
+    setSummaryError(false);
     try {
       const q = new URLSearchParams({
         retailer_id: DEFAULT_RETAILER_ID,
@@ -212,13 +243,19 @@ export const RetailerPayoutReport: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         setSummary(data);
+      } else {
+        setSummaryError(true);
       }
     } catch (e) {
       console.error("Failed to fetch payout summary KPIs", e);
+      setSummaryError(true);
+    } finally {
+      setIsSummaryLoading(false);
     }
   }, []);
 
-  // Fetch Grid Records from Database
+
+  // Fetch Grid Records from Backend API
   const fetchReportData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -233,12 +270,8 @@ export const RetailerPayoutReport: React.FC = () => {
       if (fromDate) q.append("from_date", fromDate);
       if (toDate) q.append("to_date", toDate);
 
-      // Global search fills transaction_id or customer_name or beneficiary_name
-      if (globalSearch.trim()) {
-        const queryVal = globalSearch.trim();
-        q.append("transaction_id", queryVal);
-        q.append("customer_name", queryVal);
-        q.append("beneficiary_name", queryVal);
+      if (debouncedSearch.trim()) {
+        q.append("search", debouncedSearch.trim());
       }
 
       if (searchTxnId) q.append("transaction_id", searchTxnId);
@@ -253,14 +286,16 @@ export const RetailerPayoutReport: React.FC = () => {
       if (maximumAmount) q.append("amount_to", maximumAmount);
 
       const res = await fetch(`/api/v1/payout/reports/grid?${q.toString()}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
       setItems(data.items || []);
       setTotalRecords(data.pagination?.total_records || 0);
       setFooterTotals(data.footer_totals || null);
     } catch (e: any) {
-      console.error("Failed to fetch payout report grid", e);
-      setError("Unable to load payout transactions. Please check server connection.");
+      console.error("Failed to fetch payout report grid:", e);
+      setError("Unable to load payout data.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -270,7 +305,7 @@ export const RetailerPayoutReport: React.FC = () => {
     rowsPerPage,
     fromDate,
     toDate,
-    globalSearch,
+    debouncedSearch,
     searchTxnId,
     searchRefId,
     searchCustomer,
@@ -283,11 +318,11 @@ export const RetailerPayoutReport: React.FC = () => {
     maximumAmount,
   ]);
 
-  // Initial Auto Load
+  // Initial Auto Load & Refresh on Dependencies
   useEffect(() => {
     fetchSummary(fromDate, toDate);
     fetchReportData();
-  }, []);
+  }, [fetchSummary, fetchReportData]);
 
   // Handle Preset Date Buttons
   const applyDatePreset = (presetKey: string) => {
@@ -313,11 +348,6 @@ export const RetailerPayoutReport: React.FC = () => {
     setToDate(t);
     setActivePreset(presetKey);
     setPage(0);
-
-    fetchSummary(f, t);
-    setTimeout(() => {
-      fetchReportData();
-    }, 50);
   };
 
   const handleRefresh = () => {
@@ -332,6 +362,7 @@ export const RetailerPayoutReport: React.FC = () => {
     setToDate(today);
     setActivePreset("TODAY");
     setGlobalSearch("");
+    setDebouncedSearch("");
     setSearchTxnId("");
     setSearchRefId("");
     setSearchCustomer("");
@@ -344,11 +375,6 @@ export const RetailerPayoutReport: React.FC = () => {
     setMaximumAmount("");
     setPage(0);
     setFilterAnchorEl(null);
-
-    fetchSummary(today, today);
-    setTimeout(() => {
-      fetchReportData();
-    }, 50);
   };
 
   const logAudit = async (action: string, details?: any) => {
@@ -369,39 +395,574 @@ export const RetailerPayoutReport: React.FC = () => {
   };
 
   // Export handlers
+  // Export handlers
   const handleExportCSV = () => {
     setExportAnchorEl(null);
     logAudit("REPORT_EXPORTED_CSV", { totalRecords, fromDate, toDate });
-    let csvStr = "S.No,Date & Time,Transaction ID,Reference ID,Customer,Beneficiary,Bank,Account,IFSC,Mode,Amount,Fee,GST,Wallet Debit,Commission,UTR,Status\n";
-    items.forEach((r) => {
-      csvStr += `${r.s_no},"${r.initiated_at || ""}","${r.transaction_number}","${r.reference_id}","${r.customer_name}","${r.beneficiary_name}","${r.bank_name}","${r.masked_account_number}","${r.ifsc_code}","${r.payment_mode}",${r.transfer_amount},${r.convenience_fee},${r.gst_amount},${r.wallet_debit},${r.retailer_commission},"${r.utr_number}","${r.status}"\n`;
+    let csvStr = "S.No,Txn ID,Customer,Beneficiary,Account,Amount,Mode,UTR,Tax,Date & Time,Fee,Wallet Type,Debit,Commission\n";
+    items.forEach((r, idx) => {
+      const sNo = page * rowsPerPage + idx + 1;
+      const txnId = r.transaction_number || r.transaction_id || "";
+      const cust = (r.customer_name || "N/A").replace(/"/g, '""');
+      const bene = (r.beneficiary_name || "N/A").replace(/"/g, '""');
+      const acc = r.masked_account_number || "XXXXXXXX1234";
+      const amt = `₹${Number(r.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      const mode = r.payment_mode || "IMPS";
+      const utr = r.utr_number || "--";
+      const taxVal = Number((r as any).tax_amount || ((r.gst_amount || 0) + (r.tds_amount || 0)));
+      const tax = `₹${taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      const dateTime = r.initiated_at || "--";
+      const fee = `₹${Number(r.convenience_fee || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      const walletType = (r as any).wallet_type || "MAIN_WALLET";
+      const debitVal = Number(r.wallet_debit || (Number(r.transfer_amount || 0) + Number(r.convenience_fee || 0) + taxVal));
+      const debit = `₹${debitVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      const comm = `₹${Number(r.retailer_commission || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+
+      csvStr += `${sNo},"${txnId}","${cust}","${bene}","${acc}","${amt}","${mode}","${utr}","${tax}","${dateTime}","${fee}","${walletType}","${debit}","${comm}"\n`;
     });
 
     const blob = new Blob([csvStr], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Payout_Report_${fromDate}_to_${toDate}.csv`;
+    a.download = `Pay2Pay_Payout_Report_${fromDate || "All"}_to_${toDate || "Today"}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  const generatePrintHtml = (reportItems: PayoutReportItem[], summaryData: PayoutReportSummary | null, fDate: string, tDate: string) => {
+    const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const totAmount = summaryData ? summaryData.todays_transfer_amount : reportItems.reduce((s, r) => s + r.transfer_amount, 0);
+    const totTxns = summaryData ? summaryData.todays_transactions : reportItems.length;
+    const succAmount = summaryData ? (summaryData.successful_amount ?? summaryData.todays_transfer_amount) : reportItems.filter(r => r.status === "SUCCESS").reduce((s, r) => s + r.transfer_amount, 0);
+    const succTxns = summaryData ? summaryData.successful_transactions : reportItems.filter(r => r.status === "SUCCESS").length;
+    const pendAmount = summaryData ? (summaryData.pending_amount ?? 0) : reportItems.filter(r => ["PENDING", "PROCESSING"].includes(r.status)).reduce((s, r) => s + r.transfer_amount, 0);
+    const pendTxns = summaryData ? summaryData.pending_transactions : reportItems.filter(r => ["PENDING", "PROCESSING"].includes(r.status)).length;
+    const failAmount = summaryData ? (summaryData.failed_amount ?? 0) : reportItems.filter(r => ["FAILED", "REJECTED", "REVERSED"].includes(r.status)).reduce((s, r) => s + r.transfer_amount, 0);
+    const failTxns = summaryData ? (summaryData.failed_transactions + summaryData.reversed_transactions) : reportItems.filter(r => ["FAILED", "REJECTED", "REVERSED"].includes(r.status)).length;
+
+    let rowsHtml = "";
+    if (reportItems.length > 0) {
+      reportItems.forEach((r, idx) => {
+        const taxVal = Number((r as any).tax_amount || ((r.gst_amount || 0) + (r.tds_amount || 0)));
+        const feeVal = Number(r.convenience_fee || 0);
+        const amtVal = Number(r.transfer_amount || 0);
+        const debitVal = Number(r.wallet_debit || (amtVal + feeVal + taxVal));
+        const commVal = Number(r.retailer_commission || 0);
+
+        rowsHtml += `
+          <tr style="border-bottom: 1px solid #e2e8f0; font-size: 10px;">
+            <td style="padding: 6px; text-align: center; font-weight: 600;">${idx + 1}</td>
+            <td style="padding: 6px; font-weight: bold; font-family: monospace;">${r.transaction_number || r.transaction_id || "-"}</td>
+            <td style="padding: 6px;">${r.customer_name || "N/A"}</td>
+            <td style="padding: 6px;">${r.beneficiary_name || "N/A"}</td>
+            <td style="padding: 6px; font-family: monospace;">${r.masked_account_number || "XXXXXXXX1234"}</td>
+            <td style="padding: 6px; text-align: right; font-weight: bold; color: #16a34a;">₹${amtVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="padding: 6px; text-align: center; font-weight: bold;">${r.payment_mode || "IMPS"}</td>
+            <td style="padding: 6px; font-family: monospace;">${r.utr_number || "-"}</td>
+            <td style="padding: 6px; text-align: right;">₹${taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="padding: 6px;">${r.initiated_at || "-"}</td>
+            <td style="padding: 6px; text-align: right;">₹${feeVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="padding: 6px; text-align: center;">${(r as any).wallet_type || "MAIN_WALLET"}</td>
+            <td style="padding: 6px; text-align: right; font-weight: bold;">₹${debitVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="padding: 6px; text-align: right; color: #059669; font-weight: bold;">₹${commVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+          </tr>
+        `;
+      });
+    } else {
+      rowsHtml = `
+        <tr>
+          <td colSpan="14" style="text-align:center; padding: 24px; color:#64748b; font-weight: 600;">
+            No payout transactions found.
+          </td>
+        </tr>
+      `;
+    }
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Pay2Pay_Payout_Report_RET-CHE-108_${new Date().toISOString().split('T')[0]}</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; background: #ffffff; margin: 0; padding: 16px; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 12px; }
+          .brand { font-size: 18px; font-weight: 900; color: #1e3a8a; letter-spacing: -0.5px; }
+          .subbrand { font-size: 10px; color: #2563eb; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+          .meta { text-align: right; font-size: 10px; color: #475569; }
+          .meta-grid { display: flex; gap: 12px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 10px; }
+          .meta-item { flex: 1; }
+          .meta-item .label { font-weight: 700; color: #64748b; font-size: 9px; text-transform: uppercase; }
+          .meta-item .val { font-weight: 800; color: #0f172a; margin-top: 2px; }
+          .summary-grid { display: flex; gap: 10px; margin-bottom: 16px; }
+          .summary-box { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; background: #f8fafc; }
+          .summary-box .label { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; }
+          .summary-box .val { font-size: 14px; font-weight: 900; color: #0f172a; margin: 2px 0 1px 0; }
+          .summary-box .sub { font-size: 10px; color: #475569; font-weight: 600; }
+          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+          th { background: #f1f5f9; color: #1e293b; font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 6px; border-bottom: 2px solid #cbd5e1; text-align: left; }
+          .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; font-weight: 600; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="subbrand">Pay2Pay FinTech Retailer Platform</div>
+            <div class="brand">RETAILER PAYOUT REPORT</div>
+          </div>
+          <div class="meta">
+            <div><strong>Generated At:</strong> ${today}</div>
+            <div><strong>Report Format:</strong> Printable Statement</div>
+          </div>
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta-item">
+            <div class="label">Retailer Name</div>
+            <div class="val">Pay2Pay Retailer Outlet</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Retailer ID</div>
+            <div class="val">RET-CHE-108</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Report Period</div>
+            <div class="val">${fDate || "All Time"} to ${tDate || "Today"}</div>
+          </div>
+          <div class="meta-item">
+            <div class="label">Applied Filters</div>
+            <div class="val">Status: ${statusFilter || "ALL"} | Mode: ${paymentModeFilter || "ALL"}</div>
+          </div>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-box" style="border-top: 3px solid #2563eb;">
+            <div class="label" style="color: #2563eb;">TOTAL PAYOUTS</div>
+            <div class="val">₹${totAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+            <div class="sub">${totTxns} transactions</div>
+          </div>
+          <div class="summary-box" style="border-top: 3px solid #16a34a;">
+            <div class="label" style="color: #16a34a;">SUCCESSFUL</div>
+            <div class="val" style="color: #16a34a;">₹${succAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+            <div class="sub">${succTxns} successful</div>
+          </div>
+          <div class="summary-box" style="border-top: 3px solid #d97706;">
+            <div class="label" style="color: #d97706;">PENDING</div>
+            <div class="val" style="color: #d97706;">₹${pendAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+            <div class="sub">${pendTxns} processing</div>
+          </div>
+          <div class="summary-box" style="border-top: 3px solid #dc2626;">
+            <div class="label" style="color: #dc2626;">FAILED / REVERSED</div>
+            <div class="val" style="color: #dc2626;">₹${failAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+            <div class="sub">${failTxns} transactions</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align: center;">S.No</th>
+              <th>Txn ID</th>
+              <th>Customer</th>
+              <th>Beneficiary</th>
+              <th>Account</th>
+              <th style="text-align: right;">Amount</th>
+              <th style="text-align: center;">Mode</th>
+              <th>UTR</th>
+              <th style="text-align: right;">Tax</th>
+              <th>Date & Time</th>
+              <th style="text-align: right;">Fee</th>
+              <th>Wallet Type</th>
+              <th style="text-align: right;">Debit</th>
+              <th style="text-align: right;">Commission</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div>Pay2Pay FinTech Retailer Platform · Official Statement</div>
+          <div>Confidential — For Authorized Use Only</div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+  };
+
   const handleExportExcel = () => {
     setExportAnchorEl(null);
-    logAudit("REPORT_EXPORTED_EXCEL", { totalRecords });
+    logAudit("REPORT_EXPORTED_EXCEL", { totalRecords, fromDate, toDate });
     handleExportCSV();
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     setExportAnchorEl(null);
-    logAudit("REPORT_EXPORTED_PDF", { totalRecords });
-    window.print();
+    setIsExportingPdf(true);
+    logAudit("REPORT_EXPORTED_PDF", { totalRecords, fromDate, toDate });
+
+    try {
+      const params = new URLSearchParams({
+        retailer_id: "f89239b5-4dbb-41a9-9ba7-0f97580c9368",
+        tenant_id: "93538c98-0b19-493c-a247-4cdb02a46c68",
+        export_format: "pdf",
+      });
+
+      if (fromDate) params.append("from_date", fromDate);
+      if (toDate) params.append("to_date", toDate);
+      if (statusFilter && statusFilter !== "ALL") params.append("status", statusFilter);
+      if (paymentModeFilter && paymentModeFilter !== "ALL") params.append("payment_mode", paymentModeFilter);
+      if (globalSearch) params.append("search", globalSearch);
+
+      const downloadUrl = `/api/v1/payout/reports/export/pdf?${params.toString()}`;
+      
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Pay2Pay_Payout_Report_RET-CHE-108_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF Export error:", err);
+      alert("Unable to generate the payout report PDF. Please check server connection and try again.");
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   const handlePrintReport = () => {
     setExportAnchorEl(null);
-    logAudit("REPORT_PRINTED", { totalRecords });
-    window.print();
+    logAudit("REPORT_PRINTED", { totalRecords, fromDate, toDate });
+    const printWin = window.open("", "_blank", "width=1100,height=800");
+    if (printWin) {
+      printWin.document.write(generatePrintHtml(items, summary, fromDate, toDate));
+      printWin.document.close();
+    }
+  };
+
+  const generateSingleReceiptPrintHtml = (txn: PayoutReportItem) => {
+    const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const stStr = (txn.status || "SUCCESS").toUpperCase();
+    let stColor = "#16a34a";
+    let stBadgeText = "✓ TRANSACTION SUCCESSFUL";
+    let stBg = "#f0fdf4";
+    if (["PENDING", "PROCESSING"].includes(stStr)) {
+      stColor = "#d97706";
+      stBadgeText = "◷ TRANSACTION PENDING";
+      stBg = "#fffbeb";
+    } else if (["FAILED", "REJECTED"].includes(stStr)) {
+      stColor = "#dc2626";
+      stBadgeText = "✕ TRANSACTION FAILED";
+      stBg = "#fef2f2";
+    } else if (["REVERSED", "PARTIALLY_REVERSED"].includes(stStr)) {
+      stColor = "#7c3aed";
+      stBadgeText = "↩ TRANSACTION REVERSED";
+      stBg = "#f3e8ff";
+    }
+
+    const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+    const feeStr = `₹${Number(txn.convenience_fee || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+    const gstStr = `₹${Number(txn.gst_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+    const debitStr = `₹${Number(txn.wallet_debit || (txn.transfer_amount + (txn.convenience_fee || 0) + (txn.gst_amount || 0))).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Pay2Pay_Receipt_${txn.transaction_number || txn.reference_id}</title>
+        <style>
+          @page { size: A4 portrait; margin: 12mm; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; background: #ffffff; margin: 0; padding: 20px; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 16px; }
+          .brand { font-size: 20px; font-weight: 900; color: #1e3a8a; letter-spacing: -0.5px; }
+          .subbrand { font-size: 11px; color: #2563eb; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+          .meta { text-align: right; font-size: 11px; color: #475569; }
+          .hero { text-align: center; background: ${stBg}; border: 1px solid ${stColor}; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+          .hero-status { font-weight: 800; font-size: 14px; color: ${stColor}; text-transform: uppercase; margin-bottom: 4px; }
+          .hero-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+          .hero-amount { font-size: 28px; font-weight: 900; color: #0f172a; }
+          .section-title { font-size: 11px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; margin: 16px 0 6px 0; letter-spacing: 0.5px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }
+          td { padding: 8px 10px; border: 1px solid #e2e8f0; }
+          td.lbl { font-weight: 700; color: #64748b; width: 35%; background: #f8fafc; text-transform: uppercase; font-size: 10px; }
+          td.val { font-weight: 700; color: #0f172a; }
+          td.mono { font-family: monospace; font-weight: 800; }
+          .footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #64748b; display: flex; justify-content: space-between; font-weight: 600; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="subbrand">Pay2Pay FinTech Retailer Platform</div>
+            <div class="brand">OFFICIAL TRANSACTION RECEIPT</div>
+          </div>
+          <div class="meta">
+            <div><strong>Retailer:</strong> Pay2Pay Retailer Outlet (RET-CHE-108)</div>
+            <div><strong>Generated At:</strong> ${today}</div>
+          </div>
+        </div>
+
+        <div class="hero">
+          <div class="hero-status">${stBadgeText}</div>
+          <div class="hero-label">Transfer Amount</div>
+          <div class="hero-amount">${amtStr}</div>
+        </div>
+
+        <div class="section-title">Transaction Information</div>
+        <table>
+          <tr><td class="lbl">Transaction ID</td><td class="val mono">${txn.transaction_number || txn.reference_id}</td></tr>
+          <tr><td class="lbl">Reference ID</td><td class="val mono">${txn.reference_id || "-"}</td></tr>
+          <tr><td class="lbl">UTR Number</td><td class="val mono" style="color: ${txn.utr_number ? "#16a34a" : "#64748b"};">${txn.utr_number || "--"}</td></tr>
+          <tr><td class="lbl">Payment Mode</td><td class="val">${txn.payment_mode || "IMPS"}</td></tr>
+          <tr><td class="lbl">Initiated At</td><td class="val">${txn.initiated_at ? txn.initiated_at.replace("T", " ") : "-"}</td></tr>
+          <tr><td class="lbl">Completed At</td><td class="val">${txn.completed_at ? txn.completed_at.replace("T", " ") : "--"}</td></tr>
+        </table>
+
+        <div class="section-title">Customer Information</div>
+        <table>
+          <tr><td class="lbl">Customer Name</td><td class="val">${txn.customer_name || "N/A"}</td></tr>
+          <tr><td class="lbl">Mobile Number</td><td class="val mono">${txn.customer_mobile || "N/A"}</td></tr>
+        </table>
+
+        <div class="section-title">Beneficiary Information</div>
+        <table>
+          <tr><td class="lbl">Beneficiary Name</td><td class="val">${txn.beneficiary_name || "N/A"}</td></tr>
+          <tr><td class="lbl">Bank Name</td><td class="val">${txn.bank_name || "N/A"}</td></tr>
+          <tr><td class="lbl">Account Number</td><td class="val mono">${txn.masked_account_number || "XXXX XXXX 1234"}</td></tr>
+          <tr><td class="lbl">IFSC Code</td><td class="val mono">${txn.ifsc_code || "N/A"}</td></tr>
+        </table>
+
+        <div class="section-title">Financial Breakdown</div>
+        <table>
+          <tr><td class="lbl">Transfer Amount</td><td class="val">${amtStr}</td></tr>
+          <tr><td class="lbl">Convenience Fee</td><td class="val">${feeStr}</td></tr>
+          <tr><td class="lbl">GST Amount</td><td class="val">${gstStr}</td></tr>
+          <tr><td class="lbl">Total Wallet Debit</td><td class="val" style="color:#16a34a; font-weight:900;">${debitStr}</td></tr>
+        </table>
+
+        ${txn.remarks || ["REVERSED", "FAILED"].includes(stStr) ? `
+          <div class="section-title">Status Remark / Reason</div>
+          <table>
+            <tr><td class="lbl">Remark / Reason</td><td class="val">${txn.remarks || `Transaction marked as ${stStr} by banking partner.`}</td></tr>
+          </table>
+        ` : ""}
+
+        <div class="footer">
+          <div>Pay2Pay FinTech Solutions · System Generated Official Receipt</div>
+          <div>Confidential — For Authorized Customer Use</div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() { window.print(); }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+  };
+
+  const generateReceiptImage = (txn: PayoutReportItem) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1200;
+    canvas.height = 1600;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, 1200, 1600);
+
+    ctx.fillStyle = "#1E3A8A";
+    ctx.fillRect(0, 0, 1200, 24);
+
+    ctx.fillStyle = "#F8FAFC";
+    ctx.fillRect(60, 60, 1080, 120);
+    ctx.strokeStyle = "#CBD5E1";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(60, 60, 1080, 120);
+
+    ctx.fillStyle = "#2563EB";
+    ctx.font = "bold 20px 'Segoe UI', sans-serif";
+    ctx.fillText("PAY2PAY FINTECH RETAILER PLATFORM", 90, 105);
+
+    ctx.fillStyle = "#0F172A";
+    ctx.font = "bold 32px 'Segoe UI', sans-serif";
+    ctx.fillText("OFFICIAL TRANSACTION RECEIPT", 90, 150);
+
+    const stStr = (txn.status || "SUCCESS").toUpperCase();
+    let stColor = "#16A34A";
+    let stBg = "#F0FDF4";
+    if (["PENDING", "PROCESSING"].includes(stStr)) { stColor = "#D97706"; stBg = "#FFFBEB"; }
+    else if (["FAILED", "REJECTED"].includes(stStr)) { stColor = "#DC2626"; stBg = "#FEF2F2"; }
+    else if (["REVERSED", "PARTIALLY_REVERSED"].includes(stStr)) { stColor = "#7C3AED"; stBg = "#F3E8FF"; }
+
+    ctx.fillStyle = stBg;
+    ctx.fillRect(60, 210, 1080, 160);
+    ctx.strokeStyle = stColor;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(60, 210, 1080, 160);
+
+    ctx.fillStyle = stColor;
+    ctx.font = "bold 24px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`STATUS: ${stStr}`, 600, 260);
+
+    ctx.fillStyle = "#64748B";
+    ctx.font = "bold 18px 'Segoe UI', sans-serif";
+    ctx.fillText("TRANSFER AMOUNT", 600, 295);
+
+    ctx.fillStyle = "#0F172A";
+    ctx.font = "bold 46px 'Segoe UI', sans-serif";
+    ctx.fillText(`₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, 600, 350);
+
+    ctx.textAlign = "left";
+
+    const dataRows = [
+      ["Transaction ID", txn.transaction_number || txn.reference_id],
+      ["Reference ID", txn.reference_id || "-"],
+      ["UTR Number", txn.utr_number || "--"],
+      ["Payment Mode", txn.payment_mode || "IMPS"],
+      ["Initiated At", txn.initiated_at ? txn.initiated_at.replace("T", " ") : "-"],
+      ["Customer Name", txn.customer_name || "N/A"],
+      ["Customer Mobile", txn.customer_mobile || "N/A"],
+      ["Beneficiary Name", txn.beneficiary_name || "N/A"],
+      ["Bank Name", txn.bank_name || "N/A"],
+      ["Account Number", txn.masked_account_number || "XXXX XXXX 1234"],
+      ["IFSC Code", txn.ifsc_code || "N/A"],
+      ["Wallet Debit", `₹${Number(txn.wallet_debit || txn.transfer_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+      ["Retailer Name", "Pay2Pay Retailer Outlet"],
+      ["Retailer ID", "RET-CHE-108"],
+    ];
+
+    let startY = 410;
+    dataRows.forEach(([lbl, val], i) => {
+      const y = startY + i * 70;
+      ctx.fillStyle = i % 2 === 0 ? "#F8FAFC" : "#FFFFFF";
+      ctx.fillRect(60, y, 1080, 60);
+      ctx.strokeStyle = "#E2E8F0";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(60, y, 1080, 60);
+
+      ctx.fillStyle = "#64748B";
+      ctx.font = "bold 18px 'Segoe UI', sans-serif";
+      ctx.fillText(lbl.toUpperCase(), 90, y + 36);
+
+      ctx.fillStyle = "#0F172A";
+      ctx.font = "bold 20px 'Courier New', monospace";
+      ctx.fillText(String(val), 420, y + 36);
+    });
+
+    ctx.fillStyle = "#94A3B8";
+    ctx.fillRect(60, 1500, 1080, 2);
+
+    ctx.fillStyle = "#64748B";
+    ctx.font = "16px 'Segoe UI', sans-serif";
+    ctx.fillText("Pay2Pay FinTech Solutions · System Generated Official Receipt Image", 60, 1540);
+    ctx.fillText("Confidential — For Authorized Customer Use", 760, 1540);
+
+    const imgUrl = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = imgUrl;
+    a.download = `Pay2Pay_Receipt_${txn.transaction_number || txn.reference_id}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    logAudit("RECEIPT_IMAGE_DOWNLOADED", { transaction_id: txn.transaction_number || txn.reference_id });
+  };
+
+  const handlePrintSingleReceipt = (txn: PayoutReportItem) => {
+    logAudit("RECEIPT_PRINTED", { transaction_id: txn.transaction_number || txn.reference_id });
+    const printWin = window.open("", "_blank", "width=900,height=800");
+    if (printWin) {
+      printWin.document.write(generateSingleReceiptPrintHtml(txn));
+      printWin.document.close();
+    }
+  };
+
+  const handleDownloadSinglePdf = async (txn: PayoutReportItem) => {
+    setIsDownloadingSinglePdf(true);
+    const txId = txn.transaction_number || txn.reference_id;
+    logAudit("RECEIPT_DOWNLOADED", { transaction_id: txId });
+
+    try {
+      const res = await fetch(`/api/v1/payout/reports/transactions/${encodeURIComponent(txId)}/receipt/pdf`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Pay2Pay_Receipt_${txId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download receipt PDF error:", err);
+      setSnackbarMsg("Unable to generate PDF receipt. Please check server connection and try again.");
+      setSnackbarOpen(true);
+    } finally {
+      setIsDownloadingSinglePdf(false);
+    }
+  };
+
+  const handleShareWhatsApp = (txn: PayoutReportItem) => {
+    const txId = txn.transaction_number || txn.reference_id;
+    const stStr = (txn.status || "SUCCESS").toUpperCase();
+    const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+    const dateStr = txn.initiated_at ? txn.initiated_at.replace("T", " ") : "N/A";
+    
+    const msg = `Pay2Pay FinTech Retailer Platform\n\nOfficial Transaction Receipt\n\nTransaction ID:\n${txId}\n\nStatus:\n${stStr}\n\nAmount:\n${amtStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nDate:\n${dateStr}\n\nRetailer:\nPay2Pay Retailer Outlet\n\nCustomer:\n${txn.customer_name || "N/A"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"} (${txn.masked_account_number || "XXXX XXXX 1234"})\n\nFor more details, please refer to your official receipt statement.`;
+
+    logAudit("RECEIPT_SHARED_WHATSAPP", { transaction_id: txId });
+
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, "_blank");
+  };
+
+  const handleShareEmail = (txn: PayoutReportItem) => {
+    const txId = txn.transaction_number || txn.reference_id;
+    const stStr = (txn.status || "SUCCESS").toUpperCase();
+    const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+
+    const subject = `Pay2Pay Transaction Receipt - ${txId}`;
+    const body = `Dear Customer,\n\nPlease find the transaction details below.\n\nTransaction ID:\n${txId}\n\nAmount:\n${amtStr}\n\nStatus:\n${stStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"}\n\nRegards,\nPay2Pay FinTech Retailer Platform`;
+
+    logAudit("RECEIPT_SHARED_EMAIL", { transaction_id: txId });
+
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_self");
+  };
+
+  const handleCopyDetails = (txn: PayoutReportItem) => {
+    const txId = txn.transaction_number || txn.reference_id;
+    const stStr = (txn.status || "SUCCESS").toUpperCase();
+    const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+    const dateStr = txn.initiated_at ? txn.initiated_at.replace("T", " ") : "N/A";
+
+    const text = `Pay2Pay Transaction Receipt\nID: ${txId}\nStatus: ${stStr}\nAmount: ${amtStr}\nRef ID: ${txn.reference_id || "-"}\nUTR: ${txn.utr_number || "--"}\nDate: ${dateStr}\nCustomer: ${txn.customer_name || "N/A"}\nBeneficiary: ${txn.beneficiary_name || "N/A"} (${txn.masked_account_number || "XXXX XXXX 1234"})`;
+
+    navigator.clipboard.writeText(text);
+    setSnackbarMsg("Transaction receipt details copied to clipboard!");
+    setSnackbarOpen(true);
+    logAudit("RECEIPT_COPIED", { transaction_id: txId });
   };
 
   const handleViewDetails = (row: PayoutReportItem) => {
@@ -462,17 +1023,234 @@ export const RetailerPayoutReport: React.FC = () => {
 
   return (
     <Box sx={{ width: "100%", color: "#F8FAFC" }}>
-      {/* 1. PAGE HEADER */}
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, fontSize: "28px", color: "#FFFFFF", letterSpacing: "-0.5px" }}>
-          Payouts
-        </Typography>
-        <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "14px", mt: 0.2 }}>
-          View and manage retailer payout transactions
-        </Typography>
-      </Box>
+      {/* 1. SINGLE INTEGRATED COMPACT HEADER + FINANCIAL TOOLBAR CONTAINER (HEIGHT ~75-90px) */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 2,
+          p: 1.5,
+          px: 2.5,
+          bgcolor: "#121B28",
+          border: "1px solid #1E293B",
+          borderRadius: "8px",
+          minHeight: "78px",
+          display: "flex",
+          alignItems: "center"
+        }}
+      >
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "22% repeat(4, 19.5%)" },
+            gap: { xs: 2, lg: 0 },
+            width: "100%",
+            alignItems: "center"
+          }}
+        >
+          {/* SECTION 1 — PAGE TITLE (Width ~22%) */}
+          <Box sx={{ pr: { lg: 2.5 } }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 800,
+                fontSize: "20px",
+                color: "#FFFFFF",
+                letterSpacing: "-0.3px",
+                lineHeight: 1.2
+              }}
+            >
+              Payouts
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#94A3B8",
+                fontSize: "11px",
+                fontWeight: 500,
+                display: "block",
+                mt: 0.3,
+                lineHeight: 1.3
+              }}
+            >
+              View and manage retailer payout transactions
+            </Typography>
+          </Box>
 
-      {/* 2. SEARCH & DATE RANGE TOOLBAR */}
+          {/* SECTION 2 — TOTAL PAYOUTS */}
+          <Box
+            sx={{
+              borderLeft: { lg: "1px solid #1E293B" },
+              pl: { lg: 2.5 },
+              pr: { lg: 2 }
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#94A3B8",
+                fontWeight: 700,
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.6px"
+              }}
+            >
+              TOTAL PAYOUTS
+            </Typography>
+            {isSummaryLoading ? (
+              <Skeleton variant="text" width={90} height={26} sx={{ bgcolor: "rgba(255,255,255,0.08)", my: 0.2 }} />
+            ) : summaryError ? (
+              <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", my: 0.2 }}>
+                <Typography variant="caption" sx={{ color: "#F87171", fontSize: "10px" }}>
+                  Unable to load summary.
+                </Typography>
+                <Button size="small" onClick={() => fetchSummary(fromDate, toDate)} sx={{ fontSize: "10px", p: 0, minWidth: "auto", color: "#3B82F6", textTransform: "none" }}>
+                  Retry
+                </Button>
+              </Stack>
+            ) : (
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  color: "#FFFFFF",
+                  fontSize: "19px",
+                  my: 0.1,
+                  lineHeight: 1.1
+                }}
+              >
+                ₹{summary ? summary.todays_transfer_amount.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px", fontWeight: 500 }}>
+              {summary ? summary.todays_transactions : 0} txns
+            </Typography>
+          </Box>
+
+          {/* SECTION 3 — SUCCESSFUL */}
+          <Box
+            sx={{
+              borderLeft: { lg: "1px solid #1E293B" },
+              pl: { lg: 2.5 },
+              pr: { lg: 2 }
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#4ADE80",
+                fontWeight: 700,
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.6px"
+              }}
+            >
+              SUCCESSFUL
+            </Typography>
+            {isSummaryLoading ? (
+              <Skeleton variant="text" width={90} height={26} sx={{ bgcolor: "rgba(255,255,255,0.08)", my: 0.2 }} />
+            ) : (
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  color: "#4ADE80",
+                  fontSize: "19px",
+                  my: 0.1,
+                  lineHeight: 1.1
+                }}
+              >
+                ₹{summary ? (summary.successful_amount ?? summary.todays_transfer_amount).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>
+              {summary ? summary.successful_transactions : 0} success
+            </Typography>
+          </Box>
+
+          {/* SECTION 4 — PENDING */}
+          <Box
+            sx={{
+              borderLeft: { lg: "1px solid #1E293B" },
+              pl: { lg: 2.5 },
+              pr: { lg: 2 }
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#FBBF24",
+                fontWeight: 700,
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.6px"
+              }}
+            >
+              PENDING
+            </Typography>
+            {isSummaryLoading ? (
+              <Skeleton variant="text" width={90} height={26} sx={{ bgcolor: "rgba(255,255,255,0.08)", my: 0.2 }} />
+            ) : (
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  color: "#FBBF24",
+                  fontSize: "19px",
+                  my: 0.1,
+                  lineHeight: 1.1
+                }}
+              >
+                ₹{summary ? (summary.pending_amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>
+              {summary ? summary.pending_transactions : 0} proc.
+            </Typography>
+          </Box>
+
+          {/* SECTION 5 — FAILED / REVERSED */}
+          <Box
+            sx={{
+              borderLeft: { lg: "1px solid #1E293B" },
+              pl: { lg: 2.5 }
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#F87171",
+                fontWeight: 700,
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.6px"
+              }}
+            >
+              FAILED / REVERSED
+            </Typography>
+            {isSummaryLoading ? (
+              <Skeleton variant="text" width={90} height={26} sx={{ bgcolor: "rgba(255,255,255,0.08)", my: 0.2 }} />
+            ) : (
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  color: "#F87171",
+                  fontSize: "19px",
+                  my: 0.1,
+                  lineHeight: 1.1
+                }}
+              >
+                ₹{summary ? (summary.failed_amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>
+              {summary ? (summary.failed_transactions + summary.reversed_transactions) : 0} txns
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* 3. SEARCH + DATE RANGE TOOLBAR */}
       <Paper
         elevation={0}
         sx={{
@@ -489,19 +1267,15 @@ export const RetailerPayoutReport: React.FC = () => {
           gap: 1.5,
         }}
       >
-        {/* Universal Payout Search Input */}
+        {/* Search Input */}
         <TextField
-          placeholder="Search transaction, UTR, customer, beneficiary..."
+          placeholder="Search by Transaction ID, UTR, Customer, Beneficiary, Mobile"
           value={globalSearch}
-          onChange={(e) => {
-            setGlobalSearch(e.target.value);
-            setPage(0);
-          }}
+          onChange={(e) => setGlobalSearch(e.target.value)}
           size="small"
           sx={{
             flexGrow: 1,
             width: { xs: "100%", md: "auto" },
-            maxWidth: { xs: "100%", md: "520px" },
             "& .MuiOutlinedInput-root": {
               bgcolor: "#090D16",
               borderRadius: "6px",
@@ -531,8 +1305,8 @@ export const RetailerPayoutReport: React.FC = () => {
           }}
         />
 
-        {/* Date Range Presets */}
-        <Stack direction="row" spacing={0.5} sx={{ bgcolor: "#090D16", p: 0.5, borderRadius: "6px", border: "1px solid #1E293B" }}>
+        {/* Date Presets Segmented Control */}
+        <Stack direction="row" spacing={0.5} sx={{ bgcolor: "#090D16", p: 0.5, borderRadius: "6px", border: "1px solid #1E293B", width: { xs: "100%", md: "auto" }, justifyContent: "center" }}>
           {[
             { key: "TODAY", label: "Today" },
             { key: "YESTERDAY", label: "Yesterday" },
@@ -566,81 +1340,7 @@ export const RetailerPayoutReport: React.FC = () => {
         </Stack>
       </Paper>
 
-      {/* 3. PAYOUT SUMMARY STRIP */}
-      <Paper
-        elevation={0}
-        sx={{
-          mb: 2,
-          p: 2,
-          bgcolor: "#121B28",
-          border: "1px solid #1E293B",
-          borderRadius: "8px",
-        }}
-      >
-        <Grid container spacing={2} alignItems="center">
-          {/* TOTAL PAYOUTS */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Box sx={{ pr: { md: 2 } }}>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                TOTAL PAYOUTS
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "22px", my: 0.3 }}>
-                ₹{(summary?.todays_transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </Typography>
-              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
-                {summary?.todays_transactions || 0} transactions
-              </Typography>
-            </Box>
-          </Grid>
-
-          {/* SUCCESSFUL */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Box sx={{ borderLeft: { md: "1px solid #1E293B" }, pl: { md: 2 } }}>
-              <Typography variant="caption" sx={{ color: "#4ADE80", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                SUCCESSFUL
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "22px", my: 0.3 }}>
-                ₹{(summary?.successful_amount || summary?.todays_transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
-                {summary?.successful_transactions || 0} successful
-              </Typography>
-            </Box>
-          </Grid>
-
-          {/* PENDING */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Box sx={{ borderLeft: { md: "1px solid #1E293B" }, pl: { md: 2 } }}>
-              <Typography variant="caption" sx={{ color: "#FBBF24", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                PENDING
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "22px", my: 0.3 }}>
-                ₹{(summary?.pending_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
-                {summary?.pending_transactions || 0} processing
-              </Typography>
-            </Box>
-          </Grid>
-
-          {/* FAILED / REVERSED */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Box sx={{ borderLeft: { md: "1px solid #1E293B" }, pl: { md: 2 } }}>
-              <Typography variant="caption" sx={{ color: "#F87171", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                FAILED / REVERSED
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: "#F87171", fontSize: "22px", my: 0.3 }}>
-                ₹{(summary?.failed_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
-                {summary?.failed_transactions || 0} transactions
-              </Typography>
-            </Box>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {/* 4. FILTER DESIGN & EXPORT TOOLBAR */}
+      {/* 4. FILTER TOOLBAR */}
       <Paper
         elevation={0}
         sx={{
@@ -659,7 +1359,7 @@ export const RetailerPayoutReport: React.FC = () => {
       >
         {/* Left Controls: Status & Mode Selectors + Advanced Filters Button */}
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-          {/* Status Dropdown */}
+          {/* Status Selector */}
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <Select
               value={statusFilter}
@@ -673,7 +1373,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 fontSize: "12px",
                 bgcolor: "#0F172A",
                 color: "#F8FAFC",
-                borderRadius: "8px",
+                borderRadius: "6px",
                 "& fieldset": { borderColor: "#1E293B" },
               }}
             >
@@ -685,7 +1385,7 @@ export const RetailerPayoutReport: React.FC = () => {
             </Select>
           </FormControl>
 
-          {/* Payment Mode Dropdown */}
+          {/* Payment Mode Selector */}
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <Select
               value={paymentModeFilter}
@@ -699,7 +1399,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 fontSize: "12px",
                 bgcolor: "#0F172A",
                 color: "#F8FAFC",
-                borderRadius: "8px",
+                borderRadius: "6px",
                 "& fieldset": { borderColor: "#1E293B" },
               }}
             >
@@ -724,7 +1424,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 fontWeight: 600,
                 color: "#CBD5E1",
                 borderColor: "#1E293B",
-                borderRadius: "8px",
+                borderRadius: "6px",
                 textTransform: "none",
                 "&:hover": { borderColor: "#3B82F6", bgcolor: "rgba(59, 130, 246, 0.08)" },
               }}
@@ -745,8 +1445,7 @@ export const RetailerPayoutReport: React.FC = () => {
         </Stack>
 
         {/* Right Controls: Export Dropdown & Refresh */}
-        <Stack direction="row" spacing={1} alignItems="center">
-          {/* Export Dropdown Button */}
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           <Button
             variant="contained"
             size="small"
@@ -759,7 +1458,7 @@ export const RetailerPayoutReport: React.FC = () => {
               fontWeight: 700,
               bgcolor: "#2563EB",
               color: "#FFFFFF",
-              borderRadius: "8px",
+              borderRadius: "6px",
               textTransform: "none",
               boxShadow: "none",
               "&:hover": { bgcolor: "#1D4ED8", boxShadow: "none" },
@@ -778,7 +1477,7 @@ export const RetailerPayoutReport: React.FC = () => {
                   bgcolor: "#0F172A",
                   color: "#F8FAFC",
                   border: "1px solid #1E293B",
-                  borderRadius: "10px",
+                  borderRadius: "8px",
                   mt: 0.5,
                   minWidth: 140,
                 },
@@ -800,7 +1499,6 @@ export const RetailerPayoutReport: React.FC = () => {
             </MenuItem>
           </Menu>
 
-          {/* Refresh Button */}
           <IconButton
             size="small"
             onClick={handleRefresh}
@@ -808,7 +1506,7 @@ export const RetailerPayoutReport: React.FC = () => {
             sx={{
               color: "#94A3B8",
               border: "1px solid #1E293B",
-              borderRadius: "8px",
+              borderRadius: "6px",
               p: 0.8,
               "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.05)" },
             }}
@@ -818,7 +1516,7 @@ export const RetailerPayoutReport: React.FC = () => {
         </Stack>
       </Paper>
 
-      {/* ADVANCED FILTERS POPOVER */}
+      {/* 5. ADVANCED FILTERS MODAL / POPOVER */}
       <Popover
         open={Boolean(filterAnchorEl)}
         anchorEl={filterAnchorEl}
@@ -833,7 +1531,7 @@ export const RetailerPayoutReport: React.FC = () => {
               bgcolor: "#0F172A",
               color: "#F8FAFC",
               border: "1px solid #1E293B",
-              borderRadius: "12px",
+              borderRadius: "10px",
               boxShadow: "0 16px 36px rgba(0,0,0,0.6)",
               mt: 1,
             },
@@ -841,19 +1539,19 @@ export const RetailerPayoutReport: React.FC = () => {
         }}
       >
         <Stack spacing={2}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "14px", color: "#FFFFFF" }}>
               Filter Payout Transactions
             </Typography>
             <IconButton size="small" onClick={() => setFilterAnchorEl(null)} sx={{ color: "#64748B" }}>
               <CloseIcon sx={{ fontSize: 16 }} />
             </IconButton>
-          </Stack>
+          </Box>
           <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)" }} />
 
-          {/* Date Pickers */}
-          <Grid container spacing={1.5}>
-            <Grid item xs={6}>
+          {/* Date Range Inputs */}
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+            <Box>
               <Typography variant="caption" sx={{ color: "#94A3B8", mb: 0.5, display: "block" }}>
                 From Date
               </Typography>
@@ -863,18 +1561,10 @@ export const RetailerPayoutReport: React.FC = () => {
                 onChange={(e) => setFromDate(e.target.value)}
                 size="small"
                 fullWidth
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    bgcolor: "#121B28",
-                    color: "#F8FAFC",
-                    fontSize: "12px",
-                    borderRadius: "8px",
-                    "& fieldset": { borderColor: "#1E293B" },
-                  },
-                }}
+                sx={inputStyle}
               />
-            </Grid>
-            <Grid item xs={6}>
+            </Box>
+            <Box>
               <Typography variant="caption" sx={{ color: "#94A3B8", mb: 0.5, display: "block" }}>
                 To Date
               </Typography>
@@ -884,18 +1574,10 @@ export const RetailerPayoutReport: React.FC = () => {
                 onChange={(e) => setToDate(e.target.value)}
                 size="small"
                 fullWidth
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    bgcolor: "#121B28",
-                    color: "#F8FAFC",
-                    fontSize: "12px",
-                    borderRadius: "8px",
-                    "& fieldset": { borderColor: "#1E293B" },
-                  },
-                }}
+                sx={inputStyle}
               />
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
 
           <TextField
             label="Transaction ID"
@@ -914,55 +1596,47 @@ export const RetailerPayoutReport: React.FC = () => {
             sx={inputStyle}
           />
 
-          <Grid container spacing={1.5}>
-            <Grid item xs={6}>
-              <TextField
-                label="Customer Name"
-                value={searchCustomer}
-                onChange={(e) => setSearchCustomer(e.target.value)}
-                size="small"
-                fullWidth
-                sx={inputStyle}
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                label="Beneficiary Name"
-                value={searchBeneficiary}
-                onChange={(e) => setSearchBeneficiary(e.target.value)}
-                size="small"
-                fullWidth
-                sx={inputStyle}
-              />
-            </Grid>
-          </Grid>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+            <TextField
+              label="Customer Name"
+              value={searchCustomer}
+              onChange={(e) => setSearchCustomer(e.target.value)}
+              size="small"
+              fullWidth
+              sx={inputStyle}
+            />
+            <TextField
+              label="Beneficiary Name"
+              value={searchBeneficiary}
+              onChange={(e) => setSearchBeneficiary(e.target.value)}
+              size="small"
+              fullWidth
+              sx={inputStyle}
+            />
+          </Box>
 
-          <Grid container spacing={1.5}>
-            <Grid item xs={6}>
-              <TextField
-                label="Min Amount (₹)"
-                type="number"
-                value={minimumAmount}
-                onChange={(e) => setMinimumAmount(e.target.value)}
-                size="small"
-                fullWidth
-                sx={inputStyle}
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                label="Max Amount (₹)"
-                type="number"
-                value={maximumAmount}
-                onChange={(e) => setMaximumAmount(e.target.value)}
-                size="small"
-                fullWidth
-                sx={inputStyle}
-              />
-            </Grid>
-          </Grid>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+            <TextField
+              label="Min Amount (₹)"
+              type="number"
+              value={minimumAmount}
+              onChange={(e) => setMinimumAmount(e.target.value)}
+              size="small"
+              fullWidth
+              sx={inputStyle}
+            />
+            <TextField
+              label="Max Amount (₹)"
+              type="number"
+              value={maximumAmount}
+              onChange={(e) => setMaximumAmount(e.target.value)}
+              size="small"
+              fullWidth
+              sx={inputStyle}
+            />
+          </Box>
 
-          <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ pt: 1 }}>
+          <Stack direction="row" spacing={1.5} sx={{ justifyContent: "flex-end", pt: 1 }}>
             <Button
               variant="outlined"
               size="small"
@@ -988,12 +1662,41 @@ export const RetailerPayoutReport: React.FC = () => {
         </Stack>
       </Popover>
 
-      {/* 5. DOMINANT TRANSACTION TABLE */}
+      {/* 6. TRANSACTION TABLE & ERROR/LOADING/EMPTY STATES */}
       {error ? (
-        <Paper sx={{ p: 4, textAlign: "center", bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid #EF4444", borderRadius: "10px" }}>
-          <Typography sx={{ color: "#EF4444", fontWeight: 700, mb: 1.5, fontSize: "14px" }}>{error}</Typography>
-          <Button variant="contained" color="error" size="small" onClick={handleRefresh}>
-            Retry Loading
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            textAlign: "center",
+            bgcolor: "rgba(239, 68, 68, 0.06)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "10px",
+            my: 2,
+          }}
+        >
+          <ErrorOutlinedIcon sx={{ fontSize: 44, color: "#F87171", mb: 1 }} />
+          <Typography variant="h6" sx={{ color: "#F87171", fontWeight: 700, mb: 0.5, fontSize: "16px" }}>
+            Unable to load payout data.
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#94A3B8", mb: 2, fontSize: "13px" }}>
+            Please check your connection and try again.
+          </Typography>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleRefresh}
+            startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              bgcolor: "#DC2626",
+              color: "#FFFFFF",
+              fontWeight: 700,
+              textTransform: "none",
+              fontSize: "13px",
+              "&:hover": { bgcolor: "#B91C1C" },
+            }}
+          >
+            Retry
           </Button>
         </Paper>
       ) : (
@@ -1010,41 +1713,69 @@ export const RetailerPayoutReport: React.FC = () => {
           <TableContainer sx={{ maxHeight: "calc(100vh - 360px)", minHeight: "380px" }}>
             <Table stickyHeader size="small">
               <TableHead>
-                <TableRow sx={{ "& th": { bgcolor: "#0F172A", color: "#94A3B8", fontWeight: 700, fontSize: "12px", borderBottom: "1px solid #1E293B", py: 1.2 } }}>
-                  <TableCell>Date & Time</TableCell>
-                  <TableCell>Transaction ID</TableCell>
-                  <TableCell>Retailer</TableCell>
+                <TableRow sx={{ "& th": { bgcolor: "#0F172A", color: "#94A3B8", fontWeight: 700, fontSize: "11px", borderBottom: "1px solid #1E293B", py: 1.2, textTransform: "uppercase", whiteSpace: "nowrap" } }}>
+                  <TableCell align="center">S.No</TableCell>
+                  <TableCell>Txn ID</TableCell>
                   <TableCell>Customer</TableCell>
                   <TableCell>Beneficiary</TableCell>
+                  <TableCell>Account</TableCell>
                   <TableCell align="right">Amount</TableCell>
                   <TableCell align="center">Mode</TableCell>
-                  <TableCell align="center">Status</TableCell>
                   <TableCell>UTR</TableCell>
+                  <TableCell align="right">Tax</TableCell>
+                  <TableCell>Date & Time</TableCell>
+                  <TableCell align="right">Fee</TableCell>
+                  <TableCell align="center">Wallet Type</TableCell>
+                  <TableCell align="right">Debit</TableCell>
+                  <TableCell align="right">Commission</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {isLoading ? (
-                  Array.from({ length: 5 }).map((_, idx) => (
+                  Array.from({ length: 6 }).map((_, idx) => (
                     <TableRow key={idx}>
-                      <TableCell colSpan={10} sx={{ py: 1.5 }}>
+                      <TableCell colSpan={15} sx={{ py: 1.5 }}>
                         <Skeleton variant="rectangular" height={28} sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: "6px" }} />
                       </TableCell>
                     </TableRow>
                   ))
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={15} align="center" sx={{ py: 6 }}>
+                      <Box sx={{ maxWidth: 380, mx: "auto", textAlign: "center" }}>
+                        <ErrorOutlinedIcon sx={{ fontSize: 48, color: "#EF4444", mb: 1 }} />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "15px" }}>
+                          Unable to load payout data. Please try again.
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "13px", mt: 0.5, mb: 2 }}>
+                          Check your connection or credentials and retry loading.
+                        </Typography>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={handleRefresh}
+                          startIcon={<RefreshIcon />}
+                          sx={{ bgcolor: "#2563EB", textTransform: "none", fontWeight: 700, px: 2.5, "&:hover": { bgcolor: "#1D4ED8" } }}
+                        >
+                          Retry
+                        </Button>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
                 ) : items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={15} align="center" sx={{ py: 6 }}>
                       <Box sx={{ maxWidth: 360, mx: "auto", textAlign: "center" }}>
                         <ReceiptLongIcon sx={{ fontSize: 44, color: "#334155", mb: 1 }} />
                         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "15px" }}>
-                          No payout transactions found
+                          No payout transactions found.
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#64748B", fontSize: "13px", mt: 0.5 }}>
-                          When payouts are processed, transactions will appear here.
+                          Transactions will appear here when payouts are processed.
                         </Typography>
                         {activeFilterCount > 0 && (
-                          <Button size="small" onClick={handleResetFilters} sx={{ mt: 1.5, color: "#3B82F6", fontSize: "12px" }}>
+                          <Button size="small" onClick={handleResetFilters} sx={{ mt: 1.5, color: "#3B82F6", fontSize: "12px", textTransform: "none" }}>
                             Clear active filters
                           </Button>
                         )}
@@ -1052,126 +1783,194 @@ export const RetailerPayoutReport: React.FC = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  items.map((row) => (
-                    <TableRow
-                      key={row.transaction_id || row.s_no}
-                      hover
-                      sx={{
-                        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.03)" },
-                        "& td": { borderBottom: "1px solid #1E293B", py: 1.2, fontSize: "13px", color: "#F8FAFC" },
-                      }}
-                    >
-                      {/* Date & Time */}
-                      <TableCell sx={{ color: "#CBD5E1", whiteSpace: "nowrap" }}>
-                        {row.initiated_at ? row.initiated_at.replace("T", " ").substring(0, 16) : "--"}
-                      </TableCell>
+                  items.map((row, idx) => {
+                    const sNo = page * rowsPerPage + idx + 1;
+                    const txnDisplay = row.transaction_number || row.transaction_id || "--";
+                    const utrDisplay = row.utr_number || "--";
+                    const taxVal = Number((row as any).tax_amount || ((row.gst_amount || 0) + (row.tds_amount || 0)));
+                    const feeVal = Number(row.convenience_fee || 0);
+                    const amtVal = Number(row.transfer_amount || 0);
+                    const debitVal = Number(row.wallet_debit || (amtVal + feeVal + taxVal));
+                    const commVal = Number(row.retailer_commission || 0);
+                    const walletTypeDisplay = (row as any).wallet_type || "MAIN_WALLET";
+                    const accDisplay = row.masked_account_number || "XXXXXXXX1234";
+                    const rawAcc = (row as any).account_number || accDisplay;
 
-                      {/* Transaction ID */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "13px", color: "#F8FAFC" }}>
-                          {row.transaction_number || row.reference_id}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: "#64748B", fontFamily: "monospace", fontSize: "11px" }}>
-                          Ref: {row.reference_id}
-                        </Typography>
-                      </TableCell>
+                    return (
+                      <TableRow
+                        key={row.transaction_id || `row-${sNo}`}
+                        hover
+                        sx={{
+                          "&:hover": { bgcolor: "rgba(255, 255, 255, 0.03)" },
+                          "& td": { borderBottom: "1px solid #1E293B", py: 1.2, fontSize: "12.5px", color: "#F8FAFC", whiteSpace: "nowrap" },
+                        }}
+                      >
+                        {/* 1. S.No */}
+                        <TableCell align="center" sx={{ color: "#64748B", fontWeight: 600 }}>
+                          {sNo}
+                        </TableCell>
 
-                      {/* Retailer */}
-                      <TableCell sx={{ color: "#CBD5E1" }}>
-                        {row.retailer_name || "Self Merchant"}
-                      </TableCell>
+                        {/* 2. Txn ID */}
+                        <TableCell>
+                          <Stack direction="row" spacing={0.3} sx={{ display: "inline-flex", alignItems: "center" }}>
+                            <Tooltip title={txnDisplay} arrow placement="top">
+                              <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "12.5px", color: "#F8FAFC", fontFamily: "monospace" }}>
+                                {txnDisplay.length > 16 ? `${txnDisplay.substring(0, 13)}...` : txnDisplay}
+                              </Typography>
+                            </Tooltip>
+                            {txnDisplay !== "--" && (
+                              <CopyButton value={txnDisplay} tooltipTitle="Copy Txn ID" iconFontSize={13} />
+                            )}
+                          </Stack>
+                        </TableCell>
 
-                      {/* Customer */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "13px", color: "#F8FAFC" }}>
-                          {row.customer_name || "--"}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
-                          {row.customer_mobile || ""}
-                        </Typography>
-                      </TableCell>
+                        {/* 3. Customer */}
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "12.5px", color: "#F8FAFC" }}>
+                            {row.customer_name || "N/A"}
+                          </Typography>
+                        </TableCell>
 
-                      {/* Beneficiary */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "13px", color: "#F8FAFC" }}>
-                          {row.beneficiary_name || "--"}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
-                          {row.bank_name ? `${row.bank_name} (${row.masked_account_number || ""})` : "--"}
-                        </Typography>
-                      </TableCell>
+                        {/* 4. Beneficiary */}
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "12.5px", color: "#F8FAFC" }}>
+                            {row.beneficiary_name || "N/A"}
+                          </Typography>
+                        </TableCell>
 
-                      {/* Amount */}
-                      <TableCell align="right" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "14px" }}>
-                        ₹{Number(row.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </TableCell>
+                        {/* 5. Account */}
+                        <TableCell>
+                          <Stack direction="row" spacing={0.3} sx={{ display: "inline-flex", alignItems: "center" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "12px", color: "#CBD5E1", fontFamily: "monospace" }}>
+                              {accDisplay}
+                            </Typography>
+                            <CopyButton value={rawAcc} tooltipTitle="Copy Account Number" iconFontSize={13} />
+                          </Stack>
+                        </TableCell>
 
-                      {/* Payment Mode */}
-                      <TableCell align="center">
-                        <Chip
-                          label={row.payment_mode || "IMPS"}
-                          size="small"
-                          sx={{
-                            bgcolor: "rgba(255,255,255,0.06)",
-                            color: "#CBD5E1",
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            height: "20px",
-                            borderRadius: "4px",
-                          }}
-                        />
-                      </TableCell>
+                        {/* 6. Amount */}
+                        <TableCell align="right" sx={{ fontWeight: 700, color: "#10B981", fontSize: "13px" }}>
+                          ₹{amtVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </TableCell>
 
-                      {/* Status */}
-                      <TableCell align="center">
-                        {renderStatusBadge(row.status)}
-                      </TableCell>
-
-                      {/* UTR */}
-                      <TableCell sx={{ fontFamily: "monospace", fontSize: "12px", color: row.utr_number ? "#4ADE80" : "#64748B" }}>
-                        {row.utr_number || "--"}
-                      </TableCell>
-
-                      {/* Actions */}
-                      <TableCell align="center">
-                        <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-                          <Button
+                        {/* 7. Mode */}
+                        <TableCell align="center">
+                          <Chip
+                            label={row.payment_mode || "IMPS"}
                             size="small"
-                            onClick={() => handleViewDetails(row)}
-                            endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />}
                             sx={{
-                              fontSize: "12px",
-                              fontWeight: 700,
-                              color: "#3B82F6",
-                              textTransform: "none",
-                              px: 1,
-                              py: 0.2,
-                              minWidth: "auto",
-                              "&:hover": { bgcolor: "rgba(59, 130, 246, 0.1)" },
+                              bgcolor: "rgba(37, 99, 235, 0.15)",
+                              color: "#60A5FA",
+                              fontSize: "10px",
+                              fontWeight: 800,
+                              height: "20px",
+                              borderRadius: "4px",
                             }}
-                          >
-                            Details
-                          </Button>
-                          <IconButton
+                          />
+                        </TableCell>
+
+                        {/* 8. UTR */}
+                        <TableCell>
+                          <Stack direction="row" spacing={0.3} sx={{ display: "inline-flex", alignItems: "center" }}>
+                            <Tooltip title={utrDisplay} arrow placement="top">
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontFamily: "monospace",
+                                  fontSize: "12px",
+                                  color: utrDisplay && utrDisplay !== "--" ? "#4ADE80" : "#64748B",
+                                }}
+                              >
+                                {utrDisplay.length > 14 ? `${utrDisplay.substring(0, 11)}...` : utrDisplay}
+                              </Typography>
+                            </Tooltip>
+                            {utrDisplay && utrDisplay !== "--" && (
+                              <CopyButton value={utrDisplay} tooltipTitle="Copy UTR" iconFontSize={13} />
+                            )}
+                          </Stack>
+                        </TableCell>
+
+                        {/* 9. Tax */}
+                        <TableCell align="right" sx={{ color: "#CBD5E1", fontSize: "12px" }}>
+                          ₹{taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </TableCell>
+
+                        {/* 10. Date & Time */}
+                        <TableCell sx={{ color: "#94A3B8", fontSize: "12px" }}>
+                          {row.initiated_at || "--"}
+                        </TableCell>
+
+                        {/* 11. Fee */}
+                        <TableCell align="right" sx={{ color: "#CBD5E1", fontSize: "12px" }}>
+                          ₹{feeVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </TableCell>
+
+                        {/* 12. Wallet Type */}
+                        <TableCell align="center">
+                          <Chip
+                            label={walletTypeDisplay}
                             size="small"
-                            onClick={(e) => {
-                              setActionMenuAnchorEl(e.currentTarget);
-                              setActionRowItem(row);
+                            sx={{
+                              bgcolor: "rgba(255, 255, 255, 0.06)",
+                              color: "#94A3B8",
+                              fontSize: "9px",
+                              fontWeight: 700,
+                              height: "18px",
                             }}
-                            sx={{ color: "#64748B", p: 0.5 }}
-                          >
-                            <MoreVertIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                          />
+                        </TableCell>
+
+                        {/* 13. Debit */}
+                        <TableCell align="right" sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "12.5px" }}>
+                          ₹{debitVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </TableCell>
+
+                        {/* 14. Commission */}
+                        <TableCell align="right" sx={{ color: "#34D399", fontWeight: 700, fontSize: "12px" }}>
+                          ₹{commVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell align="center">
+                          <Stack direction="row" spacing={0.5} sx={{ justifyContent: "center", alignItems: "center" }}>
+                            <Button
+                              size="small"
+                              onClick={() => handleViewDetails(row)}
+                              endIcon={<ArrowForwardIcon sx={{ fontSize: 13 }} />}
+                              sx={{
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                color: "#3B82F6",
+                                textTransform: "none",
+                                px: 1,
+                                py: 0.2,
+                                minWidth: "auto",
+                                "&:hover": { bgcolor: "rgba(59, 130, 246, 0.1)" },
+                              }}
+                            >
+                              Details
+                            </Button>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                setActionMenuAnchorEl(e.currentTarget);
+                                setActionRowItem(row);
+                              }}
+                              sx={{ color: "#64748B", p: 0.5 }}
+                            >
+                              <MoreVertIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
           </TableContainer>
 
-          {/* RUNNING FOOTER TOTALS & PAGINATION */}
+          {/* FOOTER TOTALS & PAGINATION */}
           {footerTotals && items.length > 0 && (
             <Box
               sx={{
@@ -1186,7 +1985,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 gap: 2,
               }}
             >
-              <Stack direction="row" spacing={3} alignItems="center">
+              <Stack direction="row" spacing={3} sx={{ alignItems: "center" }}>
                 <Box>
                   <Typography variant="caption" sx={{ color: "#64748B", display: "block", fontSize: "11px" }}>
                     Total Transfer Amount
@@ -1236,7 +2035,7 @@ export const RetailerPayoutReport: React.FC = () => {
         </Paper>
       )}
 
-      {/* ROW ACTION DROPDOWN MENU */}
+      {/* ROW ACTION MENU */}
       <Menu
         anchorEl={actionMenuAnchorEl}
         open={Boolean(actionMenuAnchorEl)}
@@ -1248,7 +2047,7 @@ export const RetailerPayoutReport: React.FC = () => {
               color: "#F8FAFC",
               border: "1px solid #1E293B",
               borderRadius: "8px",
-              minWidth: 140,
+              minWidth: 160,
             },
           },
         }}
@@ -1264,73 +2063,111 @@ export const RetailerPayoutReport: React.FC = () => {
         </MenuItem>
         <MenuItem
           onClick={() => {
+            if (actionRowItem) handlePrintSingleReceipt(actionRowItem);
+            setActionMenuAnchorEl(null);
+          }}
+          sx={{ fontSize: "13px", py: 1 }}
+        >
+          <PrintIcon sx={{ fontSize: 16, mr: 1, color: "#4ADE80" }} /> Print Receipt
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            if (actionRowItem) handleDownloadSinglePdf(actionRowItem);
+            setActionMenuAnchorEl(null);
+          }}
+          sx={{ fontSize: "13px", py: 1 }}
+        >
+          <PictureAsPdfIcon sx={{ fontSize: 16, mr: 1, color: "#F59E0B" }} /> Download PDF
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
             if (actionRowItem) {
-              logAudit("RECEIPT_PRINTED", { transaction_id: actionRowItem.transaction_id });
-              window.print();
+              setShareTxn(actionRowItem);
+              setShareModalOpen(true);
             }
             setActionMenuAnchorEl(null);
           }}
           sx={{ fontSize: "13px", py: 1 }}
         >
-          <ReceiptIcon sx={{ fontSize: 16, mr: 1, color: "#4ADE80" }} /> Print Receipt
+          <ShareIcon sx={{ fontSize: 16, mr: 1, color: "#A855F7" }} /> Share Receipt
         </MenuItem>
       </Menu>
 
-      {/* 6. TRANSACTION DETAILS SLIDE-OVER DRAWER */}
+      {/* TRANSACTION DETAILS SLIDE-OVER DRAWER (600 - 700px) */}
       <Drawer
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: { xs: "100%", sm: 460 },
-            bgcolor: "#0F172A",
-            color: "#F8FAFC",
-            borderLeft: "1px solid #1E293B",
-            p: 0,
+        sx={{ zIndex: 1500 }}
+        slotProps={{
+          paper: {
+            sx: {
+              width: { xs: "100%", sm: 600, md: 680 },
+              bgcolor: "#0F172A",
+              color: "#F8FAFC",
+              borderLeft: "1px solid #1E293B",
+              boxShadow: "-8px 0 32px rgba(0,0,0,0.6)",
+              p: 0,
+              zIndex: 1500,
+            },
           },
         }}
       >
         {selectedTxn && (
-          <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+          <Box sx={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
             {/* Drawer Header */}
-            <Box sx={{ p: 2.5, bgcolor: "#121B28", borderBottom: "1px solid #1E293B", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Box
+              sx={{
+                p: 2.5,
+                bgcolor: "#121B28",
+                borderBottom: "1px solid #1E293B",
+                display: "flex",
+                justify: "space-between",
+                alignItems: "center",
+                position: "sticky",
+                top: 0,
+                zIndex: 10,
+              }}
+            >
               <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "17px" }}>
                   Transaction Details
                 </Typography>
                 <Typography variant="caption" sx={{ color: "#64748B", fontFamily: "monospace", fontSize: "11px" }}>
                   ID: {selectedTxn.transaction_number || selectedTxn.reference_id}
                 </Typography>
               </Box>
-              <IconButton size="small" onClick={() => setDrawerOpen(false)} sx={{ color: "#64748B" }}>
-                <CloseIcon sx={{ fontSize: 18 }} />
+              <IconButton size="small" onClick={() => setDrawerOpen(false)} sx={{ color: "#94A3B8", "&:hover": { color: "#FFF", bgcolor: "rgba(255,255,255,0.1)" } }}>
+                <CloseIcon sx={{ fontSize: 20 }} />
               </IconButton>
             </Box>
 
             {/* Scrollable Content */}
-            <Box sx={{ p: 3, flexGrow: 1, overflowY: "auto" }}>
-              {/* Hero Amount & Status Card */}
-              <Paper sx={{ p: 2.5, bgcolor: "#121B28", border: "1px solid #1E293B", borderRadius: "10px", textAlign: "center", mb: 3 }}>
-                <Typography variant="caption" sx={{ color: "#94A3B8", textTransform: "uppercase", fontSize: "11px", fontWeight: 700 }}>
+            <Box sx={{ p: 3, flexGrow: 1, overflowY: "auto", pb: 10 }}>
+              {/* Hero Amount & Status */}
+              <Paper sx={{ p: 3, bgcolor: "#121B28", border: "1px solid #1E293B", borderRadius: "12px", textAlign: "center", mb: 3 }}>
+                <Typography variant="caption" sx={{ color: "#94A3B8", textTransform: "uppercase", fontSize: "11px", fontWeight: 700, letterSpacing: "0.5px" }}>
                   Transfer Amount
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: "#FFFFFF", my: 0.5, fontSize: "28px" }}>
+                <Typography variant="h3" sx={{ fontWeight: 900, color: "#FFFFFF", my: 0.5, fontSize: "32px" }}>
                   ₹{Number(selectedTxn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </Typography>
-                <Box sx={{ mt: 1 }}>{renderStatusBadge(selectedTxn.status)}</Box>
+                <Box sx={{ mt: 1.5, display: "flex", justifyContent: "center" }}>
+                  {renderStatusBadge(selectedTxn.status)}
+                </Box>
               </Paper>
 
               {/* Section 1: Core Transaction Metadata */}
               <Typography variant="caption" sx={{ color: "#3B82F6", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", fontSize: "11px", mb: 1, display: "block" }}>
-                Transaction Info
+                Transaction Information
               </Typography>
               <Paper sx={{ p: 2, bgcolor: "#121B28", border: "1px solid #1E293B", borderRadius: "8px", mb: 2.5 }}>
                 <Stack spacing={1.2}>
-                  <DetailRow label="Transaction #" value={selectedTxn.transaction_number || selectedTxn.reference_id} isMono />
-                  <DetailRow label="Reference ID" value={selectedTxn.reference_id} isMono />
-                  <DetailRow label="UTR Number" value={selectedTxn.utr_number || "Awaiting Bank UTR"} isMono highlight={Boolean(selectedTxn.utr_number)} />
-                  <DetailRow label="Initiated At" value={selectedTxn.initiated_at ? selectedTxn.initiated_at.replace("T", " ") : "--"} />
+                  <DetailRow label="Transaction #" value={selectedTxn.transaction_number || selectedTxn.reference_id} isMono copyValue={selectedTxn.transaction_number || selectedTxn.reference_id} />
+                  <DetailRow label="Reference ID" value={selectedTxn.reference_id || "-"} isMono copyValue={selectedTxn.reference_id} />
+                  <DetailRow label="UTR Number" value={selectedTxn.utr_number || "--"} isMono highlight={Boolean(selectedTxn.utr_number)} copyValue={selectedTxn.utr_number} />
+                  <DetailRow label="Payment Mode" value={selectedTxn.payment_mode || "IMPS"} />
+                  <DetailRow label="Initiated At" value={selectedTxn.initiated_at ? selectedTxn.initiated_at.replace("T", " ") : "-"} />
                   <DetailRow label="Completed At" value={selectedTxn.completed_at ? selectedTxn.completed_at.replace("T", " ") : "--"} />
                 </Stack>
               </Paper>
@@ -1341,8 +2178,8 @@ export const RetailerPayoutReport: React.FC = () => {
               </Typography>
               <Paper sx={{ p: 2, bgcolor: "#121B28", border: "1px solid #1E293B", borderRadius: "8px", mb: 2.5 }}>
                 <Stack spacing={1.2}>
-                  <DetailRow label="Customer Name" value={selectedTxn.customer_name || "--"} />
-                  <DetailRow label="Mobile Number" value={selectedTxn.customer_mobile || "--"} />
+                  <DetailRow label="Customer Name" value={selectedTxn.customer_name || "N/A"} />
+                  <DetailRow label="Mobile Number" value={selectedTxn.customer_mobile || "N/A"} isMono />
                 </Stack>
               </Paper>
 
@@ -1352,23 +2189,67 @@ export const RetailerPayoutReport: React.FC = () => {
               </Typography>
               <Paper sx={{ p: 2, bgcolor: "#121B28", border: "1px solid #1E293B", borderRadius: "8px", mb: 2.5 }}>
                 <Stack spacing={1.2}>
-                  <DetailRow label="Beneficiary Name" value={selectedTxn.beneficiary_name || "--"} />
-                  <DetailRow label="Bank Name" value={selectedTxn.bank_name || "--"} />
-                  <DetailRow label="Account Number" value={selectedTxn.masked_account_number || "--"} isMono />
-                  <DetailRow label="IFSC Code" value={selectedTxn.ifsc_code || "--"} isMono />
-                  <DetailRow label="Beneficiary Mobile" value={selectedTxn.beneficiary_mobile || "--"} />
+                  <DetailRow label="Beneficiary Name" value={selectedTxn.beneficiary_name || "N/A"} />
+                  <DetailRow label="Bank Name" value={selectedTxn.bank_name || "N/A"} />
+                  <DetailRow label="Account Number" value={selectedTxn.masked_account_number || "XXXX XXXX 1234"} isMono copyValue={(selectedTxn as any).account_number || selectedTxn.masked_account_number} />
+                  <DetailRow label="IFSC Code" value={selectedTxn.ifsc_code || "N/A"} isMono />
+                  <DetailRow label="Beneficiary Mobile" value={selectedTxn.beneficiary_mobile || "N/A"} />
                 </Stack>
               </Paper>
 
-              {/* Section 4: Payment Metadata */}
+              {/* Section 4: Transaction Status Timeline */}
               <Typography variant="caption" sx={{ color: "#3B82F6", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", fontSize: "11px", mb: 1, display: "block" }}>
-                Payment & Channel
+                Transaction Status Timeline
               </Typography>
-              <Paper sx={{ p: 2, bgcolor: "#121B28", border: "1px solid #1E293B", borderRadius: "8px", mb: 2.5 }}>
-                <Stack spacing={1.2}>
-                  <DetailRow label="Payment Mode" value={selectedTxn.payment_mode || "IMPS"} />
-                  <DetailRow label="Retailer Account" value={selectedTxn.retailer_name || "Self Retailer"} />
-                  <DetailRow label="Remarks / Note" value={selectedTxn.remarks || "Standard payout transaction"} />
+              <Paper sx={{ p: 2.5, bgcolor: "#121B28", border: "1px solid #1E293B", borderRadius: "8px", mb: 2.5 }}>
+                <Stack spacing={2}>
+                  <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                    <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 20 }} />
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "13px" }}>
+                        Transaction Initiated
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
+                        {selectedTxn.initiated_at ? selectedTxn.initiated_at.replace("T", " ") : "Initiated"}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)" }} />
+
+                  <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                    <AccessTimeIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "13px" }}>
+                        Partner Bank Switch Processing
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
+                        NPCI / Payment Highway Router
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)" }} />
+
+                  <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                    {selectedTxn.status === "SUCCESS" ? (
+                      <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 20 }} />
+                    ) : ["PENDING", "PROCESSING"].includes(selectedTxn.status) ? (
+                      <AccessTimeIcon sx={{ color: "#F59E0B", fontSize: 20 }} />
+                    ) : ["REVERSED", "PARTIALLY_REVERSED"].includes(selectedTxn.status) ? (
+                      <RotateLeftIcon sx={{ color: "#A855F7", fontSize: 20 }} />
+                    ) : (
+                      <CancelIcon sx={{ color: "#F87171", fontSize: 20 }} />
+                    )}
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "13px" }}>
+                        Final Status: {selectedTxn.status}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
+                        {selectedTxn.remarks || selectedTxn.utr_number || "Transaction state recorded by bank gateway."}
+                      </Typography>
+                    </Box>
+                  </Stack>
                 </Stack>
               </Paper>
 
@@ -1390,62 +2271,205 @@ export const RetailerPayoutReport: React.FC = () => {
               </Paper>
             </Box>
 
-            {/* Drawer Footer Actions */}
-            <Box sx={{ p: 2, borderTop: "1px solid #1E293B", bgcolor: "#121B28", display: "flex", gap: 1.5 }}>
+            {/* STICKY BOTTOM ACTION BAR */}
+            <Box
+              sx={{
+                p: 2,
+                px: 3,
+                borderTop: "1px solid #1E293B",
+                bgcolor: "#121B28",
+                position: "sticky",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 10,
+                display: "flex",
+                gap: 1.5,
+              }}
+            >
               <Button
                 variant="outlined"
                 fullWidth
                 startIcon={<PrintIcon />}
-                onClick={() => {
-                  logAudit("RECEIPT_PRINTED", { transaction_id: selectedTxn.transaction_id });
-                  window.print();
-                }}
-                sx={{ borderColor: "#1E293B", color: "#CBD5E1", textTransform: "none", fontSize: "13px" }}
+                onClick={() => handlePrintSingleReceipt(selectedTxn)}
+                sx={{ borderColor: "#1E293B", color: "#CBD5E1", textTransform: "none", fontSize: "13px", height: "42px", fontWeight: 700 }}
               >
-                Print Receipt
+                Print
               </Button>
               <Button
                 variant="contained"
                 fullWidth
-                startIcon={<ReceiptIcon />}
-                onClick={() => {
-                  logAudit("RECEIPT_DOWNLOADED", { transaction_id: selectedTxn.transaction_id });
-                  window.print();
-                }}
-                sx={{ bgcolor: "#2563EB", textTransform: "none", fontSize: "13px", fontWeight: 700 }}
+                disabled={isDownloadingSinglePdf}
+                startIcon={isDownloadingSinglePdf ? <CircularProgress size={16} color="inherit" /> : <PictureAsPdfIcon />}
+                onClick={() => handleDownloadSinglePdf(selectedTxn)}
+                sx={{ bgcolor: "#2563EB", textTransform: "none", fontSize: "13px", height: "42px", fontWeight: 800, "&:hover": { bgcolor: "#1D4ED8" } }}
               >
-                Download PDF
+                {isDownloadingSinglePdf ? "Downloading..." : "Download PDF"}
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<ShareIcon />}
+                onClick={() => {
+                  setShareTxn(selectedTxn);
+                  setShareModalOpen(true);
+                }}
+                sx={{ borderColor: "#3B82F6", color: "#60A5FA", textTransform: "none", fontSize: "13px", height: "42px", fontWeight: 700 }}
+              >
+                Share
               </Button>
             </Box>
           </Box>
         )}
       </Drawer>
+
+      {/* SHARE TRANSACTION MODAL */}
+      <Dialog
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: "#0F172A",
+              color: "#F8FAFC",
+              border: "1px solid #1E293B",
+              borderRadius: "12px",
+              maxWidth: 480,
+              width: "100%",
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ p: 2.5, borderBottom: "1px solid #1E293B", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 800, fontSize: "16px", color: "#FFF" }}>
+              Share Transaction Receipt
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#64748B", fontFamily: "monospace", fontSize: "11px" }}>
+              ID: {shareTxn?.transaction_number || shareTxn?.reference_id}
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setShareModalOpen(false)} sx={{ color: "#64748B" }}>
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3 }}>
+          <Typography variant="body2" sx={{ color: "#94A3B8", fontSize: "13px", mb: 2 }}>
+            Choose how you would like to share or export this official financial transaction receipt:
+          </Typography>
+
+          <Stack spacing={1.5}>
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<SendIcon sx={{ color: "#25D366" }} />}
+              onClick={() => {
+                if (shareTxn) handleShareWhatsApp(shareTxn);
+                setShareModalOpen(false);
+              }}
+              sx={{ justifyContent: "flex-start", p: 1.5, borderColor: "rgba(37, 211, 102, 0.3)", color: "#F8FAFC", textTransform: "none", fontSize: "13px", fontWeight: 700, "&:hover": { bgcolor: "rgba(37, 211, 102, 0.1)" } }}
+            >
+              Share via WhatsApp
+            </Button>
+
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<EmailIcon sx={{ color: "#60A5FA" }} />}
+              onClick={() => {
+                if (shareTxn) handleShareEmail(shareTxn);
+                setShareModalOpen(false);
+              }}
+              sx={{ justifyContent: "flex-start", p: 1.5, borderColor: "rgba(96, 165, 250, 0.3)", color: "#F8FAFC", textTransform: "none", fontSize: "13px", fontWeight: 700, "&:hover": { bgcolor: "rgba(96, 165, 250, 0.1)" } }}
+            >
+              Share via Email
+            </Button>
+
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<ImageIcon sx={{ color: "#A855F7" }} />}
+              onClick={() => {
+                if (shareTxn) generateReceiptImage(shareTxn);
+                setShareModalOpen(false);
+              }}
+              sx={{ justifyContent: "flex-start", p: 1.5, borderColor: "rgba(168, 85, 247, 0.3)", color: "#F8FAFC", textTransform: "none", fontSize: "13px", fontWeight: 700, "&:hover": { bgcolor: "rgba(168, 85, 247, 0.1)" } }}
+            >
+              Download Receipt Image (PNG)
+            </Button>
+
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<PictureAsPdfIcon sx={{ color: "#F59E0B" }} />}
+              onClick={() => {
+                if (shareTxn) handleDownloadSinglePdf(shareTxn);
+                setShareModalOpen(false);
+              }}
+              sx={{ justifyContent: "flex-start", p: 1.5, borderColor: "rgba(245, 158, 11, 0.3)", color: "#F8FAFC", textTransform: "none", fontSize: "13px", fontWeight: 700, "&:hover": { bgcolor: "rgba(245, 158, 11, 0.1)" } }}
+            >
+              Download Receipt PDF
+            </Button>
+
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<ContentCopyIcon sx={{ color: "#CBD5E1" }} />}
+              onClick={() => {
+                if (shareTxn) handleCopyDetails(shareTxn);
+                setShareModalOpen(false);
+              }}
+              sx={{ justifyContent: "flex-start", p: 1.5, borderColor: "#1E293B", color: "#CBD5E1", textTransform: "none", fontSize: "13px", fontWeight: 700, "&:hover": { bgcolor: "rgba(255, 255, 255, 0.05)" } }}
+            >
+              Copy Receipt Details
+            </Button>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+
+      {/* TOAST SNACKBAR */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="info" sx={{ bgcolor: "#1E293B", color: "#FFF", border: "1px solid #3B82F6" }}>
+          {snackbarMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
 
-// Helper row component for drawer details
-const DetailRow: React.FC<{ label: string; value: string; isMono?: boolean; highlight?: boolean }> = ({
+const DetailRow: React.FC<{ label: string; value: string; isMono?: boolean; highlight?: boolean; copyValue?: string }> = ({
   label,
   value,
   isMono = false,
   highlight = false,
+  copyValue,
 }) => (
-  <Stack direction="row" justifyContent="space-between" alignItems="center">
+  <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "center" }}>
     <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px" }}>
       {label}
     </Typography>
-    <Typography
-      variant="body2"
-      sx={{
-        fontSize: "12px",
-        fontWeight: highlight ? 800 : 600,
-        color: highlight ? "#4ADE80" : "#F8FAFC",
-        fontFamily: isMono ? "monospace" : "inherit",
-      }}
-    >
-      {value}
-    </Typography>
+    <Stack direction="row" spacing={0.3} sx={{ display: "inline-flex", alignItems: "center" }}>
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: "12px",
+          fontWeight: highlight ? 800 : 600,
+          color: highlight ? "#4ADE80" : "#F8FAFC",
+          fontFamily: isMono ? "monospace" : "inherit",
+        }}
+      >
+        {value}
+      </Typography>
+      {copyValue && copyValue !== "--" && (
+        <CopyButton value={copyValue} tooltipTitle={`Copy ${label}`} iconFontSize={13} />
+      )}
+    </Stack>
   </Stack>
 );
 
@@ -1454,7 +2478,7 @@ const inputStyle = {
     bgcolor: "#121B28",
     color: "#F8FAFC",
     fontSize: "13px",
-    borderRadius: "8px",
+    borderRadius: "6px",
     "& fieldset": { borderColor: "#1E293B" },
   },
   "& .MuiInputLabel-root": {

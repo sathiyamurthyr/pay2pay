@@ -22,7 +22,8 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
   const formattedBalance = `₹${(isNaN(balanceNum) ? 0 : balanceNum).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const shortName = walletData?.short_name || (walletData?.owner_name ? walletData.owner_name.split(" ")[0] : "Partner");
-  const partnerCode = walletData?.retailer_code || walletData?.user_code || "P2P-MASTER";
+  const partnerCode = walletData?.retailer_code || (walletData as any)?.user_code || "P2P-MASTER";
+
 
   return (
     <Paper

@@ -27,7 +27,9 @@ class RetailerSecuritySettingsModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "retailer_security_settings"
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, unique=True, index=True)
-    auto_lock_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    theme_mode: Mapped[str] = mapped_column(String(20), default="AUTO", nullable=False)
+    timezone: Mapped[str] = mapped_column(String(100), default="Asia/Kolkata", nullable=False)
+
     idle_timeout_minutes: Mapped[int] = mapped_column(Integer, default=1, nullable=False)  # 1, 2, 5, 10, 15, 30, 0 (Never)
     warning_seconds: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     lock_on_minimize: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

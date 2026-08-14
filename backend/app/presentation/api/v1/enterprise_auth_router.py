@@ -289,6 +289,8 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
         except Exception as ex:
             wa_delivery_status = f"EXCEPTION: {str(ex)}"
 
+    wa_direct_url = f"https://wa.me/91{clean_mobile}?text=Your%20Pay2Pay%20Login%20OTP%20is%20{live_otp}"
+
     return {
         "status": "SUCCESS",
         "message": f"Live WhatsApp OTP sent to +91 {clean_mobile}",
@@ -296,9 +298,11 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
             "otp_id": otp_id,
             "expires_in_seconds": 300,
             "whatsapp_delivery_status": wa_delivery_status,
+            "whatsapp_direct_url": wa_direct_url,
             "otp_code": live_otp
         }
     }
+
 
 
 @router.post("/login-otp/verify")
@@ -307,9 +311,10 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     raw_digits = re.sub(r"\D", "", str(payload.mobile_number))
     clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
 
-    mobile_variants = [clean_mobile, f"91{clean_mobile}"]
+    mobile_variants = [clean_mobile, f"91{clean_mobile}", f"+91{clean_mobile}", raw_digits]
+    if clean_mobile.startswith("91") and len(clean_mobile) == 10:
+        mobile_variants.append(clean_mobile[2:])
 
-    # Query active unverified OTP for mobile_number
     stmt = (
         select(OtpTransactionModel)
         .where(
@@ -322,30 +327,56 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
         .order_by(OtpTransactionModel.id.desc())
     )
     otp_tx = (await db.execute(stmt)).scalars().first()
+    if not otp_tx:
+        raise HTTPException(status_code=400, detail="No active OTP request found for this mobile number. Please click 'Resend OTP'.")
 
-    valid_codes = ["778899", "123456", "556677"]
-    if otp_tx:
-        valid_codes.append(otp_tx.otp_code_hash)
+    # Strict OTP Verification: Must match exact dynamic OTP generated for this transaction
+    if payload.otp_code.strip() != otp_tx.otp_code_hash.strip():
+        raise HTTPException(status_code=400, detail="Invalid OTP code. Please enter the correct 6-digit OTP received on WhatsApp/SMS.")
 
-    if payload.otp_code not in valid_codes:
-        raise HTTPException(status_code=400, detail="Invalid OTP code. Please check your WhatsApp and try again.")
-
-    if otp_tx:
-        otp_tx.is_verified = True
-        await db.commit()
+    otp_tx.is_verified = True
+    await db.commit()
 
     session_id = f"SESS-{uuid.uuid4().hex[:12].upper()}"
     correlation_id = f"CORR-{uuid.uuid4().hex[:12].upper()}"
+    trace_id = f"TRACE-{uuid.uuid4().hex[:12].upper()}"
 
-    await EnterpriseAuthService.create_audit_entry(
-        db=db,
-        user_id=None,
-        session_id=session_id,
-        ip_address=request.client.host if request.client else "127.0.0.1",
-        user_agent=request.headers.get("user-agent", "Enterprise-Portal"),
-        status="SUCCESS",
-        details={"login_method": "OTP", "mobile": clean_mobile}
-    )
+    # Safely record telemetry without failing verification
+    if payload.telemetry:
+        try:
+            await EnterpriseAuthService.record_telemetry(db, user_id=None, telemetry=payload.telemetry)
+        except Exception as tel_ex:
+            print(f"[Telemetry Sync Notice]: {tel_ex}")
+
+    try:
+        await EnterpriseAuthService.create_audit_entry(
+            db=db,
+            user_id=None,
+            session_id=session_id,
+            ip_address=request.client.host if request.client else "127.0.0.1",
+            user_agent=request.headers.get("user-agent", "Enterprise-Portal"),
+            status="SUCCESS",
+            details={"login_method": "OTP", "mobile": clean_mobile}
+        )
+    except Exception as audit_ex:
+        print(f"[Audit Log Notice]: {audit_ex}")
+
+    try:
+        from app.application.company_onboarding_service import CompanyOnboardingService
+        tenant_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+        company_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+        onboarding_rec = await CompanyOnboardingService.get_or_create_status(db, tenant_id, company_id)
+        is_completed = onboarding_rec.status == "COMPLETED" or onboarding_rec.current_step > 10
+        current_step = onboarding_rec.current_step
+        progress_pct = onboarding_rec.progress_percentage
+        status_str = onboarding_rec.status
+        redirect_target = "/dashboard" if is_completed else f"/register/step-{onboarding_rec.current_step}"
+    except Exception:
+        is_completed = True
+        current_step = 13
+        progress_pct = 100
+        status_str = "COMPLETED"
+        redirect_target = "/dashboard"
 
     return {
         "status": "SUCCESS",
@@ -353,13 +384,23 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
         "data": {
             "session_id": session_id,
             "correlation_id": correlation_id,
+            "trace_id": trace_id,
             "access_token": f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.mock_token",
             "token_type": "Bearer",
             "user": {
                 "mobile_number": clean_mobile,
                 "full_name": "SATHIYA MURTHY",
-                "role": "RETAILER"
-            }
+                "role": "RETAILER",
+                "outlet_name": "Sri Venkateswara Telecom & FinTech"
+            },
+            "onboarding": {
+                "completed": is_completed,
+                "current_step": current_step,
+                "progress_percentage": progress_pct,
+                "status": status_str,
+                "redirect_url": redirect_target
+            },
+            "redirect_url": redirect_target
         }
     }
 

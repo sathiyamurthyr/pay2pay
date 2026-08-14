@@ -150,7 +150,8 @@ export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ c
                 <Icon className={`w-5 h-5 ${isActive ? "text-blue-400" : "text-slate-400"}`} />
               </div>
               <span className="text-[10px] tracking-tight">{item.label}</span>
-              {item.badge && !isActive && (
+              {(item as any).badge && !isActive && (
+
                 <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
               )}
             </Link>

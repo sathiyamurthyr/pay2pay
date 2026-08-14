@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { NotificationCenter } from "@/app-shell/components/NotificationCenter";
 import {
   AppBar, Toolbar, Drawer, Box, Typography, IconButton, Badge, Menu,
@@ -45,7 +45,10 @@ import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import PaletteIcon from "@mui/icons-material/Palette";
 import { useAuth } from "@/lib/auth";
 import { useRetailerStore, KpiTheme, THEME_CONFIGS } from "@/stores/use-retailer-store";
+import { useTheme } from "@/context/ThemeContext";
+
 import { useRetailerApprovalGuard } from "@/hooks/useRetailerApprovalGuard";
+
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
 import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
@@ -66,9 +69,42 @@ const KPI_THEMES: { id: KpiTheme; label: string; swatch: string }[] = [
   { id: "corporate-white", label: "Corporate White", swatch: "#FFFFFF" },
 ];
 
+let cachedHeaderWalletData: any = null;
+let lastHeaderWalletFetchTime = 0;
+let inFlightHeaderWalletPromise: Promise<any> | null = null;
+
+async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
+  const now = Date.now();
+  if (!forceRefresh && cachedHeaderWalletData && now - lastHeaderWalletFetchTime < 30000) {
+    return cachedHeaderWalletData;
+  }
+  if (inFlightHeaderWalletPromise) {
+    return inFlightHeaderWalletPromise;
+  }
+
+  inFlightHeaderWalletPromise = (async () => {
+    try {
+      const res = await fetch(
+        "/api/v1/payout/dashboard/retailer/header-wallet?retailer_id=f89239b5-4dbb-41a9-9ba7-0f97580c9368&tenant_id=93538c98-0b19-493c-a247-4cdb02a46c68"
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      cachedHeaderWalletData = data;
+      lastHeaderWalletFetchTime = Date.now();
+      return data;
+    } finally {
+      inFlightHeaderWalletPromise = null;
+    }
+  })();
+
+  return inFlightHeaderWalletPromise;
+}
+
 export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const { themeMode, effectiveTheme, setThemeMode } = useTheme();
   const { outlet, wallet, isSyncing, syncBalance, soundboxEnabled, toggleSoundbox, unreadNotifications, setUnreadNotifications, kpiTheme, setKpiTheme } = useRetailerStore();
   const { isApproved, approvalStatus, isPathLocked, setApprovalStatus } = useRetailerApprovalGuard();
   const { openContactSupportModal } = useContactSupportModal();
@@ -98,12 +134,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     error?: boolean;
   }>({ loading: true });
 
-  const fetchProfileDetails = useCallback(async () => {
+  const fetchProfileDetails = useCallback(async (force = false) => {
     setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
     try {
-      const res = await fetch("/api/v1/payout/dashboard/retailer/header-wallet?retailer_id=f89239b5-4dbb-41a9-9ba7-0f97580c9368&tenant_id=93538c98-0b19-493c-a247-4cdb02a46c68");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await getCachedHeaderWalletData(force);
       setProfileDetails({
         owner_name: data.owner_name || null,
         retailer_name: data.retailer_name || null,
@@ -134,7 +168,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       if (isNaN(date.getTime())) return "Not available";
       const now = new Date();
       const isToday = date.toDateString() === now.toDateString();
-      const timeStr = date.toLocaleTimeString("en-US", { hour: "02-digit", minute: "02-digit", hour12: true });
+      const timeStr = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+
       if (isToday) {
         return `Today, ${timeStr}`;
       }
@@ -399,6 +434,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       <Box
                         component={Link}
                         href={item.path}
+                        onMouseEnter={() => {
+                          try { router.prefetch(item.path); } catch {}
+                        }}
                         onClick={(e: React.MouseEvent) => {
                           if (favLocked) {
                             e.preventDefault();
@@ -505,6 +543,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       <Box
                         component={Link}
                         href={item.path}
+                        onMouseEnter={() => {
+                          try { router.prefetch(item.path); } catch {}
+                        }}
                         onClick={(e: React.MouseEvent) => {
                           if (itemLocked) {
                             e.preventDefault();
@@ -573,9 +614,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                               />
                             )}
 
-                            {item.badge && !itemLocked && (
+                            {(item as any).badge && !itemLocked && (
                               <Chip
-                                label={item.badge}
+                                label={(item as any).badge}
+
                                 size="small"
                                 sx={{
                                   height: 18,
@@ -778,7 +820,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             >
               <Tooltip title="Wallet Details & Top-Up" arrow placement="bottom">
                 <Box
-                  onClick={() => router.push("/retailer/wallet")}
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.location.href = "/retailer/wallet";
+                    }
+                  }}
+
                   sx={{
                     display: "flex",
                     alignItems: "center",
@@ -864,13 +911,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               </Tooltip>
             </Paper>
 
-            {/* KPI Theme Selector Icon & Menu */}
-            <Tooltip title="App Theme & Color Palette">
+            {/* Header Theme Quick Switch Control */}
+            <Tooltip title="Theme (Auto / Light / Dark)">
               <IconButton
                 color="inherit"
                 onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
                 size="small"
-                sx={{ p: 0.75, color: "#4B5563" }}
+                sx={{ p: 0.75, color: effectiveTheme === "dark" ? "#94A3B8" : "#4B5563" }}
               >
                 <PaletteIcon sx={{ fontSize: 20 }} />
               </IconButton>
@@ -880,47 +927,74 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               anchorEl={kpiThemeAnchor}
               open={Boolean(kpiThemeAnchor)}
               onClose={() => setKpiThemeAnchor(null)}
-              slotProps={{ paper: { sx: { borderRadius: 3, width: 220, mt: 1, p: 0.5 } } }}
+              slotProps={{
+                paper: {
+                  sx: {
+                    borderRadius: "10px",
+                    width: 180,
+                    mt: 1,
+                    p: 0.5,
+                    bgcolor: effectiveTheme === "dark" ? "#0F172A" : "#FFFFFF",
+                    color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A",
+                    border: effectiveTheme === "dark" ? "1px solid #1E293B" : "1px solid #E2E8F0",
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+                  },
+                },
+              }}
             >
-              <Box sx={{ p: 1.5, borderBottom: "1px solid #E5E7EB" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "13px", color: "#0F172A" }}>
-                  🎨 Color & Layout Theme
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#64748B", fontSize: "10px" }}>
-                  Select visual theme & color palette
+              <Box sx={{ p: 1, px: 1.5, borderBottom: effectiveTheme === "dark" ? "1px solid #1E293B" : "1px solid #F1F5F9" }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A" }}>
+                  Theme
                 </Typography>
               </Box>
-              {KPI_THEMES.map((theme) => (
-                <MenuItem
-                  key={theme.id}
-                  selected={kpiTheme === theme.id}
-                  onClick={() => {
-                    setKpiTheme(theme.id);
-                    if (typeof window !== "undefined") {
-                      localStorage.setItem("kpi_card_theme", theme.id);
-                      localStorage.setItem("pay2pay_app_theme", theme.id);
-                      if (theme.id === "dark") {
-                        document.documentElement.classList.add("dark");
-                        document.body.classList.add("dark");
-                      } else {
-                        document.documentElement.classList.remove("dark");
-                        document.body.classList.remove("dark");
-                      }
-                    }
-                    setKpiThemeAnchor(null);
-                  }}
-                  sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1, px: 1.5, borderRadius: 2 }}
-                >
-                  <Box sx={{ width: 18, height: 18, borderRadius: "50%", backgroundColor: theme.swatch, border: "2px solid #CBD5E1", boxShadow: "0 2px 4px rgba(0,0,0,0.15)" }} />
-                  <Typography variant="body2" sx={{ fontWeight: kpiTheme === theme.id ? 800 : 500, fontSize: "13px", color: kpiTheme === theme.id ? "#2563EB" : "#1E293B" }}>
-                    {theme.label}
-                  </Typography>
-                  {kpiTheme === theme.id && (
-                    <Box sx={{ ml: "auto", width: 6, height: 6, borderRadius: "50%", bgcolor: "#2563EB" }} />
-                  )}
-                </MenuItem>
-              ))}
+
+              {[
+                { mode: "AUTO", label: "Auto", desc: "Follows your local day/night schedule" },
+                { mode: "LIGHT", label: "Light", desc: "Always use light mode" },
+                { mode: "DARK", label: "Dark", desc: "Always use dark mode" },
+              ].map((item) => {
+                const isSelected = themeMode === item.mode;
+                return (
+                  <MenuItem
+                    key={item.mode}
+                    onClick={() => {
+                      setThemeMode(item.mode as any);
+                      setKpiThemeAnchor(null);
+                    }}
+                    sx={{
+                      py: 1,
+                      px: 1.5,
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: isSelected ? 700 : 400,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      bgcolor: isSelected
+                        ? effectiveTheme === "dark"
+                          ? "rgba(59, 130, 246, 0.15)"
+                          : "rgba(37, 99, 235, 0.08)"
+                        : "transparent",
+                      color: isSelected
+                        ? effectiveTheme === "dark"
+                          ? "#60A5FA"
+                          : "#2563EB"
+                        : effectiveTheme === "dark"
+                        ? "#CBD5E1"
+                        : "#334155",
+                      "&:hover": {
+                        bgcolor: effectiveTheme === "dark" ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.04)",
+                      },
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: isSelected ? 800 : 500, fontSize: "13px" }}>
+                      {isSelected ? `✓ ${item.label}` : `   ${item.label}`}
+                    </Typography>
+                  </MenuItem>
+                );
+              })}
             </Menu>
+
 
             {/* Dynamic DB-Backed Notification Center */}
             <NotificationCenter />
@@ -945,11 +1019,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 paper: {
                   sx: {
                     borderRadius: "20px",
-                    width: 320,
+                    width: 330,
                     mt: 1.5,
                     p: "20px",
-                    boxShadow: "0 12px 36px rgba(0,0,0,0.12)",
-                    border: "1px solid #E5E7EB",
+                    bgcolor: effectiveTheme === "dark" ? "#111B2B" : "#FFFFFF",
+                    color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A",
+                    boxShadow: effectiveTheme === "dark" ? "0 16px 48px rgba(0,0,0,0.5)" : "0 12px 36px rgba(0,0,0,0.12)",
+                    border: effectiveTheme === "dark" ? "1px solid rgba(148, 163, 184, 0.2)" : "1px solid rgba(15, 23, 42, 0.12)",
                   },
                 },
               }}
@@ -964,15 +1040,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     color: "#FFFFFF",
                     fontWeight: 800,
                     fontSize: "1.2rem",
-                    boxShadow: "0 4px 12px rgba(30, 58, 138, 0.25)",
+                    boxShadow: "0 4px 12px rgba(30, 58, 138, 0.3)",
                     flexShrink: 0,
                   }}
                 >
-                  {(profileDetails.owner_name || outlet.ownerName || "R").charAt(0).toUpperCase()}
+                  {(profileDetails.owner_name || outlet.ownerName || user?.full_name || "R").charAt(0).toUpperCase()}
                 </Avatar>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontSize: "15px", fontWeight: 800, color: "#111827", lineHeight: 1.2 }}>
-                    {profileDetails.owner_name || outlet.ownerName || "Not available"}
+                  <Typography variant="subtitle1" sx={{ fontSize: "16px", fontWeight: 800, color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", lineHeight: 1.2 }}>
+                    {profileDetails.owner_name || outlet.ownerName || user?.full_name || "Retailer Agent"}
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
                     {profileDetails.plan_name && (
@@ -981,12 +1057,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                         label={profileDetails.plan_name}
                         size="small"
                         sx={{
-                          backgroundColor: "#FEF9C3",
-                          color: "#854D0E",
+                          backgroundColor: effectiveTheme === "dark" ? "rgba(234, 179, 8, 0.15)" : "#FEF9C3",
+                          color: effectiveTheme === "dark" ? "#FACC15" : "#854D0E",
                           fontWeight: 800,
                           fontSize: "0.65rem",
                           height: 20,
-                          border: "1px solid #FDE047",
+                          border: effectiveTheme === "dark" ? "1px solid rgba(250, 204, 21, 0.3)" : "1px solid #FDE047",
                         }}
                       />
                     )}
@@ -994,8 +1070,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       label="● Active Session"
                       size="small"
                       sx={{
-                        backgroundColor: "#DCFCE7",
-                        color: "#16A34A",
+                        backgroundColor: effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7",
+                        color: effectiveTheme === "dark" ? "#4ADE80" : "#16A34A",
+                        border: effectiveTheme === "dark" ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid #BBF7D0",
                         fontWeight: 800,
                         fontSize: "0.65rem",
                         height: 20,
@@ -1005,19 +1082,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 </Box>
               </Box>
 
-              <Divider sx={{ my: 1.5 }} />
+              <Divider sx={{ my: 1.5, borderColor: effectiveTheme === "dark" ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.12)" }} />
 
               {/* Wallet Balance Display */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, mb: 1.5 }}>
-                <Typography variant="caption" sx={{ fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Wallet Balance
+                <Typography variant="caption" sx={{ fontSize: "10px", fontWeight: 700, color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  WALLET BALANCE
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography variant="h5" sx={{ fontSize: "24px", fontWeight: 800, color: "#111827", fontFamily: "monospace", lineHeight: 1.1 }}>
+                  <Typography variant="h5" sx={{ fontSize: "22px", fontWeight: 800, color: effectiveTheme === "dark" ? "#FFFFFF" : "#0F172A", fontFamily: "monospace", lineHeight: 1.1 }}>
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
                   <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ p: 0.25 }}>
-                    <RefreshIcon sx={{ fontSize: 16, color: "#2563EB", animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
+                    <RefreshIcon sx={{ fontSize: 16, color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB", animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
                   </IconButton>
                 </Box>
               </Box>
@@ -1025,59 +1102,88 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               {/* Details List */}
               <Stack spacing={1} sx={{ mb: 2 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Retailer ID</Typography>
-                  <Chip label={profileDetails.retailer_code || outlet.code || "Not available"} size="small" sx={{ backgroundColor: "#EFF6FF", color: "#2563EB", fontWeight: 800, height: 20, fontSize: "0.68rem" }} />
-                </Box>
-
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Merchant Outlet</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#111827", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {profileDetails.retailer_name || outlet.name || "Not available"}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Account Approval</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Retailer ID</Typography>
                   <Chip
-                    icon={isApproved ? <ShieldIcon sx={{ "&&": { color: "#16A34A", fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: "#D97706", fontSize: 12 } }} />}
-                    label={profileDetails.approval_status ? (profileDetails.approval_status === "ACTIVE" || profileDetails.approval_status === "APPROVED" ? "Approved & Active" : profileDetails.approval_status) : (isApproved ? "Approved & Active" : "Pending Admin Review")}
+                    label={profileDetails.retailer_code || outlet.code || "RET-CHE-108"}
                     size="small"
                     sx={{
-                      backgroundColor: isApproved ? "#DCFCE7" : "#FEF3C7",
-                      color: isApproved ? "#16A34A" : "#D97706",
+                      backgroundColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.15)" : "#EFF6FF",
+                      color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB",
+                      border: effectiveTheme === "dark" ? "1px solid rgba(96, 165, 250, 0.3)" : "1px solid #BFDBFE",
                       fontWeight: 800,
-                      height: 22,
+                      height: 20,
                       fontSize: "0.68rem",
                     }}
                   />
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>KYC Status</Typography>
-                  <Chip
-                    icon={<ShieldIcon sx={{ "&&": { color: profileDetails.kyc_status === "VERIFIED" ? "#16A34A" : "#D97706", fontSize: 12 } }} />}
-                    label={profileDetails.kyc_status ? (profileDetails.kyc_status === "VERIFIED" ? "KYC Verified" : profileDetails.kyc_status) : (isApproved ? "KYC Verified" : "Pending Review")}
-                    size="small"
-                    sx={{ backgroundColor: profileDetails.kyc_status === "VERIFIED" ? "#DCFCE7" : "#FEF3C7", color: profileDetails.kyc_status === "VERIFIED" ? "#16A34A" : "#D97706", fontWeight: 800, height: 20, fontSize: "0.68rem" }}
-                  />
-                </Box>
-
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Location</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#374151", fontWeight: 600, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {profileDetails.location || outlet.location || "Not available"}
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Merchant Outlet</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {profileDetails.retailer_name || outlet.name || "Pay2Pay Retailer Outlet"}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#6B7280", fontWeight: 600 }}>Last Login</Typography>
-                  <Typography variant="caption" sx={{ fontSize: "12px", color: "#374151", fontWeight: 600 }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Account Approval</Typography>
+                  {(() => {
+                    const isAppr = profileDetails.approval_status === "ACTIVE" || profileDetails.approval_status === "APPROVED" || isApproved;
+                    return (
+                      <Chip
+                        icon={isAppr ? <ShieldIcon sx={{ "&&": { color: effectiveTheme === "dark" ? "#4ADE80" : "#16A34A", fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: effectiveTheme === "dark" ? "#FBBF24" : "#D97706", fontSize: 12 } }} />}
+                        label={profileDetails.approval_status ? (isAppr ? "Approved & Active" : profileDetails.approval_status) : (isApproved ? "Approved & Active" : "Pending Admin Review")}
+                        size="small"
+                        sx={{
+                          backgroundColor: isAppr ? (effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7") : (effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7"),
+                          color: isAppr ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"),
+                          border: isAppr ? (effectiveTheme === "dark" ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid #BBF7D0") : (effectiveTheme === "dark" ? "1px solid rgba(251, 191, 36, 0.3)" : "1px solid #FDE68A"),
+                          fontWeight: 800,
+                          height: 22,
+                          fontSize: "0.68rem",
+                        }}
+                      />
+                    );
+                  })()}
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>KYC Status</Typography>
+                  {(() => {
+                    const isKyc = profileDetails.kyc_status === "VERIFIED" || (isApproved && profileDetails.kyc_status !== "PENDING");
+                    return (
+                      <Chip
+                        icon={<ShieldIcon sx={{ "&&": { color: isKyc ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"), fontSize: 12 } }} />}
+                        label={profileDetails.kyc_status ? (profileDetails.kyc_status === "VERIFIED" ? "KYC Verified" : profileDetails.kyc_status) : (isApproved ? "KYC Verified" : "Pending Review")}
+                        size="small"
+                        sx={{
+                          backgroundColor: isKyc ? (effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7") : (effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7"),
+                          color: isKyc ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"),
+                          border: isKyc ? (effectiveTheme === "dark" ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid #BBF7D0") : (effectiveTheme === "dark" ? "1px solid rgba(251, 191, 36, 0.3)" : "1px solid #FDE68A"),
+                          fontWeight: 800,
+                          height: 20,
+                          fontSize: "0.68rem",
+                        }}
+                      />
+                    );
+                  })()}
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Location</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 600, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {profileDetails.location || outlet.location || "Chennai, TN"}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Last Login</Typography>
+                  <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>
                     {formatLastLogin(profileDetails.last_login_at)}
                   </Typography>
                 </Box>
               </Stack>
 
-              <Divider sx={{ my: 1.5 }} />
+              <Divider sx={{ my: 1.5, borderColor: effectiveTheme === "dark" ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.12)" }} />
 
               {/* Action Buttons */}
               <Stack spacing={1}>
@@ -1087,9 +1193,21 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   fullWidth
                   size="small"
                   variant="outlined"
-                  startIcon={<PersonIcon sx={{ fontSize: 18 }} />}
+                  startIcon={<PersonIcon sx={{ fontSize: 18, color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB" }} />}
                   onClick={() => setProfileAnchor(null)}
-                  sx={{ borderRadius: "10px", height: 36, fontWeight: 700, textTransform: "none", fontSize: "12px" }}
+                  sx={{
+                    borderRadius: "10px",
+                    height: 36,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    fontSize: "12px",
+                    borderColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.5)" : "#3B82F6",
+                    color: effectiveTheme === "dark" ? "#60A5FA" : "#2563EB",
+                    "&:hover": {
+                      borderColor: "#3B82F6",
+                      backgroundColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.12)" : "#EFF6FF",
+                    },
+                  }}
                 >
                   View Full Profile
                 </Button>
@@ -1097,10 +1215,20 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   fullWidth
                   size="small"
                   variant="contained"
-                  color="error"
-                  startIcon={<LogoutIcon sx={{ fontSize: 18 }} />}
+                  startIcon={<LogoutIcon sx={{ fontSize: 18, color: "#FFFFFF" }} />}
                   onClick={logout}
-                  sx={{ borderRadius: "10px", height: 36, fontWeight: 700, textTransform: "none", fontSize: "12px" }}
+                  sx={{
+                    borderRadius: "10px",
+                    height: 36,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    fontSize: "12px",
+                    backgroundColor: "#DC2626",
+                    color: "#FFFFFF",
+                    "&:hover": {
+                      backgroundColor: "#B91C1C",
+                    },
+                  }}
                 >
                   Logout Session
                 </Button>

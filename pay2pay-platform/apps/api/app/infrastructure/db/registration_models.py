@@ -17,7 +17,7 @@ class RegistrationDraftModel(BaseEntity, EnterpriseBaseMixin):
     __table_args__ = {"extend_existing": True}
 
     registration_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
-    mobile_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    mobile_number: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     current_step: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     completed_steps: Mapped[List[int]] = mapped_column(JSONB, nullable=False, default=list)

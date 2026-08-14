@@ -26,8 +26,12 @@ export interface WalletState {
   todaySettlement: number;
 }
 
+export type KpiTheme = string;
+
+
 export interface ThemeConfig {
   id: KpiTheme;
+
   label: string;
   swatch: string;
   headerBg: string;

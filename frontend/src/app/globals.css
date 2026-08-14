@@ -6,8 +6,23 @@
 
 @layer base {
   :root {
-    /* ── Enterprise Premium Color System ─────────────────────────── */
-    
+    /* ── Centralized Semantic Design Tokens ───────────────────────── */
+    --background-primary: #060D1B;
+    --background-secondary: #0B1528;
+    --surface: #121B28;
+    --surface-elevated: #1A2638;
+    --border: #1E293B;
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --text-muted: #94A3B8;
+    --accent: #3B82F6;
+    --accent-hover: #2563EB;
+    --success: #4ADE80;
+    --warning: #FBBF24;
+    --danger: #F87171;
+    --info: #60A5FA;
+
     /* Brand Primary: Indigo-Violet (Premium Fintech) */
     --ent-primary: #6C63FF;
     --ent-primary-hover: #5B52E5;
@@ -89,7 +104,54 @@
     --grid-primary: #6C63FF;
     --grid-primary-hover: #5B52E5;
   }
+
+  :root[data-theme="light"] {
+    --background-primary: #F8FAFC;
+    --background-secondary: #F1F5F9;
+    --surface: #FFFFFF;
+    --surface-elevated: #FFFFFF;
+    --border: #E2E8F0;
+    --border-strong: #CBD5E1;
+    --text-primary: #0F172A;
+    --text-secondary: #334155;
+    --text-muted: #64748B;
+    --accent: #2563EB;
+    --accent-hover: #1D4ED8;
+    --success: #16A34A;
+    --warning: #D97706;
+    --danger: #DC2626;
+    --info: #0EA5E9;
+    --ent-bg: #F8FAFC;
+    --ent-surface: #FFFFFF;
+    --ent-border: #E2E8F0;
+    --ent-text-primary: #0F172A;
+    --ent-text-secondary: #334155;
+  }
+
+  :root[data-theme="dark"] {
+    --background-primary: #060D1B;
+    --background-secondary: #0B1528;
+    --surface: #121B28;
+    --surface-elevated: #1A2638;
+    --border: #1E293B;
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --text-muted: #94A3B8;
+    --accent: #3B82F6;
+    --accent-hover: #2563EB;
+    --success: #4ADE80;
+    --warning: #FBBF24;
+    --danger: #F87171;
+    --info: #60A5FA;
+    --ent-bg: #060D1B;
+    --ent-surface: #121B28;
+    --ent-border: #1E293B;
+    --ent-text-primary: #F8FAFC;
+    --ent-text-secondary: #CBD5E1;
+  }
 }
+
 
 .glass-card {
   background-color: rgba(15, 23, 42, 0.85);

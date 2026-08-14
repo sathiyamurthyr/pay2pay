@@ -6,6 +6,9 @@ import {
   Stack,
   Switch,
   FormControlLabel,
+  FormControl,
+  RadioGroup,
+  Radio,
   Select,
   MenuItem,
   Button,
@@ -20,10 +23,14 @@ import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import LockIcon from "@mui/icons-material/Lock";
 import SaveIcon from "@mui/icons-material/Save";
 import ShieldIcon from "@mui/icons-material/Shield";
+import PaletteIcon from "@mui/icons-material/Palette";
 import { useSessionSecurity } from "@/context/SessionSecurityProvider";
+import { useTheme, ThemeMode } from "@/context/ThemeContext";
 
 export const SecuritySettingsView: React.FC = () => {
   const { securitySettings, updateSettings } = useSessionSecurity();
+  const { themeMode, effectiveTheme, setThemeMode } = useTheme();
+
 
   const [autoLockEnabled, setAutoLockEnabled] = useState<boolean>(securitySettings.auto_lock_enabled);
   const [idleTimeout, setIdleTimeout] = useState<number>(securitySettings.idle_timeout_minutes);
@@ -281,7 +288,117 @@ export const SecuritySettingsView: React.FC = () => {
             </Stack>
           </Paper>
         </Grid>
+
+        {/* 3. THEME PREFERENCE PANEL */}
+        <Grid size={{ xs: 12 }}>
+
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3.5,
+              borderRadius: 4,
+              bgcolor: effectiveTheme === "dark" ? "rgba(15, 23, 42, 0.95)" : "#FFFFFF",
+              border: effectiveTheme === "dark" ? "1px solid rgba(255, 255, 255, 0.12)" : "1px solid #E2E8F0",
+              color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A",
+            }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2.5 }}>
+              <PaletteIcon sx={{ color: "#60A5FA", fontSize: 26 }} />
+              <Typography variant="h6" sx={{ fontWeight: 800, color: "text.primary", fontSize: "18px" }}>
+                Theme Preference
+              </Typography>
+            </Stack>
+
+            <FormControl component="fieldset">
+              <RadioGroup
+                value={themeMode}
+                onChange={(e) => setThemeMode(e.target.value as ThemeMode)}
+              >
+                <Stack spacing={2}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      px: 2.5,
+                      borderRadius: 3,
+                      border: themeMode === "AUTO" ? "2px solid #2563EB" : effectiveTheme === "dark" ? "1px solid #1E293B" : "1px solid #E2E8F0",
+                      bgcolor: themeMode === "AUTO" ? (effectiveTheme === "dark" ? "rgba(37, 99, 235, 0.12)" : "rgba(37, 99, 235, 0.04)") : "transparent",
+                    }}
+                  >
+                    <FormControlLabel
+                      value="AUTO"
+                      control={<Radio sx={{ color: "#2563EB", "&.Mui-checked": { color: "#2563EB" } }} />}
+                      label={
+                        <Box sx={{ ml: 1 }}>
+                          <Typography variant="body1" sx={{ fontWeight: 800, fontSize: "16px", color: "text.primary" }}>
+                            Auto
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "14px" }}>
+                            Follows your local day/night schedule
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Paper>
+
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      px: 2.5,
+                      borderRadius: 3,
+                      border: themeMode === "LIGHT" ? "2px solid #2563EB" : effectiveTheme === "dark" ? "1px solid #1E293B" : "1px solid #E2E8F0",
+                      bgcolor: themeMode === "LIGHT" ? (effectiveTheme === "dark" ? "rgba(37, 99, 235, 0.12)" : "rgba(37, 99, 235, 0.04)") : "transparent",
+                    }}
+                  >
+                    <FormControlLabel
+                      value="LIGHT"
+                      control={<Radio sx={{ color: "#2563EB", "&.Mui-checked": { color: "#2563EB" } }} />}
+                      label={
+                        <Box sx={{ ml: 1 }}>
+                          <Typography variant="body1" sx={{ fontWeight: 800, fontSize: "16px", color: "text.primary" }}>
+                            Light
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "14px" }}>
+                            Always use light mode
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Paper>
+
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      px: 2.5,
+                      borderRadius: 3,
+                      border: themeMode === "DARK" ? "2px solid #2563EB" : effectiveTheme === "dark" ? "1px solid #1E293B" : "1px solid #E2E8F0",
+                      bgcolor: themeMode === "DARK" ? (effectiveTheme === "dark" ? "rgba(37, 99, 235, 0.12)" : "rgba(37, 99, 235, 0.04)") : "transparent",
+                    }}
+                  >
+                    <FormControlLabel
+                      value="DARK"
+                      control={<Radio sx={{ color: "#2563EB", "&.Mui-checked": { color: "#2563EB" } }} />}
+                      label={
+                        <Box sx={{ ml: 1 }}>
+                          <Typography variant="body1" sx={{ fontWeight: 800, fontSize: "16px", color: "text.primary" }}>
+                            Dark
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "14px" }}>
+                            Always use dark mode
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Paper>
+                </Stack>
+              </RadioGroup>
+            </FormControl>
+          </Paper>
+        </Grid>
       </Grid>
+
 
       <Snackbar
         open={snackbarOpen}

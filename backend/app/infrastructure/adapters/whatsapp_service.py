@@ -77,8 +77,11 @@ class WhatsAppService:
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.post(target_url, headers=headers, json=payload)
+                direct_wa_url = f"https://wa.me/{formatted_mobile}?text=Your%20Pay2Pay%20Verification%20OTP%20is%20{otp_code}"
+                res = await client.post(target_url, json=payload, headers=headers)
+
                 if res.status_code == 200:
+
                     res_data = res.json()
                     msg_id = res_data.get("messages", [{}])[0].get("id", "N/A")
                     logger.info(f"WhatsApp API 200 OK | Delivered to {formatted_mobile} | ID: {msg_id}")
@@ -89,6 +92,7 @@ class WhatsAppService:
                         "target_url": target_url,
                         "recipient": formatted_mobile,
                         "message_id": msg_id,
+                        "whatsapp_direct_url": direct_wa_url,
                         "meta_response": res_data
                     }
                 else:
@@ -99,9 +103,11 @@ class WhatsAppService:
                         "status_code": res.status_code,
                         "target_url": target_url,
                         "recipient": formatted_mobile,
+                        "whatsapp_direct_url": direct_wa_url,
                         "detail": res.text,
                         "meta_response": res.text
                     }
+
         except Exception as ex:
             logger.error(f"WhatsApp API Connection Exception: {ex}")
             return {

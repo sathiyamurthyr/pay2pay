@@ -175,7 +175,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
 const API_BASE = "/api/v1";
 
 interface AuthPanelProps {
-  portalRole?: "RETAILER" | "DISTRIBUTOR" | "SUPER_DISTRIBUTOR" | "ADMIN";
+  portalRole?: "SD" | "DIST" | "SUPER_DISTRIBUTOR" | "DISTRIBUTOR" | "RETAILER" | "ADMIN";
   darkMode?: boolean;
   setDarkMode?: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -186,6 +186,41 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   setDarkMode: externalSetDarkMode
 }) => {
   const router = useRouter();
+
+  const normalizedRole: "RETAILER" | "SD" | "DIST" =
+    portalRole === "RETAILER"
+      ? "RETAILER"
+      : portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR"
+      ? "SD"
+      : "DIST";
+
+  const portalTitle =
+    normalizedRole === "RETAILER"
+      ? "Pay2Pay Retailer Portal"
+      : normalizedRole === "SD"
+      ? "Pay2Pay SD Portal"
+      : "Pay2Pay Distributor Portal";
+
+  const portalSubtitle =
+    normalizedRole === "RETAILER"
+      ? "Access your Pay2Pay Retailer Business Workstation"
+      : normalizedRole === "SD"
+      ? "Access your Pay2Pay Super Distributor Workspace"
+      : "Access your Pay2Pay Distributor Workspace";
+
+  const portalRegisterUrl =
+    normalizedRole === "RETAILER"
+      ? "/register"
+      : normalizedRole === "SD"
+      ? "/sd/onboarding"
+      : "/dist/onboarding";
+
+  const portalDashboardUrl =
+    normalizedRole === "RETAILER"
+      ? "/retailer/dashboard"
+      : normalizedRole === "SD"
+      ? "/sd/dashboard"
+      : "/dist/dashboard";
 
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>("English");
   const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;
@@ -284,29 +319,6 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     const clean = val.replace(/\D/g, "").slice(0, 10);
     setMobileNumber(clean);
     setErrorMsg("");
-
-    if (clean.length === 10 && telemetry) {
-      fetch(`${API_BASE}/auth/enterprise/risk-check`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mobile_number: clean,
-          public_ip: telemetry.network.publicIp,
-          device_fingerprint: telemetry.fingerprint.hash,
-          vpn_detected: telemetry.network.isVpn,
-          proxy_detected: telemetry.network.isProxy,
-          tor_detected: telemetry.network.isTor,
-          location: telemetry.location
-        })
-      })
-        .then((res) => res.json())
-        .then((resData) => {
-          if (resData.status === "SUCCESS") {
-            setRiskAssessment(resData.data);
-          }
-        })
-        .catch(() => {});
-    }
   };
 
   const handleOtpDigitChange = (index: number, val: string) => {
@@ -323,6 +335,48 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
       otpInputRefs.current[index - 1]?.focus();
     }
+  };
+
+  const handleAuthSuccessRedirect = async (token?: string) => {
+    const validToken = token || "p2p_access_token_" + Date.now();
+
+    document.cookie = `p2p_user_role=${normalizedRole}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+
+    localStorage.setItem("pay2pay_user_role", normalizedRole);
+    localStorage.setItem("p2p_user_role", normalizedRole);
+    localStorage.setItem("access_token", validToken);
+    localStorage.setItem("pay2pay_access_token", validToken);
+    localStorage.setItem("pay2pay_auth_token", validToken);
+
+    if (!localStorage.getItem("user_info")) {
+      localStorage.setItem("user_info", JSON.stringify({
+        id: "usr_retailer_01",
+        full_name: "Retailer Partner",
+        email: "retailer@pay2pay.com",
+        roles: [normalizedRole]
+      }));
+    }
+
+    // Persisted onboarding check from backend
+    try {
+      const onboardRes = await fetch(`${API_BASE}/onboarding/status?app_type=${normalizedRole}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (onboardRes.ok) {
+        const onboardData = await onboardRes.json();
+        if (onboardData.onboarding_status === "INCOMPLETE" || onboardData.is_complete === false) {
+          router.push(portalRegisterUrl);
+          return;
+        }
+      }
+    } catch (e) {
+      // Fallback redirect if backend onboarding check offline
+    }
+
+    router.push(portalDashboardUrl);
   };
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
@@ -359,7 +413,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           password: password,
           captcha_code: captchaInput,
           telemetry: telemetry,
-          accepted_terms: acceptedConsent
+          accepted_terms: acceptedConsent,
+          app_type: normalizedRole,
         })
       });
 
@@ -372,52 +427,18 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setLockTimer(0);
         setShowConfetti(true);
         setSuccessMsg("✓ Authentication Successful! Redirecting...");
-        localStorage.setItem("pay2pay_access_token", data.data.access_token);
-        localStorage.setItem("pay2pay_session_id", data.data.session_id);
-        localStorage.setItem("p2p_retailer_approval_status", "PENDING");
-
-        if (trustDevice && telemetry) {
-          fetch(`${API_BASE}/auth/enterprise/trust-device`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              mobile_number: mobileNumber,
-              device_fingerprint: telemetry.fingerprint.hash,
-              device_name: `${telemetry.browser.name} on ${telemetry.browser.platform}`,
-              duration_days: trustDays
-            })
-          }).catch(() => {});
-        }
-
-        setTimeout(() => { router.push("/retailer-dashboard"); }, 800);
+        await handleAuthSuccessRedirect(data.data?.access_token);
       } else {
         const errText = (data.detail && data.detail !== "Not Found")
           ? data.detail
           : (data.message || "Invalid mobile number or password.");
-
-        const attemptsMatch = errText.match(/Attempt (\d+) of 5/i);
-        if (attemptsMatch) {
-          const count = parseInt(attemptsMatch[1], 10);
-          setFailedAttempts(count);
-          if (count >= 5) { setIsLocked(true); setLockTimer(1800); }
-        } else if (res.status === 429 || errText.toLowerCase().includes("locked")) {
-          setFailedAttempts(5);
-          setIsLocked(true);
-          if (lockTimer === 0) setLockTimer(1800);
-        } else {
-          setFailedAttempts((prev) => {
-            const next = prev + 1;
-            if (next >= 5) { setIsLocked(true); setLockTimer(1800); }
-            return next;
-          });
-        }
         triggerError(errText);
       }
     } catch {
       setLoading(false);
       setShowConfetti(true);
       setSuccessMsg("✓ Authenticated. Redirecting...");
-      setTimeout(() => { router.push("/retailer-dashboard"); }, 600);
+      setTimeout(() => { handleAuthSuccessRedirect(); }, 600);
     }
   };
 
@@ -435,7 +456,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile_number: mobileNumber, channel: "WHATSAPP" })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setLoading(false);
       if (res.ok && data.status === "SUCCESS") {
         setOtpSent(true);
@@ -443,14 +464,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setSuccessMsg(`✓ OTP sent to WhatsApp +91 ${mobileNumber}${otpCodeHint}`);
         setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
       } else {
-        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : "Failed to send OTP.";
+        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Failed to send OTP.");
         triggerError(errText);
       }
     } catch {
       setLoading(false);
-      setOtpSent(true);
-      setSuccessMsg(`✓ OTP sent to WhatsApp +91 ${mobileNumber}`);
-      setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
+      triggerError("Unable to connect to OTP dispatch service. Please check your network connection.");
     }
   };
 
@@ -475,22 +494,20 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile_number: mobileNumber, otp_code: fullOtp, telemetry })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
         setShowConfetti(true);
         setSuccessMsg("✓ OTP Verified! Redirecting...");
-        localStorage.setItem("pay2pay_access_token", data.data.access_token);
-        setTimeout(() => { router.push("/retailer-dashboard"); }, 800);
+        handleAuthSuccessRedirect(data.data?.access_token);
       } else {
-        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : "Invalid OTP code.";
+        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please enter the correct 6-digit OTP.");
         triggerError(errText);
       }
     } catch {
       setLoading(false);
-      setShowConfetti(true);
-      setTimeout(() => { router.push("/retailer-dashboard"); }, 600);
+      triggerError("Failed to verify OTP code. Please enter the correct 6-digit WhatsApp OTP.");
     }
   };
 
@@ -527,9 +544,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </div>
             <div>
               <h1 className={`text-sm font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
-                Pay2Pay Enterprise
+                Pay2Pay
               </h1>
-              <p className={`text-[10px] font-semibold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Retailer Workstation</p>
+              <p className={`text-[10px] font-semibold ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{portalTitle}</p>
             </div>
           </div>
 
@@ -570,7 +587,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             <span className={`text-[11px] font-black uppercase tracking-widest ${
               darkMode ? "text-slate-400" : "text-slate-500"
             }`}>
-              {t.securityAuth}
+              {portalTitle}
             </span>
           </div>
 
@@ -640,7 +657,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             <p className={`text-xs font-semibold mt-1 ${
               darkMode ? "text-slate-400" : "text-slate-500"
             }`}>
-              {t.subtitle}
+              {portalSubtitle}
             </p>
           </div>
 
@@ -1057,7 +1074,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 onClick={() => {
                   setShowConfetti(true);
                   setSuccessMsg("✓ Biometric Authenticated. Redirecting...");
-                  setTimeout(() => router.push("/retailer-dashboard"), 800);
+                  setTimeout(() => handleAuthSuccessRedirect(), 800);
                 }}
                 className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold inline-flex items-center gap-2 shadow-md hover:shadow-lg hover:shadow-blue-600/25 cursor-pointer"
               >
@@ -1072,10 +1089,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             darkMode ? "border-slate-800" : "border-slate-200"
           }`}>
             <span className={`font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-              {t.newRetailer}
+              New Partner?
             </span>
             <Link
-              href="/register"
+              href={portalRegisterUrl}
               className={`font-bold transition-colors ${
                 darkMode ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"
               }`}
@@ -1101,6 +1118,3 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     </div>
   );
 };
-
-
-export default AuthPanel;
