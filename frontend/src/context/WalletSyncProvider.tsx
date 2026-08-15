@@ -41,10 +41,11 @@ export const triggerWalletSync = () => {
 
 export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [walletData, setWalletData] = useState<WalletDataPayload | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false); // No auto-loader on page load
   const [error, setError] = useState<string | null>(null);
 
   const fetchWalletData = useCallback(async () => {
+    setIsLoading(true);
     try {
       let localName = "";
       let localCode = "";
@@ -122,12 +123,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, []);
 
-  // Initial fetch on component mount
-  useEffect(() => {
-    fetchWalletData();
-  }, [fetchWalletData]);
-
-  // Event listener for instant financial action refreshes
+  // Event listener for explicit transaction action refreshes
   useEffect(() => {
     const handleCustomUpdate = () => {
       fetchWalletData();

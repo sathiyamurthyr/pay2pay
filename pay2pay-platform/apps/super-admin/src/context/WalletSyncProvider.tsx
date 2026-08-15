@@ -20,6 +20,8 @@ export interface WalletDataPayload {
   todays_tds: number;
   settlement_pending_amount: number;
   unread_notifications_count: number;
+  is_approved?: boolean;
+  status?: string;
 }
 
 interface WalletSyncContextType {
@@ -28,9 +30,6 @@ interface WalletSyncContextType {
   error: string | null;
   refreshWallet: () => Promise<void>;
 }
-
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
 
 const WalletSyncContext = createContext<WalletSyncContextType | undefined>(undefined);
 
@@ -42,10 +41,11 @@ export const triggerWalletSync = () => {
 
 export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [walletData, setWalletData] = useState<WalletDataPayload | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false); // No auto-loader on page load
   const [error, setError] = useState<string | null>(null);
 
   const fetchWalletData = useCallback(async () => {
+    setIsLoading(true);
     try {
       let localName = "";
       let localCode = "";
@@ -81,7 +81,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
       });
 
       let data = res.data;
-      if (localName) {
+      if (!data.retailer_name && localName) {
         const short = localName.trim().split(" ")[0] || localName;
         data = {
           ...data,
@@ -90,12 +90,28 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
           short_name: short,
         };
       }
-      if (localCode) {
+      if (!data.retailer_code && localCode) {
         data = {
           ...data,
           retailer_code: localCode,
         };
       }
+
+      // If user is logged in as Super Admin / Admin, ensure approval flag is active
+      try {
+        const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
+          if (["SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN"].includes(role)) {
+            data = {
+              ...data,
+              is_approved: true,
+              status: "ACTIVE",
+            };
+          }
+        }
+      } catch {}
 
       setWalletData(data);
       setError(null);
@@ -107,12 +123,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, []);
 
-  // Initial fetch on component mount
-  useEffect(() => {
-    fetchWalletData();
-  }, [fetchWalletData]);
-
-  // Event listener for instant financial action refreshes
+  // Event listener for explicit transaction action refreshes
   useEffect(() => {
     const handleCustomUpdate = () => {
       fetchWalletData();

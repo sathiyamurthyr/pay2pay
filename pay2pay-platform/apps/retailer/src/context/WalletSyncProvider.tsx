@@ -31,9 +31,6 @@ interface WalletSyncContextType {
   refreshWallet: () => Promise<void>;
 }
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-
 const WalletSyncContext = createContext<WalletSyncContextType | undefined>(undefined);
 
 export const triggerWalletSync = () => {
@@ -44,10 +41,11 @@ export const triggerWalletSync = () => {
 
 export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [walletData, setWalletData] = useState<WalletDataPayload | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false); // No auto-loader on page load
   const [error, setError] = useState<string | null>(null);
 
   const fetchWalletData = useCallback(async () => {
+    setIsLoading(true);
     try {
       let localName = "";
       let localCode = "";
@@ -125,12 +123,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, []);
 
-  // Initial fetch on component mount
-  useEffect(() => {
-    fetchWalletData();
-  }, [fetchWalletData]);
-
-  // Event listener for instant financial action refreshes
+  // Event listener for explicit transaction action refreshes
   useEffect(() => {
     const handleCustomUpdate = () => {
       fetchWalletData();

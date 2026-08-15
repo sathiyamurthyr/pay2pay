@@ -170,8 +170,6 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      fetchProfileDetails(false);
-      syncBalance();
     }
   }, []);
 

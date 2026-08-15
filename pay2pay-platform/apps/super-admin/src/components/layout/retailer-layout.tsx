@@ -166,9 +166,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setApprovalStatus]);
 
   useEffect(() => {
-    fetchProfileDetails();
-    syncBalance();
-  }, [fetchProfileDetails, syncBalance]);
+    // Loaded only on explicit user action
+  }, []);
 
   const formatLastLogin = (isoString?: string | null) => {
     if (!isoString) return "Not available";
