@@ -108,9 +108,13 @@ export function middleware(request: NextRequest) {
 
   const isAuthenticated = Boolean(token);
 
+  const destinationCookie = request.cookies.get("p2p_destination")?.value;
+  const isPendingRetailer = userRole === "RETAILER" && destinationCookie === "ACCOUNT_UNDER_REVIEW";
+
   // 1. Legacy /retailer-dashboard -> /retailer/dashboard redirect
   if (pathname === "/retailer-dashboard") {
-    return NextResponse.redirect(new URL("/retailer/dashboard", request.url));
+    const target = isPendingRetailer ? "/retailer/account-under-review" : "/retailer/dashboard";
+    return NextResponse.redirect(new URL(target, request.url));
   }
 
   // 2. Legacy /admin-dashboard -> /admin/dashboard redirect
@@ -120,7 +124,10 @@ export function middleware(request: NextRequest) {
 
   // 3. Generic /login or / or /dashboard -> resolve to canonical portal route
   if (pathname === "/login" || pathname === "/" || pathname === "/dashboard") {
-    const target = isAuthenticated ? portalConfig.dashboard : portalConfig.login;
+    let target = isAuthenticated ? portalConfig.dashboard : portalConfig.login;
+    if (isAuthenticated && isPendingRetailer) {
+      target = "/retailer/account-under-review";
+    }
     return NextResponse.redirect(new URL(target, request.url));
   }
 

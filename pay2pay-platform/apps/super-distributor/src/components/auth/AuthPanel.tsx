@@ -339,10 +339,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     }
   };
 
-  const handleAuthSuccessRedirect = async (token?: string, userData?: any, customRedirect?: string) => {
+  const handleAuthSuccessRedirect = async (token?: string, userData?: any, customRedirect?: string, destination?: string) => {
     const validToken = token || "p2p_access_token_" + Date.now();
+    const dest = destination || (customRedirect?.includes("account-under-review") ? "ACCOUNT_UNDER_REVIEW" : "DASHBOARD");
 
     document.cookie = `p2p_user_role=${normalizedRole}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `p2p_destination=${dest}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
@@ -354,18 +356,18 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     }
 
     if (customRedirect) {
-      router.push(customRedirect);
+      router.replace(customRedirect);
       return;
     }
 
     const redirectPath =
       normalizedRole === "RETAILER"
-        ? "/retailer/dashboard"
+        ? (dest === "ACCOUNT_UNDER_REVIEW" ? "/retailer/account-under-review" : "/retailer/dashboard")
         : normalizedRole === "SD"
         ? "/super-distributor/dashboard"
         : "/distributor/dashboard";
 
-    router.push(redirectPath);
+    router.replace(redirectPath);
   };
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
@@ -506,7 +508,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           }
         }
         setErrorMsg("");
-        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user, redirectUrl);
+        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user, redirectUrl, destination);
       } else {
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please check the OTP and try again.");
         triggerError(errText);

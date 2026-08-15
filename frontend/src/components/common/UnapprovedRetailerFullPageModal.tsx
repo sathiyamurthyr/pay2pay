@@ -54,70 +54,34 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
     setRefreshMsg("");
 
     try {
-      const token =
-        (typeof window !== "undefined" && (
-          localStorage.getItem("pay2pay_access_token") ||
-          localStorage.getItem("p2p_access_token") ||
-          localStorage.getItem("pay2pay_auth_token")
-        )) || "";
-
-      let mobile = "";
-      let retailerId = "";
-      if (typeof window !== "undefined") {
-        try {
-          const uStr = localStorage.getItem("pay2pay_user_data") || localStorage.getItem("user_info");
-          if (uStr) {
-            const u = JSON.parse(uStr);
-            mobile = u.mobile_number || u.mobile || "";
-            retailerId = u.retailer_id || u.id || u.retailer_code || "";
-          }
-        } catch {}
-        if (!mobile) {
-          mobile = localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile") || localStorage.getItem("p2p_mobile") || "";
-        }
-        if (!retailerId) {
-          retailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || localStorage.getItem("p2p_retailer_code") || "";
-        }
-      }
-
-      const queryParams = new URLSearchParams();
-      if (mobile) queryParams.set("mobile", mobile);
-      if (retailerId) queryParams.set("retailer_id", retailerId);
-
-      const url = `/api/v1/auth/enterprise/account-status${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(url, { headers });
-      const json = await res.json();
+      const authState = await fetchAuthoritativeRetailerStatus(isManual);
       if (isManual) setIsRefreshing(false);
 
-      if (res.ok && json.status === "SUCCESS" && json.data) {
-        const d = json.data;
+      if (authState) {
         setAccountData({
-          retailer_name: d.retailer_name || d.store_name || "Retailer Partner",
-          registered_mobile: d.registered_mobile || (mobile ? `+91 ${mobile}` : "+91 --"),
-          application_reference: d.application_reference || "APP-PENDING",
-          verification_status: d.verification_status || "UNDER_REVIEW",
-          approval_status: d.approval_status || "PENDING",
-          payment_permission: d.payment_permission || "PROHIBITED & LOCKED",
-          is_approved: d.is_approved || false,
-          support_phone: d.support_contact?.phone || "+91 80000 00000",
-          support_email: d.support_contact?.email || "support@pay2pay.in"
+          retailer_name: authState.retailer_name || "Retailer Partner",
+          registered_mobile: authState.registered_mobile || "+91 --",
+          application_reference: authState.application_reference || "APP-PENDING",
+          verification_status: authState.verification_status || "UNDER_REVIEW",
+          approval_status: authState.approval_status || "PENDING",
+          payment_permission: authState.payment_permission || "PROHIBITED & LOCKED",
+          is_approved: authState.is_approved,
+          support_phone: authState.support_contact?.phone || "+91 80000 00000",
+          support_email: authState.support_contact?.email || "support@pay2pay.in",
         });
 
-        if (d.is_approved) {
+        if (authState.is_approved && authState.destination === "DASHBOARD") {
           setApprovalStatus("APPROVED");
-          if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
-            localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
-          }
           setRefreshMsg("🎉 Congratulations! Your account has been approved by Admin. Loading workstation...");
           setTimeout(() => {
-            window.location.href = "/retailer/dashboard";
-          }, 1000);
+            window.location.replace("/retailer/dashboard");
+          }, 800);
+        } else if (authState.destination === "APPLICATION_REJECTED") {
+          setRefreshMsg("⚠️ Your application was rejected by compliance.");
+        } else if (authState.destination === "ACCOUNT_RESTRICTED") {
+          setRefreshMsg("🔒 Your account access is currently restricted.");
         } else if (isManual) {
-          setRefreshMsg(`✓ Status checked: Verification status is currently ${d.verification_status}.`);
+          setRefreshMsg(`✓ Status checked: Verification status is currently ${authState.verification_status}.`);
         }
       } else if (isManual) {
         setRefreshMsg("✓ Verification is currently under review by compliance.");

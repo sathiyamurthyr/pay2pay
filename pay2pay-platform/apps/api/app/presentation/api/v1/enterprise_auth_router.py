@@ -668,33 +668,115 @@ async def get_account_status(
     except Exception as e:
         logger.warning(f"Database lookup notice in get_account_status: {e}")
 
-    # Calculate live approval status across all tables
-    if verif:
-        if (
-            verif.verification_status in ("APPROVED", "ACTIVE", "KYC_APPROVED", "VERIFIED")
-            or verif.account_status == "ACTIVE"
-            or verif.retailer_status == "ACTIVE"
-        ):
-            is_approved = True
-    if draft and draft.status in ("KYC_APPROVED", "APPROVED", "ACTIVE", "VERIFIED"):
-        is_approved = True
-    if retailer_record and retailer_record.status in ("ACTIVE", "APPROVED"):
-        is_approved = True
-    if clean_mobile in ("9176669426", "8000000000"):
-        is_approved = True
+    # Pure DB-driven Authoritative State Resolution
+    is_approved = False
+    approval_status = "PENDING"
+    account_status = "UNDER_REVIEW"
+    destination = "ACCOUNT_UNDER_REVIEW"
+    redirect_url = "/retailer/account-under-review"
+    login_enabled = True
 
-    status = "APPROVED" if is_approved else (
-        (verif.verification_status if verif else None)
-        or (retailer_record.status if retailer_record else None)
-        or (draft.status if draft else "PENDING")
-    ).upper()
+    # 1. Evaluate from live retailer_verifications
+    if verif:
+        v_status = (verif.verification_status or "").upper()
+        r_status = (verif.retailer_status or verif.account_status or "").upper()
+
+        if v_status in ("APPROVED", "ACTIVE") or r_status in ("APPROVED", "ACTIVE"):
+            is_approved = True
+            approval_status = "APPROVED"
+            account_status = "ACTIVE"
+            destination = "DASHBOARD"
+            redirect_url = "/retailer/dashboard"
+            login_enabled = True
+        elif v_status == "REJECTED" or r_status == "REJECTED":
+            is_approved = False
+            approval_status = "REJECTED"
+            account_status = "REJECTED"
+            destination = "APPLICATION_REJECTED"
+            redirect_url = "/application-rejected"
+            login_enabled = False
+        elif v_status in ("SUSPENDED", "BLOCKED") or r_status in ("SUSPENDED", "BLOCKED"):
+            is_approved = False
+            approval_status = "SUSPENDED"
+            account_status = "SUSPENDED"
+            destination = "ACCOUNT_RESTRICTED"
+            redirect_url = "/account-restricted"
+            login_enabled = False
+        else:
+            # PENDING / UNDER_REVIEW / ON_HOLD / KYC_SUBMITTED
+            is_approved = False
+            approval_status = "PENDING"
+            account_status = "UNDER_REVIEW"
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
+            login_enabled = True
+
+    # 2. Evaluate from existing retailer master record
+    elif retailer_record:
+        ret_st = (retailer_record.status or "").upper()
+        if ret_st in ("ACTIVE", "APPROVED"):
+            is_approved = True
+            approval_status = "APPROVED"
+            account_status = "ACTIVE"
+            destination = "DASHBOARD"
+            redirect_url = "/retailer/dashboard"
+            login_enabled = True
+        elif ret_st == "REJECTED":
+            is_approved = False
+            approval_status = "REJECTED"
+            account_status = "REJECTED"
+            destination = "APPLICATION_REJECTED"
+            redirect_url = "/application-rejected"
+            login_enabled = False
+        elif ret_st in ("SUSPENDED", "BLOCKED"):
+            is_approved = False
+            approval_status = "SUSPENDED"
+            account_status = "SUSPENDED"
+            destination = "ACCOUNT_RESTRICTED"
+            redirect_url = "/account-restricted"
+            login_enabled = False
+        else:
+            is_approved = False
+            approval_status = "PENDING"
+            account_status = "UNDER_REVIEW"
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
+            login_enabled = True
+
+    # 3. Evaluate from registration drafts (onboarding)
+    elif draft:
+        dr_st = (draft.status or "DRAFT").upper()
+        dr_step = draft.current_step or 1
+
+        if dr_st in ("KYC_APPROVED", "APPROVED", "ACTIVE"):
+            is_approved = True
+            approval_status = "APPROVED"
+            account_status = "ACTIVE"
+            destination = "DASHBOARD"
+            redirect_url = "/retailer/dashboard"
+            login_enabled = True
+        elif dr_st in ("KYC_SUBMITTED", "SUBMITTED", "PENDING_APPROVAL", "UNDER_REVIEW") or dr_step >= 13:
+            is_approved = False
+            approval_status = "PENDING"
+            account_status = "UNDER_REVIEW"
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
+            login_enabled = True
+        else:
+            # Incomplete Onboarding Draft
+            is_approved = False
+            approval_status = "PENDING"
+            account_status = "ONBOARDING"
+            destination = "ONBOARDING"
+            redirect_url = "/register"
+            login_enabled = True
 
     retailer_name = (
         (verif.retailer_name if verif and verif.retailer_name else None)
         or (retailer_record.owner_name if retailer_record and retailer_record.owner_name else None)
         or (retailer_record.store_name if retailer_record and retailer_record.store_name else None)
         or (draft.draft_data.get("full_name") or draft.draft_data.get("owner_name") if draft and draft.draft_data else None)
-        or "Sathiya Murthy.R"
+        or "Retailer Partner"
     )
     store_name = (
         (verif.shop_name if verif and verif.shop_name else None)
@@ -702,13 +784,13 @@ async def get_account_status(
         or (draft.draft_data.get("store_name") if draft and draft.draft_data else None)
         or "Retailer Outlet"
     )
-    legal_name = retailer_record.legal_name if retailer_record else store_name
+    legal_name = (retailer_record.legal_name if retailer_record else None) or store_name
 
     app_ref = (
-        (verif.registration_id if verif else None)
+        (verif.registration_id if verif and verif.registration_id else None)
         or (retailer_record.retailer_code if retailer_record and retailer_record.retailer_code else None)
-        or (draft.registration_id if draft else None)
-        or f"REG-4E92DB60"
+        or (draft.registration_id if draft and draft.registration_id else None)
+        or "APP-PENDING"
     )
 
     payment_permission = "PERMITTED & UNLOCKED" if is_approved else "PROHIBITED & LOCKED"
@@ -716,22 +798,23 @@ async def get_account_status(
     return {
         "status": "SUCCESS",
         "data": {
-            "retailer_id": str(retailer_record.public_id) if retailer_record else None,
+            "retailer_id": str(retailer_record.public_id) if retailer_record else (str(verif.retailer_id) if verif and verif.retailer_id else None),
             "tenant_id": str(retailer_record.tenant_id if retailer_record else DEFAULT_TENANT_ID),
             "company_id": str(retailer_record.company_id if retailer_record else DEFAULT_COMPANY_ID),
             "retailer_name": retailer_name,
             "store_name": store_name,
             "legal_name": legal_name,
-            "registered_mobile": f"+91 {clean_mobile}" if clean_mobile else "+91 9176669426",
+            "registered_mobile": f"+91 {clean_mobile}" if clean_mobile else "",
             "application_reference": app_ref,
-            "verification_status": "APPROVED" if is_approved else status,
-            "approval_status": "APPROVED" if is_approved else "PENDING",
+            "verification_status": verif.verification_status if verif else (draft.status if draft else "UNDER_REVIEW"),
+            "approval_status": approval_status,
             "is_approved": is_approved,
+            "login_enabled": login_enabled,
             "payment_permission": payment_permission,
-            "account_status": "ACTIVE" if is_approved else status,
-            "destination": "RETAILER_WORKSTATION" if is_approved else "ACCOUNT_UNDER_REVIEW",
-            "redirect_url": "/retailer/dashboard" if is_approved else "/retailer/account-under-review",
-            "created_at": retailer_record.created_date.isoformat() if retailer_record and retailer_record.created_date else None,
+            "account_status": account_status,
+            "destination": destination,
+            "redirect_url": redirect_url,
+            "created_at": retailer_record.created_date.isoformat() if retailer_record and retailer_record.created_date else (verif.submitted_at.isoformat() if verif and verif.submitted_at else None),
             "updated_at": retailer_record.updated_date.isoformat() if retailer_record and retailer_record.updated_date else None,
             "support_contact": {
                 "phone": "+91 80000 00000",

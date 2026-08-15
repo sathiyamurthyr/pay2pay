@@ -88,7 +88,7 @@ export function useOnboardingGuard() {
         setApprovalStatus("UNDER_REVIEW");
         setStatusState((prev) => ({ ...prev, loading: false }));
       });
-  }, [pathname, router, setApprovalStatus]);
+  }, [router, setApprovalStatus]);
 
   return statusState;
 }

@@ -1,0 +1,7 @@
+fix(auth): implement single authoritative retailer destination resolver & eliminate dashboard redirect loop
+
+- Create unified Authoritative Retailer Status Resolver (retailer-destination-resolver.ts)
+- Guard DashboardLayout and generic dashboard routes against unauthorized pending retailer access
+- Update UnapprovedRetailerFullPageModal to stay on account-under-review when status is PENDING
+- Synchronize authoritative destination routing across all 8 portals in pay2pay monorepo
+- Eliminate client-side localStorage race conditions and circular routing effects

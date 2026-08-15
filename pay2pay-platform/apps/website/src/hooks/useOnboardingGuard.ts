@@ -30,20 +30,20 @@ export function useOnboardingGuard() {
   });
 
   useEffect(() => {
-    // Force active retailer mobile to 9176669426 if unapproved or default
-    const savedMobile = localStorage.getItem("pay2pay_user_mobile") || localStorage.getItem("pay2pay_reg_mobile");
-    const mobile = (savedMobile === "9876543210" || !savedMobile) ? "9176669426" : savedMobile;
-    
-    // Save target mobile to localStorage
+    let savedMobile = "";
+    let regId = "";
     if (typeof window !== "undefined") {
-      localStorage.setItem("pay2pay_user_mobile", mobile);
-      localStorage.setItem("pay2pay_reg_mobile", mobile);
+      savedMobile = localStorage.getItem("pay2pay_user_mobile") || localStorage.getItem("pay2pay_reg_mobile") || "";
+      regId = localStorage.getItem("pay2pay_reg_id") || "";
     }
 
-    const regId = localStorage.getItem("pay2pay_reg_id");
-    const queryKey = mobile;
+    const queryKey = savedMobile || regId;
+    if (!queryKey) {
+      setStatusState((prev) => ({ ...prev, loading: false }));
+      return;
+    }
 
-    fetch(`/api/v1/onboarding/status/${queryKey}`)
+    fetch(`/api/v1/onboarding/status/${encodeURIComponent(queryKey)}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === "SUCCESS") {
@@ -88,7 +88,7 @@ export function useOnboardingGuard() {
         setApprovalStatus("UNDER_REVIEW");
         setStatusState((prev) => ({ ...prev, loading: false }));
       });
-  }, [pathname, router, setApprovalStatus]);
+  }, [router, setApprovalStatus]);
 
   return statusState;
 }

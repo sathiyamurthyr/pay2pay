@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRetailerStore } from "@/stores/use-retailer-store";
+import { fetchAuthoritativeRetailerStatus } from "@/lib/retailer-destination-resolver";
 
 /** Paths that require full Admin approval & active status */
 export const LOCKED_FINANCIAL_PATHS = new Set([
@@ -22,31 +24,25 @@ export const LOCKED_FINANCIAL_PATHS = new Set([
 
 export function useRetailerApprovalGuard() {
   const { outlet, setApprovalStatus } = useRetailerStore();
+  const [isApprovedLive, setIsApprovedLive] = useState<boolean>(outlet.approvalStatus === "APPROVED");
+  const [liveApprovalStatus, setLiveApprovalStatus] = useState<string>(outlet.approvalStatus || "PENDING");
 
-  let effectiveApproval = outlet.approvalStatus;
-  let effectiveKyc = outlet.kycStatus;
-  let effectiveStatus = outlet.status;
-
-  if (typeof window !== "undefined") {
-    const savedApproval = localStorage.getItem("p2p_retailer_approval_status");
-    if (savedApproval && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(savedApproval)) {
-      effectiveApproval = savedApproval as any;
-    } else {
-      const onboardStatus = localStorage.getItem("pay2pay_onboarding_status");
-      if (onboardStatus && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(onboardStatus)) {
-        effectiveApproval = onboardStatus as any;
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const authState = await fetchAuthoritativeRetailerStatus(false);
+      if (mounted && authState) {
+        setIsApprovedLive(authState.is_approved);
+        setLiveApprovalStatus(authState.approval_status);
+        setApprovalStatus(authState.is_approved ? "APPROVED" : "PENDING");
       }
-    }
-    if (effectiveApproval === "APPROVED" || effectiveApproval === "ACTIVE") {
-      effectiveStatus = "ACTIVE";
-      effectiveKyc = "VERIFIED";
-    } else {
-      effectiveStatus = "PENDING_KYC";
-      effectiveKyc = "PENDING";
-    }
-  }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [setApprovalStatus]);
 
-  const isApproved = effectiveApproval === "APPROVED" || effectiveApproval === "ACTIVE" || effectiveStatus === "ACTIVE";
+  const isApproved = isApprovedLive || outlet.approvalStatus === "APPROVED";
 
   const isPathLocked = (path: string) => {
     if (isApproved) return false;
@@ -55,9 +51,9 @@ export function useRetailerApprovalGuard() {
 
   return {
     isApproved,
-    approvalStatus: effectiveApproval,
-    kycStatus: effectiveKyc,
-    retailerStatus: effectiveStatus,
+    approvalStatus: liveApprovalStatus,
+    kycStatus: isApproved ? "VERIFIED" : "PENDING",
+    retailerStatus: isApproved ? "ACTIVE" : "PENDING_VERIFICATION",
     isPathLocked,
     setApprovalStatus,
   };
