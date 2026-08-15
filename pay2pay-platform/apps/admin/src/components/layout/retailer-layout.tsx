@@ -84,8 +84,13 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
 
   inFlightHeaderWalletPromise = (async () => {
     try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+      }
+      const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
       const res = await fetch(
-        "/api/v1/payout/dashboard/retailer/header-wallet?retailer_id=f89239b5-4dbb-41a9-9ba7-0f97580c9368&tenant_id=93538c98-0b19-493c-a247-4cdb02a46c68"
+        `/api/v1/payout/dashboard/retailer/header-wallet${queryParam}`
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -138,15 +143,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
     try {
       const data = await getCachedHeaderWalletData(force);
+      const rInfo = data.retailer_info || data;
+      if (rInfo.approval_status && typeof setApprovalStatus === "function") {
+        setApprovalStatus(rInfo.approval_status as any);
+      }
       setProfileDetails({
-        owner_name: data.owner_name || null,
-        retailer_name: data.retailer_name || null,
-        retailer_code: data.retailer_code || null,
-        approval_status: data.approval_status || null,
-        kyc_status: data.kyc_status || null,
-        location: data.location || null,
-        last_login_at: data.last_login_at || null,
-        plan_name: data.plan_name || null,
+        owner_name: rInfo.owner_name || null,
+        retailer_name: rInfo.retailer_name || rInfo.store_name || null,
+        retailer_code: rInfo.retailer_code || null,
+        approval_status: rInfo.approval_status || null,
+        kyc_status: rInfo.kyc_status || null,
+        location: rInfo.location || null,
+        last_login_at: data.quick_stats?.last_login_at || data.last_login_at || null,
+        plan_name: rInfo.plan_name || null,
         loading: false,
         error: false,
       });
@@ -154,7 +163,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn("Profile details fetch error:", err);
       setProfileDetails({ loading: false, error: true });
     }
-  }, []);
+  }, [setApprovalStatus]);
 
   useEffect(() => {
     fetchProfileDetails();
@@ -180,7 +189,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   useEffect(() => {
-    fetch("/api/v1/payout/dashboard/retailer/recent-activity?retailer_id=f89239b5-4dbb-41a9-9ba7-0f97580c9368&tenant_id=93538c98-0b19-493c-a247-4cdb02a46c68")
+    let activeRetailerId = "";
+    if (typeof window !== "undefined") {
+      activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+    }
+    const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
+    fetch(`/api/v1/payout/dashboard/retailer/recent-activity${queryParam}`)
       .then((res) => res.json())
       .then((data) => {
         if (data && Array.isArray(data.activities)) {
@@ -434,9 +448,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       <Box
                         component={Link}
                         href={item.path}
-                        onMouseEnter={() => {
-                          try { router.prefetch(item.path); } catch {}
-                        }}
+                        prefetch={false}
                         onClick={(e: React.MouseEvent) => {
                           if (favLocked) {
                             e.preventDefault();
@@ -543,9 +555,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       <Box
                         component={Link}
                         href={item.path}
-                        onMouseEnter={() => {
-                          try { router.prefetch(item.path); } catch {}
-                        }}
+                        prefetch={false}
                         onClick={(e: React.MouseEvent) => {
                           if (itemLocked) {
                             e.preventDefault();
@@ -1317,11 +1327,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   <LockIcon sx={{ fontSize: 24 }} />
                 </Box>
                 <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "14px" }}>
-                    ⚠️ Account Verification Pending Admin Approval
-                  </Typography>
                   <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", fontWeight: 500 }}>
-                    Your retailer account (Mobile: <strong>+91 9176669426</strong>) is currently <strong>PENDING ADMIN APPROVAL</strong>. All financial services (DMT, Card to Cash, AEPS, UPI, BBPS, Recharge, Wallet Top-Up) are restricted until Admin approves your application.
+                    Your retailer account (Mobile: <strong>{outlet.mobile ? `+91 ${outlet.mobile.replace(/\D/g, "")}` : "your registered mobile"}</strong>) is currently <strong>PENDING ADMIN APPROVAL</strong>. All financial services (DMT, Card to Cash, AEPS, UPI, BBPS, Recharge, Wallet Top-Up) are restricted until Admin approves your application.
                   </Typography>
                 </Box>
               </Stack>
@@ -1438,7 +1445,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           {lockedModalItem?.label || "Feature"} Restricted
         </Typography>
         <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
-          Your retailer account (Mobile: <strong>+91 9176669426</strong>) is currently <strong>PENDING ADMIN APPROVAL</strong>. All financial services, wallet top-ups, and transaction tools remain locked until Admin completes verification.
+          Your retailer account (Mobile: <strong>{outlet.mobile ? `+91 ${outlet.mobile.replace(/\D/g, "")}` : "your registered mobile"}</strong>) is currently <strong>PENDING ADMIN APPROVAL</strong>. All financial services, wallet top-ups, and transaction tools remain locked until Admin completes verification.
         </Typography>
 
         <Stack spacing={1.5} sx={{ mt: 3, width: "100%" }}>

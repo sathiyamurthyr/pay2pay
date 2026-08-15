@@ -391,6 +391,7 @@ export const Sidebar: React.FC = () => {
                         <Link
                           key={`${cat.category}-${item.label}-${item.href}`}
                           href={item.href}
+                          prefetch={false}
                           title={isCollapsed ? item.label : undefined}
                           className={`
                             relative flex items-center gap-3 px-3 py-2 rounded-xl

@@ -14,24 +14,23 @@ import {
 export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
   const pathname = usePathname();
-  const [walletBalance, setWalletBalance] = useState(48250.75);
-  const [todayMargin, setTodayMargin] = useState(1480.00);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [todayMargin, setTodayMargin] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
     setTimeout(() => {
-      setWalletBalance((prev) => prev + Math.floor(Math.random() * 50));
       setIsRefreshing(false);
     }, 600);
   };
 
   const navItems = [
-    { label: "Home", href: "/retailer-dashboard", icon: Home },
-    { label: "DMT", href: "/dmt/transfer", icon: Send, badge: "Instant" },
-    { label: "AEPS", href: "/aeps/services", icon: Fingerprint, badge: "Biometric" },
-    { label: "Customers", href: "/customers", icon: Users },
-    { label: "Wallet", href: "/wallet-ledger/wallets", icon: Wallet },
+    { label: "Home", href: "/retailer/dashboard", icon: Home },
+    { label: "DMT", href: "/retailer/dmt", icon: Send },
+    { label: "AEPS", href: "/retailer/aeps", icon: Fingerprint },
+    { label: "Customers", href: "/retailer/customers", icon: Users },
+    { label: "Wallet", href: "/retailer/wallet", icon: Wallet },
   ];
 
   return (
@@ -110,18 +109,21 @@ export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ c
         <div className="grid grid-cols-3 gap-2.5 mt-5 pt-4 border-t border-white/10">
           <Link
             href="/dmt/transfer"
+            prefetch={false}
             className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 border border-blue-400/30 text-white text-xs font-extrabold hover:brightness-110 transition-all shadow-lg shadow-blue-600/30"
           >
             <Send className="w-4 h-4" /> DMT Transfer
           </Link>
           <Link
             href="/aeps/services"
+            prefetch={false}
             className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-slate-800/80 border border-slate-700 text-white text-xs font-extrabold hover:bg-slate-700 transition-all"
           >
             <Fingerprint className="w-4 h-4 text-emerald-400" /> AEPS Cash Out
           </Link>
           <Link
             href="/payouts/requests"
+            prefetch={false}
             className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-slate-800/80 border border-slate-700 text-white text-xs font-extrabold hover:bg-slate-700 transition-all"
           >
             <QrCode className="w-4 h-4 text-amber-400" /> QR Collect
@@ -143,6 +145,7 @@ export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ c
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all relative ${
                 isActive ? "text-blue-400 font-extrabold scale-105" : "text-slate-400 hover:text-slate-200"
               }`}
@@ -151,7 +154,8 @@ export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ c
                 <Icon className={`w-5 h-5 ${isActive ? "text-blue-400" : "text-slate-400"}`} />
               </div>
               <span className="text-[10px] tracking-tight">{item.label}</span>
-              {item.badge && !isActive && (
+              {(item as any).badge && !isActive && (
+
                 <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
               )}
             </Link>

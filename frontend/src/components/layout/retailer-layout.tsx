@@ -448,9 +448,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       <Box
                         component={Link}
                         href={item.path}
-                        onMouseEnter={() => {
-                          try { router.prefetch(item.path); } catch {}
-                        }}
+                        prefetch={false}
                         onClick={(e: React.MouseEvent) => {
                           if (favLocked) {
                             e.preventDefault();
@@ -557,9 +555,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       <Box
                         component={Link}
                         href={item.path}
-                        onMouseEnter={() => {
-                          try { router.prefetch(item.path); } catch {}
-                        }}
+                        prefetch={false}
                         onClick={(e: React.MouseEvent) => {
                           if (itemLocked) {
                             e.preventDefault();
