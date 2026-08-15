@@ -139,6 +139,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     error?: boolean;
   }>({ loading: true });
 
+  const hasInitializedRef = useRef(false);
+
   const fetchProfileDetails = useCallback(async (force = false) => {
     setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
     try {
@@ -163,12 +165,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn("Profile details fetch error:", err);
       setProfileDetails({ loading: false, error: true });
     }
-  }, [setApprovalStatus]);
+  }, []);
 
   useEffect(() => {
-    fetchProfileDetails();
-    syncBalance();
-  }, [fetchProfileDetails, syncBalance]);
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      fetchProfileDetails(false);
+      syncBalance();
+    }
+  }, []);
 
   const formatLastLogin = (isoString?: string | null) => {
     if (!isoString) return "Not available";
@@ -234,8 +239,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     setMobileOpen(false);
   }, [pathname]);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // HARD UNCLOSEABLE FULL-PAGE SECURITY MODAL: If Admin has NOT approved, block 100% of app access
-  if (!isApproved) {
+  if (mounted && !isApproved) {
     return <UnapprovedRetailerFullPageModal />;
   }
 

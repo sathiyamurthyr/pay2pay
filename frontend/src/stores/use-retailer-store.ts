@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { retailerApi } from "@/services/retailer-api";
 
 export interface RetailerOutlet {
   id: string;
@@ -195,7 +194,7 @@ const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDE
   return "PENDING";
 };
 
-const getInitialOutlet = () => {
+const getInitialOutlet = (): RetailerOutlet => {
   const initApproval = getInitialApprovalStatus();
   let code = "RET-PENDING";
   let name = "Retailer Store";
@@ -237,7 +236,7 @@ const getInitialOutlet = () => {
     kycStatus: (initApproval === "APPROVED" ? "VERIFIED" : "PENDING") as "VERIFIED" | "PENDING" | "REJECTED",
     approvalStatus: initApproval,
     soundboxActive: true,
-    soundboxLang: "en",
+    soundboxLang: "en" as "en" | "hi" | "ta",
   };
 };
 
@@ -260,6 +259,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       commissionBalance: 0.00,
       todayMargin: 0.00,
       todayTxnCount: 0,
+      todaySettlement: 0.00,
       todaySuccessVol: 0.00,
       posPendingSettlement: 0.00,
       reservedBalance: 0.00,
@@ -278,10 +278,10 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
 
     setSyncing: (syncing) => set({ isSyncing: syncing }),
 
-    updateOutlet: (part) =>
+    updateOutlet: (part: Partial<RetailerOutlet>) =>
       set((state) => ({ outlet: { ...state.outlet, ...part } })),
 
-    updateWallet: (part) =>
+    updateWallet: (part: Partial<WalletState>) =>
       set((state) => {
         const nextWallet = { ...state.wallet, ...part };
         if (typeof nextWallet.mainBalance === "number" && typeof window !== "undefined") {
@@ -311,6 +311,8 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
         const res = await fetch(`/api/v1/payout/dashboard/retailer/header-wallet${queryParam}`);
         if (res.ok) {
           const data = await res.json();
+          const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (typeof data.available_balance === "number" ? data.available_balance : 0.00);
+          const rInfo = data.retailer_info || data;
           set((state) => ({
             wallet: {
               ...state.wallet,

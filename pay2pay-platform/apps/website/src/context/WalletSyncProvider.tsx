@@ -20,6 +20,8 @@ export interface WalletDataPayload {
   todays_tds: number;
   settlement_pending_amount: number;
   unread_notifications_count: number;
+  is_approved?: boolean;
+  status?: string;
 }
 
 interface WalletSyncContextType {
@@ -81,7 +83,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
       });
 
       let data = res.data;
-      if (localName) {
+      if (!data.retailer_name && localName) {
         const short = localName.trim().split(" ")[0] || localName;
         data = {
           ...data,
@@ -90,12 +92,28 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
           short_name: short,
         };
       }
-      if (localCode) {
+      if (!data.retailer_code && localCode) {
         data = {
           ...data,
           retailer_code: localCode,
         };
       }
+
+      // If user is logged in as Super Admin / Admin, ensure approval flag is active
+      try {
+        const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
+          if (["SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN"].includes(role)) {
+            data = {
+              ...data,
+              is_approved: true,
+              status: "ACTIVE",
+            };
+          }
+        }
+      } catch {}
 
       setWalletData(data);
       setError(null);

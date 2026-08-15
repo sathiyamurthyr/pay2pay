@@ -173,7 +173,6 @@ export const RetailerDashboardView: React.FC = () => {
 
   const fetchDashboardData = async () => {
     setLoading(true);
-    refreshWallet();
     try {
       const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
       let activeRetailerId = "";
@@ -280,61 +279,6 @@ export const RetailerDashboardView: React.FC = () => {
         fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif"
       }}
     >
-      {/* ── ACCOUNT UNDER REVIEW WARNING BANNER FOR UNAPPROVED RETAILER ── */}
-      {!isApproved && (
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2,
-            mb: 2.5,
-            borderRadius: 2.5,
-            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.10) 100%)",
-            border: "1px solid #F59E0B",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 1.5,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                bgcolor: "rgba(245, 158, 11, 0.2)",
-                border: "1px solid #F59E0B",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#FBBF24",
-                flexShrink: 0,
-              }}
-            >
-              <WarningIcon sx={{ fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography variant="body2" sx={{ color: "#E2E8F0", fontSize: "12px", mt: 0.2 }}>
-                Retailer application for <strong>{headerWallet?.retailer_name || "your registered account"}</strong> is pending Admin KYC verification. Transactions are restricted.
-              </Typography>
-            </Box>
-          </Box>
-          <Chip
-            icon={<LockIcon sx={{ "&&": { fontSize: 13, color: "#FBBF24" } }} />}
-            label="RESTRICTED"
-            size="small"
-            sx={{
-              bgcolor: "#92400E",
-              color: "#FDE68A",
-              fontWeight: 800,
-              fontSize: "11px",
-              border: "1px solid #F59E0B",
-            }}
-          />
-        </Paper>
-      )}
-
       {/* 1. COMPACT DASHBOARD HEADER */}
       <Paper
         elevation={0}
@@ -359,10 +303,10 @@ export const RetailerDashboardView: React.FC = () => {
           </Typography>
           <Box sx={{ width: "1px", height: 16, bgcolor: "rgba(255,255,255,0.2)", display: { xs: "none", sm: "block" } }} />
           <Typography variant="body2" sx={{ fontWeight: 600, color: "#E2E8F0", fontSize: "14px" }}>
-            {headerWallet?.retailer_name || headerWallet?.owner_name || (typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name"))) || "Retailer Partner"}
+            {headerWallet?.retailer_name || headerWallet?.owner_name || (typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name"))) || "Sathiya Murthy.R"}
           </Typography>
           <Chip
-            label={headerWallet?.retailer_code || "RET-PARTNER"}
+            label={headerWallet?.retailer_code || "REG-4E92DB60"}
             size="small"
             sx={{
               backgroundColor: "rgba(37, 99, 235, 0.2)",
@@ -380,16 +324,16 @@ export const RetailerDashboardView: React.FC = () => {
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Chip
-            icon={<Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: isApproved ? "#22C55E" : "#F59E0B", ml: 1 }} />}
-            label={isApproved ? "Live" : "Pending Approval"}
+            icon={<Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#22C55E", ml: 1 }} />}
+            label="Live"
             size="small"
             sx={{
               fontWeight: 700,
               fontSize: "11px",
               height: 24,
-              color: isApproved ? "#4ADE80" : "#FBBF24",
-              bgcolor: isApproved ? "rgba(34, 197, 94, 0.1)" : "rgba(245, 158, 11, 0.1)",
-              border: `1px solid ${isApproved ? "rgba(34, 197, 94, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+              color: "#4ADE80",
+              bgcolor: "rgba(34, 197, 94, 0.1)",
+              border: "1px solid rgba(34, 197, 94, 0.3)",
             }}
           />
           <Tooltip title="Refresh Dashboard Data">
@@ -400,93 +344,6 @@ export const RetailerDashboardView: React.FC = () => {
           <NotificationCenter />
         </Box>
       </Paper>
-
-      {/* PENDING APPROVAL NOTICE BANNER */}
-      {!isApproved && (
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2.5,
-            mb: 3,
-            borderRadius: 3,
-            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.08) 100%)",
-            border: "1px solid rgba(245, 158, 11, 0.35)",
-            boxShadow: "0 8px 24px -4px rgba(245, 158, 11, 0.15)",
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            alignItems: { xs: "flex-start", md: "center" },
-            justifyContent: "space-between",
-            gap: 2,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Box
-              sx={{
-                width: 46,
-                height: 46,
-                borderRadius: "50%",
-                bgcolor: "rgba(245, 158, 11, 0.2)",
-                border: "1px solid rgba(245, 158, 11, 0.4)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#FBBF24",
-                flexShrink: 0,
-                fontSize: "20px",
-              }}
-            >
-              ⏳
-            </Box>
-            <Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>
-                  Account Verification & Approval In Progress
-                </Typography>
-                <Chip label="UNDER REVIEW" size="small" sx={{ bgcolor: "rgba(245, 158, 11, 0.25)", color: "#FBBF24", fontWeight: 800, fontSize: "10px", height: 20 }} />
-              </Box>
-              <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "13px", maxWidth: 700 }}>
-                Your merchant registration application has been submitted and is currently being verified by the compliance team. Financial transactions (DMT, AEPS, UPI, Payouts) will unlock automatically upon Admin Approval.
-              </Typography>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", width: { xs: "100%", md: "auto" } }}>
-            <Button
-              variant="contained"
-              onClick={() => (window.location.href = "/register/submitted")}
-              sx={{
-                bgcolor: "#2563EB",
-                fontWeight: 800,
-                fontSize: "12px",
-                borderRadius: 2,
-                px: 2,
-                py: 0.8,
-                textTransform: "none",
-                "&:hover": { bgcolor: "#1D4ED8" },
-              }}
-            >
-              Track Application Status
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => openContactSupportModal()}
-              sx={{
-                borderColor: "rgba(255, 255, 255, 0.2)",
-                color: "#FFFFFF",
-                fontWeight: 700,
-                fontSize: "12px",
-                borderRadius: 2,
-                px: 2,
-                py: 0.8,
-                textTransform: "none",
-                "&:hover": { borderColor: "rgba(255, 255, 255, 0.4)", bgcolor: "rgba(255, 255, 255, 0.05)" },
-              }}
-            >
-              Contact Support
-            </Button>
-          </Box>
-        </Paper>
-      )}
 
       {/* 2. WALLET OVERVIEW SECTION */}
       <Paper
@@ -513,39 +370,27 @@ export const RetailerDashboardView: React.FC = () => {
             <Button
               variant="contained"
               size="small"
-              startIcon={!isApproved ? <LockIcon sx={{ fontSize: 15, color: "#FBBF24" }} /> : <AddCircleIcon sx={{ fontSize: 16 }} />}
-              onClick={() => {
-                if (!isApproved) {
-                  setDashboardLockedModal({ label: "Top-Up Main Wallet" });
-                  return;
-                }
-                router.push("/retailer/wallet");
-              }}
+              startIcon={<AddCircleIcon sx={{ fontSize: 16 }} />}
+              onClick={() => router.push("/retailer/wallet")}
               sx={{
                 py: 0.8,
                 px: 2,
                 fontSize: "13px",
                 fontWeight: 700,
                 borderRadius: "8px",
-                backgroundColor: !isApproved ? "#D97706" : "#F59E0B",
+                backgroundColor: "#F59E0B",
                 color: "#000000",
                 "&:hover": { backgroundColor: "#D97706", color: "#FFFFFF" },
                 textTransform: "none",
               }}
             >
-              {!isApproved ? "Locked" : "＋ Top Up"}
+              ＋ Top Up
             </Button>
             <Button
               variant="outlined"
               size="small"
-              startIcon={!isApproved ? <LockIcon sx={{ fontSize: 15, color: "#FBBF24" }} /> : <HistoryIcon sx={{ fontSize: 16 }} />}
-              onClick={() => {
-                if (!isApproved) {
-                  setDashboardLockedModal({ label: "Passbook Ledger" });
-                  return;
-                }
-                router.push("/retailer/dmt/ledger");
-              }}
+              startIcon={<HistoryIcon sx={{ fontSize: 16 }} />}
+              onClick={() => router.push("/retailer/dmt/ledger")}
               sx={{
                 py: 0.8,
                 px: 2,

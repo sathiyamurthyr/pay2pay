@@ -20,6 +20,7 @@ import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import { useContactSupportModal } from "@/context/ContactSupportModalContext";
+import { fetchAuthoritativeRetailerStatus } from "@/lib/retailer-destination-resolver";
 
 export const UnapprovedRetailerFullPageModal: React.FC = () => {
   const { outlet, setApprovalStatus } = useRetailerStore();
@@ -328,7 +329,7 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
             <Button
               variant="outlined"
               fullWidth
-              onClick={openContactSupportModal}
+              onClick={() => openContactSupportModal()}
               startIcon={<ContactPhoneIcon sx={{ fontSize: 18 }} />}
               sx={{
                 borderColor: "rgba(255, 255, 255, 0.2)",
