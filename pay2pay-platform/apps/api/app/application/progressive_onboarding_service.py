@@ -14,6 +14,7 @@ from app.application.cashfree_service import CashfreeVerificationService
 from app.infrastructure.adapters.cashfree_aadhaar_adapter import cashfree_aadhaar_adapter
 from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 from app.infrastructure.adapters.email_service import email_service
+from app.application.storage_service import BackblazeStorageService
 from app.infrastructure.db.models import RetailerModel, RetailerContactModel
 from app.infrastructure.db.auth_models import AuthUserModel
 from app.infrastructure.db.registration_models import (
@@ -975,13 +976,25 @@ class ProgressiveOnboardingService:
         care_of_val = ekyc_profile.get("care_of") or ""
         dob_val = ekyc_profile.get("dob") or ""
         gender_val = ekyc_profile.get("gender") or ""
-        photo_url_val = (
+        photo_raw = (
             ekyc_profile.get("photo_url")
             or ekyc_profile.get("photo_base64")
             or ekyc_profile.get("photo_avatar")
             or ekyc_profile.get("photo")
             or ""
         )
+        photo_url_val = photo_raw
+        if photo_raw and not photo_raw.startswith("http://") and not photo_raw.startswith("https://") and not photo_raw.startswith("/uploads/"):
+            try:
+                saved_url = BackblazeStorageService.save_base64_photo(
+                    photo_raw,
+                    entity_type="RET",
+                    filename=f"aadhaar_{registration_id}.jpg"
+                )
+                if saved_url:
+                    photo_url_val = saved_url
+            except Exception as pe:
+                print(f"Warning converting base64 photo to URL: {pe}")
 
         address_dict = {
             "care_of": care_of_val,
@@ -1073,8 +1086,8 @@ class ProgressiveOnboardingService:
             "full_name": retailer_name,
             "dob": aadhaar_model.dob,
             "gender": aadhaar_model.gender,
-            "photo_url": photo_url_val if photo_url_val.startswith("http") else "",
-            "photo_base64": photo_url_val if not photo_url_val.startswith("http") else "",
+            "photo_url": photo_url_val,
+            "photo_base64": photo_raw if not photo_raw.startswith("http") else "",
             "care_of": care_of_val,
             "house": house_val,
             "street": street_val,
