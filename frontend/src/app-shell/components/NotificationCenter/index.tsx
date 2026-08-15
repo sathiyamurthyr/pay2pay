@@ -74,9 +74,7 @@ export const NotificationCenter: React.FC<{
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, refreshIntervalMs);
-    return () => clearInterval(interval);
-  }, [fetchNotifications, refreshIntervalMs]);
+  }, [fetchNotifications]);
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

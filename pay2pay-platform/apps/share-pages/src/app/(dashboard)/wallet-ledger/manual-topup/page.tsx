@@ -45,22 +45,10 @@ const ENTITY_SCOPES = [
   { value: "RETAILER",          label: "Retailer Outlet",        icon: Store,     color: "#16A34A" },
 ];
 
-const INITIAL_MOCK_ENTITIES: Record<string, { id: string; name: string; code: string; currentBal: number }[]> = {
-  SUPER_DISTRIBUTOR: [
-    { id: "sd-1002", name: "South India Super Network (sathus-SD)", code: "SD-1002", currentBal: 1250000.0 },
-    { id: "sd-1003", name: "North Apex Network",                   code: "SD-1003", currentBal: 600000.0 },
-  ],
-  DISTRIBUTOR: [
-    { id: "dist-5012", name: "Metro Apex Distributors", code: "DIST-5012", currentBal: 780000.0 },
-    { id: "dist-5013", name: "City Digital Services",   code: "DIST-5013", currentBal: 460000.0 },
-    { id: "dist-5014", name: "Northern Telecoms",       code: "DIST-5014", currentBal: 320000.0 },
-  ],
-  RETAILER: [
-    { id: "ret-10928", name: "Sathus Pay Store",       code: "RET-10928", currentBal: 245800.0 },
-    { id: "ret-10929", name: "Apex Communications",   code: "RET-10929", currentBal: 192400.0 },
-    { id: "ret-10930", name: "Om Sai Mobile",         code: "RET-10930", currentBal: 168000.0 },
-    { id: "ret-10931", name: "Karthik General Store", code: "RET-10931", currentBal: 284300.0 },
-  ],
+const INITIAL_ENTITIES: Record<string, { id: string; name: string; code: string; currentBal: number }[]> = {
+  SUPER_DISTRIBUTOR: [],
+  DISTRIBUTOR: [],
+  RETAILER: [],
 };
 
 const SERVICE_OPTIONS = [
@@ -79,60 +67,7 @@ const WALLET_TYPES = [
   { value: "HOLD", label: "Hold Reserve Escrow" },
 ];
 
-// ─── Initial Seeded Top-up Ledger ─────────────────────────────────────────────
-const INITIAL_TOPUPS = [
-  {
-    public_id: "top-101",
-    transaction_id: "TOPUP-20260802-9981",
-    created_date: "2026-08-02T21:40:00Z",
-    entity_scope: "SUPER_DISTRIBUTOR",
-    entity_name: "South India Super Network (sathus-SD)",
-    entity_code: "SD-1002",
-    service_name: "General Wallet Allocation",
-    wallet_type: "MAIN",
-    txn_type: "CREDIT",
-    amount: 100000.0,
-    opening_balance: 1150000.0,
-    balance_after: 1250000.0,
-    comments: "Bulk NEFT load via HDFC Bank UTR #9928192381",
-    status: "COMPLETED",
-    performed_by: "Platform Admin",
-  },
-  {
-    public_id: "top-102",
-    transaction_id: "TOPUP-20260802-8842",
-    created_date: "2026-08-02T20:15:00Z",
-    entity_scope: "DISTRIBUTOR",
-    entity_name: "Metro Apex Distributors",
-    entity_code: "DIST-5012",
-    service_name: "POS Card Swipe Settlement",
-    wallet_type: "MAIN",
-    txn_type: "CREDIT",
-    amount: 50000.0,
-    opening_balance: 730000.0,
-    balance_after: 780000.0,
-    comments: "Daily swipe settlement topup allocation",
-    status: "COMPLETED",
-    performed_by: "Platform Admin",
-  },
-  {
-    public_id: "top-103",
-    transaction_id: "TOPUP-20260802-7711",
-    created_date: "2026-08-02T19:05:00Z",
-    entity_scope: "RETAILER",
-    entity_name: "Sathus Pay Store",
-    entity_code: "RET-10928",
-    service_name: "DMT Money Transfer Liquidity",
-    wallet_type: "MAIN",
-    txn_type: "CREDIT",
-    amount: 25000.0,
-    opening_balance: 220800.0,
-    balance_after: 245800.0,
-    comments: "DMT working capital cash topup",
-    status: "COMPLETED",
-    performed_by: "Platform Admin",
-  },
-];
+const INITIAL_TOPUPS: any[] = [];
 
 // ─── Searchable Entity Select Component ─────────────────────────────────────
 function SearchableEntitySelect({
@@ -240,7 +175,7 @@ function SearchableEntitySelect({
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 function ManualTopupContent() {
-  const [mockEntities, setMockEntities] = useState<Record<string, { id: string; name: string; code: string; currentBal: number }[]>>(INITIAL_MOCK_ENTITIES);
+  const [mockEntities, setMockEntities] = useState<Record<string, { id: string; name: string; code: string; currentBal: number }[]>>(INITIAL_ENTITIES);
   const [topupLedger, setTopupLedger] = useState<any[]>(INITIAL_TOPUPS);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { getApiBaseUrl } from "@/lib/api-config";
 import {
   BookOpen, Search, Filter, Download, RefreshCw, ChevronLeft, ChevronRight,
   ArrowUpRight, ArrowDownLeft, Scale, Building, DollarSign
@@ -45,13 +46,11 @@ export default function TransactionLedgerReportPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [exporting, setExporting] = useState<boolean>(false);
 
-  // Filters
   const [search, setSearch] = useState<string>("");
   const [entryType, setEntryType] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
 
-  // Pagination
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalRecords, setTotalRecords] = useState<number>(0);
@@ -68,8 +67,8 @@ export default function TransactionLedgerReportPage() {
       if (toDate) params.append("to_date", toDate);
 
       const [sumRes, listRes] = await Promise.all([
-        axios.get(`/api/v1/admin/reports/transaction-ledger/summary?${params.toString()}`),
-        axios.get(`/api/v1/admin/reports/transaction-ledger?${params.toString()}`)
+        axios.get(`${getApiBaseUrl()}/admin/reports/transaction-ledger/summary?${params.toString()}`),
+        axios.get(`${getApiBaseUrl()}/admin/reports/transaction-ledger?${params.toString()}`)
       ]);
 
       if (sumRes.data?.data) {
@@ -99,7 +98,7 @@ export default function TransactionLedgerReportPage() {
       if (toDate) params.append("to_date", toDate);
 
       const response = await axios.get(
-        `/api/v1/admin/reports/transaction-ledger/export?${params.toString()}`,
+        `${getApiBaseUrl()}/admin/reports/transaction-ledger/export?${params.toString()}`,
         { responseType: "blob" }
       );
 
@@ -120,7 +119,6 @@ export default function TransactionLedgerReportPage() {
   return (
     <div className="p-6 space-y-6 bg-[#0B0F19] text-white min-h-screen">
       
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -154,7 +152,6 @@ export default function TransactionLedgerReportPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
           <span className="text-xs font-semibold text-slate-400 block mb-1">Opening Balance</span>
@@ -191,7 +188,6 @@ export default function TransactionLedgerReportPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
       <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           
@@ -239,7 +235,6 @@ export default function TransactionLedgerReportPage() {
         </div>
       </div>
 
-      {/* Table Container */}
       <div className="rounded-2xl bg-slate-900/60 border border-slate-800/80 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
@@ -313,7 +308,6 @@ export default function TransactionLedgerReportPage() {
           </table>
         </div>
 
-        {/* Pagination Footer */}
         <div className="p-4 border-t border-slate-800/80 bg-slate-900/60 flex items-center justify-between text-xs text-slate-400">
           <div>
             Showing <strong className="text-white">{rows.length}</strong> of <strong className="text-white">{totalRecords}</strong> ledger entries

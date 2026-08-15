@@ -6,7 +6,7 @@ import DailyOpenCloseReportPage from "@/app/(dashboard)/admin/reports/daily-open
 
 export default function RetailerDailyOpenCloseReportPage() {
   return (
-    <AppShell pageTitle="Retailer Portal — Daily Open & Close Report" activePath="/retailer/reports/daily-open-close">
+    <AppShell pageTitle="Retailer Portal — Daily Open & Close Reconciliation" activePath="/retailer/reports/daily-open-close">
       <DailyOpenCloseReportPage />
     </AppShell>
   );

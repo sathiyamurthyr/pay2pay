@@ -23,21 +23,21 @@ export default function ProfilePage() {
 
   return (
     <Box sx={{ spaceY: 3 }}>
-      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 0.5 }}>
-        <PersonIcon sx={{ color: "#2563EB", fontSize: 32 }} />
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 2 }}>
+        <PersonIcon sx={{ color: "#3B82F6", fontSize: 36 }} />
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: "#111827" }}>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
             Retailer Outlet Profile & Security
           </Typography>
-          <Typography variant="body2" sx={{ color: "#6B7280" }}>
+          <Typography variant="body2" sx={{ color: "#94A3B8" }}>
             Manage outlet credentials, MPIN & active terminal sessions.
           </Typography>
         </Box>
       </Stack>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mt: 1 }}>
-        <Paper elevation={0} sx={{ p: 3.5, borderRadius: 3.5, border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Merchant Outlet Details</Typography>
+        <Paper elevation={0} sx={{ p: 3.5, borderRadius: 3.5, border: "1px solid #CBD5E1", backgroundColor: "#FFFFFF", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)" }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2.5, color: "#0F172A" }}>Merchant Outlet Details</Typography>
           <Stack spacing={2}>
             <M3TextField label="Outlet Code" value={outlet.code} disabled />
             <M3TextField label="Outlet Name" value={outlet.name} disabled />
@@ -47,8 +47,8 @@ export default function ProfilePage() {
           </Stack>
         </Paper>
 
-        <Paper elevation={0} sx={{ p: 3.5, borderRadius: 3.5, border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF" }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Security Credentials & MPIN</Typography>
+        <Paper elevation={0} sx={{ p: 3.5, borderRadius: 3.5, border: "1px solid #CBD5E1", backgroundColor: "#FFFFFF", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)" }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2.5, color: "#0F172A" }}>Security Credentials & MPIN</Typography>
           {successMsg && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{successMsg}</Alert>}
           <form onSubmit={handleUpdateSecurity}>
             <Stack spacing={2.5}>

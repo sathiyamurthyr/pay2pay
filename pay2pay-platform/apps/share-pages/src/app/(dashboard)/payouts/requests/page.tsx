@@ -87,26 +87,98 @@ export default function PayoutRequestsPage() {
     }
   };
 
+  // Calculate KPI values from actual payouts array
+  const totalAmount = payouts.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalTxns = payouts.length;
+
+  const successPayouts = payouts.filter((p) => p.status === "SUCCESS");
+  const successAmount = successPayouts.reduce((sum, p) => sum + (p.net_amount || p.amount || 0), 0);
+  const successTxns = successPayouts.length;
+
+  const pendingPayouts = payouts.filter((p) => ["PENDING", "PENDING_APPROVAL", "APPROVED", "PROCESSING"].includes(p.status));
+  const pendingAmount = pendingPayouts.reduce((sum, p) => sum + (p.net_amount || p.amount || 0), 0);
+  const pendingTxns = pendingPayouts.length;
+
+  const failedPayouts = payouts.filter((p) => ["FAILED", "REJECTED", "REVERSED"].includes(p.status));
+  const failedAmount = failedPayouts.reduce((sum, p) => sum + (p.net_amount || p.amount || 0), 0);
+  const failedTxns = failedPayouts.length;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[#111827] flex items-center gap-3">
-            <Send className="h-7 w-7 text-[#2563EB]" />
-            Outbound Payout Directory &amp; Approvals
-          </h1>
-          <p className="mt-1 text-xs text-[#64748B] font-semibold">
-            Create payout requests, Maker-Checker approval queue, bank gateway dispatch, and reversals
-          </p>
+    <div className="space-y-4 select-none">
+      {/* 1. SINGLE INTEGRATED COMPACT HEADER + FINANCIAL TOOLBAR CONTAINER (HEIGHT ~75-90px) */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121B28] p-4 px-5 min-h-[82px] flex items-center shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-0 w-full items-center">
+          {/* SECTION 1 — PAGE TITLE */}
+          <div className="lg:pr-5">
+            <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
+              Payouts
+            </h1>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+              View and manage retailer payout transactions
+            </p>
+          </div>
+
+          {/* SECTION 2 — TOTAL PAYOUTS */}
+          <div className="lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5 lg:pr-4">
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+              TOTAL PAYOUTS
+            </span>
+            <div className="text-lg font-black text-slate-900 dark:text-white my-0.5 leading-none">
+              ₹{totalAmount.toLocaleString("en-IN")}
+            </div>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-500">
+              {totalTxns} txns
+            </span>
+          </div>
+
+          {/* SECTION 3 — SUCCESSFUL */}
+          <div className="lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5 lg:pr-4">
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+              SUCCESSFUL
+            </span>
+            <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 my-0.5 leading-none">
+              ₹{successAmount.toLocaleString("en-IN")}
+            </div>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {successTxns} success
+            </span>
+          </div>
+
+          {/* SECTION 4 — PENDING */}
+          <div className="lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5 lg:pr-4">
+            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
+              PENDING
+            </span>
+            <div className="text-lg font-black text-amber-600 dark:text-amber-400 my-0.5 leading-none">
+              ₹{pendingAmount.toLocaleString("en-IN")}
+            </div>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {pendingTxns} proc.
+            </span>
+          </div>
+
+          {/* SECTION 5 — FAILED / REVERSED */}
+          <div className="lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">
+                FAILED / REVERSED
+              </span>
+              <div className="text-lg font-black text-rose-600 dark:text-rose-400 my-0.5 leading-none">
+                ₹{failedAmount.toLocaleString("en-IN")}
+              </div>
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                {failedTxns} txns
+              </span>
+            </div>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="ml-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Request Payout</span>
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          Request Outbound Payout
-        </button>
       </div>
 
       {/* Table */}

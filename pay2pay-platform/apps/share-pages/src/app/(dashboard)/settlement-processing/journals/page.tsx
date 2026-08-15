@@ -29,53 +29,8 @@ import {
   AlignLeft,
 } from "lucide-react";
 
-const MOCK_JOURNALS = [
-  {
-    public_id: "j-001",
-    journal_number: "JNL-20260802-0041",
-    journal_date: "2026-08-02",
-    posting_reference: "STL-20260802-0091",
-    posting_status: "POSTED",
-    description: "Settlement batch MDR fee split — BATCH-20260802-A",
-    entries: [
-      { account_code: "1100-WALLET", cost_centre: "CC-RETAIL-001", narration: "Gross wallet credit — retailer Ramesh", debit: 4820000, credit: 0 },
-      { account_code: "2100-MDR",    cost_centre: "CC-PLATFORM",   narration: "MDR fee deduction @ 2%",               debit: 0,       credit: 96400 },
-      { account_code: "2200-GST",    cost_centre: "CC-TAX",        narration: "GST 18% on MDR",                      debit: 0,       credit: 17352 },
-      { account_code: "3100-NET",    cost_centre: "CC-RETAIL-001", narration: "Net settlement to merchant wallet",    debit: 0,       credit: 4706248 },
-    ],
-  },
-  {
-    public_id: "j-002",
-    journal_number: "JNL-20260802-0039",
-    journal_date: "2026-08-02",
-    posting_reference: "STL-20260802-0087",
-    posting_status: "POSTED",
-    description: "Settlement batch MDR fee split — BATCH-20260802-A",
-    entries: [
-      { account_code: "1100-WALLET", cost_centre: "CC-RETAIL-002", narration: "Gross wallet credit — retailer Kavitha", debit: 2340000, credit: 0 },
-      { account_code: "2100-MDR",    cost_centre: "CC-PLATFORM",   narration: "MDR fee deduction @ 2%",                debit: 0,       credit: 46800 },
-      { account_code: "2200-GST",    cost_centre: "CC-TAX",        narration: "GST 18% on MDR",                       debit: 0,       credit: 8424 },
-      { account_code: "3100-NET",    cost_centre: "CC-RETAIL-002", narration: "Net settlement to merchant wallet",     debit: 0,       credit: 2284776 },
-    ],
-  },
-  {
-    public_id: "j-003",
-    journal_number: "JNL-20260801-0031",
-    journal_date: "2026-08-01",
-    posting_reference: "STL-20260801-0079",
-    posting_status: "POSTED",
-    description: "Settlement batch MDR fee split — BATCH-20260801-A",
-    entries: [
-      { account_code: "1100-WALLET", cost_centre: "CC-RETAIL-003", narration: "Gross wallet credit — retailer Suresh", debit: 3760000, credit: 0 },
-      { account_code: "2100-MDR",    cost_centre: "CC-PLATFORM",   narration: "MDR fee deduction @ 2%",               debit: 0,       credit: 75200 },
-      { account_code: "2200-GST",    cost_centre: "CC-TAX",        narration: "GST 18% on MDR",                      debit: 0,       credit: 13536 },
-      { account_code: "3100-NET",    cost_centre: "CC-RETAIL-003", narration: "Net settlement to merchant wallet",    debit: 0,       credit: 3671264 },
-    ],
-  },
-];
-
 export default function AccountingJournalsPage() {
-  const [journals, setJournals] = useState<any[]>(MOCK_JOURNALS);
+  const [journals, setJournals] = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState("");
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -84,9 +39,9 @@ export default function AccountingJournalsPage() {
     try {
       setLoading(true);
       const res = await api.get("/api/v1/settlement-processing/journals");
-      setJournals(res.data?.length ? res.data : MOCK_JOURNALS);
+      setJournals(Array.isArray(res.data) ? res.data : (res.data?.items || []));
     } catch {
-      setJournals(MOCK_JOURNALS);
+      setJournals([]);
     } finally {
       setLoading(false);
       setLastUpdated(new Date());

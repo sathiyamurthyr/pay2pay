@@ -10,30 +10,6 @@ import {
   Hash, Banknote, Wallet, Receipt, CreditCard,
 } from "lucide-react";
 
-/* ── Mock executive MIS data ─────────────────────────────── */
-const MOCK_MIS: ExecutiveMIS = {
-  total_settlement_volume: 284600000,
-  todays_settlement_volume: 14820000,
-  monthly_settlement_volume: 97400000,
-  yearly_settlement_volume: 1184000000,
-  gross_mdr_revenue: 5692000,
-  net_company_revenue: 2846000,
-  total_gst_collected: 1024560,
-  total_tds_deducted: 455360,
-  total_commission_paid: 1123000,
-  payout_success_rate: 99.1,
-  avg_processing_latency_sec: 0.48,
-  growth_rate_percentage: 9.3,
-};
-
-const MOCK_SUMMARIES = [
-  { summary_date:"2026-08-02", total_transactions:1842, gross_amount:14820000, mdr_revenue:296400, gst_collected:53352, tds_deducted:23712, net_wallet_credit:14446536, outbound_payout_volume:11200000 },
-  { summary_date:"2026-08-01", total_transactions:1728, gross_amount:13760000, mdr_revenue:275200, gst_collected:49536, tds_deducted:22016, net_wallet_credit:13413248, outbound_payout_volume:10400000 },
-  { summary_date:"2026-07-31", total_transactions:2110, gross_amount:18920000, mdr_revenue:378400, gst_collected:68112, tds_deducted:30272, net_wallet_credit:18443216, outbound_payout_volume:14800000 },
-  { summary_date:"2026-07-30", total_transactions:1560, gross_amount:12480000, mdr_revenue:249600, gst_collected:44928, tds_deducted:19968, net_wallet_credit:12165504, outbound_payout_volume:9600000 },
-  { summary_date:"2026-07-29", total_transactions:1998, gross_amount:16800000, mdr_revenue:336000, gst_collected:60480, tds_deducted:26880, net_wallet_credit:16376640, outbound_payout_volume:12900000 },
-];
-
 interface ExecutiveMIS {
   total_settlement_volume: number;
   todays_settlement_volume: number;
@@ -49,6 +25,21 @@ interface ExecutiveMIS {
   growth_rate_percentage: number;
 }
 
+const ZERO_MIS: ExecutiveMIS = {
+  total_settlement_volume: 0,
+  todays_settlement_volume: 0,
+  monthly_settlement_volume: 0,
+  yearly_settlement_volume: 0,
+  gross_mdr_revenue: 0,
+  net_company_revenue: 0,
+  total_gst_collected: 0,
+  total_tds_deducted: 0,
+  total_commission_paid: 0,
+  payout_success_rate: 100,
+  avg_processing_latency_sec: 0,
+  growth_rate_percentage: 0,
+};
+
 const fmt = (n: number) =>
   n >= 10_000_000 ? `₹${(n/10_000_000).toFixed(2)} Cr`
   : n >= 100_000  ? `₹${(n/100_000).toFixed(2)} L`
@@ -58,10 +49,10 @@ const COL_HEADERS = [
   { label:"Date",            icon: Calendar,      bg:"bg-[#FEF3C7] border-[#FDE68A]", ic:"text-[#D97706]" },
   { label:"Txn Count",       icon: Hash,          bg:"bg-[#EFF6FF] border-[#BFDBFE]", ic:"text-[#2563EB]" },
   { label:"Gross Volume",    icon: Banknote,      bg:"bg-[#F5F3FF] border-[#DDD6FE]", ic:"text-[#7C3AED]" },
-  { label:"MDR Revenue",     icon: TrendingUp,    bg:"bg-[#DCFCE7] border-[#BBF7D0]", ic:"text-[#16A34A]" },
-  { label:"GST 18%",         icon: FileSpreadsheet,bg:"bg-[#FFFBEB] border-[#FDE68A]",ic:"text-[#B45309]" },
-  { label:"TDS 194O",        icon: Percent,       bg:"bg-[#FDF4FF] border-[#E9D5FF]", ic:"text-[#9333EA]" },
-  { label:"Net Wallet Cr",   icon: Wallet,        bg:"bg-[#F0FDF4] border-[#BBF7D0]", ic:"text-[#059669]" },
+  { label:"MDR Revenue",     icon: DollarSign,    bg:"bg-[#FEF2F2] border-[#FCA5A5]", ic:"text-[#DC2626]" },
+  { label:"GST (18%)",       icon: FileSpreadsheet,bg:"bg-[#FFFBEB] border-[#FDE68A]", ic:"text-[#D97706]" },
+  { label:"TDS Withheld",    icon: Percent,       bg:"bg-[#FDF4FF] border-[#E9D5FF]", ic:"text-[#9333EA]" },
+  { label:"Net Wallet Credit",icon: Wallet,       bg:"bg-[#ECFDF5] border-[#A7F3D0]", ic:"text-[#059669]" },
   { label:"Outbound Payout", icon: Receipt,       bg:"bg-[#EFF6FF] border-[#BFDBFE]", ic:"text-[#2563EB]" },
 ];
 
@@ -79,11 +70,11 @@ export default function MISDashboardPage() {
         api.get("/api/v1/reporting/executive-summary"),
         api.get("/api/v1/reporting/daily-summaries"),
       ]);
-      setMis(misRes.data || MOCK_MIS);
-      setDailySummaries(dsRes.data?.length ? dsRes.data : MOCK_SUMMARIES);
+      setMis(misRes.data || ZERO_MIS);
+      setDailySummaries(Array.isArray(dsRes.data) ? dsRes.data : (dsRes.data?.items || []));
     } catch {
-      setMis(MOCK_MIS);
-      setDailySummaries(MOCK_SUMMARIES);
+      setMis(ZERO_MIS);
+      setDailySummaries([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -93,11 +84,9 @@ export default function MISDashboardPage() {
 
   useEffect(() => {
     fetchData();
-    const iv = setInterval(fetchData, 15000);
-    return () => clearInterval(iv);
   }, []);
 
-  const m = mis ?? MOCK_MIS;
+  const m = mis ?? ZERO_MIS;
 
   const kpis = [
     { label:"Total Settlement Volume",  value:fmt(m.total_settlement_volume),  icon:TrendingUp,      bg:"bg-[#EFF6FF]",border:"border-[#BFDBFE]",text:"text-[#1D4ED8]",ic:"text-[#2563EB]",  sub:"All-time",          trend:"+9.3%",   up:true  },

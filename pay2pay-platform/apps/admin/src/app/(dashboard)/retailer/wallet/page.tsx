@@ -49,32 +49,25 @@ interface SettlementLog {
   utr: string;
 }
 
-const MOCK_WALLET_TXNS: WalletTxn[] = [
-  { id: "WAL-90124", date: "2026-08-03 18:24", particulars: "DMT IMPS Outflow (Kavitha)", type: "DEBIT", amount: 5000, balanceAfter: 48250.75, utr: "UTR202608039012", status: "SUCCESS" },
-  { id: "WAL-90123", date: "2026-08-03 18:10", particulars: "AEPS Cash Out Inflow", type: "CREDIT", amount: 2000, balanceAfter: 53250.75, utr: "RRN202608037719", status: "SUCCESS" },
-  { id: "WAL-90122", date: "2026-08-03 17:45", particulars: "Dynamic UPI QR Top-up", type: "CREDIT", amount: 10000, balanceAfter: 51250.75, utr: "UPI202608036601", status: "SUCCESS" },
-  { id: "WAL-90121", date: "2026-08-03 17:15", particulars: "BBPS Bill Pay (Electricity)", type: "DEBIT", amount: 1450, balanceAfter: 41250.75, utr: "BBPS202608034412", status: "SUCCESS" },
-  { id: "WAL-90120", date: "2026-08-03 16:50", particulars: "Mobile Recharge (Airtel)", type: "DEBIT", amount: 299, balanceAfter: 42700.75, utr: "OP8839201", status: "SUCCESS" },
-];
-
-const MOCK_SETTLEMENT_LOGS: SettlementLog[] = [
-  { id: "STL-501", date: "2026-08-03 15:30", bankAccount: "HDFC Bank (****5010)", amount: 25000, mode: "IMPS", status: "Completed", utr: "SETTL2026080301" },
-  { id: "STL-502", date: "2026-08-02 19:15", bankAccount: "HDFC Bank (****5010)", amount: 18000, mode: "IMPS", status: "Completed", utr: "SETTL2026080208" },
-  { id: "STL-503", date: "2026-08-01 21:00", bankAccount: "HDFC Bank (****5010)", amount: 32000, mode: "NEFT", status: "Completed", utr: "SETTL2026080104" },
-];
+const getActiveRetailerId = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+  }
+  return "";
+};
 
 const TREND_DATA = [
-  { day: "Mon", balance: 32000 },
-  { day: "Tue", balance: 38000 },
-  { day: "Wed", balance: 42000 },
-  { day: "Thu", balance: 45000 },
-  { day: "Fri", balance: 41000 },
-  { day: "Sat", balance: 51000 },
-  { day: "Sun", balance: 48250 },
+  { day: "Mon", balance: 0 },
+  { day: "Tue", balance: 0 },
+  { day: "Wed", balance: 0 },
+  { day: "Thu", balance: 0 },
+  { day: "Fri", balance: 0 },
+  { day: "Sat", balance: 0 },
+  { day: "Sun", balance: 0 },
 ];
 
 export default function WalletPage() {
-  const { wallet, syncBalance, isSyncing, updateWallet } = useRetailerStore();
+  const { wallet, outlet, syncBalance, isSyncing, updateWallet } = useRetailerStore();
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("5000");
   const [loading, setLoading] = useState(false);
@@ -82,6 +75,39 @@ export default function WalletPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("ALL");
   const [copyToast, setCopyToast] = useState<string | null>(null);
+  const [walletTxns, setWalletTxns] = useState<WalletTxn[]>([]);
+  const [settlementLogs, setSettlementLogs] = useState<SettlementLog[]>([]);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const activeId = getActiveRetailerId();
+        const q = new URLSearchParams({ limit: "20" });
+        if (activeId) q.append("retailer_id", activeId);
+
+        const res = await fetch(`/api/v1/payout/reports/list?${q.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapped: WalletTxn[] = (data.items || []).map((it: any) => ({
+            id: it.transaction_number || it.transaction_id || `TXN-${it.id}`,
+            date: it.initiated_at || it.created_at || "—",
+            particulars: `${it.payment_mode || "PAYOUT"} Transfer (${it.beneficiary_name || it.customer_name || "Merchant"})`,
+            type: "DEBIT",
+            amount: Number(it.transfer_amount || 0),
+            balanceAfter: 0,
+            utr: it.bank_reference || it.utr_number || "—",
+            status: it.status === "SUCCESS" ? "SUCCESS" : (it.status === "PENDING" ? "PENDING" : "FAILED"),
+          }));
+          setWalletTxns(mapped);
+        } else {
+          setWalletTxns([]);
+        }
+      } catch {
+        setWalletTxns([]);
+      }
+    };
+    fetchTransactions();
+  }, []);
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -104,7 +130,7 @@ export default function WalletPage() {
     }, 1000);
   };
 
-  const filteredTxns = MOCK_WALLET_TXNS.filter((txn) => {
+  const filteredTxns = walletTxns.filter((txn) => {
     const matchesSearch = txn.id.toLowerCase().includes(searchTerm.toLowerCase()) || txn.particulars.toLowerCase().includes(searchTerm.toLowerCase()) || txn.utr.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === "ALL" || txn.type === filterType;
     return matchesSearch && matchesType;
@@ -554,8 +580,10 @@ export default function WalletPage() {
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 600 }}>Virtual Account Number</Typography>
                     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#2563EB" }}>PY2P9840192837</Typography>
-                      <IconButton size="small" onClick={() => handleCopy("PY2P9840192837", "Account Number")}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#2563EB" }}>
+                        {`PY2P${outlet.code?.replace(/[^a-zA-Z0-9]/g, "") || "MERCHANT"}`}
+                      </Typography>
+                      <IconButton size="small" onClick={() => handleCopy(`PY2P${outlet.code?.replace(/[^a-zA-Z0-9]/g, "") || "MERCHANT"}`, "Account Number")}>
                         <ContentCopyIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Stack>
@@ -574,8 +602,10 @@ export default function WalletPage() {
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 600 }}>Virtual UPI VPA ID</Typography>
                     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#16A34A" }}>pay2pay.9840192837@hdfcbank</Typography>
-                      <IconButton size="small" onClick={() => handleCopy("pay2pay.9840192837@hdfcbank", "UPI VPA ID")}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#16A34A" }}>
+                        {`pay2pay.${(outlet.code || "merchant").toLowerCase().replace(/[^a-z0-9]/g, "")}@hdfcbank`}
+                      </Typography>
+                      <IconButton size="small" onClick={() => handleCopy(`pay2pay.${(outlet.code || "merchant").toLowerCase().replace(/[^a-z0-9]/g, "")}@hdfcbank`, "UPI VPA ID")}>
                         <ContentCopyIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Stack>
@@ -587,7 +617,7 @@ export default function WalletPage() {
 
           <Box sx={{ textAlign: "center", display: "flex", justifyContent: "center" }}>
             <ScannableQrCode
-              value="upi://pay?pa=pay2pay.9840192837@hdfcbank&pn=Pay2Pay%20Retailer%20Store&mc=0000&tr=WAL9001&tn=Wallet%20Auto%20TopUp&cu=INR"
+              value={`upi://pay?pa=pay2pay.${(outlet.code || "merchant").toLowerCase().replace(/[^a-z0-9]/g, "")}@hdfcbank&pn=${encodeURIComponent(outlet.name || "Pay2Pay Retailer Store")}&mc=0000&tr=WAL9001&tn=Wallet%20Auto%20TopUp&cu=INR`}
               size={170}
               label="Scan with GPay / PhonePe / Paytm"
               subLabel="Zero Fee Instant Auto Wallet Credit"
@@ -663,29 +693,39 @@ export default function WalletPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredTxns.map((txn) => (
-              <TableRow key={txn.id} hover>
-                <TableCell sx={{ fontSize: "12px", color: "#4B5563" }}>{txn.date}</TableCell>
-                <TableCell>
-                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#2563EB", fontFamily: "monospace", display: "block" }}>
-                    {txn.id}
+            {filteredTxns.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: "#64748B" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    No wallet transactions found.
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "#6B7280", fontFamily: "monospace", fontSize: "11px" }}>
-                    {txn.utr}
-                  </Typography>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: "#111827" }}>{txn.particulars}</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: txn.type === "CREDIT" ? "#16A34A" : "#DC2626" }}>
-                  {txn.type === "CREDIT" ? "+" : "-"}₹{txn.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#111827" }}>
-                  ₹{txn.balanceAfter.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </TableCell>
-                <TableCell align="center">
-                  <M3StatusChip status={txn.status} />
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredTxns.map((txn) => (
+                <TableRow key={txn.id} hover>
+                  <TableCell sx={{ fontSize: "12px", color: "#4B5563" }}>{txn.date}</TableCell>
+                  <TableCell>
+                    <Typography variant="caption" sx={{ fontWeight: 800, color: "#2563EB", fontFamily: "monospace", display: "block" }}>
+                      {txn.id}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "#6B7280", fontFamily: "monospace", fontSize: "11px" }}>
+                      {txn.utr}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: "#111827" }}>{txn.particulars}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: txn.type === "CREDIT" ? "#16A34A" : "#DC2626" }}>
+                    {txn.type === "CREDIT" ? "+" : "-"}₹{txn.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#111827" }}>
+                    ₹{txn.balanceAfter.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell align="center">
+                    <M3StatusChip status={txn.status} />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Paper>
@@ -725,17 +765,27 @@ export default function WalletPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {MOCK_SETTLEMENT_LOGS.map((s) => (
-              <TableRow key={s.id} hover>
-                <TableCell sx={{ fontWeight: 800, color: "#2563EB", fontFamily: "monospace" }}>{s.id}</TableCell>
-                <TableCell sx={{ fontSize: "12px" }}>{s.date}</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>{s.bankAccount}</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace" }}>₹{s.amount.toLocaleString("en-IN")}</TableCell>
-                <TableCell><Chip label={s.mode} size="small" sx={{ fontWeight: 800, height: 20 }} /></TableCell>
-                <TableCell align="center"><M3StatusChip status={s.status} /></TableCell>
-                <TableCell sx={{ fontFamily: "monospace", fontSize: "12px" }}>{s.utr}</TableCell>
+            {settlementLogs.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#64748B" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    No settlement records found.
+                  </Typography>
+                </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              settlementLogs.map((s) => (
+                <TableRow key={s.id} hover>
+                  <TableCell sx={{ fontWeight: 800, color: "#2563EB", fontFamily: "monospace" }}>{s.id}</TableCell>
+                  <TableCell sx={{ fontSize: "12px" }}>{s.date}</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>{s.bankAccount}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace" }}>₹{s.amount.toLocaleString("en-IN")}</TableCell>
+                  <TableCell><Chip label={s.mode} size="small" sx={{ fontWeight: 800, height: 20 }} /></TableCell>
+                  <TableCell align="center"><M3StatusChip status={s.status} /></TableCell>
+                  <TableCell sx={{ fontFamily: "monospace", fontSize: "12px" }}>{s.utr}</TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Paper>

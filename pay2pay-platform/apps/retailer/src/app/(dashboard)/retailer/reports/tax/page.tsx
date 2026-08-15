@@ -6,7 +6,7 @@ import TaxReportPage from "@/app/(dashboard)/admin/reports/tax/page";
 
 export default function RetailerTaxReportPage() {
   return (
-    <AppShell pageTitle="Retailer Portal — Tax Report" activePath="/retailer/reports/tax">
+    <AppShell pageTitle="Retailer Portal — Tax & GST Report" activePath="/retailer/reports/tax">
       <TaxReportPage />
     </AppShell>
   );

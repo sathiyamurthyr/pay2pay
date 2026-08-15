@@ -8,20 +8,6 @@ import {
   ChevronRight, Eye, EyeOff, RefreshCw, Edit2,
 } from "lucide-react";
 
-// ─── Mock System Config Data ─────────────────────────────────────
-const MOCK_CONFIGS = [
-  { public_id: "cfg_001", key: "MAX_DAILY_TXN_LIMIT",       value: "₹5,00,000",       category: "TRANSACTION",  version: 2, is_sensitive: false },
-  { public_id: "cfg_002", key: "SETTLEMENT_CUTOFF_TIME",    value: "22:00:00 IST",    category: "SETTLEMENT",   version: 1, is_sensitive: false },
-  { public_id: "cfg_003", key: "WALLET_AUTO_RELOAD_MIN",    value: "₹1,000",          category: "WALLET",       version: 1, is_sensitive: false },
-  { public_id: "cfg_004", key: "MFA_REQUIRED_ROLES",        value: "PLATFORM_ADMIN",  category: "SECURITY",     version: 3, is_sensitive: false },
-  { public_id: "cfg_005", key: "JWT_EXPIRY_MINUTES",        value: "60",              category: "SECURITY",     version: 1, is_sensitive: false },
-  { public_id: "cfg_006", key: "API_RATE_LIMIT_PER_MIN",    value: "1000",            category: "API",          version: 2, is_sensitive: false },
-  { public_id: "cfg_007", key: "SMTP_HOST",                 value: "smtp.pay2pay.in", category: "NOTIFICATION", version: 1, is_sensitive: false },
-  { public_id: "cfg_008", key: "REDIS_CACHE_TTL_SECONDS",   value: "300",             category: "SYSTEM",       version: 1, is_sensitive: false },
-  { public_id: "cfg_009", key: "DB_POOL_MAX_CONNECTIONS",   value: "50",              category: "SYSTEM",       version: 1, is_sensitive: false },
-  { public_id: "cfg_010", key: "HDFC_API_SECRET_KEY",       value: "••••••••••••",    category: "SECURITY",     version: 4, is_sensitive: true },
-];
-
 const CATEGORY_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string; border: string }> = {
   TRANSACTION:  { icon: Globe,     color: "#6C63FF", bg: "#EDE9FE", border: "#DDD6FE" },
   SETTLEMENT:   { icon: Database,  color: "#10B981", bg: "#D1FAE5", border: "#6EE7B7" },
@@ -40,12 +26,12 @@ export default function SettingsPage() {
     queryKey: ["settings"],
     queryFn: async () => {
       const res = await apiClient.get("/settings");
-      return res.data;
+      return Array.isArray(res.data) ? res.data : (res.data?.items || []);
     },
   });
 
-  const configs = Array.isArray(fetchedConfigs) && fetchedConfigs.length > 0 ? fetchedConfigs : MOCK_CONFIGS;
-  const categories = ["ALL", ...Array.from(new Set(configs.map((c: any) => c.category)))];
+  const configs = Array.isArray(fetchedConfigs) ? fetchedConfigs : [];
+  const categories = ["ALL", ...Array.from(new Set(configs.map((c: any) => c.category).filter(Boolean)))];
   const filtered = activeCategory === "ALL" ? configs : configs.filter((c: any) => c.category === activeCategory);
 
   return (

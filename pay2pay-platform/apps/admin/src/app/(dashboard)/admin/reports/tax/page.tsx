@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { getApiBaseUrl } from "@/lib/api-config";
 import {
   Scale, Search, Filter, Download, RefreshCw, ChevronLeft, ChevronRight,
   FileText, Calendar, Building, Landmark
@@ -44,7 +45,6 @@ export default function TaxReportPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [exporting, setExporting] = useState<boolean>(false);
 
-  // Financial Year Filter
   const [financialYear, setFinancialYear] = useState<string>("FY 2025-26");
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -59,8 +59,8 @@ export default function TaxReportPage() {
       if (financialYear) params.append("financial_year", financialYear);
 
       const [sumRes, listRes] = await Promise.all([
-        axios.get(`/api/v1/admin/reports/tax/summary?${params.toString()}`),
-        axios.get(`/api/v1/admin/reports/tax?${params.toString()}`)
+        axios.get(`${getApiBaseUrl()}/admin/reports/tax/summary?${params.toString()}`),
+        axios.get(`${getApiBaseUrl()}/admin/reports/tax?${params.toString()}`)
       ]);
 
       if (sumRes.data?.data) {
@@ -89,7 +89,7 @@ export default function TaxReportPage() {
       if (financialYear) params.append("financial_year", financialYear);
 
       const response = await axios.get(
-        `/api/v1/admin/reports/tax/export?${params.toString()}`,
+        `${getApiBaseUrl()}/admin/reports/tax/export?${params.toString()}`,
         { responseType: "blob" }
       );
 
@@ -110,7 +110,6 @@ export default function TaxReportPage() {
   return (
     <div className="p-6 space-y-6 bg-[#0B0F19] text-white min-h-screen">
       
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -144,7 +143,6 @@ export default function TaxReportPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
           <span className="text-xs font-semibold text-slate-400 block mb-1">Total Taxable Amount</span>
@@ -187,7 +185,6 @@ export default function TaxReportPage() {
         </div>
       </div>
 
-      {/* Financial Year Selector */}
       <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Calendar className="w-4 h-4 text-amber-400" />
@@ -208,7 +205,6 @@ export default function TaxReportPage() {
         </div>
       </div>
 
-      {/* Table Container */}
       <div className="rounded-2xl bg-slate-900/60 border border-slate-800/80 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
@@ -273,7 +269,6 @@ export default function TaxReportPage() {
           </table>
         </div>
 
-        {/* Pagination Footer */}
         <div className="p-4 border-t border-slate-800/80 bg-slate-900/60 flex items-center justify-between text-xs text-slate-400">
           <div>
             Showing <strong className="text-white">{rows.length}</strong> of <strong className="text-white">{totalRecords}</strong> tax rows

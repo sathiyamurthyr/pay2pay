@@ -6,4 +6,3 @@ import { RetailerPayoutReport } from "@/modules/reports/RetailerPayoutReport";
 export default function RetailerPayoutsReportPage() {
   return <RetailerPayoutReport />;
 }
-

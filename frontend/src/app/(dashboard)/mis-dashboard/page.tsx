@@ -84,8 +84,6 @@ export default function MISDashboardPage() {
 
   useEffect(() => {
     fetchData();
-    const iv = setInterval(fetchData, 15000);
-    return () => clearInterval(iv);
   }, []);
 
   const m = mis ?? ZERO_MIS;

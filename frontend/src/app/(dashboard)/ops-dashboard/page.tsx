@@ -112,8 +112,6 @@ export default function OpsDashboardPage() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
   }, []);
 
   const cpuColor   = metrics.cpu_utilization_pct > 80 ? "bg-red-500" : metrics.cpu_utilization_pct > 60 ? "bg-amber-400" : "bg-emerald-400";

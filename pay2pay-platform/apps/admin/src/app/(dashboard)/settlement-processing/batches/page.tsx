@@ -32,35 +32,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-/* ── Mock batch data ───────────────────────────────────────────── */
-const MOCK_TXNS = [
-  { public_id: "stl-001", settlement_number: "STL-20260802-0091", batch_number: "BATCH-20260802-A", settlement_date: "2026-08-02", gross_amount: 4820000, net_amount: 4723600, mdr_amount: 96400, reference_number: "REF-HDFC-8821", status: "SETTLED" },
-  { public_id: "stl-002", settlement_number: "STL-20260802-0087", batch_number: "BATCH-20260802-A", settlement_date: "2026-08-02", gross_amount: 2340000, net_amount: 2293200, mdr_amount: 46800, reference_number: "REF-HDFC-8820", status: "SETTLED" },
-  { public_id: "stl-003", settlement_number: "STL-20260802-0084", batch_number: "BATCH-20260802-B", settlement_date: "2026-08-02", gross_amount: 1890000, net_amount: 1852200, mdr_amount: 37800, reference_number: "REF-ICICI-4401", status: "PROCESSING" },
-  { public_id: "stl-004", settlement_number: "STL-20260801-0079", batch_number: "BATCH-20260801-A", settlement_date: "2026-08-01", gross_amount: 3760000, net_amount: 3684800, mdr_amount: 75200, reference_number: "REF-HDFC-8815", status: "SETTLED" },
-  { public_id: "stl-005", settlement_number: "STL-20260801-0072", batch_number: "BATCH-20260801-B", settlement_date: "2026-08-01", gross_amount: 980000,  net_amount: 960400,  mdr_amount: 19600, reference_number: "REF-AXIS-2210", status: "FAILED" },
-  { public_id: "stl-006", settlement_number: "STL-20260801-0068", batch_number: "BATCH-20260801-B", settlement_date: "2026-08-01", gross_amount: 2100000, net_amount: 2058000, mdr_amount: 42000, reference_number: "REF-SBI-0091", status: "SETTLED" },
-  { public_id: "stl-007", settlement_number: "STL-20260731-0061", batch_number: "BATCH-20260731-A", settlement_date: "2026-07-31", gross_amount: 5640000, net_amount: 5527200, mdr_amount: 112800, reference_number: "REF-HDFC-8809", status: "SETTLED" },
-];
-
-const fmt = (n: number) =>
-  n >= 10_000_000
-    ? `₹${(n / 10_000_000).toFixed(2)} Cr`
-    : n >= 100_000
-    ? `₹${(n / 100_000).toFixed(2)} L`
-    : `₹${n.toLocaleString("en-IN")}`;
-
-function statusStyle(status: string) {
-  switch (status) {
-    case "SETTLED":    return { bg: "bg-emerald-500/10 border-emerald-400/25 text-emerald-400", icon: CheckCircle2, dot: "bg-emerald-400" };
-    case "PROCESSING": return { bg: "bg-blue-500/10 border-blue-400/25 text-blue-400",          icon: RefreshCw,    dot: "bg-blue-400"    };
-    case "FAILED":     return { bg: "bg-rose-500/10 border-rose-400/25 text-rose-400",           icon: XCircle,      dot: "bg-rose-400"    };
-    default:           return { bg: "bg-amber-500/10 border-amber-400/25 text-amber-400",        icon: Clock,        dot: "bg-amber-400"   };
-  }
-}
-
 export default function SettlementBatchesPage() {
-  const [txns, setTxns]           = useState<any[]>(MOCK_TXNS);
+  const [txns, setTxns]           = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
   const [processing, setProcessing] = useState(false);
   const [search, setSearch]       = useState("");
@@ -78,9 +51,9 @@ export default function SettlementBatchesPage() {
     try {
       setLoading(true);
       const res = await api.get("/api/v1/settlement-processing/transactions");
-      setTxns(res.data?.length ? res.data : MOCK_TXNS);
+      setTxns(Array.isArray(res.data) ? res.data : (res.data?.items || []));
     } catch {
-      setTxns(MOCK_TXNS);
+      setTxns([]);
     } finally {
       setLoading(false);
       setLastUpdated(new Date());

@@ -23,36 +23,17 @@ import {
   Building2,
 } from "lucide-react";
 
-/* ── Mock Data ──────────────────────────────────────────────────── */
-const MOCK_METRICS = {
-  total_processed_volume:      94820500,
-  total_settled_amount:        91240300,
-  pending_settlement_volume:    3580200,
-  total_mdr_earned:              948205,
-  total_gst_liability:           170676,
-  total_distributor_commissions: 284461,
-  total_payouts_dispatched:    87200000,
-  volume_by_mode: {
-    "UPI":           52140000,
-    "IMPS":          22480000,
-    "NEFT":          12340000,
-    "RTGS":           5860000,
-    "Card (Debit)":   1900000,
-    "Wallet":          100500,
-  },
-  hourly_trend: [
-    { hour: "08:00", volume: 3820000 },
-    { hour: "09:00", volume: 7640000 },
-    { hour: "10:00", volume: 12900000 },
-    { hour: "11:00", volume: 18200000 },
-    { hour: "12:00", volume: 24500000 },
-    { hour: "13:00", volume: 31800000 },
-    { hour: "14:00", volume: 41200000 },
-    { hour: "15:00", volume: 52400000 },
-    { hour: "16:00", volume: 67100000 },
-    { hour: "17:00", volume: 80300000 },
-    { hour: "18:00", volume: 94820500 },
-  ],
+/* ── Baseline Metrics ──────────────────────────────────────────────────── */
+const ZERO_SETTLEMENT_METRICS = {
+  total_processed_volume:      0,
+  total_settled_amount:        0,
+  pending_settlement_volume:    0,
+  total_mdr_earned:              0,
+  total_gst_liability:           0,
+  total_distributor_commissions: 0,
+  total_payouts_dispatched:    0,
+  volume_by_mode: {} as Record<string, number>,
+  hourly_trend: [] as { hour: string; volume: number }[],
 };
 
 const MODE_COLORS = [
@@ -139,8 +120,6 @@ export default function SettlementDashboardPage() {
 
   useEffect(() => {
     fetchMetrics();
-    const interval = setInterval(fetchMetrics, 15000);
-    return () => clearInterval(interval);
   }, []);
 
   const settlementRate =

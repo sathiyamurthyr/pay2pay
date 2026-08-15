@@ -43,8 +43,6 @@ export default function PayoutDashboardPage() {
 
   useEffect(() => {
     fetchMetrics();
-    const interval = setInterval(fetchMetrics, 10000);
-    return () => clearInterval(interval);
   }, []);
 
   if (loading || !metrics) {

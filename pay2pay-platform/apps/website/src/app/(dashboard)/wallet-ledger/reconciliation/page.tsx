@@ -25,65 +25,6 @@ import {
   GitCompare,
 } from "lucide-react";
 
-// ── Mock reconciliation history ───────────────────────────────────
-const MOCK_HISTORY = [
-  {
-    reconciliation_number: "REC-20260802-0041",
-    source_module: "WalletEngine v3.2",
-    target_module: "GeneralLedger v2.1",
-    records_matched: 18420,
-    records_mismatched: 3,
-    difference_amount: 0.0,
-    status: "BALANCED",
-    ran_at: "2026-08-02T22:00:00Z",
-    duration_ms: 4218,
-  },
-  {
-    reconciliation_number: "REC-20260802-0039",
-    source_module: "WalletEngine v3.2",
-    target_module: "GeneralLedger v2.1",
-    records_matched: 17980,
-    records_mismatched: 12,
-    difference_amount: 1425.5,
-    status: "VARIANCE",
-    ran_at: "2026-08-02T18:00:00Z",
-    duration_ms: 3987,
-  },
-  {
-    reconciliation_number: "REC-20260802-0037",
-    source_module: "WalletEngine v3.2",
-    target_module: "GeneralLedger v2.1",
-    records_matched: 16340,
-    records_mismatched: 0,
-    difference_amount: 0.0,
-    status: "BALANCED",
-    ran_at: "2026-08-02T14:00:00Z",
-    duration_ms: 3641,
-  },
-  {
-    reconciliation_number: "REC-20260802-0034",
-    source_module: "WalletEngine v3.2",
-    target_module: "GeneralLedger v2.1",
-    records_matched: 15890,
-    records_mismatched: 1,
-    difference_amount: 200.0,
-    status: "VARIANCE",
-    ran_at: "2026-08-02T10:00:00Z",
-    duration_ms: 3512,
-  },
-  {
-    reconciliation_number: "REC-20260801-0031",
-    source_module: "WalletEngine v3.2",
-    target_module: "GeneralLedger v2.1",
-    records_matched: 14210,
-    records_mismatched: 0,
-    difference_amount: 0.0,
-    status: "BALANCED",
-    ran_at: "2026-08-01T22:00:00Z",
-    duration_ms: 3120,
-  },
-];
-
 // ── Glassmorphism card ────────────────────────────────────────────
 function GlassCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -121,7 +62,7 @@ function PipelineStep({
 
 export default function ReconciliationPage() {
   const [lastRec, setLastRec] = useState<any>(null);
-  const [history, setHistory] = useState(MOCK_HISTORY);
+  const [history, setHistory] = useState<any[]>([]);
   const [reconciling, setReconciling] = useState(false);
   const [progress, setProgress] = useState(0);
   const [activeStep, setActiveStep] = useState(-1);
@@ -142,7 +83,7 @@ export default function ReconciliationPage() {
     // Simulate pipeline progress
     const steps = [15, 35, 60, 85, 100];
     for (let i = 0; i < steps.length; i++) {
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 400));
       setProgress(steps[i]);
       setActiveStep(i);
     }
@@ -155,33 +96,18 @@ export default function ReconciliationPage() {
         reconciliation_number: result.reconciliation_number || `REC-${Date.now()}`,
         source_module: result.source_module || "WalletEngine v3.2",
         target_module: result.target_module || "GeneralLedger v2.1",
-        records_matched: result.records_matched ?? 18500,
+        records_matched: result.records_matched ?? 0,
         records_mismatched: result.records_mismatched ?? 0,
         difference_amount: result.difference_amount ?? 0,
         status: result.status || "BALANCED",
         ran_at: new Date().toISOString(),
-        duration_ms: result.duration_ms ?? 4100,
+        duration_ms: result.duration_ms ?? 0,
       };
       setHistory((prev) => [newEntry, ...prev.slice(0, 4)]);
       setLastUpdated(new Date());
       showToast(`Reconciliation complete — ${newEntry.status}`, newEntry.status === "BALANCED");
     } catch {
-      // Fallback mock result
-      const mockResult = {
-        reconciliation_number: `REC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 1000).toString().padStart(4, "0")}`,
-        source_module: "WalletEngine v3.2",
-        target_module: "GeneralLedger v2.1",
-        records_matched: 18742,
-        records_mismatched: 0,
-        difference_amount: 0.0,
-        status: "BALANCED",
-        ran_at: new Date().toISOString(),
-        duration_ms: 4021,
-      };
-      setLastRec(mockResult);
-      setHistory((prev) => [mockResult, ...prev.slice(0, 4)]);
-      setLastUpdated(new Date());
-      showToast("Reconciliation complete — BALANCED", true);
+      showToast("Reconciliation failed: Unable to connect to ledger engine.", false);
     } finally {
       setReconciling(false);
       setActiveStep(-1);
@@ -494,44 +420,52 @@ export default function ReconciliationPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {history.map((run, i) => (
-                    <tr key={run.reconciliation_number} className={`transition-colors hover:bg-white/5 ${i === 0 && lastRec ? "bg-emerald-500/5" : ""}`}>
-                      <td className="px-3 py-3">
-                        <div className="flex items-center gap-1.5">
-                          {i === 0 && lastRec && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
-                          <span className="font-mono font-bold text-cyan-400 text-[10px]">{run.reconciliation_number}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 font-mono text-slate-300 font-semibold">
-                        {run.records_matched.toLocaleString("en-IN")}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={`font-mono font-bold ${run.records_mismatched > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                          {run.records_mismatched}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 font-mono font-bold text-slate-300">
-                        ₹{run.difference_amount.toFixed(2)}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-extrabold text-[10px] border ${
-                          run.status === "BALANCED"
-                            ? "bg-emerald-500/10 border-emerald-400/20 text-emerald-400"
-                            : "bg-amber-500/10 border-amber-400/20 text-amber-400"
-                        }`}>
-                          {run.status === "BALANCED"
-                            ? <CheckCircle2 className="w-2.5 h-2.5" />
-                            : <AlertTriangle className="w-2.5 h-2.5" />}
-                          {run.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 font-mono text-slate-500 text-[10px] whitespace-nowrap">
-                        {new Date(run.ran_at).toLocaleString("en-IN", {
-                          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
-                        })}
+                  {history.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-center text-slate-500 font-semibold">
+                        No reconciliation runs recorded yet.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    history.map((run, i) => (
+                      <tr key={run.reconciliation_number} className={`transition-colors hover:bg-white/5 ${i === 0 && lastRec ? "bg-emerald-500/5" : ""}`}>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1.5">
+                            {i === 0 && lastRec && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+                            <span className="font-mono font-bold text-cyan-400 text-[10px]">{run.reconciliation_number}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 font-mono text-slate-300 font-semibold">
+                          {run.records_matched.toLocaleString("en-IN")}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`font-mono font-bold ${run.records_mismatched > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                            {run.records_mismatched}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 font-mono font-bold text-slate-300">
+                          ₹{run.difference_amount.toFixed(2)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-extrabold text-[10px] border ${
+                            run.status === "BALANCED"
+                              ? "bg-emerald-500/10 border-emerald-400/20 text-emerald-400"
+                              : "bg-amber-500/10 border-amber-400/20 text-amber-400"
+                          }`}>
+                            {run.status === "BALANCED"
+                              ? <CheckCircle2 className="w-2.5 h-2.5" />
+                              : <AlertTriangle className="w-2.5 h-2.5" />}
+                            {run.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 font-mono text-slate-500 text-[10px] whitespace-nowrap">
+                          {new Date(run.ran_at).toLocaleString("en-IN", {
+                            day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
+                          })}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

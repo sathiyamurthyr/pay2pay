@@ -23,22 +23,61 @@ interface StatementEntry {
   status: "SUCCESS" | "PENDING" | "FAILED";
 }
 
-const MOCK_STATEMENT_ENTRIES: StatementEntry[] = [
-  { id: "STMT-90124", date: "2026-08-03 18:24:12", particulars: "DMT IMPS Outflow (Kavitha Sharma)", txnType: "DMT", type: "DEBIT", openingBalance: 53250.75, amount: 5000, commission: 6.50, closingBalance: 48250.75, utr: "UTR202608039012", status: "SUCCESS" },
-  { id: "STMT-90123", date: "2026-08-03 18:10:05", particulars: "AEPS Cash Out Inflow (Aadhaar **4412)", txnType: "AEPS", type: "CREDIT", openingBalance: 51250.75, amount: 2000, commission: 5.00, closingBalance: 53250.75, utr: "RRN202608037719", status: "SUCCESS" },
-  { id: "STMT-90122", date: "2026-08-03 17:45:00", particulars: "Dynamic UPI QR Wallet Top-up", txnType: "TOPUP", type: "CREDIT", openingBalance: 41250.75, amount: 10000, commission: 0.00, closingBalance: 51250.75, utr: "UPI202608036601", status: "SUCCESS" },
-  { id: "STMT-90121", date: "2026-08-03 17:15:33", particulars: "BBPS Bill Pay (TNEB Electricity)", txnType: "BBPS", type: "DEBIT", openingBalance: 42700.75, amount: 1450, commission: 3.50, closingBalance: 41250.75, utr: "BBPS202608034412", status: "SUCCESS" },
-  { id: "STMT-90120", date: "2026-08-03 16:50:20", particulars: "Mobile Recharge (Airtel Prepaid)", txnType: "RECHARGE", type: "DEBIT", openingBalance: 42999.75, amount: 299, commission: 7.45, closingBalance: 42700.75, utr: "OP8839201", status: "SUCCESS" },
-  { id: "STMT-90119", date: "2026-08-03 15:30:10", particulars: "Move To Bank Instant Settlement", txnType: "SETTLEMENT", type: "DEBIT", openingBalance: 67999.75, amount: 25000, commission: 0.00, closingBalance: 42999.75, utr: "SETTL2026080301", status: "SUCCESS" },
-];
+const getActiveRetailerId = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+  }
+  return "";
+};
 
 export default function WalletStatementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("ALL");
-  const [startDate, setStartDate] = useState("2026-08-01");
-  const [endDate, setEndDate] = useState("2026-08-03");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [entries, setEntries] = useState<StatementEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredEntries = MOCK_STATEMENT_ENTRIES.filter((entry) => {
+  useEffect(() => {
+    const fetchStatement = async () => {
+      setIsLoading(true);
+      try {
+        const activeId = getActiveRetailerId();
+        const q = new URLSearchParams({ limit: "50" });
+        if (activeId) q.append("retailer_id", activeId);
+        if (startDate) q.append("from_date", startDate);
+        if (endDate) q.append("to_date", endDate);
+
+        const res = await fetch(`/api/v1/payout/reports/list?${q.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapped: StatementEntry[] = (data.items || []).map((it: any) => ({
+            id: it.transaction_number || it.transaction_id || `TXN-${it.id}`,
+            date: it.initiated_at || it.created_at || "—",
+            particulars: `${it.payment_mode || "PAYOUT"} Transfer (${it.beneficiary_name || it.customer_name || "Merchant"})`,
+            txnType: it.payment_mode || "PAYOUT",
+            type: "DEBIT",
+            openingBalance: 0,
+            amount: Number(it.transfer_amount || 0),
+            commission: Number(it.retailer_commission || 0),
+            closingBalance: 0,
+            utr: it.bank_reference || it.utr_number || "—",
+            status: it.status === "SUCCESS" ? "SUCCESS" : (it.status === "PENDING" ? "PENDING" : "FAILED"),
+          }));
+          setEntries(mapped);
+        } else {
+          setEntries([]);
+        }
+      } catch {
+        setEntries([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStatement();
+  }, [startDate, endDate]);
+
+  const filteredEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.particulars.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -166,35 +205,45 @@ export default function WalletStatementPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredEntries.map((entry) => (
-              <TableRow key={entry.id} hover>
-                <TableCell sx={{ fontSize: "12px", color: "#4B5563" }}>{entry.date}</TableCell>
-                <TableCell>
-                  <Typography variant="caption" sx={{ fontWeight: 800, color: "#2563EB", fontFamily: "monospace", display: "block" }}>
-                    {entry.id}
+            {filteredEntries.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 6, color: "#64748B" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    No wallet statement transactions found for this period.
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "#6B7280", fontFamily: "monospace", fontSize: "11px" }}>
-                    {entry.utr}
-                  </Typography>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: "#111827" }}>{entry.particulars}</TableCell>
-                <TableCell align="right" sx={{ fontFamily: "monospace", color: "#6B7280" }}>
-                  ₹{entry.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: entry.type === "CREDIT" ? "#16A34A" : "#DC2626" }}>
-                  {entry.type === "CREDIT" ? "+" : "-"}₹{entry.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, color: "#16A34A" }}>
-                  +₹{entry.commission.toFixed(2)}
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#111827" }}>
-                  ₹{entry.closingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </TableCell>
-                <TableCell align="center">
-                  <M3StatusChip status={entry.status} />
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredEntries.map((entry) => (
+                <TableRow key={entry.id} hover>
+                  <TableCell sx={{ fontSize: "12px", color: "#4B5563" }}>{entry.date}</TableCell>
+                  <TableCell>
+                    <Typography variant="caption" sx={{ fontWeight: 800, color: "#2563EB", fontFamily: "monospace", display: "block" }}>
+                      {entry.id}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "#6B7280", fontFamily: "monospace", fontSize: "11px" }}>
+                      {entry.utr}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: "#111827" }}>{entry.particulars}</TableCell>
+                  <TableCell align="right" sx={{ fontFamily: "monospace", color: "#6B7280" }}>
+                    ₹{entry.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: entry.type === "CREDIT" ? "#16A34A" : "#DC2626" }}>
+                    {entry.type === "CREDIT" ? "+" : "-"}₹{entry.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "#16A34A" }}>
+                    +₹{entry.commission.toFixed(2)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace", color: "#111827" }}>
+                    ₹{entry.closingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell align="center">
+                    <M3StatusChip status={entry.status} />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Paper>

@@ -123,8 +123,6 @@ export default function ComplianceDashboardPage() {
 
   useEffect(() => {
     fetchMetrics();
-    const interval = setInterval(fetchMetrics, 15000);
-    return () => clearInterval(interval);
   }, []);
 
   /* Compliance score (0-100) derived from filed / total filings */

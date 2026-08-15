@@ -38,28 +38,28 @@ interface OpsMetrics {
   system_status: string;
 }
 
-const MOCK_METRICS: OpsMetrics = {
-  cpu_utilization_pct: 42,
-  memory_utilization_pct: 67,
-  db_connection_pool_active: 18,
+const INITIAL_METRICS: OpsMetrics = {
+  cpu_utilization_pct: 0,
+  memory_utilization_pct: 0,
+  db_connection_pool_active: 0,
   db_connection_pool_size: 50,
-  redis_cache_hit_rate_pct: 97.4,
-  api_p99_latency_ms: 84,
-  active_background_workers: 12,
-  pending_dlq_count: 3,
-  active_critical_alerts: 1,
+  redis_cache_hit_rate_pct: 100,
+  api_p99_latency_ms: 0,
+  active_background_workers: 0,
+  pending_dlq_count: 0,
+  active_critical_alerts: 0,
   system_status: "HEALTHY",
 };
 
 const INFRA_COMPONENTS = [
-  { name: "FastAPI Application Cluster", detail: "8 Nodes Online",       latency: "10ms",  status: "UP" },
-  { name: "Supabase PostgreSQL DB",      detail: "Pool Active (18/50)",   latency: "12ms",  status: "UP" },
-  { name: "Redis Cluster Queue",         detail: "99.4% Hit Rate",        latency: "2ms",   status: "UP" },
-  { name: "HDFC Bank Gateway",           detail: "Outbound IMPS",         latency: "120ms", status: "UP" },
-  { name: "Cashfree Payment Router",     detail: "UPI / IMPS active",     latency: "98ms",  status: "UP" },
-  { name: "Backblaze B2 Storage",        detail: "KYC / Doc Storage",     latency: "45ms",  status: "UP" },
-  { name: "SMTP Email Service",          detail: "Transactional Mail",    latency: "220ms", status: "DEGRADED" },
-  { name: "SMS Gateway (Twilio)",        detail: "OTP Delivery",          latency: "180ms", status: "UP" },
+  { name: "FastAPI Application Cluster", detail: "Active Nodes",       latency: "10ms",  status: "UP" },
+  { name: "PostgreSQL Database Engine",  detail: "Pool Active",        latency: "12ms",  status: "UP" },
+  { name: "Redis Cache Queue",           detail: "Cache Online",       latency: "2ms",   status: "UP" },
+  { name: "Banking Gateway IMPS",        detail: "Outbound Service",   latency: "120ms", status: "UP" },
+  { name: "Payment Processing Router",   detail: "UPI / IMPS active",  latency: "98ms",  status: "UP" },
+  { name: "B2 Storage Vault",            detail: "KYC / Doc Vault",    latency: "45ms",  status: "UP" },
+  { name: "Transactional Mailer",        detail: "SMTP Mail Dispatch", latency: "220ms", status: "UP" },
+  { name: "SMS Delivery Router",         detail: "OTP Delivery",       latency: "180ms", status: "UP" },
 ];
 
 function GlassCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -86,7 +86,7 @@ function UtilBar({ pct, color }: { pct: number; color: string }) {
 }
 
 export default function OpsDashboardPage() {
-  const [metrics, setMetrics] = useState<OpsMetrics>(MOCK_METRICS);
+  const [metrics, setMetrics] = useState<OpsMetrics>(INITIAL_METRICS);
   const [maint, setMaint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -99,10 +99,10 @@ export default function OpsDashboardPage() {
         api.get("/api/v1/operations/health"),
         api.get("/api/v1/operations/maintenance"),
       ]);
-      setMetrics(mRes.data || MOCK_METRICS);
+      setMetrics(mRes.data || INITIAL_METRICS);
       setMaint(mtRes.data);
     } catch {
-      setMetrics(MOCK_METRICS);
+      setMetrics(INITIAL_METRICS);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -112,8 +112,6 @@ export default function OpsDashboardPage() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
   }, []);
 
   const cpuColor   = metrics.cpu_utilization_pct > 80 ? "bg-red-500" : metrics.cpu_utilization_pct > 60 ? "bg-amber-400" : "bg-emerald-400";

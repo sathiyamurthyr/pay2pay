@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { getApiBaseUrl } from "@/lib/api-config";
 import {
   Receipt, Search, Filter, Download, RefreshCw, ChevronLeft, ChevronRight,
   TrendingUp, CheckCircle2, Clock, AlertTriangle, Building, Eye, Landmark
@@ -58,20 +59,16 @@ export default function PayoutTransactionsReportPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [exporting, setExporting] = useState<boolean>(false);
 
-  // Filters
   const [search, setSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [modeFilter, setModeFilter] = useState<string>("");
-  const [hierarchyFilter, setHierarchyFilter] = useState<string>("ALL");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
 
-  // Pagination
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalRecords, setTotalRecords] = useState<number>(0);
 
-  // Drawer
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
   const [drawerData, setDrawerData] = useState<PayoutTransactionDetail | null>(null);
   const [drawerLoading, setDrawerLoading] = useState<boolean>(false);
@@ -89,8 +86,8 @@ export default function PayoutTransactionsReportPage() {
       if (toDate) params.append("to_date", toDate);
 
       const [sumRes, listRes] = await Promise.all([
-        axios.get(`/api/v1/admin/reports/payout-transactions/summary?${params.toString()}`),
-        axios.get(`/api/v1/admin/reports/payout-transactions?${params.toString()}`)
+        axios.get(`${getApiBaseUrl()}/admin/reports/payout-transactions/summary?${params.toString()}`),
+        axios.get(`${getApiBaseUrl()}/admin/reports/payout-transactions?${params.toString()}`)
       ]);
 
       if (sumRes.data?.data) {
@@ -120,7 +117,7 @@ export default function PayoutTransactionsReportPage() {
       if (toDate) params.append("to_date", toDate);
 
       const response = await axios.get(
-        `/api/v1/admin/reports/payout-transactions/export?${params.toString()}`,
+        `${getApiBaseUrl()}/admin/reports/payout-transactions/export?${params.toString()}`,
         { responseType: "blob" }
       );
 
@@ -142,7 +139,7 @@ export default function PayoutTransactionsReportPage() {
     setSelectedTxId(txId);
     setDrawerLoading(true);
     try {
-      const res = await axios.get(`/api/v1/admin/reports/payout-transactions/${txId}/details`);
+      const res = await axios.get(`${getApiBaseUrl()}/admin/reports/payout-transactions/${txId}/details`);
       if (res.data?.data) {
         setDrawerData(res.data.data);
       }
@@ -156,7 +153,7 @@ export default function PayoutTransactionsReportPage() {
   return (
     <div className="p-6 space-y-6 bg-[#0B0F19] text-white min-h-screen">
       
-      {/* ── Page Header ── */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -190,7 +187,7 @@ export default function PayoutTransactionsReportPage() {
         </div>
       </div>
 
-      {/* ── KPI Summary Cards ── */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
           <span className="text-xs font-semibold text-slate-400 block mb-1">Total Payout Volume</span>
@@ -233,11 +230,10 @@ export default function PayoutTransactionsReportPage() {
         </div>
       </div>
 
-      {/* ── Filter Bar ── */}
+      {/* Filter Bar */}
       <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           
-          {/* Search */}
           <div className="relative col-span-2">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
             <input
@@ -249,7 +245,6 @@ export default function PayoutTransactionsReportPage() {
             />
           </div>
 
-          {/* Status Filter */}
           <div>
             <select
               value={statusFilter}
@@ -264,7 +259,6 @@ export default function PayoutTransactionsReportPage() {
             </select>
           </div>
 
-          {/* Payment Mode */}
           <div>
             <select
               value={modeFilter}
@@ -279,7 +273,6 @@ export default function PayoutTransactionsReportPage() {
             </select>
           </div>
 
-          {/* From Date */}
           <div>
             <input
               type="date"
@@ -289,7 +282,6 @@ export default function PayoutTransactionsReportPage() {
             />
           </div>
 
-          {/* To Date */}
           <div>
             <input
               type="date"
@@ -302,7 +294,7 @@ export default function PayoutTransactionsReportPage() {
         </div>
       </div>
 
-      {/* ── Table Container ── */}
+      {/* Table Container */}
       <div className="rounded-2xl bg-slate-900/60 border border-slate-800/80 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
@@ -421,7 +413,6 @@ export default function PayoutTransactionsReportPage() {
         </div>
       </div>
 
-      {/* Audit Detail Drawer */}
       <PayoutTransactionDetailDrawer
         open={!!selectedTxId}
         onClose={() => { setSelectedTxId(null); setDrawerData(null); }}

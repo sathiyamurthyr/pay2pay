@@ -28,16 +28,6 @@ const DEFAULT_USER_TYPES = [
   { code: "AUDIT_VIEWER", name: "Audit Viewer", description: "Read-only audit & reports access" },
 ];
 
-const MOCK_USERS = [
-  { public_id: "usr-admin-01", full_name: "System Admin User", email: "admin@pay2pay.in", username: "admin_user", user_type: "SUPER_ADMIN", status: "ACTIVE", mfa_enabled: true, roles: [{ name: "Super Admin" }], created_at: "2026-01-10T08:00:00Z" },
-  { public_id: "usr-rm-01", full_name: "Ramesh Verma (RM)", email: "rm.ramesh@pay2pay.in", username: "rm_ramesh", user_type: "REGIONAL_MANAGER", status: "ACTIVE", mfa_enabled: true, roles: [{ name: "Regional Manager" }], created_at: "2026-01-15T09:30:00Z" },
-  { public_id: "usr-crm-01", full_name: "Chitra Singh (CRM)", email: "crm.chitra@pay2pay.in", username: "crm_chitra", user_type: "CRM_EXECUTIVE", status: "ACTIVE", mfa_enabled: true, roles: [{ name: "CRM Executive" }], created_at: "2026-01-20T11:00:00Z" },
-  { public_id: "usr-1", full_name: "Rajesh Kumar", email: "rajesh@pay2pay.in", username: "rajesh_k", user_type: "PLATFORM_ADMIN", status: "ACTIVE", mfa_enabled: true, roles: [{ name: "Platform Admin" }], created_at: "2026-01-15T10:00:00Z" },
-  { public_id: "usr-2", full_name: "Priya Sharma", email: "priya@pay2pay.in", username: "priya_s", user_type: "COMPLIANCE", status: "ACTIVE", mfa_enabled: true, roles: [{ name: "Compliance Officer" }], created_at: "2026-02-20T11:30:00Z" },
-  { public_id: "usr-3", full_name: "Anand Mehta", email: "anand@pay2pay.in", username: "anand_m", user_type: "FINANCE", status: "ACTIVE", mfa_enabled: false, roles: [{ name: "Settlement Manager" }], created_at: "2026-03-10T09:15:00Z" },
-  { public_id: "usr-4", full_name: "Suresh Babu", email: "suresh@pay2pay.in", username: "suresh_b", user_type: "OPERATIONS", status: "SUSPENDED", mfa_enabled: false, roles: [{ name: "Ops Executive" }], created_at: "2026-04-05T14:45:00Z" },
-];
-
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -49,11 +39,11 @@ export default function UsersPage() {
   const [localUsers, setLocalUsers] = useState<any[] | null>(null);
   const [resetTargetUser, setResetTargetUser] = useState<any>(null);
 
-  const { data: users = MOCK_USERS, isLoading, refetch } = useQuery({
+  const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       const res = await apiClient.get("/users");
-      return res.data;
+      return Array.isArray(res.data) ? res.data : (res.data?.items || []);
     },
   });
 
@@ -101,7 +91,7 @@ export default function UsersPage() {
     },
   });
 
-  const displayUsers = localUsers || (Array.isArray(users) && users.length > 0 ? users : MOCK_USERS);
+  const displayUsers = localUsers || (Array.isArray(users) ? users : []);
 
   const columns: TableColumn<any>[] = [
     {

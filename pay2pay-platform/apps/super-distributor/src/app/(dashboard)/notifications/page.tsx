@@ -71,8 +71,6 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(interval);
   }, [filterStatus, filterChannel]);
 
   const handleSend = async (e: React.FormEvent) => {

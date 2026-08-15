@@ -120,8 +120,6 @@ export default function SettlementDashboardPage() {
 
   useEffect(() => {
     fetchMetrics();
-    const interval = setInterval(fetchMetrics, 15000);
-    return () => clearInterval(interval);
   }, []);
 
   const settlementRate =

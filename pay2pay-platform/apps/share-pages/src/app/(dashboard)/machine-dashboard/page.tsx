@@ -66,8 +66,6 @@ export default function MachineDashboardPage() {
 
   useEffect(() => {
     fetchMetrics();
-    const iv = setInterval(fetchMetrics, 15000);
-    return () => clearInterval(iv);
   }, []);
 
   const activeRate = Math.round((metrics.active_machines / metrics.total_machines) * 100);

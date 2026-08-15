@@ -18,8 +18,12 @@ import {
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
+const getActiveRetailerId = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+  }
+  return "";
+};
 
 export default function RetailerSettlementReportPage() {
   const [rows, setRows] = useState<any[]>([]);
@@ -30,7 +34,9 @@ export default function RetailerSettlementReportPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/reports/swipe-settlement/list?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`);
+      const activeId = getActiveRetailerId();
+      const q = activeId ? `?retailer_id=${activeId}` : "";
+      const res = await fetch(`${getApiBaseUrl()}/reports/swipe-settlement/list${q}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRows(data.items || []);

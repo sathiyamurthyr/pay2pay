@@ -39,26 +39,51 @@ interface PosTxn {
   time: string;
 }
 
-const MOCK_TERMINALS: PosTerminal[] = [
-  { id: "POS-TERM-01", serialNumber: "M920-8839-2026", model: "Android mPOS Pro 5G", status: "ONLINE", battery: 94, lastSync: "Just now", totalTxnsToday: 18, totalVolumeToday: 34500 },
-  { id: "POS-TERM-02", serialNumber: "M920-4412-2025", model: "Pax A920 Wireless", status: "ONLINE", battery: 78, lastSync: "5 mins ago", totalTxnsToday: 12, totalVolumeToday: 21000 },
-];
-
-const MOCK_POS_TXNS: PosTxn[] = [
-  { id: "POS-TXN-9001", terminalId: "M920-8839-2026", cardLast4: "4918", cardType: "HDFC Visa Platinum", amount: 5000, commission: 12.50, status: "SUCCESS", rrn: "RRN20260803001", time: "18:30 PM" },
-  { id: "POS-TXN-9002", terminalId: "M920-8839-2026", cardLast4: "1092", cardType: "SBI Mastercard", amount: 2500, commission: 6.25, status: "SUCCESS", rrn: "RRN20260803002", time: "18:15 PM" },
-  { id: "POS-TXN-9003", terminalId: "M920-4412-2025", cardLast4: "8821", cardType: "ICICI RuPay Debit", amount: 10000, commission: 25.00, status: "SUCCESS", rrn: "RRN20260803003", time: "17:45 PM" },
-  { id: "POS-TXN-9004", terminalId: "M920-8839-2026", cardLast4: "5512", cardType: "Axis Credit Card", amount: 1500, commission: 0.00, status: "FAILED", rrn: "RRN20260803004", time: "17:10 PM" },
-];
+const getActiveRetailerId = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+  }
+  return "";
+};
 
 export default function PosPage() {
   const [tabIndex, setTabIndex] = useState(0);
   const [amount, setAmount] = useState("");
   const [customerMobile, setCustomerMobile] = useState("");
-  const [selectedTerminal, setSelectedTerminal] = useState(MOCK_TERMINALS[0].serialNumber);
+  const [terminals, setTerminals] = useState<PosTerminal[]>([]);
+  const [posTxns, setPosTxns] = useState<PosTxn[]>([]);
+  const [selectedTerminal, setSelectedTerminal] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [txnSuccess, setTxnSuccess] = useState<PosTxn | null>(null);
   const [refundDialog, setRefundDialog] = useState<PosTxn | null>(null);
+
+  useEffect(() => {
+    const fetchPosData = async () => {
+      try {
+        const activeId = getActiveRetailerId();
+        const res = await fetch(`/api/v1/payout/reports/swipe-settlement/list?${activeId ? `retailer_id=${activeId}` : ""}`);
+        if (res.ok) {
+          const data = await res.json();
+          const items = data.items || [];
+          const mapped: PosTxn[] = items.map((it: any) => ({
+            id: it.settlement_id || `POS-${it.id}`,
+            terminalId: it.terminal_id || "POS-TERM-01",
+            cardLast4: it.card_last_4 || "0000",
+            cardType: it.card_type || "Debit Card",
+            amount: Number(it.gross_amount || 0),
+            commission: Number(it.mdr_charge || 0),
+            status: it.status === "COMPLETED" ? "SUCCESS" : (it.status === "FAILED" ? "FAILED" : "REFUNDED"),
+            rrn: it.rrn_number || "—",
+            time: it.settlement_date || "—",
+          }));
+          setPosTxns(mapped);
+        }
+      } catch {
+        setPosTxns([]);
+      }
+    };
+    fetchPosData();
+  }, []);
 
   const handleSwipeTransaction = (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +124,7 @@ export default function PosPage() {
         </Tabs>
         <Chip
           icon={<CheckCircleIcon sx={{ "&&": { color: "#16A34A", fontSize: 16 } }} />}
-          label="2 Terminals Active"
+          label={`${terminals.length} Terminals Active`}
           sx={{ backgroundColor: "#DCFCE7", color: "#16A34A", fontWeight: 800, height: 28, fontSize: "12px" }}
         />
       </Paper>
@@ -123,11 +148,15 @@ export default function PosPage() {
                   slotProps={{ select: { native: true } }}
                   size="small"
                 >
-                  {MOCK_TERMINALS.map((t) => (
-                    <option key={t.id} value={t.serialNumber}>
-                      {t.model} ({t.serialNumber}) — Battery: {t.battery}%
-                    </option>
-                  ))}
+                  {terminals.length === 0 ? (
+                    <option value="">No Active Terminals Paired</option>
+                  ) : (
+                    terminals.map((t) => (
+                      <option key={t.id} value={t.serialNumber}>
+                        {t.model} ({t.serialNumber}) — Battery: {t.battery}%
+                      </option>
+                    ))
+                  )}
                 </TextField>
 
                 <TextField
@@ -159,7 +188,7 @@ export default function PosPage() {
                 <Button
                   type="submit"
                   variant="contained"
-                  disabled={isProcessing}
+                  disabled={isProcessing || terminals.length === 0}
                   startIcon={isProcessing ? <CircularProgress size={20} color="inherit" /> : <SwapHorizIcon />}
                   sx={{
                     height: 48,
@@ -182,32 +211,44 @@ export default function PosPage() {
               Connected mPOS Hardware
             </Typography>
 
-            {MOCK_TERMINALS.map((t) => (
-              <Card key={t.id} elevation={0} sx={{ mb: 2, borderRadius: "14px", border: "1px solid #E5E7EB", backgroundColor: "#F8FAFC" }}>
-                <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#111827" }}>
-                      {t.model}
+            {terminals.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: "center", color: "#64748B" }}>
+                <PointOfSaleIcon sx={{ fontSize: 40, mb: 1, color: "#94A3B8" }} />
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  No POS hardware assigned to this outlet.
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                  Contact support/distributor to pair your Android POS machine.
+                </Typography>
+              </Box>
+            ) : (
+              terminals.map((t) => (
+                <Card key={t.id} elevation={0} sx={{ mb: 2, borderRadius: "14px", border: "1px solid #E5E7EB", backgroundColor: "#F8FAFC" }}>
+                  <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#111827" }}>
+                        {t.model}
+                      </Typography>
+                      <Chip label={t.status} size="small" sx={{ backgroundColor: "#DCFCE7", color: "#16A34A", fontWeight: 800, height: 20 }} />
+                    </Box>
+                    <Typography variant="caption" sx={{ color: "#6B7280", display: "block", fontFamily: "monospace", mb: 1 }}>
+                      S/N: {t.serialNumber}
                     </Typography>
-                    <Chip label={t.status} size="small" sx={{ backgroundColor: "#DCFCE7", color: "#16A34A", fontWeight: 800, height: 20 }} />
-                  </Box>
-                  <Typography variant="caption" sx={{ color: "#6B7280", display: "block", fontFamily: "monospace", mb: 1 }}>
-                    S/N: {t.serialNumber}
-                  </Typography>
 
-                  <Stack direction="row" spacing={2} sx={{ alignItems: "center", color: "#4B5563" }}>
-                    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                      <BatteryChargingFullIcon sx={{ fontSize: 16, color: "#16A34A" }} />
-                      <Typography variant="caption" sx={{ fontWeight: 700 }}>{t.battery}%</Typography>
+                    <Stack direction="row" spacing={2} sx={{ alignItems: "center", color: "#4B5563" }}>
+                      <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                        <BatteryChargingFullIcon sx={{ fontSize: 16, color: "#16A34A" }} />
+                        <Typography variant="caption" sx={{ fontWeight: 700 }}>{t.battery}%</Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                        <SignalCellularAltIcon sx={{ fontSize: 16, color: "#2563EB" }} />
+                        <Typography variant="caption" sx={{ fontWeight: 700 }}>5G Network</Typography>
+                      </Stack>
                     </Stack>
-                    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                      <SignalCellularAltIcon sx={{ fontSize: 16, color: "#2563EB" }} />
-                      <Typography variant="caption" sx={{ fontWeight: 700 }}>5G Network</Typography>
-                    </Stack>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </Paper>
         </Box>
       )}
@@ -231,19 +272,29 @@ export default function PosPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {MOCK_TERMINALS.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell sx={{ fontWeight: 700, color: "#2563EB" }}>{t.id}</TableCell>
-                  <TableCell sx={{ fontFamily: "monospace" }}>{t.serialNumber}</TableCell>
-                  <TableCell>{t.model}</TableCell>
-                  <TableCell>{t.battery}% Battery (5G)</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{t.totalTxnsToday}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace" }}>₹{t.totalVolumeToday.toLocaleString("en-IN")}</TableCell>
-                  <TableCell align="center">
-                    <Chip label={t.status} size="small" sx={{ backgroundColor: "#DCFCE7", color: "#16A34A", fontWeight: 800 }} />
+              {terminals.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: "#64748B" }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      No registered POS terminals found for this outlet.
+                    </Typography>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                terminals.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell sx={{ fontWeight: 700, color: "#2563EB" }}>{t.id}</TableCell>
+                    <TableCell sx={{ fontFamily: "monospace" }}>{t.serialNumber}</TableCell>
+                    <TableCell>{t.model}</TableCell>
+                    <TableCell>{t.battery}% Battery (5G)</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>{t.totalTxnsToday}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace" }}>₹{t.totalVolumeToday.toLocaleString("en-IN")}</TableCell>
+                    <TableCell align="center">
+                      <Chip label={t.status} size="small" sx={{ backgroundColor: "#DCFCE7", color: "#16A34A", fontWeight: 800 }} />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </Paper>
@@ -270,31 +321,41 @@ export default function PosPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {MOCK_POS_TXNS.map((txn) => (
-                <TableRow key={txn.id}>
-                  <TableCell sx={{ fontWeight: 800, color: "#2563EB", fontFamily: "monospace" }}>{txn.id}</TableCell>
-                  <TableCell sx={{ fontFamily: "monospace", fontSize: "12px" }}>{txn.terminalId}</TableCell>
-                  <TableCell>Card ending **{txn.cardLast4} ({txn.cardType})</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace" }}>₹{txn.amount.toLocaleString("en-IN")}</TableCell>
-                  <TableCell align="right" sx={{ color: "#16A34A", fontWeight: 700 }}>+₹{txn.commission.toFixed(2)}</TableCell>
-                  <TableCell align="center"><M3StatusChip status={txn.status} /></TableCell>
-                  <TableCell sx={{ fontFamily: "monospace", fontSize: "12px" }}>{txn.rrn}</TableCell>
-                  <TableCell>{txn.time}</TableCell>
-                  <TableCell align="center">
-                    {txn.status === "SUCCESS" && (
-                      <Button
-                        size="small"
-                        color="error"
-                        startIcon={<ReplayIcon sx={{ fontSize: 14 }} />}
-                        onClick={() => setRefundDialog(txn)}
-                        sx={{ fontSize: "11px", fontWeight: 700 }}
-                      >
-                        Refund
-                      </Button>
-                    )}
+              {posTxns.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: "#64748B" }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      No POS swipe transactions recorded yet.
+                    </Typography>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                posTxns.map((txn) => (
+                  <TableRow key={txn.id}>
+                    <TableCell sx={{ fontWeight: 800, color: "#2563EB", fontFamily: "monospace" }}>{txn.id}</TableCell>
+                    <TableCell sx={{ fontFamily: "monospace", fontSize: "12px" }}>{txn.terminalId}</TableCell>
+                    <TableCell>Card ending **{txn.cardLast4} ({txn.cardType})</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 800, fontFamily: "monospace" }}>₹{txn.amount.toLocaleString("en-IN")}</TableCell>
+                    <TableCell align="right" sx={{ color: "#16A34A", fontWeight: 700 }}>+₹{txn.commission.toFixed(2)}</TableCell>
+                    <TableCell align="center"><M3StatusChip status={txn.status} /></TableCell>
+                    <TableCell sx={{ fontFamily: "monospace", fontSize: "12px" }}>{txn.rrn}</TableCell>
+                    <TableCell>{txn.time}</TableCell>
+                    <TableCell align="center">
+                      {txn.status === "SUCCESS" && (
+                        <Button
+                          size="small"
+                          color="error"
+                          startIcon={<ReplayIcon sx={{ fontSize: 14 }} />}
+                          onClick={() => setRefundDialog(txn)}
+                          sx={{ fontSize: "11px", fontWeight: 700 }}
+                        >
+                          Refund
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </Paper>

@@ -9,48 +9,6 @@ import {
   AlertTriangle, Users, Eye,
 } from "lucide-react";
 
-// ─── Mock Permission Matrix Data ────────────────────────────────
-const MOCK_MATRIX = {
-  roles: [
-    { code: "PLATFORM_ADMIN",   name: "Platform Admin",       description: "Full platform administration rights", version: 1, is_system: true },
-    { code: "SUPER_ADMIN",       name: "Super Admin",          description: "Global administrator with all privileges", version: 1, is_system: true },
-    { code: "REGIONAL_MANAGER",  name: "Regional Manager",     description: "Manages territory super distributors and operations", version: 1, is_system: true },
-    { code: "SUPER_DISTRIBUTOR", name: "Super Distributor",    description: "Manages distributors network and bulk allocations", version: 1, is_system: true },
-    { code: "DISTRIBUTOR",       name: "Distributor",          description: "Manages retailer network and local operations", version: 1, is_system: true },
-    { code: "RETAILER",          name: "Retailer",             description: "Merchant outlet user", version: 1, is_system: true },
-    { code: "OPERATIONS",        name: "Operations Executive", description: "Day-to-day transaction & terminal support", version: 1, is_system: true },
-    { code: "COMPLIANCE",        name: "Compliance Officer",   description: "KYC, audit & AML review officer", version: 1, is_system: true },
-    { code: "FINANCE",           name: "Finance Manager",      description: "Settlements, accounting & payout manager", version: 1, is_system: true },
-    { code: "SETTLEMENT_MGR",    name: "Settlement Manager",   description: "Settlement approval & processing", version: 1, is_system: true },
-    { code: "AUDIT_VIEWER",      name: "Audit Viewer",         description: "Read-only audit & reports", version: 1, is_system: true },
-  ],
-  permissions: [
-    { code: "company.create",         module: "Company" },
-    { code: "company.approve",        module: "Company" },
-    { code: "settlement.approve",     module: "Settlement" },
-    { code: "settlement.view",        module: "Settlement" },
-    { code: "wallet.adjust",          module: "Wallet" },
-    { code: "compliance.view",        module: "Compliance" },
-    { code: "compliance.aml",         module: "Compliance" },
-    { code: "audit.logs.view",        module: "Audit" },
-    { code: "users.manage",           module: "Users" },
-    { code: "config.manage",          module: "Config" },
-  ],
-  matrix: {
-    PLATFORM_ADMIN:    ["company.create", "company.approve", "settlement.approve", "settlement.view", "wallet.adjust", "compliance.view", "compliance.aml", "audit.logs.view", "users.manage", "config.manage"],
-    SUPER_ADMIN:       ["company.create", "company.approve", "settlement.approve", "settlement.view", "wallet.adjust", "compliance.view", "compliance.aml", "audit.logs.view", "users.manage", "config.manage"],
-    REGIONAL_MANAGER:  ["users.manage", "settlement.view", "compliance.view"],
-    SUPER_DISTRIBUTOR: ["users.manage", "settlement.view"],
-    DISTRIBUTOR:       ["users.manage", "settlement.view"],
-    RETAILER:          ["settlement.view"],
-    OPERATIONS:        ["settlement.view", "users.manage"],
-    COMPLIANCE:        ["compliance.view", "compliance.aml", "audit.logs.view", "settlement.view"],
-    FINANCE:           ["settlement.approve", "settlement.view", "wallet.adjust"],
-    SETTLEMENT_MGR:    ["settlement.approve", "settlement.view", "wallet.adjust"],
-    AUDIT_VIEWER:      ["audit.logs.view", "settlement.view", "compliance.view"],
-  },
-};
-
 const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   Company:    { bg: "#EDE9FE", text: "#4C1D95", border: "#DDD6FE" },
   Settlement: { bg: "#DBEAFE", text: "#1E40AF", border: "#93C5FD" },
@@ -87,9 +45,9 @@ export default function RolesPage() {
     },
   });
 
-  const roles = matrixData?.roles || MOCK_MATRIX.roles;
-  const permissions = matrixData?.permissions || MOCK_MATRIX.permissions;
-  const matrix = matrixData?.matrix || MOCK_MATRIX.matrix;
+  const roles = Array.isArray(matrixData?.roles) ? matrixData.roles : [];
+  const permissions = Array.isArray(matrixData?.permissions) ? matrixData.permissions : [];
+  const matrix = matrixData?.matrix || {};
 
   return (
     <div className="space-y-6">
