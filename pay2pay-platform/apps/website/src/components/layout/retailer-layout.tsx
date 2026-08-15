@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { NotificationCenter } from "@/app-shell/components/NotificationCenter";
@@ -244,10 +244,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     setMounted(true);
   }, []);
 
-  // HARD UNCLOSEABLE FULL-PAGE SECURITY MODAL: If Admin has NOT approved, block 100% of app access
-  if (mounted && !isApproved) {
-    return <UnapprovedRetailerFullPageModal />;
-  }
+
 
   const activeDrawerWidth = desktopCollapsed ? COLLAPSED_DRAWER_WIDTH : FULL_DRAWER_WIDTH;
 

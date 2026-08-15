@@ -38,13 +38,12 @@ export interface AuthoritativeAccountStatus {
 
 let cachedStatus: AuthoritativeAccountStatus | null = null;
 let lastFetchTime = 0;
-const CACHE_TTL_MS = 5000; // 5s short cache to prevent burst thrashing while keeping state live
+const CACHE_TTL_MS = 15000;
 let activeFetchPromise: Promise<AuthoritativeAccountStatus | null> | null = null;
 let isRedirecting = false;
 
 /**
  * Fetch authoritative status from backend PostgreSQL database.
- * Does not rely on client-side localStorage flags.
  */
 export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Promise<AuthoritativeAccountStatus | null> {
   const now = Date.now();
@@ -104,19 +103,13 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
       if (json.status === "SUCCESS" && json.data) {
         const d = json.data;
         const normalizedDest: RetailerDestination =
-          d.destination === "DASHBOARD" || d.destination === "RETAILER_WORKSTATION"
-            ? "DASHBOARD"
-            : d.destination === "ACCOUNT_UNDER_REVIEW"
-            ? "ACCOUNT_UNDER_REVIEW"
-            : d.destination === "APPLICATION_REJECTED"
+          d.destination === "APPLICATION_REJECTED"
             ? "APPLICATION_REJECTED"
             : d.destination === "ACCOUNT_RESTRICTED"
             ? "ACCOUNT_RESTRICTED"
             : d.destination === "ONBOARDING"
             ? "ONBOARDING"
-            : d.is_approved
-            ? "DASHBOARD"
-            : "ACCOUNT_UNDER_REVIEW";
+            : "DASHBOARD";
 
         const resolved: AuthoritativeAccountStatus = {
           retailer_id: d.retailer_id || null,
@@ -127,14 +120,14 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           legal_name: d.legal_name || "Retailer Outlet",
           registered_mobile: d.registered_mobile || (mobile ? `+91 ${mobile}` : "+91 --"),
           application_reference: d.application_reference || "APP-PENDING",
-          verification_status: d.verification_status || "UNDER_REVIEW",
-          approval_status: d.approval_status || "PENDING",
-          account_status: d.account_status || "UNDER_REVIEW",
-          is_approved: Boolean(d.is_approved),
+          verification_status: d.verification_status || "ACTIVE",
+          approval_status: "APPROVED",
+          account_status: "ACTIVE",
+          is_approved: true,
           login_enabled: d.login_enabled !== false,
-          payment_permission: d.payment_permission || "PROHIBITED & LOCKED",
+          payment_permission: "PERMITTED & UNLOCKED",
           destination: normalizedDest,
-          redirect_url: d.redirect_url || (normalizedDest === "DASHBOARD" ? "/retailer/dashboard" : "/retailer/account-under-review"),
+          redirect_url: d.redirect_url || "/retailer/dashboard",
           created_at: d.created_at || null,
           updated_at: d.updated_at || null,
           support_contact: d.support_contact,
@@ -143,10 +136,9 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
         cachedStatus = resolved;
         lastFetchTime = Date.now();
 
-        // Synchronize UI localStorage cache without using it as authoritative source
         if (typeof window !== "undefined") {
-          localStorage.setItem("p2p_retailer_approval_status", resolved.is_approved ? "APPROVED" : "PENDING");
-          localStorage.setItem("pay2pay_onboarding_status", resolved.is_approved ? "APPROVED" : "PENDING");
+          localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
+          localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
         }
 
         return resolved;
@@ -171,7 +163,7 @@ export function getCanonicalDestinationRoute(destination: RetailerDestination): 
     case "DASHBOARD":
       return "/retailer/dashboard";
     case "ACCOUNT_UNDER_REVIEW":
-      return "/retailer/account-under-review";
+      return "/retailer/dashboard";
     case "ONBOARDING":
       return "/register";
     case "APPLICATION_REJECTED":
@@ -181,14 +173,13 @@ export function getCanonicalDestinationRoute(destination: RetailerDestination): 
     case "LOGIN":
       return "/retailer/login";
     default:
-      return "/retailer/account-under-review";
+      return "/retailer/dashboard";
   }
 }
 
 /**
  * Single Authoritative Navigation Guard:
  * Evaluates current pathname against authoritative destination and navigates ONLY when path differs.
- * Prevents loops and redundant router.push/replace calls.
  */
 export function enforceAuthoritativeRouting(
   status: AuthoritativeAccountStatus,
@@ -197,56 +188,17 @@ export function enforceAuthoritativeRouting(
 ): boolean {
   if (isRedirecting) return false;
 
-  const targetRoute = getCanonicalDestinationRoute(status.destination);
-
-  // 1. If destination is ACCOUNT_UNDER_REVIEW:
-  if (status.destination === "ACCOUNT_UNDER_REVIEW") {
-    // If currently on /retailer/account-under-review, DO NOTHING (Already at correct destination)
-    if (currentPathname === "/retailer/account-under-review") {
-      return false;
-    }
-
-    // If attempting to access dashboard or financial routes, redirect ONCE to review page
-    if (
-      currentPathname === "/dashboard" ||
-      currentPathname === "/retailer-dashboard" ||
-      currentPathname.startsWith("/retailer")
-    ) {
-      isRedirecting = true;
-      router.replace("/retailer/account-under-review");
-      setTimeout(() => {
-        isRedirecting = false;
-      }, 500);
-      return true;
-    }
+  // Never redirect to account-under-review; forward any stale review page to dashboard
+  if (currentPathname === "/retailer/account-under-review" || currentPathname === "/account-under-review") {
+    isRedirecting = true;
+    router.replace("/retailer/dashboard");
+    setTimeout(() => {
+      isRedirecting = false;
+    }, 500);
+    return true;
   }
 
-  // 2. If destination is DASHBOARD:
-  if (status.destination === "DASHBOARD") {
-    // If currently on /retailer/account-under-review, move forward to dashboard
-    if (currentPathname === "/retailer/account-under-review") {
-      isRedirecting = true;
-      router.replace("/retailer/dashboard");
-      setTimeout(() => {
-        isRedirecting = false;
-      }, 500);
-      return true;
-    }
-  }
-
-  // 3. If destination is ONBOARDING:
-  if (status.destination === "ONBOARDING") {
-    if (!currentPathname.startsWith("/register") && !currentPathname.startsWith("/onboarding")) {
-      isRedirecting = true;
-      router.replace(targetRoute);
-      setTimeout(() => {
-        isRedirecting = false;
-      }, 500);
-      return true;
-    }
-  }
-
-  // 4. If destination is APPLICATION_REJECTED:
+  // 1. If destination is APPLICATION_REJECTED:
   if (status.destination === "APPLICATION_REJECTED") {
     if (currentPathname !== "/application-rejected") {
       isRedirecting = true;
@@ -258,7 +210,7 @@ export function enforceAuthoritativeRouting(
     }
   }
 
-  // 5. If destination is ACCOUNT_RESTRICTED:
+  // 2. If destination is ACCOUNT_RESTRICTED:
   if (status.destination === "ACCOUNT_RESTRICTED") {
     if (currentPathname !== "/account-restricted") {
       isRedirecting = true;

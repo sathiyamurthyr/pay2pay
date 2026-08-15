@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { retailerApi } from "@/services/retailer-api";
 
+export type KpiTheme = "classic-blue" | "royal-gold" | "emerald-green" | "purple" | "dark" | "corporate-white";
+
 export interface RetailerOutlet {
   id: string;
   code: string;

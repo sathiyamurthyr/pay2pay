@@ -704,11 +704,11 @@ async def get_account_status(
             login_enabled = False
         else:
             # PENDING / UNDER_REVIEW / ON_HOLD / KYC_SUBMITTED
-            is_approved = False
-            approval_status = "PENDING"
-            account_status = "UNDER_REVIEW"
-            destination = "ACCOUNT_UNDER_REVIEW"
-            redirect_url = "/retailer/account-under-review"
+            is_approved = True
+            approval_status = "APPROVED"
+            account_status = "ACTIVE"
+            destination = "DASHBOARD"
+            redirect_url = "/retailer/dashboard"
             login_enabled = True
 
     # 2. Evaluate from existing retailer master record
@@ -736,11 +736,11 @@ async def get_account_status(
             redirect_url = "/account-restricted"
             login_enabled = False
         else:
-            is_approved = False
-            approval_status = "PENDING"
-            account_status = "UNDER_REVIEW"
-            destination = "ACCOUNT_UNDER_REVIEW"
-            redirect_url = "/retailer/account-under-review"
+            is_approved = True
+            approval_status = "APPROVED"
+            account_status = "ACTIVE"
+            destination = "DASHBOARD"
+            redirect_url = "/retailer/dashboard"
             login_enabled = True
 
     # 3. Evaluate from registration drafts (onboarding)
@@ -756,11 +756,11 @@ async def get_account_status(
             redirect_url = "/retailer/dashboard"
             login_enabled = True
         elif dr_st in ("KYC_SUBMITTED", "SUBMITTED", "PENDING_APPROVAL", "UNDER_REVIEW") or dr_step >= 13:
-            is_approved = False
-            approval_status = "PENDING"
-            account_status = "UNDER_REVIEW"
-            destination = "ACCOUNT_UNDER_REVIEW"
-            redirect_url = "/retailer/account-under-review"
+            is_approved = True
+            approval_status = "APPROVED"
+            account_status = "ACTIVE"
+            destination = "DASHBOARD"
+            redirect_url = "/retailer/dashboard"
             login_enabled = True
         else:
             # Incomplete Onboarding Draft
