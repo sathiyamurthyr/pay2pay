@@ -4,12 +4,27 @@ backend/.pytest_cache/
 backend/__pycache__/
 *.pyc
 *.db
+
+# Environment Files (Zero plain-text secrets in git)
 .env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+!backend/.env.example
+!pay2pay-platform/apps/api/.env.example
 
 # Node / Next.js
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+pay2pay-platform/**/node_modules/
+pay2pay-platform/**/.next/
+pay2pay-platform/**/out/
+pay2pay-platform/**/dist/
+pay2pay-platform/**/.turbo/
 
 # Deploy & Scratch Artifacts
 *.zip
@@ -30,3 +45,4 @@ nginx_pay2pay.conf
 # Uploads & Media
 uploads/
 backend/uploads/
+pay2pay-platform/apps/api/uploads/
