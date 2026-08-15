@@ -19,8 +19,10 @@ from app.infrastructure.db.auth_models import (
     FailedLoginAttemptModel, PasswordResetTokenModel, PasswordResetAuditModel
 )
 from app.infrastructure.db.models import RetailerModel, RetailerContactModel
+from app.infrastructure.db.registration_models import RegistrationDraftModel
 
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+DEFAULT_COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
 
 router = APIRouter(prefix="/auth/enterprise", tags=["Enterprise Authentication"])
 
@@ -255,7 +257,7 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
 
 @router.post("/login-otp/send")
 async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get_db)):
-    """Validates retailer eligibility and status FIRST, then generates and dispatches live dynamic WhatsApp OTP."""
+    """Validates mobile and checks existence: routes dynamically to RETAILER_LOGIN, RESUME_ONBOARDING, or NEW_ONBOARDING."""
     raw_digits = re.sub(r"\D", "", str(payload.mobile_number))
     clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
 
@@ -264,7 +266,7 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
 
     mobile_variants = [clean_mobile, f"+91{clean_mobile}", f"91{clean_mobile}"]
 
-    # 1. Look up retailer contact or auth user by mobile number
+    # 1. Check if an active/registered retailer exists
     ret_contact_stmt = (
         select(RetailerContactModel, RetailerModel)
         .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
@@ -276,37 +278,49 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
     if contact_res:
         _, retailer_record = contact_res
     else:
-        # Fallback to direct AuthUserModel lookup
         auth_user_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
         auth_user = (await db.execute(auth_user_stmt)).scalars().first()
         if auth_user:
             ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
             retailer_record = (await db.execute(ret_stmt)).scalars().first()
 
-    # 2. Check retailer existence FIRST
-    if not retailer_record and not contact_res:
-        raise HTTPException(
-            status_code=404,
-            detail="Retailer account not found for this mobile number. Please register your account first."
-        )
+    flow = "NEW_ONBOARDING"
+    exists = False
 
-    # 3. Check retailer status
-    ret_status = (retailer_record.status if retailer_record else "ACTIVE").upper()
-    if ret_status not in ("ACTIVE", "APPROVED"):
-        if ret_status in ("INACTIVE", "DEACTIVATED"):
+    if retailer_record:
+        ret_status = (retailer_record.status or "ACTIVE").upper()
+        if ret_status in ("ACTIVE", "APPROVED"):
+            flow = "RETAILER_LOGIN"
+            exists = True
+        elif ret_status in ("INACTIVE", "DEACTIVATED"):
             raise HTTPException(status_code=403, detail="Your retailer account is currently inactive. Please contact support.")
         elif ret_status == "SUSPENDED":
             raise HTTPException(status_code=403, detail="Your retailer account is suspended. Please contact support.")
         elif ret_status == "BLOCKED":
             raise HTTPException(status_code=403, detail="Your retailer account is blocked. Please contact support.")
-        elif ret_status in ("PENDING", "PENDING_APPROVAL", "PENDING_KYC", "UNDER_REVIEW", "DRAFT"):
-            raise HTTPException(status_code=403, detail="Your retailer account is currently under review. Please wait for admin approval.")
         elif ret_status == "REJECTED":
             raise HTTPException(status_code=403, detail="Your retailer application has been rejected. Please contact support.")
+        elif ret_status in ("PENDING", "PENDING_APPROVAL", "PENDING_KYC", "UNDER_REVIEW", "DRAFT"):
+            # Check if there is an in-progress draft to resume
+            draft_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.mobile_number.in_(mobile_variants))
+            draft = (await db.execute(draft_stmt)).scalars().first()
+            if draft:
+                flow = "RESUME_ONBOARDING"
+                exists = False
+            else:
+                raise HTTPException(status_code=403, detail="Your retailer account is currently under review. Please wait for admin approval.")
+    else:
+        # No retailer record found -> Check for existing onboarding draft
+        draft_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.mobile_number.in_(mobile_variants))
+        draft = (await db.execute(draft_stmt)).scalars().first()
+        if draft:
+            flow = "RESUME_ONBOARDING"
+            exists = False
         else:
-            raise HTTPException(status_code=403, detail=f"Your retailer account status ({ret_status}) does not permit login. Please contact support.")
+            flow = "NEW_ONBOARDING"
+            exists = False
 
-    # 4. Invalidate any existing unverified OTPs for this mobile number
+    # 2. Invalidate any previous unverified OTPs for this mobile
     invalidate_stmt = (
         select(OtpTransactionModel)
         .where(
@@ -320,7 +334,7 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
     for old_otp in old_otps:
         old_otp.is_verified = True
 
-    # 5. Generate secure 6-digit dynamic OTP
+    # 3. Generate secure dynamic 6-digit OTP
     live_otp = f"{secrets.randbelow(900000) + 100000}"
     otp_id = f"OTP-{uuid.uuid4().hex[:10].upper()}"
 
@@ -330,13 +344,13 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
         mobile_number=clean_mobile,
         otp_code_hash=live_otp,
         channel=payload.channel or "WHATSAPP",
-        purpose="LOGIN",
+        purpose=flow,
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)
     )
     db.add(otp_tx)
     await db.commit()
 
-    # 6. Dispatch real Meta WhatsApp Cloud API Message
+    # 4. Dispatch WhatsApp OTP Message
     wa_delivery_status = "DELIVERED"
     if (payload.channel or "WHATSAPP").upper() == "WHATSAPP":
         try:
@@ -352,6 +366,8 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
         "message": f"OTP sent successfully to WhatsApp {masked_mobile}.",
         "data": {
             "otp_id": otp_id,
+            "flow": flow,
+            "exists": exists,
             "expires_in_seconds": 300,
             "masked_mobile": masked_mobile,
             "whatsapp_delivery_status": wa_delivery_status
@@ -361,7 +377,7 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
 
 @router.post("/login-otp/verify")
 async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: AsyncSession = Depends(get_db)):
-    """Verifies OTP code securely against database record and issues JWT authentication session."""
+    """Verifies OTP and dynamically creates login session OR initializes/resumes onboarding application."""
     raw_digits = re.sub(r"\D", "", str(payload.mobile_number))
     clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
 
@@ -387,7 +403,7 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     if not otp_tx:
         raise HTTPException(status_code=400, detail="OTP expired or not found. Please request a new OTP.")
 
-    # 2. Strict constant-time OTP verification (No bypass codes)
+    # 2. Strict constant-time OTP comparison (No bypass codes)
     if not secrets.compare_digest(str(payload.otp_code).strip(), str(otp_tx.otp_code_hash).strip()):
         raise HTTPException(status_code=400, detail="Invalid OTP. Please check the OTP and try again.")
 
@@ -395,7 +411,7 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     otp_tx.is_verified = True
     await db.commit()
 
-    # 4. Fetch actual retailer details from database
+    # 4. Check if existing active retailer exists
     ret_contact_stmt = (
         select(RetailerContactModel, RetailerModel)
         .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
@@ -406,42 +422,111 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     retailer_record: Optional[RetailerModel] = None
     if contact_res:
         _, retailer_record = contact_res
+    else:
+        auth_user_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
+        auth_user = (await db.execute(auth_user_stmt)).scalars().first()
+        if auth_user:
+            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
+            retailer_record = (await db.execute(ret_stmt)).scalars().first()
 
     session_id = f"SESS-{uuid.uuid4().hex[:12].upper()}"
     correlation_id = f"CORR-{uuid.uuid4().hex[:12].upper()}"
 
+    # ── CASE A: EXISTING ACTIVE RETAILER -> LOGIN SESSION ──
+    if retailer_record and (retailer_record.status or "ACTIVE").upper() in ("ACTIVE", "APPROVED"):
+        await EnterpriseAuthService.create_audit_entry(
+            db=db,
+            user_id=retailer_record.public_id,
+            session_id=session_id,
+            ip_address=request.client.host if request.client else "127.0.0.1",
+            user_agent=request.headers.get("user-agent", "Enterprise-Portal"),
+            status="SUCCESS",
+            details={"login_method": "OTP", "mobile": clean_mobile, "flow": "RETAILER_LOGIN"}
+        )
+
+        retailer_code = retailer_record.retailer_code or f"RET-{str(retailer_record.public_id)[:6].upper()}"
+        full_name = retailer_record.owner_name or retailer_record.store_name or "Retailer Partner"
+        outlet_name = retailer_record.store_name or retailer_record.owner_name or "Retailer Store"
+        approval_status = retailer_record.status or "ACTIVE"
+        retailer_id = str(retailer_record.public_id)
+
+        return {
+            "status": "SUCCESS",
+            "message": "Mobile verified successfully. Signing you in...",
+            "data": {
+                "flow": "RETAILER_LOGIN",
+                "redirect_url": "/retailer/dashboard",
+                "session_id": session_id,
+                "correlation_id": correlation_id,
+                "access_token": f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token",
+                "token_type": "Bearer",
+                "user": {
+                    "mobile_number": clean_mobile,
+                    "full_name": full_name,
+                    "role": "RETAILER",
+                    "outlet_name": outlet_name,
+                    "retailer_code": retailer_code,
+                    "retailer_id": retailer_id,
+                    "approval_status": approval_status
+                }
+            }
+        }
+
+    # ── CASE B: NEW USER / INCOMPLETE ONBOARDING -> ONBOARDING SESSION ──
+    draft_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.mobile_number.in_(mobile_variants))
+    draft = (await db.execute(draft_stmt)).scalars().first()
+
+    if draft:
+        draft.last_activity_at = datetime.now(timezone.utc)
+        await db.commit()
+        reg_id = draft.registration_id
+        flow = "RESUME_ONBOARDING"
+    else:
+        reg_id = f"REG-{uuid.uuid4().hex[:8].upper()}"
+        new_draft = RegistrationDraftModel(
+            tenant_id=DEFAULT_TENANT_ID,
+            company_id=DEFAULT_COMPANY_ID,
+            registration_id=reg_id,
+            mobile_number=clean_mobile,
+            current_step=2,
+            completed_steps=[1],
+            status="MOBILE_VERIFIED",
+            is_business=False,
+            draft_data={"mobile_number": clean_mobile, "mobile_verified": True},
+            last_activity_at=datetime.now(timezone.utc)
+        )
+        db.add(new_draft)
+        await db.commit()
+        flow = "NEW_ONBOARDING"
+
     await EnterpriseAuthService.create_audit_entry(
         db=db,
-        user_id=retailer_record.public_id if retailer_record else None,
+        user_id=None,
         session_id=session_id,
         ip_address=request.client.host if request.client else "127.0.0.1",
         user_agent=request.headers.get("user-agent", "Enterprise-Portal"),
         status="SUCCESS",
-        details={"login_method": "OTP", "mobile": clean_mobile}
+        details={"login_method": "OTP", "mobile": clean_mobile, "flow": flow, "registration_id": reg_id}
     )
-
-    retailer_code = retailer_record.retailer_code if retailer_record else "RET-PARTNER"
-    full_name = (retailer_record.owner_name or retailer_record.store_name) if retailer_record else "Retailer Partner"
-    outlet_name = (retailer_record.store_name or retailer_record.owner_name) if retailer_record else "Retailer Store"
-    approval_status = (retailer_record.status) if retailer_record else "ACTIVE"
-    retailer_id = str(retailer_record.public_id) if retailer_record else None
 
     return {
         "status": "SUCCESS",
-        "message": "OTP verified successfully. Signing you in...",
+        "message": "Mobile verified successfully. Taking you to onboarding...",
         "data": {
+            "flow": flow,
+            "registration_id": reg_id,
+            "redirect_url": f"/register?reg_id={reg_id}&mobile={clean_mobile}",
             "session_id": session_id,
             "correlation_id": correlation_id,
-            "access_token": f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token",
+            "access_token": f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.onboarding_token",
             "token_type": "Bearer",
             "user": {
                 "mobile_number": clean_mobile,
-                "full_name": full_name,
+                "full_name": "New Retailer",
                 "role": "RETAILER",
-                "outlet_name": outlet_name,
-                "retailer_code": retailer_code,
-                "retailer_id": retailer_id,
-                "approval_status": approval_status
+                "is_onboarding": True,
+                "registration_id": reg_id,
+                "approval_status": "DRAFT"
             }
         }
     }

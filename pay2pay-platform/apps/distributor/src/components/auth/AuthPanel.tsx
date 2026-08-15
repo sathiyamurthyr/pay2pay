@@ -339,7 +339,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     }
   };
 
-  const handleAuthSuccessRedirect = async (token?: string, userData?: any) => {
+  const handleAuthSuccessRedirect = async (token?: string, userData?: any, customRedirect?: string) => {
     const validToken = token || "p2p_access_token_" + Date.now();
 
     document.cookie = `p2p_user_role=${normalizedRole}; path=/; max-age=2592000; SameSite=Lax`;
@@ -351,6 +351,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     localStorage.setItem("pay2pay_access_token", validToken);
     if (userData) {
       localStorage.setItem("pay2pay_user_data", JSON.stringify(userData));
+    }
+
+    if (customRedirect) {
+      router.push(customRedirect);
+      return;
     }
 
     const redirectPath =
@@ -476,9 +481,21 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
       if (res.ok && data.status === "SUCCESS") {
         setShowConfetti(true);
-        setSuccessMsg("✓ OTP verified successfully. Signing you in...");
+        const flow = data.data?.flow;
+        const redirectUrl = data.data?.redirect_url;
+        const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING";
+
+        if (isNewOnboarding) {
+          setSuccessMsg("✓ Mobile verified successfully. Taking you to onboarding...");
+          if (data.data?.registration_id) {
+            localStorage.setItem("pay2pay_reg_id", data.data.registration_id);
+            localStorage.setItem("pay2pay_reg_mobile", mobileNumber);
+          }
+        } else {
+          setSuccessMsg("✓ Mobile verified successfully. Signing you in...");
+        }
         setErrorMsg("");
-        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user);
+        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user, redirectUrl);
       } else {
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please check the OTP and try again.");
         triggerError(errText);
