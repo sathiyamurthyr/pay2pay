@@ -14,6 +14,7 @@ from app.application.cashfree_service import CashfreeVerificationService
 from app.infrastructure.adapters.cashfree_aadhaar_adapter import cashfree_aadhaar_adapter
 from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 from app.infrastructure.adapters.email_service import email_service
+from app.infrastructure.db.models import RetailerModel, RetailerContactModel
 from app.infrastructure.db.auth_models import AuthUserModel
 from app.infrastructure.db.registration_models import (
     RegistrationDraftModel, RegistrationProgressModel, RegistrationPanModel,
@@ -50,17 +51,62 @@ def verify_validation_token(mobile_number: str, token: str) -> bool:
         return False
 
 
+STEP_ROUTES_MAP = {
+    1: "/register/mobile",
+    2: "/register/mobile-otp",
+    3: "/register/email",
+    4: "/register/email-otp",
+    5: "/register/password",
+    6: "/register/pan",
+    66: "/register/gst",
+    7: "/register/aadhaar",
+    8: "/register/bank",
+    9: "/register/shop",
+    10: "/register/address",
+    11: "/register/documents",
+    12: "/register/video",
+    13: "/register/review",
+    14: "/register/submitted"
+}
+
+STEP_NAMES_MAP = {
+    1: "Mobile Number",
+    2: "Mobile Verification",
+    3: "Email Address",
+    4: "Email OTP",
+    5: "Password & MPIN Credentials",
+    6: "PAN Card Verification",
+    66: "GST Verification",
+    7: "Aadhaar eKYC",
+    8: "Bank Account Details",
+    9: "Business & Shop Profile",
+    10: "Shop Physical Address",
+    11: "Compliance Documents Upload",
+    12: "Video KYC Verification",
+    13: "Final Review & Submit",
+    14: "Registration Submitted"
+}
+
+
 class ProgressiveOnboardingService:
 
     @staticmethod
-    async def validate_mobile(
+    async def resolve_retailer_registration_state(
         db: AsyncSession,
         mobile_number: str,
         tenant_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        PRE-OTP VALIDATION: Read-only check of mobile registration status.
-        Does NOT send OTP, does NOT create DB records.
+        Authoritative server-side resolution of Retailer Registration & Onboarding State.
+        Separately evaluates:
+        1. Does mobile exist?
+        2. Does onboarding/application draft exist?
+        3. What is the real onboarding progress (completed steps / total steps)?
+        4. Is onboarding actually completed?
+        5. Has KYC been completed?
+        6. Has admin approval been completed?
+        7. Is retailer account ACTIVE?
+        8. Is login allowed?
         """
         clean_mobile = re.sub(r"\D", "", str(mobile_number))
         if len(clean_mobile) != 10:
@@ -73,64 +119,205 @@ class ProgressiveOnboardingService:
             except Exception:
                 tid = DEFAULT_TENANT_ID
 
-        # 1. Search AuthUserModel (Fully Registered Retailer)
-        u_stmt = select(AuthUserModel).where(
-            AuthUserModel.tenant_id == tid,
-            AuthUserModel.mobile_number == clean_mobile
+        # 1. Query Retailer & Retailer Contact
+        c_stmt = select(RetailerContactModel).where(
+            RetailerContactModel.mobile.in_([clean_mobile, f"+91{clean_mobile}", f"+91 {clean_mobile}"])
         )
-        existing_user = (await db.execute(u_stmt)).scalars().first()
+        contact = (await db.execute(c_stmt)).scalars().first()
+        
+        retailer = None
+        if contact and contact.retailer_id:
+            r_stmt = select(RetailerModel).where(RetailerModel.public_id == contact.retailer_id)
+            retailer = (await db.execute(r_stmt)).scalars().first()
 
-        # 2. Search RegistrationDraftModel
+        # 2. Query Registration Draft
         d_stmt = select(RegistrationDraftModel).where(
             RegistrationDraftModel.tenant_id == tid,
             RegistrationDraftModel.mobile_number == clean_mobile
         )
-        existing_draft = (await db.execute(d_stmt)).scalars().first()
+        draft = (await db.execute(d_stmt)).scalars().first()
 
-        # Check if Completed
-        is_completed = bool(existing_user) or (existing_draft and existing_draft.status in ["COMPLETED", "KYC_SUBMITTED", "KYC_APPROVED", "ACTIVE"])
+        # 3. Query Auth User
+        u_stmt = select(AuthUserModel).where(
+            AuthUserModel.tenant_id == tid,
+            AuthUserModel.mobile_number == clean_mobile
+        )
+        user = (await db.execute(u_stmt)).scalars().first()
 
-        if is_completed:
+        masked = f"******{clean_mobile[-4:]}"
+
+        # ── STATE 1: BRAND NEW USER (NO RECORD IN DB) ──
+        if not retailer and not draft and not user:
+            tok = generate_validation_token(clean_mobile, "NEW_USER")
             return {
                 "status": "SUCCESS",
+                "state": "NEW_USER",
+                "flow": "NEW_ONBOARDING",
+                "exists": False,
+                "mobile_exists": False,
+                "onboarding_exists": False,
+                "onboarding_completed": False,
+                "can_register": True,
+                "can_resume": False,
+                "requires_otp": True,
+                "validation_token": tok,
+                "current_step": 1,
+                "next_step": 1,
+                "total_steps": 13,
+                "completed_steps": [],
+                "completed_count": 0,
+                "completion_percent": 0,
+                "current_step_name": "Mobile Number",
+                "next_route": "/register/mobile-otp",
+                "masked_mobile": masked,
+                "registered_mobile": f"+91 {clean_mobile}",
+                "message": "Mobile number available for new retailer registration."
+            }
+
+        # ── STATE 2: REJECTED RETAILER ──
+        if retailer and retailer.status == "REJECTED":
+            return {
+                "status": "SUCCESS",
+                "state": "REJECTED",
+                "flow": "REJECTED",
                 "exists": True,
-                "registration_status": "COMPLETED",
+                "mobile_exists": True,
+                "onboarding_exists": True,
+                "onboarding_completed": True,
+                "approval_status": "REJECTED",
+                "account_status": "REJECTED",
                 "can_register": False,
                 "can_resume": False,
                 "requires_otp": False,
-                "message": "This mobile number is already registered. Your registration is already completed. Please login to continue."
+                "masked_mobile": masked,
+                "registered_mobile": f"+91 {clean_mobile}",
+                "message": "Your retailer registration application was rejected by compliance. Please contact support."
             }
 
-        # Check if Incomplete
-        if existing_draft:
-            curr_step = existing_draft.current_step or 3
-            if curr_step <= 2:
-                curr_step = 3
+        # ── STATE 3: SUSPENDED / BLOCKED / INACTIVE RETAILER ──
+        if retailer and retailer.status in ["SUSPENDED", "BLOCKED", "INACTIVE"]:
+            return {
+                "status": "SUCCESS",
+                "state": "SUSPENDED",
+                "flow": "RESTRICTED",
+                "exists": True,
+                "mobile_exists": True,
+                "onboarding_exists": True,
+                "onboarding_completed": True,
+                "approval_status": "SUSPENDED",
+                "account_status": retailer.status,
+                "can_register": False,
+                "can_resume": False,
+                "requires_otp": False,
+                "masked_mobile": masked,
+                "registered_mobile": f"+91 {clean_mobile}",
+                "message": f"Your retailer account is currently {retailer.status.lower()}. Please contact support."
+            }
+
+        # ── EVALUATE TRULY COMPLETED VS INCOMPLETE ──
+        is_draft_submitted = (draft and draft.status in ["KYC_SUBMITTED", "COMPLETED", "ACTIVE"])
+        is_retailer_created = (retailer is not None)
+
+        if not is_draft_submitted and not (is_retailer_created and retailer.status in ["ACTIVE", "APPROVED", "PENDING", "UNDER_REVIEW"]):
+            # ── STATE 4: ONBOARDING IN PROGRESS (INCOMPLETE) ──
+            completed_steps_list = draft.completed_steps if (draft and draft.completed_steps) else []
+            completed_steps_set = set(completed_steps_list)
+            
+            # Real incomplete next step
+            next_step = 3
+            for s in range(1, 14):
+                if s not in completed_steps_set:
+                    next_step = s
+                    break
+
+            total_steps = 13
+            completed_count = len([s for s in completed_steps_set if s in range(1, 14)])
+            percent = round((completed_count / total_steps) * 100)
+            step_name = STEP_NAMES_MAP.get(next_step, "Business Registration")
+            next_route = STEP_ROUTES_MAP.get(next_step, "/register/email")
+
             tok = generate_validation_token(clean_mobile, "ONBOARDING_IN_PROGRESS")
             return {
                 "status": "SUCCESS",
+                "state": "ONBOARDING_IN_PROGRESS",
+                "flow": "RESUME_ONBOARDING",
                 "exists": True,
-                "registration_status": "ONBOARDING_IN_PROGRESS",
+                "mobile_exists": True,
+                "onboarding_exists": True,
+                "onboarding_completed": False,
+                "registration_id": draft.registration_id if draft else f"REG-{uuid.uuid4().hex[:10].upper()}",
                 "can_register": False,
                 "can_resume": True,
                 "requires_otp": True,
-                "current_step": curr_step,
                 "validation_token": tok,
-                "message": "Mobile number already registered. Your registration is incomplete. Verify your mobile to continue."
+                "current_step": next_step,
+                "next_step": next_step,
+                "completed_steps": sorted(list(completed_steps_set)),
+                "completed_count": completed_count,
+                "total_steps": total_steps,
+                "completion_percent": percent,
+                "current_step_name": step_name,
+                "next_route": next_route,
+                "masked_mobile": masked,
+                "registered_mobile": f"+91 {clean_mobile}",
+                "message": f"Registration in Progress: You have completed {completed_count} of {total_steps} steps ({percent}%). Continue registration from Step {next_step} ({step_name})."
             }
 
-        # New Mobile Number
-        tok = generate_validation_token(clean_mobile, "NEW")
+        # ── STATE 5: APPROVED & ACTIVE RETAILER (LOGIN ALLOWED) ──
+        if retailer and retailer.status in ["ACTIVE", "APPROVED"] and (user or retailer.is_active):
+            return {
+                "status": "SUCCESS",
+                "state": "APPROVED_ACTIVE",
+                "flow": "LOGIN",
+                "exists": True,
+                "mobile_exists": True,
+                "onboarding_exists": True,
+                "onboarding_completed": True,
+                "approval_status": "APPROVED",
+                "account_status": "ACTIVE",
+                "login_enabled": True,
+                "can_register": False,
+                "can_resume": False,
+                "requires_otp": False,
+                "redirect_url": "/retailer/login",
+                "masked_mobile": masked,
+                "registered_mobile": f"+91 {clean_mobile}",
+                "message": "Your retailer account is active and verified. Please login with OTP to access your workstation."
+            }
+
+        # ── STATE 6: ONBOARDING COMPLETED, PENDING ADMIN APPROVAL (UNDER REVIEW) ──
+        tok = generate_validation_token(clean_mobile, "PENDING_APPROVAL")
         return {
             "status": "SUCCESS",
-            "exists": False,
-            "registration_status": "NEW",
-            "can_register": True,
+            "state": "ONBOARDING_COMPLETED_PENDING_APPROVAL",
+            "flow": "ACCOUNT_UNDER_REVIEW",
+            "exists": True,
+            "mobile_exists": True,
+            "onboarding_exists": True,
+            "onboarding_completed": True,
+            "approval_status": "PENDING",
+            "account_status": "UNDER_REVIEW",
+            "can_register": False,
             "can_resume": False,
             "requires_otp": True,
             "validation_token": tok,
-            "message": "Mobile number available."
+            "redirect_url": "/retailer/account-under-review",
+            "masked_mobile": masked,
+            "registered_mobile": f"+91 {clean_mobile}",
+            "message": "Your application and documents have been submitted and are under review by our compliance team."
         }
+
+    @staticmethod
+    async def validate_mobile(
+        db: AsyncSession,
+        mobile_number: str,
+        tenant_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        PRE-OTP VALIDATION: Read-only check of mobile registration status.
+        Does NOT send OTP, does NOT create DB records.
+        """
+        return await ProgressiveOnboardingService.resolve_retailer_registration_state(db, mobile_number, tenant_id)
 
     @staticmethod
     async def send_otp(
@@ -141,7 +328,7 @@ class ProgressiveOnboardingService:
     ) -> Dict[str, Any]:
         """
         OTP DISPATCH ENDPOINT: Requires short-lived server validation token.
-        Independent server-side re-validation before sending OTP.
+        Dispatches dynamic OTP via WhatsApp and returns current onboarding resolution.
         """
         clean_mobile = re.sub(r"\D", "", str(mobile_number))
         if len(clean_mobile) != 10:
@@ -158,14 +345,14 @@ class ProgressiveOnboardingService:
             except Exception:
                 tid = DEFAULT_TENANT_ID
 
-        # Independent server-side re-check for COMPLETED state
-        u_stmt = select(AuthUserModel).where(
-            AuthUserModel.tenant_id == tid,
-            AuthUserModel.mobile_number == clean_mobile
-        )
-        existing_user = (await db.execute(u_stmt)).scalars().first()
-        if existing_user:
-            return {"status": "ERROR", "message": "Cannot send registration OTP for an already completed registration. Please login."}
+        # Resolve State
+        state_info = await ProgressiveOnboardingService.resolve_retailer_registration_state(db, clean_mobile, str(tid))
+        if state_info.get("flow") == "LOGIN":
+            return {"status": "ERROR", "message": "Your account is already active. Please login to continue."}
+        if state_info.get("flow") == "RESTRICTED":
+            return {"status": "ERROR", "message": state_info.get("message", "Account restricted.")}
+        if state_info.get("flow") == "REJECTED":
+            return {"status": "ERROR", "message": state_info.get("message", "Application rejected.")}
 
         # Generate dynamic 6-digit OTP code and dispatch via WhatsApp
         otp_code = f"{random.randint(100000, 999999)}"
@@ -194,63 +381,66 @@ class ProgressiveOnboardingService:
                 await db.commit()
             except Exception:
                 await db.rollback()
-            return {
-                "status": "SUCCESS",
-                "message": "OTP dispatched to your mobile number.",
-                "registration_id": reg_id,
-                "whatsapp_status": wa_dispatch_status
-            }
+        else:
+            # Create New Registration Draft
+            reg_id = f"REG-{uuid.uuid4().hex[:10].upper()}"
+            correlation_id = f"CORR-{uuid.uuid4().hex[:10].upper()}"
 
-        # Create New Registration Draft
-        reg_id = f"REG-{uuid.uuid4().hex[:10].upper()}"
-        correlation_id = f"CORR-{uuid.uuid4().hex[:10].upper()}"
+            try:
+                draft = RegistrationDraftModel(
+                    tenant_id=tid,
+                    registration_id=reg_id,
+                    mobile_number=clean_mobile,
+                    current_step=1,
+                    completed_steps=[],
+                    status="DRAFT",
+                    is_business=False,
+                    draft_data={"mobile_number": clean_mobile, "correlation_id": correlation_id, "otp_code": otp_code}
+                )
+                db.add(draft)
 
-        try:
-            draft = RegistrationDraftModel(
-                tenant_id=tid,
-                registration_id=reg_id,
-                mobile_number=clean_mobile,
-                current_step=1,
-                completed_steps=[],
-                status="DRAFT",
-                is_business=False,
-                draft_data={"mobile_number": clean_mobile, "correlation_id": correlation_id, "otp_code": otp_code}
-            )
-            db.add(draft)
+                audit = RegistrationAuditModel(
+                    tenant_id=tid,
+                    registration_id=reg_id,
+                    event_type="MOBILE_DRAFT_CREATED",
+                    ip_address="127.0.0.1",
+                    details={"mobile_number": clean_mobile, "whatsapp_status": wa_dispatch_status}
+                )
+                db.add(audit)
 
-            audit = RegistrationAuditModel(
-                tenant_id=tid,
-                registration_id=reg_id,
-                event_type="MOBILE_DRAFT_CREATED",
-                ip_address="127.0.0.1",
-                details={"mobile_number": clean_mobile, "whatsapp_status": wa_dispatch_status}
-            )
-            db.add(audit)
-
-            await db.commit()
-        except Exception as db_err:
-            await db.rollback()
-            # Handle DB Unique Constraint / Race Condition gracefully
-            re_stmt = select(RegistrationDraftModel).where(
-                RegistrationDraftModel.tenant_id == tid,
-                RegistrationDraftModel.mobile_number == clean_mobile
-            )
-            retry_draft = (await db.execute(re_stmt)).scalars().first()
-            if retry_draft:
-                reg_id = retry_draft.registration_id
-                draft_d = dict(retry_draft.draft_data or {})
-                draft_d["otp_code"] = otp_code
-                retry_draft.draft_data = draft_d
-                try:
-                    await db.commit()
-                except Exception:
-                    await db.rollback()
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                re_stmt = select(RegistrationDraftModel).where(
+                    RegistrationDraftModel.tenant_id == tid,
+                    RegistrationDraftModel.mobile_number == clean_mobile
+                )
+                retry_draft = (await db.execute(re_stmt)).scalars().first()
+                if retry_draft:
+                    reg_id = retry_draft.registration_id
+                    draft_d = dict(retry_draft.draft_data or {})
+                    draft_d["otp_code"] = otp_code
+                    retry_draft.draft_data = draft_d
+                    try:
+                        await db.commit()
+                    except Exception:
+                        await db.rollback()
 
         return {
             "status": "SUCCESS",
-            "message": "OTP dispatched to your mobile number.",
+            "message": "OTP dispatched to your WhatsApp number.",
             "registration_id": reg_id,
-            "whatsapp_status": wa_dispatch_status
+            "whatsapp_status": wa_dispatch_status,
+            "state": state_info["state"],
+            "flow": state_info["flow"],
+            "current_step": state_info.get("current_step", 1),
+            "next_step": state_info.get("next_step", 1),
+            "total_steps": state_info.get("total_steps", 13),
+            "completed_count": state_info.get("completed_count", 0),
+            "completion_percent": state_info.get("completion_percent", 0),
+            "current_step_name": state_info.get("current_step_name", "Mobile Verification"),
+            "next_route": state_info.get("next_route", "/register/mobile-otp"),
+            "masked_mobile": state_info.get("masked_mobile", f"******{clean_mobile[-4:]}")
         }
 
     @staticmethod
@@ -261,7 +451,7 @@ class ProgressiveOnboardingService:
         company_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Legacy check_mobile alias: delegates to validate_mobile and send_otp automatically.
+        Legacy check_mobile alias: validates mobile and sends OTP automatically.
         """
         val_res = await ProgressiveOnboardingService.validate_mobile(db, mobile_number, tenant_id)
         if val_res.get("requires_otp") is False:
@@ -269,16 +459,10 @@ class ProgressiveOnboardingService:
         tok = val_res.get("validation_token", "")
         return await ProgressiveOnboardingService.send_otp(db, mobile_number, tok, tenant_id)
 
-
     @staticmethod
     async def verify_mobile_otp(db: AsyncSession, registration_id: str, otp_code: str) -> Dict[str, Any]:
         """
         Step 2: Verify mobile WhatsApp OTP and resolve registration state.
-        
-        CASES RESOLVED:
-        CASE 1 (New User): registration_status='OTP_VERIFIED', onboarding_completed=False, next_route='/register/email'
-        CASE 2 (Completed User): registration_status='ONBOARDING_COMPLETED', onboarding_completed=True, next_route='/login'
-        CASE 3 & 4 (Incomplete User): registration_status='ONBOARDING_IN_PROGRESS', onboarding_completed=False, next_route=STEP_ROUTES[curr_step]
         """
         d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == registration_id)
         draft = (await db.execute(d_stmt)).scalars().first()
@@ -290,73 +474,12 @@ class ProgressiveOnboardingService:
         if not stored_otp or (otp_code != stored_otp and otp_code != "778899"):
             return {"status": "ERROR", "message": "Invalid OTP code. Please check your WhatsApp messages and try again."}
 
-        # 1. Check if Fully Registered / Completed Retailer in AuthUserModel or Draft
-        u_stmt = select(AuthUserModel).where(
-            AuthUserModel.mobile_number == clean_mobile
-        )
-        existing_user = (await db.execute(u_stmt)).scalars().first()
-
-        is_completed = bool(existing_user) or draft.status in ["COMPLETED", "KYC_SUBMITTED", "KYC_APPROVED", "ACTIVE"]
-
-        if is_completed:
-            draft.status = "ONBOARDING_COMPLETED"
-            draft.last_activity_at = datetime.now(timezone.utc)
-            try:
-                await db.commit()
-            except Exception:
-                await db.rollback()
-
-            return {
-                "status": "SUCCESS",
-                "success": True,
-                "registration_status": "ONBOARDING_COMPLETED",
-                "onboarding_completed": True,
-                "is_existing": True,
-                "user_id": str(existing_user.id) if existing_user else draft.registration_id,
-                "current_step": 14,
-                "completed_steps": list(range(1, 15)),
-                "last_completed_step": 14,
-                "next_route": "/login",
-                "message": "This mobile number is already registered. Your registration is already completed. Please login to continue."
-            }
-
-        # 2. Check for Incomplete Existing Onboarding (CASE 3 & 4)
+        # Mark mobile verified in draft
         completed = set(draft.completed_steps or [])
         completed.add(1)
         completed.add(2)
         draft.completed_steps = sorted(list(completed))
         draft.last_activity_at = datetime.now(timezone.utc)
-
-        STEP_ROUTES_MAP = {
-            1: "/register/mobile",
-            2: "/register/mobile-otp",
-            3: "/register/email",
-            4: "/register/email-otp",
-            5: "/register/password",
-            6: "/register/pan",
-            66: "/register/gst",
-            7: "/register/aadhaar",
-            8: "/register/bank",
-            9: "/register/shop",
-            10: "/register/address",
-            11: "/register/documents",
-            12: "/register/video",
-            13: "/register/review",
-            14: "/register/submitted"
-        }
-
-        curr_step = draft.current_step or 3
-        if curr_step <= 2:
-            curr_step = 3
-            draft.current_step = 3
-
-        last_step = max(draft.completed_steps) if draft.completed_steps else 2
-        next_route = STEP_ROUTES_MAP.get(curr_step, "/register/email")
-
-        # Determine if incomplete existing user vs brand new user
-        is_existing_incomplete = len(draft.completed_steps) > 2 or draft.status in ["IN_PROGRESS", "MOBILE_VERIFIED", "EMAIL_VERIFIED", "CREDENTIALS_CREATED"]
-
-        draft.status = "ONBOARDING_IN_PROGRESS" if is_existing_incomplete else "OTP_VERIFIED"
 
         prog = RegistrationProgressModel(
             tenant_id=draft.tenant_id or DEFAULT_TENANT_ID,
@@ -373,19 +496,96 @@ class ProgressiveOnboardingService:
         except Exception:
             await db.rollback()
 
+        # Authoritative State Resolution
+        state_info = await ProgressiveOnboardingService.resolve_retailer_registration_state(db, clean_mobile, str(draft.tenant_id or DEFAULT_TENANT_ID))
+
+        if state_info.get("flow") == "RESUME_ONBOARDING":
+            return {
+                "status": "SUCCESS",
+                "success": True,
+                "registration_status": "ONBOARDING_IN_PROGRESS",
+                "state": "ONBOARDING_IN_PROGRESS",
+                "flow": "RESUME_ONBOARDING",
+                "onboarding_completed": False,
+                "is_existing": True,
+                "registration_id": draft.registration_id,
+                "current_step": state_info["current_step"],
+                "next_step": state_info["next_step"],
+                "completed_steps": state_info["completed_steps"],
+                "completed_count": state_info["completed_count"],
+                "total_steps": 13,
+                "completion_percent": state_info["completion_percent"],
+                "current_step_name": state_info["current_step_name"],
+                "next_route": state_info["next_route"],
+                "message": state_info["message"]
+            }
+
+        if state_info.get("flow") == "ACCOUNT_UNDER_REVIEW":
+            return {
+                "status": "SUCCESS",
+                "success": True,
+                "registration_status": "ONBOARDING_COMPLETED",
+                "state": "ONBOARDING_COMPLETED_PENDING_APPROVAL",
+                "flow": "ACCOUNT_UNDER_REVIEW",
+                "onboarding_completed": True,
+                "is_existing": True,
+                "registration_id": draft.registration_id,
+                "current_step": 14,
+                "completed_steps": list(range(1, 14)),
+                "total_steps": 13,
+                "completed_count": 13,
+                "completion_percent": 100,
+                "next_route": "/retailer/account-under-review",
+                "redirect_url": "/retailer/account-under-review",
+                "message": "Your registration has been submitted and is under review."
+            }
+
+        if state_info.get("flow") == "LOGIN":
+            return {
+                "status": "SUCCESS",
+                "success": True,
+                "registration_status": "ONBOARDING_COMPLETED",
+                "state": "APPROVED_ACTIVE",
+                "flow": "LOGIN",
+                "onboarding_completed": True,
+                "is_existing": True,
+                "registration_id": draft.registration_id,
+                "current_step": 14,
+                "completed_steps": list(range(1, 14)),
+                "total_steps": 13,
+                "completed_count": 13,
+                "completion_percent": 100,
+                "next_route": "/retailer/login",
+                "redirect_url": "/retailer/login",
+                "message": "Your registration is completed. Please login to continue."
+            }
+
+        # NEW USER (Just completed mobile OTP, next is Step 3 Email)
+        draft.status = "MOBILE_VERIFIED"
+        draft.current_step = 3
+        try:
+            await db.commit()
+        except Exception:
+            await db.rollback()
+
         return {
             "status": "SUCCESS",
             "success": True,
-            "registration_status": draft.status,
+            "registration_status": "MOBILE_VERIFIED",
+            "state": "NEW_USER",
+            "flow": "NEW_ONBOARDING",
             "onboarding_completed": False,
-            "is_existing": is_existing_incomplete,
-            "user_id": registration_id,
-            "registration_id": registration_id,
-            "current_step": curr_step,
-            "completed_steps": draft.completed_steps,
-            "last_completed_step": last_step,
-            "next_route": next_route,
-            "message": "Welcome back! Let's continue your registration." if is_existing_incomplete else "Mobile number verified successfully!"
+            "is_existing": False,
+            "registration_id": draft.registration_id,
+            "current_step": 3,
+            "next_step": 3,
+            "completed_steps": [1, 2],
+            "completed_count": 2,
+            "total_steps": 13,
+            "completion_percent": 15,
+            "current_step_name": "Email Address",
+            "next_route": "/register/email",
+            "message": "Mobile number verified successfully. Continuing to Email verification."
         }
 
     @staticmethod
