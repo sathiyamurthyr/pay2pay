@@ -194,31 +194,24 @@ class CashfreeAadhaarAdapter:
         raise ValueError("Invalid Aadhaar OTP entered. Please check and enter the 6-digit code received on your mobile.")
 
     def _build_ekyc_profile(self, data: Dict[str, Any], ref_id: str) -> Dict[str, Any]:
-        address_obj = data.get("address") or data.get("split_address") or {}
-        if isinstance(address_obj, str):
-            full_address_str = address_obj
-            addr_dict = {}
-        elif isinstance(address_obj, dict):
-            addr_dict = address_obj
-            parts = [
-                address_obj.get("house"),
-                address_obj.get("street"),
-                address_obj.get("landmark"),
-                address_obj.get("locality") or address_obj.get("loc"),
-                address_obj.get("village_town_city") or address_obj.get("vtc"),
-                address_obj.get("district") or address_obj.get("dist"),
-                address_obj.get("state"),
-                address_obj.get("pincode") or address_obj.get("zip")
-            ]
-            full_address_str = ", ".join([str(p).strip() for p in parts if p and str(p).strip()])
+        # Handle Cashfree split_address dictionary & address string/dict
+        split_addr = data.get("split_address") if isinstance(data.get("split_address"), dict) else {}
+        addr_field = data.get("address")
+        
+        if isinstance(addr_field, dict):
+            addr_dict = {**addr_field, **split_addr}
+            full_address_str = ""
+        elif isinstance(addr_field, str) and addr_field:
+            full_address_str = addr_field
+            addr_dict = split_addr
         else:
             full_address_str = ""
-            addr_dict = {}
+            addr_dict = split_addr
 
         photo_val = data.get("photo") or data.get("photo_link") or data.get("photo_url") or ""
         masked_val = data.get("aadhaar_number") or data.get("masked_aadhaar") or ""
 
-        # All name/address values come ONLY from the API response — no personal data hardcoded as fallbacks
+        # All name/address values come ONLY from the API response
         full_name_val = data.get("name") or data.get("full_name") or ""
         name_parts = full_name_val.split()
         first_name = name_parts[0] if len(name_parts) > 0 else ""
@@ -230,11 +223,15 @@ class CashfreeAadhaarAdapter:
         street_val = addr_dict.get("street") or ""
         landmark_val = addr_dict.get("landmark") or ""
         loc_val = addr_dict.get("locality") or addr_dict.get("loc") or ""
-        vtc_val = addr_dict.get("village_town_city") or addr_dict.get("vtc") or ""
+        vtc_val = addr_dict.get("village_town_city") or addr_dict.get("vtc") or addr_dict.get("po") or ""
         dist_val = addr_dict.get("district") or addr_dict.get("dist") or ""
         state_val = addr_dict.get("state") or ""
-        country_val = addr_dict.get("country") or "INDIA"
+        country_val = addr_dict.get("country") or "India"
         pincode_val = str(addr_dict.get("pincode") or addr_dict.get("zip") or "")
+
+        if not full_address_str:
+            parts = [house_val, street_val, landmark_val, loc_val, vtc_val, dist_val, state_val, pincode_val]
+            full_address_str = ", ".join([str(p).strip() for p in parts if p and str(p).strip()])
 
         return {
             "ref_id": str(data.get("reference_id") or data.get("ref_id", ref_id)),
@@ -251,6 +248,7 @@ class CashfreeAadhaarAdapter:
             "street": street_val,
             "landmark": landmark_val,
             "loc": loc_val,
+            "locality": loc_val,
             "vtc": vtc_val,
             "city": vtc_val or dist_val,
             "district": dist_val or vtc_val,
@@ -262,8 +260,8 @@ class CashfreeAadhaarAdapter:
             "photo_avatar": photo_val,
             "masked_aadhaar": masked_val,
             "aadhaar_masked": masked_val,
-            "address": address_obj,
-            "full_address": full_address_str or ", ".join([p for p in [house_val, street_val, loc_val, vtc_val, dist_val, state_val, pincode_val] if p]),
+            "address": addr_dict,
+            "full_address": full_address_str,
             "verified_at": data.get("verified_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "provider": "CASHFREE_OFFLINE_AADHAAR",
             "raw_response": data

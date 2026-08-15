@@ -1003,7 +1003,8 @@ class ProgressiveOnboardingService:
             full_name=retailer_name,
             dob=dob_val,
             gender=gender_val,
-            address_json=address_dict
+            address_json=address_dict,
+            photo_url=photo_url_val
         )
         db.add(aadhaar_model)
 
