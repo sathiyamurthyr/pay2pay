@@ -135,13 +135,6 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
     fetchStatus(false);
   }, [fetchStatus]);
 
-  // Periodic polling every 15 seconds to detect live admin approvals
-  useEffect(() => {
-    const timer = setInterval(() => {
-      fetchStatus(false);
-    }, 15000);
-    return () => clearInterval(timer);
-  }, [fetchStatus]);
 
   return (
     <Box

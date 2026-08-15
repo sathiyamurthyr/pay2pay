@@ -1,0 +1,1 @@
+fix(ui): stop automatic periodic background polling in retailer modal
