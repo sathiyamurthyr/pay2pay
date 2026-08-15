@@ -672,6 +672,8 @@ async def get_account_status(
     is_approved = False
     approval_status = "PENDING"
     account_status = "UNDER_REVIEW"
+    access = "RESTRICTED"
+    reason = "ACCOUNT_UNDER_REVIEW"
     destination = "ACCOUNT_UNDER_REVIEW"
     redirect_url = "/retailer/account-under-review"
     login_enabled = True
@@ -685,6 +687,8 @@ async def get_account_status(
             is_approved = True
             approval_status = "APPROVED"
             account_status = "ACTIVE"
+            access = "ALLOWED"
+            reason = None
             destination = "DASHBOARD"
             redirect_url = "/retailer/dashboard"
             login_enabled = True
@@ -692,23 +696,29 @@ async def get_account_status(
             is_approved = False
             approval_status = "REJECTED"
             account_status = "REJECTED"
+            access = "RESTRICTED"
+            reason = "APPLICATION_REJECTED"
             destination = "APPLICATION_REJECTED"
             redirect_url = "/application-rejected"
             login_enabled = False
-        elif v_status in ("SUSPENDED", "BLOCKED") or r_status in ("SUSPENDED", "BLOCKED"):
+        elif v_status in ("SUSPENDED", "BLOCKED", "FROZEN", "HOLD") or r_status in ("SUSPENDED", "BLOCKED", "FROZEN", "HOLD"):
             is_approved = False
             approval_status = "SUSPENDED"
-            account_status = "SUSPENDED"
-            destination = "ACCOUNT_RESTRICTED"
-            redirect_url = "/account-restricted"
+            account_status = "RESTRICTED"
+            access = "RESTRICTED"
+            reason = "ACCOUNT_RESTRICTED"
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
             login_enabled = False
         else:
             # PENDING / UNDER_REVIEW / ON_HOLD / KYC_SUBMITTED
-            is_approved = True
-            approval_status = "APPROVED"
-            account_status = "ACTIVE"
-            destination = "DASHBOARD"
-            redirect_url = "/retailer/dashboard"
+            is_approved = False
+            approval_status = "PENDING"
+            account_status = "UNDER_REVIEW"
+            access = "RESTRICTED"
+            reason = "ACCOUNT_UNDER_REVIEW"
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
             login_enabled = True
 
     # 2. Evaluate from existing retailer master record
@@ -718,6 +728,8 @@ async def get_account_status(
             is_approved = True
             approval_status = "APPROVED"
             account_status = "ACTIVE"
+            access = "ALLOWED"
+            reason = None
             destination = "DASHBOARD"
             redirect_url = "/retailer/dashboard"
             login_enabled = True
@@ -725,22 +737,28 @@ async def get_account_status(
             is_approved = False
             approval_status = "REJECTED"
             account_status = "REJECTED"
+            access = "RESTRICTED"
+            reason = "APPLICATION_REJECTED"
             destination = "APPLICATION_REJECTED"
             redirect_url = "/application-rejected"
             login_enabled = False
-        elif ret_st in ("SUSPENDED", "BLOCKED"):
+        elif ret_st in ("SUSPENDED", "BLOCKED", "FROZEN", "HOLD"):
             is_approved = False
             approval_status = "SUSPENDED"
-            account_status = "SUSPENDED"
-            destination = "ACCOUNT_RESTRICTED"
-            redirect_url = "/account-restricted"
+            account_status = "RESTRICTED"
+            access = "RESTRICTED"
+            reason = "ACCOUNT_RESTRICTED"
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
             login_enabled = False
         else:
-            is_approved = True
-            approval_status = "APPROVED"
-            account_status = "ACTIVE"
-            destination = "DASHBOARD"
-            redirect_url = "/retailer/dashboard"
+            is_approved = False
+            approval_status = "PENDING"
+            account_status = "UNDER_REVIEW"
+            access = "RESTRICTED"
+            reason = "ACCOUNT_UNDER_REVIEW"
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
             login_enabled = True
 
     # 3. Evaluate from registration drafts (onboarding)
@@ -752,21 +770,27 @@ async def get_account_status(
             is_approved = True
             approval_status = "APPROVED"
             account_status = "ACTIVE"
+            access = "ALLOWED"
+            reason = None
             destination = "DASHBOARD"
             redirect_url = "/retailer/dashboard"
             login_enabled = True
         elif dr_st in ("KYC_SUBMITTED", "SUBMITTED", "PENDING_APPROVAL", "UNDER_REVIEW") or dr_step >= 13:
-            is_approved = True
-            approval_status = "APPROVED"
-            account_status = "ACTIVE"
-            destination = "DASHBOARD"
-            redirect_url = "/retailer/dashboard"
+            is_approved = False
+            approval_status = "PENDING"
+            account_status = "UNDER_REVIEW"
+            access = "RESTRICTED"
+            reason = "ACCOUNT_UNDER_REVIEW"
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
             login_enabled = True
         else:
             # Incomplete Onboarding Draft
             is_approved = False
             approval_status = "PENDING"
             account_status = "ONBOARDING"
+            access = "RESTRICTED"
+            reason = "ONBOARDING_INCOMPLETE"
             destination = "ONBOARDING"
             redirect_url = "/register"
             login_enabled = True
@@ -793,6 +817,8 @@ async def get_account_status(
         or "APP-PENDING"
     )
 
+    verif_status_display = verif.verification_status if verif else (draft.status if draft else ("ACTIVE" if is_approved else "KYC_SUBMITTED"))
+
     payment_permission = "PERMITTED & UNLOCKED" if is_approved else "PROHIBITED & LOCKED"
 
     return {
@@ -806,9 +832,11 @@ async def get_account_status(
             "legal_name": legal_name,
             "registered_mobile": f"+91 {clean_mobile}" if clean_mobile else "",
             "application_reference": app_ref,
-            "verification_status": verif.verification_status if verif else (draft.status if draft else "UNDER_REVIEW"),
+            "verification_status": verif_status_display,
             "approval_status": approval_status,
             "is_approved": is_approved,
+            "access": access,
+            "reason": reason,
             "login_enabled": login_enabled,
             "payment_permission": payment_permission,
             "account_status": account_status,
@@ -823,6 +851,17 @@ async def get_account_status(
             }
         }
     }
+
+
+@router.get("/access-status")
+async def get_access_status(
+    request: Request,
+    mobile: Optional[str] = None,
+    retailer_id: Optional[str] = None,
+):
+    """Centralized access status endpoint alias."""
+    return await get_account_status(request=request, mobile=mobile, retailer_id=retailer_id)
+
 
 
 @router.post("/trust-device")

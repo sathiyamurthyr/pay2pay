@@ -23,6 +23,7 @@ import {
   Phone
 } from "lucide-react";
 import { collectSilentTelemetry, TelemetryData } from "@/lib/telemetry";
+import { verifyAndRoutePostLogin } from "@/lib/retailer-destination-resolver";
 import { ConfettiBurst } from "./motion/ConfettiBurst";
 import {
   glassPanelVariants,
@@ -340,34 +341,25 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   };
 
   const handleAuthSuccessRedirect = async (token?: string, userData?: any, customRedirect?: string, destination?: string) => {
-    const validToken = token || "p2p_access_token_" + Date.now();
-    const dest = destination || (customRedirect?.includes("account-under-review") ? "ACCOUNT_UNDER_REVIEW" : "DASHBOARD");
-
-    document.cookie = `p2p_user_role=${normalizedRole}; path=/; max-age=2592000; SameSite=Lax`;
-    document.cookie = `p2p_destination=${dest}; path=/; max-age=2592000; SameSite=Lax`;
-    document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-    document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-    document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-
-    localStorage.setItem("pay2pay_user_role", normalizedRole);
-    localStorage.setItem("pay2pay_access_token", validToken);
-    if (userData) {
-      localStorage.setItem("pay2pay_user_data", JSON.stringify(userData));
-    }
-
     if (customRedirect) {
       router.replace(customRedirect);
       return;
     }
 
-    const redirectPath =
-      normalizedRole === "RETAILER"
-        ? (dest === "ACCOUNT_UNDER_REVIEW" ? "/retailer/account-under-review" : "/retailer/dashboard")
-        : normalizedRole === "SD"
-        ? "/super-distributor/dashboard"
-        : "/distributor/dashboard";
+    setSuccessMsg("Verifying your account access...");
+    const res = await verifyAndRoutePostLogin(
+      token || "",
+      userData,
+      router,
+      {
+        mobile: mobileNumber,
+        onProgress: (msg) => setSuccessMsg(msg),
+      }
+    );
 
-    router.replace(redirectPath);
+    if (!res.success) {
+      triggerError(res.error || "Unable to verify your account status. Please try again.");
+    }
   };
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
