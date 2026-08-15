@@ -58,15 +58,16 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
     return `data:image/jpeg;base64,${raw}`;
   };
 
-  // Helper to extract properties from ekycResult across top-level, aadhaar, address, or raw_response
+  // Helper to extract properties from ekycResult across top-level, aadhaar, address, split_address, or raw_response
   const getVal = (res: any, keys: string[], defaultVal: string = "—") => {
     if (!res) return defaultVal;
     for (const k of keys) {
-      if (res[k]) return res[k];
-      if (res.aadhaar && res.aadhaar[k]) return res.aadhaar[k];
-      if (res.address && res.address[k]) return res.address[k];
-      if (res.raw_response && res.raw_response[k]) return res.raw_response[k];
-      if (res.raw_response?.address && res.raw_response.address[k]) return res.raw_response.address[k];
+      if (res[k] && typeof res[k] === "string" && res[k].trim() !== "") return res[k];
+      if (res.aadhaar && res.aadhaar[k] && typeof res.aadhaar[k] === "string" && res.aadhaar[k].trim() !== "") return res.aadhaar[k];
+      if (res.address && typeof res.address === "object" && res.address[k] && typeof res.address[k] === "string" && res.address[k].trim() !== "") return res.address[k];
+      if (res.split_address && typeof res.split_address === "object" && res.split_address[k] && typeof res.split_address[k] === "string" && res.split_address[k].trim() !== "") return res.split_address[k];
+      if (res.raw_response?.split_address && typeof res.raw_response.split_address === "object" && res.raw_response.split_address[k] && typeof res.raw_response.split_address[k] === "string" && res.raw_response.split_address[k].trim() !== "") return res.raw_response.split_address[k];
+      if (res.raw_response && res.raw_response[k] && typeof res.raw_response[k] === "string" && res.raw_response[k].trim() !== "") return res.raw_response[k];
     }
     return defaultVal;
   };
