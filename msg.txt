@@ -1,0 +1,1 @@
+fix(auth): make account-status endpoint resilient and unlock approved retailer dashboard
