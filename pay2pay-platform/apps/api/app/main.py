@@ -170,7 +170,11 @@ from app.presentation.api.v1 import session_security_router
 from app.presentation.api.v1 import report_center_router
 from app.presentation.api.v1 import progressive_onboarding_router
 from app.presentation.api.v1 import admin_verification_router
+from app.presentation.api.v1 import announcements_router
 
+app.include_router(announcements_router.router, prefix=settings.API_V1_STR)
+app.include_router(announcements_router.router, prefix="/api")
+app.include_router(announcements_router.router, prefix="")
 app.include_router(retailer_dashboard_router.router, prefix=settings.API_V1_STR)
 app.include_router(session_security_router.router, prefix=settings.API_V1_STR)
 app.include_router(report_center_router.router, prefix=settings.API_V1_STR)

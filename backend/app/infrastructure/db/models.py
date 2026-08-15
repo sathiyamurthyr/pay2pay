@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime, date, timezone
-from typing import Optional, List
+from datetime import datetime, date
+from typing import Optional, List, Dict, Any
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, Numeric
+    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON
 )
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB, UUID
 JSONB = JSON
@@ -2386,8 +2386,35 @@ class AnnouncementModel(BaseEntity, EnterpriseBaseMixin):
     announcement_code: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[Text] = mapped_column(Text, nullable=False)
+    links: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSONB, nullable=False, default=list)
+    display_type: Mapped[str] = mapped_column(String(50), default="MODAL", nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     audience: Mapped[str] = mapped_column(String(50), default="ALL_RETAILERS", nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
+    start_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    images: Mapped[List["AnnouncementImageModel"]] = relationship(
+        "AnnouncementImageModel",
+        back_populates="announcement",
+        cascade="all, delete-orphan",
+        order_by="AnnouncementImageModel.display_order"
+    )
+
+
+class AnnouncementImageModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "announcement_image"
+
+    announcement_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("announcement.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    b2_object_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    b2_bucket: Mapped[str] = mapped_column(String(100), nullable=False)
+    image_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), default="image/jpeg", nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+
+    announcement: Mapped["AnnouncementModel"] = relationship("AnnouncementModel", back_populates="images")
 
 
 class NotificationHistoryModel(BaseEntity, EnterpriseBaseMixin):
@@ -3526,33 +3553,6 @@ class NotificationModel(BaseEntity, EnterpriseBaseMixin):
     )
 
 
-class UserNotificationAlertModel(BaseEntity, EnterpriseBaseMixin):
-    """Production-ready Notification & Recent Alerts model for authenticated users & retailers."""
-    __tablename__ = "user_notification_alerts"
-
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
-    notification_type: Mapped[str] = mapped_column(String(50), nullable=False, default="TRANSACTION", index=True)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    message: Mapped[str] = mapped_column(Text, nullable=False)
-    transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
-    transaction_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    amount: Mapped[Optional[float]] = mapped_column(Numeric(15, 2), nullable=True)
-    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="INR")
-    status: Mapped[str] = mapped_column(String(30), nullable=False, default="SUCCESS", index=True)
-    reference_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
-    is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
-    metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-
-    __table_args__ = (
-        Index("ix_user_notif_tenant_user_read", "tenant_id", "user_id", "is_read"),
-        Index("ix_user_notif_user_created", "user_id", "created_at"),
-        {"extend_existing": True}
-    )
-
-
 class NotificationBatchModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "notification_batch"
 
@@ -3787,6 +3787,29 @@ class DeliveryStatusHistoryModel(BaseEntity, EnterpriseBaseMixin):
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     changed_by_system: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     provider_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+
+class UserNotificationAlertModel(BaseEntity, EnterpriseBaseMixin):
+    """
+    User-facing in-app notification inbox.
+    Stores per-user notification alerts with read/unread state.
+    Created to support the /notifications/recent and mark-as-read endpoints.
+    """
+    __tablename__ = "user_notification_alert"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    notification_type: Mapped[str] = mapped_column(String(80), nullable=False, default="SYSTEM")
+    title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    reference_number: Mapped[Optional[str]] = mapped_column(String(200), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="UNREAD")
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+
+    __table_args__ = (
+        Index("ix_user_notif_alert_user_tenant", "user_id", "tenant_id"),
+        Index("ix_user_notif_alert_unread", "user_id", "is_read"),
+    )
 
 
 class NotificationAnalyticsModel(BaseEntity, EnterpriseBaseMixin):

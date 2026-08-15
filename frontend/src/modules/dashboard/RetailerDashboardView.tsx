@@ -28,6 +28,7 @@ import {
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import { DashboardAnnouncementModal } from "@/components/common/DashboardAnnouncementModal";
 import WarningIcon from "@mui/icons-material/Warning";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HistoryIcon from "@mui/icons-material/History";
@@ -1056,6 +1057,9 @@ export const RetailerDashboardView: React.FC = () => {
           </Stack>
         </Box>
       </Dialog>
+
+      {/* Dynamic Database & Backblaze B2 Driven Announcement Modal */}
+      <DashboardAnnouncementModal audience="RETAILER" />
     </Box>
   );
 };

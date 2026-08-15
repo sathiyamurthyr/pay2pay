@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, date
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from sqlalchemy import (
     BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON
 )
@@ -2386,8 +2386,35 @@ class AnnouncementModel(BaseEntity, EnterpriseBaseMixin):
     announcement_code: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[Text] = mapped_column(Text, nullable=False)
+    links: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSONB, nullable=False, default=list)
+    display_type: Mapped[str] = mapped_column(String(50), default="MODAL", nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     audience: Mapped[str] = mapped_column(String(50), default="ALL_RETAILERS", nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
+    start_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    images: Mapped[List["AnnouncementImageModel"]] = relationship(
+        "AnnouncementImageModel",
+        back_populates="announcement",
+        cascade="all, delete-orphan",
+        order_by="AnnouncementImageModel.display_order"
+    )
+
+
+class AnnouncementImageModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "announcement_image"
+
+    announcement_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("announcement.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    b2_object_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    b2_bucket: Mapped[str] = mapped_column(String(100), nullable=False)
+    image_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), default="image/jpeg", nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+
+    announcement: Mapped["AnnouncementModel"] = relationship("AnnouncementModel", back_populates="images")
 
 
 class NotificationHistoryModel(BaseEntity, EnterpriseBaseMixin):

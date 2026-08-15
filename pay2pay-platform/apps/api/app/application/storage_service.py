@@ -44,7 +44,8 @@ ENTITY_PREFIX_MAP = {
     "RET":     "cmp/ret",
     "CMP":     "cmp",
     "SERVICE": "cmp/service",
-    # Aliases
+    "ANNOUNCEMENTS":     "announcements",
+    "ANNOUNCEMENT":      "announcements",
     "SUPER_DISTRIBUTOR": "cmp/sd",
     "DISTRIBUTOR":       "cmp/dist",
     "RETAILER":          "cmp/ret",
