@@ -2575,6 +2575,7 @@ class RiskHistoryModel(BaseEntity, EnterpriseBaseMixin):
 
 class DeviceFingerprintModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "device_fingerprint"
+    __table_args__ = {"extend_existing": True}
 
     fingerprint_hash: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     ip_address: Mapped[str] = mapped_column(String(50), nullable=False)
