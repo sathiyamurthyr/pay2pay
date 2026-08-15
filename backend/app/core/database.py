@@ -13,6 +13,8 @@ _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 # because pgbouncer transaction mode does not support prepared statements.
 _is_supabase_pooler = ":6543/" in settings.DATABASE_URL
 
+import uuid
+
 if _is_sqlite:
     engine = create_async_engine(
         settings.DATABASE_URL,
@@ -21,25 +23,18 @@ if _is_sqlite:
         connect_args={"check_same_thread": False},
         poolclass=NullPool,
     )
-elif _is_supabase_pooler:
-    # Supabase transaction pooler: disable prepared statements, use NullPool
+else:
+    # Supabase Transaction Pooler (PgBouncer) & PostgreSQL asyncpg config
     engine = create_async_engine(
         settings.DATABASE_URL,
         echo=settings.DEBUG,
         future=True,
         poolclass=NullPool,
-        connect_args={"statement_cache_size": 0},
-    )
-else:
-    engine = create_async_engine(
-        settings.DATABASE_URL,
-        echo=settings.DEBUG,
-        future=True,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-        pool_timeout=10,
-        pool_recycle=300,
+        connect_args={
+            "statement_cache_size": 0,
+            "prepared_statement_cache_size": 0,
+            "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4().hex}__"
+        },
     )
 
 

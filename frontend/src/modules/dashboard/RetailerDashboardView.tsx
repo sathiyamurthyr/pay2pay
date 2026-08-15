@@ -49,8 +49,7 @@ import {
   Bar
 } from "recharts";
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
+
 
 interface HeaderWalletData {
   greeting: string;
@@ -176,14 +175,21 @@ export const RetailerDashboardView: React.FC = () => {
     refreshWallet();
     try {
       const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+      }
+      const queryParam = activeRetailerId ? `retailer_id=${activeRetailerId}` : "";
+      const qPrefix = queryParam ? `?${queryParam}` : "";
+      const qAnd = queryParam ? `&${queryParam}` : "";
 
       const [finRes, opsRes, chRes, feedRes, altRes, actRes, sysRes] = await Promise.all([
-        fetch(`${baseUrl}/financial-kpis?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`),
-        fetch(`${baseUrl}/operations-kpis?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`),
-        fetch(`${baseUrl}/charts?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}&timeframe=${timeframe}`),
-        fetch(`${baseUrl}/live-feed?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`),
-        fetch(`${baseUrl}/business-alerts?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`),
-        fetch(`${baseUrl}/recent-activity?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`),
+        fetch(`${baseUrl}/financial-kpis${qPrefix}`),
+        fetch(`${baseUrl}/operations-kpis${qPrefix}`),
+        fetch(`${baseUrl}/charts?timeframe=${timeframe}${qAnd}`),
+        fetch(`${baseUrl}/live-feed${qPrefix}`),
+        fetch(`${baseUrl}/business-alerts${qPrefix}`),
+        fetch(`${baseUrl}/recent-activity${qPrefix}`),
         fetch(`${baseUrl}/system-health`)
       ]);
 
@@ -308,11 +314,8 @@ export const RetailerDashboardView: React.FC = () => {
               <WarningIcon sx={{ fontSize: 20 }} />
             </Box>
             <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "14px", lineHeight: 1.2 }}>
-                ⚠️ ACCOUNT UNDER REVIEW — ADMIN APPROVAL PENDING
-              </Typography>
               <Typography variant="body2" sx={{ color: "#E2E8F0", fontSize: "12px", mt: 0.2 }}>
-                Retailer application for <strong>Mobile +91 9176669426</strong> is pending Admin KYC verification. Transactions are restricted.
+                Retailer application for <strong>Mobile {outlet.mobile ? `+91 ${outlet.mobile.replace(/\D/g, "")}` : "your registered mobile"}</strong> is pending Admin KYC verification. Transactions are restricted.
               </Typography>
             </Box>
           </Box>
@@ -355,10 +358,10 @@ export const RetailerDashboardView: React.FC = () => {
           </Typography>
           <Box sx={{ width: "1px", height: 16, bgcolor: "rgba(255,255,255,0.2)", display: { xs: "none", sm: "block" } }} />
           <Typography variant="body2" sx={{ fontWeight: 600, color: "#E2E8F0", fontSize: "14px" }}>
-            {headerWallet?.retailer_name || headerWallet?.owner_name || "Venkatesh Rao"}
+            {headerWallet?.retailer_name || headerWallet?.owner_name || (typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name"))) || "Retailer Partner"}
           </Typography>
           <Chip
-            label={headerWallet?.retailer_code || "RET-982415"}
+            label={headerWallet?.retailer_code || "RET-PARTNER"}
             size="small"
             sx={{
               backgroundColor: "rgba(37, 99, 235, 0.2)",
@@ -376,16 +379,16 @@ export const RetailerDashboardView: React.FC = () => {
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Chip
-            icon={<Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#22C55E", ml: 1 }} />}
-            label="Live"
+            icon={<Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: isApproved ? "#22C55E" : "#F59E0B", ml: 1 }} />}
+            label={isApproved ? "Live" : "Pending Approval"}
             size="small"
             sx={{
               fontWeight: 700,
               fontSize: "11px",
               height: 24,
-              color: "#4ADE80",
-              bgcolor: "rgba(34, 197, 94, 0.1)",
-              border: "1px solid rgba(34, 197, 94, 0.3)",
+              color: isApproved ? "#4ADE80" : "#FBBF24",
+              bgcolor: isApproved ? "rgba(34, 197, 94, 0.1)" : "rgba(245, 158, 11, 0.1)",
+              border: `1px solid ${isApproved ? "rgba(34, 197, 94, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
             }}
           />
           <Tooltip title="Refresh Dashboard Data">
@@ -396,6 +399,93 @@ export const RetailerDashboardView: React.FC = () => {
           <NotificationCenter />
         </Box>
       </Paper>
+
+      {/* PENDING APPROVAL NOTICE BANNER */}
+      {!isApproved && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: 3,
+            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.08) 100%)",
+            border: "1px solid rgba(245, 158, 11, 0.35)",
+            boxShadow: "0 8px 24px -4px rgba(245, 158, 11, 0.15)",
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: { xs: "flex-start", md: "center" },
+            justifyContent: "space-between",
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Box
+              sx={{
+                width: 46,
+                height: 46,
+                borderRadius: "50%",
+                bgcolor: "rgba(245, 158, 11, 0.2)",
+                border: "1px solid rgba(245, 158, 11, 0.4)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#FBBF24",
+                flexShrink: 0,
+                fontSize: "20px",
+              }}
+            >
+              ⏳
+            </Box>
+            <Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "15px" }}>
+                  Account Verification & Approval In Progress
+                </Typography>
+                <Chip label="UNDER REVIEW" size="small" sx={{ bgcolor: "rgba(245, 158, 11, 0.25)", color: "#FBBF24", fontWeight: 800, fontSize: "10px", height: 20 }} />
+              </Box>
+              <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "13px", maxWidth: 700 }}>
+                Your merchant registration application has been submitted and is currently being verified by the compliance team. Financial transactions (DMT, AEPS, UPI, Payouts) will unlock automatically upon Admin Approval.
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", width: { xs: "100%", md: "auto" } }}>
+            <Button
+              variant="contained"
+              onClick={() => (window.location.href = "/register/submitted")}
+              sx={{
+                bgcolor: "#2563EB",
+                fontWeight: 800,
+                fontSize: "12px",
+                borderRadius: 2,
+                px: 2,
+                py: 0.8,
+                textTransform: "none",
+                "&:hover": { bgcolor: "#1D4ED8" },
+              }}
+            >
+              Track Application Status
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => openContactSupportModal()}
+              sx={{
+                borderColor: "rgba(255, 255, 255, 0.2)",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                fontSize: "12px",
+                borderRadius: 2,
+                px: 2,
+                py: 0.8,
+                textTransform: "none",
+                "&:hover": { borderColor: "rgba(255, 255, 255, 0.4)", bgcolor: "rgba(255, 255, 255, 0.05)" },
+              }}
+            >
+              Contact Support
+            </Button>
+          </Box>
+        </Paper>
+      )}
 
       {/* 2. WALLET OVERVIEW SECTION */}
       <Paper

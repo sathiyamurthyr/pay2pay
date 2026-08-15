@@ -8,12 +8,19 @@ import {
 
 interface Step12Props {
   registrationId: string;
-  onSuccess: () => void;
+  merchantName?: string;
+  shopName?: string;
+  onSuccess: (videoData: any) => void;
 }
 
 const RECORD_SECS = 15;
 
-export const Step12Video: React.FC<Step12Props> = ({ registrationId, onSuccess }) => {
+export const Step12Video: React.FC<Step12Props> = ({
+  registrationId,
+  merchantName,
+  shopName,
+  onSuccess
+}) => {
   const videoRef    = useRef<HTMLVideoElement>(null);
   const mediaRecRef = useRef<MediaRecorder | null>(null);
   const streamRef   = useRef<MediaStream | null>(null);
@@ -27,7 +34,9 @@ export const Step12Video: React.FC<Step12Props> = ({ registrationId, onSuccess }
   const [videoURL, setVideoURL]   = useState<string | null>(null);
   const [loading, setLoading]     = useState(false);
 
-  const scriptText = `"My name is Sathiya Murthy, and I am applying for Pay2Pay Retailer Merchant Onboarding for my business Sri Venkateswara Telecom."`;
+  const nameDisplay = merchantName || "YOUR NAME";
+  const shopDisplay = shopName || "YOUR BUSINESS";
+  const scriptText = `"My name is ${nameDisplay}, and I am applying for Pay2Pay Retailer Merchant Onboarding for my business ${shopDisplay}."`;
 
   // ── Open camera ─────────────────────────────────────────────────────
   const openCamera = useCallback(async () => {

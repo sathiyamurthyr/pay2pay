@@ -68,8 +68,8 @@ export default function TransactionLedgerReportPage() {
       if (toDate) params.append("to_date", toDate);
 
       const [sumRes, listRes] = await Promise.all([
-        axios.get(`http://127.0.0.1:8000/api/v1/admin/reports/transaction-ledger/summary?${params.toString()}`),
-        axios.get(`http://127.0.0.1:8000/api/v1/admin/reports/transaction-ledger?${params.toString()}`)
+        axios.get(`/api/v1/admin/reports/transaction-ledger/summary?${params.toString()}`),
+        axios.get(`/api/v1/admin/reports/transaction-ledger?${params.toString()}`)
       ]);
 
       if (sumRes.data?.data) {
@@ -99,7 +99,7 @@ export default function TransactionLedgerReportPage() {
       if (toDate) params.append("to_date", toDate);
 
       const response = await axios.get(
-        `http://127.0.0.1:8000/api/v1/admin/reports/transaction-ledger/export?${params.toString()}`,
+        `/api/v1/admin/reports/transaction-ledger/export?${params.toString()}`,
         { responseType: "blob" }
       );
 

@@ -37,18 +37,17 @@ async def get_retailer_header_wallet(
     ret_obj = (await db.execute(ret_stmt)).scalars().first()
 
     if not ret_obj:
-        ret_fallback_stmt = select(RetailerModel).order_by(RetailerModel.id.desc())
-        ret_obj = (await db.execute(ret_fallback_stmt)).scalars().first()
+        raise HTTPException(status_code=404, detail=f"Retailer not found for id={retailer_id}")
 
-    retailer_name = ret_obj.store_name if (ret_obj and ret_obj.store_name) else "Pay2Pay Retailer Outlet"
-    owner_name = ret_obj.owner_name if (ret_obj and ret_obj.owner_name) else "Venkatesh Rao"
-    short_name = owner_name.split()[0] if owner_name else "Venkatesh"
-    retailer_code = ret_obj.retailer_code if (ret_obj and ret_obj.retailer_code) else "RET-982415"
+    retailer_name = ret_obj.store_name if ret_obj.store_name else (ret_obj.owner_name if ret_obj.owner_name else "Pay2Pay Merchant")
+    owner_name = ret_obj.owner_name if ret_obj.owner_name else "Retailer Partner"
+    short_name = owner_name.split()[0] if owner_name else "Retailer"
+    retailer_code = ret_obj.retailer_code if ret_obj.retailer_code else "RET-PENDING"
     company_name = "Pay2Pay FinTech Solutions"
-    approval_status = ret_obj.status if ret_obj else "APPROVED"
-    plan_name = ret_obj.business_category if (ret_obj and ret_obj.business_category and ret_obj.business_category != "General Store") else None
+    approval_status = ret_obj.status if ret_obj.status else "PENDING"
+    plan_name = ret_obj.business_category if (ret_obj.business_category and ret_obj.business_category != "General Store") else None
 
-    target_retailer_id = ret_obj.public_id if ret_obj else retailer_id
+    target_retailer_id = ret_obj.public_id
 
     # Fetch KYC Status safely
     kyc_status = "VERIFIED"

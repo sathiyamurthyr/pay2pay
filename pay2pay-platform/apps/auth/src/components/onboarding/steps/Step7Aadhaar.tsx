@@ -5,13 +5,14 @@ import { ShieldCheck, ArrowRight, ArrowLeft, Loader2, AlertCircle, CheckCircle2,
 
 interface Step7Props {
   registrationId: string;
+  initialAadhaar?: string;
   onSuccess: (aadhaarData: any) => void;
   onBack?: () => void;
 }
 
-export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, onBack }) => {
+export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadhaar = "", onSuccess, onBack }) => {
   // Input & State Management
-  const [aadhaarNumber, setAadhaarNumber] = useState("225992664748");
+  const [aadhaarNumber, setAadhaarNumber] = useState(initialAadhaar || "");
   const [otpSent, setOtpSent] = useState(false);
   const [refId, setRefId] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -44,7 +45,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, onSuccess, 
   // Masked Aadhaar display: XXXXXXXX4748
   const maskedAadhaarDisplay = cleanAadhaar.length >= 4 
     ? `XXXXXXXX${cleanAadhaar.slice(-4)}` 
-    : "XXXXXXXX4748";
+    : "XXXXXXXXXXXX";
 
   // Helper to format profile photo source (handles base64 strings & HTTP URLs)
   const getPhotoSrc = (res: any) => {

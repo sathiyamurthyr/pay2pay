@@ -84,8 +84,13 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
 
   inFlightHeaderWalletPromise = (async () => {
     try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+      }
+      const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
       const res = await fetch(
-        "/api/v1/payout/dashboard/retailer/header-wallet?retailer_id=f89239b5-4dbb-41a9-9ba7-0f97580c9368&tenant_id=93538c98-0b19-493c-a247-4cdb02a46c68"
+        `/api/v1/payout/dashboard/retailer/header-wallet${queryParam}`
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -138,15 +143,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
     try {
       const data = await getCachedHeaderWalletData(force);
+      const rInfo = data.retailer_info || data;
+      if (rInfo.approval_status && typeof setApprovalStatus === "function") {
+        setApprovalStatus(rInfo.approval_status as any);
+      }
       setProfileDetails({
-        owner_name: data.owner_name || null,
-        retailer_name: data.retailer_name || null,
-        retailer_code: data.retailer_code || null,
-        approval_status: data.approval_status || null,
-        kyc_status: data.kyc_status || null,
-        location: data.location || null,
-        last_login_at: data.last_login_at || null,
-        plan_name: data.plan_name || null,
+        owner_name: rInfo.owner_name || null,
+        retailer_name: rInfo.retailer_name || rInfo.store_name || null,
+        retailer_code: rInfo.retailer_code || null,
+        approval_status: rInfo.approval_status || null,
+        kyc_status: rInfo.kyc_status || null,
+        location: rInfo.location || null,
+        last_login_at: data.quick_stats?.last_login_at || data.last_login_at || null,
+        plan_name: rInfo.plan_name || null,
         loading: false,
         error: false,
       });
@@ -154,7 +163,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn("Profile details fetch error:", err);
       setProfileDetails({ loading: false, error: true });
     }
-  }, []);
+  }, [setApprovalStatus]);
 
   useEffect(() => {
     fetchProfileDetails();
@@ -1104,7 +1113,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Retailer ID</Typography>
                   <Chip
-                    label={profileDetails.retailer_code || outlet.code || "RET-CHE-108"}
+                    label={profileDetails.retailer_code || outlet.code || "RET-0CFE2B"}
                     size="small"
                     sx={{
                       backgroundColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.15)" : "#EFF6FF",
@@ -1120,7 +1129,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Merchant Outlet</Typography>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {profileDetails.retailer_name || outlet.name || "Pay2Pay Retailer Outlet"}
+                    {profileDetails.retailer_name || outlet.name || "Pay2Pay Verified Merchant"}
                   </Typography>
                 </Box>
 

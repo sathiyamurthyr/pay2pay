@@ -118,16 +118,48 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       {/* Main Preview Area */}
       <div className="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center p-6">
         <div
-          className="transition-transform duration-200 ease-out max-w-full max-h-full flex items-center justify-center"
+          className="transition-transform duration-200 ease-out w-full h-full max-w-5xl flex items-center justify-center"
           style={{
             transform: `scale(${zoomLevel}) rotate(${rotation}deg)`
           }}
         >
-          <img
-            src={documentUrl}
-            alt={documentTitle}
-            className="max-h-[75vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
-          />
+          {documentType === "VIDEO" || documentUrl.endsWith(".mp4") || documentUrl.endsWith(".webm") ? (
+            <video
+              src={documentUrl}
+              controls
+              autoPlay
+              className="max-h-[75vh] max-w-full rounded-2xl shadow-2xl border border-slate-800 bg-black"
+            />
+          ) : documentUrl.toLowerCase().includes(".pdf") ? (
+            <iframe
+              src={documentUrl}
+              title={documentTitle}
+              className="w-full h-[75vh] rounded-2xl shadow-2xl border border-slate-800 bg-slate-900"
+            />
+          ) : (
+            <img
+              src={documentUrl}
+              alt={documentTitle}
+              className="max-h-[75vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const parent = target.parentElement;
+                if (parent && !parent.querySelector(".fallback-preview")) {
+                  const div = document.createElement("div");
+                  div.className = "fallback-preview flex flex-col items-center justify-center p-8 text-center bg-slate-900 rounded-2xl border border-slate-800 text-slate-400";
+                  div.innerHTML = `
+                    <p class="font-bold text-white text-sm mb-1">Direct Document Link</p>
+                    <p class="text-xs mb-3 font-mono text-blue-400 break-all max-w-md">${documentUrl}</p>
+                    <a href="${documentUrl}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl inline-flex items-center gap-1">
+                      Open Document in New Tab
+                    </a>
+                  `;
+                  parent.appendChild(div);
+                }
+              }}
+            />
+          )}
         </div>
 
         {/* OCR Text Side Drawer */}

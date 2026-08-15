@@ -95,11 +95,11 @@ class ProductionOtpAdapter(OtpProviderStrategy):
         return {
             "otp_reference": otp_reference,
             "verified": True,
-            "name": profile.get("full_name", "SATHIYA MURTHY"),
-            "dob": profile.get("dob", "1992-05-15"),
-            "gender": profile.get("gender", "M"),
-            "address": profile.get("full_address", "Chromepet, Chennai"),
-            "photo": profile.get("photo_base64", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"),
+            "name": profile.get("full_name", ""),
+            "dob": profile.get("dob", ""),
+            "gender": profile.get("gender", ""),
+            "address": profile.get("full_address", ""),
+            "photo": profile.get("photo_base64", ""),
             "verification_time": profile.get("verified_at"),
             "provider_name": "CashfreeOfflineAadhaar",
             "latency_ms": 210

@@ -52,10 +52,10 @@ class CashfreeVerificationService:
         payload = {
             "verification_id": verif_id,
             "pan": clean_pan,
-            "name": name or "SATHIYA MURTHY",
+            "name": name or "",
         }
 
-        resolved_name = name or "SATHIYA MURTHY"
+        resolved_name = name or ""
 
         try:
             res = httpx.post(url, json=payload, headers=headers, timeout=5.0)
@@ -72,7 +72,7 @@ class CashfreeVerificationService:
                     "pan": clean_pan,
                     "type": data.get("type") or pan_type,
                     "reference_id": data.get("reference_id") or 161,
-                    "name_provided": name or "SATHIYA MURTHY",
+                    "name_provided": name or "",
                     "registered_name": resolved_name,
                     "name_pan_card": resolved_name,
                     "valid": is_valid,
@@ -200,7 +200,7 @@ class CashfreeVerificationService:
                 # Fallback simulation for sandbox environments or unconfigured API keys
                 ref_id = f"CFV2-PD-{int(datetime.now().timestamp() * 1000)}"
                 utr = f"UTR{int(datetime.now().timestamp() * 1000)}88"
-                verified_name = (name or "SATHIYA MURTHY").upper()
+            verified_name = (name or "ACCOUNT HOLDER").upper()
                 return {
                     "status": "SUCCESS",
                     "account_status": "VALID",
@@ -226,7 +226,7 @@ class CashfreeVerificationService:
         except Exception as err:
             ref_id = f"CFV2-PD-{int(datetime.now().timestamp() * 1000)}"
             utr = f"UTR{int(datetime.now().timestamp() * 1000)}88"
-            verified_name = (name or "SATHIYA MURTHY").upper()
+            verified_name = (name or "ACCOUNT HOLDER").upper()
             return {
                 "status": "SUCCESS",
                 "account_status": "VALID",

@@ -88,7 +88,7 @@ export const Step9Shop: React.FC<Step9Props> = ({ registrationId, onSuccess }) =
                 setShopName(e.target.value);
                 setErrorMsg("");
               }}
-              placeholder="Sri Venkateswara Telecom"
+              placeholder="Enter shop / business name"
               required
               className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />

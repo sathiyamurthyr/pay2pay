@@ -16,12 +16,13 @@ import {
 
 interface Step6Props {
   registrationId: string;
+  initialPan?: string;
   onSuccess: (nextStepNum: number, isBusiness: boolean, panData: any) => void;
   onBack?: () => void;
 }
 
-export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess, onBack }) => {
-  const [panNumber, setPanNumber] = useState("DAQPS8535F");
+export const Step6Pan: React.FC<Step6Props> = ({ registrationId, initialPan = "", onSuccess, onBack }) => {
+  const [panNumber, setPanNumber] = useState(initialPan || "");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [panData, setPanData] = useState<any>(null);
@@ -78,9 +79,7 @@ export const Step6Pan: React.FC<Step6Props> = ({ registrationId, onSuccess, onBa
   };
 
   const rawHolderName = panData?.registered_name || panData?.name_pan_card || panData?.pan_holder_name;
-  const registeredName = (!rawHolderName || ["Pay2Pay Merchant", "Pay2Pay Verified Merchant", "JOHN DOE", "PAN HOLDER"].includes(rawHolderName))
-    ? "SATHIYA MURTHY"
-    : rawHolderName;
+  const registeredName = rawHolderName || "PAN HOLDER";
   const panCode = panData?.pan || panData?.pan_number || cleanPan;
   const panType = panData?.type || panData?.pan_type || (isIndividual ? "Individual" : "Company");
   const aadhaarDesc = panData?.aadhaar_seeding_status_desc || "Linked to Aadhaar";

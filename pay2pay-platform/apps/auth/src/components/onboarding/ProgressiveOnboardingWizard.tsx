@@ -278,11 +278,12 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
             {currentStep === 6 && (
               <Step6Pan
                 registrationId={registrationId}
+                initialPan={draftData?.pan_number || draftData?.pan?.pan_number || ""}
                 onBack={handleBack}
                 onSuccess={(nextStepNum, isBiz, panData) => {
                   setIsBusiness(isBiz);
-                  const hName = panData?.registered_name || panData?.pan_holder_name || panData?.retailer_name || "SATHIYA MURTHY";
-                  const pNum = panData?.pan_number || panData?.pan || "DAQPS8535F";
+                  const hName = panData?.registered_name || panData?.pan_holder_name || panData?.retailer_name || draftData?.name || "";
+                  const pNum = panData?.pan_number || panData?.pan || "";
                   handleStepComplete(nextStepNum, {
                     name: hName,
                     retailer_name: hName,
@@ -308,6 +309,7 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
             {currentStep === 7 && (
               <Step7Aadhaar
                 registrationId={registrationId}
+                initialAadhaar={draftData?.aadhaar_number || draftData?.aadhaar?.aadhaar_number || ""}
                 onBack={handleBack}
                 onSuccess={(aadhaarData) => handleStepComplete(8, { aadhaar: aadhaarData })}
               />
@@ -316,6 +318,10 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
             {currentStep === 8 && (
               <Step8Bank
                 registrationId={registrationId}
+                initialName={draftData?.name || draftData?.retailer_name || draftData?.pan?.registered_name || draftData?.pan?.holder_name || ""}
+                initialAccountNumber={draftData?.bank?.account_number || ""}
+                initialIfsc={draftData?.bank?.ifsc || ""}
+                onBack={handleBack}
                 onSuccess={(bankData) => handleStepComplete(9, { bank: bankData })}
               />
             )}
@@ -347,6 +353,8 @@ export const ProgressiveOnboardingWizard: React.FC = () => {
             {currentStep === 12 && (
               <Step12Video
                 registrationId={registrationId}
+                merchantName={draftData?.name || draftData?.retailer_name || draftData?.pan?.registered_name || draftData?.pan?.holder_name || ""}
+                shopName={draftData?.shop?.shop_name || draftData?.shop_name || ""}
                 onSuccess={() => handleStepComplete(13)}
               />
             )}

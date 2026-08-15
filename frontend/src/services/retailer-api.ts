@@ -638,71 +638,10 @@ export const retailerApi = {
       return res.data;
     } catch (err: any) {
       console.error("Aadhaar OTP Verification API Error:", err);
-      const detailMsg = err?.response?.data?.detail || err?.response?.data?.message;
-      if (detailMsg) {
-        return {
-          status: "FAILED",
-          error: detailMsg
-        };
-      }
-      const clean = (payload.aadhaar_number || "").replace(/\D/g, "") || "22599264748";
-      const masked = payload.masked_aadhaar || `XXXX-XXXX-${clean.slice(-4) || "4748"}`;
-      
-      if (payload.otp_code === "000000" || payload.otp_code === "999999") {
-        return {
-          status: "FAILED",
-          error: "Aadhaar OTP verification failed: Invalid OTP code. Verification fee ₹10.00 (+ ₹1.80 GST) has been fully refunded to your wallet."
-        };
-      }
-
+      const detailMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message;
       return {
-        status: "SUCCESS",
-        data: {
-          status: "SUCCESS",
-          verification_status: "VERIFIED",
-          customer_id: payload.customer_id,
-          ref_id: payload.ref_number || `CF-AADHAAR-${Date.now()}`,
-          masked_aadhaar: masked,
-          full_name: "SATHIYA MURTHY",
-          first_name: "SATHIYA",
-          middle_name: "",
-          last_name: "MURTHY",
-          dob: "1992-05-15",
-          gender: "M",
-          care_of: "S/O RAMASAMY",
-          house: "No. 42/B",
-          street: "GST Main Road",
-          landmark: "Near Bus Stand",
-          city: "Chennai",
-          district: "Chengalpattu",
-          state: "Tamil Nadu",
-          country: "INDIA",
-          pincode: "600044",
-          full_address: "No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chennai, Chengalpattu, Tamil Nadu - 600044",
-          photo_base64: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          photo_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          photo_avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          vendor_name: "CASHFREE_OFFLINE_AADHAAR",
-          vendor_reference: payload.ref_number || `CF-AADHAAR-${Date.now()}`,
-          verification_date: new Date().toISOString(),
-          pii_encrypted: true,
-          aadhaar_hash: `sha256-aadhaar-${clean}`,
-          audit_trail: [
-            { event: "Aadhaar Verified", timestamp: new Date().toISOString() },
-            { event: "Customer Auto Populated", timestamp: new Date().toISOString() },
-            { event: "Photo Imported", timestamp: new Date().toISOString() },
-            { event: "Profile Updated", timestamp: new Date().toISOString() }
-          ],
-          billing: {
-            base_fee: 10.00,
-            cgst: 0.90,
-            sgst: 0.90,
-            total_debited: 11.80,
-            hsn_sac: "998313",
-            debit_txn_id: `TXN-EKYC-${Date.now()}`
-          },
-          message: "Aadhaar eKYC verified successfully via Cashfree API"
-        }
+        status: "FAILED",
+        error: typeof detailMsg === "string" ? detailMsg : "Aadhaar OTP verification failed. Please verify the code and try again."
       };
     }
   },
@@ -718,37 +657,21 @@ export const retailerApi = {
     try {
       const cleanPayload = {
         ref_id: payload.ref_id || `CF-AADHAAR-${Date.now()}`,
-        mobile_number: payload.mobile_number || "9176669426",
-        mpin: payload.mpin || "1234",
-        first_name: payload.first_name || "Customer",
+        mobile_number: payload.mobile_number || "",
+        mpin: payload.mpin || "",
+        first_name: payload.first_name || "",
         last_name: payload.last_name || "",
-        retailer_id: payload.retailer_id || "RET-8849"
+        retailer_id: payload.retailer_id || ""
       };
       const res = await apiClient.post("/payout-workflow/customer/finalize-onboarding", cleanPayload);
       return res.data;
     } catch (err: any) {
       console.error("finalizeCustomerOnboarding API Error:", err);
-      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message;
-      if (rawDetail) {
-        const errorText = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
-        return { status: "FAILED", error: errorText };
-      }
-      const cust_id = `CUST-PUB-${Date.now()}`;
+      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message || err?.message;
+      const errorText = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
       return {
-        status: "SUCCESS",
-        data: {
-          status: "SUCCESS",
-          customer_id: cust_id,
-          public_id: cust_id,
-          customer_number: `CUST-${Date.now().toString().slice(-6)}`,
-          mobile_number: payload.mobile_number || "9176669426",
-          first_name: payload.first_name || "SATHIYA",
-          last_name: payload.last_name || "MURTHY",
-          full_name: `${payload.first_name || "SATHIYA"} ${payload.last_name || "MURTHY"}`,
-          kyc_status: "VERIFIED",
-          customer_status: "ACTIVE",
-          message: "Customer created and activated successfully via Cashfree Aadhaar eKYC!"
-        }
+        status: "FAILED",
+        error: errorText || "Failed to finalize customer onboarding. Please try again."
       };
     }
   },

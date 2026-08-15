@@ -242,10 +242,10 @@ class AadhaarEkycWorkflowService:
             customer_id=cust_uuid,
             masked_aadhaar=masked_aadhaar,
             aadhaar_ref_token=aadhaar_hash,  # Deduplication hash
-            full_name=ekyc_profile.get("full_name", "SATHIYA MURTHY"),
-            dob=ekyc_profile.get("dob", "1992-05-15"),
-            gender=ekyc_profile.get("gender", "M"),
-            care_of=ekyc_profile.get("care_of", "S/O RAMASAMY"),
+            full_name=ekyc_profile.get("full_name", ""),
+            dob=ekyc_profile.get("dob", ""),
+            gender=ekyc_profile.get("gender", ""),
+            care_of=ekyc_profile.get("care_of", ""),
             encrypted_pii=encrypted_raw_aadhaar,
             photo_base64=ekyc_profile.get("photo_base64", ""),
             verification_status="VERIFIED",
@@ -389,13 +389,13 @@ class AadhaarEkycWorkflowService:
             _pending_fee_sessions[ref_id]["status"] = "VERIFIED_FEE_FINALIZED"
 
         # 4. Construct Full Verified eKYC Payload & Digital Aadhaar Card Data
-        full_name_val = ekyc_profile.get("full_name") or "SATHIYA MURTHY"
+        full_name_val = ekyc_profile.get("full_name") or ""
         n_parts = full_name_val.split()
         first_name_val = ekyc_profile.get("first_name") or (n_parts[0] if len(n_parts) > 0 else "")
         middle_name_val = ekyc_profile.get("middle_name") or (n_parts[1] if len(n_parts) > 2 else "")
         last_name_val = ekyc_profile.get("last_name") or (n_parts[-1] if len(n_parts) > 1 else "")
 
-        photo_url_val = ekyc_profile.get("photo_url") or ekyc_profile.get("photo_base64") or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
+        photo_url_val = ekyc_profile.get("photo_url") or ekyc_profile.get("photo_base64") or ""
 
         logger.info(f"AUDIT LOG | Aadhaar Verified | Customer Auto Populated | Photo Imported | Profile Updated for Ref ID {ref_id}")
 
@@ -409,18 +409,18 @@ class AadhaarEkycWorkflowService:
             "first_name": first_name_val,
             "middle_name": middle_name_val,
             "last_name": last_name_val,
-            "dob": ekyc_profile.get("dob", "1992-05-15"),
-            "gender": ekyc_profile.get("gender", "M"),
-            "care_of": ekyc_profile.get("care_of", "S/O RAMASAMY"),
-            "house": ekyc_profile.get("house", "No. 42/B"),
-            "street": ekyc_profile.get("street", "GST Main Road"),
-            "landmark": ekyc_profile.get("landmark", "Near Bus Stand"),
-            "city": ekyc_profile.get("city", "Chennai"),
-            "district": ekyc_profile.get("district", "Chengalpattu"),
-            "state": ekyc_profile.get("state", "Tamil Nadu"),
+            "dob": ekyc_profile.get("dob", ""),
+            "gender": ekyc_profile.get("gender", ""),
+            "care_of": ekyc_profile.get("care_of", ""),
+            "house": ekyc_profile.get("house", ""),
+            "street": ekyc_profile.get("street", ""),
+            "landmark": ekyc_profile.get("landmark", ""),
+            "city": ekyc_profile.get("city", ""),
+            "district": ekyc_profile.get("district", ""),
+            "state": ekyc_profile.get("state", ""),
             "country": ekyc_profile.get("country", "INDIA"),
-            "pincode": str(ekyc_profile.get("pincode", "600044")),
-            "full_address": ekyc_profile.get("full_address"),
+            "pincode": str(ekyc_profile.get("pincode", "")),
+            "full_address": ekyc_profile.get("full_address", ""),
             "photo_base64": photo_url_val,
             "photo_url": photo_url_val,
             "photo_avatar": photo_url_val,
@@ -518,14 +518,15 @@ class AadhaarEkycWorkflowService:
             first_name_str = ekyc_profile.get("first_name") or first_name or "Customer"
             last_name_str = ekyc_profile.get("last_name") or last_name or ""
             gender_str = ekyc_profile.get("gender") or "M"
-            dob_str = ekyc_profile.get("dob") or "1992-05-15"
-            raw_photo = ekyc_profile.get("photo_url") or ekyc_profile.get("photo_base64") or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
-            photo_data = BackblazeStorageService.save_base64_photo(raw_photo, entity_type="RET", filename=f"customer_photo_{c_mobile}.jpg")
+            dob_str = ekyc_profile.get("dob") or "2000-01-01"
+            raw_photo = ekyc_profile.get("photo_url") or ekyc_profile.get("photo_base64") or ""
+            photo_data = BackblazeStorageService.save_base64_photo(raw_photo, entity_type="RET", filename=f"customer_photo_{c_mobile}.jpg") if raw_photo else ""
 
             try:
                 dob_val = datetime.strptime(dob_str, "%Y-%m-%d").date()
             except Exception:
-                dob_val = date(1992, 5, 15)
+                from datetime import date
+                dob_val = date(2000, 1, 1)
 
             day_k = int(now_utc.strftime("%Y%m%d"))
             week_k = int(now_utc.strftime("%Y%W"))
@@ -580,13 +581,13 @@ class AadhaarEkycWorkflowService:
             await db.flush()
 
             # 2. Create CustomerAddressModel (Aadhaar Verified Address)
-            house_s = ekyc_profile.get("house", "No. 42/B")
-            street_s = ekyc_profile.get("street", "GST Main Road")
-            landmark_s = ekyc_profile.get("landmark", "Near Bus Stand")
-            city_s = ekyc_profile.get("city", "Chennai")
-            dist_s = ekyc_profile.get("district", "Chengalpattu")
-            state_s = ekyc_profile.get("state", "Tamil Nadu")
-            pincode_s = str(ekyc_profile.get("pincode", "600044"))
+            house_s = ekyc_profile.get("house", "")
+            street_s = ekyc_profile.get("street", "")
+            landmark_s = ekyc_profile.get("landmark", "")
+            city_s = ekyc_profile.get("city", "")
+            dist_s = ekyc_profile.get("district", "")
+            state_s = ekyc_profile.get("state", "")
+            pincode_s = str(ekyc_profile.get("pincode", ""))
 
             line1 = f"{house_s}, {street_s}".strip(", ")
             line2 = f"{landmark_s}".strip()

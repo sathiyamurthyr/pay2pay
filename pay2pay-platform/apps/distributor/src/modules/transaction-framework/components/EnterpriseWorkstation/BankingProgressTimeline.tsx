@@ -709,7 +709,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 </Paper>
                 <Paper elevation={0} sx={{ p: 1.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", textAlign: "left" }}>
                   <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.5)", fontWeight: 700 }}>BENEFICIARY</Typography>
-                  <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>{beneficiary?.name || "Venkatesh Rao"}</Typography>
+                  <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>{beneficiary?.name || "Beneficiary"}</Typography>
                   <Typography sx={{ fontSize: "11px", color: "#60A5FA" }}>{beneficiary?.bankName || "Axis Bank"}</Typography>
                 </Paper>
               </Box>
@@ -860,7 +860,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontSize: "9.5px", color: "#4ADE80", fontWeight: 800, textTransform: "uppercase" }}>BENEFICIARY</Typography>
                       <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {beneficiary?.name || "Venkatesh Rao"}
+                        {beneficiary?.name || "Beneficiary"}
                       </Typography>
                     </Box>
                   </Stack>

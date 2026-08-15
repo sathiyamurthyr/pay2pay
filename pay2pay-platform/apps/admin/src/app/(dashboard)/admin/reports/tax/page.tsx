@@ -59,8 +59,8 @@ export default function TaxReportPage() {
       if (financialYear) params.append("financial_year", financialYear);
 
       const [sumRes, listRes] = await Promise.all([
-        axios.get(`http://127.0.0.1:8000/api/v1/admin/reports/tax/summary?${params.toString()}`),
-        axios.get(`http://127.0.0.1:8000/api/v1/admin/reports/tax?${params.toString()}`)
+        axios.get(`/api/v1/admin/reports/tax/summary?${params.toString()}`),
+        axios.get(`/api/v1/admin/reports/tax?${params.toString()}`)
       ]);
 
       if (sumRes.data?.data) {
@@ -89,7 +89,7 @@ export default function TaxReportPage() {
       if (financialYear) params.append("financial_year", financialYear);
 
       const response = await axios.get(
-        `http://127.0.0.1:8000/api/v1/admin/reports/tax/export?${params.toString()}`,
+        `/api/v1/admin/reports/tax/export?${params.toString()}`,
         { responseType: "blob" }
       );
 

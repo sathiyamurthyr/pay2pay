@@ -623,8 +623,8 @@ export function CustomerDetailsDrawer({
                           {cleanAddr}
                         </div>
                       ) : (
-                        <div className="text-slate-700 dark:text-slate-300">
-                          S/O RAMASAMY, No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chengalpattu, Tamil Nadu - 600044
+                        <div className="text-slate-400 italic">
+                          No address on record
                         </div>
                       );
                     })()}

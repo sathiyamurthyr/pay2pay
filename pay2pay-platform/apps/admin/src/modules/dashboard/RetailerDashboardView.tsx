@@ -345,10 +345,10 @@ export const RetailerDashboardView: React.FC = () => {
         <Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
             <Typography variant="h2" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "28px" }}>
-              {headerWallet?.greeting || "Good Morning, Venkatesh Rao"}
+              {headerWallet?.greeting || (headerWallet?.owner_name ? `Good Day, ${headerWallet.owner_name}` : "Welcome, Retailer Partner")}
             </Typography>
             <Chip
-              label={headerWallet?.retailer_code || "RET-982415"}
+              label={headerWallet?.retailer_code || "RET-PARTNER"}
               size="medium"
               sx={{ backgroundColor: "rgba(37, 99, 235, 0.25)", color: "#60A5FA", fontWeight: 800, fontSize: "15px", py: 0.5, border: "1px solid rgba(96, 165, 250, 0.4)" }}
             />

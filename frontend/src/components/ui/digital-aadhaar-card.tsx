@@ -41,14 +41,14 @@ export interface DigitalAadhaarCardProps {
 export const DigitalAadhaarCard: React.FC<DigitalAadhaarCardProps> = ({ aadhaarData, className = "" }) => {
   if (!aadhaarData) return null;
 
-  const fullName = aadhaarData.full_name || aadhaarData.fullName || aadhaarData.name || "SATHIYA MURTHY";
-  const dob = aadhaarData.dob || "1992-05-15";
-  const gender = (aadhaarData.gender || "M") === "M" || (aadhaarData.gender || "").toLowerCase() === "male" ? "Male / पुरुष" : "Female / महिला";
-  const careOf = aadhaarData.care_of || aadhaarData.careOf || "S/O RAMASAMY";
-  const maskedAadhaar = aadhaarData.masked_aadhaar || aadhaarData.maskedAadhaar || "XXXX XXXX 4748";
-  const fullAddress = aadhaarData.full_address || aadhaarData.fullAddress || "No. 42/B, GST Main Road, Chromepet, Chennai, Tamil Nadu - 600044";
-  const photo = aadhaarData.photo_base64 || aadhaarData.photoBase64 || aadhaarData.photo_url || aadhaarData.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200";
-  const aadhaarHash = aadhaarData.aadhaar_hash || aadhaarData.aadhaarHash || "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+  const fullName = aadhaarData.full_name || aadhaarData.fullName || aadhaarData.name || "—";
+  const dob = aadhaarData.dob || "—";
+  const gender = (aadhaarData.gender || "").toUpperCase().startsWith("M") ? "Male / पुरुष" : (aadhaarData.gender ? "Female / महिला" : "—");
+  const careOf = aadhaarData.care_of || aadhaarData.careOf || "—";
+  const maskedAadhaar = aadhaarData.masked_aadhaar || aadhaarData.maskedAadhaar || "XXXXXXXXXXXX";
+  const fullAddress = aadhaarData.full_address || aadhaarData.fullAddress || "—";
+  const photo = aadhaarData.photo_base64 || aadhaarData.photoBase64 || aadhaarData.photo_url || aadhaarData.photoUrl || "";
+  const aadhaarHash = aadhaarData.aadhaar_hash || aadhaarData.aadhaarHash || "";
   const totalBilled = aadhaarData.billing?.total_debited || 11.80;
 
   return (

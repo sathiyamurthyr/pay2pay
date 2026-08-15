@@ -8,13 +8,24 @@ import {
 
 interface Step8Props {
   registrationId: string;
+  initialName?: string;
+  initialAccountNumber?: string;
+  initialIfsc?: string;
   onSuccess: (bankData: any) => void;
+  onBack?: () => void;
 }
 
-export const Step8Bank: React.FC<Step8Props> = ({ registrationId, onSuccess }) => {
-  const [accountNumber, setAccountNumber] = useState("");
-  const [ifsc, setIfsc] = useState("");
-  const [name, setName] = useState("");
+export const Step8Bank: React.FC<Step8Props> = ({
+  registrationId,
+  initialName = "",
+  initialAccountNumber = "",
+  initialIfsc = "",
+  onSuccess,
+  onBack
+}) => {
+  const [accountNumber, setAccountNumber] = useState(initialAccountNumber || "");
+  const [ifsc, setIfsc] = useState(initialIfsc || "");
+  const [name, setName] = useState(initialName || "");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [bankResult, setBankResult] = useState<any>(null);
@@ -64,11 +75,11 @@ export const Step8Bank: React.FC<Step8Props> = ({ registrationId, onSuccess }) =
 
   // ── Screen 2: Verified Success Card ──────────────────────────────────
   if (bankResult) {
-    const masked = bankResult.account_number_masked || `XXXX-XXXX-${accountNumber.slice(-4)}`;
-    const bankName = bankResult.bank_name || "HDFC BANK LIMITED";
+    const masked = bankResult.account_number_masked || (accountNumber ? `XXXX-XXXX-${accountNumber.slice(-4)}` : "XXXX-XXXX");
+    const bankName = bankResult.bank_name || "Verified Bank Account";
     const branch = bankResult.branch || "—";
-    const beneName = bankResult.name_at_bank || name.toUpperCase();
-    const ifscCode = bankResult.ifsc || ifsc.toUpperCase();
+    const beneName = bankResult.name_at_bank || (name ? name.toUpperCase() : "VERIFIED ACCOUNT HOLDER");
+    const ifscCode = bankResult.ifsc || (ifsc ? ifsc.toUpperCase() : "—");
     const accType = bankResult.account_type || "SAVINGS";
 
     return (
@@ -170,7 +181,7 @@ export const Step8Bank: React.FC<Step8Props> = ({ registrationId, onSuccess }) =
         {/* Continue Button */}
         <button
           onClick={() => onSuccess(bankResult)}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <span>Continue to Shop Details</span>
           <ChevronRight className="w-4 h-4" />
@@ -207,7 +218,7 @@ export const Step8Bank: React.FC<Step8Props> = ({ registrationId, onSuccess }) =
             type="text"
             value={accountNumber}
             onChange={(e) => { setAccountNumber(e.target.value.replace(/\D/g, "")); setErrorMsg(""); }}
-            placeholder="50100012345678"
+            placeholder="Enter 9-18 digit account number"
             maxLength={18}
             required
             className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
@@ -222,7 +233,7 @@ export const Step8Bank: React.FC<Step8Props> = ({ registrationId, onSuccess }) =
             type="text"
             value={ifsc}
             onChange={(e) => { setIfsc(e.target.value.toUpperCase().slice(0, 11)); setErrorMsg(""); }}
-            placeholder="HDFC0001234"
+            placeholder="e.g. SBIN0001234"
             maxLength={11}
             required
             className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black uppercase text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
@@ -237,7 +248,7 @@ export const Step8Bank: React.FC<Step8Props> = ({ registrationId, onSuccess }) =
             type="text"
             value={name}
             onChange={(e) => { setName(e.target.value.toUpperCase()); setErrorMsg(""); }}
-            placeholder="SATHIYA MURTHY"
+            placeholder="Enter account holder name as per bank records"
             required
             className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold uppercase text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
           />

@@ -143,8 +143,8 @@ def generate_payout_pdf(
     story.append(Spacer(1, 10))
 
     # 2. Metadata Grid (2-column key-value)
-    ret_name = retailer_info.get("name") or "Pay2Pay Retailer Outlet"
-    ret_code = retailer_info.get("code") or "RET-CHE-108"
+    ret_name = retailer_info.get("name") or retailer_info.get("retailer_name") or "Pay2Pay Verified Merchant"
+    ret_code = retailer_info.get("code") or retailer_info.get("retailer_code") or "RET-0CFE2B"
     gen_at = datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M:%S UTC")
     from_d = filter_info.get("from_date") or "All Time"
     to_d = filter_info.get("to_date") or "Today"
@@ -458,8 +458,8 @@ def generate_single_transaction_receipt_pdf(
     story.append(Spacer(1, 10))
 
     # 2. Metadata Grid (Retailer & Generation)
-    ret_name = retailer_info.get("name") or "Pay2Pay Retailer Outlet"
-    ret_code = retailer_info.get("code") or "RET-CHE-108"
+    ret_name = retailer_info.get("name") or retailer_info.get("retailer_name") or "Pay2Pay Verified Merchant"
+    ret_code = retailer_info.get("code") or retailer_info.get("retailer_code") or "RET-0CFE2B"
     gen_at = datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
 
     meta_table_data = [

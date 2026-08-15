@@ -528,10 +528,10 @@ class ProgressiveOnboardingService:
         raw_name = cf_res.get("registered_name")
         if raw_name and raw_name not in ["Pay2Pay Merchant", "Pay2Pay Verified Merchant", "JOHN DOE"]:
             registered_name = raw_name
-        elif clean_pan in ["DAQPS8535F", "ABCPE1234F"]:
-            registered_name = "SATHIYA MURTHY"
+        elif draft and draft.draft_data and draft.draft_data.get("name"):
+            registered_name = draft.draft_data.get("name")
         else:
-            registered_name = draft.draft_data.get("name") or "SATHIYA MURTHY"
+            registered_name = raw_name or "PAN HOLDER"
 
         ref_id = cf_res.get("reference_id") or f"161"
         corr_id = f"CORR-{uuid.uuid4().hex[:12].upper()}"
@@ -743,7 +743,7 @@ class ProgressiveOnboardingService:
                 current_step=7,
                 completed_steps=[1, 2, 3, 4, 5, 6],
                 status="DRAFT",
-                draft_data={"name": "SATHIYA MURTHY", "retailer_name": "SATHIYA MURTHY", "pan_number": "DAQPS8535F"}
+                draft_data={"name": "Retailer Partner", "retailer_name": "Retailer Partner", "pan_number": ""}
             )
             db.add(draft)
 
@@ -751,32 +751,30 @@ class ProgressiveOnboardingService:
         try:
             ekyc_profile = await cashfree_aadhaar_adapter.verify_aadhaar_otp(ref_id, otp_code)
         except Exception as err:
-            ekyc_profile = {
-                "ref_id": ref_id,
-                "status": "VERIFIED",
-                "full_name": draft.draft_data.get("name") or draft.draft_data.get("retailer_name") or "SATHIYA MURTHY",
-                "dob": "1992-05-15",
-                "gender": "M",
-                "care_of": "S/O RAMASAMY",
-                "masked_aadhaar": draft.draft_data.get("aadhaar_masked", "XXXX-XXXX-4748"),
-                "full_address": "No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chennai, Chengalpattu, Tamil Nadu - 600044"
-            }
+            logger.error(f"Cashfree Aadhaar verification error: {err}")
+            raise HTTPException(status_code=400, detail=str(err) or "Aadhaar OTP verification failed. Please try again.")
 
-        retailer_name = ekyc_profile.get("full_name") or draft.draft_data.get("name") or draft.draft_data.get("retailer_name") or "SATHIYA MURTHY R"
-        aadhaar_masked = ekyc_profile.get("masked_aadhaar") or ekyc_profile.get("aadhaar_masked") or draft.draft_data.get("aadhaar_masked", "XXXXXXXX4748")
-        clean_aadhaar = str(draft.draft_data.get("aadhaar_number", "225992664748"))
-        aadhaar_last4 = clean_aadhaar[-4:] if len(clean_aadhaar) >= 4 else "4748"
+        if not ekyc_profile or ekyc_profile.get("status") not in ["SUCCESS", "VALID", "VERIFIED"]:
+            if not ekyc_profile.get("full_name") and not ekyc_profile.get("masked_aadhaar"):
+                raise HTTPException(status_code=400, detail=ekyc_profile.get("message") or "Aadhaar verification failed via UIDAI.")
 
-        house_val = ekyc_profile.get("house") or "15"
-        street_val = ekyc_profile.get("street") or "GANDHI STREET"
-        locality_val = ekyc_profile.get("loc") or ekyc_profile.get("locality") or "VELACHERY"
-        village_val = ekyc_profile.get("vtc") or ekyc_profile.get("village") or "CHENNAI"
-        city_val = ekyc_profile.get("city") or ekyc_profile.get("vtc") or "CHENNAI"
-        district_val = ekyc_profile.get("district") or "CHENNAI"
-        state_val = ekyc_profile.get("state") or "TAMIL NADU"
+        retailer_name = ekyc_profile.get("full_name") or draft.draft_data.get("name") or draft.draft_data.get("retailer_name") or ""
+        aadhaar_masked = ekyc_profile.get("masked_aadhaar") or ekyc_profile.get("aadhaar_masked") or draft.draft_data.get("aadhaar_masked") or ""
+        clean_aadhaar = str(draft.draft_data.get("aadhaar_number", "") or "")
+        aadhaar_last4 = clean_aadhaar[-4:] if len(clean_aadhaar) >= 4 else (aadhaar_masked[-4:] if len(aadhaar_masked) >= 4 else "")
+
+        house_val = ekyc_profile.get("house") or ""
+        street_val = ekyc_profile.get("street") or ""
+        locality_val = ekyc_profile.get("loc") or ekyc_profile.get("locality") or ""
+        village_val = ekyc_profile.get("vtc") or ekyc_profile.get("village") or ""
+        city_val = ekyc_profile.get("city") or ekyc_profile.get("vtc") or village_val or ""
+        district_val = ekyc_profile.get("district") or ""
+        state_val = ekyc_profile.get("state") or ""
         country_val = ekyc_profile.get("country") or "INDIA"
-        pincode_val = ekyc_profile.get("pincode") or "600042"
-        care_of_val = ekyc_profile.get("care_of") or "S/O R MURTHY"
+        pincode_val = str(ekyc_profile.get("pincode") or "")
+        care_of_val = ekyc_profile.get("care_of") or ""
+        dob_val = ekyc_profile.get("dob") or ""
+        gender_val = ekyc_profile.get("gender") or ""
         photo_url_val = (
             ekyc_profile.get("photo_url")
             or ekyc_profile.get("photo_base64")
@@ -803,8 +801,8 @@ class ProgressiveOnboardingService:
             registration_id=registration_id,
             aadhaar_masked=aadhaar_masked,
             full_name=retailer_name,
-            dob=ekyc_profile.get("dob", "1994-05-10"),
-            gender=ekyc_profile.get("gender", "MALE"),
+            dob=dob_val,
+            gender=gender_val,
             address_json=address_dict
         )
         db.add(aadhaar_model)
@@ -830,6 +828,10 @@ class ProgressiveOnboardingService:
         draft_data["reference_id"] = ref_id
         draft_data["raw_response_json"] = ekyc_profile.get("raw_response", {})
 
+        full_addr_computed = ekyc_profile.get("full_address") or ", ".join([p for p in [house_val, street_val, locality_val, city_val, state_val] if p])
+        if pincode_val and full_addr_computed:
+            full_addr_computed = f"{full_addr_computed} - {pincode_val}"
+
         draft_data["aadhaar"] = {
             "aadhaar_masked": aadhaar_masked,
             "aadhaar_last4": aadhaar_last4,
@@ -848,7 +850,7 @@ class ProgressiveOnboardingService:
             "country": country_val,
             "pincode": pincode_val,
             "address": address_dict,
-            "full_address": ekyc_profile.get("full_address") or f"{house_val}, {street_val}, {locality_val}, {city_val}, {state_val} - {pincode_val}",
+            "full_address": full_addr_computed,
             "verification_status": "VERIFIED",
             "verified_at": draft_data["verified_at"]
         }
@@ -883,7 +885,7 @@ class ProgressiveOnboardingService:
             "country": country_val,
             "pincode": pincode_val,
             "address": address_dict,
-            "full_address": draft_data["aadhaar"]["full_address"],
+            "full_address": full_addr_computed,
             "verification_status": "VERIFIED",
             "verified_at": draft_data["verified_at"],
             "next_step": 8,
@@ -905,14 +907,57 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
+        # Dynamically resolve bank name and branch from IFSC / Cashfree response
+        ifsc_prefix = clean_ifsc[:4] if len(clean_ifsc) >= 4 else "BANK"
+        known_banks = {
+            "SBIN": ("STATE BANK OF INDIA", "MAIN BRANCH"),
+            "HDFC": ("HDFC BANK LIMITED", "MAIN BRANCH"),
+            "ICIC": ("ICICI BANK LIMITED", "MAIN BRANCH"),
+            "UTIB": ("AXIS BANK LIMITED", "MAIN BRANCH"),
+            "KKBK": ("KOTAK MAHINDRA BANK", "MAIN BRANCH"),
+            "PUNB": ("PUNJAB NATIONAL BANK", "MAIN BRANCH"),
+            "BARB": ("BANK OF BARODA", "MAIN BRANCH"),
+            "CNRB": ("CANARA BANK", "MAIN BRANCH"),
+            "UBIN": ("UNION BANK OF INDIA", "MAIN BRANCH"),
+            "IOBA": ("INDIAN OVERSEAS BANK", "MAIN BRANCH"),
+            "IDIB": ("INDIAN BANK", "MAIN BRANCH"),
+            "YESB": ("YES BANK LIMITED", "MAIN BRANCH"),
+            "INDB": ("INDUSIND BANK LIMITED", "MAIN BRANCH"),
+            "FDRL": ("FEDERAL BANK", "MAIN BRANCH"),
+            "BKID": ("BANK OF INDIA", "MAIN BRANCH"),
+            "CBIN": ("CENTRAL BANK OF INDIA", "MAIN BRANCH"),
+            "MAHB": ("BANK OF MAHARASHTRA", "MAIN BRANCH"),
+            "PSIB": ("PUNJAB & SIND BANK", "MAIN BRANCH"),
+            "UCBA": ("UCO BANK", "MAIN BRANCH"),
+            "IDFB": ("IDFC FIRST BANK LIMITED", "MAIN BRANCH"),
+            "RATN": ("RBL BANK LIMITED", "MAIN BRANCH"),
+            "AUBL": ("AU SMALL FINANCE BANK", "MAIN BRANCH"),
+            "ESFB": ("EQUITAS SMALL FINANCE BANK", "MAIN BRANCH"),
+            "UJVN": ("UJJIVAN SMALL FINANCE BANK", "MAIN BRANCH"),
+            "AIRP": ("AIRTEL PAYMENTS BANK", "MAIN BRANCH"),
+            "PYTM": ("PAYTM PAYMENTS BANK", "MAIN BRANCH"),
+            "IPOS": ("INDIA POST PAYMENTS BANK", "MAIN BRANCH"),
+            "FINO": ("FINO PAYMENTS BANK", "MAIN BRANCH"),
+            "KVBL": ("KARUR VYSYA BANK", "MAIN BRANCH"),
+            "TMBL": ("TAMILNAD MERCANTILE BANK", "MAIN BRANCH"),
+            "SIBL": ("SOUTH INDIAN BANK", "MAIN BRANCH"),
+            "CSBK": ("CSB BANK LIMITED", "MAIN BRANCH"),
+            "DCBL": ("DCB BANK LIMITED", "MAIN BRANCH"),
+            "KARB": ("KARNATAKA BANK", "MAIN BRANCH"),
+        }
+        fallback_bank, fallback_branch = known_banks.get(ifsc_prefix, (f"{ifsc_prefix} BANK", f"{clean_ifsc} BRANCH"))
+        resolved_bank_name = cf_res.get("bank_name") or cf_res.get("raw_response", {}).get("bank_name") or fallback_bank
+        resolved_branch = cf_res.get("branch") or cf_res.get("raw_response", {}).get("branch") or fallback_branch
+        resolved_bene_name = cf_res.get("name_at_bank") or (name.upper() if name else "VERIFIED ACCOUNT HOLDER")
+
         bank_model = RegistrationBankModel(
             tenant_id=DEFAULT_TENANT_ID,
             registration_id=registration_id,
             account_number_masked=f"XXXX-XXXX-{clean_acc[-4:]}",
             ifsc=clean_ifsc,
-            bank_name="HDFC BANK LIMITED",
-            branch="NUNGAMBAKKAM CHENNAI",
-            name_at_bank=cf_res.get("name_at_bank", name.upper()),
+            bank_name=resolved_bank_name,
+            branch=resolved_branch,
+            name_at_bank=resolved_bene_name,
             account_type=account_type,
             verification_status="VERIFIED"
         )
@@ -1293,9 +1338,9 @@ class ProgressiveOnboardingService:
         clean_id = re.sub(r"\D", "", str(identifier)) if identifier.isdigit() else identifier
 
         # Default fallback values for application details
-        application_id = "APP-REG-A7110CFE2B"
-        retailer_name = "Sathiya Murthy"
-        mobile_number = "+91 9176669426"
+        application_id = "APP-REG-PENDING"
+        retailer_name = "Retailer Partner"
+        mobile_number = ""
         verification_status = "UNDER_REVIEW"
         submission_date = "August 09, 2026"
         admin_remarks = "No remarks available."
@@ -1323,7 +1368,7 @@ class ProgressiveOnboardingService:
             if draft:
                 draft_d = draft.draft_data or {}
                 application_id = draft_d.get("application_ref", f"APP-{draft.registration_id}")
-                retailer_name = draft_d.get("pan", {}).get("holder_name") or draft_d.get("aadhaar", {}).get("full_name") or "Sathiya Murthy"
+                retailer_name = draft_d.get("pan", {}).get("holder_name") or draft_d.get("aadhaar", {}).get("full_name") or "Retailer Partner"
                 mobile_number = f"+91 {draft.mobile_number}"
                 if draft.created_date:
                     submission_date = draft.created_date.strftime("%B %d, %Y %I:%M %p IST")

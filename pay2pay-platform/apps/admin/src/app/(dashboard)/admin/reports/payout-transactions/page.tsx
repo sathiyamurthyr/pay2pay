@@ -89,8 +89,8 @@ export default function PayoutTransactionsReportPage() {
       if (toDate) params.append("to_date", toDate);
 
       const [sumRes, listRes] = await Promise.all([
-        axios.get(`http://127.0.0.1:8000/api/v1/admin/reports/payout-transactions/summary?${params.toString()}`),
-        axios.get(`http://127.0.0.1:8000/api/v1/admin/reports/payout-transactions?${params.toString()}`)
+        axios.get(`/api/v1/admin/reports/payout-transactions/summary?${params.toString()}`),
+        axios.get(`/api/v1/admin/reports/payout-transactions?${params.toString()}`)
       ]);
 
       if (sumRes.data?.data) {
@@ -120,7 +120,7 @@ export default function PayoutTransactionsReportPage() {
       if (toDate) params.append("to_date", toDate);
 
       const response = await axios.get(
-        `http://127.0.0.1:8000/api/v1/admin/reports/payout-transactions/export?${params.toString()}`,
+        `/api/v1/admin/reports/payout-transactions/export?${params.toString()}`,
         { responseType: "blob" }
       );
 
@@ -142,7 +142,7 @@ export default function PayoutTransactionsReportPage() {
     setSelectedTxId(txId);
     setDrawerLoading(true);
     try {
-      const res = await axios.get(`http://127.0.0.1:8000/api/v1/admin/reports/payout-transactions/${txId}/details`);
+      const res = await axios.get(`/api/v1/admin/reports/payout-transactions/${txId}/details`);
       if (res.data?.data) {
         setDrawerData(res.data.data);
       }

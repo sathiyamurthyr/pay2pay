@@ -69,8 +69,12 @@ export interface FooterTotals {
 }
 
 export const RetailerLedgerReport: React.FC = () => {
-  const retailerId = "93538c98-0b19-493c-a247-4cdb02a46c68";
-  const tenantId = "93538c98-0b19-493c-a247-4cdb02a46c68";
+  const getActiveRetailerId = () => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+    }
+    return "";
+  };
 
   const [summary, setSummary] = useState<LedgerSummary | null>(null);
   const [items, setItems] = useState<LedgerItem[]>([]);
@@ -94,7 +98,9 @@ export const RetailerLedgerReport: React.FC = () => {
 
   const fetchSummary = async () => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/payout/reports/ledger/summary?retailer_id=${retailerId}&tenant_id=${tenantId}`);
+      const activeId = getActiveRetailerId();
+      const q = activeId ? `?retailer_id=${activeId}` : "";
+      const res = await fetch(`${getApiBaseUrl()}/payout/reports/ledger/summary${q}`);
       if (res.ok) {
         setSummary(await res.json());
       }
@@ -106,13 +112,13 @@ export const RetailerLedgerReport: React.FC = () => {
   const fetchLedgerData = async () => {
     setIsLoading(true);
     try {
+      const activeId = getActiveRetailerId();
       const queryParams = new URLSearchParams({
-        retailer_id: retailerId,
-        tenant_id: tenantId,
         page: (page + 1).toString(),
         limit: rowsPerPage.toString(),
       });
 
+      if (activeId) queryParams.append("retailer_id", activeId);
       if (fromDate) queryParams.append("from_date", fromDate);
       if (toDate) queryParams.append("to_date", toDate);
       if (searchTxnId) queryParams.append("transaction_id", searchTxnId);

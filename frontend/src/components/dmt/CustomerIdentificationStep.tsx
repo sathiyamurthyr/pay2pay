@@ -29,32 +29,8 @@ export interface CustomerIdentificationStepProps {
   onContinue?: (customer: Customer) => void;
 }
 
-const DEFAULT_MOCK_CUSTOMER: Customer = {
-  customerId: "CUST9182746",
-  fullName: "Ramesh Kumar",
-  initials: "RK",
-  mobile: "+91 98765 43210",
-  aadhaarMasked: "XXXX-XXXX-8821",
-  verified: true,
-  riskLevel: "Low",
-  customerSince: "2023-01-14T00:00:00Z",
-  limits: {
-    monthlyLimit: 200000,
-    monthlyUsed: 131550,
-    monthlyRemaining: 68450,
-    usedPercent: 66,
-    remainingPercent: 34,
-  },
-  lastTransaction: {
-    timestamp: "2026-08-06T14:30:00Z",
-    displayLabel: "Yesterday at 2:30 PM",
-    mode: "IMPS",
-    amount: 5000,
-  },
-};
-
 export function CustomerIdentificationStep({
-  initialCustomer = DEFAULT_MOCK_CUSTOMER,
+  initialCustomer = null,
   onSearchCustomer,
   onContinue,
 }: CustomerIdentificationStepProps) {
@@ -81,9 +57,36 @@ export function CustomerIdentificationStep({
           setNotFound(true);
         }
       } else {
-        // Fallback default search behavior
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setCustomer(DEFAULT_MOCK_CUSTOMER);
+        const cleanMobile = query.replace(/\D/g, "");
+        const res = await fetch(`/api/v1/customers/lookup?mobile=${cleanMobile}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.customer_id) {
+            setCustomer({
+              customerId: data.customer_id,
+              fullName: data.full_name || "Customer",
+              initials: (data.full_name || "C").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase(),
+              mobile: data.mobile_number || query,
+              aadhaarMasked: data.aadhaar_masked || "—",
+              verified: data.is_kyc_verified || false,
+              riskLevel: data.risk_level || "Low",
+              customerSince: data.created_at || new Date().toISOString(),
+              limits: {
+                monthlyLimit: data.monthly_limit || 200000,
+                monthlyUsed: data.monthly_used || 0,
+                monthlyRemaining: (data.monthly_limit || 200000) - (data.monthly_used || 0),
+                usedPercent: Math.round(((data.monthly_used || 0) / (data.monthly_limit || 200000)) * 100),
+                remainingPercent: 100 - Math.round(((data.monthly_used || 0) / (data.monthly_limit || 200000)) * 100),
+              },
+            });
+          } else {
+            setCustomer(null);
+            setNotFound(true);
+          }
+        } else {
+          setCustomer(null);
+          setNotFound(true);
+        }
       }
     } catch {
       setCustomer(null);

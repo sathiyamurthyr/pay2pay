@@ -9,6 +9,8 @@ from app.core.config import settings
 # concurrent request deadlocks. PostgreSQL uses standard connection pooling.
 _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 
+import uuid
+
 if _is_sqlite:
     engine = create_async_engine(
         settings.DATABASE_URL,
@@ -18,15 +20,17 @@ if _is_sqlite:
         poolclass=NullPool,
     )
 else:
+    # Supabase Transaction Pooler (PgBouncer) & PostgreSQL asyncpg config
     engine = create_async_engine(
         settings.DATABASE_URL,
         echo=settings.DEBUG,
         future=True,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-        pool_timeout=10,
-        pool_recycle=300,
+        poolclass=NullPool,
+        connect_args={
+            "statement_cache_size": 0,
+            "prepared_statement_cache_size": 0,
+            "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4().hex}__"
+        },
     )
 
 

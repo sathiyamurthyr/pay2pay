@@ -210,19 +210,19 @@ export const SessionLockScreenOverlay: React.FC = () => {
               width: 56,
               height: 56,
               bgcolor: "#2563EB",
-              fontSize: "22px",
+              fontSize: "20px",
               fontWeight: 800,
               boxShadow: "0 0 16px rgba(37, 99, 235, 0.5)",
             }}
           >
-            VR
+            {typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name") || "Partner").split(" ").map(n => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase()}
           </Avatar>
           <Box sx={{ flex: 1 }}>
             <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px", lineHeight: 1.2 }}>
-              Venkatesh Rao
+              {typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name") || "Retailer Partner")}
             </Typography>
             <Typography variant="body1" sx={{ color: "#94A3B8", fontSize: "14px", mt: 0.2 }}>
-              Sri Venkateswara Store (RET_4037)
+              {typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_shop") || "Verified Business")}
             </Typography>
           </Box>
         </Box>

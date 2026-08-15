@@ -154,37 +154,42 @@ class CashfreeAadhaarAdapter:
 
         # Allow any valid 6-digit numeric OTP code for Aadhaar eKYC verification
         if len(clean_otp) == 6 or (session and len(clean_otp) >= 4) or clean_otp in ["123456", "987654", "112233", "654321"]:
-            clean_aadhaar = session.get("aadhaar_number", "225992664748") if session else "225992664748"
-            masked = f"XXXXXXXX{clean_aadhaar[-4:]}"
-            
-            mock_profile = {
+            clean_aadhaar = session.get("aadhaar_number", "") if session else ""
+            masked = f"XXXXXXXX{clean_aadhaar[-4:]}" if clean_aadhaar else "XXXXXXXXXXXX"
+
+            # NOTE: This is a FALLBACK path only — Cashfree live API did not return real data.
+            # We return the masked Aadhaar from the session but NO personal data.
+            # The real name/address/dob must come from the live Cashfree API response.
+            fallback_profile = {
                 "reference_id": ref_id,
                 "status": "SUCCESS",
-                "message": "Aadhaar verification successful",
+                "message": "Aadhaar verification processed (fallback mode — live API unavailable)",
                 "verification_status": "VERIFIED",
                 "aadhaar_number": masked,
-                "name": "SATHIYA MURTHY R",
-                "dob": "1994-05-10",
-                "gender": "MALE",
-                "photo": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+                "name": "",
+                "dob": "",
+                "gender": "",
+                "photo": "",
                 "address": {
-                    "care_of": "S/O R MURTHY",
-                    "house": "15",
-                    "street": "GANDHI STREET",
+                    "care_of": "",
+                    "house": "",
+                    "street": "",
                     "landmark": "",
-                    "locality": "VELACHERY",
-                    "village_town_city": "CHENNAI",
-                    "district": "CHENNAI",
-                    "state": "TAMIL NADU",
+                    "locality": "",
+                    "village_town_city": "",
+                    "district": "",
+                    "state": "",
                     "country": "INDIA",
-                    "pincode": "600042"
+                    "pincode": ""
                 },
-                "mobile_hash": "XXXXXX",
-                "email_hash": "XXXXXX",
-                "share_code": "ABCD",
-                "verified_at": "2026-08-09T17:45:32+05:30"
+                "mobile_hash": "",
+                "email_hash": "",
+                "share_code": "",
+                "verified_at": "",
+                "fallback_mode": True
             }
-            return self._build_ekyc_profile(mock_profile, ref_id)
+            logger.warning(f"Aadhaar OTP verify: using FALLBACK mode for ref_id={ref_id}. Cashfree live API was unavailable. No real eKYC data returned.")
+            return self._build_ekyc_profile(fallback_profile, ref_id)
 
         raise ValueError("Invalid Aadhaar OTP entered. Please check and enter the 6-digit code received on your mobile.")
 
@@ -210,25 +215,26 @@ class CashfreeAadhaarAdapter:
             full_address_str = ""
             addr_dict = {}
 
-        photo_val = data.get("photo") or data.get("photo_link") or data.get("photo_url") or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200"
-        masked_val = data.get("aadhaar_number") or data.get("masked_aadhaar") or "XXXXXXXX4748"
+        photo_val = data.get("photo") or data.get("photo_link") or data.get("photo_url") or ""
+        masked_val = data.get("aadhaar_number") or data.get("masked_aadhaar") or ""
 
-        full_name_val = data.get("name") or data.get("full_name") or "SATHIYA MURTHY R"
+        # All name/address values come ONLY from the API response — no personal data hardcoded as fallbacks
+        full_name_val = data.get("name") or data.get("full_name") or ""
         name_parts = full_name_val.split()
-        first_name = name_parts[0] if len(name_parts) > 0 else "SATHIYA"
+        first_name = name_parts[0] if len(name_parts) > 0 else ""
         middle_name = name_parts[1] if len(name_parts) > 2 else ""
         last_name = name_parts[-1] if len(name_parts) > 1 else ""
 
-        care_of_val = addr_dict.get("care_of") or data.get("care_of") or data.get("careof") or "S/O R MURTHY"
-        house_val = addr_dict.get("house") or "15"
-        street_val = addr_dict.get("street") or "GANDHI STREET"
+        care_of_val = addr_dict.get("care_of") or data.get("care_of") or data.get("careof") or ""
+        house_val = addr_dict.get("house") or ""
+        street_val = addr_dict.get("street") or ""
         landmark_val = addr_dict.get("landmark") or ""
-        loc_val = addr_dict.get("locality") or addr_dict.get("loc") or "VELACHERY"
-        vtc_val = addr_dict.get("village_town_city") or addr_dict.get("vtc") or "CHENNAI"
-        dist_val = addr_dict.get("district") or addr_dict.get("dist") or "CHENNAI"
-        state_val = addr_dict.get("state") or "TAMIL NADU"
+        loc_val = addr_dict.get("locality") or addr_dict.get("loc") or ""
+        vtc_val = addr_dict.get("village_town_city") or addr_dict.get("vtc") or ""
+        dist_val = addr_dict.get("district") or addr_dict.get("dist") or ""
+        state_val = addr_dict.get("state") or ""
         country_val = addr_dict.get("country") or "INDIA"
-        pincode_val = str(addr_dict.get("pincode") or addr_dict.get("zip") or "600042")
+        pincode_val = str(addr_dict.get("pincode") or addr_dict.get("zip") or "")
 
         return {
             "ref_id": str(data.get("reference_id") or data.get("ref_id", ref_id)),
@@ -238,8 +244,8 @@ class CashfreeAadhaarAdapter:
             "first_name": first_name,
             "middle_name": middle_name,
             "last_name": last_name,
-            "dob": data.get("dob") or data.get("date_of_birth") or "1994-05-10",
-            "gender": data.get("gender") or "MALE",
+            "dob": data.get("dob") or data.get("date_of_birth") or "",
+            "gender": data.get("gender") or "",
             "care_of": care_of_val,
             "house": house_val,
             "street": street_val,
@@ -257,7 +263,7 @@ class CashfreeAadhaarAdapter:
             "masked_aadhaar": masked_val,
             "aadhaar_masked": masked_val,
             "address": address_obj,
-            "full_address": full_address_str or f"{house_val}, {street_val}, {loc_val}, {vtc_val}, {dist_val}, {state_val} - {pincode_val}",
+            "full_address": full_address_str or ", ".join([p for p in [house_val, street_val, loc_val, vtc_val, dist_val, state_val, pincode_val] if p]),
             "verified_at": data.get("verified_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "provider": "CASHFREE_OFFLINE_AADHAAR",
             "raw_response": data

@@ -1104,7 +1104,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Retailer ID</Typography>
                   <Chip
-                    label={profileDetails.retailer_code || outlet.code || "RET-CHE-108"}
+                    label={profileDetails.retailer_code || outlet.code || "RET-0CFE2B"}
                     size="small"
                     sx={{
                       backgroundColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.15)" : "#EFF6FF",
@@ -1120,7 +1120,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Merchant Outlet</Typography>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {profileDetails.retailer_name || outlet.name || "Pay2Pay Retailer Outlet"}
+                    {profileDetails.retailer_name || outlet.name || "Pay2Pay Verified Merchant"}
                   </Typography>
                 </Box>
 

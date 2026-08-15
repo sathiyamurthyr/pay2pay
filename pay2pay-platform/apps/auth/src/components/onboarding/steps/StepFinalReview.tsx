@@ -245,6 +245,9 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({
       const ref = data.application_ref || `APP-RET-2026-${Date.now().toString().slice(-6)}`;
       setSubmitted(true);
       setAppRef(ref);
+      localStorage.setItem("p2p_retailer_approval_status", "PENDING");
+      localStorage.setItem("pay2pay_onboarding_status", "PENDING_APPROVAL");
+      localStorage.setItem("pay2pay_app_ref", ref);
       localStorage.removeItem("pay2pay_reg_id");
       localStorage.removeItem("pay2pay_reg_mobile");
       onSubmissionSuccess?.(ref);
@@ -253,6 +256,9 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({
       const ref = `APP-RET-2026-${Date.now().toString().slice(-6)}`;
       setSubmitted(true);
       setAppRef(ref);
+      localStorage.setItem("p2p_retailer_approval_status", "PENDING");
+      localStorage.setItem("pay2pay_onboarding_status", "PENDING_APPROVAL");
+      localStorage.setItem("pay2pay_app_ref", ref);
       onSubmissionSuccess?.(ref);
     }
   };
@@ -275,7 +281,7 @@ export const StepFinalReview: React.FC<StepFinalProps> = ({
     },
     {
       section: "Shop Profile",
-      value: draftData.shop?.shop_name || "Sri Venkateswara Telecom",
+      value: draftData.shop?.shop_name || draftData.shop_name || "—",
       sub: draftData.address?.city || draftData.address?.district || "Address confirmed",
       step: 9,
     },

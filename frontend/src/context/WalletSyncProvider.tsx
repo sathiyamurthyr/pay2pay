@@ -29,9 +29,6 @@ interface WalletSyncContextType {
   refreshWallet: () => Promise<void>;
 }
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-
 const WalletSyncContext = createContext<WalletSyncContextType | undefined>(undefined);
 
 export const triggerWalletSync = () => {
@@ -47,13 +44,57 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const fetchWalletData = useCallback(async () => {
     try {
+      let localName = "";
+      let localCode = "";
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            localName = u.full_name || u.name || u.owner_name || u.retailer_name || "";
+            localCode = u.retailer_code || u.code || "";
+            activeRetailerId = u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!localName) {
+          localName = localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name") || "";
+        }
+        if (!localCode) {
+          localCode = localStorage.getItem("p2p_retailer_code") || localStorage.getItem("pay2pay_user_code") || localStorage.getItem("pay2pay_reg_code") || "";
+        }
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+      }
+
+      const params: any = {};
+      if (activeRetailerId) {
+        params.retailer_id = activeRetailerId;
+      }
+
       const res = await axios.get<WalletDataPayload>("/api/v1/payout/dashboard/retailer/header-wallet", {
-        params: {
-          retailer_id: DEFAULT_RETAILER_ID,
-          tenant_id: DEFAULT_TENANT_ID,
-        },
+        params,
       });
-      setWalletData(res.data);
+
+      let data = res.data;
+      if (localName) {
+        const short = localName.trim().split(" ")[0] || localName;
+        data = {
+          ...data,
+          owner_name: localName,
+          retailer_name: localName,
+          short_name: short,
+        };
+      }
+      if (localCode) {
+        data = {
+          ...data,
+          retailer_code: localCode,
+        };
+      }
+
+      setWalletData(data);
       setError(null);
     } catch (err: any) {
       console.warn("Wallet sync fetch error:", err);

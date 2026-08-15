@@ -9,7 +9,7 @@ router = APIRouter(prefix="/verification", tags=["Cashfree Verification Suite v2
 
 class PanVerifyRequest(BaseModel):
     pan: str = Field(..., description="10-character PAN number", example="ABCDE1234F")
-    name: Optional[str] = Field(None, description="Owner / Merchant Full Name", example="Venkatesh Rao")
+    name: Optional[str] = Field(None, description="Owner / Merchant Full Name", example="Merchant Name")
 
 
 class AadhaarVerifyRequest(BaseModel):

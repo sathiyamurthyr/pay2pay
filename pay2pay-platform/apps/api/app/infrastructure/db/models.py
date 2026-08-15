@@ -3762,6 +3762,29 @@ class DeliveryStatusHistoryModel(BaseEntity, EnterpriseBaseMixin):
     provider_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
+class UserNotificationAlertModel(BaseEntity, EnterpriseBaseMixin):
+    """
+    User-facing in-app notification inbox.
+    Stores per-user notification alerts with read/unread state.
+    Created to support the /notifications/recent and mark-as-read endpoints.
+    """
+    __tablename__ = "user_notification_alert"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    notification_type: Mapped[str] = mapped_column(String(80), nullable=False, default="SYSTEM")
+    title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    reference_number: Mapped[Optional[str]] = mapped_column(String(200), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="UNREAD")
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+
+    __table_args__ = (
+        Index("ix_user_notif_alert_user_tenant", "user_id", "tenant_id"),
+        Index("ix_user_notif_alert_unread", "user_id", "is_read"),
+    )
+
+
 class NotificationAnalyticsModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "notification_analytics"
 

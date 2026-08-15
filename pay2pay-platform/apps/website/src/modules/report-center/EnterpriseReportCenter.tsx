@@ -102,11 +102,12 @@ export interface GridItem {
   vendor_reference: string;
   status: string;
   is_reversed: boolean;
-}
-
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-const DEFAULT_COMPANY_ID = "8899aabb-1122-3344-5566-77889900aabb";
+const getActiveRetailerId = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+  }
+  return "";
+};
 
 const API_BASE_URL = getApiBaseUrl();
 

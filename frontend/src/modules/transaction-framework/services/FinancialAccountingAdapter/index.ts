@@ -129,8 +129,11 @@ class FinancialAccountingService {
 
     // Execute backend BulkPe API call via apiClient (with raw fetch fallback)
     try {
-      const custId = params.customerId || "93538c98-0b19-493c-a247-4cdb02a46c68";
-      const beneId = params.beneficiaryId || "a46ec999-57db-4138-a79b-a208a6d75109";
+      const custId = params.customerId;
+      const beneId = params.beneficiaryId;
+      if (!custId || !beneId) {
+        throw new Error("Missing customer or beneficiary identifier for transaction execution.");
+      }
 
       let apiData: any = null;
       try {

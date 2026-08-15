@@ -52,7 +52,7 @@ export const RetailerMobileShell: React.FC<{ children: React.ReactNode }> = ({ c
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" title="Outlet Active" />
             </div>
             <p className="text-[11px] text-blue-300/80 font-mono font-semibold mt-0.5">
-              RET-CHE-108 &nbsp;·&nbsp; Chennai Outlet
+              RET-0CFE2B &nbsp;·&nbsp; Chennai Outlet
             </p>
           </div>
         </div>

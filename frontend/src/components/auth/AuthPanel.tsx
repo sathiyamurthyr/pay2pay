@@ -296,6 +296,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       setCaptchaCode("K7N8P2");
     }
   };
+  
+  const refreshCaptcha = () => fetchCaptcha();
 
   useEffect(() => {
     fetchCaptcha();
@@ -337,7 +339,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     }
   };
 
-  const handleAuthSuccessRedirect = async (token?: string) => {
+  const handleAuthSuccessRedirect = async (token?: string, userData?: any) => {
     const validToken = token || "p2p_access_token_" + Date.now();
 
     document.cookie = `p2p_user_role=${normalizedRole}; path=/; max-age=2592000; SameSite=Lax`;
@@ -351,13 +353,38 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     localStorage.setItem("pay2pay_access_token", validToken);
     localStorage.setItem("pay2pay_auth_token", validToken);
 
-    if (!localStorage.getItem("user_info")) {
-      localStorage.setItem("user_info", JSON.stringify({
-        id: "usr_retailer_01",
-        full_name: "Retailer Partner",
-        email: "retailer@pay2pay.com",
-        roles: [normalizedRole]
-      }));
+    const full_name = userData?.full_name || (typeof window !== "undefined" && (localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name"))) || "Retailer Partner";
+    const retailer_code = userData?.retailer_code || (typeof window !== "undefined" && (localStorage.getItem("p2p_retailer_code") || localStorage.getItem("pay2pay_user_code"))) || "RET-PARTNER";
+    const retailer_name = userData?.outlet_name || userData?.retailer_name || full_name;
+    const approval_status = userData?.approval_status || (typeof window !== "undefined" && localStorage.getItem("p2p_retailer_approval_status")) || "PENDING";
+    // Do NOT fall back to stale localStorage value — only use what the server returns
+    const retailer_id = userData?.retailer_id || userData?.id || "";
+
+    localStorage.setItem("user_info", JSON.stringify({
+      id: retailer_id,
+      full_name,
+      retailer_name,
+      retailer_code,
+      approval_status,
+      email: userData?.email || "retailer@pay2pay.com",
+      mobile: userData?.mobile_number || mobileNumber,
+      roles: [normalizedRole]
+    }));
+
+    if (retailer_code) {
+      localStorage.setItem("p2p_retailer_code", retailer_code);
+      localStorage.setItem("pay2pay_user_code", retailer_code);
+    }
+    if (full_name) {
+      localStorage.setItem("p2p_retailer_name", full_name);
+      localStorage.setItem("pay2pay_user_name", full_name);
+      localStorage.setItem("pay2pay_reg_name", full_name);
+    }
+    if (retailer_id) {
+      localStorage.setItem("p2p_active_retailer_id", retailer_id);
+    }
+    if (approval_status) {
+      localStorage.setItem("p2p_retailer_approval_status", approval_status);
     }
 
     // Persisted onboarding check from backend
@@ -384,11 +411,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     if (isLocked) {
       const mins = Math.floor(lockTimer / 60);
       const secs = lockTimer % 60;
-      triggerError(`🔒 Account locked. Wait ${mins}m ${secs}s.`);
+      triggerError(`Account locked due to 3 failed attempts. Retry in ${mins}:${secs.toString().padStart(2, "0")}`);
       return;
     }
     if (!acceptedConsent) {
-      triggerError("Security Consent acceptance is mandatory before login.");
+      triggerError("Security Consent acceptance is mandatory.");
       return;
     }
     if (mobileNumber.length !== 10) {
@@ -396,13 +423,17 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       return;
     }
     if (!password) {
-      triggerError("Please enter your account password.");
+      triggerError("Password is required.");
+      return;
+    }
+    if (captchaInput !== captchaCode) {
+      triggerError("Security Captcha does not match. Please enter the characters shown.");
+      refreshCaptcha();
       return;
     }
 
-    setErrorMsg("");
-    setSuccessMsg("");
     setLoading(true);
+    setErrorMsg("");
 
     try {
       const res = await fetch(`${API_BASE}/auth/enterprise/login-password`, {
@@ -427,7 +458,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setLockTimer(0);
         setShowConfetti(true);
         setSuccessMsg("✓ Authentication Successful! Redirecting...");
-        await handleAuthSuccessRedirect(data.data?.access_token);
+        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user);
       } else {
         const errText = (data.detail && data.detail !== "Not Found")
           ? data.detail

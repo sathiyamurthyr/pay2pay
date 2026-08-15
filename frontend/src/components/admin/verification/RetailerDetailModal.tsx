@@ -211,28 +211,73 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
             <h3 className="font-black text-white uppercase text-[11px] text-slate-400 flex items-center gap-1.5">
               <FileText className="w-4 h-4 text-blue-400" /> Compliance Media & Document Previews
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { title: "PAN Card", url: "https://cdn.pay2pay.in/docs/pan.jpg", type: "PAN" },
-                { title: "Aadhaar Card", url: "https://cdn.pay2pay.in/docs/aadhaar.jpg", type: "AADHAAR" },
-                { title: "Shop Exterior Photo", url: addr.shop_photo_url, type: "SHOP_PHOTO" },
-                { title: "Bank Passbook", url: "https://cdn.pay2pay.in/docs/bank.jpg", type: "BANK_PROOF" }
-              ].map((doc, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setViewingDoc(doc)}
-                  className="p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-blue-500/50 cursor-pointer group transition-all"
-                >
-                  <p className="font-bold text-white mb-1 group-hover:text-blue-400">{doc.title}</p>
-                  <div className="aspect-video rounded-xl bg-slate-900 flex items-center justify-center text-slate-500 overflow-hidden relative">
-                    <img src={doc.url} alt={doc.title} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-extrabold text-[10px]">
-                      Click to View
-                    </div>
+            {(() => {
+              const resolveDocUrl = (url?: string) => {
+                if (!url) return "";
+                if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+                  return url;
+                }
+                const base = getApiBaseUrl();
+                return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
+              };
+
+              const allDocs = [
+                { title: "PAN Card", url: resolveDocUrl(media.pan_card_url), type: "PAN" },
+                { title: "Aadhaar Front", url: resolveDocUrl(media.aadhaar_front_url || media.selfie_url), type: "AADHAAR" },
+                { title: "Aadhaar Back", url: resolveDocUrl(media.aadhaar_back_url), type: "AADHAAR" },
+                { title: "Shop Exterior Photo", url: resolveDocUrl(addr.shop_photo_url || media.shop_photo_url), type: "SHOP_PHOTO" },
+                { title: "Bank Proof", url: resolveDocUrl(media.bank_proof_url), type: "BANK_PROOF" },
+                ...(media.gst_proof_url ? [{ title: "GST Certificate", url: resolveDocUrl(media.gst_proof_url), type: "GST" }] : []),
+                ...(media.video_url ? [{ title: "Video KYC", url: resolveDocUrl(media.video_url), type: "VIDEO" }] : []),
+              ].filter((d) => Boolean(d.url));
+
+              if (allDocs.length === 0) {
+                return (
+                  <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 text-center text-slate-500 font-semibold">
+                    No compliance documents uploaded yet.
                   </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {allDocs.map((doc, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setViewingDoc(doc)}
+                      className="p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-blue-500/50 cursor-pointer group transition-all"
+                    >
+                      <p className="font-bold text-white mb-1 group-hover:text-blue-400 truncate">{doc.title}</p>
+                      <div className="aspect-video rounded-xl bg-slate-900 flex items-center justify-center text-slate-500 overflow-hidden relative">
+                        {doc.type === "VIDEO" || doc.url.endsWith(".mp4") || doc.url.endsWith(".webm") ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-blue-400">
+                            <Video className="w-6 h-6 mb-1" />
+                            <span className="text-[10px] font-extrabold text-white">Video KYC</span>
+                          </div>
+                        ) : doc.url.toLowerCase().includes(".pdf") ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-red-400">
+                            <FileText className="w-6 h-6 mb-1" />
+                            <span className="text-[10px] font-extrabold text-white">PDF Document</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={doc.url}
+                            alt={doc.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-extrabold text-[10px]">
+                          Click to View
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
 
           {/* Timeline & Audit History */}

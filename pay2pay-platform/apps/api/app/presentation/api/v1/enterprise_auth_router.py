@@ -207,9 +207,9 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                 "token_type": "Bearer",
                 "user": {
                     "mobile_number": clean_mobile,
-                    "full_name": "SATHIYA MURTHY",
+                    "full_name": "Retailer Partner",
                     "role": "RETAILER",
-                    "outlet_name": "Sri Venkateswara Telecom & FinTech"
+                    "outlet_name": "Retailer Outlet"
                 },
                 "onboarding": {
                     "completed": is_completed,
@@ -346,6 +346,30 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
         details={"login_method": "OTP", "mobile": clean_mobile}
     )
 
+    # Look up retailer by mobile
+    ret_stmt = select(RetailerModel).where(
+        or_(
+            RetailerModel.mobile == clean_mobile,
+            RetailerModel.mobile == f"+91{clean_mobile}",
+            RetailerModel.mobile == f"91{clean_mobile}",
+            RetailerModel.contact_phone == clean_mobile
+        )
+    )
+    ret_rec = (await db.execute(ret_stmt)).scalars().first()
+
+    retailer_code = "RET-PARTNER"
+    full_name = "Retailer Partner"
+    outlet_name = "Retailer Store"
+    approval_status = "PENDING"
+    retailer_id = None
+
+    if ret_rec:
+        retailer_code = ret_rec.retailer_code or f"RET-{str(ret_rec.public_id)[:6].upper()}"
+        full_name = ret_rec.owner_name or ret_rec.store_name or "Retailer Partner"
+        outlet_name = ret_rec.store_name or ret_rec.owner_name or "Retailer Store"
+        approval_status = ret_rec.status or "PENDING"
+        retailer_id = str(ret_rec.public_id)
+
     return {
         "status": "SUCCESS",
         "message": "OTP Verified successfully!",
@@ -356,8 +380,12 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
             "token_type": "Bearer",
             "user": {
                 "mobile_number": clean_mobile,
-                "full_name": "SATHIYA MURTHY",
-                "role": "RETAILER"
+                "full_name": full_name,
+                "role": "RETAILER",
+                "outlet_name": outlet_name,
+                "retailer_code": retailer_code,
+                "retailer_id": retailer_id,
+                "approval_status": approval_status
             }
         }
     }

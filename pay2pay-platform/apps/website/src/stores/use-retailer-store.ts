@@ -64,8 +64,12 @@ const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDE
     if (saved && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(saved)) {
       return saved as any;
     }
+    const onboardStatus = localStorage.getItem("pay2pay_onboarding_status");
+    if (onboardStatus === "APPROVED") return "APPROVED";
+    if (onboardStatus === "REJECTED") return "REJECTED";
+    if (onboardStatus === "UNDER_REVIEW") return "UNDER_REVIEW";
   }
-  return "APPROVED";
+  return "PENDING";
 };
 
 export const useRetailerStore = create<RetailerStoreState>((set, get) => {
@@ -73,7 +77,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
   return {
     outlet: {
       id: "RET-10829",
-      code: "RET-CHE-108",
+      code: "RET-0CFE2B",
       name: "Sri Venkateswara Telecom & FinTech",
       ownerName: "Sathiya Murthy",
       mobile: "+91 91766 69426",

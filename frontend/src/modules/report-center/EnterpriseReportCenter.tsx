@@ -104,9 +104,12 @@ export interface GridItem {
   is_reversed: boolean;
 }
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-const DEFAULT_COMPANY_ID = "8899aabb-1122-3344-5566-77889900aabb";
+const getActiveRetailerId = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+  }
+  return "";
+};
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -238,9 +241,9 @@ export const EnterpriseReportCenter: React.FC = () => {
     try {
       const q = new URLSearchParams({
         report_type: repType === "tax_audit" ? "gst" : repType,
-        retailer_id: DEFAULT_RETAILER_ID,
-        tenant_id: DEFAULT_TENANT_ID,
       });
+      const activeRetailerId = getActiveRetailerId();
+      if (activeRetailerId) q.append("retailer_id", activeRetailerId);
       if (fDate) q.append("from_date", fDate);
       if (tDate) q.append("to_date", tDate);
 
@@ -287,8 +290,6 @@ export const EnterpriseReportCenter: React.FC = () => {
 
       const q = new URLSearchParams({
         report_type: activeTab === "tax_audit" ? "gst" : activeTab,
-        retailer_id: DEFAULT_RETAILER_ID,
-        tenant_id: DEFAULT_TENANT_ID,
         page: (page + 1).toString(),
         limit: rowsPerPage.toString(),
         from_date: activeFDate,
@@ -297,6 +298,8 @@ export const EnterpriseReportCenter: React.FC = () => {
         sort_dir: "desc"
       });
 
+      const activeRetailerId = getActiveRetailerId();
+      if (activeRetailerId) q.append("retailer_id", activeRetailerId);
       if (debouncedQuery) q.append("query", debouncedQuery);
       if (statusFilter !== "ALL") q.append("status", statusFilter);
       if (minimumAmount) q.append("amount_from", minimumAmount);
@@ -393,7 +396,9 @@ export const EnterpriseReportCenter: React.FC = () => {
   const handleViewDetails = async (row: GridItem) => {
     try {
       const repType = activeTab === "tax_audit" ? "gst" : activeTab;
-      const res = await fetch(`${API_BASE_URL}/report-center/details/${repType}/${row.id}?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`);
+      const activeRetailerId = getActiveRetailerId();
+      const qParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
+      const res = await fetch(`${API_BASE_URL}/report-center/details/${repType}/${row.id}${qParam}`);
       if (res.ok) {
         setSelectedItem(await res.json());
       } else {
@@ -411,7 +416,9 @@ export const EnterpriseReportCenter: React.FC = () => {
     if (!selectedItem) return;
     const txId = selectedItem.transaction_details?.transaction_id || selectedItem.id;
     try {
-      const res = await fetch(`${API_BASE_URL}/report-center/check-status/${txId}?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`, { method: "POST" });
+      const activeRetailerId = getActiveRetailerId();
+      const qParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
+      const res = await fetch(`${API_BASE_URL}/report-center/check-status/${txId}${qParam}`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         setToastMessage(data.friendly_message || "Live bank status re-check completed!");
@@ -428,6 +435,7 @@ export const EnterpriseReportCenter: React.FC = () => {
     setIsSubmittingComplaint(true);
     const txId = selectedItem.transaction_details?.transaction_id || selectedItem.id;
     try {
+      const activeRetailerId = getActiveRetailerId();
       const res = await fetch(`${API_BASE_URL}/report-center/complaint`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -435,8 +443,7 @@ export const EnterpriseReportCenter: React.FC = () => {
           transaction_id: txId,
           reason: complaintReason,
           description: complaintDesc,
-          retailer_id: DEFAULT_RETAILER_ID,
-          tenant_id: DEFAULT_TENANT_ID,
+          retailer_id: activeRetailerId || undefined,
         }),
       });
       if (res.ok) {

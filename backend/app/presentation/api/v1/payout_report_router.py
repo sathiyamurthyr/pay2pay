@@ -526,14 +526,26 @@ async def export_retailer_payout_report(
 
     items = dataset.get("items", [])
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    ret_code_clean = "RET-CHE-108"
+
+    # Resolve canonical retailer identity from DB
+    ret_obj = None
+    r_uuid = parse_uuid_or_none(retailer_id)
+    if r_uuid:
+        ret_stmt = select(RetailerModel).where(RetailerModel.public_id == r_uuid)
+        ret_obj = (await db.execute(ret_stmt)).scalars().first()
+    if not ret_obj:
+        ret_fallback_stmt = select(RetailerModel).order_by(RetailerModel.id.desc())
+        ret_obj = (await db.execute(ret_fallback_stmt)).scalars().first()
+
+    ret_code_clean = ret_obj.retailer_code if (ret_obj and ret_obj.retailer_code) else "RET-0CFE2B"
+    ret_name_clean = ret_obj.store_name if (ret_obj and ret_obj.store_name) else "Pay2Pay Verified Merchant"
     file_base = f"Pay2Pay_Payout_Report_{ret_code_clean}_{today_str}"
 
     fmt = export_format.lower()
 
     if fmt == "pdf":
         retailer_info = {
-            "name": "Pay2Pay Retailer Outlet",
+            "name": ret_name_clean,
             "code": ret_code_clean,
         }
         filter_info = {
@@ -656,8 +668,8 @@ async def get_transaction_receipt(
                 "ifsc_code": "HDFC0001234",
                 "remarks": "Partner bank reversal - Account credit failed",
                 "retailer": {
-                    "name": "Pay2Pay Retailer Outlet",
-                    "code": "RET-CHE-108"
+                    "name": "Pay2Pay Verified Merchant",
+                    "code": "RET-0CFE2B"
                 }
             }
         }
@@ -689,6 +701,16 @@ async def get_transaction_receipt(
     comm_val = float(getattr(txn, "commission", 0.0) or 0.0)
     tds_val = float(getattr(txn, "tds_amount", 0.0) or 0.0)
 
+    # Resolve canonical retailer details
+    ret_code = "RET-0CFE2B"
+    ret_name = "Pay2Pay Verified Merchant"
+    if hasattr(txn, "retailer_id") and txn.retailer_id:
+        ret_q = await db.execute(select(RetailerModel).where(RetailerModel.public_id == txn.retailer_id))
+        ret_match = ret_q.scalars().first()
+        if ret_match:
+            ret_code = ret_match.retailer_code
+            ret_name = ret_match.store_name
+
     return {
         "status": "SUCCESS",
         "data": {
@@ -714,8 +736,8 @@ async def get_transaction_receipt(
             "ifsc_code": ifsc,
             "remarks": getattr(txn, "remarks", None) or getattr(txn, "reversal_reason", None) or getattr(txn, "status_description", None) or "-",
             "retailer": {
-                "name": "Pay2Pay Retailer Outlet",
-                "code": "RET-CHE-108"
+                "name": ret_name,
+                "code": ret_code
             }
         }
     }
@@ -731,7 +753,7 @@ async def download_transaction_receipt_pdf(
     # Fetch receipt details
     res = await get_transaction_receipt(transaction_id=transaction_id, db=db)
     txn_data = res["data"]
-    retailer_info = txn_data.get("retailer", {"name": "Pay2Pay Retailer Outlet", "code": "RET-CHE-108"})
+    retailer_info = txn_data.get("retailer", {"name": "Pay2Pay Verified Merchant", "code": "RET-0CFE2B"})
 
     pdf_bytes = generate_single_transaction_receipt_pdf(txn=txn_data, retailer_info=retailer_info)
 

@@ -1077,10 +1077,10 @@ export function CustomerMasterSlideOver({
                             <Chip label="🔒 UIDAI Verified" size="small" sx={{ bgcolor: "#DCFCE7", color: "#15803D", fontWeight: 800, fontSize: "0.72rem" }} />
                           </Stack>
                           <Typography variant="caption" sx={{ color: "#166534", fontWeight: 600, display: "block" }}>
-                            DOB: {ekycProfile?.dob || "1992-05-15"} | Gender: {ekycProfile?.gender || "M"} | {maskedAadhaar || ekycProfile?.masked_aadhaar}
+                            DOB: {ekycProfile?.dob || "—"} | Gender: {ekycProfile?.gender || "—"} | {maskedAadhaar || ekycProfile?.masked_aadhaar || "—"}
                           </Typography>
                           <Typography variant="caption" sx={{ color: "#15803D", fontWeight: 700 }}>
-                            Care Of: {ekycProfile?.care_of || "S/O RAMASAMY"}
+                            Care Of: {ekycProfile?.care_of || "—"}
                           </Typography>
                         </Box>
                       </Stack>
@@ -1092,7 +1092,7 @@ export function CustomerMasterSlideOver({
                           Auto-Populated Aadhaar Address (Locked)
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#14532D", fontWeight: 600 }}>
-                          {ekycProfile?.full_address || `${ekycProfile?.house || "No. 42/B"}, ${ekycProfile?.street || "GST Main Road"}, ${ekycProfile?.city || "Chennai"}, ${ekycProfile?.state || "Tamil Nadu"} - ${ekycProfile?.pincode || "600044"}`}
+                          {ekycProfile?.full_address || [ekycProfile?.house, ekycProfile?.street, ekycProfile?.city, ekycProfile?.state, ekycProfile?.pincode].filter(Boolean).join(", ") || "—"}
                         </Typography>
                       </Box>
                     </Paper>

@@ -485,7 +485,7 @@ export const RetailerPayoutReport: React.FC = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Pay2Pay_Payout_Report_RET-CHE-108_${new Date().toISOString().split('T')[0]}</title>
+        <title>Pay2Pay_Payout_Report_RET-0CFE2B_${new Date().toISOString().split('T')[0]}</title>
         <style>
           @page { size: A4 landscape; margin: 10mm; }
           body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; background: #ffffff; margin: 0; padding: 16px; }
@@ -522,11 +522,11 @@ export const RetailerPayoutReport: React.FC = () => {
         <div class="meta-grid">
           <div class="meta-item">
             <div class="label">Retailer Name</div>
-            <div class="val">Pay2Pay Retailer Outlet</div>
+            <div class="val">Pay2Pay Verified Merchant</div>
           </div>
           <div class="meta-item">
             <div class="label">Retailer ID</div>
-            <div class="val">RET-CHE-108</div>
+            <div class="val">RET-0CFE2B</div>
           </div>
           <div class="meta-item">
             <div class="label">Report Period</div>
@@ -635,7 +635,7 @@ export const RetailerPayoutReport: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Pay2Pay_Payout_Report_RET-CHE-108_${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `Pay2Pay_Payout_Report_RET-0CFE2B_${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -715,7 +715,7 @@ export const RetailerPayoutReport: React.FC = () => {
             <div class="brand">OFFICIAL TRANSACTION RECEIPT</div>
           </div>
           <div class="meta">
-            <div><strong>Retailer:</strong> Pay2Pay Retailer Outlet (RET-CHE-108)</div>
+            <div><strong>Retailer:</strong> Pay2Pay Verified Merchant (RET-0CFE2B)</div>
             <div><strong>Generated At:</strong> ${today}</div>
           </div>
         </div>
@@ -848,8 +848,8 @@ export const RetailerPayoutReport: React.FC = () => {
       ["Account Number", txn.masked_account_number || "XXXX XXXX 1234"],
       ["IFSC Code", txn.ifsc_code || "N/A"],
       ["Wallet Debit", `₹${Number(txn.wallet_debit || txn.transfer_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
-      ["Retailer Name", "Pay2Pay Retailer Outlet"],
-      ["Retailer ID", "RET-CHE-108"],
+      ["Retailer Name", "Pay2Pay Verified Merchant"],
+      ["Retailer ID", "RET-0CFE2B"],
     ];
 
     let startY = 410;
@@ -930,7 +930,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
     const dateStr = txn.initiated_at ? txn.initiated_at.replace("T", " ") : "N/A";
     
-    const msg = `Pay2Pay FinTech Retailer Platform\n\nOfficial Transaction Receipt\n\nTransaction ID:\n${txId}\n\nStatus:\n${stStr}\n\nAmount:\n${amtStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nDate:\n${dateStr}\n\nRetailer:\nPay2Pay Retailer Outlet\n\nCustomer:\n${txn.customer_name || "N/A"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"} (${txn.masked_account_number || "XXXX XXXX 1234"})\n\nFor more details, please refer to your official receipt statement.`;
+    const msg = `Pay2Pay FinTech Retailer Platform\n\nOfficial Transaction Receipt\n\nTransaction ID:\n${txId}\n\nStatus:\n${stStr}\n\nAmount:\n${amtStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nDate:\n${dateStr}\n\nRetailer:\nPay2Pay Verified Merchant\n\nCustomer:\n${txn.customer_name || "N/A"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"} (${txn.masked_account_number || "XXXX XXXX 1234"})\n\nFor more details, please refer to your official receipt statement.`;
 
     logAudit("RECEIPT_SHARED_WHATSAPP", { transaction_id: txId });
 

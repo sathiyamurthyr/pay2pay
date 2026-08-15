@@ -167,6 +167,9 @@ interface RetailerStoreState {
   setApprovalStatus: (status: "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW") => void;
 }
 
+const DEFAULT_RETAILER_ID = "ec273b33-d38e-4867-ac3b-f8e55ac46dcd";
+const DEFAULT_TENANT_ID = "547aa7bb-a790-4fe2-bd5b-27214ed176c8";
+
 const getInitialMainBalance = (): number => {
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
@@ -178,17 +181,64 @@ const getInitialMainBalance = (): number => {
   return 0.00;
 };
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-
 const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW" => {
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("p2p_retailer_approval_status");
     if (saved && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(saved)) {
       return saved as any;
     }
+    const onboardStatus = localStorage.getItem("pay2pay_onboarding_status");
+    if (onboardStatus === "APPROVED") return "APPROVED";
+    if (onboardStatus === "REJECTED") return "REJECTED";
+    if (onboardStatus === "UNDER_REVIEW") return "UNDER_REVIEW";
   }
-  return "APPROVED";
+  return "PENDING";
+};
+
+const getInitialOutlet = () => {
+  const initApproval = getInitialApprovalStatus();
+  let code = "RET-PENDING";
+  let name = "Retailer Store";
+  let ownerName = "Retailer Partner";
+  let mobile = "";
+  let email = "";
+  let location = "";
+  let id = "";
+
+  if (typeof window !== "undefined") {
+    try {
+      const uStr = localStorage.getItem("user_info");
+      if (uStr) {
+        const u = JSON.parse(uStr);
+        code = u.retailer_code || u.code || code;
+        name = u.retailer_name || u.outlet_name || name;
+        ownerName = u.full_name || u.owner_name || ownerName;
+        mobile = u.mobile || u.mobile_number || mobile;
+        email = u.email || email;
+        location = u.location || location;
+        id = u.id || u.retailer_id || id;
+      }
+    } catch {}
+    code = localStorage.getItem("p2p_retailer_code") || localStorage.getItem("pay2pay_user_code") || code;
+    ownerName = localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_user_name") || ownerName;
+    mobile = localStorage.getItem("pay2pay_user_mobile") || localStorage.getItem("pay2pay_reg_mobile") || mobile;
+    email = localStorage.getItem("pay2pay_user_email") || email;
+  }
+
+  return {
+    id: id || code,
+    code,
+    name,
+    ownerName,
+    mobile,
+    email,
+    location,
+    status: (initApproval === "APPROVED" ? "ACTIVE" : "PENDING_KYC") as "ACTIVE" | "PENDING_KYC" | "SUSPENDED",
+    kycStatus: (initApproval === "APPROVED" ? "VERIFIED" : "PENDING") as "VERIFIED" | "PENDING" | "REJECTED",
+    approvalStatus: initApproval,
+    soundboxActive: true,
+    soundboxLang: "en",
+  };
 };
 
 const getInitialTheme = (): KpiTheme => {
@@ -203,71 +253,64 @@ const getInitialTheme = (): KpiTheme => {
 };
 
 export const useRetailerStore = create<RetailerStoreState>((set, get) => {
-  const initApproval = getInitialApprovalStatus();
   return {
-    outlet: {
-      id: "RET-10829",
-      code: "RET-CHE-108",
-      name: "Pay2Pay Retailer Outlet",
-      ownerName: "Retailer Agent",
-      mobile: "+91 91766 69426",
-      email: "retailer@pay2pay.in",
-      location: "Chennai, TN",
-      status: initApproval === "APPROVED" ? "ACTIVE" : "PENDING_KYC",
-      kycStatus: initApproval === "APPROVED" ? "VERIFIED" : "PENDING",
-      approvalStatus: initApproval,
-      soundboxActive: true,
-      soundboxLang: "en",
-    },
+    outlet: getInitialOutlet(),
     wallet: {
       mainBalance: getInitialMainBalance(),
       commissionBalance: 0.00,
       todayMargin: 0.00,
       todayTxnCount: 0,
-      todaySettlement: 0.00,
+      todaySuccessVol: 0.00,
+      posPendingSettlement: 0.00,
+      reservedBalance: 0.00,
+      todayDebitVol: 0.00,
+      todayReversalVol: 0.00,
+      todayGstPaid: 0.00,
+      todayTdsDeducted: 0.00,
+      todayTransferVol: 0.00,
+      availableBalance: getInitialMainBalance(),
     },
     isSyncing: false,
-    unreadNotifications: 0,
     soundboxEnabled: true,
+    unreadNotifications: 0,
     activeDrawer: null,
     kpiTheme: getInitialTheme(),
 
     setSyncing: (syncing) => set({ isSyncing: syncing }),
-    
-    updateWallet: (part) => {
-      set((state) => {
-        const updatedWallet = { ...state.wallet, ...part };
-        if (part.mainBalance !== undefined && typeof window !== "undefined") {
-          localStorage.setItem("p2p_active_retailer_wallet_balance", part.mainBalance.toString());
-        }
-        return { wallet: updatedWallet };
-      });
-    },
 
-    debitWallet: (amount: number) => {
-      const current = get().wallet.mainBalance;
-      const newBal = Math.max(0, current - amount);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", newBal.toString());
+    updateOutlet: (part) =>
+      set((state) => ({ outlet: { ...state.outlet, ...part } })),
+
+    updateWallet: (part) =>
+      set((state) => {
+        const nextWallet = { ...state.wallet, ...part };
+        if (typeof nextWallet.mainBalance === "number" && typeof window !== "undefined") {
+          localStorage.setItem("p2p_active_retailer_wallet_balance", nextWallet.mainBalance.toString());
+        }
+        return { wallet: nextWallet };
+      }),
+
+    debitWallet: (amount: number): number => {
+      const { wallet } = get();
+      if (wallet.mainBalance < amount) {
+        throw new Error("Insufficient wallet balance.");
       }
-      set((state) => ({
-        wallet: { ...state.wallet, mainBalance: newBal },
-      }));
-      retailerApi.debitWallet(amount).catch(() => {});
+      const newBal = Math.max(0, wallet.mainBalance - amount);
+      get().updateWallet({ mainBalance: newBal });
       return newBal;
     },
 
     syncBalance: async () => {
       set({ isSyncing: true });
       try {
-        const apiUrl = "/api/v1/payout/dashboard/retailer/header-wallet";
-        const res = await fetch(`${apiUrl}?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`);
+        let activeRetailerId = "";
+        if (typeof window !== "undefined") {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+        const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
+        const res = await fetch(`/api/v1/payout/dashboard/retailer/header-wallet${queryParam}`);
         if (res.ok) {
           const data = await res.json();
-          const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.00;
-          if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-          }
           set((state) => ({
             wallet: {
               ...state.wallet,
@@ -277,6 +320,14 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
               todayTxnCount: 0,
               todaySettlement: data.settlement_pending_amount || 0.00,
             },
+            outlet: rInfo ? {
+              ...state.outlet,
+              code: rInfo.retailer_code || state.outlet.code,
+              name: rInfo.retailer_name || state.outlet.name,
+              ownerName: rInfo.owner_name || state.outlet.ownerName,
+              status: rInfo.approval_status === "APPROVED" || rInfo.approval_status === "ACTIVE" ? "ACTIVE" : state.outlet.status,
+              kycStatus: rInfo.kyc_status === "VERIFIED" ? "VERIFIED" : state.outlet.kycStatus,
+            } : state.outlet,
           }));
         }
       } catch (err) {

@@ -381,12 +381,15 @@ class VerificationService:
 
         action_clean = action.upper()
 
+        is_int = str(verification_id).isdigit()
+        is_uuid = len(str(verification_id)) == 36
         q = await db.execute(
             select(RetailerVerificationModel).where(
                 or_(
-                    RetailerVerificationModel.public_id == uuid.UUID(verification_id) if len(verification_id) == 36 else False,
-                    RetailerVerificationModel.registration_id == verification_id,
-                    RetailerVerificationModel.retailer_id == verification_id
+                    RetailerVerificationModel.id == int(verification_id) if is_int else False,
+                    RetailerVerificationModel.public_id == uuid.UUID(verification_id) if is_uuid else False,
+                    RetailerVerificationModel.registration_id == str(verification_id),
+                    RetailerVerificationModel.retailer_id == str(verification_id)
                 )
             )
         )
@@ -401,6 +404,82 @@ class VerificationService:
             verif.verification_status = "APPROVED"
             verif.account_status = "ACTIVE"
             verif.retailer_status = "ACTIVE"
+
+            # 1. Sync / Activate RetailerModel
+            from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
+            from app.infrastructure.db.auth_models import AuthUserModel
+            from app.infrastructure.adapters.email_service import email_service
+
+            canonical_tid = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+            ret_code = verif.retailer_id or f"RET-{uuid.uuid4().hex[:6].upper()}"
+
+            r_stmt = select(RetailerModel).where(RetailerModel.retailer_code == ret_code)
+            ret_obj = (await db.execute(r_stmt)).scalars().first()
+
+            if not ret_obj:
+                ret_obj = RetailerModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=canonical_tid,
+                    company_id=None,
+                    retailer_code=ret_code,
+                    store_name=verif.shop_name or verif.retailer_name or "Pay2Pay Verified Merchant",
+                    legal_name=verif.retailer_name or "Pay2Pay Merchant",
+                    owner_name=verif.retailer_name or "Pay2Pay Merchant",
+                    business_category="Fintech & Digital Services",
+                    store_type="BRICK_AND_MORTAR",
+                    status="ACTIVE"
+                )
+                db.add(ret_obj)
+                await db.flush()
+            else:
+                ret_obj.status = "ACTIVE"
+
+            # 2. Sync / Activate RetailerWalletModel
+            w_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == ret_obj.public_id)
+            wallet_obj = (await db.execute(w_stmt)).scalars().first()
+            if not wallet_obj:
+                wallet_obj = RetailerWalletModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=canonical_tid,
+                    company_id=None,
+                    retailer_id=ret_obj.public_id,
+                    wallet_balance=0.0,
+                    daily_transaction_limit=100000.0,
+                    single_transaction_limit=25000.0,
+                    is_frozen=False
+                )
+                db.add(wallet_obj)
+
+            # 3. Sync / Activate AuthUserModel
+            if verif.mobile_number:
+                u_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number == verif.mobile_number)
+                auth_user = (await db.execute(u_stmt)).scalars().first()
+                if auth_user:
+                    auth_user.account_status = "ACTIVE"
+                else:
+                    auth_user = AuthUserModel(
+                        user_id=uuid.uuid4(),
+                        tenant_id=canonical_tid,
+                        mobile_number=verif.mobile_number,
+                        email=verif.email or f"{verif.mobile_number}@pay2pay.in",
+                        full_name=verif.retailer_name or "Retailer Partner",
+                        role="RETAILER",
+                        account_status="ACTIVE",
+                        password_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"  # Secure placeholder until credential reset
+                    )
+                    db.add(auth_user)
+
+            # 4. Dispatch Official Welcome Email (without plain passwords/MPINs)
+            if verif.email:
+                try:
+                    await email_service.send_welcome_email(
+                        recipient_email=verif.email,
+                        retailer_name=verif.retailer_name or "Retailer Partner",
+                        retailer_id=ret_code
+                    )
+                except Exception as ex:
+                    print(f"[WELCOME EMAIL ERROR] {ex}")
+
         elif action_clean in ("REJECT", "REJECTED"):
             verif.verification_status = "REJECTED"
             verif.account_status = "ONBOARDING"

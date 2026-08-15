@@ -76,8 +76,12 @@ interface FooterTotals {
   pending_settlement_amount: number;
 }
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
+const getActiveRetailerId = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+  }
+  return "";
+};
 
 export const SwipeMachineSettlementReport: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -117,7 +121,9 @@ export const SwipeMachineSettlementReport: React.FC = () => {
 
   const fetchSummary = async () => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/payout/reports/swipe-settlement/summary?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`);
+      const activeRetailerId = getActiveRetailerId();
+      const qParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
+      const res = await fetch(`${getApiBaseUrl()}/payout/reports/swipe-settlement/summary${qParam}`);
       if (res.ok) setSummary(await res.json());
     } catch (e) {
       console.error("Failed to fetch settlement summary", e);
@@ -128,11 +134,12 @@ export const SwipeMachineSettlementReport: React.FC = () => {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams({
-        retailer_id: DEFAULT_RETAILER_ID,
-        tenant_id: DEFAULT_TENANT_ID,
         page: page.toString(),
         limit: "10"
       });
+
+      const activeRetailerId = getActiveRetailerId();
+      if (activeRetailerId) queryParams.append("retailer_id", activeRetailerId);
 
       if (fromDate) queryParams.append("from_date", fromDate);
       if (toDate) queryParams.append("to_date", toDate);

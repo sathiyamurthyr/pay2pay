@@ -22,8 +22,8 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
     ? `₹${walletData.wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
     : "₹0.00";
 
-  const shortName = walletData?.short_name || (walletData?.owner_name ? walletData.owner_name.split(" ")[0] : "Venkatesh");
-  const retailerCode = walletData?.retailer_code || "RET-982415";
+  const shortName = walletData?.short_name || (walletData?.owner_name ? walletData.owner_name.split(" ")[0] : "Partner");
+  const retailerCode = walletData?.retailer_code || "RET-PARTNER";
 
   return (
     <Paper

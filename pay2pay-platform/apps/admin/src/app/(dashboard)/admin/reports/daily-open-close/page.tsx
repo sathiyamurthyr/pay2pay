@@ -77,8 +77,8 @@ export default function DailyOpenCloseReportPage() {
       if (entityType) params.append("entity_type", entityType);
 
       const [sumRes, listRes] = await Promise.all([
-        axios.get(`http://127.0.0.1:8000/api/v1/admin/reports/daily-open-close/summary?${params.toString()}`),
-        axios.get(`http://127.0.0.1:8000/api/v1/admin/reports/daily-open-close?${params.toString()}`)
+        axios.get(`/api/v1/admin/reports/daily-open-close/summary?${params.toString()}`),
+        axios.get(`/api/v1/admin/reports/daily-open-close?${params.toString()}`)
       ]);
 
       if (sumRes.data?.data) {
@@ -108,7 +108,7 @@ export default function DailyOpenCloseReportPage() {
       if (entityType) params.append("entity_type", entityType);
 
       const response = await axios.get(
-        `http://127.0.0.1:8000/api/v1/admin/reports/daily-open-close/export?${params.toString()}`,
+        `/api/v1/admin/reports/daily-open-close/export?${params.toString()}`,
         { responseType: "blob" }
       );
 

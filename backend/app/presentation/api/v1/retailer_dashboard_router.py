@@ -52,18 +52,12 @@ async def get_retailer_header_wallet(
 
     if not ret_obj and r_uuid:
         ret_stmt = select(RetailerModel).where(RetailerModel.public_id == r_uuid)
-        ret_obj = (await db.execute(ret_stmt)).scalars().first()
-
-    if not ret_obj:
-        ret_fallback_stmt = select(RetailerModel).order_by(RetailerModel.id.desc())
-        ret_obj = (await db.execute(ret_fallback_stmt)).scalars().first()
-
-    retailer_name = ret_obj.store_name if (ret_obj and ret_obj.store_name) else "Pay2Pay Retailer Outlet"
+    retailer_name = ret_obj.store_name if (ret_obj and ret_obj.store_name) else (ret_obj.owner_name if ret_obj and ret_obj.owner_name else "Pay2Pay Merchant")
     owner_name = ret_obj.owner_name if (ret_obj and ret_obj.owner_name) else "Retailer Partner"
     short_name = owner_name.split()[0] if owner_name else "Retailer"
-    retailer_code = ret_obj.retailer_code if (ret_obj and ret_obj.retailer_code) else "RET-NEW"
+    retailer_code = ret_obj.retailer_code if (ret_obj and ret_obj.retailer_code) else "RET-PENDING"
     company_name = "Pay2Pay FinTech Solutions"
-    approval_status = ret_obj.status if ret_obj else "APPROVED"
+    approval_status = ret_obj.status if ret_obj else "PENDING"
     plan_name = ret_obj.business_category if (ret_obj and ret_obj.business_category and ret_obj.business_category != "General Store") else None
 
     target_retailer_id = ret_obj.public_id if ret_obj else r_uuid

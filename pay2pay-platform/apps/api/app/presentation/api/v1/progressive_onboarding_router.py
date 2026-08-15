@@ -290,8 +290,21 @@ async def upload_video_file(
     script_text: str = Form("I confirm registration"),
     db: AsyncSession = Depends(get_db)
 ):
+    try:
+        content = await video.read()
+        b2_res = BackblazeStorageService.upload_file(
+            file_bytes=content,
+            filename=video.filename or "kyc_video.webm",
+            content_type=video.content_type or "video/webm",
+            entity_type="RET"
+        )
+        b2_path = b2_res.get("file_name") or b2_res.get("url") or f"cmp/ret/videos/{video.filename}"
+    except Exception:
+        content = b""
+        b2_path = f"cmp/ret/videos/{video.filename or 'kyc_video.webm'}"
+
     video_data = {
-        "video_url": f"https://cdn.pay2pay.in/videos/{registration_id}_{video.filename or 'kyc_video.webm'}",
+        "video_url": b2_path,
         "duration_seconds": duration_seconds,
         "script_text": script_text,
         "video_uploaded": True,
