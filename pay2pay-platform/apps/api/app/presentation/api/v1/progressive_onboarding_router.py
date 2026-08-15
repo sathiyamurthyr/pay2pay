@@ -256,7 +256,7 @@ async def upload_document_file(
             content_type=file.content_type or "image/jpeg",
             entity_type="RET"
         )
-        b2_path = b2_res.get("file_name") or f"cmp/ret/docs/{file.filename}"
+        b2_path = b2_res.get("url") or b2_res.get("file_name") or f"cmp/ret/docs/{file.filename}"
     except Exception:
         content = b""
         b2_path = f"cmp/ret/docs/{file.filename or 'document.jpg'}"
@@ -298,7 +298,7 @@ async def upload_video_file(
             content_type=video.content_type or "video/webm",
             entity_type="RET"
         )
-        b2_path = b2_res.get("file_name") or b2_res.get("url") or f"cmp/ret/videos/{video.filename}"
+        b2_path = b2_res.get("url") or b2_res.get("file_name") or f"cmp/ret/videos/{video.filename}"
     except Exception:
         content = b""
         b2_path = f"cmp/ret/videos/{video.filename or 'kyc_video.webm'}"
