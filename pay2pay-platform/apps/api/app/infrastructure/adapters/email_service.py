@@ -86,12 +86,16 @@ class EmailService:
         if not recipient_email or "@" not in recipient_email:
             return {"status": "ERROR", "message": "Invalid recipient email address."}
 
-        smtp_server = self.smtp_server if self.smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
-        smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
-        smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
-        smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
-        from_email = self.from_email if self.from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", "noreply@pay2pay.in")
-        from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+        smtp_server = self.smtp_server or getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = self.smtp_port or getattr(settings, "SMTP_PORT", 587)
+        smtp_username = self.smtp_username or getattr(settings, "SMTP_USERNAME", "Paymebalu@gmail.com")
+        smtp_password = self.smtp_password or getattr(settings, "SMTP_PASSWORD", "pbcr sgsm cugn ducm")
+        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "Paymebalu@gmail.com")
+        from_name = self.from_name or getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
+
+        if smtp_password:
+            # Gmail App passwords may contain spaces for readability - strip them for SMTP auth
+            smtp_password = smtp_password.strip()
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"{otp_code} is your Pay2Pay Email Verification Code"
@@ -108,33 +112,54 @@ class EmailService:
                 "delivered": False,
                 "recipient": recipient_email,
                 "otp_code": otp_code,
-                "message": "SMTP credentials not configured in backend .env. Outputting simulated OTP."
+                "message": "SMTP credentials not configured. Outputting simulated OTP."
             }
 
+        # Try Port 587 (STARTTLS) first, fallback to Port 465 (SSL)
         try:
-            with smtplib.SMTP(smtp_server, smtp_port, timeout=10.0) as server:
+            with smtplib.SMTP(smtp_server, int(smtp_port), timeout=12.0) as server:
+                server.ehlo()
                 server.starttls()
+                server.ehlo()
                 server.login(smtp_username, smtp_password)
                 server.send_message(msg)
-            logger.info(f"[EMAIL SERVICE SUCCESS] Real Email OTP {otp_code} sent to {recipient_email}")
+            logger.info(f"[EMAIL SERVICE SUCCESS] Real Email OTP {otp_code} sent to {recipient_email} via Port {smtp_port}")
             return {
                 "status": "SUCCESS",
                 "delivered": True,
                 "recipient": recipient_email,
                 "otp_code": otp_code
             }
-        except Exception as ex:
-            logger.error(f"[EMAIL SERVICE ERROR] Failed to send email to {recipient_email}: {ex}")
-            return {
-                "status": "FAILED",
-                "delivered": False,
-                "recipient": recipient_email,
-                "detail": str(ex)
-            }
+        except Exception as ex587:
+            logger.warning(f"[EMAIL SERVICE 587 FAILED] Attempting Port 465 SSL fallback: {ex587}")
+            try:
+                with smtplib.SMTP_SSL(smtp_server, 465, timeout=12.0) as ssl_server:
+                    ssl_server.ehlo()
+                    ssl_server.login(smtp_username, smtp_password)
+                    ssl_server.send_message(msg)
+                logger.info(f"[EMAIL SERVICE SUCCESS] Real Email OTP {otp_code} sent to {recipient_email} via Port 465 SSL")
+                return {
+                    "status": "SUCCESS",
+                    "delivered": True,
+                    "recipient": recipient_email,
+                    "otp_code": otp_code
+                }
+            except Exception as ex465:
+                logger.error(f"[EMAIL SERVICE ERROR] Failed to send email to {recipient_email} via 587 and 465: {ex465}")
+                return {
+                    "status": "FAILED",
+                    "delivered": False,
+                    "recipient": recipient_email,
+                    "detail": str(ex465)
+                }
 
     async def send_otp(self, recipient_email: str, otp_code: str) -> Dict[str, Any]:
         """Async wrapper for dispatching email OTP."""
-        return await asyncio.to_thread(self.send_otp_sync, recipient_email, otp_code)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.send_otp_sync, recipient_email, otp_code)
 
     def send_password_reset_email_sync(self, recipient_email: str, reset_link: str) -> Dict[str, Any]:
         """Dispatch Enterprise Password Reset email with 30-min secure link."""
@@ -228,6 +253,10 @@ class EmailService:
 
     async def send_password_reset_email(self, recipient_email: str, reset_link: str) -> Dict[str, Any]:
         """Async wrapper for dispatching password reset email."""
-        return await asyncio.to_thread(self.send_password_reset_email_sync, recipient_email, reset_link)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.send_password_reset_email_sync, recipient_email, reset_link)
 
 email_service = EmailService()

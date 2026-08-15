@@ -1,3 +1,4 @@
+import os
 from typing import List
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -65,9 +66,9 @@ class Settings(BaseSettings):
     # ── SMTP Email Dispatcher Credentials ────────────────────────────────────
     SMTP_SERVER: str = Field(default="smtp.gmail.com")
     SMTP_PORT: int = Field(default=587)
-    SMTP_USERNAME: str = Field(default="")
-    SMTP_PASSWORD: str = Field(default="")
-    SMTP_FROM_EMAIL: str = Field(default="noreply@pay2pay.in")
+    SMTP_USERNAME: str = Field(default="Paymebalu@gmail.com")
+    SMTP_PASSWORD: str = Field(default="pbcr sgsm cugn ducm")
+    SMTP_FROM_EMAIL: str = Field(default="Paymebalu@gmail.com")
     SMTP_FROM_NAME: str = Field(default="Pay2Pay Enterprise")
 
     # ── Support Metadata Configuration ──────────────────────────────────────
@@ -81,7 +82,7 @@ class Settings(BaseSettings):
     SUPPORT_URL: str = Field(default="https://pay2pay.in/support")
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
