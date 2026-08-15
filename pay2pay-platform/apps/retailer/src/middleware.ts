@@ -146,6 +146,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const isStatusOrReviewRoute =
+    pathname.includes("/account-under-review") ||
+    pathname.includes("/account-restricted") ||
+    pathname.includes("/application-rejected");
+
+  if (isStatusOrReviewRoute) {
+    return NextResponse.next();
+  }
+
   // 5. Protected Portal Paths (/retailer/*, /sd/*, /dist/*, /admin/*, /super-admin/*)
   const isPortalPath =
     pathname.startsWith("/retailer") ||
