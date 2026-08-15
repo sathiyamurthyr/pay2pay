@@ -225,7 +225,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>("English");
   const t = TRANSLATIONS[selectedLanguage] || TRANSLATIONS.English;
 
-  const [authTab, setAuthTab] = useState<"PASSWORD" | "OTP" | "BIOMETRIC">("PASSWORD");
+  const [authTab, setAuthTab] = useState<"PASSWORD" | "OTP" | "BIOMETRIC">(
+    normalizedRole === "RETAILER" ? "OTP" : "PASSWORD"
+  );
   const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -482,10 +484,17 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       if (res.ok && data.status === "SUCCESS") {
         setShowConfetti(true);
         const flow = data.data?.flow;
-        const redirectUrl = data.data?.redirect_url;
-        const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING";
+        const destination = data.data?.destination;
+        const redirectUrl = data.data?.redirect_url || (destination === "ACCOUNT_UNDER_REVIEW" ? "/retailer/account-under-review" : "/retailer/dashboard");
+        const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";
 
-        if (isNewOnboarding) {
+        if (destination === "ACCOUNT_UNDER_REVIEW") {
+          setSuccessMsg("✓ Mobile verified successfully. Loading your application status...");
+          if (typeof window !== "undefined") {
+            localStorage.setItem("p2p_retailer_approval_status", "UNDER_REVIEW");
+            localStorage.setItem("pay2pay_onboarding_status", "UNDER_REVIEW");
+          }
+        } else if (isNewOnboarding) {
           setSuccessMsg("✓ Mobile verified successfully. Taking you to onboarding...");
           if (data.data?.registration_id) {
             localStorage.setItem("pay2pay_reg_id", data.data.registration_id);
@@ -493,6 +502,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           }
         } else {
           setSuccessMsg("✓ Mobile verified successfully. Signing you in...");
+          if (typeof window !== "undefined") {
+            localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
+            localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
+          }
         }
         setErrorMsg("");
         await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user, redirectUrl);
@@ -656,27 +669,36 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </p>
           </div>
 
-          {/* ── Tab Switcher ── */}
-          <div className={`flex p-1 rounded-2xl mb-5 border ${
-            darkMode ? "bg-slate-950/80 border-slate-800" : "bg-slate-100 border-slate-200"
-          }`}>
-            {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                  authTab === tab
-                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md shadow-blue-500/25"
-                    : darkMode
-                    ? "text-slate-400 hover:text-slate-200"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {tab === "PASSWORD" ? t.passwordLogin : tab === "OTP" ? t.otpLogin : t.biometricLogin}
-              </button>
-            ))}
-          </div>
+          {/* ── Tab Switcher: OTP-Only for Retailer Portal, Multi-tab for SD/Dist/Admin ── */}
+          {normalizedRole !== "RETAILER" ? (
+            <div className={`flex p-1 rounded-2xl mb-5 border ${
+              darkMode ? "bg-slate-950/80 border-slate-800" : "bg-slate-100 border-slate-200"
+            }`}>
+              {(["PASSWORD", "OTP", "BIOMETRIC"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => { setAuthTab(tab); setErrorMsg(""); }}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                    authTab === tab
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md shadow-blue-500/25"
+                      : darkMode
+                      ? "text-slate-400 hover:text-slate-200"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {tab === "PASSWORD" ? t.passwordLogin : tab === "OTP" ? t.otpLogin : t.biometricLogin}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl mb-5 border text-xs font-bold ${
+              darkMode ? "bg-blue-950/30 border-blue-800/40 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-700"
+            }`}>
+              <Shield className="w-4 h-4 text-blue-500" />
+              <span>Retailer Verification — WhatsApp OTP Authentication</span>
+            </div>
+          )}
 
           {/* ── Risk Assessment Badge ── */}
           {riskAssessment && (

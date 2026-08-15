@@ -288,9 +288,12 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
     exists = False
 
     if retailer_record:
-        ret_status = (retailer_record.status or "ACTIVE").upper()
+        ret_status = (retailer_record.status or "PENDING").upper()
         if ret_status in ("ACTIVE", "APPROVED"):
             flow = "RETAILER_LOGIN"
+            exists = True
+        elif ret_status in ("PENDING", "PENDING_APPROVAL", "PENDING_KYC", "UNDER_REVIEW", "DRAFT"):
+            flow = "RETAILER_LOGIN_PENDING"
             exists = True
         elif ret_status in ("INACTIVE", "DEACTIVATED"):
             raise HTTPException(status_code=403, detail="Your retailer account is currently inactive. Please contact support.")
@@ -300,15 +303,9 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
             raise HTTPException(status_code=403, detail="Your retailer account is blocked. Please contact support.")
         elif ret_status == "REJECTED":
             raise HTTPException(status_code=403, detail="Your retailer application has been rejected. Please contact support.")
-        elif ret_status in ("PENDING", "PENDING_APPROVAL", "PENDING_KYC", "UNDER_REVIEW", "DRAFT"):
-            # Check if there is an in-progress draft to resume
-            draft_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.mobile_number.in_(mobile_variants))
-            draft = (await db.execute(draft_stmt)).scalars().first()
-            if draft:
-                flow = "RESUME_ONBOARDING"
-                exists = False
-            else:
-                raise HTTPException(status_code=403, detail="Your retailer account is currently under review. Please wait for admin approval.")
+        else:
+            flow = "RETAILER_LOGIN_PENDING"
+            exists = True
     else:
         # No retailer record found -> Check for existing onboarding draft
         draft_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.mobile_number.in_(mobile_variants))
@@ -377,7 +374,7 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
 
 @router.post("/login-otp/verify")
 async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: AsyncSession = Depends(get_db)):
-    """Verifies OTP and dynamically creates login session OR initializes/resumes onboarding application."""
+    """Verifies OTP and dynamically routes directly based on actual database account status."""
     raw_digits = re.sub(r"\D", "", str(payload.mobile_number))
     clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
 
@@ -411,7 +408,7 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     otp_tx.is_verified = True
     await db.commit()
 
-    # 4. Check if existing active retailer exists
+    # 4. Check if existing retailer exists
     ret_contact_stmt = (
         select(RetailerContactModel, RetailerModel)
         .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
@@ -432,8 +429,11 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     session_id = f"SESS-{uuid.uuid4().hex[:12].upper()}"
     correlation_id = f"CORR-{uuid.uuid4().hex[:12].upper()}"
 
-    # ── CASE A: EXISTING ACTIVE RETAILER -> LOGIN SESSION ──
-    if retailer_record and (retailer_record.status or "ACTIVE").upper() in ("ACTIVE", "APPROVED"):
+    # ── CASE A: EXISTING RETAILER -> ROUTE BY STATUS ──
+    if retailer_record:
+        ret_status = (retailer_record.status or "PENDING").upper()
+        is_approved = ret_status in ("ACTIVE", "APPROVED")
+
         await EnterpriseAuthService.create_audit_entry(
             db=db,
             user_id=retailer_record.public_id,
@@ -441,21 +441,33 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
             ip_address=request.client.host if request.client else "127.0.0.1",
             user_agent=request.headers.get("user-agent", "Enterprise-Portal"),
             status="SUCCESS",
-            details={"login_method": "OTP", "mobile": clean_mobile, "flow": "RETAILER_LOGIN"}
+            details={"login_method": "OTP", "mobile": clean_mobile, "flow": "RETAILER_LOGIN", "status": ret_status}
         )
 
         retailer_code = retailer_record.retailer_code or f"RET-{str(retailer_record.public_id)[:6].upper()}"
         full_name = retailer_record.owner_name or retailer_record.store_name or "Retailer Partner"
         outlet_name = retailer_record.store_name or retailer_record.owner_name or "Retailer Store"
-        approval_status = retailer_record.status or "ACTIVE"
+        approval_status = "APPROVED" if is_approved else "PENDING"
         retailer_id = str(retailer_record.public_id)
+
+        if is_approved:
+            destination = "RETAILER_WORKSTATION"
+            redirect_url = "/retailer/dashboard"
+            message = "Mobile verified successfully. Signing you in..."
+        else:
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
+            message = "Mobile verified successfully. Loading your application status..."
 
         return {
             "status": "SUCCESS",
-            "message": "Mobile verified successfully. Signing you in...",
+            "message": message,
             "data": {
                 "flow": "RETAILER_LOGIN",
-                "redirect_url": "/retailer/dashboard",
+                "destination": destination,
+                "account_status": ret_status,
+                "redirect_url": redirect_url,
+                "is_approved": is_approved,
                 "session_id": session_id,
                 "correlation_id": correlation_id,
                 "access_token": f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token",
@@ -467,7 +479,8 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
                     "outlet_name": outlet_name,
                     "retailer_code": retailer_code,
                     "retailer_id": retailer_id,
-                    "approval_status": approval_status
+                    "approval_status": approval_status,
+                    "status": ret_status
                 }
             }
         }
@@ -514,6 +527,8 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
         "message": "Mobile verified successfully. Taking you to onboarding...",
         "data": {
             "flow": flow,
+            "destination": "ONBOARDING",
+            "account_status": "DRAFT",
             "registration_id": reg_id,
             "redirect_url": f"/register?reg_id={reg_id}&mobile={clean_mobile}",
             "session_id": session_id,
@@ -527,6 +542,106 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
                 "is_onboarding": True,
                 "registration_id": reg_id,
                 "approval_status": "DRAFT"
+            }
+        }
+    }
+
+
+@router.get("/account-status")
+async def get_account_status(
+    request: Request,
+    mobile: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns dynamic, live database account verification status, application reference, and payment permissions."""
+    target_mobile = mobile
+    auth_header = request.headers.get("authorization", "")
+    if not target_mobile and auth_header:
+        token = auth_header.replace("Bearer ", "").strip()
+        parts = token.split(".")
+        if len(parts) >= 2:
+            sess_id = parts[1]
+            stmt = select(LoginHistoryModel).where(LoginHistoryModel.session_id == sess_id)
+            hist = (await db.execute(stmt)).scalars().first()
+            if hist and hist.details and isinstance(hist.details, dict):
+                target_mobile = hist.details.get("mobile")
+
+    if not target_mobile:
+        raise HTTPException(status_code=400, detail="Mobile number or valid authentication session required.")
+
+    raw_digits = re.sub(r"\D", "", str(target_mobile))
+    clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
+    mobile_variants = [clean_mobile, f"+91{clean_mobile}", f"91{clean_mobile}"]
+
+    # 1. Query retailer
+    ret_contact_stmt = (
+        select(RetailerContactModel, RetailerModel)
+        .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+        .where(RetailerContactModel.mobile.in_(mobile_variants))
+    )
+    contact_res = (await db.execute(ret_contact_stmt)).first()
+
+    retailer_record: Optional[RetailerModel] = None
+    contact_record: Optional[RetailerContactModel] = None
+    if contact_res:
+        contact_record, retailer_record = contact_res
+    else:
+        auth_user_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
+        auth_user = (await db.execute(auth_user_stmt)).scalars().first()
+        if auth_user:
+            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
+            retailer_record = (await db.execute(ret_stmt)).scalars().first()
+
+    # 2. Query draft registration if no retailer record exists
+    draft_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.mobile_number.in_(mobile_variants))
+    draft = (await db.execute(draft_stmt)).scalars().first()
+
+    if not retailer_record and not draft:
+        raise HTTPException(status_code=404, detail="No retailer application or account found for this mobile number.")
+
+    status = (retailer_record.status if retailer_record else (draft.status if draft else "PENDING")).upper()
+    is_approved = status in ("ACTIVE", "APPROVED")
+
+    retailer_name = (
+        (retailer_record.owner_name or retailer_record.store_name or retailer_record.legal_name)
+        if retailer_record
+        else (draft.draft_data.get("full_name") or draft.draft_data.get("owner_name") or "Retailer Partner" if draft else "Retailer Partner")
+    )
+    store_name = retailer_record.store_name if retailer_record else (draft.draft_data.get("store_name", "Retailer Outlet") if draft else "Retailer Outlet")
+    legal_name = retailer_record.legal_name if retailer_record else store_name
+
+    app_ref = (
+        retailer_record.retailer_code
+        if retailer_record and retailer_record.retailer_code
+        else (draft.registration_id if draft else f"APP-REG-{str(uuid.uuid4())[:8].upper()}")
+    )
+
+    payment_permission = "PERMITTED" if is_approved else "PROHIBITED & LOCKED"
+
+    return {
+        "status": "SUCCESS",
+        "data": {
+            "retailer_id": str(retailer_record.public_id) if retailer_record else None,
+            "tenant_id": str(retailer_record.tenant_id if retailer_record else DEFAULT_TENANT_ID),
+            "company_id": str(retailer_record.company_id if retailer_record else DEFAULT_COMPANY_ID),
+            "retailer_name": retailer_name,
+            "store_name": store_name,
+            "legal_name": legal_name,
+            "registered_mobile": f"+91 {clean_mobile}",
+            "application_reference": app_ref,
+            "verification_status": status,
+            "approval_status": "APPROVED" if is_approved else "PENDING",
+            "is_approved": is_approved,
+            "payment_permission": payment_permission,
+            "account_status": status,
+            "destination": "RETAILER_WORKSTATION" if is_approved else "ACCOUNT_UNDER_REVIEW",
+            "redirect_url": "/retailer/dashboard" if is_approved else "/retailer/account-under-review",
+            "created_at": retailer_record.created_date.isoformat() if retailer_record and retailer_record.created_date else None,
+            "updated_at": retailer_record.updated_date.isoformat() if retailer_record and retailer_record.updated_date else None,
+            "support_contact": {
+                "phone": "+91 80000 00000",
+                "email": "support@pay2pay.in",
+                "desk": "Pay2Pay Compliance & Verification Desk"
             }
         }
     }
