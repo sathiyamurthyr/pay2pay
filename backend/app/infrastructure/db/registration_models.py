@@ -87,6 +87,7 @@ class RegistrationBankModel(BaseEntity, EnterpriseBaseMixin):
     __table_args__ = {"extend_existing": True}
 
     registration_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    account_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # Full unmasked account number for payouts/settlements
     account_number_masked: Mapped[str] = mapped_column(String(50), nullable=False)
     ifsc: Mapped[str] = mapped_column(String(20), nullable=False)
     bank_name: Mapped[str] = mapped_column(String(255), nullable=False)

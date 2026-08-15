@@ -1167,6 +1167,7 @@ class ProgressiveOnboardingService:
         bank_model = RegistrationBankModel(
             tenant_id=DEFAULT_TENANT_ID,
             registration_id=registration_id,
+            account_number=clean_acc,
             account_number_masked=f"XXXX-XXXX-{clean_acc[-4:]}",
             ifsc=clean_ifsc,
             bank_name=resolved_bank_name,
@@ -1179,6 +1180,7 @@ class ProgressiveOnboardingService:
 
         draft_data = dict(draft.draft_data)
         draft_data["bank"] = {
+            "account_number": clean_acc,
             "account_number_masked": bank_model.account_number_masked,
             "ifsc": clean_ifsc,
             "bank_name": bank_model.bank_name,
