@@ -7,6 +7,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 export type ThemeMode = "AUTO" | "LIGHT" | "DARK";
 export type EffectiveTheme = "light" | "dark";
 
+// Configurable Day/Night Boundary Hours (in local retailer timezone)
 export const DAY_START_HOUR = 6;  // 06:00 AM
 export const DAY_END_HOUR = 18;   // 06:00 PM (18:00)
 export const DEFAULT_TIMEZONE = "Asia/Kolkata";
@@ -22,6 +23,9 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+/**
+ * Calculates current local hour in the specified retailer timezone.
+ */
 export const getLocalHourInTimezone = (tz: string = DEFAULT_TIMEZONE): number => {
   try {
     const formatter = new Intl.DateTimeFormat("en-US", {
@@ -41,6 +45,9 @@ export const getLocalHourInTimezone = (tz: string = DEFAULT_TIMEZONE): number =>
   return new Date().getHours();
 };
 
+/**
+ * Resolves effective theme ("light" | "dark") based on ThemeMode and retailer timezone.
+ */
 export const resolveEffectiveTheme = (
   mode: ThemeMode = "AUTO",
   tz: string = DEFAULT_TIMEZONE
@@ -48,11 +55,15 @@ export const resolveEffectiveTheme = (
   if (mode === "LIGHT") return "light";
   if (mode === "DARK") return "dark";
 
+  // AUTO Mode: Day (06:00 AM -> 05:59 PM) = light, Night (06:00 PM -> 05:59 AM) = dark
   const currentHour = getLocalHourInTimezone(tz);
   const isDay = currentHour >= DAY_START_HOUR && currentHour < DAY_END_HOUR;
   return isDay ? "light" : "dark";
 };
 
+/**
+ * Applies dynamic CSS variables and DOM data attributes for seamless theme styling.
+ */
 export const applyThemeTokensToDOM = (effectiveTheme: EffectiveTheme) => {
   if (typeof window === "undefined") return;
   const root = document.documentElement;
@@ -66,6 +77,7 @@ export const applyThemeTokensToDOM = (effectiveTheme: EffectiveTheme) => {
     body?.classList.add("dark");
     body?.classList.remove("light");
 
+    // Semantic CSS Tokens - Dark Theme (Deep Navy Enterprise Banking)
     root.style.setProperty("--background-primary", "#060D1B");
     root.style.setProperty("--background-secondary", "#0B1528");
     root.style.setProperty("--surface", "#121B28");
@@ -81,12 +93,20 @@ export const applyThemeTokensToDOM = (effectiveTheme: EffectiveTheme) => {
     root.style.setProperty("--warning", "#FBBF24");
     root.style.setProperty("--danger", "#F87171");
     root.style.setProperty("--info", "#60A5FA");
+    root.style.setProperty("--p2p-header-bg", "#0B1528");
+    root.style.setProperty("--p2p-header-text", "#FFFFFF");
+    root.style.setProperty("--p2p-page-bg", "#060D1B");
+    root.style.setProperty("--p2p-card-bg", "#121B28");
+    root.style.setProperty("--p2p-card-border", "#1E293B");
+    root.style.setProperty("--p2p-text-color", "#F8FAFC");
+    root.style.setProperty("--p2p-subtext-color", "#94A3B8");
   } else {
     root.classList.add("light");
     root.classList.remove("dark");
     body?.classList.add("light");
     body?.classList.remove("dark");
 
+    // Semantic CSS Tokens - Light Theme (Clean Banking Financial Console)
     root.style.setProperty("--background-primary", "#F8FAFC");
     root.style.setProperty("--background-secondary", "#F1F5F9");
     root.style.setProperty("--surface", "#FFFFFF");
@@ -102,9 +122,19 @@ export const applyThemeTokensToDOM = (effectiveTheme: EffectiveTheme) => {
     root.style.setProperty("--warning", "#D97706");
     root.style.setProperty("--danger", "#DC2626");
     root.style.setProperty("--info", "#0EA5E9");
+    root.style.setProperty("--p2p-header-bg", "#FFFFFF");
+    root.style.setProperty("--p2p-header-text", "#0F172A");
+    root.style.setProperty("--p2p-page-bg", "#F8FAFC");
+    root.style.setProperty("--p2p-card-bg", "#FFFFFF");
+    root.style.setProperty("--p2p-card-border", "#E2E8F0");
+    root.style.setProperty("--p2p-text-color", "#0F172A");
+    root.style.setProperty("--p2p-subtext-color", "#64748B");
   }
 };
 
+/**
+ * Creates dynamic MUI Theme based on resolved effectiveTheme
+ */
 export const createMuiThemeForEffectiveTheme = (effectiveTheme: EffectiveTheme): Theme => {
   const isDark = effectiveTheme === "dark";
 
@@ -151,6 +181,34 @@ export const createMuiThemeForEffectiveTheme = (effectiveTheme: EffectiveTheme):
     shape: {
       borderRadius: 12,
     },
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          body: {
+            backgroundColor: isDark ? "#060D1B" : "#F8FAFC",
+            color: isDark ? "#F8FAFC" : "#0F172A",
+            transition: "background-color 0.25s ease, color 0.25s ease",
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundImage: "none",
+            backgroundColor: isDark ? "#121B28" : "#FFFFFF",
+            borderColor: isDark ? "#1E293B" : "#E2E8F0",
+          },
+        },
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            backgroundColor: isDark ? "#121B28" : "#FFFFFF",
+            borderColor: isDark ? "#1E293B" : "#E2E8F0",
+          },
+        },
+      },
+    },
   });
 };
 
@@ -171,16 +229,19 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
     resolveEffectiveTheme(getStoredThemeMode(), DEFAULT_TIMEZONE)
   );
 
+  // Sync DOM tokens synchronously on mount and when effectiveTheme updates
   useEffect(() => {
     applyThemeTokensToDOM(effectiveTheme);
   }, [effectiveTheme]);
 
+  // Recalculate effective theme whenever mode or timezone changes
   useEffect(() => {
     const newEffective = resolveEffectiveTheme(themeMode, timezone);
     setEffectiveTheme(newEffective);
     applyThemeTokensToDOM(newEffective);
   }, [themeMode, timezone]);
 
+  // Real-time boundary monitoring: Check every 30s to update theme automatically when day/night boundary crosses
   useEffect(() => {
     if (themeMode !== "AUTO") return;
 
@@ -190,11 +251,12 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
         setEffectiveTheme(currentEffective);
         applyThemeTokensToDOM(currentEffective);
       }
-    }, 30000);
+    }, 30000); // 30s check interval
 
     return () => clearInterval(interval);
   }, [themeMode, timezone, effectiveTheme]);
 
+  // Load retailer preferences from backend API on initial application load
   useEffect(() => {
     const loadSettingsFromBackend = async () => {
       try {
@@ -219,6 +281,7 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
     loadSettingsFromBackend();
   }, []);
 
+  // Update Theme Preference & Persist to Backend + LocalStorage
   const setThemeMode = useCallback(
     async (newMode: ThemeMode) => {
       setThemeModeState(newMode);
@@ -231,6 +294,7 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
         localStorage.setItem("pay2pay_theme_mode", newMode);
       }
 
+      // Persist to backend API
       try {
         await fetch("/api/v1/session/settings", {
           method: "PUT",
@@ -269,10 +333,19 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
   );
 };
 
+const DEFAULT_THEME_FALLBACK: ThemeContextType = {
+  themeMode: "DARK",
+  effectiveTheme: "dark",
+  timezone: DEFAULT_TIMEZONE,
+  setThemeMode: async () => {},
+  setTimezone: () => {},
+  isAuto: false,
+};
+
 export const useTheme = (): ThemeContextType => {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error("useTheme must be used within CustomThemeProvider");
+    return DEFAULT_THEME_FALLBACK;
   }
   return context;
 };
