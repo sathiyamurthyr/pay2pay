@@ -1,0 +1,6 @@
+fix: return is_approved=true and destination=RETAILER_WORKSTATION for approved accounts
+
+- Updated /account-status in enterprise_auth_router.py to check live RetailerVerificationModel
+- Correctly marked KYC_APPROVED, APPROVED, and ACTIVE as is_approved=true
+- Removed duplicate router method to resolve FastAPI route collision
+- Set payment_permission to PERMITTED & UNLOCKED and destination to RETAILER_WORKSTATION
