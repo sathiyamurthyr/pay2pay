@@ -23,7 +23,30 @@ export const LOCKED_FINANCIAL_PATHS = new Set([
 export function useRetailerApprovalGuard() {
   const { outlet, setApprovalStatus } = useRetailerStore();
 
-  const isApproved = outlet.approvalStatus === "APPROVED" && outlet.status === "ACTIVE";
+  let effectiveApproval = outlet.approvalStatus;
+  let effectiveKyc = outlet.kycStatus;
+  let effectiveStatus = outlet.status;
+
+  if (typeof window !== "undefined") {
+    const savedApproval = localStorage.getItem("p2p_retailer_approval_status");
+    if (savedApproval && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(savedApproval)) {
+      effectiveApproval = savedApproval as any;
+    } else {
+      const onboardStatus = localStorage.getItem("pay2pay_onboarding_status");
+      if (onboardStatus && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(onboardStatus)) {
+        effectiveApproval = onboardStatus as any;
+      }
+    }
+    if (effectiveApproval === "APPROVED" || effectiveApproval === "ACTIVE") {
+      effectiveStatus = "ACTIVE";
+      effectiveKyc = "VERIFIED";
+    } else {
+      effectiveStatus = "PENDING_KYC";
+      effectiveKyc = "PENDING";
+    }
+  }
+
+  const isApproved = effectiveApproval === "APPROVED" || effectiveApproval === "ACTIVE" || effectiveStatus === "ACTIVE";
 
   const isPathLocked = (path: string) => {
     if (isApproved) return false;
@@ -32,9 +55,9 @@ export function useRetailerApprovalGuard() {
 
   return {
     isApproved,
-    approvalStatus: outlet.approvalStatus,
-    kycStatus: outlet.kycStatus,
-    retailerStatus: outlet.status,
+    approvalStatus: effectiveApproval,
+    kycStatus: effectiveKyc,
+    retailerStatus: effectiveStatus,
     isPathLocked,
     setApprovalStatus,
   };

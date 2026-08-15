@@ -21,14 +21,44 @@ export const LOCKED_FINANCIAL_PATHS = new Set([
 ]);
 
 export function useRetailerApprovalGuard() {
-  const { setApprovalStatus } = useRetailerStore();
+  const { outlet, setApprovalStatus } = useRetailerStore();
+
+  let effectiveApproval = outlet.approvalStatus;
+  let effectiveKyc = outlet.kycStatus;
+  let effectiveStatus = outlet.status;
+
+  if (typeof window !== "undefined") {
+    const savedApproval = localStorage.getItem("p2p_retailer_approval_status");
+    if (savedApproval && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(savedApproval)) {
+      effectiveApproval = savedApproval as any;
+    } else {
+      const onboardStatus = localStorage.getItem("pay2pay_onboarding_status");
+      if (onboardStatus && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(onboardStatus)) {
+        effectiveApproval = onboardStatus as any;
+      }
+    }
+    if (effectiveApproval === "APPROVED" || effectiveApproval === "ACTIVE") {
+      effectiveStatus = "ACTIVE";
+      effectiveKyc = "VERIFIED";
+    } else {
+      effectiveStatus = "PENDING_KYC";
+      effectiveKyc = "PENDING";
+    }
+  }
+
+  const isApproved = effectiveApproval === "APPROVED" || effectiveApproval === "ACTIVE" || effectiveStatus === "ACTIVE";
+
+  const isPathLocked = (path: string) => {
+    if (isApproved) return false;
+    return LOCKED_FINANCIAL_PATHS.has(path) || Array.from(LOCKED_FINANCIAL_PATHS).some((p) => path.startsWith(p));
+  };
 
   return {
-    isApproved: true,
-    approvalStatus: "APPROVED",
-    kycStatus: "VERIFIED",
-    retailerStatus: "ACTIVE",
-    isPathLocked: (path: string) => false,
+    isApproved,
+    approvalStatus: effectiveApproval,
+    kycStatus: effectiveKyc,
+    retailerStatus: effectiveStatus,
+    isPathLocked,
     setApprovalStatus,
   };
 }

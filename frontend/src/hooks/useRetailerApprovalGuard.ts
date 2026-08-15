@@ -37,13 +37,16 @@ export function useRetailerApprovalGuard() {
         effectiveApproval = onboardStatus as any;
       }
     }
-    if (effectiveApproval !== "APPROVED") {
+    if (effectiveApproval === "APPROVED" || effectiveApproval === "ACTIVE") {
+      effectiveStatus = "ACTIVE";
+      effectiveKyc = "VERIFIED";
+    } else {
       effectiveStatus = "PENDING_KYC";
       effectiveKyc = "PENDING";
     }
   }
 
-  const isApproved = effectiveApproval === "APPROVED" && effectiveStatus === "ACTIVE";
+  const isApproved = effectiveApproval === "APPROVED" || effectiveApproval === "ACTIVE" || effectiveStatus === "ACTIVE";
 
   const isPathLocked = (path: string) => {
     if (isApproved) return false;

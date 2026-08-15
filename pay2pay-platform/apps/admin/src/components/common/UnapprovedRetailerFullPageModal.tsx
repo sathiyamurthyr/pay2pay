@@ -62,21 +62,27 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
         )) || "";
 
       let mobile = "";
+      let retailerId = "";
       if (typeof window !== "undefined") {
         try {
           const uStr = localStorage.getItem("pay2pay_user_data") || localStorage.getItem("user_info");
           if (uStr) {
             const u = JSON.parse(uStr);
             mobile = u.mobile_number || u.mobile || "";
+            retailerId = u.retailer_id || u.id || u.retailer_code || "";
           }
         } catch {}
         if (!mobile) {
-          mobile = localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile") || "";
+          mobile = localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile") || localStorage.getItem("p2p_mobile") || "";
+        }
+        if (!retailerId) {
+          retailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || localStorage.getItem("p2p_retailer_code") || "";
         }
       }
 
       const queryParams = new URLSearchParams();
       if (mobile) queryParams.set("mobile", mobile);
+      if (retailerId) queryParams.set("retailer_id", retailerId);
 
       const url = `/api/v1/auth/enterprise/account-status${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
       const headers: Record<string, string> = { "Content-Type": "application/json" };

@@ -301,21 +301,31 @@ class BackblazeStorageService:
         if not file_path:
             return ""
         
-        # If already starts with /uploads/ or full http URL not targeting raw B2 domain
+        # If it's already an authorized URL
+        if "Authorization=" in file_path:
+            return file_path
+
+        # If already starts with /uploads/ or non-B2 HTTP URL
         if file_path.startswith("/uploads/"):
             return file_path
         if file_path.startswith("http://") or (file_path.startswith("https://") and "backblazeb2.com" not in file_path):
             return file_path
 
-        clean_path = file_path.replace(f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/", "")
-        clean_path = clean_path.split("?")[0].lstrip("/")
-
-        # Check if local fallback file exists
-        local_file = Path("uploads") / clean_path
-        if local_file.exists():
-            return f"/uploads/{clean_path}"
-
         api_obj, bucket = cls._get_api()
+        clean_path = None
+
+        if "fileId=" in file_path and api_obj:
+            try:
+                file_id = file_path.split("fileId=")[-1].split("&")[0]
+                file_info = api_obj.get_file_info(file_id)
+                clean_path = file_info.file_name
+            except Exception as err:
+                print(f"[StorageService] Failed to get file info by id: {err}")
+
+        if not clean_path:
+            clean_path = file_path.replace(f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/", "")
+            clean_path = clean_path.split("?")[0].lstrip("/")
+
         if api_obj and bucket:
             try:
                 token = bucket.get_download_authorization(
@@ -325,5 +335,11 @@ class BackblazeStorageService:
                 return f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/{clean_path}?Authorization={token}"
             except Exception as err:
                 print(f"[StorageService] Failed to generate B2 download auth token: {err}")
+
+        # Check if local fallback file exists
+        local_file = Path("uploads") / clean_path
+        if local_file.exists():
+            return f"/uploads/{clean_path}"
         
         return f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/{clean_path}"
+

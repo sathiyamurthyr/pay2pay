@@ -23,7 +23,9 @@ from app.infrastructure.db.registration_models import (
     RegistrationAadhaarModel,
     RegistrationBankModel,
     RegistrationShopModel,
-    RegistrationAddressModel
+    RegistrationAddressModel,
+    RegistrationDocumentModel,
+    RegistrationVideoModel
 )
 from app.application.storage_service import BackblazeStorageService
 
@@ -264,13 +266,37 @@ class VerificationService:
         addr_q = await db.execute(select(RegistrationAddressModel).where(RegistrationAddressModel.registration_id == reg_id))
         addr = addr_q.scalars().first()
 
-        # Verification Documents from DB
-        docs_q = await db.execute(
+        # 1. Verification Documents from RegistrationDocumentModel
+        reg_docs_q = await db.execute(
+            select(RegistrationDocumentModel).where(
+                RegistrationDocumentModel.registration_id == reg_id
+            )
+        )
+        db_docs = {d.doc_type: d.file_url for d in reg_docs_q.scalars().all()}
+
+        # 2. Check VerificationDocumentModel as fallback
+        vdocs_q = await db.execute(
             select(VerificationDocumentModel).where(
                 VerificationDocumentModel.verification_id == str(verif.id)
             )
         )
-        db_docs = {d.doc_type: d.file_url for d in docs_q.scalars().all()}
+        for d in vdocs_q.scalars().all():
+            if d.doc_type not in db_docs:
+                db_docs[d.doc_type] = d.file_url
+
+        # 3. Live Video from RegistrationVideoModel
+        vid_q = await db.execute(
+            select(RegistrationVideoModel).where(RegistrationVideoModel.registration_id == reg_id)
+        )
+        video_rec = vid_q.scalars().first()
+        raw_video_url = (video_rec.video_url if video_rec else None) or db_docs.get("VIDEO")
+
+        # 4. Aadhaar Photo
+        aadhaar_q = await db.execute(
+            select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id)
+        )
+        aadhaar_rec = aadhaar_q.scalars().first()
+        raw_selfie_url = (aadhaar_rec.photo_url if aadhaar_rec else None) or db_docs.get("AADHAAR_FRONT")
 
         # History logs
         hist_q = await db.execute(
@@ -332,13 +358,14 @@ class VerificationService:
                 "shop_photo_url": addr.shop_photo_url if addr else "https://cdn.pay2pay.in/shops/shop_front.jpg"
             },
             "media": {
-                "selfie_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT", "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png")),
-                "video_url": BackblazeStorageService.get_download_url(db_docs.get("VIDEO", "cmp/ret/2026/08/09/sathus_Ret_video.mp4")),
-                "pan_card_url": BackblazeStorageService.get_download_url(db_docs.get("PAN", "cmp/ret/2026/08/02/22b28d04_sathus_ret_pan_card.png")),
-                "aadhaar_front_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT", "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png")),
-                "aadhaar_back_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_BACK", "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_back.png")),
-                "bank_proof_url": BackblazeStorageService.get_download_url(db_docs.get("BANK_PROOF", "cmp/ret/2026/08/02/92aae09b_sathus_ret_bank_account.png")),
-                "gst_proof_url": BackblazeStorageService.get_download_url(db_docs.get("GST_CERT", "cmp/dist/2026/08/02/eb0204a1_sathus_dist_gst_certificate.png")),
+                "selfie_url": BackblazeStorageService.get_download_url(raw_selfie_url or "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png"),
+                "video_url": BackblazeStorageService.get_download_url(raw_video_url or "cmp/ret/2026/08/09/sathus_Ret_video.mp4"),
+                "pan_card_url": BackblazeStorageService.get_download_url(db_docs.get("PAN") or (pan.pan_card_url if pan else None) or "cmp/ret/2026/08/02/22b28d04_sathus_ret_pan_card.png"),
+                "aadhaar_front_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT") or "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png"),
+                "aadhaar_back_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_BACK") or "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_back.png"),
+                "bank_proof_url": BackblazeStorageService.get_download_url(db_docs.get("BANK_PROOF") or (bank.bank_proof_url if bank else None) or "cmp/ret/2026/08/02/92aae09b_sathus_ret_bank_account.png"),
+                "gst_proof_url": BackblazeStorageService.get_download_url(db_docs.get("GST_CERT") or db_docs.get("GST") or (gst.certificate_url if gst else None) or "cmp/dist/2026/08/02/eb0204a1_sathus_dist_gst_certificate.png"),
+                "shop_photo_url": BackblazeStorageService.get_download_url(db_docs.get("SHOP_PHOTO") or (shop.shop_photo_url if shop else None) or "https://cdn.pay2pay.in/shops/shop_front.jpg"),
                 "script_text": "I confirm that I am registering as a Pay2Pay Retailer for Sri Venkateswara Telecom."
             },
             "history": [
@@ -381,15 +408,12 @@ class VerificationService:
 
         action_clean = action.upper()
 
-        is_int = str(verification_id).isdigit()
-        is_uuid = len(str(verification_id)) == 36
         q = await db.execute(
             select(RetailerVerificationModel).where(
                 or_(
-                    RetailerVerificationModel.id == int(verification_id) if is_int else False,
-                    RetailerVerificationModel.public_id == uuid.UUID(verification_id) if is_uuid else False,
-                    RetailerVerificationModel.registration_id == str(verification_id),
-                    RetailerVerificationModel.retailer_id == str(verification_id)
+                    RetailerVerificationModel.public_id == uuid.UUID(verification_id) if len(verification_id) == 36 else False,
+                    RetailerVerificationModel.registration_id == verification_id,
+                    RetailerVerificationModel.retailer_id == verification_id
                 )
             )
         )
@@ -404,82 +428,14 @@ class VerificationService:
             verif.verification_status = "APPROVED"
             verif.account_status = "ACTIVE"
             verif.retailer_status = "ACTIVE"
-
-            # 1. Sync / Activate RetailerModel
-            from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
-            from app.infrastructure.db.auth_models import AuthUserModel
-            from app.infrastructure.adapters.email_service import email_service
-
-            canonical_tid = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
-            ret_code = verif.retailer_id or f"RET-{uuid.uuid4().hex[:6].upper()}"
-
-            r_stmt = select(RetailerModel).where(RetailerModel.retailer_code == ret_code)
-            ret_obj = (await db.execute(r_stmt)).scalars().first()
-
-            if not ret_obj:
-                ret_obj = RetailerModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=canonical_tid,
-                    company_id=None,
-                    retailer_code=ret_code,
-                    store_name=verif.shop_name or verif.retailer_name or "Pay2Pay Verified Merchant",
-                    legal_name=verif.retailer_name or "Pay2Pay Merchant",
-                    owner_name=verif.retailer_name or "Pay2Pay Merchant",
-                    business_category="Fintech & Digital Services",
-                    store_type="BRICK_AND_MORTAR",
-                    status="ACTIVE"
+            try:
+                await db.execute(
+                    update(RegistrationDraftModel)
+                    .where(RegistrationDraftModel.registration_id == verif.registration_id)
+                    .values(status="KYC_APPROVED")
                 )
-                db.add(ret_obj)
-                await db.flush()
-            else:
-                ret_obj.status = "ACTIVE"
-
-            # 2. Sync / Activate RetailerWalletModel
-            w_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == ret_obj.public_id)
-            wallet_obj = (await db.execute(w_stmt)).scalars().first()
-            if not wallet_obj:
-                wallet_obj = RetailerWalletModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=canonical_tid,
-                    company_id=None,
-                    retailer_id=ret_obj.public_id,
-                    wallet_balance=0.0,
-                    daily_transaction_limit=100000.0,
-                    single_transaction_limit=25000.0,
-                    is_frozen=False
-                )
-                db.add(wallet_obj)
-
-            # 3. Sync / Activate AuthUserModel
-            if verif.mobile_number:
-                u_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number == verif.mobile_number)
-                auth_user = (await db.execute(u_stmt)).scalars().first()
-                if auth_user:
-                    auth_user.account_status = "ACTIVE"
-                else:
-                    auth_user = AuthUserModel(
-                        user_id=uuid.uuid4(),
-                        tenant_id=canonical_tid,
-                        mobile_number=verif.mobile_number,
-                        email=verif.email or f"{verif.mobile_number}@pay2pay.in",
-                        full_name=verif.retailer_name or "Retailer Partner",
-                        role="RETAILER",
-                        account_status="ACTIVE",
-                        password_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"  # Secure placeholder until credential reset
-                    )
-                    db.add(auth_user)
-
-            # 4. Dispatch Official Welcome Email (without plain passwords/MPINs)
-            if verif.email:
-                try:
-                    await email_service.send_welcome_email(
-                        recipient_email=verif.email,
-                        retailer_name=verif.retailer_name or "Retailer Partner",
-                        retailer_id=ret_code
-                    )
-                except Exception as ex:
-                    print(f"[WELCOME EMAIL ERROR] {ex}")
-
+            except Exception:
+                pass
         elif action_clean in ("REJECT", "REJECTED"):
             verif.verification_status = "REJECTED"
             verif.account_status = "ONBOARDING"

@@ -9,6 +9,15 @@ export default function RegisterIndexPage() {
   const { currentStep } = useRegistration();
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const underReview = 
+        localStorage.getItem("p2p_retailer_approval_status") === "UNDER_REVIEW" ||
+        localStorage.getItem("pay2pay_onboarding_status") === "UNDER_REVIEW";
+      if (underReview || currentStep > 13) {
+        router.replace("/retailer/account-under-review");
+        return;
+      }
+    }
     const targetRoute = STEP_ROUTES[currentStep] || "/register/mobile";
     router.replace(targetRoute);
   }, [currentStep, router]);

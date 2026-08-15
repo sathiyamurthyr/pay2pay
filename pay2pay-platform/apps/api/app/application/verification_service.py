@@ -23,7 +23,9 @@ from app.infrastructure.db.registration_models import (
     RegistrationAadhaarModel,
     RegistrationBankModel,
     RegistrationShopModel,
-    RegistrationAddressModel
+    RegistrationAddressModel,
+    RegistrationDocumentModel,
+    RegistrationVideoModel
 )
 from app.application.storage_service import BackblazeStorageService
 
@@ -264,13 +266,37 @@ class VerificationService:
         addr_q = await db.execute(select(RegistrationAddressModel).where(RegistrationAddressModel.registration_id == reg_id))
         addr = addr_q.scalars().first()
 
-        # Verification Documents from DB
-        docs_q = await db.execute(
+        # 1. Verification Documents from RegistrationDocumentModel
+        reg_docs_q = await db.execute(
+            select(RegistrationDocumentModel).where(
+                RegistrationDocumentModel.registration_id == reg_id
+            )
+        )
+        db_docs = {d.doc_type: d.file_url for d in reg_docs_q.scalars().all()}
+
+        # 2. Check VerificationDocumentModel as fallback
+        vdocs_q = await db.execute(
             select(VerificationDocumentModel).where(
                 VerificationDocumentModel.verification_id == str(verif.id)
             )
         )
-        db_docs = {d.doc_type: d.file_url for d in docs_q.scalars().all()}
+        for d in vdocs_q.scalars().all():
+            if d.doc_type not in db_docs:
+                db_docs[d.doc_type] = d.file_url
+
+        # 3. Live Video from RegistrationVideoModel
+        vid_q = await db.execute(
+            select(RegistrationVideoModel).where(RegistrationVideoModel.registration_id == reg_id)
+        )
+        video_rec = vid_q.scalars().first()
+        raw_video_url = (video_rec.video_url if video_rec else None) or db_docs.get("VIDEO")
+
+        # 4. Aadhaar Photo
+        aadhaar_q = await db.execute(
+            select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id)
+        )
+        aadhaar_rec = aadhaar_q.scalars().first()
+        raw_selfie_url = (aadhaar_rec.photo_url if aadhaar_rec else None) or db_docs.get("AADHAAR_FRONT")
 
         # History logs
         hist_q = await db.execute(
@@ -332,13 +358,14 @@ class VerificationService:
                 "shop_photo_url": addr.shop_photo_url if addr else "https://cdn.pay2pay.in/shops/shop_front.jpg"
             },
             "media": {
-                "selfie_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT", "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png")),
-                "video_url": BackblazeStorageService.get_download_url(db_docs.get("VIDEO", "cmp/ret/2026/08/09/sathus_Ret_video.mp4")),
-                "pan_card_url": BackblazeStorageService.get_download_url(db_docs.get("PAN", "cmp/ret/2026/08/02/22b28d04_sathus_ret_pan_card.png")),
-                "aadhaar_front_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT", "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png")),
-                "aadhaar_back_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_BACK", "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_back.png")),
-                "bank_proof_url": BackblazeStorageService.get_download_url(db_docs.get("BANK_PROOF", "cmp/ret/2026/08/02/92aae09b_sathus_ret_bank_account.png")),
-                "gst_proof_url": BackblazeStorageService.get_download_url(db_docs.get("GST_CERT", "cmp/dist/2026/08/02/eb0204a1_sathus_dist_gst_certificate.png")),
+                "selfie_url": BackblazeStorageService.get_download_url(raw_selfie_url or "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png"),
+                "video_url": BackblazeStorageService.get_download_url(raw_video_url or "cmp/ret/2026/08/09/sathus_Ret_video.mp4"),
+                "pan_card_url": BackblazeStorageService.get_download_url(db_docs.get("PAN") or (pan.pan_card_url if pan else None) or "cmp/ret/2026/08/02/22b28d04_sathus_ret_pan_card.png"),
+                "aadhaar_front_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT") or "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png"),
+                "aadhaar_back_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_BACK") or "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_back.png"),
+                "bank_proof_url": BackblazeStorageService.get_download_url(db_docs.get("BANK_PROOF") or (bank.bank_proof_url if bank else None) or "cmp/ret/2026/08/02/92aae09b_sathus_ret_bank_account.png"),
+                "gst_proof_url": BackblazeStorageService.get_download_url(db_docs.get("GST_CERT") or db_docs.get("GST") or (gst.certificate_url if gst else None) or "cmp/dist/2026/08/02/eb0204a1_sathus_dist_gst_certificate.png"),
+                "shop_photo_url": BackblazeStorageService.get_download_url(db_docs.get("SHOP_PHOTO") or (shop.shop_photo_url if shop else None) or "https://cdn.pay2pay.in/shops/shop_front.jpg"),
                 "script_text": "I confirm that I am registering as a Pay2Pay Retailer for Sri Venkateswara Telecom."
             },
             "history": [
@@ -401,6 +428,14 @@ class VerificationService:
             verif.verification_status = "APPROVED"
             verif.account_status = "ACTIVE"
             verif.retailer_status = "ACTIVE"
+            try:
+                await db.execute(
+                    update(RegistrationDraftModel)
+                    .where(RegistrationDraftModel.registration_id == verif.registration_id)
+                    .values(status="KYC_APPROVED")
+                )
+            except Exception:
+                pass
         elif action_clean in ("REJECT", "REJECTED"):
             verif.verification_status = "REJECTED"
             verif.account_status = "ONBOARDING"
