@@ -200,7 +200,7 @@ class CashfreeVerificationService:
                 # Fallback simulation for sandbox environments or unconfigured API keys
                 ref_id = f"CFV2-PD-{int(datetime.now().timestamp() * 1000)}"
                 utr = f"UTR{int(datetime.now().timestamp() * 1000)}88"
-                verified_name = (name or "ACCOUNT HOLDER").upper()
+            verified_name = (name or "ACCOUNT HOLDER").upper()
                 return {
                     "status": "SUCCESS",
                     "account_status": "VALID",
