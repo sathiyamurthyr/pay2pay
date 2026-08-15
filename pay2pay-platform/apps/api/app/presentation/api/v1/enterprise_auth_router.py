@@ -835,6 +835,7 @@ async def get_account_status(
             "verification_status": verif_status_display,
             "approval_status": approval_status,
             "is_approved": is_approved,
+            "account_access": access,
             "access": access,
             "reason": reason,
             "login_enabled": login_enabled,

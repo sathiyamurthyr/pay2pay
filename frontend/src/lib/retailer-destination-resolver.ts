@@ -23,6 +23,7 @@ export interface AuthoritativeAccountStatus {
   approval_status: string;
   account_status: string;
   is_approved: boolean;
+  account_access: "ALLOWED" | "RESTRICTED";
   access: "ALLOWED" | "RESTRICTED";
   reason?: string | null;
   login_enabled: boolean;
@@ -40,7 +41,7 @@ export interface AuthoritativeAccountStatus {
 
 let cachedStatus: AuthoritativeAccountStatus | null = null;
 let lastFetchTime = 0;
-const CACHE_TTL_MS = 60000;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes - prevents excessive status API polling
 let activeFetchPromise: Promise<AuthoritativeAccountStatus | null> | null = null;
 let isRedirecting = false;
 
@@ -104,7 +105,19 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
       const json = await res.json();
       if (json.status === "SUCCESS" && json.data) {
         const d = json.data;
-        const isAppr = d.is_approved === true || d.access === "ALLOWED" || d.destination === "DASHBOARD";
+        const rawAccess = (d.account_access || d.access || "").toUpperCase();
+        const rawStatus = (d.account_status || "").toUpperCase();
+        const rawVerif = (d.verification_status || d.approval_status || "").toUpperCase();
+
+        // 1. Authoritative account_access decision
+        const isAppr =
+          rawAccess === "ALLOWED" ||
+          d.is_approved === true ||
+          rawStatus === "ACTIVE" ||
+          rawVerif === "ACTIVE" ||
+          rawVerif === "APPROVED" ||
+          d.destination === "DASHBOARD";
+
         const accessCat: "ALLOWED" | "RESTRICTED" = isAppr ? "ALLOWED" : "RESTRICTED";
 
         const normalizedDest: RetailerDestination =
@@ -129,10 +142,11 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           approval_status: d.approval_status || (isAppr ? "APPROVED" : "PENDING"),
           account_status: d.account_status || (isAppr ? "ACTIVE" : "UNDER_REVIEW"),
           is_approved: isAppr,
+          account_access: accessCat,
           access: accessCat,
           reason: d.reason || (isAppr ? null : "ACCOUNT_UNDER_REVIEW"),
           login_enabled: d.login_enabled !== false,
-          payment_permission: isAppr ? "PERMITTED & UNLOCKED" : "PROHIBITED & LOCKED",
+          payment_permission: d.payment_permission || (isAppr ? "PERMITTED & UNLOCKED" : "PROHIBITED & LOCKED"),
           destination: normalizedDest,
           redirect_url: d.redirect_url || (isAppr ? "/retailer/dashboard" : "/retailer/account-under-review"),
           created_at: d.created_at || null,
@@ -144,8 +158,10 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
         lastFetchTime = Date.now();
 
         if (typeof window !== "undefined") {
+          localStorage.setItem("p2p_account_access", accessCat);
           localStorage.setItem("p2p_retailer_approval_status", isAppr ? "APPROVED" : "UNDER_REVIEW");
           localStorage.setItem("pay2pay_onboarding_status", isAppr ? "APPROVED" : "UNDER_REVIEW");
+          document.cookie = `p2p_account_access=${accessCat}; path=/; max-age=2592000; SameSite=Lax`;
           document.cookie = `p2p_destination=${normalizedDest}; path=/; max-age=2592000; SameSite=Lax`;
         }
 
@@ -249,19 +265,21 @@ export async function verifyAndRoutePostLogin(
       // FAIL CLOSED
       return {
         success: false,
-        error: "Unable to verify your account status. Please try again."
+        error: "Unable to verify your account access. Please try again."
       };
     }
 
-    // 3. Update cookies & session cache with authoritative destination
+    // 3. Clear any stale restriction states and update cookies & session cache
     if (typeof window !== "undefined") {
       document.cookie = `p2p_destination=${status.destination}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_account_access=${status.account_access}; path=/; max-age=2592000; SameSite=Lax`;
+      localStorage.setItem("p2p_account_access", status.account_access);
       localStorage.setItem("p2p_retailer_approval_status", status.is_approved ? "APPROVED" : "UNDER_REVIEW");
       localStorage.setItem("pay2pay_onboarding_status", status.is_approved ? "APPROVED" : "UNDER_REVIEW");
     }
 
     // 4. Route based on authoritative decision
-    if (status.access === "ALLOWED" || status.destination === "DASHBOARD") {
+    if (status.account_access === "ALLOWED" || status.access === "ALLOWED" || status.destination === "DASHBOARD") {
       router.replace("/retailer/dashboard");
       return { success: true, destination: "DASHBOARD" };
     }
@@ -283,7 +301,7 @@ export async function verifyAndRoutePostLogin(
     // FAIL CLOSED
     return {
       success: false,
-      error: "Unable to verify your account status. Please check your connection and try again."
+      error: "Unable to verify your account access. Please check your connection and try again."
     };
   }
 }
@@ -300,7 +318,7 @@ export function enforceAuthoritativeRouting(
   if (isRedirecting) return false;
 
   // 1. If status is restricted (UNDER_REVIEW / RESTRICTED):
-  if (!status.is_approved || status.destination === "ACCOUNT_UNDER_REVIEW") {
+  if (status.account_access === "RESTRICTED" || !status.is_approved || status.destination === "ACCOUNT_UNDER_REVIEW") {
     if (currentPathname !== "/retailer/account-under-review") {
       isRedirecting = true;
       router.replace("/retailer/account-under-review");
@@ -312,7 +330,7 @@ export function enforceAuthoritativeRouting(
   }
 
   // 2. If status is approved and user is sitting on account-under-review:
-  if (status.is_approved && currentPathname === "/retailer/account-under-review") {
+  if ((status.account_access === "ALLOWED" || status.is_approved) && currentPathname === "/retailer/account-under-review") {
     isRedirecting = true;
     router.replace("/retailer/dashboard");
     setTimeout(() => {

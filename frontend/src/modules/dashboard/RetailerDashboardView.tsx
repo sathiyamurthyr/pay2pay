@@ -151,7 +151,8 @@ export const RetailerDashboardView: React.FC = () => {
   const { kpiTheme } = useRetailerStore();
   const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["classic-blue"];
   const [dashboardLockedModal, setDashboardLockedModal] = useState<{ label: string } | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [hasLoaded, setHasLoaded] = useState<boolean>(false);
 
   // API State Data
   const [finKpis, setFinKpis] = useState<FinancialKPIData | null>(null);
@@ -173,6 +174,7 @@ export const RetailerDashboardView: React.FC = () => {
 
   const fetchDashboardData = async () => {
     setLoading(true);
+    setHasLoaded(true);
     try {
       const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
       let activeRetailerId = "";
@@ -207,8 +209,13 @@ export const RetailerDashboardView: React.FC = () => {
     }
   };
 
+  // NO auto-fetch on mount — dashboard data only loads when user clicks Refresh
+  // Timeframe changes only refetch if data was already loaded
   useEffect(() => {
-    fetchDashboardData();
+    if (hasLoaded) {
+      fetchDashboardData();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
 
   // Keyboard Shortcuts Listener
@@ -336,9 +343,20 @@ export const RetailerDashboardView: React.FC = () => {
               border: "1px solid rgba(34, 197, 94, 0.3)",
             }}
           />
-          <Tooltip title="Refresh Dashboard Data">
-            <IconButton onClick={fetchDashboardData} size="small" sx={{ color: "#CBD5E1", backgroundColor: "rgba(255,255,255,0.06)", width: 34, height: 34 }}>
-              <RefreshIcon sx={{ fontSize: 18 }} />
+          <Tooltip title={hasLoaded ? "Refresh Dashboard Data" : "Click to Load Dashboard Data"}>
+            <IconButton
+              onClick={fetchDashboardData}
+              disabled={loading}
+              size="small"
+              sx={{
+                color: hasLoaded ? "#CBD5E1" : "#60A5FA",
+                backgroundColor: hasLoaded ? "rgba(255,255,255,0.06)" : "rgba(37, 99, 235, 0.15)",
+                border: hasLoaded ? "none" : "1px solid rgba(59, 130, 246, 0.4)",
+                width: 34,
+                height: 34,
+              }}
+            >
+              <RefreshIcon sx={{ fontSize: 18, animation: loading ? "spin 1s linear infinite" : "none" }} />
             </IconButton>
           </Tooltip>
           <NotificationCenter />

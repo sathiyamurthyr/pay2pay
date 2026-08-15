@@ -46,7 +46,7 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
       setLoading(false);
       if (data) {
         setStatusData(data);
-        if (data.is_approved || data.access === "ALLOWED") {
+        if (data.account_access === "ALLOWED" || data.access === "ALLOWED" || data.is_approved || data.account_status === "ACTIVE" || data.destination === "DASHBOARD") {
           router.replace("/retailer/dashboard");
         }
       }
@@ -67,7 +67,7 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
 
       if (data) {
         setStatusData(data);
-        if (data.is_approved || data.access === "ALLOWED") {
+        if (data.account_access === "ALLOWED" || data.access === "ALLOWED" || data.is_approved || data.account_status === "ACTIVE" || data.destination === "DASHBOARD") {
           setFeedbackMsg({
             type: "success",
             text: "✓ Your account has been approved! Redirecting to dashboard...",
