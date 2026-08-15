@@ -762,16 +762,27 @@ class ProgressiveOnboardingService:
             "verified_at": verified_at
         }
 
-        pan_model = RegistrationPanModel(
-            tenant_id=DEFAULT_TENANT_ID,
-            registration_id=registration_id,
-            pan_number=clean_pan,
-            pan_holder_name=registered_name,
-            pan_type=pan_type,
-            pan_status=cf_res.get("pan_status", "VALID"),
-            verification_raw=raw_api_json
-        )
-        db.add(pan_model)
+        pan_stmt = select(RegistrationPanModel).where(RegistrationPanModel.registration_id == registration_id)
+        existing_pan = (await db.execute(pan_stmt)).scalars().first()
+        if existing_pan:
+            existing_pan.pan_number = clean_pan
+            existing_pan.pan_holder_name = registered_name
+            existing_pan.pan_type = pan_type
+            existing_pan.pan_status = cf_res.get("pan_status", "VALID")
+            existing_pan.verification_raw = raw_api_json
+            existing_pan.updated_date = datetime.now(timezone.utc)
+            pan_model = existing_pan
+        else:
+            pan_model = RegistrationPanModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                registration_id=registration_id,
+                pan_number=clean_pan,
+                pan_holder_name=registered_name,
+                pan_type=pan_type,
+                pan_status=cf_res.get("pan_status", "VALID"),
+                verification_raw=raw_api_json
+            )
+            db.add(pan_model)
 
         draft.is_business = is_business
         draft_data = dict(draft.draft_data)
@@ -856,17 +867,29 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        gst_model = RegistrationGstModel(
-            tenant_id=DEFAULT_TENANT_ID,
-            registration_id=registration_id,
-            gst_number=clean_gst,
-            legal_business_name="SRI VENKATESWARA TELECOM & FINTECH PRIVATE LIMITED",
-            trade_name="PAY2PAY ENTERPRISE HUB",
-            business_type="PRIVATE_LIMITED",
-            gst_status="ACTIVE",
-            address_json={"state": "Tamil Nadu", "district": "Chennai", "pincode": "600001"}
-        )
-        db.add(gst_model)
+        gst_stmt = select(RegistrationGstModel).where(RegistrationGstModel.registration_id == registration_id)
+        existing_gst = (await db.execute(gst_stmt)).scalars().first()
+        if existing_gst:
+            existing_gst.gst_number = clean_gst
+            existing_gst.legal_business_name = "SRI VENKATESWARA TELECOM & FINTECH PRIVATE LIMITED"
+            existing_gst.trade_name = "PAY2PAY ENTERPRISE HUB"
+            existing_gst.business_type = "PRIVATE_LIMITED"
+            existing_gst.gst_status = "ACTIVE"
+            existing_gst.address_json = {"state": "Tamil Nadu", "district": "Chennai", "pincode": "600001"}
+            existing_gst.updated_date = datetime.now(timezone.utc)
+            gst_model = existing_gst
+        else:
+            gst_model = RegistrationGstModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                registration_id=registration_id,
+                gst_number=clean_gst,
+                legal_business_name="SRI VENKATESWARA TELECOM & FINTECH PRIVATE LIMITED",
+                trade_name="PAY2PAY ENTERPRISE HUB",
+                business_type="PRIVATE_LIMITED",
+                gst_status="ACTIVE",
+                address_json={"state": "Tamil Nadu", "district": "Chennai", "pincode": "600001"}
+            )
+            db.add(gst_model)
 
         draft_data = dict(draft.draft_data)
         draft_data["gst"] = {
@@ -921,36 +944,34 @@ class ProgressiveOnboardingService:
             draft_data["aadhaar_ref_id"] = ref_id
             draft_data["aadhaar_masked"] = masked_aadhaar
             draft_data["aadhaar_number"] = clean_aadhaar
+            draft_data["otp_created_at"] = datetime.now(timezone.utc).isoformat()
             draft.draft_data = draft_data
+            draft.current_step = max(draft.current_step, 7)
             await db.commit()
 
         return {
             "status": "SUCCESS",
             "message": cf_res.get("message") or "Aadhaar OTP sent via Cashfree eKYC Gateway.",
             "ref_id": ref_id,
-            "masked_aadhaar": masked_aadhaar
+            "masked_aadhaar": masked_aadhaar,
+            "next_step": 7
         }
 
     @staticmethod
     async def verify_aadhaar_otp(db: AsyncSession, registration_id: str, ref_id: str, otp_code: str) -> Dict[str, Any]:
         """Step 7B: Verify Aadhaar OTP via Cashfree API and store demographic details."""
+        clean_otp = str(otp_code).strip()
+        if len(clean_otp) != 6:
+            return {"status": "ERROR", "message": "OTP must be exactly 6 digits."}
+
         d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == registration_id)
         draft = (await db.execute(d_stmt)).scalars().first()
         if not draft:
-            draft = RegistrationDraftModel(
-                tenant_id=DEFAULT_TENANT_ID,
-                registration_id=registration_id or "REG-DEMO-1001",
-                mobile_number="9876543210",
-                current_step=7,
-                completed_steps=[1, 2, 3, 4, 5, 6],
-                status="DRAFT",
-                draft_data={"name": "Retailer Partner", "retailer_name": "Retailer Partner", "pan_number": ""}
-            )
-            db.add(draft)
+            return {"status": "ERROR", "message": "Invalid registration ID."}
 
         # Call Cashfree Aadhaar Adapter for authentic verification
         try:
-            ekyc_profile = await cashfree_aadhaar_adapter.verify_aadhaar_otp(ref_id, otp_code)
+            ekyc_profile = await cashfree_aadhaar_adapter.verify_aadhaar_otp(ref_id, clean_otp)
         except Exception as err:
             logger.error(f"Cashfree Aadhaar verification error: {err}")
             raise HTTPException(status_code=400, detail=str(err) or "Aadhaar OTP verification failed. Please try again.")
@@ -1009,17 +1030,29 @@ class ProgressiveOnboardingService:
             "pincode": pincode_val
         }
 
-        aadhaar_model = RegistrationAadhaarModel(
-            tenant_id=DEFAULT_TENANT_ID,
-            registration_id=registration_id,
-            aadhaar_masked=aadhaar_masked,
-            full_name=retailer_name,
-            dob=dob_val,
-            gender=gender_val,
-            address_json=address_dict,
-            photo_url=photo_url_val
-        )
-        db.add(aadhaar_model)
+        aa_stmt = select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == registration_id)
+        existing_aadhaar = (await db.execute(aa_stmt)).scalars().first()
+        if existing_aadhaar:
+            existing_aadhaar.aadhaar_masked = aadhaar_masked
+            existing_aadhaar.full_name = retailer_name
+            existing_aadhaar.dob = dob_val
+            existing_aadhaar.gender = gender_val
+            existing_aadhaar.address_json = address_dict
+            existing_aadhaar.photo_url = photo_url_val
+            existing_aadhaar.updated_date = datetime.now(timezone.utc)
+            aadhaar_model = existing_aadhaar
+        else:
+            aadhaar_model = RegistrationAadhaarModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                registration_id=registration_id,
+                aadhaar_masked=aadhaar_masked,
+                full_name=retailer_name,
+                dob=dob_val,
+                gender=gender_val,
+                address_json=address_dict,
+                photo_url=photo_url_val
+            )
+            db.add(aadhaar_model)
 
         draft_data = dict(draft.draft_data)
         draft_data["aadhaar_last4"] = aadhaar_last4
@@ -1164,19 +1197,33 @@ class ProgressiveOnboardingService:
         resolved_branch = cf_res.get("branch") or cf_res.get("raw_response", {}).get("branch") or fallback_branch
         resolved_bene_name = cf_res.get("name_at_bank") or (name.upper() if name else "VERIFIED ACCOUNT HOLDER")
 
-        bank_model = RegistrationBankModel(
-            tenant_id=DEFAULT_TENANT_ID,
-            registration_id=registration_id,
-            account_number=clean_acc,
-            account_number_masked=f"XXXX-XXXX-{clean_acc[-4:]}",
-            ifsc=clean_ifsc,
-            bank_name=resolved_bank_name,
-            branch=resolved_branch,
-            name_at_bank=resolved_bene_name,
-            account_type=account_type,
-            verification_status="VERIFIED"
-        )
-        db.add(bank_model)
+        b_stmt = select(RegistrationBankModel).where(RegistrationBankModel.registration_id == registration_id)
+        existing_bank = (await db.execute(b_stmt)).scalars().first()
+        if existing_bank:
+            existing_bank.account_number = clean_acc
+            existing_bank.account_number_masked = f"XXXX-XXXX-{clean_acc[-4:]}"
+            existing_bank.ifsc = clean_ifsc
+            existing_bank.bank_name = resolved_bank_name
+            existing_bank.branch = resolved_branch
+            existing_bank.name_at_bank = resolved_bene_name
+            existing_bank.account_type = account_type
+            existing_bank.verification_status = "VERIFIED"
+            existing_bank.updated_date = datetime.now(timezone.utc)
+            bank_model = existing_bank
+        else:
+            bank_model = RegistrationBankModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                registration_id=registration_id,
+                account_number=clean_acc,
+                account_number_masked=f"XXXX-XXXX-{clean_acc[-4:]}",
+                ifsc=clean_ifsc,
+                bank_name=resolved_bank_name,
+                branch=resolved_branch,
+                name_at_bank=resolved_bene_name,
+                account_type=account_type,
+                verification_status="VERIFIED"
+            )
+            db.add(bank_model)
 
         draft_data = dict(draft.draft_data)
         draft_data["bank"] = {
@@ -1220,19 +1267,33 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        shop_model = RegistrationShopModel(
-            tenant_id=DEFAULT_TENANT_ID,
-            registration_id=registration_id,
-            shop_name=shop_data.get("shop_name", "Sri Venkateswara Telecom"),
-            category=shop_data.get("category", "Telecom & Recharge"),
-            subcategory=shop_data.get("subcategory", "FinTech Services"),
-            years_in_business=int(shop_data.get("years_in_business", 5)),
-            employees=int(shop_data.get("employees", 3)),
-            monthly_estimate=shop_data.get("monthly_estimate", "₹5 Lakhs - ₹10 Lakhs"),
-            annual_turnover=shop_data.get("annual_turnover", "₹50 Lakhs - ₹1 Crore"),
-            website=shop_data.get("website")
-        )
-        db.add(shop_model)
+        s_stmt = select(RegistrationShopModel).where(RegistrationShopModel.registration_id == registration_id)
+        existing_shop = (await db.execute(s_stmt)).scalars().first()
+        if existing_shop:
+            existing_shop.shop_name = shop_data.get("shop_name", "Sri Venkateswara Telecom")
+            existing_shop.category = shop_data.get("category", "Telecom & Recharge")
+            existing_shop.subcategory = shop_data.get("subcategory", "FinTech Services")
+            existing_shop.years_in_business = int(shop_data.get("years_in_business", 5))
+            existing_shop.employees = int(shop_data.get("employees", 3))
+            existing_shop.monthly_estimate = shop_data.get("monthly_estimate", "₹5 Lakhs - ₹10 Lakhs")
+            existing_shop.annual_turnover = shop_data.get("annual_turnover", "₹50 Lakhs - ₹1 Crore")
+            existing_shop.website = shop_data.get("website")
+            existing_shop.updated_date = datetime.now(timezone.utc)
+            shop_model = existing_shop
+        else:
+            shop_model = RegistrationShopModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                registration_id=registration_id,
+                shop_name=shop_data.get("shop_name", "Sri Venkateswara Telecom"),
+                category=shop_data.get("category", "Telecom & Recharge"),
+                subcategory=shop_data.get("subcategory", "FinTech Services"),
+                years_in_business=int(shop_data.get("years_in_business", 5)),
+                employees=int(shop_data.get("employees", 3)),
+                monthly_estimate=shop_data.get("monthly_estimate", "₹5 Lakhs - ₹10 Lakhs"),
+                annual_turnover=shop_data.get("annual_turnover", "₹50 Lakhs - ₹1 Crore"),
+                website=shop_data.get("website")
+            )
+            db.add(shop_model)
 
         draft_data = dict(draft.draft_data)
         draft_data["shop"] = shop_data
@@ -1261,22 +1322,39 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        addr_model = RegistrationAddressModel(
-            tenant_id=DEFAULT_TENANT_ID,
-            registration_id=registration_id,
-            street=address_data.get("street", "100 GST Road"),
-            area=address_data.get("area", "Tambaram"),
-            landmark=address_data.get("landmark", "Opposite Railway Station"),
-            city=address_data.get("city", "Chennai"),
-            district=address_data.get("district", "Chengalpattu"),
-            state=address_data.get("state", "Tamil Nadu"),
-            pincode=address_data.get("pincode", "600045"),
-            country=address_data.get("country", "India"),
-            latitude=float(address_data.get("latitude", 12.9249)),
-            longitude=float(address_data.get("longitude", 80.1000)),
-            shop_photo_url=address_data.get("shop_photo_url")
-        )
-        db.add(addr_model)
+        a_stmt = select(RegistrationAddressModel).where(RegistrationAddressModel.registration_id == registration_id)
+        existing_addr = (await db.execute(a_stmt)).scalars().first()
+        if existing_addr:
+            existing_addr.street = address_data.get("street", "100 GST Road")
+            existing_addr.area = address_data.get("area", "Tambaram")
+            existing_addr.landmark = address_data.get("landmark", "Opposite Railway Station")
+            existing_addr.city = address_data.get("city", "Chennai")
+            existing_addr.district = address_data.get("district", "Chengalpattu")
+            existing_addr.state = address_data.get("state", "Tamil Nadu")
+            existing_addr.pincode = address_data.get("pincode", "600045")
+            existing_addr.country = address_data.get("country", "India")
+            existing_addr.latitude = float(address_data.get("latitude", 12.9249))
+            existing_addr.longitude = float(address_data.get("longitude", 80.1000))
+            existing_addr.shop_photo_url = address_data.get("shop_photo_url")
+            existing_addr.updated_date = datetime.now(timezone.utc)
+            addr_model = existing_addr
+        else:
+            addr_model = RegistrationAddressModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                registration_id=registration_id,
+                street=address_data.get("street", "100 GST Road"),
+                area=address_data.get("area", "Tambaram"),
+                landmark=address_data.get("landmark", "Opposite Railway Station"),
+                city=address_data.get("city", "Chennai"),
+                district=address_data.get("district", "Chengalpattu"),
+                state=address_data.get("state", "Tamil Nadu"),
+                pincode=address_data.get("pincode", "600045"),
+                country=address_data.get("country", "India"),
+                latitude=float(address_data.get("latitude", 12.9249)),
+                longitude=float(address_data.get("longitude", 80.1000)),
+                shop_photo_url=address_data.get("shop_photo_url")
+            )
+            db.add(addr_model)
 
         draft_data = dict(draft.draft_data)
         draft_data["address"] = address_data
@@ -1305,21 +1383,41 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        doc_model = RegistrationDocumentModel(
-            tenant_id=DEFAULT_TENANT_ID,
-            registration_id=registration_id,
-            doc_type=doc_data.get("doc_type", "PAN"),
-            file_name=doc_data.get("file_name", "document.jpg"),
-            file_url=doc_data.get("file_url", "https://cdn.pay2pay.in/docs/sample.jpg"),
-            file_size_bytes=int(doc_data.get("file_size_bytes", 245000)),
-            mime_type=doc_data.get("mime_type", "image/jpeg"),
-            is_verified=True
+        doc_type_val = doc_data.get("doc_type", "PAN")
+        file_name_val = doc_data.get("file_name", "document.jpg")
+        file_url_val = doc_data.get("file_url", "https://cdn.pay2pay.in/docs/sample.jpg")
+        file_size_val = int(doc_data.get("file_size_bytes", 245000))
+        mime_type_val = doc_data.get("mime_type", "image/jpeg")
+
+        doc_stmt = select(RegistrationDocumentModel).where(
+            RegistrationDocumentModel.registration_id == registration_id,
+            RegistrationDocumentModel.doc_type == doc_type_val
         )
-        db.add(doc_model)
+        existing_doc = (await db.execute(doc_stmt)).scalars().first()
+        if existing_doc:
+            existing_doc.file_name = file_name_val
+            existing_doc.file_url = file_url_val
+            existing_doc.file_size_bytes = file_size_val
+            existing_doc.mime_type = mime_type_val
+            existing_doc.is_verified = True
+            existing_doc.updated_date = datetime.now(timezone.utc)
+            doc_model = existing_doc
+        else:
+            doc_model = RegistrationDocumentModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                registration_id=registration_id,
+                doc_type=doc_type_val,
+                file_name=file_name_val,
+                file_url=file_url_val,
+                file_size_bytes=file_size_val,
+                mime_type=mime_type_val,
+                is_verified=True
+            )
+            db.add(doc_model)
 
         draft_data = dict(draft.draft_data)
         docs = draft_data.get("documents", {})
-        docs[doc_data.get("doc_type")] = doc_data.get("file_url")
+        docs[doc_type_val] = file_url_val
         draft_data["documents"] = docs
         draft.draft_data = draft_data
         draft.current_step = max(draft.current_step, 12)
@@ -1333,7 +1431,7 @@ class ProgressiveOnboardingService:
 
         return {
             "status": "SUCCESS",
-            "message": f"Document {doc_data.get('doc_type')} uploaded!",
+            "message": f"Document {doc_type_val} uploaded!",
             "next_step": 12,
             "completed_steps": draft.completed_steps
         }
@@ -1346,15 +1444,25 @@ class ProgressiveOnboardingService:
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        vid_model = RegistrationVideoModel(
-            tenant_id=DEFAULT_TENANT_ID,
-            registration_id=registration_id,
-            video_url=video_data.get("video_url", "https://cdn.pay2pay.in/videos/verification.mp4"),
-            duration_seconds=int(video_data.get("duration_seconds", 15)),
-            script_text=video_data.get("script_text", "I confirm that I am registering as a Pay2Pay Retailer."),
-            is_approved=True
-        )
-        db.add(vid_model)
+        v_stmt = select(RegistrationVideoModel).where(RegistrationVideoModel.registration_id == registration_id)
+        existing_vid = (await db.execute(v_stmt)).scalars().first()
+        if existing_vid:
+            existing_vid.video_url = video_data.get("video_url", "https://cdn.pay2pay.in/videos/verification.mp4")
+            existing_vid.duration_seconds = int(video_data.get("duration_seconds", 15))
+            existing_vid.script_text = video_data.get("script_text", "I confirm that I am registering as a Pay2Pay Retailer.")
+            existing_vid.is_approved = True
+            existing_vid.updated_date = datetime.now(timezone.utc)
+            vid_model = existing_vid
+        else:
+            vid_model = RegistrationVideoModel(
+                tenant_id=DEFAULT_TENANT_ID,
+                registration_id=registration_id,
+                video_url=video_data.get("video_url", "https://cdn.pay2pay.in/videos/verification.mp4"),
+                duration_seconds=int(video_data.get("duration_seconds", 15)),
+                script_text=video_data.get("script_text", "I confirm that I am registering as a Pay2Pay Retailer."),
+                is_approved=True
+            )
+            db.add(vid_model)
 
         draft_data = dict(draft.draft_data or {})
         draft_data["video"] = video_data
