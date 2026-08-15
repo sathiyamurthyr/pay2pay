@@ -316,7 +316,7 @@ export const RetailerDashboardView: React.FC = () => {
             </Box>
             <Box>
               <Typography variant="body2" sx={{ color: "#E2E8F0", fontSize: "12px", mt: 0.2 }}>
-                Retailer application for <strong>Mobile {outlet.mobile ? `+91 ${outlet.mobile.replace(/\D/g, "")}` : "your registered mobile"}</strong> is pending Admin KYC verification. Transactions are restricted.
+                Retailer application for <strong>{headerWallet?.retailer_name || "your registered account"}</strong> is pending Admin KYC verification. Transactions are restricted.
               </Typography>
             </Box>
           </Box>
@@ -1033,18 +1033,6 @@ export const RetailerDashboardView: React.FC = () => {
               sx={{ borderColor: "#3B82F6", color: "#60A5FA", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: "rgba(59, 130, 246, 0.1)" } }}
             >
               Contact Admin Support
-            </Button>
-            <Button
-              onClick={() => {
-                setApprovalStatus("APPROVED");
-                setDashboardLockedModal(null);
-              }}
-              variant="contained"
-              color="success"
-              fullWidth
-              sx={{ fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px" }}
-            >
-              Simulate Admin Approval (Unlock Now)
             </Button>
             <Button
               onClick={() => setDashboardLockedModal(null)}
