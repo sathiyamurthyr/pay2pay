@@ -348,72 +348,23 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
 
     localStorage.setItem("pay2pay_user_role", normalizedRole);
-    localStorage.setItem("p2p_user_role", normalizedRole);
-    localStorage.setItem("access_token", validToken);
     localStorage.setItem("pay2pay_access_token", validToken);
-    localStorage.setItem("pay2pay_auth_token", validToken);
-
-    const full_name = userData?.full_name || (typeof window !== "undefined" && (localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name"))) || "Retailer Partner";
-    const retailer_code = userData?.retailer_code || (typeof window !== "undefined" && (localStorage.getItem("p2p_retailer_code") || localStorage.getItem("pay2pay_user_code"))) || "RET-PARTNER";
-    const retailer_name = userData?.outlet_name || userData?.retailer_name || full_name;
-    const approval_status = userData?.approval_status || (typeof window !== "undefined" && localStorage.getItem("p2p_retailer_approval_status")) || "PENDING";
-    // Do NOT fall back to stale localStorage value — only use what the server returns
-    const retailer_id = userData?.retailer_id || userData?.id || "";
-
-    localStorage.setItem("user_info", JSON.stringify({
-      id: retailer_id,
-      full_name,
-      retailer_name,
-      retailer_code,
-      approval_status,
-      email: userData?.email || "retailer@pay2pay.com",
-      mobile: userData?.mobile_number || mobileNumber,
-      roles: [normalizedRole]
-    }));
-
-    if (retailer_code) {
-      localStorage.setItem("p2p_retailer_code", retailer_code);
-      localStorage.setItem("pay2pay_user_code", retailer_code);
-    }
-    if (full_name) {
-      localStorage.setItem("p2p_retailer_name", full_name);
-      localStorage.setItem("pay2pay_user_name", full_name);
-      localStorage.setItem("pay2pay_reg_name", full_name);
-    }
-    if (retailer_id) {
-      localStorage.setItem("p2p_active_retailer_id", retailer_id);
-    }
-    if (approval_status) {
-      localStorage.setItem("p2p_retailer_approval_status", approval_status);
+    if (userData) {
+      localStorage.setItem("pay2pay_user_data", JSON.stringify(userData));
     }
 
-    // Persisted onboarding check from backend
-    try {
-      const onboardRes = await fetch(`${API_BASE}/onboarding/status?app_type=${normalizedRole}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      if (onboardRes.ok) {
-        const onboardData = await onboardRes.json();
-        if (onboardData.onboarding_status === "INCOMPLETE" || onboardData.is_complete === false) {
-          router.push(portalRegisterUrl);
-          return;
-        }
-      }
-    } catch (e) {
-      // Fallback redirect if backend onboarding check offline
-    }
+    const redirectPath =
+      normalizedRole === "RETAILER"
+        ? "/retailer/dashboard"
+        : normalizedRole === "SD"
+        ? "/super-distributor/dashboard"
+        : "/distributor/dashboard";
 
-    router.push(portalDashboardUrl);
+    router.push(redirectPath);
   };
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLocked) {
-      const mins = Math.floor(lockTimer / 60);
-      const secs = lockTimer % 60;
-      triggerError(`Account locked due to 3 failed attempts. Retry in ${mins}:${secs.toString().padStart(2, "0")}`);
-      return;
-    }
     if (!acceptedConsent) {
       triggerError("Security Consent acceptance is mandatory.");
       return;
@@ -423,17 +374,13 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       return;
     }
     if (!password) {
-      triggerError("Password is required.");
-      return;
-    }
-    if (captchaInput !== captchaCode) {
-      triggerError("Security Captcha does not match. Please enter the characters shown.");
-      refreshCaptcha();
+      triggerError("Please enter your account password.");
       return;
     }
 
     setLoading(true);
     setErrorMsg("");
+    setSuccessMsg("");
 
     try {
       const res = await fetch(`${API_BASE}/auth/enterprise/login-password`, {
@@ -441,11 +388,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mobile_number: mobileNumber,
-          password: password,
+          password,
           captcha_code: captchaInput,
-          telemetry: telemetry,
-          accepted_terms: acceptedConsent,
-          app_type: normalizedRole,
+          telemetry
         })
       });
 
@@ -467,9 +412,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       }
     } catch {
       setLoading(false);
-      setShowConfetti(true);
-      setSuccessMsg("✓ Authenticated. Redirecting...");
-      setTimeout(() => { handleAuthSuccessRedirect(); }, 600);
+      triggerError("Unable to connect to authentication service. Please check your connection.");
     }
   };
 
@@ -479,6 +422,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       return;
     }
     setErrorMsg("");
+    setSuccessMsg("");
     setLoading(true);
 
     try {
@@ -491,8 +435,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       setLoading(false);
       if (res.ok && data.status === "SUCCESS") {
         setOtpSent(true);
-        const otpCodeHint = data.data?.otp_code ? ` (Code: ${data.data.otp_code})` : "";
-        setSuccessMsg(`✓ OTP sent to WhatsApp +91 ${mobileNumber}${otpCodeHint}`);
+        const masked = data.data?.masked_mobile || `******${mobileNumber.slice(-4)}`;
+        setSuccessMsg(`✓ OTP sent successfully to WhatsApp ${masked}.`);
+        setErrorMsg("");
         setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
       } else {
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Failed to send OTP.");
@@ -518,6 +463,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
     setLoading(true);
     setErrorMsg("");
+    setSuccessMsg("");
 
     try {
       const res = await fetch(`${API_BASE}/auth/enterprise/login-otp/verify`, {
@@ -530,10 +476,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
       if (res.ok && data.status === "SUCCESS") {
         setShowConfetti(true);
-        setSuccessMsg("✓ OTP Verified! Redirecting...");
-        handleAuthSuccessRedirect(data.data?.access_token);
+        setSuccessMsg("✓ OTP verified successfully. Signing you in...");
+        setErrorMsg("");
+        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user);
       } else {
-        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please enter the correct 6-digit OTP.");
+        const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please check the OTP and try again.");
         triggerError(errText);
       }
     } catch {

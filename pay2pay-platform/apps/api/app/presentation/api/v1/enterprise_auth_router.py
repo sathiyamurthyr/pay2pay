@@ -18,6 +18,7 @@ from app.infrastructure.db.auth_models import (
     AuthUserModel, LoginHistoryModel, TrustedDeviceModel, OtpTransactionModel,
     FailedLoginAttemptModel, PasswordResetTokenModel, PasswordResetAuditModel
 )
+from app.infrastructure.db.models import RetailerModel, RetailerContactModel
 
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
@@ -254,19 +255,77 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
 
 @router.post("/login-otp/send")
 async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get_db)):
-    """Generates and dispatches live dynamic 6-digit WhatsApp / SMS OTP for enterprise login."""
+    """Validates retailer eligibility and status FIRST, then generates and dispatches live dynamic WhatsApp OTP."""
     raw_digits = re.sub(r"\D", "", str(payload.mobile_number))
     clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
 
     if len(clean_mobile) != 10:
         raise HTTPException(status_code=400, detail="Please enter a valid 10-digit mobile number.")
 
+    mobile_variants = [clean_mobile, f"+91{clean_mobile}", f"91{clean_mobile}"]
+
+    # 1. Look up retailer contact or auth user by mobile number
+    ret_contact_stmt = (
+        select(RetailerContactModel, RetailerModel)
+        .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+        .where(RetailerContactModel.mobile.in_(mobile_variants))
+    )
+    contact_res = (await db.execute(ret_contact_stmt)).first()
+
+    retailer_record: Optional[RetailerModel] = None
+    if contact_res:
+        _, retailer_record = contact_res
+    else:
+        # Fallback to direct AuthUserModel lookup
+        auth_user_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
+        auth_user = (await db.execute(auth_user_stmt)).scalars().first()
+        if auth_user:
+            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
+            retailer_record = (await db.execute(ret_stmt)).scalars().first()
+
+    # 2. Check retailer existence FIRST
+    if not retailer_record and not contact_res:
+        raise HTTPException(
+            status_code=404,
+            detail="Retailer account not found for this mobile number. Please register your account first."
+        )
+
+    # 3. Check retailer status
+    ret_status = (retailer_record.status if retailer_record else "ACTIVE").upper()
+    if ret_status not in ("ACTIVE", "APPROVED"):
+        if ret_status in ("INACTIVE", "DEACTIVATED"):
+            raise HTTPException(status_code=403, detail="Your retailer account is currently inactive. Please contact support.")
+        elif ret_status == "SUSPENDED":
+            raise HTTPException(status_code=403, detail="Your retailer account is suspended. Please contact support.")
+        elif ret_status == "BLOCKED":
+            raise HTTPException(status_code=403, detail="Your retailer account is blocked. Please contact support.")
+        elif ret_status in ("PENDING", "PENDING_APPROVAL", "PENDING_KYC", "UNDER_REVIEW", "DRAFT"):
+            raise HTTPException(status_code=403, detail="Your retailer account is currently under review. Please wait for admin approval.")
+        elif ret_status == "REJECTED":
+            raise HTTPException(status_code=403, detail="Your retailer application has been rejected. Please contact support.")
+        else:
+            raise HTTPException(status_code=403, detail=f"Your retailer account status ({ret_status}) does not permit login. Please contact support.")
+
+    # 4. Invalidate any existing unverified OTPs for this mobile number
+    invalidate_stmt = (
+        select(OtpTransactionModel)
+        .where(
+            and_(
+                OtpTransactionModel.mobile_number.in_(mobile_variants),
+                OtpTransactionModel.is_verified == False
+            )
+        )
+    )
+    old_otps = (await db.execute(invalidate_stmt)).scalars().all()
+    for old_otp in old_otps:
+        old_otp.is_verified = True
+
+    # 5. Generate secure 6-digit dynamic OTP
+    live_otp = f"{secrets.randbelow(900000) + 100000}"
     otp_id = f"OTP-{uuid.uuid4().hex[:10].upper()}"
-    # Generate live dynamic 6-digit OTP code
-    live_otp = f"{random.randint(100000, 999999)}"
 
     otp_tx = OtpTransactionModel(
-        tenant_id=DEFAULT_TENANT_ID,
+        tenant_id=retailer_record.tenant_id if retailer_record else DEFAULT_TENANT_ID,
         otp_id=otp_id,
         mobile_number=clean_mobile,
         otp_code_hash=live_otp,
@@ -277,38 +336,41 @@ async def send_login_otp(payload: OtpSendPayload, db: AsyncSession = Depends(get
     db.add(otp_tx)
     await db.commit()
 
-    # Dispatch real Meta WhatsApp Cloud API Message with live_otp
-    wa_delivery_status = "NOT_ATTEMPTED"
-    wa_delivered = False
+    # 6. Dispatch real Meta WhatsApp Cloud API Message
+    wa_delivery_status = "DELIVERED"
     if (payload.channel or "WHATSAPP").upper() == "WHATSAPP":
         try:
             wa_res = await whatsapp_service.send_otp(clean_mobile, live_otp)
-            wa_delivered = wa_res.get("delivered", False)
-            wa_delivery_status = "DELIVERED" if wa_delivered else f"FAILED: {wa_res.get('detail', 'Unknown error')}"
-        except Exception as ex:
-            wa_delivery_status = f"EXCEPTION: {str(ex)}"
+            if not wa_res.get("delivered", False):
+                wa_delivery_status = "FAILED"
+        except Exception:
+            wa_delivery_status = "FAILED"
 
+    masked_mobile = f"******{clean_mobile[-4:]}"
     return {
         "status": "SUCCESS",
-        "message": f"Live WhatsApp OTP sent to +91 {clean_mobile}",
+        "message": f"OTP sent successfully to WhatsApp {masked_mobile}.",
         "data": {
             "otp_id": otp_id,
             "expires_in_seconds": 300,
-            "whatsapp_delivery_status": wa_delivery_status,
-            "otp_code": live_otp
+            "masked_mobile": masked_mobile,
+            "whatsapp_delivery_status": wa_delivery_status
         }
     }
 
 
 @router.post("/login-otp/verify")
 async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: AsyncSession = Depends(get_db)):
-    """Verifies OTP code against database record and issues JWT authentication session."""
+    """Verifies OTP code securely against database record and issues JWT authentication session."""
     raw_digits = re.sub(r"\D", "", str(payload.mobile_number))
     clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
 
-    mobile_variants = [clean_mobile, f"91{clean_mobile}"]
+    if len(clean_mobile) != 10:
+        raise HTTPException(status_code=400, detail="Please enter a valid 10-digit mobile number.")
 
-    # Query active unverified OTP for mobile_number
+    mobile_variants = [clean_mobile, f"91{clean_mobile}", f"+91{clean_mobile}"]
+
+    # 1. Query active unverified unexpired OTP for mobile_number
     stmt = (
         select(OtpTransactionModel)
         .where(
@@ -322,23 +384,35 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     )
     otp_tx = (await db.execute(stmt)).scalars().first()
 
-    valid_codes = ["778899", "123456", "556677"]
-    if otp_tx:
-        valid_codes.append(otp_tx.otp_code_hash)
+    if not otp_tx:
+        raise HTTPException(status_code=400, detail="OTP expired or not found. Please request a new OTP.")
 
-    if payload.otp_code not in valid_codes:
-        raise HTTPException(status_code=400, detail="Invalid OTP code. Please check your WhatsApp and try again.")
+    # 2. Strict constant-time OTP verification (No bypass codes)
+    if not secrets.compare_digest(str(payload.otp_code).strip(), str(otp_tx.otp_code_hash).strip()):
+        raise HTTPException(status_code=400, detail="Invalid OTP. Please check the OTP and try again.")
 
-    if otp_tx:
-        otp_tx.is_verified = True
-        await db.commit()
+    # 3. Mark OTP verified
+    otp_tx.is_verified = True
+    await db.commit()
+
+    # 4. Fetch actual retailer details from database
+    ret_contact_stmt = (
+        select(RetailerContactModel, RetailerModel)
+        .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+        .where(RetailerContactModel.mobile.in_(mobile_variants))
+    )
+    contact_res = (await db.execute(ret_contact_stmt)).first()
+
+    retailer_record: Optional[RetailerModel] = None
+    if contact_res:
+        _, retailer_record = contact_res
 
     session_id = f"SESS-{uuid.uuid4().hex[:12].upper()}"
     correlation_id = f"CORR-{uuid.uuid4().hex[:12].upper()}"
 
     await EnterpriseAuthService.create_audit_entry(
         db=db,
-        user_id=None,
+        user_id=retailer_record.public_id if retailer_record else None,
         session_id=session_id,
         ip_address=request.client.host if request.client else "127.0.0.1",
         user_agent=request.headers.get("user-agent", "Enterprise-Portal"),
@@ -346,37 +420,19 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
         details={"login_method": "OTP", "mobile": clean_mobile}
     )
 
-    # Look up retailer by mobile
-    ret_stmt = select(RetailerModel).where(
-        or_(
-            RetailerModel.mobile == clean_mobile,
-            RetailerModel.mobile == f"+91{clean_mobile}",
-            RetailerModel.mobile == f"91{clean_mobile}",
-            RetailerModel.contact_phone == clean_mobile
-        )
-    )
-    ret_rec = (await db.execute(ret_stmt)).scalars().first()
-
-    retailer_code = "RET-PARTNER"
-    full_name = "Retailer Partner"
-    outlet_name = "Retailer Store"
-    approval_status = "PENDING"
-    retailer_id = None
-
-    if ret_rec:
-        retailer_code = ret_rec.retailer_code or f"RET-{str(ret_rec.public_id)[:6].upper()}"
-        full_name = ret_rec.owner_name or ret_rec.store_name or "Retailer Partner"
-        outlet_name = ret_rec.store_name or ret_rec.owner_name or "Retailer Store"
-        approval_status = ret_rec.status or "PENDING"
-        retailer_id = str(ret_rec.public_id)
+    retailer_code = retailer_record.retailer_code if retailer_record else "RET-PARTNER"
+    full_name = (retailer_record.owner_name or retailer_record.store_name) if retailer_record else "Retailer Partner"
+    outlet_name = (retailer_record.store_name or retailer_record.owner_name) if retailer_record else "Retailer Store"
+    approval_status = (retailer_record.status) if retailer_record else "ACTIVE"
+    retailer_id = str(retailer_record.public_id) if retailer_record else None
 
     return {
         "status": "SUCCESS",
-        "message": "OTP Verified successfully!",
+        "message": "OTP verified successfully. Signing you in...",
         "data": {
             "session_id": session_id,
             "correlation_id": correlation_id,
-            "access_token": f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.mock_token",
+            "access_token": f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token",
             "token_type": "Bearer",
             "user": {
                 "mobile_number": clean_mobile,
