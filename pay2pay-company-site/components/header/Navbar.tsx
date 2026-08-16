@@ -128,10 +128,10 @@ export const Navbar: React.FC = () => {
               href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:brightness-110 active:scale-95 transition-all"
+              className="inline-flex items-center justify-center gap-2 h-11 px-5 sm:px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm tracking-wide shadow-lg shadow-blue-500/35 hover:shadow-xl hover:shadow-blue-500/50 hover:-translate-y-0.5 active:translate-y-0 border border-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#050B14] transition-all duration-200 cursor-pointer"
             >
-              <LogIn size={14} />
-              <span>Retailer Login</span>
+              <LogIn size={16} className="text-white shrink-0" />
+              <span className="whitespace-nowrap">Retailer Login</span>
             </a>
           </div>
 
