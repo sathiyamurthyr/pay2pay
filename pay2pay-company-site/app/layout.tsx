@@ -47,6 +47,15 @@ export const metadata: Metadata = {
     description:
       "Pay2Pay connects retailers, distributors, and service partners through a secure, high-throughput digital financial services ecosystem.",
   },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png", sizes: "192x192" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
   twitter: {
     card: "summary_large_image",
     title: "Pay2Pay | Enterprise Digital Financial Services Platform",
