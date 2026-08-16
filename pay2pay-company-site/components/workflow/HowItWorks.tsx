@@ -3,22 +3,20 @@
 import React from "react";
 import { siteConfig } from "@/config/site-config";
 
+import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
+
 export const HowItWorks: React.FC = () => {
   return (
     <section id="how-it-works" className="py-20 lg:py-28 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wide uppercase mb-4">
-            {siteConfig.workflow.sectionBadge}
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold gradient-text-gold tracking-tight mb-4">
-            {siteConfig.workflow.title}
-          </h2>
-          <p className="text-slate-400 text-base leading-relaxed">
-            {siteConfig.workflow.subtitle}
-          </p>
-        </div>
+        <Pay2PayPageHeader
+          eyebrow="How It Works"
+          titlePrefix="Seamless 4-Stage"
+          highlightedTitle="Onboarding"
+          titleSuffix="Workflow"
+          description={siteConfig.workflow.subtitle}
+        />
 
         {/* 4-Step Timeline Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

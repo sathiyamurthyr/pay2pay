@@ -5,22 +5,19 @@ import { Phone, Mail, MapPin, Clock, MessageSquare, Headphones } from "lucide-re
 import { siteConfig } from "@/config/site-config";
 import { ContactForm } from "./ContactForm";
 
+import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
+
 export const ContactSection: React.FC = () => {
   return (
     <section id="contact" className="py-20 lg:py-28 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wide uppercase mb-4">
-            Connect With Us
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold gradient-text-gold tracking-tight mb-4">
-            Partner Helpdesk & Corporate Office
-          </h2>
-          <p className="text-slate-400 text-base leading-relaxed">
-            Reach out for partner onboarding assistance, commercial inquiries, or designated merchant support.
-          </p>
-        </div>
+        <Pay2PayPageHeader
+          eyebrow="Contact"
+          titlePrefix="Partner Helpdesk &"
+          highlightedTitle="Corporate Office"
+          description="Reach out for partner onboarding assistance, commercial inquiries, or designated merchant support."
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           {/* Left Column: Direct Corporate Contacts */}

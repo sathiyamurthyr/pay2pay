@@ -12,6 +12,8 @@ const iconMap: Record<string, LucideIcon> = {
   CheckCircle2,
 };
 
+import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
+
 export const RetailerEcosystem: React.FC = () => {
   return (
     <section id="ecosystem" className="py-20 lg:py-28 relative bg-[#060D18]/80 border-y border-slate-800/70 overflow-hidden">
@@ -20,17 +22,12 @@ export const RetailerEcosystem: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wide uppercase mb-4">
-            {siteConfig.ecosystem.sectionBadge}
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold gradient-text-gold tracking-tight mb-4">
-            Built Around the Retailer
-          </h2>
-          <p className="text-slate-400 text-base leading-relaxed">
-            {siteConfig.ecosystem.subtitle}
-          </p>
-        </div>
+        <Pay2PayPageHeader
+          eyebrow="Ecosystem"
+          titlePrefix="Built Around the"
+          highlightedTitle="Retailer"
+          description={siteConfig.ecosystem.subtitle}
+        />
 
         {/* Visual Lifecycle Flow */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 relative">

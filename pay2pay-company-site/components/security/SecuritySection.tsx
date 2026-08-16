@@ -13,22 +13,20 @@ const iconMap: Record<string, LucideIcon> = {
   FileSpreadsheet,
 };
 
+import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
+
 export const SecuritySection: React.FC = () => {
   return (
     <section id="security" className="py-20 lg:py-28 relative bg-[#060D18]/70 border-y border-slate-800/70">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wide uppercase mb-4">
-            {siteConfig.security.sectionBadge}
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold gradient-text-gold tracking-tight mb-4">
-            {siteConfig.security.title}
-          </h2>
-          <p className="text-slate-400 text-base leading-relaxed">
-            {siteConfig.security.subtitle}
-          </p>
-        </div>
+        <Pay2PayPageHeader
+          eyebrow="Security"
+          titlePrefix="Zero-Trust"
+          highlightedTitle="Financial"
+          titleSuffix="Architecture"
+          description={siteConfig.security.subtitle}
+        />
 
         {/* Security Pillars 6-Card Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

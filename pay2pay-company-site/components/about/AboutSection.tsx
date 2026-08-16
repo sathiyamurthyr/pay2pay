@@ -4,6 +4,8 @@ import React from "react";
 import { Target, Compass, Cpu, CheckCircle } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 
+import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
+
 export const AboutSection: React.FC = () => {
   return (
     <section id="about" className="py-20 lg:py-28 relative bg-[#060D18]/70 border-t border-slate-800/70">
@@ -11,17 +13,14 @@ export const AboutSection: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Column: Overview & Corporate Pillars */}
           <div className="lg:col-span-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wide uppercase mb-4">
-              {siteConfig.about.sectionBadge}
-            </div>
-
-            <h2 className="text-3xl sm:text-4xl font-extrabold gradient-text-gold tracking-tight mb-6">
-              {siteConfig.about.title}
-            </h2>
-
-            <p className="text-slate-300 text-base leading-relaxed mb-8">
-              {siteConfig.about.description}
-            </p>
+            <Pay2PayPageHeader
+              align="left"
+              eyebrow="Company"
+              titlePrefix="Enterprise Reliability at"
+              highlightedTitle="Massive Scale"
+              description={siteConfig.about.description}
+              className="mb-8"
+            />
 
             <div className="space-y-4">
               <div className="flex items-start gap-4 p-4 rounded-2xl glass-panel border-slate-800">

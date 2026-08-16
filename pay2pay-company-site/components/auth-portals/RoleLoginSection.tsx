@@ -4,22 +4,20 @@ import React from "react";
 import { LogIn, Check, Shield, Users, Landmark, ArrowRight } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 
+import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
+
 export const RoleLoginSection: React.FC = () => {
   return (
     <section id="workspaces" className="py-20 lg:py-28 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wide uppercase mb-4">
-            Partner Access Hub
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold gradient-text-gold tracking-tight mb-4">
-            Access Your Pay2Pay Workspace
-          </h2>
-          <p className="text-slate-400 text-base leading-relaxed">
-            Secure, role-segregated operational dashboards connecting authorized partners with banking systems.
-          </p>
-        </div>
+        <Pay2PayPageHeader
+          eyebrow="Partner Access Hub"
+          titlePrefix="Access Your"
+          highlightedTitle="Pay2Pay"
+          titleSuffix="Workspace"
+          description="Secure, role-segregated operational dashboards connecting authorized partners with banking systems."
+        />
 
         {/* 3 Prominent Large Cards (Retailer, DIT, SD) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
