@@ -21,37 +21,37 @@ export const Navbar: React.FC = () => {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-40 h-[68px] sm:h-[72px] flex items-center transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
           isScrolled
-            ? "glass-nav shadow-lg shadow-black/40"
-            : "bg-[#050B14]/80 backdrop-blur-md border-b border-slate-800/40"
+            ? "glass-nav py-2.5 shadow-lg shadow-black/40"
+            : "bg-transparent py-3.5"
         }`}
       >
-        <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           {/* Brand Logo */}
-          <a href="#home" className="flex items-center gap-2.5 group">
+          <a href="#home" className="flex items-center gap-3 group">
             <img
               src="/branding/pay2pay-logo.png"
               alt="Pay2Pay Logo"
-              className="h-9 sm:h-10 w-auto max-w-[120px] object-contain rounded-lg border border-amber-500/30 shadow-md group-hover:scale-105 transition-transform"
+              className="h-10 w-auto max-w-[130px] object-contain rounded-lg border border-amber-500/30 shadow-lg shadow-amber-500/10 group-hover:scale-105 transition-transform"
             />
             <div>
-              <span className="font-extrabold text-white text-lg sm:text-xl tracking-wider block leading-none">
+              <span className="font-extrabold text-white text-xl tracking-wider block leading-none">
                 {siteConfig.company.brandName}
               </span>
-              <span className="text-[9px] sm:text-[10px] font-bold text-amber-400 tracking-widest uppercase block mt-1">
+              <span className="text-[10px] font-bold text-amber-400 tracking-widest uppercase block mt-1">
                 Enterprise FinTech
               </span>
             </div>
           </a>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1 bg-slate-900/70 border border-slate-800/80 rounded-full px-3.5 py-1.5 backdrop-blur-md">
+          <nav className="hidden lg:flex items-center gap-1 bg-slate-900/60 border border-slate-800/80 rounded-full px-4 py-1.5 backdrop-blur-md">
             {siteConfig.navigation.map((item) => (
               <a
                 key={item.label}
                 href={item.href}
-                className="px-3 py-1 text-xs font-semibold text-slate-300 hover:text-white rounded-full hover:bg-blue-600/15 transition-colors"
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white rounded-full hover:bg-blue-600/10 transition-colors"
               >
                 {item.label}
               </a>

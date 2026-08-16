@@ -33,14 +33,17 @@
 html {
   scroll-behavior: smooth;
   color-scheme: dark;
+  min-height: 100svh;
+  overflow-x: hidden;
 }
 
 body {
+  min-height: 100svh;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
   overflow-x: hidden;
-  line-height: 1.6;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

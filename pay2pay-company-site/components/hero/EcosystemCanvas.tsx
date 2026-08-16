@@ -163,16 +163,16 @@ export const EcosystemCanvas: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative w-full h-[300px] sm:h-[340px] lg:h-[380px] xl:h-[400px] rounded-2xl glass-panel p-2 overflow-hidden flex items-center justify-center">
+    <div className="relative w-full h-[280px] sm:h-[340px] lg:h-[370px] xl:h-[400px] max-h-[420px] rounded-3xl glass-panel p-2 overflow-hidden flex items-center justify-center shadow-xl shadow-blue-950/40 border border-slate-700/60">
       <canvas ref={canvasRef} className="w-full h-full block" />
       {/* Overlay Status Badge */}
-      <div className="absolute top-3.5 left-3.5 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-950/80 border border-blue-800/60 backdrop-blur-md">
+      <div className="absolute top-3.5 left-3.5 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/80 border border-blue-800/60 backdrop-blur-md">
         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 tracking-wide">
           Multi-Rail Interoperability
         </span>
       </div>
-      <div className="absolute bottom-3.5 right-3.5 text-[9px] sm:text-[10px] font-medium text-slate-500 bg-slate-950/60 px-2 py-0.5 rounded-md border border-slate-800/60">
+      <div className="absolute bottom-3.5 right-3.5 text-[10px] font-medium text-slate-500 bg-slate-950/70 px-2 py-0.5 rounded-md border border-slate-800/60">
         Encrypted Core Network
       </div>
     </div>
