@@ -46,9 +46,22 @@ const ENTITY_SCOPES = [
 ];
 
 const INITIAL_ENTITIES: Record<string, { id: string; name: string; code: string; currentBal: number }[]> = {
-  SUPER_DISTRIBUTOR: [],
-  DISTRIBUTOR: [],
-  RETAILER: [],
+  SUPER_DISTRIBUTOR: [
+    { id: "sd-1002", name: "South India Super Network (sathus-SD)", code: "SD-1002", currentBal: 1250000.0 },
+    { id: "sd-1003", name: "North Apex Network", code: "SD-1003", currentBal: 600000.0 },
+  ],
+  DISTRIBUTOR: [
+    { id: "dist-5012", name: "Metro Apex Distributors", code: "DIST-5012", currentBal: 780000.0 },
+    { id: "dist-5013", name: "City Digital Services", code: "DIST-5013", currentBal: 460000.0 },
+    { id: "dist-5014", name: "Northern Telecoms", code: "DIST-5014", currentBal: 320000.0 },
+  ],
+  RETAILER: [
+    { id: "ret-10928", name: "Sathus Pay Store", code: "RET-10928", currentBal: 245800.0 },
+    { id: "ret-10929", name: "Apex Communications", code: "RET-10929", currentBal: 192400.0 },
+    { id: "ret-10930", name: "Om Sai Mobile", code: "RET-10930", currentBal: 168000.0 },
+    { id: "ret-10931", name: "Karthik General Store", code: "RET-10931", currentBal: 284300.0 },
+    { id: "RET-10829", name: "Sri Venkateswara Telecom & FinTech", code: "RET-0CFE2B", currentBal: 48250.75 },
+  ],
 };
 
 const SERVICE_OPTIONS = [
@@ -201,13 +214,61 @@ function ManualTopupContent() {
 
   const [frozenWalletsMap, setFrozenWalletsMap] = useState<any>({});
 
-  // Load balances, ledger & freeze locks from localStorage
+  // Load balances, ledger & freeze locks from localStorage + Live Backend API
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedBal = localStorage.getItem("pay2pay_entity_balances_map");
-      if (storedBal) {
-        try { setMockEntities(JSON.parse(storedBal)); } catch (e) {}
+    const initData = async () => {
+      let currentMap = { ...INITIAL_ENTITIES };
+      if (typeof window !== "undefined") {
+        const storedBal = localStorage.getItem("pay2pay_entity_balances_map");
+        if (storedBal) {
+          try {
+            const parsed = JSON.parse(storedBal);
+            if (parsed && (parsed.SUPER_DISTRIBUTOR?.length || parsed.DISTRIBUTOR?.length || parsed.RETAILER?.length)) {
+              currentMap = {
+                SUPER_DISTRIBUTOR: parsed.SUPER_DISTRIBUTOR?.length ? parsed.SUPER_DISTRIBUTOR : INITIAL_ENTITIES.SUPER_DISTRIBUTOR,
+                DISTRIBUTOR: parsed.DISTRIBUTOR?.length ? parsed.DISTRIBUTOR : INITIAL_ENTITIES.DISTRIBUTOR,
+                RETAILER: parsed.RETAILER?.length ? parsed.RETAILER : INITIAL_ENTITIES.RETAILER,
+              };
+            }
+          } catch (e) {}
+        }
       }
+
+      // Fetch live retailers from backend API
+      try {
+        const res = await api.get("/api/v1/retailers");
+        const items = res.data?.items || res.data || [];
+        if (Array.isArray(items) && items.length > 0) {
+          const liveRetailers = items.map((r: any) => ({
+            id: String(r.public_id || r.id || r.retailer_code),
+            name: r.store_name || r.owner_name || r.legal_name || "Retailer Store",
+            code: r.retailer_code || String(r.public_id || r.id || "").substring(0, 10),
+            currentBal: typeof r.wallet_balance === "number" ? r.wallet_balance : 75000.0,
+          }));
+
+          const existingCodes = new Set(currentMap.RETAILER.map((e) => e.code));
+          const merged = [...currentMap.RETAILER];
+          liveRetailers.forEach((lr: any) => {
+            if (!existingCodes.has(lr.code)) {
+              merged.push(lr);
+              existingCodes.add(lr.code);
+            }
+          });
+          currentMap.RETAILER = merged;
+        }
+      } catch (err) {
+        console.warn("Failed to fetch live retailers for manual topup:", err);
+      }
+
+      setMockEntities(currentMap);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("pay2pay_entity_balances_map", JSON.stringify(currentMap));
+      }
+    };
+
+    initData();
+
+    if (typeof window !== "undefined") {
       const storedLedger = localStorage.getItem("pay2pay_topup_ledger");
       if (storedLedger) {
         try { setTopupLedger(JSON.parse(storedLedger)); } catch (e) {}
