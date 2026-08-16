@@ -477,14 +477,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setShowConfetti(true);
         const flow = data.data?.flow;
         const destination = data.data?.destination;
-        const redirectUrl = data.data?.redirect_url || (destination === "ACCOUNT_UNDER_REVIEW" ? "/retailer/account-under-review" : "/retailer/dashboard");
         const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";
+        const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? "/register" : "/retailer/dashboard");
 
         if (destination === "ACCOUNT_UNDER_REVIEW") {
-          setSuccessMsg("✓ Mobile verified successfully. Loading your application status...");
+          setSuccessMsg("✓ Mobile verified successfully. Loading your dashboard...");
           if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_retailer_approval_status", "UNDER_REVIEW");
-            localStorage.setItem("pay2pay_onboarding_status", "UNDER_REVIEW");
+            localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
+            localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
           }
         } else if (isNewOnboarding) {
           setSuccessMsg("✓ Mobile verified successfully. Taking you to onboarding...");

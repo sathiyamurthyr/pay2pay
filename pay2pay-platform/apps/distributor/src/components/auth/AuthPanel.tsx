@@ -341,7 +341,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
   const handleAuthSuccessRedirect = async (token?: string, userData?: any, customRedirect?: string, destination?: string) => {
     const validToken = token || "p2p_access_token_" + Date.now();
-    const dest = destination || (customRedirect?.includes("account-under-review") ? "ACCOUNT_UNDER_REVIEW" : "DASHBOARD");
+    const dest = destination === "APPLICATION_REJECTED" ? "APPLICATION_REJECTED" : destination === "ONBOARDING" ? "ONBOARDING" : "DASHBOARD";
 
     document.cookie = `p2p_user_role=${normalizedRole}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `p2p_destination=${dest}; path=/; max-age=2592000; SameSite=Lax`;
@@ -362,7 +362,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
     const redirectPath =
       normalizedRole === "RETAILER"
-        ? (dest === "ACCOUNT_UNDER_REVIEW" ? "/retailer/account-under-review" : "/retailer/dashboard")
+        ? "/retailer/dashboard"
         : normalizedRole === "SD"
         ? "/super-distributor/dashboard"
         : "/distributor/dashboard";
@@ -484,15 +484,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       if (res.ok && data.status === "SUCCESS") {
         setShowConfetti(true);
         const flow = data.data?.flow;
-        const destination = data.data?.destination;
-        const redirectUrl = data.data?.redirect_url || (destination === "ACCOUNT_UNDER_REVIEW" ? "/retailer/account-under-review" : "/retailer/dashboard");
+        const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? "/register" : "/retailer/dashboard");
         const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";
 
         if (destination === "ACCOUNT_UNDER_REVIEW") {
-          setSuccessMsg("✓ Mobile verified successfully. Loading your application status...");
+          setSuccessMsg("✓ Mobile verified successfully. Loading your dashboard...");
           if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_retailer_approval_status", "UNDER_REVIEW");
-            localStorage.setItem("pay2pay_onboarding_status", "UNDER_REVIEW");
+            localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
+            localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
           }
         } else if (isNewOnboarding) {
           setSuccessMsg("✓ Mobile verified successfully. Taking you to onboarding...");

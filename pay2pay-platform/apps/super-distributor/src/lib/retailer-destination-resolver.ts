@@ -125,9 +125,7 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
             ? "APPLICATION_REJECTED"
             : d.destination === "ONBOARDING"
             ? "ONBOARDING"
-            : isAppr
-            ? "DASHBOARD"
-            : "ACCOUNT_UNDER_REVIEW";
+            : "DASHBOARD";
 
         const resolved: AuthoritativeAccountStatus = {
           retailer_id: d.retailer_id || null,
@@ -144,11 +142,11 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           is_approved: isAppr,
           account_access: accessCat,
           access: accessCat,
-          reason: d.reason || (isAppr ? null : "ACCOUNT_UNDER_REVIEW"),
+          reason: d.reason || null,
           login_enabled: d.login_enabled !== false,
           payment_permission: d.payment_permission || (isAppr ? "PERMITTED & UNLOCKED" : "PROHIBITED & LOCKED"),
           destination: normalizedDest,
-          redirect_url: d.redirect_url || (isAppr ? "/retailer/dashboard" : "/retailer/account-under-review"),
+          redirect_url: d.redirect_url || (d.destination === "APPLICATION_REJECTED" ? "/application-rejected" : d.destination === "ONBOARDING" ? "/register" : "/retailer/dashboard"),
           created_at: d.created_at || null,
           updated_at: d.updated_at || null,
           support_contact: d.support_contact,

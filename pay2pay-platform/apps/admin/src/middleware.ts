@@ -113,8 +113,7 @@ export function middleware(request: NextRequest) {
 
   // 1. Legacy /retailer-dashboard -> /retailer/dashboard redirect
   if (pathname === "/retailer-dashboard") {
-    const target = isPendingRetailer ? "/retailer/account-under-review" : "/retailer/dashboard";
-    return NextResponse.redirect(new URL(target, request.url));
+    return NextResponse.redirect(new URL("/retailer/dashboard", request.url));
   }
 
   // 2. Legacy /admin-dashboard -> /admin/dashboard redirect
@@ -124,10 +123,7 @@ export function middleware(request: NextRequest) {
 
   // 3. Generic /login or / or /dashboard -> resolve to canonical portal route
   if (pathname === "/login" || pathname === "/" || pathname === "/dashboard") {
-    let target = isAuthenticated ? portalConfig.dashboard : portalConfig.login;
-    if (isAuthenticated && isPendingRetailer) {
-      target = "/retailer/account-under-review";
-    }
+    const target = isAuthenticated ? portalConfig.dashboard : portalConfig.login;
     return NextResponse.redirect(new URL(target, request.url));
   }
 
