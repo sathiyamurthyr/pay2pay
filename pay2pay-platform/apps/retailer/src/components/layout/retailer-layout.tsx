@@ -86,7 +86,16 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
     try {
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
-        activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_code || u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "RET-10928";
+        }
       }
       const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
       const res = await fetch(

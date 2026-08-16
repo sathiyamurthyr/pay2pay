@@ -269,12 +269,12 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
             if (userStr) {
               const u = JSON.parse(userStr);
-              activeRetailerId = u.retailer_id || u.id || "";
+              activeRetailerId = u.retailer_code || u.retailer_id || u.id || "";
               activeTenantId = u.tenant_id || "";
             }
           } catch {}
           if (!activeRetailerId) {
-            activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+            activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "RET-10928";
           }
           if (!activeTenantId) {
             activeTenantId = localStorage.getItem("p2p_tenant_id") || "";

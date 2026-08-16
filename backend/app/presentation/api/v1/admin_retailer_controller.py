@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func, or_, and_, desc
 
 from app.core.database import get_db
-from app.infrastructure.db.models import RetailerModel, AdminUserModel, RegistrationDraftModel
-from app.infrastructure.db.session_security_models import UserSecurityProfileModel, DeviceFingerprintModel
+from app.infrastructure.db.models import RetailerModel, AdminUserModel
+from app.infrastructure.db.registration_models import RegistrationDraftModel
+from app.infrastructure.db.session_security_models import SessionAuditLogModel, RetailerSecuritySettingsModel
 from app.application.dependencies import get_current_user, get_current_tenant_id
 
 router = APIRouter(prefix="/admin/retailer-control", tags=["Admin To Retailer Controller (Enterprise Ops)"])

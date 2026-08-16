@@ -402,8 +402,12 @@ function ManualTopupContent() {
     };
 
     // 1. Try Backend API
+    let confirmedBalance = estimatedBalance;
     try {
-      await api.post("/api/v1/wallet-ledger/wallets/manual-topup", payload);
+      const res = await api.post("/api/v1/wallet-ledger/wallets/manual-topup", payload);
+      if (res.data?.new_balance !== undefined) {
+        confirmedBalance = res.data.new_balance;
+      }
     } catch (err) {
       console.log("Backend API route offline or mock mode, updating wallet balance locally & in localStorage");
     }
@@ -412,7 +416,7 @@ function ManualTopupContent() {
     const updatedEntities = {
       ...mockEntities,
       [scope]: mockEntities[scope].map((item) =>
-        item.id === selectedEntity.id ? { ...item, currentBal: estimatedBalance } : item
+        item.id === selectedEntity.id ? { ...item, currentBal: confirmedBalance } : item
       ),
     };
     setMockEntities(updatedEntities);
@@ -420,6 +424,12 @@ function ManualTopupContent() {
     // 3. Persist in localStorage for cross-page sync
     if (typeof window !== "undefined") {
       localStorage.setItem("pay2pay_entity_balances_map", JSON.stringify(updatedEntities));
+
+      // If updating retailer, sync active retailer wallet cache for Retailer Portal
+      if (scope === "RETAILER") {
+        localStorage.setItem("p2p_active_retailer_wallet_balance", confirmedBalance.toString());
+        localStorage.setItem("p2p_active_retailer_id", selectedEntity.code);
+      }
 
       const masterWalletsStored = localStorage.getItem("pay2pay_entity_wallets");
       let masterWallets = masterWalletsStored ? JSON.parse(masterWalletsStored) : [];
@@ -434,12 +444,13 @@ function ManualTopupContent() {
       const delta = txnType === "CREDIT" ? numericAmount : -numericAmount;
       masterWallets = masterWallets.map((w: any) => {
         if (w.entity_code === selectedEntity.code && (w.wallet_type === walletType || w.wallet_type === "MAIN")) {
-          return { ...w, balance: Math.max(0, (w.balance || 0) + delta) };
+          return { ...w, balance: confirmedBalance };
         }
         return w;
       });
       localStorage.setItem("pay2pay_entity_wallets", JSON.stringify(masterWallets));
-      window.dispatchEvent(new Event("pay2pay_wallets_updated"));
+      window.dispatchEvent(new CustomEvent("p2p_wallets_updated", { detail: { entityCode: selectedEntity.code, newBalance: confirmedBalance } }));
+      window.dispatchEvent(new CustomEvent("p2p_wallet_updated", { detail: { newBalance: confirmedBalance } }));
     }
 
     // 4. Update Recent Topup Ledger

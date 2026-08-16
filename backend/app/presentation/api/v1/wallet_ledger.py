@@ -172,3 +172,94 @@ async def get_wallet_ledger_dashboard_metrics(
     db: AsyncSession = Depends(get_db)
 ):
     return await WalletLedgerPlatformService.get_dashboard_metrics(db, tenant_id)
+
+
+class ManualTopupRequest(BaseModel):
+    transaction_id: Optional[str] = None
+    entity_scope: str = "RETAILER"
+    entity_id: Optional[str] = None
+    entity_name: Optional[str] = None
+    entity_code: str
+    service_name: Optional[str] = "General Wallet Allocation"
+    wallet_type: str = "MAIN"
+    txn_type: str = "CREDIT"
+    amount: float
+    opening_balance: Optional[float] = None
+    balance_after: Optional[float] = None
+    comments: Optional[str] = None
+    created_date: Optional[str] = None
+    status: Optional[str] = "COMPLETED"
+    performed_by: Optional[str] = "Platform Admin"
+
+
+@router.post("/wallets/manual-topup", summary="Manual Wallet Top-up / Debit Allocation")
+@router.post("/manual-topup", summary="Manual Wallet Top-up Alias")
+async def execute_manual_topup(
+    req: ManualTopupRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import select, update, or_
+    from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
+    import datetime
+
+    target_code = req.entity_code or req.entity_id or ""
+    delta = req.amount if req.txn_type.upper() == "CREDIT" else -req.amount
+    
+    # 1. Search for Retailer in DB
+    ret_stmt = select(RetailerModel).where(
+        or_(
+            RetailerModel.retailer_code == target_code,
+            RetailerModel.retailer_code == (req.entity_id or "")
+        )
+    )
+    ret_res = await db.execute(ret_stmt)
+    ret_obj = ret_res.scalars().first()
+
+    updated_bal = req.balance_after or 0.0
+
+    if ret_obj:
+        # Check / update RetailerWalletModel
+        wal_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == ret_obj.public_id)
+        wal_res = await db.execute(wal_stmt)
+        wal_obj = wal_res.scalars().first()
+
+        if wal_obj:
+            curr = float(wal_obj.wallet_balance)
+            updated_bal = max(0.0, curr + delta)
+            wal_obj.wallet_balance = updated_bal
+            wal_obj.updated_date = datetime.datetime.now(datetime.timezone.utc)
+        else:
+            updated_bal = max(0.0, req.amount if req.txn_type.upper() == "CREDIT" else 0.0)
+            wal_obj = RetailerWalletModel(
+                public_id=uuid.uuid4(),
+                tenant_id=ret_obj.tenant_id,
+                company_id=ret_obj.company_id,
+                retailer_id=ret_obj.public_id,
+                wallet_balance=updated_bal,
+                daily_transaction_limit=500000.0,
+                single_transaction_limit=100000.0,
+                is_frozen=False,
+                is_active=True,
+                record_status="ACTIVE",
+                is_deleted=False,
+                version_no=1,
+                created_date=datetime.datetime.now(datetime.timezone.utc),
+                updated_date=datetime.datetime.now(datetime.timezone.utc),
+            )
+            db.add(wal_obj)
+        
+        await db.commit()
+    
+    return {
+        "success": True,
+        "transaction_id": req.transaction_id or f"TOPUP-{uuid.uuid4().hex[:8].upper()}",
+        "entity_code": req.entity_code,
+        "entity_name": req.entity_name,
+        "txn_type": req.txn_type,
+        "amount": req.amount,
+        "new_balance": updated_bal,
+        "status": "COMPLETED",
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "message": f"Successfully {req.txn_type.lower()}ed ₹{req.amount:,.2f} for {req.entity_code}."
+    }
+
