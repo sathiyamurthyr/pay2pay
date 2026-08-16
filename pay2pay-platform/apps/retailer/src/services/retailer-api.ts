@@ -161,10 +161,39 @@ export const retailerApi = {
   // ── Wallet Balance ──
   getWalletBalance: async () => {
     try {
-      const res = await apiClient.get("/retailer/wallet/balance");
-      return res.data;
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+      }
+      const params: any = {};
+      if (activeRetailerId) params.retailer_id = activeRetailerId;
+
+      const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet", { params });
+      const data = res.data;
+      const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.available_balance || 0.00);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
+      }
+      return {
+        success: true,
+        mainBalance: bal,
+        commissionBalance: data.todays_commission || 0.00,
+        todayMargin: data.todays_commission || 0.00,
+        todayTxnCount: 0,
+        todaySettlement: data.settlement_pending_amount || 0.00,
+        ...data,
+      };
     } catch {
-      let savedBalance = 48250.75;
+      let savedBalance = 0.00;
       if (typeof window !== "undefined") {
         const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
         if (saved && !isNaN(parseFloat(saved))) {
@@ -172,12 +201,12 @@ export const retailerApi = {
         }
       }
       return {
-        success: true,
+        success: false,
         mainBalance: savedBalance,
-        commissionBalance: 3420.50,
-        todayMargin: 1480.00,
-        todayTxnCount: 42,
-        todaySettlement: 25000.00,
+        commissionBalance: 0.00,
+        todayMargin: 0.00,
+        todayTxnCount: 0,
+        todaySettlement: 0.00,
       };
     }
   },
