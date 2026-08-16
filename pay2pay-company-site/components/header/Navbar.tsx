@@ -79,6 +79,8 @@ export const Navbar: React.FC = () => {
                   </div>
                   <a
                     href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-blue-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -91,6 +93,8 @@ export const Navbar: React.FC = () => {
                   </a>
                   <a
                     href={process.env.NEXT_PUBLIC_DIT_LOGIN_URL || "/dit-dashboard"}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-indigo-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
@@ -103,6 +107,8 @@ export const Navbar: React.FC = () => {
                   </a>
                   <a
                     href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/sd-dashboard"}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-amber-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
@@ -120,6 +126,8 @@ export const Navbar: React.FC = () => {
             {/* Primary Retailer Login Button */}
             <a
               href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:brightness-110 active:scale-95 transition-all"
             >
               <LogIn size={14} />

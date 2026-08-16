@@ -40,6 +40,8 @@ export const HeroSection: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mb-6">
               <a
                 href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 text-white font-bold text-xs sm:text-sm shadow-xl shadow-blue-600/35 hover:shadow-blue-600/55 hover:brightness-110 active:scale-95 transition-all"
               >
                 <span>{siteConfig.hero.primaryCta}</span>
@@ -48,6 +50,8 @@ export const HeroSection: React.FC = () => {
 
               <a
                 href={process.env.NEXT_PUBLIC_RETAILER_REGISTER_URL || "/retailer/onboarding"}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-100 hover:text-white hover:border-slate-500 font-semibold text-xs sm:text-sm transition-all"
               >
                 <Store size={15} className="text-blue-400" />

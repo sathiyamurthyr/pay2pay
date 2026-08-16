@@ -74,6 +74,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
               <li>
                 <a
                   href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="hover:text-blue-400 transition-colors font-medium"
                 >
                   Retailer Login →
@@ -82,6 +84,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
               <li>
                 <a
                   href={process.env.NEXT_PUBLIC_DIT_LOGIN_URL || "/dit-dashboard"}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="hover:text-blue-400 transition-colors"
                 >
                   Distributor (DIT) Login
@@ -90,6 +94,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
               <li>
                 <a
                   href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/sd-dashboard"}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="hover:text-blue-400 transition-colors"
                 >
                   Super-Distributor Login
@@ -98,6 +104,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
               <li>
                 <a
                   href={process.env.NEXT_PUBLIC_RETAILER_REGISTER_URL || "/retailer/onboarding"}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="hover:text-blue-400 transition-colors text-blue-300 font-semibold"
                 >
                   Become a Retailer

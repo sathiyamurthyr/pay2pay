@@ -65,6 +65,8 @@ export const HowItWorks: React.FC = () => {
           </div>
           <a
             href={process.env.NEXT_PUBLIC_RETAILER_REGISTER_URL || "/retailer/onboarding"}
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-6 py-3 rounded-xl bg-white text-slate-950 font-bold text-sm hover:bg-slate-100 hover:scale-105 active:scale-95 transition-all shrink-0 shadow-lg"
           >
             Become a Retailer Today →

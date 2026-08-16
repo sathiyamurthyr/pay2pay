@@ -88,6 +88,8 @@ export const RoleLoginSection: React.FC = () => {
                 {/* Login Action CTA */}
                 <a
                   href={targetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`w-full inline-flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg ${
                     portal.highlighted
                       ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/40 hover:shadow-blue-600/60"

@@ -64,6 +64,8 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
           </span>
           <a
             href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-between w-full px-4 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-lg shadow-blue-600/30 active:scale-95 transition-transform"
           >
             <span className="flex items-center gap-2">
@@ -73,6 +75,8 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
           </a>
           <a
             href={process.env.NEXT_PUBLIC_DIT_LOGIN_URL || "/dit-dashboard"}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold text-xs transition-colors"
           >
             <span>DIT Portal Login</span>
@@ -80,6 +84,8 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
           </a>
           <a
             href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/sd-dashboard"}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold text-xs transition-colors"
           >
             <span>Super-Distributor Login</span>
