@@ -334,23 +334,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
           <Box
+            component="img"
+            src="/branding/pay2pay-logo.png"
+            alt="PAY2PAY"
             sx={{
               width: 48,
               height: 48,
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#FFFFFF",
-              fontWeight: 900,
-              fontSize: "18px",
-              boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
+              borderRadius: "10px",
+              objectFit: "cover",
+              border: "1.5px solid rgba(212, 175, 55, 0.4)",
+              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.4)",
               flexShrink: 0,
             }}
-          >
-            P2P
-          </Box>
+          />
           {!isCollapsed && (
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="h6" sx={{ fontWeight: 900, color: "#F8FAFC", fontSize: "22px", lineHeight: 1.1, whiteSpace: "nowrap" }}>

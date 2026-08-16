@@ -26,10 +26,12 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
         <div>
           <div className="flex items-center justify-between pb-6 border-b border-slate-800/80">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-sm shadow-md shadow-blue-500/20">
-                P2P
-              </div>
-              <span className="font-extrabold text-white text-lg tracking-wider">PAY2PAY</span>
+              <img
+                src="/branding/pay2pay-logo.png"
+                alt="Pay2Pay"
+                className="h-9 w-auto max-w-[100px] object-contain rounded-lg border border-amber-500/30"
+              />
+              <span className="font-extrabold text-white text-base tracking-wider">PAY2PAY</span>
             </div>
             <button
               onClick={onClose}

@@ -30,14 +30,16 @@ export const Navbar: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           {/* Brand Logo */}
           <a href="#home" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform">
-              P2P
-            </div>
+            <img
+              src="/branding/pay2pay-logo.png"
+              alt="Pay2Pay Logo"
+              className="h-10 w-auto max-w-[130px] object-contain rounded-lg border border-amber-500/30 shadow-lg shadow-amber-500/10 group-hover:scale-105 transition-transform"
+            />
             <div>
               <span className="font-extrabold text-white text-xl tracking-wider block leading-none">
                 {siteConfig.company.brandName}
               </span>
-              <span className="text-[10px] font-bold text-blue-400 tracking-widest uppercase block mt-1">
+              <span className="text-[10px] font-bold text-amber-400 tracking-widest uppercase block mt-1">
                 Enterprise FinTech
               </span>
             </div>

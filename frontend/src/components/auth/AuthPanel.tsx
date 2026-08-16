@@ -539,9 +539,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           darkMode ? "border-slate-800" : "border-slate-200"
         }`}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-md shadow-blue-500/20">
-              <span className="text-white font-black text-xs tracking-tight">P2P</span>
-            </div>
+            <img
+              src="/branding/pay2pay-logo.png"
+              alt="Pay2Pay"
+              className="w-10 h-10 rounded-xl object-contain border border-amber-500/30 shadow-md"
+            />
             <div>
               <h1 className={`text-sm font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
                 Pay2Pay

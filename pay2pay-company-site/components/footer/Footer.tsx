@@ -18,9 +18,11 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
           {/* Col 1: Brand & Tagline (Span 2) */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-sm shadow-md shadow-blue-500/20">
-                P2P
-              </div>
+              <img
+                src="/branding/pay2pay-logo.png"
+                alt="Pay2Pay"
+                className="h-10 w-auto max-w-[130px] object-contain rounded-lg border border-amber-500/30 shadow-md"
+              />
               <span className="font-extrabold text-white text-lg tracking-wider">
                 {siteConfig.company.brandName}
               </span>
