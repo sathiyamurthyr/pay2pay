@@ -294,9 +294,9 @@ export async function verifyAndRoutePostLogin(
       return { success: true, destination: "APPLICATION_REJECTED" };
     }
 
-    // Default RESTRICTED -> /retailer/account-under-review
-    router.replace("/retailer/account-under-review");
-    return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
+    // Default -> /retailer/dashboard (never block retailer on account-under-review)
+    router.replace("/retailer/dashboard");
+    return { success: true, destination: "DASHBOARD" };
   } catch (err) {
     // FAIL CLOSED
     return {
@@ -309,6 +309,7 @@ export async function verifyAndRoutePostLogin(
 /**
  * Single Authoritative Navigation Guard:
  * Evaluates current pathname against authoritative destination and navigates ONLY when path differs.
+ * Disabled all redirection to account-under-review.
  */
 export function enforceAuthoritativeRouting(
   status: AuthoritativeAccountStatus,
@@ -317,20 +318,8 @@ export function enforceAuthoritativeRouting(
 ): boolean {
   if (isRedirecting) return false;
 
-  // 1. If status is restricted (UNDER_REVIEW / RESTRICTED):
-  if (status.account_access === "RESTRICTED" || !status.is_approved || status.destination === "ACCOUNT_UNDER_REVIEW") {
-    if (currentPathname !== "/retailer/account-under-review") {
-      isRedirecting = true;
-      router.replace("/retailer/account-under-review");
-      setTimeout(() => {
-        isRedirecting = false;
-      }, 500);
-      return true;
-    }
-  }
-
-  // 2. If status is approved and user is sitting on account-under-review:
-  if ((status.account_access === "ALLOWED" || status.is_approved) && currentPathname === "/retailer/account-under-review") {
+  // If user is sitting on account-under-review, always route them to dashboard
+  if (currentPathname === "/retailer/account-under-review" || currentPathname === "/account-under-review") {
     isRedirecting = true;
     router.replace("/retailer/dashboard");
     setTimeout(() => {
@@ -339,8 +328,8 @@ export function enforceAuthoritativeRouting(
     return true;
   }
 
-  // 3. If destination is APPLICATION_REJECTED:
-  if (status.destination === "APPLICATION_REJECTED") {
+  // If destination is explicitly APPLICATION_REJECTED:
+  if (status.destination === "APPLICATION_REJECTED" || status.approval_status === "REJECTED") {
     if (currentPathname !== "/application-rejected") {
       isRedirecting = true;
       router.replace("/application-rejected");
@@ -353,3 +342,4 @@ export function enforceAuthoritativeRouting(
 
   return false;
 }
+

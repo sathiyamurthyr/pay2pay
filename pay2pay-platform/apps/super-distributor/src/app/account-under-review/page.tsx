@@ -1,8 +1,14 @@
 "use client";
 
-import React from "react";
-import { UnapprovedRetailerFullPageModal } from "@/components/common/UnapprovedRetailerFullPageModal";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function GenericAccountUnderReviewPage() {
-  return <UnapprovedRetailerFullPageModal />;
+export default function AccountUnderReviewPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/retailer/dashboard");
+  }, [router]);
+
+  return null;
 }

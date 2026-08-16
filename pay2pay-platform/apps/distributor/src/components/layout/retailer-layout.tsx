@@ -53,7 +53,6 @@ import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
 import { UniversalSearchDialog } from "@/components/common/universal-search-dialog";
 import { RightContextPanel } from "./right-context-panel";
-import { UnapprovedRetailerFullPageModal } from "@/components/common/UnapprovedRetailerFullPageModal";
 import { ApprovalGuardOverlay } from "@/components/common/ApprovalGuardOverlay";
 import { useContactSupportModal } from "@/context/ContactSupportModalContext";
 
