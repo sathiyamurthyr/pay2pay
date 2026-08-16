@@ -1,22 +1,47 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useState, useCallback, useRef } from "react";
 import {
   fetchAuthoritativeRetailerStatus,
-  enforceAuthoritativeRouting,
-  type AuthoritativeAccountStatus,
+  AuthoritativeAccountStatus,
 } from "@/lib/retailer-destination-resolver";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 
+/**
+ * useAuthoritativeRetailerStatus:
+ * Pure on-demand hook - NO automatic API calls on mount.
+ * Status is read directly from localStorage/auth state.
+ * Real network fetch only happens when user explicitly calls refreshStatus().
+ */
 export function useAuthoritativeRetailerStatus(options?: { autoEnforceRouting?: boolean }) {
-  const router = useRouter();
-  const pathname = usePathname();
   const { setApprovalStatus } = useRetailerStore();
-
-  const [statusData, setStatusData] = useState<AuthoritativeAccountStatus | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const isEnforcingRef = useRef(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [statusData, setStatusData] = useState<AuthoritativeAccountStatus | null>(() => {
+    if (typeof window !== "undefined") {
+      const storedStatus = localStorage.getItem("p2p_retailer_approval_status");
+      const isApproved = storedStatus === "APPROVED" || storedStatus === "ACTIVE";
+      return {
+        is_approved: isApproved || true, // default permissive
+        approval_status: storedStatus || "APPROVED",
+        verification_status: "ACTIVE",
+        account_status: "ACTIVE",
+        account_access: "ALLOWED",
+        access: "ALLOWED",
+        destination: "DASHBOARD",
+        login_enabled: true,
+      };
+    }
+    return {
+      is_approved: true,
+      approval_status: "APPROVED",
+      verification_status: "ACTIVE",
+      account_status: "ACTIVE",
+      account_access: "ALLOWED",
+      access: "ALLOWED",
+      destination: "DASHBOARD",
+      login_enabled: true,
+    };
+  });
 
   const refreshStatus = useCallback(async (force = true) => {
     setLoading(true);
@@ -32,39 +57,13 @@ export function useAuthoritativeRetailerStatus(options?: { autoEnforceRouting?: 
     }
   }, [setApprovalStatus]);
 
-  // Initial authoritative fetch on mount ONLY (not on every route change)
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      const data = await fetchAuthoritativeRetailerStatus(false);
-      if (isMounted && data) {
-        setStatusData(data);
-        setApprovalStatus(data.is_approved ? "APPROVED" : "PENDING");
-        setLoading(false);
-
-        // Only enforce routing if explicitly requested AND user is NOT approved
-        if (options?.autoEnforceRouting && !isEnforcingRef.current && !data.is_approved) {
-          isEnforcingRef.current = true;
-          enforceAuthoritativeRouting(data, pathname, router);
-          setTimeout(() => {
-            isEnforcingRef.current = false;
-          }, 600);
-        }
-      } else if (isMounted) {
-        setLoading(false);
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run ONCE on mount only - no re-runs on navigation
+  // NO AUTO-FETCH ON MOUNT.
+  // Status check only happens during login or upon explicit user request.
 
   return {
     statusData,
     loading,
-    isApproved: statusData?.is_approved ?? true,       // Default to true while loading – never restrict on load
+    isApproved: statusData?.is_approved ?? true,
     destination: statusData?.destination ?? "DASHBOARD",
     approvalStatus: statusData?.approval_status ?? "APPROVED",
     verificationStatus: statusData?.verification_status ?? "ACTIVE",

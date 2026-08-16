@@ -241,44 +241,14 @@ export const CustomThemeProvider: React.FC<{ children: ReactNode }> = ({ childre
     applyThemeTokensToDOM(newEffective);
   }, [themeMode, timezone]);
 
-  // Real-time boundary monitoring: Check every 30s to update theme automatically when day/night boundary crosses
+  // Pure local storage preference initialization - no timers, no auto-fetching on mount
   useEffect(() => {
-    if (themeMode !== "AUTO") return;
-
-    const interval = setInterval(() => {
-      const currentEffective = resolveEffectiveTheme("AUTO", timezone);
-      if (currentEffective !== effectiveTheme) {
-        setEffectiveTheme(currentEffective);
-        applyThemeTokensToDOM(currentEffective);
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("pay2pay_theme_mode") as ThemeMode | null;
+      if (savedTheme && ["AUTO", "LIGHT", "DARK"].includes(savedTheme)) {
+        setThemeModeState(savedTheme);
       }
-    }, 30000); // 30s check interval
-
-    return () => clearInterval(interval);
-  }, [themeMode, timezone, effectiveTheme]);
-
-  // Load retailer preferences from backend API on initial application load
-  useEffect(() => {
-    const loadSettingsFromBackend = async () => {
-      try {
-        const res = await fetch("/api/v1/session/settings");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.theme_mode && ["AUTO", "LIGHT", "DARK"].includes(data.theme_mode)) {
-            const apiMode = data.theme_mode as ThemeMode;
-            setThemeModeState(apiMode);
-            if (typeof window !== "undefined") {
-              localStorage.setItem("pay2pay_theme_mode", apiMode);
-            }
-          }
-          if (data.timezone) {
-            setTimezoneState(data.timezone);
-          }
-        }
-      } catch (e) {
-        console.warn("Failed to load retailer theme preference from backend:", e);
-      }
-    };
-    loadSettingsFromBackend();
+    }
   }, []);
 
   // Update Theme Preference & Persist to Backend + LocalStorage

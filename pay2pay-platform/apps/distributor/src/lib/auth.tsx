@@ -67,32 +67,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Dev mode: skip all auth checks & auto-provision token
+      // Dev mode: set mock user without network requests
       if (DEV_BYPASS) {
         setUser(DEV_MOCK_USER);
-        if (typeof window !== "undefined" && !localStorage.getItem("access_token")) {
-          try {
-            const res = await apiClient.post("/auth/login", {
-              email_or_username: "admin@pay2pay.com",
-              password: "AivioSathus!321",
-            });
-            if (res.data.access_token) {
-              localStorage.setItem("access_token", res.data.access_token);
-              if (res.data.refresh_token) localStorage.setItem("refresh_token", res.data.refresh_token);
-              if (res.data.user) localStorage.setItem("user_info", JSON.stringify(res.data.user));
-              document.cookie = `p2p_access_token=${res.data.access_token}; path=/; max-age=86400`;
-              document.cookie = `pay2pay_auth_token=${res.data.access_token}; path=/; max-age=86400`;
-            }
-          } catch (e) {
-            console.warn("Dev bypass auto-login token fetch failed:", e);
-          }
-        }
         setLoading(false);
         return;
       }
 
       // Check localStorage & session cookies for stored session
-      const token = localStorage.getItem("access_token") || localStorage.getItem("pay2pay_auth_token");
+      const token =
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("pay2pay_auth_token");
       const storedUser = localStorage.getItem("user_info");
       if (token && storedUser) {
         try {
@@ -210,16 +196,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    try {
+      fetch("/api/v1/auth/enterprise/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_info: typeof navigator !== "undefined" ? navigator.userAgent : "Browser" }),
+      }).catch(() => {});
+    } catch {}
+
     if (typeof document !== "undefined") {
-      document.cookie = "p2p_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-      document.cookie = "pay2pay_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      const cookieNames = [
+        "pay2pay_access_token",
+        "p2p_access_token",
+        "pay2pay_auth_token",
+        "p2p_user_role",
+        "pay2pay_user_role",
+        "p2p_session_locked",
+      ];
+      cookieNames.forEach((name) => {
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+        document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+      });
     }
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("pay2pay_auth_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user_info");
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("pay2pay_access_token");
+      localStorage.removeItem("pay2pay_auth_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_info");
+      localStorage.removeItem("p2p_user_role");
+      localStorage.removeItem("pay2pay_user_role");
+      localStorage.removeItem("p2p_active_retailer_wallet_balance");
+    }
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.clear();
+    }
     setUser(null);
-    router.push("/login");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    } else {
+      router.push("/login");
+    }
   };
 
   const isRetailer = activeRole === "RETAILER";
