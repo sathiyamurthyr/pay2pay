@@ -267,7 +267,6 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       title: "CUSTOMERS",
       items: [
         { label: "Customers", path: "/retailer/customers", icon: PersonIcon },
-        { label: "Beneficiaries", path: "/retailer/beneficiaries", icon: ContactsIcon },
       ],
     },
     {
