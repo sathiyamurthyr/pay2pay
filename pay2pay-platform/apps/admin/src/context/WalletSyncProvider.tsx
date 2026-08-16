@@ -123,6 +123,11 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, []);
 
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchWalletData();
+  }, [fetchWalletData]);
+
   // Event listener for explicit transaction action refreshes
   useEffect(() => {
     const handleCustomUpdate = () => {
