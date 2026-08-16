@@ -130,30 +130,51 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     syncBalance: async () => {
       set({ isSyncing: true });
       try {
-        const data = await retailerApi.getWalletBalance();
-        let newBalance = data && data.mainBalance !== undefined ? data.mainBalance : getInitialMainBalance();
+        let activeRetailerId = "";
+        let activeTenantId = "";
         if (typeof window !== "undefined") {
-          const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
-          if (saved && !isNaN(parseFloat(saved))) {
-            newBalance = parseFloat(saved);
+          try {
+            const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+            if (userStr) {
+              const u = JSON.parse(userStr);
+              activeRetailerId = u.retailer_id || u.id || "";
+              activeTenantId = u.tenant_id || "";
+            }
+          } catch {}
+          if (!activeRetailerId) {
+            activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+          }
+          if (!activeTenantId) {
+            activeTenantId = localStorage.getItem("p2p_tenant_id") || "";
           }
         }
-        set((state) => ({
-          wallet: {
-            ...state.wallet,
-            mainBalance: newBalance,
-            commissionBalance: data?.commissionBalance ?? state.wallet.commissionBalance,
-            todayMargin: data?.todayMargin ?? state.wallet.todayMargin,
-            todayTxnCount: data?.todayTxnCount ?? state.wallet.todayTxnCount,
-            todaySettlement: data?.todaySettlement ?? state.wallet.todaySettlement,
-          },
-        }));
-      } catch {
-        // Preserve local storage balance on API error
-        const savedBalance = getInitialMainBalance();
-        set((state) => ({
-          wallet: { ...state.wallet, mainBalance: savedBalance },
-        }));
+
+        const params = new URLSearchParams();
+        if (activeRetailerId) params.append("retailer_id", activeRetailerId);
+        if (activeTenantId) params.append("tenant_id", activeTenantId);
+        const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+        const apiUrl = `/api/v1/payout/dashboard/retailer/header-wallet${queryStr}`;
+        const res = await fetch(apiUrl);
+        if (res.ok) {
+          const data = await res.json();
+          const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.00;
+          if (typeof window !== "undefined") {
+            localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
+          }
+          set((state) => ({
+            wallet: {
+              ...state.wallet,
+              mainBalance: bal,
+              commissionBalance: data.todays_commission || 0.00,
+              todayMargin: data.todays_commission || 0.00,
+              todayTxnCount: 0,
+              todaySettlement: data.settlement_pending_amount || 0.00,
+            },
+          }));
+        }
+      } catch (err) {
+        console.warn("syncBalance fetch error:", err);
       } finally {
         set({ isSyncing: false });
       }

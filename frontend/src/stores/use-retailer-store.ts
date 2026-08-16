@@ -306,15 +306,37 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       set({ isSyncing: true });
       try {
         let activeRetailerId = "";
+        let activeTenantId = "";
         if (typeof window !== "undefined") {
-          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+          try {
+            const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+            if (userStr) {
+              const u = JSON.parse(userStr);
+              activeRetailerId = u.retailer_id || u.id || "";
+              activeTenantId = u.tenant_id || "";
+            }
+          } catch {}
+          if (!activeRetailerId) {
+            activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+          }
+          if (!activeTenantId) {
+            activeTenantId = localStorage.getItem("p2p_tenant_id") || "";
+          }
         }
-        const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
-        const res = await fetch(`/api/v1/payout/dashboard/retailer/header-wallet${queryParam}`);
+
+        const params = new URLSearchParams();
+        if (activeRetailerId) params.append("retailer_id", activeRetailerId);
+        if (activeTenantId) params.append("tenant_id", activeTenantId);
+        const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+        const apiUrl = `/api/v1/payout/dashboard/retailer/header-wallet${queryStr}`;
+        const res = await fetch(apiUrl);
         if (res.ok) {
           const data = await res.json();
-          const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (typeof data.available_balance === "number" ? data.available_balance : 0.00);
-          const rInfo = data.retailer_info || data;
+          const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.00;
+          if (typeof window !== "undefined") {
+            localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
+          }
           set((state) => ({
             wallet: {
               ...state.wallet,
@@ -324,14 +346,6 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
               todayTxnCount: 0,
               todaySettlement: data.settlement_pending_amount || 0.00,
             },
-            outlet: rInfo ? {
-              ...state.outlet,
-              code: rInfo.retailer_code || state.outlet.code,
-              name: rInfo.retailer_name || state.outlet.name,
-              ownerName: rInfo.owner_name || state.outlet.ownerName,
-              status: rInfo.approval_status === "APPROVED" || rInfo.approval_status === "ACTIVE" ? "ACTIVE" : state.outlet.status,
-              kycStatus: rInfo.kyc_status === "VERIFIED" ? "VERIFIED" : state.outlet.kycStatus,
-            } : state.outlet,
           }));
         }
       } catch (err) {
