@@ -393,7 +393,7 @@ class PayoutWorkflowService:
                     or_(
                         CustomerModel.mobile_number.like(f"%{clean_str}%"),
                         CustomerModel.customer_number.like(f"%{clean_str}%"),
-                        CustomerModel.mobile_number == "9176669426",
+                        CustomerModel.mobile_number == "7013914767",
                     )
                 )
                 found_cust = (await db.execute(stmt)).scalars().first()
@@ -401,7 +401,7 @@ class PayoutWorkflowService:
                     target_uuid = found_cust.public_id
 
         if not target_uuid:
-            stmt_default = select(CustomerModel).where(CustomerModel.mobile_number == "9176669426")
+            stmt_default = select(CustomerModel).where(CustomerModel.mobile_number == "7013914767")
             default_cust = (await db.execute(stmt_default)).scalars().first()
             target_uuid = default_cust.public_id if default_cust else uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
 

@@ -114,7 +114,7 @@ class CashfreeVerificationAdapter(BaseVerificationVendorAdapter):
 
         payload = {
             "name": account_holder_name,
-            "phone": mobile or "9176669426",
+            "phone": mobile or "7013914767",
             "bank_account": account_number,
             "ifsc": ifsc_code
         }

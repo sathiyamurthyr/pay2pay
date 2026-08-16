@@ -232,7 +232,7 @@ export function BeneficiaryMasterSlideOver({
 }: BeneficiaryMasterSlideOverProps) {
   const { selectedCustomer, setSelectedBeneficiary } = useTransactionMemoryStore();
 
-  const targetCustomer = customerId || selectedCustomer?.customer_number || selectedCustomer?.public_id || "9176669426";
+  const targetCustomer = customerId || selectedCustomer?.customer_number || selectedCustomer?.public_id || "7013914767";
   const currentWalletBalance = 500.0;
   const verificationFee = 3.0;
   const gstAmount = 0.54;

@@ -1712,7 +1712,7 @@ class ProgressiveOnboardingService:
             "company_logo_url": getattr(settings, "COMPANY_LOGO_URL", "/logo.png"),
             "support_email": getattr(settings, "SUPPORT_EMAIL", "support@pay2pay.com"),
             "support_phone": getattr(settings, "SUPPORT_PHONE", "+91 1800 292 982"),
-            "whatsapp_number": getattr(settings, "SUPPORT_WHATSAPP", "+91 91766 69426"),
+            "whatsapp_number": getattr(settings, "SUPPORT_WHATSAPP", "+91 70139 14767"),
             "support_hours": getattr(settings, "SUPPORT_HOURS", "Monday - Saturday | 09:00 AM - 07:00 PM IST"),
             "live_chat_enabled": getattr(settings, "LIVE_CHAT_ENABLED", True),
             "support_url": getattr(settings, "SUPPORT_URL", "https://pay2pay.in/support")

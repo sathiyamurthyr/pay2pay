@@ -608,7 +608,7 @@ async def get_retailer_profile(
         "support_email": "support@pay2pay.in",
         "support_phone": "1800 292 982",
         "direct_phone": "+91 44 4892 9820",
-        "whatsapp_number": "+91 91766 69426",
+        "whatsapp_number": "+91 70139 14767",
         "grievance_email": "grievance@pay2pay.in",
         "nodal_officer": "Grievance Redressal Officer, Pay2Pay",
         "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",

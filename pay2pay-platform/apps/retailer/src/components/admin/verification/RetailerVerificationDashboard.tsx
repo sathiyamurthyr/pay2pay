@@ -52,10 +52,10 @@ export const RetailerVerificationDashboard: React.FC = () => {
       setRequests([
         {
           verification_id: "VER-1001",
-          registration_id: "REG-9176669426",
+          registration_id: "REG-7013914767",
           retailer_name: "Sathiya Murthy",
           shop_name: "Sri Venkateswara Telecom",
-          mobile_number: "9176669426",
+          mobile_number: "7013914767",
           email: "retailer@pay2pay.in",
           verification_status: activeTab,
           account_status: "ONBOARDING",
@@ -88,9 +88,9 @@ export const RetailerVerificationDashboard: React.FC = () => {
       setDetailData({
         verification: {
           id,
-          registration_id: "REG-9176669426",
+          registration_id: "REG-7013914767",
           retailer_name: "Sathiya Murthy",
-          mobile_number: "9176669426",
+          mobile_number: "7013914767",
           email: "retailer@pay2pay.in",
           shop_name: "Sri Venkateswara Telecom",
           verification_status: activeTab,

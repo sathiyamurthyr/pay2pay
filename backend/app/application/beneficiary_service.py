@@ -326,7 +326,7 @@ class BeneficiaryService:
                         last_name=master.account_holder_name.split()[-1] if master.account_holder_name and len(master.account_holder_name.split()) > 1 else "",
                         full_name=master.registered_name_in_bank or master.account_holder_name,
                         nickname=mp.nickname or f"{master.bank_name} Account",
-                        mobile_number="9176669426",
+                        mobile_number="7013914767",
                         email=None,
                         relationship="FAMILY",
                         customer_id=mp.customer_id,

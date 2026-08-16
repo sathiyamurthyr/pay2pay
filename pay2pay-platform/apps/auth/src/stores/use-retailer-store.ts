@@ -80,7 +80,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       code: "RET-0CFE2B",
       name: "Sri Venkateswara Telecom & FinTech",
       ownerName: "Sathiya Murthy",
-      mobile: "+91 91766 69426",
+      mobile: "+91 70139 14767",
       email: "sathiya@pay2pay.in",
       location: "Anna Salai, Chennai, TN",
       status: initApproval === "APPROVED" ? "ACTIVE" : "PENDING_KYC",

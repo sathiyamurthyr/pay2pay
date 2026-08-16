@@ -69,7 +69,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
       setLoading(true);
       const regId = typeof window !== "undefined" ? localStorage.getItem("pay2pay_reg_id") : null;
       const mob = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile")) : null;
-      const targetQuery = identifier || regId || mob || "9176669426";
+      const targetQuery = identifier || regId || mob || "7013914767";
 
       fetch(`/api/v1/onboarding/support-info/${targetQuery}`)
         .then((res) => res.json())
@@ -87,7 +87,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
               company_logo_url: "/logo.png",
               support_email: "support@pay2pay.com",
               support_phone: "+91 1800 292 982",
-              whatsapp_number: "+91 91766 69426",
+              whatsapp_number: "+91 70139 14767",
               support_hours: "Monday - Saturday | 09:00 AM - 07:00 PM IST",
               live_chat_enabled: true,
               support_url: "https://pay2pay.in/support"
@@ -95,7 +95,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
             application_details: {
               application_id: "APP-REG-A7110CFE2B",
               retailer_name: "Sathiya Murthy",
-              mobile_number: "+91 9176669426",
+              mobile_number: "+91 7013914767",
               verification_status: "UNDER_REVIEW",
               submission_date: "August 09, 2026 07:30 PM IST"
             },
@@ -155,9 +155,9 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
   const appDetails = data?.application_details;
   const company = data?.company;
 
-  const rawWhatsappMsg = `Hello,\n\nMy retailer account is currently under verification.\n\nApplication ID:\n${appDetails?.application_id || "APP-PENDING"}\n\nRetailer Name:\n${appDetails?.retailer_name || "Retailer"}\n\nRegistered Mobile:\n${appDetails?.mobile_number || "+91 9176669426"}\n\nPlease help me with my verification status.`;
+  const rawWhatsappMsg = `Hello,\n\nMy retailer account is currently under verification.\n\nApplication ID:\n${appDetails?.application_id || "APP-PENDING"}\n\nRetailer Name:\n${appDetails?.retailer_name || "Retailer"}\n\nRegistered Mobile:\n${appDetails?.mobile_number || "+91 7013914767"}\n\nPlease help me with my verification status.`;
 
-  const cleanWhatsappNum = (company?.whatsapp_number || "+91 9176669426").replace(/\D/g, "");
+  const cleanWhatsappNum = (company?.whatsapp_number || "+91 7013914767").replace(/\D/g, "");
   const whatsappUrl = `https://wa.me/${cleanWhatsappNum}?text=${encodeURIComponent(rawWhatsappMsg)}`;
 
   const cleanPhoneNum = (company?.support_phone || "+91 1800 292 982").replace(/[^\d+]/g, "");
@@ -312,7 +312,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
                           </div>
                           <div>
                             <p className="text-[11px] font-bold text-slate-400">WhatsApp Instant Support</p>
-                            <p className="text-xs font-extrabold text-white font-mono">{company?.whatsapp_number || "+91 91766 69426"}</p>
+                            <p className="text-xs font-extrabold text-white font-mono">{company?.whatsapp_number || "+91 70139 14767"}</p>
                           </div>
                         </div>
                         <a
@@ -373,7 +373,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-400">Mobile Number</p>
-                      <p className="font-extrabold text-white font-mono">{appDetails?.mobile_number || "+91 9176669426"}</p>
+                      <p className="font-extrabold text-white font-mono">{appDetails?.mobile_number || "+91 7013914767"}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-400">Verification Status</p>

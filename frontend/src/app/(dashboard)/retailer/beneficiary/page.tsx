@@ -207,8 +207,8 @@ function BeneficiaryWorkspaceContent() {
   };
 
   const activeCustomerName   = sessionCustomer?.full_name || selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || "Ramesh Kumar";
-  const activeCustomerMobile = sessionCustomer?.mobile_number || selectedCustomer?.mobile || selectedCustomer?.mobile_number || "9176669426";
-  const rawId                = sessionCustomer?.customer_id || selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || "cust-8f64d450-9176669426";
+  const activeCustomerMobile = sessionCustomer?.mobile_number || selectedCustomer?.mobile || selectedCustomer?.mobile_number || "7013914767";
+  const rawId                = sessionCustomer?.customer_id || selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || "cust-8f64d450-7013914767";
   const activeCustomerId     = formatShortCustomerId(rawId);
 
   // ── Step ──────────────────────────────────────────────────────────────────

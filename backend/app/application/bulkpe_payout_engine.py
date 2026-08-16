@@ -76,7 +76,7 @@ class BulkPePayoutEngine:
                 or_(
                     CustomerModel.mobile_number.like(f"%{clean_c}%"),
                     CustomerModel.customer_number.like(f"%{clean_c}%"),
-                    CustomerModel.mobile_number == "9176669426",
+                    CustomerModel.mobile_number == "7013914767",
                 )
             )
 

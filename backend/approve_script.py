@@ -15,7 +15,7 @@ async def approve_retailer():
         r1 = await session.execute(text("""
             UPDATE retailer_verifications 
             SET verification_status = 'APPROVED', account_status = 'ACTIVE', retailer_status = 'ACTIVE', last_reviewed_at = NOW()
-            WHERE retailer_id = 'RET-0CFE2B' OR registration_id = 'REG-A7110CFE2B' OR mobile_number = '9176669426'
+            WHERE retailer_id = 'RET-0CFE2B' OR registration_id = 'REG-A7110CFE2B' OR mobile_number = '7013914767'
         """))
         
         await session.commit()

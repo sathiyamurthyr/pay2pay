@@ -230,7 +230,7 @@ async def finalize_customer_onboarding(
     from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
     ref_val = req.ref_id or req.ref_number or f"CF-AADHAAR-{int(time.time())}"
     mpin_val = req.mpin or req.pin or "1234"
-    mobile_val = req.mobile_number or "9176669426"
+    mobile_val = req.mobile_number or "7013914767"
     res = await AadhaarEkycWorkflowService.finalize_customer_onboarding(
         db=db,
         tenant_id=tenant_id,
@@ -370,7 +370,7 @@ async def add_and_verify_epic014_beneficiary(
                 or_(
                     CustomerModel.mobile_number.like(f"%{clean_str}%"),
                     CustomerModel.customer_number.like(f"%{clean_str}%"),
-                    CustomerModel.mobile_number == "9176669426",
+                    CustomerModel.mobile_number == "7013914767",
                 )
             )
             found_cust = (await db.execute(stmt)).scalars().first()
@@ -378,7 +378,7 @@ async def add_and_verify_epic014_beneficiary(
                 cust_uuid = found_cust.public_id
 
     if not cust_uuid:
-        stmt_default = select(CustomerModel).where(CustomerModel.mobile_number == "9176669426")
+        stmt_default = select(CustomerModel).where(CustomerModel.mobile_number == "7013914767")
         default_cust = (await db.execute(stmt_default)).scalars().first()
         cust_uuid = default_cust.public_id if default_cust else uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
 

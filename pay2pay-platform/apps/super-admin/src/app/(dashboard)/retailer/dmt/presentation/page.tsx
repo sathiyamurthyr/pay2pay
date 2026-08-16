@@ -306,7 +306,7 @@ export default function DmtPresentationPage() {
                         <Chip label="Low Risk" size="small" sx={{ bgcolor: "#ECFDF3", color: "#16A34A", fontWeight: 800, fontSize: "11px" }} />
                       </Stack>
                       <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
-                        Customer ID: CUST-992664 • Mobile: +91 91766 69426
+                        Customer ID: CUST-992664 • Mobile: +91 70139 14767
                       </Typography>
                     </Box>
                   </Stack>

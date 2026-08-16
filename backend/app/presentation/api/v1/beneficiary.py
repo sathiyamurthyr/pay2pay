@@ -120,9 +120,9 @@ async def get_beneficiary_context(
 
     if not session_obj:
         customer_data = {
-            "customer_id": "cust-8f64d450-9176669426",
+            "customer_id": "cust-8f64d450-7013914767",
             "full_name": "Ramesh Kumar",
-            "mobile_number": "9176669426",
+            "mobile_number": "7013914767",
             "kyc_status": "VERIFIED",
             "monthly_limit": 250000.0,
             "remaining_limit": 215000.0,
@@ -148,7 +148,7 @@ async def get_beneficiary_context(
     customer_info = {
         "customer_id": str(session_obj.customer_id) if session_obj.customer_id else "cust-default",
         "full_name": session_obj.customer_name or "Ramesh Kumar",
-        "mobile_number": session_obj.customer_mobile or "9176669426",
+        "mobile_number": session_obj.customer_mobile or "7013914767",
         "kyc_status": "VERIFIED",
         "monthly_limit": 250000.0,
         "remaining_limit": 215000.0,
@@ -455,7 +455,7 @@ async def add_and_verify_epic014_beneficiary(
                 or_(
                     CustomerModel.mobile_number.like(f"%{clean_str}%"),
                     CustomerModel.customer_number.like(f"%{clean_str}%"),
-                    CustomerModel.mobile_number == "9176669426",
+                    CustomerModel.mobile_number == "7013914767",
                 )
             )
             found_cust = (await db.execute(stmt)).scalars().first()
@@ -464,7 +464,7 @@ async def add_and_verify_epic014_beneficiary(
 
     # 3. Fallback to default customer Ramesh Kumar UUID if still not resolved
     if not cust_uuid:
-        stmt_default = select(CustomerModel).where(CustomerModel.mobile_number == "9176669426")
+        stmt_default = select(CustomerModel).where(CustomerModel.mobile_number == "7013914767")
         default_cust = (await db.execute(stmt_default)).scalars().first()
         cust_uuid = default_cust.public_id if default_cust else uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
 

@@ -894,7 +894,7 @@ async def trust_device(payload: TrustDevicePayload, db: AsyncSession = Depends(g
 
 
 class PasswordResetRequestPayload(BaseModel):
-    mobile_number: str = Field(..., example="9176669426")
+    mobile_number: str = Field(..., example="7013914767")
     tenant_id: Optional[str] = None
     company_id: Optional[str] = None
 

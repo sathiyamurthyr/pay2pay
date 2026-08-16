@@ -717,14 +717,14 @@ export default function RetailerProfilePage() {
                       </Typography>
                     </Stack>
                     <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
-                      {profile.company?.whatsapp_number || "+91 91766 69426"}
+                      {profile.company?.whatsapp_number || "+91 70139 14767"}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 1.5 }}>
                       Instant Merchant Chat
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <Button
-                        href={`https://wa.me/919176669426?text=${encodeURIComponent("Hello Pay2Pay Support, I need assistance with my Retailer Account.")}`}
+                        href={`https://wa.me/917013914767?text=${encodeURIComponent("Hello Pay2Pay Support, I need assistance with my Retailer Account.")}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="contained"
@@ -734,7 +734,7 @@ export default function RetailerProfilePage() {
                       >
                         WhatsApp
                       </Button>
-                      <IconButton size="small" onClick={() => handleCopy(profile.company?.whatsapp_number || "+91 91766 69426", "WhatsApp Number")} sx={{ color: "#94A3B8" }}>
+                      <IconButton size="small" onClick={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")} sx={{ color: "#94A3B8" }}>
                         <Copy size={15} />
                       </IconButton>
                     </Stack>
@@ -1401,11 +1401,11 @@ export default function RetailerProfilePage() {
                 />
                 <DataRow
                   label="WhatsApp Business Desk"
-                  value={profile.company?.whatsapp_number || "+91 91766 69426"}
-                  onCopy={() => handleCopy(profile.company?.whatsapp_number || "+91 91766 69426", "WhatsApp Number")}
+                  value={profile.company?.whatsapp_number || "+91 70139 14767"}
+                  onCopy={() => handleCopy(profile.company?.whatsapp_number || "+91 70139 14767", "WhatsApp Number")}
                   action={
                     <Button
-                      href={`https://wa.me/919176669426?text=${encodeURIComponent("Hello Pay2Pay Support, I need assistance with my Retailer Account.")}`}
+                      href={`https://wa.me/917013914767?text=${encodeURIComponent("Hello Pay2Pay Support, I need assistance with my Retailer Account.")}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       variant="contained"

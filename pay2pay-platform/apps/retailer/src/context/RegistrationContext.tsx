@@ -111,7 +111,7 @@ export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Load saved draft from Database on mount (Database is single source of truth)
   useEffect(() => {
     const savedRegId = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_id") || "") : "";
-    const savedMobile = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile") || "9176669426") : "9176669426";
+    const savedMobile = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile") || "7013914767") : "7013914767";
     const queryKey = savedRegId || savedMobile;
 
     fetch(`/api/v1/onboarding/resume/${queryKey}`)

@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     COMPANY_LOGO_URL: str = Field(default="/logo.png")
     SUPPORT_EMAIL: str = Field(default="support@pay2pay.com")
     SUPPORT_PHONE: str = Field(default="+91 1800 292 982")
-    SUPPORT_WHATSAPP: str = Field(default="+91 91766 69426")
+    SUPPORT_WHATSAPP: str = Field(default="+91 70139 14767")
     SUPPORT_HOURS: str = Field(default="Monday - Saturday | 09:00 AM - 07:00 PM IST")
     LIVE_CHAT_ENABLED: bool = Field(default=True)
     SUPPORT_URL: str = Field(default="https://pay2pay.in/support")

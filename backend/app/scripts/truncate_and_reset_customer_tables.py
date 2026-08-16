@@ -46,7 +46,7 @@ async def truncate_and_reset(seed_default: bool = True):
             print("--> Seed default disabled. Tables left completely EMPTY.")
             return
 
-        # Seed only 1 clean active customer (Ramesh Kumar - 9176669426)
+        # Seed only 1 clean active customer (Ramesh Kumar - 7013914767)
         print("--> Re-seeding single clean test customer (Ramesh Kumar)...")
         tenant_id = uuid.UUID("93538c98-0b19-493c-a247-4cdb02a46c68")
         cust_id = uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
@@ -59,13 +59,13 @@ async def truncate_and_reset(seed_default: bool = True):
         customer = CustomerModel(
             public_id=cust_id,
             tenant_id=tenant_id,
-            customer_number="CUST-CUST669426",
+            customer_number="CUST-CUST3914767",
             customer_category="REGULAR",
             customer_type="INDIVIDUAL",
             first_name="Ramesh",
             last_name="Kumar",
             full_name="Ramesh Kumar",
-            mobile_number="9176669426",
+            mobile_number="7013914767",
             email="ramesh.kumar@pay2pay.com",
             kyc_level="FULL_KYC",
             kyc_status="VERIFIED",

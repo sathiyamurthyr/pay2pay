@@ -11,7 +11,7 @@ export const siteConfig: SiteConfig = {
     tollFree: "1800 292 982",
     supportEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "support@pay2pay.in",
     grievanceEmail: process.env.NEXT_PUBLIC_GRIEVANCE_EMAIL || "grievance@pay2pay.in",
-    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+91 91766 69426",
+    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+91 70139 14767",
     supportHours: "Monday – Saturday | 09:00 AM – 07:00 PM IST",
     headquarters: "Plot 42, Sri Ambal Nagar, 2nd Main Road, Ashok Nagar, Chennai, Tamil Nadu - 600128, India",
     nodalOfficer: "Grievance Redressal Officer, Pay2Pay",

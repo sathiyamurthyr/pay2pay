@@ -20,7 +20,7 @@ async def get_or_create_swipe_retailer(db, tenant_id: uuid.UUID) -> uuid.UUID:
             retailer_code=f"RET-POS-{uuid.uuid4().hex[:6].upper()}",
             business_name="Test POS Retailer",
             owner_name="POS Owner",
-            mobile_number="9176669426",
+            mobile_number="7013914767",
             email=f"pos{uuid.uuid4().hex[:6]}@test.com",
             status="ACTIVE",
             is_active=True,

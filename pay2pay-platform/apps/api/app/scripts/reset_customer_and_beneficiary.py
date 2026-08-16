@@ -35,20 +35,20 @@ async def reset_data():
 
         print("--> Cleaned previous customer & beneficiary records.")
 
-        # 3. Create Clean Test Customer (Ramesh Kumar - 9176669426)
+        # 3. Create Clean Test Customer (Ramesh Kumar - 7013914767)
         now = datetime.datetime.now(datetime.timezone.utc)
         mpin_hash_val = _hash_mpin("2468", str(cust_id))
 
         customer = CustomerModel(
             public_id=cust_id,
             tenant_id=tenant_id,
-            customer_number="CUST-CUST669426",
+            customer_number="CUST-CUST3914767",
             customer_category="REGULAR",
             customer_type="INDIVIDUAL",
             first_name="Ramesh",
             last_name="Kumar",
             full_name="Ramesh Kumar",
-            mobile_number="9176669426",
+            mobile_number="7013914767",
             email="ramesh.kumar@pay2pay.com",
             kyc_level="FULL_KYC",
             kyc_status="VERIFIED",

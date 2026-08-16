@@ -890,7 +890,7 @@ export const retailerApi = {
     try {
       const cleanPayload = {
         ref_id: payload.ref_id || `CF-AADHAAR-${Date.now()}`,
-        mobile_number: payload.mobile_number || "9176669426",
+        mobile_number: payload.mobile_number || "7013914767",
         mpin: payload.mpin || "1234",
         first_name: payload.first_name || "Customer",
         last_name: payload.last_name || "",
@@ -913,7 +913,7 @@ export const retailerApi = {
           customer_id: cust_id,
           public_id: cust_id,
           customer_number: `CUST-${Date.now().toString().slice(-6)}`,
-          mobile_number: payload.mobile_number || "9176669426",
+          mobile_number: payload.mobile_number || "7013914767",
           first_name: payload.first_name || "SATHIYA",
           last_name: payload.last_name || "MURTHY",
           full_name: `${payload.first_name || "SATHIYA"} ${payload.last_name || "MURTHY"}`,
@@ -959,7 +959,7 @@ export const retailerApi = {
       account_number: payload.account_number,
       ifsc_code: payload.ifsc,
       account_holder_name: payload.account_holder,
-      mobile_number: "9176669426",
+      mobile_number: "7013914767",
       vendor_code: "CASHFREE"
     };
 
@@ -1267,11 +1267,11 @@ export const retailerApi = {
 
         const keys = Array.from(new Set([
           custId,
-          "9176669426",
+          "7013914767",
           "8f64d450-8b7c-4414-a998-52f1d99e01b1",
-          "CUST669426",
-          "CUST-CUST669426",
-          "cust-8f64d450-9176669426",
+          "CUST3914767",
+          "CUST-CUST3914767",
+          "cust-8f64d450-7013914767",
         ]));
 
         keys.forEach((k) => {
@@ -1414,9 +1414,9 @@ export const retailerApi = {
         data: {
           session_id: "BSESSION-MOCK",
           customer: {
-            customer_id: "cust-8f64d450-9176669426",
+            customer_id: "cust-8f64d450-7013914767",
             full_name: "Ramesh Kumar",
-            mobile_number: "9176669426",
+            mobile_number: "7013914767",
             kyc_status: "VERIFIED",
             monthly_limit: 250000.0,
             remaining_limit: 215000.0,

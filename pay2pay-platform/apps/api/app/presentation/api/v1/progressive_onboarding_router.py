@@ -11,7 +11,7 @@ router = APIRouter(prefix="/onboarding", tags=["Progressive Onboarding & KYC"])
 
 
 class CheckMobilePayload(BaseModel):
-    mobile_number: str = Field(..., example="9176669426")
+    mobile_number: str = Field(..., example="7013914767")
     tenant_id: Optional[str] = Field(None, example="00000000-0000-0000-0000-000000000001")
     company_id: Optional[str] = Field(None, example="COMP-001")
 
@@ -90,11 +90,11 @@ class DocumentUploadPayload(BaseModel):
     mime_type: Optional[str] = "image/jpeg"
 
 class ValidateMobilePayload(BaseModel):
-    mobile_number: str = Field(..., example="9176669426")
+    mobile_number: str = Field(..., example="7013914767")
     tenant_id: Optional[str] = Field(None, example="00000000-0000-0000-0000-000000000001")
 
 class SendOtpPayload(BaseModel):
-    mobile_number: str = Field(..., example="9176669426")
+    mobile_number: str = Field(..., example="7013914767")
     validation_token: str = Field(...)
     tenant_id: Optional[str] = Field(None, example="00000000-0000-0000-0000-000000000001")
 

@@ -20,7 +20,7 @@ async def get_or_create_ledger_retailer(db, tenant_id: uuid.UUID) -> uuid.UUID:
             retailer_code=f"RET-LED-{uuid.uuid4().hex[:6].upper()}",
             business_name="Test Ledger Retailer",
             owner_name="Ledger Owner",
-            mobile_number="9176669426",
+            mobile_number="7013914767",
             email=f"ledger{uuid.uuid4().hex[:6]}@test.com",
             status="ACTIVE",
             is_active=True,
@@ -45,7 +45,7 @@ async def test_retailer_ledger_report_endpoints():
         tenant_id = uuid.UUID("93538c98-0b19-493c-a247-4cdb02a46c68")
         ret_id = await get_or_create_ledger_retailer(db, tenant_id)
 
-        cust_stmt = select(CustomerModel).where(CustomerModel.mobile_number == "9176669426")
+        cust_stmt = select(CustomerModel).where(CustomerModel.mobile_number == "7013914767")
         cust = (await db.execute(cust_stmt)).scalars().first()
         if not cust:
             cust = CustomerModel(
@@ -61,7 +61,7 @@ async def test_retailer_ledger_report_endpoints():
                 first_name="LedgerCust",
                 last_name="Test",
                 full_name="Ledger Customer Test",
-                mobile_number="9176669426",
+                mobile_number="7013914767",
                 mpin_enabled=True,
                 record_status="ACTIVE",
                 is_active=True,

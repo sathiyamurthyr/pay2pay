@@ -212,7 +212,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       code: "RET-0CFE2B",
       name: "Pay2Pay Verified Merchant",
       ownerName: "Retailer Agent",
-      mobile: "+91 91766 69426",
+      mobile: "+91 70139 14767",
       email: "retailer@pay2pay.in",
       location: "Chennai, TN",
       status: initApproval === "APPROVED" ? "ACTIVE" : "PENDING_KYC",
