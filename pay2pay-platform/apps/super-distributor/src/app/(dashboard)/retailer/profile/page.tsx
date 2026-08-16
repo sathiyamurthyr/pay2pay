@@ -769,7 +769,7 @@ export default function RetailerProfilePage() {
                     Registered Corporate Headquarters
                   </Typography>
                   <Typography variant="body2" sx={{ color: "#E2E8F0" }}>
-                    {profile.company?.headquarters || "Plot 42, Sri Ambal Nagar, 2nd Main Road, Ashok Nagar, Chennai, Tamil Nadu - 600128, India"}
+                    {profile.company?.headquarters || "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India"}
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 5 }}>
@@ -1434,8 +1434,8 @@ export default function RetailerProfilePage() {
                   <Stack spacing={1.5}>
                     <DataRow
                       label="Corporate Registered Office Address"
-                      value={profile.company?.headquarters || "Plot 42, Sri Ambal Nagar, 2nd Main Road, Ashok Nagar, Chennai, Tamil Nadu - 600128, India"}
-                      onCopy={() => handleCopy(profile.company?.headquarters || "Plot 42, Sri Ambal Nagar, 2nd Main Road, Ashok Nagar, Chennai, Tamil Nadu - 600128, India", "Office Address")}
+                      value={profile.company?.headquarters || "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India"}
+                      onCopy={() => handleCopy(profile.company?.headquarters || "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India", "Office Address")}
                     />
                     <DataRow label="Official Website Portal" value={profile.company?.website_url || "https://pay2pay.in"} />
                   </Stack>

@@ -612,7 +612,7 @@ async def get_retailer_profile(
         "grievance_email": "grievance@pay2pay.in",
         "nodal_officer": "Grievance Redressal Officer, Pay2Pay",
         "support_hours": "Monday - Saturday | 09:00 AM - 07:00 PM IST",
-        "headquarters": "Plot 42, Sri Ambal Nagar, 2nd Main Road, Ashok Nagar, Chennai, Tamil Nadu - 600128, India",
+        "headquarters": "Shop No: 7, 1st Floor, Chittaramma Temple Complex, Moosapet, Hyderabad, Telangana - 500018, India",
         "helpdesk_url": "https://pay2pay.in/support",
         "website_url": "https://pay2pay.in"
     }
