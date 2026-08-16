@@ -179,31 +179,41 @@ interface AuthPanelProps {
   portalRole?: "SD" | "DIST" | "SUPER_DISTRIBUTOR" | "DISTRIBUTOR" | "RETAILER" | "ADMIN";
   darkMode?: boolean;
   setDarkMode?: React.Dispatch<React.SetStateAction<boolean>>;
+  embedded?: boolean;
+  className?: string;
 }
 
 export const AuthPanel: React.FC<AuthPanelProps> = ({
   portalRole = "RETAILER",
   darkMode: externalDarkMode,
-  setDarkMode: externalSetDarkMode
+  setDarkMode: externalSetDarkMode,
+  embedded = false,
+  className = "",
 }) => {
   const router = useRouter();
 
-  const normalizedRole: "RETAILER" | "SD" | "DIST" =
-    portalRole === "RETAILER"
-      ? "RETAILER"
+  const normalizedRole: "RETAILER" | "SD" | "DIST" | "ADMIN" =
+    portalRole === "ADMIN"
+      ? "ADMIN"
       : portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR"
       ? "SD"
-      : "DIST";
+      : portalRole === "DIST" || portalRole === "DISTRIBUTOR"
+      ? "DIST"
+      : "RETAILER";
 
   const portalTitle =
-    normalizedRole === "RETAILER"
+    normalizedRole === "ADMIN"
+      ? "PAY2PAY COMPANY ADMIN"
+      : normalizedRole === "RETAILER"
       ? "Pay2Pay Retailer Portal"
       : normalizedRole === "SD"
       ? "Pay2Pay SD Portal"
       : "Pay2Pay Distributor Portal";
 
   const portalSubtitle =
-    normalizedRole === "RETAILER"
+    normalizedRole === "ADMIN"
+      ? "Tenant Management & Verification Portal"
+      : normalizedRole === "RETAILER"
       ? "Access your Pay2Pay Retailer Business Workstation"
       : normalizedRole === "SD"
       ? "Access your Pay2Pay Super Distributor Workspace"
@@ -217,7 +227,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       : "/dist/onboarding";
 
   const portalDashboardUrl =
-    normalizedRole === "RETAILER"
+    normalizedRole === "ADMIN"
+      ? "/dashboard"
+      : normalizedRole === "RETAILER"
       ? "/retailer/dashboard"
       : normalizedRole === "SD"
       ? "/sd/dashboard"
@@ -526,13 +538,13 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       : "";
 
   return (
-    <div className={`relative w-full h-screen max-h-screen overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 ${
+    <div className={embedded ? `relative w-full flex flex-col justify-center select-none ${className}` : `relative w-full h-screen max-h-screen overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 ${
       darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"
     }`}>
       {showConfetti && <ConfettiBurst />}
 
       {/* ── Outer Padding Wrapper ── */}
-      <div className="flex flex-col flex-1 justify-between px-4 py-2 sm:px-6 sm:py-3 lg:px-7 lg:py-3 max-w-md mx-auto w-full h-full overflow-hidden relative z-10">
+      <div className={embedded ? "flex flex-col w-full max-w-[560px] 2xl:max-w-[660px] 3xl:max-w-[720px] mx-auto relative z-10 py-2 sm:py-4" : "flex flex-col flex-1 justify-between px-4 py-2 sm:px-6 sm:py-3 lg:px-7 lg:py-3 max-w-md mx-auto w-full h-full overflow-hidden relative z-10"}>
 
         {/* ─── Mobile Top Header ─── */}
         <div className={`lg:hidden flex items-center justify-between mb-5 pb-4 border-b ${
@@ -1086,22 +1098,24 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             </div>
           )}
 
-          {/* ── Register Link ── */}
-          <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
-            darkMode ? "border-slate-800" : "border-slate-200"
-          }`}>
-            <span className={`font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-              New Partner?
-            </span>
-            <Link
-              href={portalRegisterUrl}
-              className={`font-bold transition-colors ${
-                darkMode ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"
-              }`}
-            >
-              {t.registerAccount}
-            </Link>
-          </div>
+          {/* ── Register Link (Hidden for ADMIN) ── */}
+          {normalizedRole !== "ADMIN" && (
+            <div className={`mt-5 pt-4 border-t flex items-center justify-between text-sm ${
+              darkMode ? "border-slate-800" : "border-slate-200"
+            }`}>
+              <span className={`font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                New Partner?
+              </span>
+              <Link
+                href={portalRegisterUrl}
+                className={`font-bold transition-colors ${
+                  darkMode ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"
+                }`}
+              >
+                {t.registerAccount}
+              </Link>
+            </div>
+          )}
         </motion.div>
 
         {/* ── Footer Links ── */}
