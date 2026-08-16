@@ -16,11 +16,11 @@ import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
 
 export const RetailerEcosystem: React.FC = () => {
   return (
-    <section id="ecosystem" className="py-20 lg:py-28 relative bg-[#060D18]/80 border-y border-slate-800/70 overflow-hidden">
+    <section id="ecosystem" className="py-20 lg:py-28 2xl:py-36 relative bg-[#060D18]/80 border-y border-slate-800/70 overflow-hidden">
       {/* Background radial glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-blue-600/10 blur-[140px] pointer-events-none -z-10" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24">
         {/* Section Header */}
         <Pay2PayPageHeader
           eyebrow="Ecosystem"
@@ -30,7 +30,7 @@ export const RetailerEcosystem: React.FC = () => {
         />
 
         {/* Visual Lifecycle Flow */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 relative">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 2xl:gap-6 3xl:gap-8 relative">
           {siteConfig.ecosystem.steps.map((item, idx) => {
             const IconComponent = iconMap[item.iconName] || Store;
             const isLast = idx === siteConfig.ecosystem.steps.length - 1;

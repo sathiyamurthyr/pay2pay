@@ -27,31 +27,31 @@ export const Navbar: React.FC = () => {
             : "bg-transparent py-3.5"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+        <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24 flex items-center justify-between">
           {/* Brand Logo */}
-          <a href="#home" className="flex items-center gap-3 group">
+          <a href="#home" className="flex items-center gap-3 2xl:gap-4 group">
             <img
               src="/branding/pay2pay-logo.png"
               alt="Pay2Pay Logo"
-              className="h-10 w-auto max-w-[130px] object-contain rounded-lg border border-amber-500/30 shadow-lg shadow-amber-500/10 group-hover:scale-105 transition-transform"
+              className="h-10 2xl:h-12 3xl:h-14 w-auto max-w-[130px] 2xl:max-w-[160px] object-contain rounded-lg border border-amber-500/30 shadow-lg shadow-amber-500/10 group-hover:scale-105 transition-transform"
             />
             <div>
-              <span className="font-extrabold text-white text-xl tracking-wider block leading-none">
+              <span className="font-extrabold text-white text-xl 2xl:text-2xl 3xl:text-3xl tracking-wider block leading-none">
                 {siteConfig.company.brandName}
               </span>
-              <span className="text-[10px] font-bold text-amber-400 tracking-widest uppercase block mt-1">
+              <span className="text-[10px] 2xl:text-xs 3xl:text-sm font-bold text-amber-400 tracking-widest uppercase block mt-1">
                 Enterprise FinTech
               </span>
             </div>
           </a>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1 bg-slate-900/60 border border-slate-800/80 rounded-full px-4 py-1.5 backdrop-blur-md">
+          <nav className="hidden lg:flex items-center gap-1 2xl:gap-2 3xl:gap-3 bg-slate-900/60 border border-slate-800/80 rounded-full px-4 py-1.5 2xl:px-6 2xl:py-2 3xl:px-8 3xl:py-2.5 backdrop-blur-md">
             {siteConfig.navigation.map((item) => (
               <a
                 key={item.label}
                 href={item.href}
-                className="px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white rounded-full hover:bg-blue-600/10 transition-colors"
+                className="px-3.5 py-1.5 2xl:px-4 2xl:py-2 text-xs 2xl:text-sm 3xl:text-base font-semibold text-slate-300 hover:text-white rounded-full hover:bg-blue-600/10 transition-colors whitespace-nowrap"
               >
                 {item.label}
               </a>

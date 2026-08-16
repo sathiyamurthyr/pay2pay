@@ -12,9 +12,9 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
   const currentYear = getCurrentYear();
 
   return (
-    <footer className="bg-[#03070E] border-t border-slate-800 text-slate-400 text-xs pt-16 pb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-slate-800/80">
+    <footer className="bg-[#03070E] border-t border-slate-800 text-slate-400 text-xs pt-16 pb-12 2xl:pt-24 2xl:pb-16">
+      <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 2xl:gap-14 pb-12 2xl:pb-16 border-b border-slate-800/80">
           {/* Col 1: Brand & Tagline (Span 2) */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
