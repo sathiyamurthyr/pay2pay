@@ -46,6 +46,7 @@ import PaletteIcon from "@mui/icons-material/Palette";
 import { useAuth } from "@/lib/auth";
 import { useRetailerStore, KpiTheme, THEME_CONFIGS } from "@/stores/use-retailer-store";
 import { useTheme } from "@/context/ThemeContext";
+import { retailerApi } from "@/services/retailer-api";
 
 import { useRetailerApprovalGuard } from "@/hooks/useRetailerApprovalGuard";
 
@@ -129,6 +130,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     owner_name?: string | null;
     retailer_name?: string | null;
     retailer_code?: string | null;
+    photo_url?: string | null;
     approval_status?: string | null;
     kyc_status?: string | null;
     location?: string | null;
@@ -148,10 +150,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       if (rInfo.approval_status && typeof setApprovalStatus === "function") {
         setApprovalStatus(rInfo.approval_status as any);
       }
-      setProfileDetails({
+      setProfileDetails((prev) => ({
+        ...prev,
         owner_name: rInfo.owner_name || null,
         retailer_name: rInfo.retailer_name || rInfo.store_name || null,
         retailer_code: rInfo.retailer_code || null,
+        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || prev.photo_url || "/api/v1/retailer/profile/photo-image",
         approval_status: rInfo.approval_status || null,
         kyc_status: rInfo.kyc_status || null,
         location: rInfo.location || null,
@@ -159,18 +163,29 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         plan_name: rInfo.plan_name || null,
         loading: false,
         error: false,
-      });
+      }));
     } catch (err) {
       console.warn("Profile details fetch error:", err);
-      setProfileDetails({ loading: false, error: true });
+      setProfileDetails((prev) => ({ ...prev, loading: false, error: true }));
     }
-  }, []);
+  }, [setApprovalStatus]);
 
   useEffect(() => {
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true;
-    }
-  }, []);
+    fetchProfileDetails();
+    // Also load verified profile photo directly from profile endpoint
+    const loadVerifiedPhoto = async () => {
+      try {
+        const res = await retailerApi.getProfile();
+        const pUrl = res?.data?.photo?.photo_url;
+        if (pUrl) {
+          setProfileDetails((prev) => ({ ...prev, photo_url: pUrl }));
+        }
+      } catch (e) {
+        console.warn("Verified photo fetch notice:", e);
+      }
+    };
+    loadVerifiedPhoto();
+  }, [fetchProfileDetails]);
 
   const formatLastLogin = (isoString?: string | null) => {
     if (!isoString) return "Not available";
@@ -674,7 +689,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               "&:hover": { borderColor: "#2563EB" },
             }}
           >
-            <Avatar sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px" }}>
+            <Avatar
+              src={profileDetails.photo_url || outlet.avatar || undefined}
+              sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px", border: "1.5px solid #3B82F6" }}
+            >
               {outlet.ownerName.charAt(0)}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -689,7 +707,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         </Box>
       ) : (
         <Box sx={{ py: 1.5, display: "flex", justifyContent: "center" }}>
-          <Avatar sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px" }}>
+          <Avatar
+            src={profileDetails.photo_url || outlet.avatar || undefined}
+            sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px", border: "1.5px solid #3B82F6" }}
+          >
             {outlet.ownerName.charAt(0)}
           </Avatar>
         </Box>
@@ -854,13 +875,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     <Typography
                       variant="caption"
                       sx={{
-                        color: "#94A3B8",
-                        fontWeight: 800,
+                        color: "#FFFFFF",
+                        fontWeight: 900,
                         fontSize: "11px",
-                        letterSpacing: "0.5px",
-                        lineHeight: 1,
+                        letterSpacing: "0.8px",
+                        lineHeight: 1.1,
                         textTransform: "uppercase",
+                        fontFamily: "'Inter', sans-serif",
                         display: { xs: "none", sm: "block" },
+                        opacity: 0.95,
                       }}
                     >
                       MAIN WALLET
@@ -869,11 +892,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       variant="subtitle1"
                       sx={{
                         fontWeight: 900,
-                        color: "#4ADE80",
-                        fontSize: { xs: "15px", sm: "17px" },
+                        color: "#FFD700",
+                        fontSize: { xs: "16px", sm: "18px" },
                         lineHeight: 1.15,
-                        letterSpacing: "-0.2px",
-                        textShadow: "0 0 12px rgba(74, 222, 128, 0.25)",
+                        letterSpacing: "0.2px",
+                        fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
+                        textShadow: "0 0 16px rgba(255, 215, 0, 0.45)",
                       }}
                     >
                       ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -1003,7 +1027,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             {/* User Profile Avatar Icon (Clicking this opens the full Retailer Profile Card!) */}
             <Tooltip title="View Retailer Profile Info">
               <IconButton onClick={(e) => setProfileAnchor(e.currentTarget)} size="small" sx={{ p: 0.25 }}>
-                <Avatar sx={{ bgcolor: "#1E3A8A", width: 36, height: 36, fontWeight: 800, fontSize: "0.85rem", boxShadow: "0 2px 6px rgba(30,58,138,0.25)" }}>
+                <Avatar
+                  src={profileDetails.photo_url || undefined}
+                  sx={{
+                    bgcolor: "#1E3A8A",
+                    width: 36,
+                    height: 36,
+                    fontWeight: 800,
+                    fontSize: "0.85rem",
+                    border: "2px solid #3B82F6",
+                    boxShadow: "0 2px 6px rgba(30,58,138,0.25)",
+                  }}
+                >
                   {(profileDetails.owner_name || outlet.ownerName || "R").charAt(0).toUpperCase()}
                 </Avatar>
               </IconButton>
@@ -1034,6 +1069,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               {/* Top Row: Avatar + Name & Badges */}
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
                 <Avatar
+                  src={profileDetails.photo_url || undefined}
                   sx={{
                     width: 48,
                     height: 48,
@@ -1041,6 +1077,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     color: "#FFFFFF",
                     fontWeight: 800,
                     fontSize: "1.2rem",
+                    border: "2px solid #3B82F6",
                     boxShadow: "0 4px 12px rgba(30, 58, 138, 0.3)",
                     flexShrink: 0,
                   }}

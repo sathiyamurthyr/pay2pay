@@ -230,7 +230,7 @@ export const retailerApi = {
       const params: any = {};
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
-      const res = await apiClient.get("/api/v1/retailer/profile", { params });
+      const res = await apiClient.get("/retailer/profile", { params });
       return res.data?.data || res.data;
     } catch (e) {
       console.error("Failed to fetch retailer profile:", e);
@@ -238,7 +238,7 @@ export const retailerApi = {
     }
   },
 
-  updateProfile: async (data: any) => {
+  updateContact: async (data: { alternate_mobile?: string; whatsapp_number?: string; email?: string }) => {
     try {
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
@@ -256,22 +256,100 @@ export const retailerApi = {
       const params: any = {};
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
-      const res = await apiClient.put("/api/v1/retailer/profile", data, { params });
+      const res = await apiClient.patch("/retailer/profile/contact", data, { params });
       return res.data;
     } catch (e) {
-      console.error("Failed to update retailer profile:", e);
+      console.error("Failed to update contact details:", e);
+      throw e;
+    }
+  },
+
+  updateAddress: async (data: any) => {
+    try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+      }
+      const params: any = {};
+      if (activeRetailerId) params.retailer_id = activeRetailerId;
+
+      const res = await apiClient.patch("/retailer/profile/address", data, { params });
+      return res.data;
+    } catch (e) {
+      console.error("Failed to update address details:", e);
       throw e;
     }
   },
 
   uploadProfilePhoto: async (formData: FormData) => {
     try {
-      const res = await apiClient.post("/api/v1/retailer/profile/photo", formData, {
+      const res = await apiClient.post("/retailer/profile/photo", formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
       return res.data;
     } catch (e) {
       console.error("Failed to upload profile photo:", e);
+      throw e;
+    }
+  },
+
+  changePassword: async (data: { current_password: string; new_password: string; confirm_password: string }) => {
+    try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+      }
+      const params: any = {};
+      if (activeRetailerId) params.retailer_id = activeRetailerId;
+
+      const res = await apiClient.post("/retailer/profile/security/password", data, { params });
+      return res.data;
+    } catch (e) {
+      console.error("Failed to change password:", e);
+      throw e;
+    }
+  },
+
+  changeMpin: async (data: { current_pin?: string; new_pin: string; confirm_pin: string }) => {
+    try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+      }
+      const params: any = {};
+      if (activeRetailerId) params.retailer_id = activeRetailerId;
+
+      const res = await apiClient.post("/retailer/profile/security/pin", data, { params });
+      return res.data;
+    } catch (e) {
+      console.error("Failed to change mpin:", e);
       throw e;
     }
   },

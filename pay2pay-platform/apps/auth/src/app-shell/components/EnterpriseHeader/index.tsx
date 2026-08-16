@@ -80,23 +80,71 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
       <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
         <Paper
           elevation={0}
+          onClick={() => window.location.href = "/retailer/wallet"}
           sx={{
-            px: 2,
-            py: 1,
-            borderRadius: "12px",
-            bgcolor: tokens.colors.brand.primarySubtle,
-            border: `1px solid ${tokens.colors.brand.primary}66`,
+            px: { xs: 1.6, sm: 2.2 },
+            py: 0.8,
+            borderRadius: "14px",
+            bgcolor: "rgba(15, 23, 42, 0.85)",
+            border: "1px solid rgba(59, 130, 246, 0.4)",
             display: "flex",
             alignItems: "center",
-            gap: 1.5,
+            gap: 1.6,
+            cursor: "pointer",
+            boxShadow: "0 4px 14px rgba(37, 99, 235, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+            transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+            "&:hover": {
+              bgcolor: "rgba(30, 58, 138, 0.35)",
+              borderColor: "rgba(96, 165, 250, 0.7)",
+              boxShadow: "0 6px 20px rgba(37, 99, 235, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              transform: "translateY(-1px)",
+            },
           }}
         >
-          <AccountBalanceWalletIcon sx={{ color: tokens.colors.brand.primary, fontSize: 24 }} />
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: "10px",
+              bgcolor: "rgba(37, 99, 235, 0.25)",
+              border: "1px solid rgba(59, 130, 246, 0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 22 }} />
+          </Box>
           <Box>
-            <Typography variant="body1" sx={{ color: "#E2E8F0", fontWeight: 700, fontSize: "14px", display: "block" }}>
-              Main Wallet
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#FFFFFF",
+                fontWeight: 900,
+                fontSize: "11px",
+                letterSpacing: "0.8px",
+                lineHeight: 1.1,
+                display: "block",
+                textTransform: "uppercase",
+                fontFamily: "'Inter', sans-serif",
+                opacity: 0.95,
+              }}
+            >
+              MAIN WALLET
             </Typography>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px", lineHeight: 1.1 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 900,
+                color: "#FFD700",
+                fontSize: "18px",
+                lineHeight: 1.15,
+                letterSpacing: "0.2px",
+                fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
+                textShadow: "0 0 16px rgba(255, 215, 0, 0.45)",
+              }}
+            >
               {isLoading && !walletData ? "Loading..." : formattedBalance}
             </Typography>
           </Box>

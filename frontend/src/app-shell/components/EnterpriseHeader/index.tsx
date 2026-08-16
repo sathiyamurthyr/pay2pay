@@ -14,31 +14,32 @@ export interface EnterpriseHeaderProps {
 }
 
 export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
-  pageTitle = "Pay2Pay Portal",
+  pageTitle = "Money Transfer (DMT)",
 }) => {
   const { walletData, isLoading } = useWalletSync();
 
-  const balanceNum = Number(walletData?.wallet_balance ?? 0);
-  const formattedBalance = `₹${(isNaN(balanceNum) ? 0 : balanceNum).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formattedBalance = walletData
+    ? `₹${walletData.wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+    : "₹0.00";
 
   const shortName = walletData?.short_name || (walletData?.owner_name ? walletData.owner_name.split(" ")[0] : "Partner");
-  const partnerCode = walletData?.retailer_code || (walletData as any)?.user_code || "P2P-MASTER";
-
+  const retailerCode = walletData?.retailer_code || "RET-PARTNER";
 
   return (
     <Paper
       elevation={0}
       sx={{
-        height: 64,
-        px: 2.5,
+        height: 80,
+        px: 3.5,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        bgcolor: "#0D1526",
+        bgcolor: "rgba(15, 23, 42, 0.90)",
+        backdropFilter: "blur(20px)",
         borderBottom: `1px solid ${tokens.colors.neutral.dark.border}`,
-        borderRadius: 0,
-        width: "100%",
-        boxSizing: "border-box",
+        position: "sticky",
+        top: 0,
+        zIndex: 1100,
       }}
     >
       {/* Left: Brand Logo & Title & Breadcrumb */}
@@ -46,16 +47,16 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Box
             sx={{
-              width: 36,
-              height: 36,
-              borderRadius: "8px",
+              width: 48,
+              height: 48,
+              borderRadius: "12px",
               background: tokens.colors.gradients.brand,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#FFFFFF",
-              fontWeight: 800,
-              fontSize: "14px",
+              fontWeight: 900,
+              fontSize: "18px",
               boxShadow: tokens.shadows.glow,
             }}
           >
@@ -119,13 +120,15 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
             <Typography
               variant="caption"
               sx={{
-                color: "#94A3B8",
-                fontWeight: 800,
+                color: "#FFFFFF",
+                fontWeight: 900,
                 fontSize: "11px",
-                letterSpacing: "0.5px",
-                lineHeight: 1,
+                letterSpacing: "0.8px",
+                lineHeight: 1.1,
                 display: "block",
                 textTransform: "uppercase",
+                fontFamily: "'Inter', sans-serif",
+                opacity: 0.95,
               }}
             >
               MAIN WALLET
@@ -134,11 +137,12 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
               variant="subtitle1"
               sx={{
                 fontWeight: 900,
-                color: "#4ADE80",
+                color: "#FFD700",
                 fontSize: "18px",
                 lineHeight: 1.15,
-                letterSpacing: "-0.2px",
-                textShadow: "0 0 12px rgba(74, 222, 128, 0.25)",
+                letterSpacing: "0.2px",
+                fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
+                textShadow: "0 0 16px rgba(255, 215, 0, 0.45)",
               }}
             >
               {isLoading && !walletData ? "Loading..." : formattedBalance}
@@ -148,7 +152,7 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
 
         <QuickActions />
         <NotificationCenter />
-        <ProfileMenu ownerName={shortName} code={partnerCode} />
+        <ProfileMenu ownerName={shortName} code={retailerCode} />
       </Stack>
     </Paper>
   );

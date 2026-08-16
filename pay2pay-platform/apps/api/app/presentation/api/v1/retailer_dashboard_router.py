@@ -53,6 +53,7 @@ async def resolve_retailer_context(
     target_ident = retailer_id
     auth_header = request.headers.get("authorization", "") if request else ""
 
+    # 1. If auth header present, extract session details
     if db and auth_header and not target_ident:
         token = auth_header.replace("Bearer ", "").strip()
         parts = token.split(".")
@@ -76,6 +77,7 @@ async def resolve_retailer_context(
     ret_model = None
 
     if db:
+        # Search RetailerVerificationModel
         verif_conds = []
         if r_uuid:
             verif_conds.append(RetailerVerificationModel.public_id == r_uuid)
@@ -89,6 +91,7 @@ async def resolve_retailer_context(
             verif_stmt = select(RetailerVerificationModel).where(or_(*verif_conds)).order_by(desc(RetailerVerificationModel.submitted_at))
             verif = (await db.execute(verif_stmt)).scalars().first()
 
+        # Search RetailerModel
         if r_uuid:
             ret_stmt = select(RetailerModel).where(RetailerModel.public_id == r_uuid)
             ret_model = (await db.execute(ret_stmt)).scalars().first()
@@ -96,6 +99,7 @@ async def resolve_retailer_context(
             ret_stmt = select(RetailerModel).where(RetailerModel.retailer_code == target_ident)
             ret_model = (await db.execute(ret_stmt)).scalars().first()
 
+    # Determine dynamic identity
     final_id = str(verif.retailer_id if (verif and verif.retailer_id) else (ret_model.retailer_code if ret_model else (target_ident or "RET-PENDING")))
     final_reg_id = str(verif.registration_id if verif else final_id)
     final_name = (verif.retailer_name or verif.shop_name) if verif else (ret_model.store_name or ret_model.owner_name if ret_model else "Retailer Partner")
@@ -141,6 +145,7 @@ async def get_retailer_header_wallet(
     ctx = await resolve_retailer_context(request, retailer_id, tenant_id, db=db)
     pub_id = ctx.get("public_id")
 
+    # Fetch Real Wallet Balance from Database
     wallet_balance = 0.00
     blocked_balance = 0.00
     is_initialized = False
@@ -153,12 +158,22 @@ async def get_retailer_header_wallet(
                 wallet_balance = float(wal_obj.wallet_balance)
                 is_initialized = True
             else:
+                # Check transaction ledger sum
+                tx_stmt = select(
+                    func.coalesce(func.sum(EnterprisePayoutTransactionModel.amount), 0.0)
+                ).where(
+                    and_(
+                        EnterprisePayoutTransactionModel.retailer_id == pub_id,
+                        EnterprisePayoutTransactionModel.status == PayoutTransactionStatus.SUCCESS
+                    )
+                )
                 is_initialized = True
         except Exception as e:
             logger.warning(f"Wallet balance lookup exception: {e}")
 
     available_balance = max(0.0, wallet_balance - blocked_balance)
 
+    # Todays Metrics for retailer
     now_utc = datetime.now(timezone.utc)
     start_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
     end_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
@@ -194,6 +209,7 @@ async def get_retailer_header_wallet(
                 todays_gst = round(float(t_res.gst), 2)
                 todays_tds = round(float(t_res.tds), 2)
 
+            # Pending transactions count
             pend_stmt = select(func.count(EnterprisePayoutTransactionModel.id)).where(
                 and_(
                     EnterprisePayoutTransactionModel.retailer_id == pub_id,
@@ -204,10 +220,12 @@ async def get_retailer_header_wallet(
         except Exception as e:
             logger.warning(f"Todays metrics lookup notice: {e}")
 
-    hr = now_utc.hour + 5
+    # Greeting calculation
+    hr = now_utc.hour + 5  # IST offset approximation
     greeting = "Good Morning" if 4 <= hr < 12 else ("Good Afternoon" if 12 <= hr < 17 else "Good Evening")
 
     return {
+        # Top-level flattened fields for WalletSyncProvider compatibility
         "greeting": greeting,
         "short_name": ctx["owner_name"].split()[0] if ctx["owner_name"] else "Retailer",
         "retailer_name": ctx["retailer_name"],
@@ -227,6 +245,9 @@ async def get_retailer_header_wallet(
         "settlement_pending_amount": 0.0,
         "unread_notifications_count": pending_count,
         "is_wallet_initialized": is_initialized,
+        "photo_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}",
+        "avatar_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}",
+        # Structured nested objects
         "retailer_info": {
             "retailer_id": str(pub_id) if pub_id else ctx["retailer_id"],
             "retailer_code": ctx["retailer_id"],
@@ -237,7 +258,9 @@ async def get_retailer_header_wallet(
             "approval_status": ctx["status"],
             "kyc_status": ctx["kyc_status"],
             "plan_name": "Enterprise Workstation",
-            "role_title": "Enterprise Retailer Workstation"
+            "role_title": "Enterprise Retailer Workstation",
+            "photo_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}",
+            "avatar_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}"
         },
         "wallet": {
             "main_balance": round(float(wallet_balance), 2),
@@ -303,6 +326,7 @@ async def get_financial_kpis(
     except Exception as e:
         logger.warning(f"Financial KPI lookup notice: {e}")
 
+    # Settlements
     settle_res = None
     try:
         settle_stmt = select(

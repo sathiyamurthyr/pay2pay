@@ -245,6 +245,8 @@ async def get_retailer_header_wallet(
         "settlement_pending_amount": 0.0,
         "unread_notifications_count": pending_count,
         "is_wallet_initialized": is_initialized,
+        "photo_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}",
+        "avatar_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}",
         # Structured nested objects
         "retailer_info": {
             "retailer_id": str(pub_id) if pub_id else ctx["retailer_id"],
@@ -256,7 +258,9 @@ async def get_retailer_header_wallet(
             "approval_status": ctx["status"],
             "kyc_status": ctx["kyc_status"],
             "plan_name": "Enterprise Workstation",
-            "role_title": "Enterprise Retailer Workstation"
+            "role_title": "Enterprise Retailer Workstation",
+            "photo_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}",
+            "avatar_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}"
         },
         "wallet": {
             "main_balance": round(float(wallet_balance), 2),

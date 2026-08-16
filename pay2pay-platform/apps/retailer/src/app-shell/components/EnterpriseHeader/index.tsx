@@ -120,13 +120,15 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
             <Typography
               variant="caption"
               sx={{
-                color: "#94A3B8",
-                fontWeight: 800,
+                color: "#FFFFFF",
+                fontWeight: 900,
                 fontSize: "11px",
-                letterSpacing: "0.5px",
-                lineHeight: 1,
+                letterSpacing: "0.8px",
+                lineHeight: 1.1,
                 display: "block",
                 textTransform: "uppercase",
+                fontFamily: "'Inter', sans-serif",
+                opacity: 0.95,
               }}
             >
               MAIN WALLET
@@ -135,11 +137,12 @@ export const EnterpriseHeader: React.FC<EnterpriseHeaderProps> = ({
               variant="subtitle1"
               sx={{
                 fontWeight: 900,
-                color: "#4ADE80",
+                color: "#FFD700",
                 fontSize: "18px",
                 lineHeight: 1.15,
-                letterSpacing: "-0.2px",
-                textShadow: "0 0 12px rgba(74, 222, 128, 0.25)",
+                letterSpacing: "0.2px",
+                fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
+                textShadow: "0 0 16px rgba(255, 215, 0, 0.45)",
               }}
             >
               {isLoading && !walletData ? "Loading..." : formattedBalance}
