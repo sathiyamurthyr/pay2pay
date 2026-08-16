@@ -211,6 +211,71 @@ export const retailerApi = {
     }
   },
 
+  // ── Retailer Comprehensive Profile ──
+  getProfile: async () => {
+    try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+      }
+      const params: any = {};
+      if (activeRetailerId) params.retailer_id = activeRetailerId;
+
+      const res = await apiClient.get("/api/v1/retailer/profile", { params });
+      return res.data?.data || res.data;
+    } catch (e) {
+      console.error("Failed to fetch retailer profile:", e);
+      throw e;
+    }
+  },
+
+  updateProfile: async (data: any) => {
+    try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+      }
+      const params: any = {};
+      if (activeRetailerId) params.retailer_id = activeRetailerId;
+
+      const res = await apiClient.put("/api/v1/retailer/profile", data, { params });
+      return res.data;
+    } catch (e) {
+      console.error("Failed to update retailer profile:", e);
+      throw e;
+    }
+  },
+
+  uploadProfilePhoto: async (formData: FormData) => {
+    try {
+      const res = await apiClient.post("/api/v1/retailer/profile/photo", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      return res.data;
+    } catch (e) {
+      console.error("Failed to upload profile photo:", e);
+      throw e;
+    }
+  },
+
   debitWallet: async (amount: number) => {
     try {
       const res = await apiClient.post("/retailer/wallet/debit", { amount });
