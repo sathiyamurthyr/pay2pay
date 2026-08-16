@@ -78,7 +78,7 @@ export const Navbar: React.FC = () => {
                     Select Workspace
                   </div>
                   <a
-                    href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "/retailer-dashboard"}
+                    href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-blue-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -119,7 +119,7 @@ export const Navbar: React.FC = () => {
 
             {/* Primary Retailer Login Button */}
             <a
-              href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "/retailer-dashboard"}
+              href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:brightness-110 active:scale-95 transition-all"
             >
               <LogIn size={14} />

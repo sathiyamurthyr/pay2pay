@@ -63,7 +63,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
             Access Portals
           </span>
           <a
-            href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "/retailer-dashboard"}
+            href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
             className="flex items-center justify-between w-full px-4 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-lg shadow-blue-600/30 active:scale-95 transition-transform"
           >
             <span className="flex items-center gap-2">

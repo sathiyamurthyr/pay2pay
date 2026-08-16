@@ -73,7 +73,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
             <ul className="space-y-2.5">
               <li>
                 <a
-                  href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "/retailer-dashboard"}
+                  href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
                   className="hover:text-blue-400 transition-colors font-medium"
                 >
                   Retailer Login →

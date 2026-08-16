@@ -253,7 +253,7 @@ export const siteConfig: SiteConfig = {
         "Relationship Manager Support",
       ],
       ctaLabel: "Retailer Portal Login",
-      getUrl: () => process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "/retailer-dashboard",
+      getUrl: () => process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login",
       highlighted: true,
     },
     {
