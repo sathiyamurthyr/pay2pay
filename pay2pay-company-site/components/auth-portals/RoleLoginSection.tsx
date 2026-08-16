@@ -13,8 +13,8 @@ export const RoleLoginSection: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wide uppercase mb-4">
             Partner Access Hub
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-            Access Your <span className="gradient-text-gold">Pay2Pay Workspace</span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold gradient-text-gold tracking-tight mb-4">
+            Access Your Pay2Pay Workspace
           </h2>
           <p className="text-slate-400 text-base leading-relaxed">
             Secure, role-segregated operational dashboards connecting authorized partners with banking systems.

@@ -24,11 +24,8 @@ export const HeroSection: React.FC = () => {
             </div>
 
             {/* Main Headline */}
-            <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] xl:text-5xl font-black text-white tracking-tight leading-[1.12] mb-4">
-              Powering the Future of{" "}
-              <span className="gradient-text-gold block sm:inline">
-                Digital Financial Services
-              </span>
+            <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] xl:text-5xl font-black gradient-text-gold tracking-tight leading-[1.12] mb-4">
+              Powering the Future of Digital Financial Services
             </h1>
 
             {/* Subheading */}

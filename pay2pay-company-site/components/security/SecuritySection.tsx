@@ -22,7 +22,7 @@ export const SecuritySection: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-wide uppercase mb-4">
             {siteConfig.security.sectionBadge}
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
+          <h2 className="text-3xl sm:text-4xl font-extrabold gradient-text-gold tracking-tight mb-4">
             {siteConfig.security.title}
           </h2>
           <p className="text-slate-400 text-base leading-relaxed">
