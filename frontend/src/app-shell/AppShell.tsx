@@ -7,7 +7,7 @@ import { StickyFooter } from "./components/StickyFooter";
 import { useSidebar } from "./hooks/useSidebar";
 import { gridLayoutAreas } from "./styles/layout";
 import { SessionSecurityProvider } from "@/context/SessionSecurityProvider";
-import { WalletSyncProvider } from "@/context/WalletSyncProvider";
+
 import { SessionWarningDialog } from "@/components/security/SessionWarningDialog";
 import { SessionLockScreenOverlay } from "@/components/security/SessionLockScreenOverlay";
 
@@ -105,9 +105,7 @@ export const AppShellContent: React.FC<AppShellProps> = ({
 };
 
 export const AppShell: React.FC<AppShellProps> = (props) => (
-  <WalletSyncProvider>
-    <SessionSecurityProvider>
-      <AppShellContent {...props} />
-    </SessionSecurityProvider>
-  </WalletSyncProvider>
+  <SessionSecurityProvider>
+    <AppShellContent {...props} />
+  </SessionSecurityProvider>
 );

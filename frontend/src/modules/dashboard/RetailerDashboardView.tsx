@@ -145,7 +145,7 @@ const formatAmount = (val?: number | null): string => {
 
 export const RetailerDashboardView: React.FC = () => {
   const router = useRouter();
-  const { walletData: headerWallet, refreshWallet } = useWalletSync();
+  const { walletData: headerWallet } = useWalletSync();
   const { isApproved, setApprovalStatus } = useRetailerApprovalGuard();
   const { openContactSupportModal } = useContactSupportModal();
   const { kpiTheme } = useRetailerStore();

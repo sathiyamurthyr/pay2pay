@@ -125,7 +125,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [menuSearchQuery, setMenuSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [liveAlerts, setLiveAlerts] = useState<any[]>([]);
+
   const [profileDetails, setProfileDetails] = useState<{
     owner_name?: string | null;
     retailer_name?: string | null;
@@ -191,21 +191,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  useEffect(() => {
-    let activeRetailerId = "";
-    if (typeof window !== "undefined") {
-      activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
-    }
-    const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
-    fetch(`/api/v1/payout/dashboard/retailer/recent-activity${queryParam}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && Array.isArray(data.activities)) {
-          setLiveAlerts(data.activities);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // recent-activity auto-fetch REMOVED — was firing on every layout mount with no consumer.
+  // Activity data is loaded on-demand from the dashboard page when the user requests it.
 
   useEffect(() => {
     try {
