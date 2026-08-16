@@ -79,9 +79,10 @@ body {
 }
 
 .gradient-text-gold {
-  background: linear-gradient(135deg, #FFE082 0%, #FFD700 50%, #FFA000 100%);
+  background: linear-gradient(135deg, #FFF099 0%, #FFD700 35%, #F59E0B 75%, #D97706 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.35));
 }
 
 /* Custom Scrollbar */

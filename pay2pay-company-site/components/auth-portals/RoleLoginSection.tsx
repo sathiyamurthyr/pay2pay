@@ -14,7 +14,7 @@ export const RoleLoginSection: React.FC = () => {
             Partner Access Hub
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-            Access Your Pay2Pay Workspace
+            Access Your <span className="gradient-text-gold">Pay2Pay Workspace</span>
           </h2>
           <p className="text-slate-400 text-base leading-relaxed">
             Secure, role-segregated operational dashboards connecting authorized partners with banking systems.

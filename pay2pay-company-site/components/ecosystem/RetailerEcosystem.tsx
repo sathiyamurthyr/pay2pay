@@ -25,7 +25,7 @@ export const RetailerEcosystem: React.FC = () => {
             {siteConfig.ecosystem.sectionBadge}
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-            {siteConfig.ecosystem.title}
+            Built Around the <span className="gradient-text-gold">Retailer</span>
           </h2>
           <p className="text-slate-400 text-base leading-relaxed">
             {siteConfig.ecosystem.subtitle}
