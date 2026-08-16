@@ -1,7 +1,23 @@
 "use client";
 
 import React from "react";
-import { Send, Zap, Smartphone, TrendingUp, Wallet, Users, Check, LucideIcon } from "lucide-react";
+import {
+  Send,
+  Zap,
+  Smartphone,
+  TrendingUp,
+  Wallet,
+  Users,
+  Fingerprint,
+  Receipt,
+  Tv,
+  Droplets,
+  Flame,
+  FileText,
+  Shield,
+  Check,
+  LucideIcon,
+} from "lucide-react";
 import { ServiceItem } from "@/types/site";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -11,6 +27,13 @@ const iconMap: Record<string, LucideIcon> = {
   TrendingUp,
   Wallet,
   Users,
+  Fingerprint,
+  Receipt,
+  Tv,
+  Droplets,
+  Flame,
+  FileText,
+  Shield,
 };
 
 interface ServiceCardProps {

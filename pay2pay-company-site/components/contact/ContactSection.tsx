@@ -14,9 +14,9 @@ export const ContactSection: React.FC = () => {
         {/* Section Header */}
         <Pay2PayPageHeader
           eyebrow="Contact"
-          titlePrefix="Partner Helpdesk &"
-          highlightedTitle="Corporate Office"
-          description="Reach out for partner onboarding assistance, commercial inquiries, or designated merchant support."
+          titlePrefix="Contact"
+          highlightedTitle="Pay2Pay"
+          description="Have a question about Pay2Pay services, partnerships or retailer onboarding? Contact our team for assistance."
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 2xl:gap-16 3xl:gap-24 items-start">

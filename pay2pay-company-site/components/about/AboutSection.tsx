@@ -16,8 +16,8 @@ export const AboutSection: React.FC = () => {
             <Pay2PayPageHeader
               align="left"
               eyebrow="Company"
-              titlePrefix="Enterprise Reliability at"
-              highlightedTitle="Massive Scale"
+              titlePrefix="About"
+              highlightedTitle="Pay2Pay"
               description={siteConfig.about.description}
               className="mb-8"
             />

@@ -35,7 +35,7 @@ export interface WorkflowStep {
 }
 
 export interface RolePortal {
-  id: "retailer" | "dit" | "sd";
+  id: "retailer" | "distributor" | "super-distributor" | "dit" | "admin" | "sd";
   title: string;
   badge: string;
   subtitle: string;

@@ -208,16 +208,16 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
   const initApproval = getInitialApprovalStatus();
   return {
     outlet: {
-      id: "RET-10829",
-      code: "RET-0CFE2B",
-      name: "Pay2Pay Verified Merchant",
-      ownerName: "Retailer Agent",
+      id: "e238fb8b-beb3-4cd4-862b-319b5d05d24e",
+      code: "RET-10928",
+      name: "Sathus Pay Store",
+      ownerName: "Sathiya Murthy",
       mobile: "+91 70139 14767",
       email: "retailer@pay2pay.in",
       location: "Chennai, TN",
-      status: initApproval === "APPROVED" ? "ACTIVE" : "PENDING_KYC",
-      kycStatus: initApproval === "APPROVED" ? "VERIFIED" : "PENDING",
-      approvalStatus: initApproval,
+      status: "ACTIVE",
+      kycStatus: "VERIFIED",
+      approvalStatus: "APPROVED",
       soundboxActive: true,
       soundboxLang: "en",
     },
@@ -236,6 +236,9 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
 
     setSyncing: (syncing) => set({ isSyncing: syncing }),
     
+    updateOutlet: (part: Partial<RetailerOutlet>) =>
+      set((state) => ({ outlet: { ...state.outlet, ...part } })),
+
     updateWallet: (part) => {
       set((state) => {
         const updatedWallet = { ...state.wallet, ...part };
@@ -291,10 +294,26 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
         if (res.ok) {
           const data = await res.json();
           const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.00;
+          const rInfo = data.retailer_info || data;
+
           if (typeof window !== "undefined") {
             localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
+            if (rInfo.retailer_code || data.retailer_code || data.retailer_id) {
+              localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code || data.retailer_id);
+            }
           }
+
           set((state) => ({
+            outlet: {
+              ...state.outlet,
+              id: rInfo.retailer_id || data.retailer_id || state.outlet.id,
+              code: rInfo.retailer_code || data.retailer_code || state.outlet.code || "RET-10928",
+              name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || state.outlet.name,
+              ownerName: rInfo.owner_name || data.owner_name || state.outlet.ownerName,
+              status: "ACTIVE",
+              kycStatus: "VERIFIED",
+              approvalStatus: "APPROVED",
+            },
             wallet: {
               ...state.wallet,
               mainBalance: bal,

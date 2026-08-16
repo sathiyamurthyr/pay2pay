@@ -148,7 +148,7 @@ export const RetailerDashboardView: React.FC = () => {
   const { walletData: headerWallet } = useWalletSync();
   const { isApproved, setApprovalStatus } = useRetailerApprovalGuard();
   const { openContactSupportModal } = useContactSupportModal();
-  const { kpiTheme } = useRetailerStore();
+  const { kpiTheme, wallet, outlet } = useRetailerStore();
   const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["classic-blue"];
   const [dashboardLockedModal, setDashboardLockedModal] = useState<{ label: string } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -310,10 +310,10 @@ export const RetailerDashboardView: React.FC = () => {
           </Typography>
           <Box sx={{ width: "1px", height: 16, bgcolor: "rgba(255,255,255,0.2)", display: { xs: "none", sm: "block" } }} />
           <Typography variant="body2" sx={{ fontWeight: 600, color: "#E2E8F0", fontSize: "14px" }}>
-            {headerWallet?.retailer_name || headerWallet?.owner_name || (typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name"))) || "Sathiya Murthy.R"}
+            {headerWallet?.retailer_name || headerWallet?.owner_name || outlet.ownerName || outlet.name || (typeof window !== "undefined" && (localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_user_name"))) || "Sathiya Murthy"}
           </Typography>
           <Chip
-            label={headerWallet?.retailer_code || "REG-4E92DB60"}
+            label={headerWallet?.retailer_code || outlet.code || "RET-10928"}
             size="small"
             sx={{
               backgroundColor: "rgba(37, 99, 235, 0.2)",
@@ -443,7 +443,7 @@ export const RetailerDashboardView: React.FC = () => {
                 AVAILABLE
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "22px", mt: 0.5 }}>
-                ₹{formatAmount(headerWallet?.available_balance)}
+                ₹{formatAmount(headerWallet?.available_balance ?? wallet.availableBalance ?? wallet.mainBalance)}
               </Typography>
             </Box>
           </Grid>

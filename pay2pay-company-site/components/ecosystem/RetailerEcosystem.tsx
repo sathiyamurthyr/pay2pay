@@ -1,12 +1,15 @@
 "use client";
 
 import React from "react";
-import { UserCheck, Store, Cpu, Landmark, CheckCircle2, ArrowRight, LucideIcon } from "lucide-react";
+import { UserCheck, Store, Users, Network, Layers, Cpu, Landmark, CheckCircle2, ArrowRight, LucideIcon } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 
 const iconMap: Record<string, LucideIcon> = {
   UserCheck,
   Store,
+  Users,
+  Network,
+  Layers,
   Cpu,
   Landmark,
   CheckCircle2,
@@ -24,13 +27,13 @@ export const RetailerEcosystem: React.FC = () => {
         {/* Section Header */}
         <Pay2PayPageHeader
           eyebrow="Ecosystem"
-          titlePrefix="Built Around the"
-          highlightedTitle="Retailer"
+          titlePrefix="Connected Partner"
+          highlightedTitle="Ecosystem"
           description={siteConfig.ecosystem.subtitle}
         />
 
         {/* Visual Lifecycle Flow */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 2xl:gap-6 3xl:gap-8 relative">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-4 2xl:gap-5 relative">
           {siteConfig.ecosystem.steps.map((item, idx) => {
             const IconComponent = iconMap[item.iconName] || Store;
             const isLast = idx === siteConfig.ecosystem.steps.length - 1;

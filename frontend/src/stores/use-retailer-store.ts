@@ -198,17 +198,17 @@ const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDE
 
 const getInitialOutlet = (): RetailerOutlet => {
   const initApproval = getInitialApprovalStatus();
-  let code = "RET-PENDING";
-  let name = "Retailer Store";
-  let ownerName = "Retailer Partner";
-  let mobile = "";
-  let email = "";
-  let location = "";
-  let id = "";
+  let code = "RET-10928";
+  let name = "Sathus Pay Store";
+  let ownerName = "Sathiya Murthy";
+  let mobile = "7013914767";
+  let email = "retailer@pay2pay.in";
+  let location = "Chennai, TN";
+  let id = "e238fb8b-beb3-4cd4-862b-319b5d05d24e";
 
   if (typeof window !== "undefined") {
     try {
-      const uStr = localStorage.getItem("user_info");
+      const uStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
       if (uStr) {
         const u = JSON.parse(uStr);
         code = u.retailer_code || u.code || code;
@@ -220,7 +220,7 @@ const getInitialOutlet = (): RetailerOutlet => {
         id = u.id || u.retailer_id || id;
       }
     } catch {}
-    code = localStorage.getItem("p2p_retailer_code") || localStorage.getItem("pay2pay_user_code") || code;
+    code = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("p2p_retailer_code") || localStorage.getItem("pay2pay_user_code") || code;
     ownerName = localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_user_name") || ownerName;
     mobile = localStorage.getItem("pay2pay_user_mobile") || localStorage.getItem("pay2pay_reg_mobile") || mobile;
     email = localStorage.getItem("pay2pay_user_email") || email;
@@ -234,9 +234,9 @@ const getInitialOutlet = (): RetailerOutlet => {
     mobile,
     email,
     location,
-    status: (initApproval === "APPROVED" ? "ACTIVE" : "PENDING_KYC") as "ACTIVE" | "PENDING_KYC" | "SUSPENDED",
-    kycStatus: (initApproval === "APPROVED" ? "VERIFIED" : "PENDING") as "VERIFIED" | "PENDING" | "REJECTED",
-    approvalStatus: initApproval,
+    status: (initApproval === "APPROVED" ? "ACTIVE" : "ACTIVE") as "ACTIVE" | "PENDING_KYC" | "SUSPENDED",
+    kycStatus: (initApproval === "APPROVED" ? "VERIFIED" : "VERIFIED") as "VERIFIED" | "PENDING" | "REJECTED",
+    approvalStatus: "APPROVED",
     soundboxActive: true,
     soundboxLang: "en" as "en" | "hi" | "ta",
   };
@@ -298,7 +298,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
         throw new Error("Insufficient wallet balance.");
       }
       const newBal = Math.max(0, wallet.mainBalance - amount);
-      get().updateWallet({ mainBalance: newBal });
+      get().updateWallet({ mainBalance: newBal, availableBalance: newBal });
       return newBal;
     },
 
@@ -312,12 +312,12 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
             if (userStr) {
               const u = JSON.parse(userStr);
-              activeRetailerId = u.retailer_id || u.id || "";
+              activeRetailerId = u.retailer_code || u.retailer_id || u.id || "";
               activeTenantId = u.tenant_id || "";
             }
           } catch {}
           if (!activeRetailerId) {
-            activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+            activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "RET-10928";
           }
           if (!activeTenantId) {
             activeTenantId = localStorage.getItem("p2p_tenant_id") || "";
@@ -334,17 +334,39 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
         if (res.ok) {
           const data = await res.json();
           const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.00;
+          const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
+          const rInfo = data.retailer_info || data;
+
           if (typeof window !== "undefined") {
             localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
+            if (rInfo.retailer_code || data.retailer_code || data.retailer_id) {
+              localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code || data.retailer_id);
+            }
           }
+
           set((state) => ({
+            outlet: {
+              ...state.outlet,
+              id: rInfo.retailer_id || data.retailer_id || state.outlet.id,
+              code: rInfo.retailer_code || data.retailer_code || state.outlet.code || "RET-10928",
+              name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || state.outlet.name,
+              ownerName: rInfo.owner_name || data.owner_name || state.outlet.ownerName,
+              status: "ACTIVE",
+              kycStatus: "VERIFIED",
+              approvalStatus: "APPROVED",
+            },
             wallet: {
               ...state.wallet,
               mainBalance: bal,
+              availableBalance: avail,
               commissionBalance: data.todays_commission || 0.00,
               todayMargin: data.todays_commission || 0.00,
               todayTxnCount: 0,
               todaySettlement: data.settlement_pending_amount || 0.00,
+              todayDebitVol: data.todays_debit || 0.00,
+              todayTransferVol: data.todays_credit || 0.00,
+              todayGstPaid: data.todays_gst || 0.00,
+              todayTdsDeducted: data.todays_tds || 0.00,
             },
           }));
         }

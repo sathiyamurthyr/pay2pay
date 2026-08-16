@@ -12,14 +12,14 @@ export const HowItWorks: React.FC = () => {
         {/* Section Header */}
         <Pay2PayPageHeader
           eyebrow="How It Works"
-          titlePrefix="Seamless 4-Stage"
-          highlightedTitle="Onboarding"
-          titleSuffix="Workflow"
+          titlePrefix="How"
+          highlightedTitle="Pay2Pay"
+          titleSuffix="Works"
           description={siteConfig.workflow.subtitle}
         />
 
-        {/* 4-Step Timeline Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 2xl:gap-8 3xl:gap-10">
+        {/* 6-Step Timeline Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-6 2xl:gap-6">
           {siteConfig.workflow.steps.map((step) => (
             <div
               key={step.number}

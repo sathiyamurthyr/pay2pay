@@ -41,12 +41,9 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
           {/* Col 2: Navigation Links */}
           <div>
             <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-4">
-              Quick Links
+              Company
             </h4>
             <ul className="space-y-2.5">
-              <li>
-                <a href="#home" className="hover:text-blue-400 transition-colors">Home</a>
-              </li>
               <li>
                 <a href="#about" className="hover:text-blue-400 transition-colors">About Pay2Pay</a>
               </li>
@@ -54,13 +51,13 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
                 <a href="#services" className="hover:text-blue-400 transition-colors">Services</a>
               </li>
               <li>
-                <a href="#ecosystem" className="hover:text-blue-400 transition-colors">Retailer Ecosystem</a>
+                <a href="#how-it-works" className="hover:text-blue-400 transition-colors">How It Works</a>
               </li>
               <li>
-                <a href="#security" className="hover:text-blue-400 transition-colors">Security Controls</a>
+                <a href="#security" className="hover:text-blue-400 transition-colors">Security</a>
               </li>
               <li>
-                <a href="#contact" className="hover:text-blue-400 transition-colors">Contact Helpdesk</a>
+                <a href="#contact" className="hover:text-blue-400 transition-colors">Contact</a>
               </li>
             </ul>
           </div>
@@ -68,7 +65,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
           {/* Col 3: Portal Logins */}
           <div>
             <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-4">
-              Partner Portals
+              Partner Access
             </h4>
             <ul className="space-y-2.5">
               <li>
@@ -78,7 +75,27 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
                   rel="noopener noreferrer"
                   className="hover:text-blue-400 transition-colors font-medium"
                 >
-                  Retailer Login →
+                  Retailer Login
+                </a>
+              </li>
+              <li>
+                <a
+                  href={process.env.NEXT_PUBLIC_DISTRIBUTOR_LOGIN_URL || "/distributor/login"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-blue-400 transition-colors"
+                >
+                  Distributor Login
+                </a>
+              </li>
+              <li>
+                <a
+                  href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/super-distributor/login"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-blue-400 transition-colors"
+                >
+                  Super Distributor Login
                 </a>
               </li>
               <li>
@@ -88,27 +105,17 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
                   rel="noopener noreferrer"
                   className="hover:text-blue-400 transition-colors"
                 >
-                  Distributor (DIT) Login
+                  DIT Login
                 </a>
               </li>
               <li>
                 <a
-                  href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/sd-dashboard"}
+                  href={process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL || "/admin/login"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-blue-400 transition-colors"
                 >
-                  Super-Distributor Login
-                </a>
-              </li>
-              <li>
-                <a
-                  href={process.env.NEXT_PUBLIC_RETAILER_REGISTER_URL || "/retailer/onboarding"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-blue-400 transition-colors text-blue-300 font-semibold"
-                >
-                  Become a Retailer
+                  Company Admin Login
                 </a>
               </li>
             </ul>
@@ -117,7 +124,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
           {/* Col 4: Legal & Policies */}
           <div>
             <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-4">
-              Legal & Compliance
+              Legal
             </h4>
             <ul className="space-y-2.5">
               <li>
@@ -141,13 +148,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
                   onClick={() => onOpenLegal("refund")}
                   className="hover:text-blue-400 transition-colors text-left"
                 >
-                  Refund & Cancellation Policy
+                  Refund / Cancellation Policy
                 </button>
-              </li>
-              <li>
-                <a href="#security" className="hover:text-blue-400 transition-colors">
-                  Cyber Security Guidelines
-                </a>
               </li>
             </ul>
           </div>
@@ -156,7 +158,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
         {/* Bottom Bar: Copyright & Headquarters */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
           <div>
-            © {currentYear} {siteConfig.company.legalName}. All Rights Reserved.
+            © {currentYear} Pay2Pay. All rights reserved.
           </div>
           <div className="text-center sm:text-right text-slate-500 max-w-md">
             Headquarters: {siteConfig.company.headquarters}

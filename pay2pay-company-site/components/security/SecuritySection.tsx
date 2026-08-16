@@ -22,9 +22,8 @@ export const SecuritySection: React.FC = () => {
         {/* Section Header */}
         <Pay2PayPageHeader
           eyebrow="Security"
-          titlePrefix="Zero-Trust"
-          highlightedTitle="Financial"
-          titleSuffix="Architecture"
+          titlePrefix="Security &"
+          highlightedTitle="Operational Integrity"
           description={siteConfig.security.subtitle}
         />
 

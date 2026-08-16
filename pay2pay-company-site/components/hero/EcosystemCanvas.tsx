@@ -27,10 +27,11 @@ export const EcosystemCanvas: React.FC = () => {
     const nodes = [
       { id: "core", label: "Pay2Pay Core", x: 0.5, y: 0.48, color: "#3B82F6", size: 14, isCenter: true },
       { id: "cust", label: "Customer", x: 0.16, y: 0.28, color: "#60A5FA", size: 8, isCenter: false },
-      { id: "ret", label: "Retailer Point", x: 0.28, y: 0.68, color: "#FBBF24", size: 10, isCenter: false },
-      { id: "dit", label: "Distributor", x: 0.48, y: 0.84, color: "#818CF8", size: 8, isCenter: false },
-      { id: "bank", label: "Sponsor Bank", x: 0.78, y: 0.28, color: "#34D399", size: 10, isCenter: false },
-      { id: "npci", label: "NPCI / BBPS", x: 0.82, y: 0.66, color: "#38BDF8", size: 9, isCenter: false },
+      { id: "ret", label: "Retailer", x: 0.26, y: 0.68, color: "#FBBF24", size: 10, isCenter: false },
+      { id: "dit_role", label: "Distributor", x: 0.44, y: 0.86, color: "#818CF8", size: 8, isCenter: false },
+      { id: "sd", label: "Super Distributor", x: 0.70, y: 0.86, color: "#F59E0B", size: 8, isCenter: false },
+      { id: "dit_ops", label: "DIT", x: 0.84, y: 0.60, color: "#06B6D4", size: 8, isCenter: false },
+      { id: "partners", label: "Banking & Service Partners", x: 0.78, y: 0.26, color: "#34D399", size: 10, isCenter: false },
     ];
 
     // Pulsing particles traveling between connections
@@ -45,18 +46,19 @@ export const EcosystemCanvas: React.FC = () => {
     const packets: Packet[] = [
       { fromIndex: 1, toIndex: 2, progress: 0.1, speed: 0.008, color: "#60A5FA" },
       { fromIndex: 2, toIndex: 0, progress: 0.4, speed: 0.009, color: "#FBBF24" },
-      { fromIndex: 0, toIndex: 4, progress: 0.7, speed: 0.011, color: "#34D399" },
-      { fromIndex: 0, toIndex: 5, progress: 0.2, speed: 0.010, color: "#38BDF8" },
       { fromIndex: 3, toIndex: 0, progress: 0.5, speed: 0.007, color: "#818CF8" },
+      { fromIndex: 4, toIndex: 0, progress: 0.3, speed: 0.008, color: "#F59E0B" },
+      { fromIndex: 5, toIndex: 0, progress: 0.6, speed: 0.007, color: "#06B6D4" },
+      { fromIndex: 0, toIndex: 6, progress: 0.7, speed: 0.011, color: "#34D399" },
     ];
 
     const connections = [
       [1, 2], // Customer -> Retailer
       [2, 0], // Retailer -> Core
       [3, 0], // Distributor -> Core
-      [0, 4], // Core -> Bank
-      [0, 5], // Core -> NPCI/BBPS
-      [4, 5], // Bank <-> NPCI
+      [4, 0], // Super Distributor -> Core
+      [5, 0], // DIT -> Core
+      [0, 6], // Core -> Banking & Service Partners
     ];
 
     let time = 0;

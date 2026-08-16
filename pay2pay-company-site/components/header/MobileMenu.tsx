@@ -74,6 +74,24 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
             <ExternalLink size={14} className="opacity-70" />
           </a>
           <a
+            href={process.env.NEXT_PUBLIC_DISTRIBUTOR_LOGIN_URL || "/distributor/login"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold text-xs transition-colors"
+          >
+            <span>Distributor Portal</span>
+            <ExternalLink size={12} className="opacity-50" />
+          </a>
+          <a
+            href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/super-distributor/login"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold text-xs transition-colors"
+          >
+            <span>Super-Distributor Login</span>
+            <ExternalLink size={12} className="opacity-50" />
+          </a>
+          <a
             href={process.env.NEXT_PUBLIC_DIT_LOGIN_URL || "/dit-dashboard"}
             target="_blank"
             rel="noopener noreferrer"
@@ -83,12 +101,12 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
             <ExternalLink size={12} className="opacity-50" />
           </a>
           <a
-            href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/sd-dashboard"}
+            href={process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL || "/admin/login"}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 hover:text-white font-semibold text-xs transition-colors"
           >
-            <span>Super-Distributor Login</span>
+            <span>Company Admin Login</span>
             <ExternalLink size={12} className="opacity-50" />
           </a>
         </div>

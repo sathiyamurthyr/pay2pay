@@ -92,7 +92,7 @@ export const Navbar: React.FC = () => {
                     </div>
                   </a>
                   <a
-                    href={process.env.NEXT_PUBLIC_DIT_LOGIN_URL || "/dit-dashboard"}
+                    href={process.env.NEXT_PUBLIC_DISTRIBUTOR_LOGIN_URL || "/distributor/login"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-indigo-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
@@ -102,11 +102,11 @@ export const Navbar: React.FC = () => {
                     </div>
                     <div>
                       <div className="font-semibold">Distributor Portal</div>
-                      <div className="text-[10px] text-slate-400">DIT Management</div>
+                      <div className="text-[10px] text-slate-400">Network Management</div>
                     </div>
                   </a>
                   <a
-                    href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/sd-dashboard"}
+                    href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/super-distributor/login"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-amber-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
@@ -117,6 +117,34 @@ export const Navbar: React.FC = () => {
                     <div>
                       <div className="font-semibold">Super-Distributor</div>
                       <div className="text-[10px] text-slate-400">Master Franchise Hub</div>
+                    </div>
+                  </a>
+                  <a
+                    href={process.env.NEXT_PUBLIC_DIT_LOGIN_URL || "/dit-dashboard"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-cyan-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-cyan-600/20 text-cyan-400 flex items-center justify-center group-hover:bg-cyan-600 group-hover:text-white transition-colors">
+                      <Shield size={14} />
+                    </div>
+                    <div>
+                      <div className="font-semibold">DIT Portal</div>
+                      <div className="text-[10px] text-slate-400">Technical Operations</div>
+                    </div>
+                  </a>
+                  <a
+                    href={process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL || "/admin/login"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-purple-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-purple-600/20 text-purple-400 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                      <Shield size={14} />
+                    </div>
+                    <div>
+                      <div className="font-semibold">Company Admin</div>
+                      <div className="text-[10px] text-slate-400">Enterprise Control</div>
                     </div>
                   </a>
                 </div>

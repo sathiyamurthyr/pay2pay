@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Box, Avatar, Typography, Stack, Menu, MenuItem, ListItemIcon, Divider } from "@mui/material";
-import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import PersonIcon from "@mui/icons-material/Person";
 import SecurityIcon from "@mui/icons-material/Security";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
@@ -178,7 +178,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
         <MenuItem onClick={handleNavigateProfile}>
           <ListItemIcon>
-            <PersonOutlineIcon sx={{ color: "#3B82F6", fontSize: 20 }} />
+            <PersonIcon sx={{ color: "#3B82F6", fontSize: 20 }} />
           </ListItemIcon>
           My Profile
         </MenuItem>

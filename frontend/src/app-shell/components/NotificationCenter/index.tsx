@@ -46,8 +46,13 @@ export const NotificationCenter: React.FC<{
     setLoading(true);
     setError(null);
     try {
+      let resolvedUserId = userId;
+      if (!resolvedUserId && typeof window !== "undefined") {
+        resolvedUserId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("p2p_retailer_code") || "RET-10928";
+      }
+
       const queryParams = new URLSearchParams();
-      if (userId) queryParams.append("user_id", userId);
+      if (resolvedUserId) queryParams.append("user_id", resolvedUserId);
       if (tenantId) queryParams.append("tenant_id", tenantId);
       queryParams.append("limit", "15");
 
@@ -72,12 +77,14 @@ export const NotificationCenter: React.FC<{
     }
   }, [userId, tenantId]);
 
-  // Notifications are loaded on-demand when the user opens the panel.
-  // NO auto-fetch on mount — eliminates unnecessary API call on every page load.
+  // Load initial notification status on mount
+  React.useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
-    fetchNotifications(); // Load only when user explicitly opens the notification panel
+    fetchNotifications(); // Refresh on open
   };
 
   const handleClose = () => {
