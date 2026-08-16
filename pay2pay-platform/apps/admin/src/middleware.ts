@@ -32,14 +32,14 @@ export const PORTAL_CONFIGS: Record<UserPortalRole, PortalConfig> = {
   ADMIN: {
     portal: "ADMIN",
     prefix: "/admin",
-    dashboard: "/admin/dashboard",
-    login: "/admin/login",
+    dashboard: "/dashboard",
+    login: "/login",
   },
   SUPER_ADMIN: {
     portal: "SUPER_ADMIN",
     prefix: "/super-admin",
-    dashboard: "/super-admin/dashboard",
-    login: "/super-admin/login",
+    dashboard: "/dashboard",
+    login: "/login",
   },
 };
 
@@ -95,7 +95,7 @@ export function middleware(request: NextRequest) {
   const rawRole =
     request.cookies.get("p2p_user_role")?.value ||
     request.cookies.get("pay2pay_user_role")?.value ||
-    "RETAILER";
+    "ADMIN";
 
   const userRole = normalizeUserRole(rawRole);
   const portalConfig = resolvePortalRoute(userRole);
@@ -121,25 +121,20 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
-  // 3. Generic /login or / or /dashboard -> resolve to canonical portal route
-  if (pathname === "/login" || pathname === "/" || pathname === "/dashboard") {
-    const target = isAuthenticated ? portalConfig.dashboard : portalConfig.login;
-    return NextResponse.redirect(new URL(target, request.url));
-  }
-
-  // 4. Portal Login Pages (e.g. /retailer/login, /sd/login, /dist/login, /admin/login)
-  const isLoginRoute =
-    pathname === "/retailer/login" ||
-    pathname === "/dist/login" ||
-    pathname === "/sd/login" ||
-    pathname === "/admin/login" ||
-    pathname === "/super-admin/login";
-
-  if (isLoginRoute) {
+  // 3. Login routes
+  if (pathname === "/login" || pathname === "/admin/login" || pathname === "/retailer/login" || pathname === "/dist/login" || pathname === "/sd/login" || pathname === "/super-admin/login") {
     if (isAuthenticated) {
-      return NextResponse.redirect(new URL(portalConfig.dashboard, request.url));
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    if (pathname !== "/login") {
+      return NextResponse.redirect(new URL("/login", request.url));
     }
     return NextResponse.next();
+  }
+
+  // 4. Root or legacy dashboard -> /dashboard
+  if (pathname === "/" || pathname === "/admin/dashboard") {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   const isStatusOrReviewRoute =

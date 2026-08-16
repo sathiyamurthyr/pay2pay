@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
+import { RetailerVerificationDashboard } from "@/components/admin/verification/RetailerVerificationDashboard";
 
-export default function GenericDashboardRedirect() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/retailer/dashboard");
-  }, [router]);
-
-  return null;
+export default function AdminDashboardPage() {
+  return (
+    <div className="space-y-6">
+      <RetailerVerificationDashboard />
+    </div>
+  );
 }
