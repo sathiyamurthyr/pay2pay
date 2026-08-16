@@ -29,6 +29,7 @@ import {
   Check,
   Network,
   KeyRound,
+  Settings2,
 } from "lucide-react";
 
 export default function RetailerDetailsPage() {
@@ -174,7 +175,15 @@ export default function RetailerDetailsPage() {
         </div>
 
         {/* Approval Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href={`/retailers/${retailerId}/controller`}
+            id="open-controller-btn"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7C3AED] text-xs font-extrabold text-white hover:bg-[#6D28D9] cursor-pointer shadow-sm transition-all"
+          >
+            <Settings2 className="w-4 h-4" /> Open Controller
+          </Link>
+
           <button
             onClick={() => setResetModalOpen(true)}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-xs font-extrabold text-[#475569] hover:bg-[#EFF6FF] hover:text-[#2563EB] hover:border-[#BFDBFE] cursor-pointer shadow-2xs"

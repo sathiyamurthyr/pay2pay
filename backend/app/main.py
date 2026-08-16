@@ -171,6 +171,7 @@ from app.presentation.api.v1 import report_center_router
 from app.presentation.api.v1 import progressive_onboarding_router
 from app.presentation.api.v1 import admin_verification_router
 from app.presentation.api.v1 import announcements_router
+from app.presentation.api.v1 import admin_retailer_controller
 
 app.include_router(announcements_router.router, prefix=settings.API_V1_STR)
 app.include_router(announcements_router.router, prefix="/api")
@@ -184,6 +185,9 @@ app.include_router(retailer_verification_router.router, prefix=settings.API_V1_S
 app.include_router(company_onboarding_router.router, prefix=settings.API_V1_STR)
 app.include_router(admin_reports_router.router, prefix=settings.API_V1_STR)
 app.include_router(portal_reports_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_retailer_controller.router, prefix=settings.API_V1_STR)
+app.include_router(admin_retailer_controller.router, prefix="/api")
+app.include_router(admin_retailer_controller.router, prefix="")
 app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)
