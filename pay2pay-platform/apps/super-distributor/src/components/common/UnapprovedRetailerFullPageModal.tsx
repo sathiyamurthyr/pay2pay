@@ -38,15 +38,15 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "info" | "warning"; text: string } | null>(null);
 
-  // Load status once on mount
+  // Load status once on mount - always force-fresh to avoid stale cache issues
   useEffect(() => {
     let isMounted = true;
-    fetchAuthoritativeRetailerStatus(false).then((data) => {
+    fetchAuthoritativeRetailerStatus(true).then((data) => {
       if (!isMounted) return;
       setLoading(false);
       if (data) {
         setStatusData(data);
-        if (data.account_access === "ALLOWED" || data.access === "ALLOWED" || data.is_approved || data.account_status === "ACTIVE" || data.destination === "DASHBOARD") {
+        if (data.is_approved || data.access === "ALLOWED") {
           router.replace("/retailer/dashboard");
         }
       }
@@ -67,7 +67,7 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
 
       if (data) {
         setStatusData(data);
-        if (data.account_access === "ALLOWED" || data.access === "ALLOWED" || data.is_approved || data.account_status === "ACTIVE" || data.destination === "DASHBOARD") {
+        if (data.is_approved || data.access === "ALLOWED") {
           setFeedbackMsg({
             type: "success",
             text: "✓ Your account has been approved! Redirecting to dashboard...",

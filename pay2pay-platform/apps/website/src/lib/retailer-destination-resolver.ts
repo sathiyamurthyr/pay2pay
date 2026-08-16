@@ -41,7 +41,7 @@ export interface AuthoritativeAccountStatus {
 
 let cachedStatus: AuthoritativeAccountStatus | null = null;
 let lastFetchTime = 0;
-const CACHE_TTL_MS = 60000;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes - prevents excessive status API polling
 let activeFetchPromise: Promise<AuthoritativeAccountStatus | null> | null = null;
 let isRedirecting = false;
 

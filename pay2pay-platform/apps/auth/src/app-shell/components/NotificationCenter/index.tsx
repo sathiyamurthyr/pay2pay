@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   IconButton,
   Badge,
@@ -72,13 +72,12 @@ export const NotificationCenter: React.FC<{
     }
   }, [userId, tenantId]);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+  // Notifications are loaded on-demand when the user opens the panel.
+  // NO auto-fetch on mount — eliminates unnecessary API call on every page load.
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
-    fetchNotifications();
+    fetchNotifications(); // Load only when user explicitly opens the notification panel
   };
 
   const handleClose = () => {

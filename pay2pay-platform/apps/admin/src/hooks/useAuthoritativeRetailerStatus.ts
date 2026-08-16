@@ -32,7 +32,7 @@ export function useAuthoritativeRetailerStatus(options?: { autoEnforceRouting?: 
     }
   }, [setApprovalStatus]);
 
-  // Initial authoritative fetch on mount
+  // Initial authoritative fetch on mount ONLY (not on every route change)
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -42,7 +42,8 @@ export function useAuthoritativeRetailerStatus(options?: { autoEnforceRouting?: 
         setApprovalStatus(data.is_approved ? "APPROVED" : "PENDING");
         setLoading(false);
 
-        if (options?.autoEnforceRouting && !isEnforcingRef.current) {
+        // Only enforce routing if explicitly requested AND user is NOT approved
+        if (options?.autoEnforceRouting && !isEnforcingRef.current && !data.is_approved) {
           isEnforcingRef.current = true;
           enforceAuthoritativeRouting(data, pathname, router);
           setTimeout(() => {
@@ -57,16 +58,17 @@ export function useAuthoritativeRetailerStatus(options?: { autoEnforceRouting?: 
     return () => {
       isMounted = false;
     };
-  }, [pathname, router, setApprovalStatus, options?.autoEnforceRouting]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run ONCE on mount only - no re-runs on navigation
 
   return {
     statusData,
     loading,
-    isApproved: statusData?.is_approved ?? false,
-    destination: statusData?.destination ?? "ACCOUNT_UNDER_REVIEW",
-    approvalStatus: statusData?.approval_status ?? "PENDING",
-    verificationStatus: statusData?.verification_status ?? "UNDER_REVIEW",
-    accountStatus: statusData?.account_status ?? "UNDER_REVIEW",
+    isApproved: statusData?.is_approved ?? true,       // Default to true while loading – never restrict on load
+    destination: statusData?.destination ?? "DASHBOARD",
+    approvalStatus: statusData?.approval_status ?? "APPROVED",
+    verificationStatus: statusData?.verification_status ?? "ACTIVE",
+    accountStatus: statusData?.account_status ?? "ACTIVE",
     refreshStatus,
   };
 }

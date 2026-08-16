@@ -38,10 +38,10 @@ export const UnapprovedRetailerFullPageModal: React.FC = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "info" | "warning"; text: string } | null>(null);
 
-  // Load status once on mount
+  // Load status once on mount - always force-fresh to avoid stale cache issues
   useEffect(() => {
     let isMounted = true;
-    fetchAuthoritativeRetailerStatus(false).then((data) => {
+    fetchAuthoritativeRetailerStatus(true).then((data) => {
       if (!isMounted) return;
       setLoading(false);
       if (data) {
