@@ -34,32 +34,14 @@ interface Props {
   audience?: string;
 }
 
-const SESSION_KEY = "p2p_dismissed_announcements";
-
-function getDismissed(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    return raw ? new Set(JSON.parse(raw)) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function markDismissed(id: string) {
-  if (typeof window === "undefined") return;
-  const set = getDismissed();
-  set.add(id);
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(Array.from(set)));
-}
+// No session tracking — modal shows every time the dashboard loads.
 
 /**
  * DashboardAnnouncementModal
  *
- * Fetches active announcements from /announcements/active on dashboard load.
+ * Fetches active announcements from /announcements/active on every dashboard load.
  * Shows a dismissible modal overlay with image carousel, title, message,
- * clickable links, and a close button.
- * Dismissed announcements are stored in sessionStorage per session.
+ * and clickable links. Appears fresh on every page visit.
  */
 export const DashboardAnnouncementModal: React.FC<Props> = ({
   audience = "RETAILER",
@@ -82,10 +64,8 @@ export const DashboardAnnouncementModal: React.FC<Props> = ({
         if (!res.ok) return;
         const json = await res.json();
         const all: AnnouncementItem[] = json.data || [];
-        const dismissed = getDismissed();
-        const pending = all.filter((a) => !dismissed.has(a.id));
-        if (!cancelled && pending.length > 0) {
-          setAnnouncements(pending);
+        if (!cancelled && all.length > 0) {
+          setAnnouncements(all);
           setCurrentIndex(0);
           setImgIndex(0);
           setOpen(true);
@@ -107,7 +87,6 @@ export const DashboardAnnouncementModal: React.FC<Props> = ({
     if (!current) return;
     setClosing(true);
     setTimeout(() => {
-      markDismissed(current.id);
       const next = currentIndex + 1;
       if (next < announcements.length) {
         setCurrentIndex(next);
