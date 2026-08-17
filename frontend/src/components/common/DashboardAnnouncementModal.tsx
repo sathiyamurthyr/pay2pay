@@ -203,43 +203,96 @@ export const DashboardAnnouncementModal: React.FC<Props> = ({
             }}
           />
 
-          {/* Close button */}
-          <button
-            onClick={handleClose}
-            aria-label="Close announcement"
+          {/* ── Branded header ──────────────────────────────────────────── */}
+          <div
             style={{
-              position: "absolute",
-              top: 14,
-              right: 14,
-              zIndex: 10,
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              border: "1px solid rgba(148,163,184,0.25)",
-              background: "rgba(15,23,42,0.8)",
-              color: "#94a3b8",
-              cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-              transition: "all 0.18s ease",
-            }}
-            onMouseEnter={(e) => {
-              const b = e.currentTarget;
-              b.style.background = "rgba(239,68,68,0.2)";
-              b.style.borderColor = "rgba(239,68,68,0.5)";
-              b.style.color = "#f87171";
-            }}
-            onMouseLeave={(e) => {
-              const b = e.currentTarget;
-              b.style.background = "rgba(15,23,42,0.8)";
-              b.style.borderColor = "rgba(148,163,184,0.25)";
-              b.style.color = "#94a3b8";
+              justifyContent: "space-between",
+              padding: "12px 16px 12px 16px",
+              background:
+                "linear-gradient(90deg,rgba(15,23,42,0.95) 0%,rgba(30,41,59,0.9) 100%)",
+              borderBottom: "1px solid rgba(99,179,237,0.1)",
             }}
           >
-            &times;
-          </button>
+            {/* Logo + brand name */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt="Pay2Pay Logo"
+                style={{
+                  width: 36,
+                  height: 36,
+                  objectFit: "contain",
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,0.06)",
+                  padding: 2,
+                }}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+              <div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: "#e2e8f0",
+                    letterSpacing: "0.06em",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  PAY2PAY
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "#60a5fa",
+                    fontWeight: 500,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Official Announcement
+                </div>
+              </div>
+            </div>
+
+            {/* Close button */}
+            <button
+              onClick={handleClose}
+              aria-label="Close announcement"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                border: "1px solid rgba(148,163,184,0.25)",
+                background: "rgba(15,23,42,0.8)",
+                color: "#94a3b8",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 16,
+                transition: "all 0.18s ease",
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => {
+                const b = e.currentTarget;
+                b.style.background = "rgba(239,68,68,0.2)";
+                b.style.borderColor = "rgba(239,68,68,0.5)";
+                b.style.color = "#f87171";
+              }}
+              onMouseLeave={(e) => {
+                const b = e.currentTarget;
+                b.style.background = "rgba(15,23,42,0.8)";
+                b.style.borderColor = "rgba(148,163,184,0.25)";
+                b.style.color = "#94a3b8";
+              }}
+            >
+              &times;
+            </button>
+          </div>
 
           {/* Image area */}
           {hasImages && (
