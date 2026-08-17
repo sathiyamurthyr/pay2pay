@@ -2,17 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { CreditCard, Store, ArrowLeftRight, Receipt, Wallet, LucideIcon } from "lucide-react";
-import { siteConfig } from "@/config/site-config";
-
-const iconMap: Record<string, LucideIcon> = {
-  CreditCard,
-  Store,
-  ArrowLeftRight,
-  Receipt,
-  Wallet,
-};
-
+import Image from "next/image";
+import { ArrowRight, CheckCircle2, Zap, ShieldCheck } from "lucide-react";
 import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
 
 export const BusinessOverview: React.FC = () => {
@@ -21,61 +12,73 @@ export const BusinessOverview: React.FC = () => {
       <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24">
         {/* Section Header */}
         <Pay2PayPageHeader
-          eyebrow="Company Overview"
-          titlePrefix="Empowering India's Next-Generation"
-          highlightedTitle="Digital Banking"
-          titleSuffix="Infrastructure"
-          description={siteConfig.overview.subtitle}
+          eyebrow="Business Snapshot"
+          titlePrefix="One Platform."
+          highlightedTitle="Connected Financial Services."
+          description="Pay2Pay brings supported financial and utility services together through a connected partner ecosystem designed for efficient, secure and transparent operations."
         />
 
-        {/* Feature Pillar Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 2xl:gap-8 3xl:gap-10">
-          {siteConfig.overview.pillars.map((pillar, idx) => {
-            const IconComponent = iconMap[pillar.iconName] || CreditCard;
-            return (
-              <div
-                key={pillar.title}
-                className="glass-panel p-7 rounded-2xl relative group overflow-hidden flex flex-col justify-between"
-              >
-                {/* Accent Top Border Highlight */}
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        {/* Visual & Summary Card */}
+        <div className="glass-panel p-6 sm:p-10 2xl:p-12 rounded-3xl border-slate-700/60 shadow-2xl relative overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Left: Visual Image */}
+            <div className="lg:col-span-6 relative rounded-2xl overflow-hidden border border-slate-700/60 shadow-2xl group">
+              <div className="relative aspect-video w-full">
+                <Image
+                  src="/images/business-snapshot.jpg"
+                  alt="Pay2Pay Connected Financial Platform"
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority
+                />
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700/80">
+                <span className="text-blue-400 font-bold">Pay2Pay Core Mesh</span>
+                <span>High-Speed Transaction Rails</span>
+              </div>
+            </div>
 
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-blue-600/15 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                    <IconComponent size={22} />
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2.5">
-                    {pillar.title}
-                  </h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">
-                    {pillar.desc}
-                  </p>
+            {/* Right: Key Highlights & Concise Pillars */}
+            <div className="lg:col-span-6 space-y-6">
+              <h3 className="text-xl sm:text-2xl 2xl:text-3xl font-extrabold text-white leading-tight">
+                High-Reliability Digital Rails for Modern Retail Counters
+              </h3>
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+                Our multi-tier distribution network links local retail merchants to core sponsor banking rails and billers, enabling instant money transfers, biometric cash withdrawals, and utility collections with real-time margin crediting.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200">
+                  <Zap size={16} className="text-blue-400 shrink-0" />
+                  <span>Sub-Second Response Latency</span>
                 </div>
-
-                <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
-                  <span className="font-mono font-semibold">0{idx + 1}</span>
-                  <Link
-                    href="/about"
-                    className="text-blue-400 font-medium group-hover:translate-x-1 transition-transform flex items-center gap-1 hover:underline"
-                  >
-                    <span>Learn More</span>
-                    <span>→</span>
-                  </Link>
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200">
+                  <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
+                  <span>Bank-Grade Data Encryption</span>
+                </div>
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200">
+                  <CheckCircle2 size={16} className="text-amber-400 shrink-0" />
+                  <span>Automated Wallet Settlements</span>
+                </div>
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200">
+                  <CheckCircle2 size={16} className="text-indigo-400 shrink-0" />
+                  <span>24x7 Dedicated RM Support</span>
                 </div>
               </div>
-            );
-          })}
-        </div>
 
-        {/* Explore Platform CTA */}
-        <div className="mt-12 text-center">
-          <Link
-            href="/about"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-blue-500/10"
-          >
-            <span>Explore Pay2Pay Vision & Platform Capabilities</span>
-            <span>→</span>
-          </Link>
+              <div className="pt-2">
+                <Link
+                  href="/about"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all hover:scale-105"
+                >
+                  <span>Learn About Pay2Pay</span>
+                  <ArrowRight size={15} />
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
