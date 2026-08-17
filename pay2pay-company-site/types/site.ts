@@ -6,6 +6,7 @@ export interface NavItem {
 export interface ServiceItem {
   id: string;
   title: string;
+  category?: "financial" | "bill_payment";
   description: string;
   iconName: string;
   badge?: string;

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { siteConfig } from "@/config/site-config";
 import { ServiceCard } from "./ServiceCard";
 
@@ -26,6 +27,17 @@ export const ServicesGrid: React.FC = () => {
           {activeServices.map((service) => (
             <ServiceCard key={service.id} service={service} />
           ))}
+        </div>
+
+        {/* Explore Full Catalogue CTA */}
+        <div className="mt-12 text-center">
+          <Link
+            href="/services"
+            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all hover:scale-105"
+          >
+            <span>Explore Complete Services Catalogue (Financial & Bill Payments)</span>
+            <span>→</span>
+          </Link>
         </div>
       </div>
     </section>

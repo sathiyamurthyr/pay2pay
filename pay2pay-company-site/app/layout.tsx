@@ -64,6 +64,9 @@ export const metadata: Metadata = {
   },
 };
 
+import { Navbar } from "@/components/header/Navbar";
+import { Footer } from "@/components/footer/Footer";
+
 export default function RootLayout({
   children,
 }: {
@@ -80,7 +83,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen flex flex-col bg-[#050B14] text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
-        {children}
+        <Navbar />
+        <main className="flex-grow flex flex-col">{children}</main>
+        <Footer />
       </body>
     </html>
   );

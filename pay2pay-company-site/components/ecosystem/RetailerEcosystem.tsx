@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { UserCheck, Store, Users, Network, Layers, Cpu, Landmark, CheckCircle2, ArrowRight, LucideIcon } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 
@@ -100,6 +101,17 @@ export const RetailerEcosystem: React.FC = () => {
               <div className="text-xs text-slate-400">Assigned Relationship Manager for merchant support</div>
             </div>
           </div>
+        </div>
+
+        {/* Explore Ecosystem CTA */}
+        <div className="mt-12 text-center">
+          <Link
+            href="/ecosystem"
+            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-blue-500/10"
+          >
+            <span>Explore Full 7-Stage Connected Partner Network</span>
+            <span>→</span>
+          </Link>
         </div>
       </div>
     </section>

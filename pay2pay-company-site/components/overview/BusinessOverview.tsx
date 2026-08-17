@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { CreditCard, Store, ArrowLeftRight, Receipt, Wallet, LucideIcon } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 
@@ -53,13 +54,28 @@ export const BusinessOverview: React.FC = () => {
 
                 <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
                   <span className="font-mono font-semibold">0{idx + 1}</span>
-                  <span className="text-blue-400 font-medium group-hover:translate-x-1 transition-transform">
-                    Enterprise Standard →
-                  </span>
+                  <Link
+                    href="/about"
+                    className="text-blue-400 font-medium group-hover:translate-x-1 transition-transform flex items-center gap-1 hover:underline"
+                  >
+                    <span>Learn More</span>
+                    <span>→</span>
+                  </Link>
                 </div>
               </div>
             );
           })}
+        </div>
+
+        {/* Explore Platform CTA */}
+        <div className="mt-12 text-center">
+          <Link
+            href="/about"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-blue-500/10"
+          >
+            <span>Explore Pay2Pay Vision & Platform Capabilities</span>
+            <span>→</span>
+          </Link>
         </div>
       </div>
     </section>

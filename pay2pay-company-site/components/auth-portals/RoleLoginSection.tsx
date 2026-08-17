@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { LogIn, Check, Shield, Users, Landmark, ArrowRight, ShieldCheck, Layers } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 
@@ -101,10 +102,8 @@ export const RoleLoginSection: React.FC = () => {
                 </div>
 
                 {/* Login Action CTA */}
-                <a
+                <Link
                   href={targetUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className={`w-full inline-flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg ${
                     portal.highlighted
                       ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/40 hover:shadow-blue-600/60"
@@ -114,10 +113,21 @@ export const RoleLoginSection: React.FC = () => {
                   <LogIn size={16} />
                   <span>{portal.ctaLabel}</span>
                   <ArrowRight size={14} className="opacity-70" />
-                </a>
+                </Link>
               </div>
             );
           })}
+        </div>
+
+        {/* Explore Workspaces Hub CTA */}
+        <div className="mt-12 text-center">
+          <Link
+            href="/workspaces"
+            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-blue-500/10"
+          >
+            <span>Compare Role Permissions & Access Workspaces</span>
+            <span>→</span>
+          </Link>
         </div>
       </div>
     </section>

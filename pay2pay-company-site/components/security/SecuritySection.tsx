@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, Lock, FileCheck, Key, Activity, FileSpreadsheet, LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, Lock, FileCheck, Key, Activity, FileSpreadsheet, Shield, LucideIcon } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -11,6 +12,7 @@ const iconMap: Record<string, LucideIcon> = {
   Key,
   Activity,
   FileSpreadsheet,
+  Shield,
 };
 
 import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
@@ -27,36 +29,49 @@ export const SecuritySection: React.FC = () => {
           description={siteConfig.security.subtitle}
         />
 
-        {/* Security Pillars 6-Card Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 2xl:gap-8 3xl:gap-10">
+        {/* Security Pillars Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 2xl:gap-6">
           {siteConfig.security.pillars.map((pillar) => {
             const IconComponent = iconMap[pillar.iconName] || ShieldCheck;
             return (
               <div
                 key={pillar.title}
-                className="glass-panel p-7 rounded-2xl relative group overflow-hidden"
+                className="glass-panel p-6 rounded-2xl relative group overflow-hidden flex flex-col justify-between hover:border-blue-500/40 transition-all"
               >
-                <div className="flex items-center justify-between mb-5">
-                  <div className="w-12 h-12 rounded-xl bg-blue-600/15 border border-blue-500/25 text-blue-400 flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-md shadow-blue-500/10">
-                    <IconComponent size={22} />
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-11 h-11 rounded-xl bg-blue-600/15 border border-blue-500/25 text-blue-400 flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-md shadow-blue-500/10">
+                      <IconComponent size={20} />
+                    </div>
+                    {pillar.badge && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-blue-950/80 border border-blue-800/60 text-[10px] font-bold text-blue-300 font-mono">
+                        {pillar.badge}
+                      </span>
+                    )}
                   </div>
-                  {pillar.badge && (
-                    <span className="px-2.5 py-1 rounded-full bg-blue-950/80 border border-blue-800/60 text-[10px] font-bold text-blue-300 font-mono">
-                      {pillar.badge}
-                    </span>
-                  )}
+
+                  <h3 className="text-base font-bold text-white mb-2 group-hover:text-blue-300 transition-colors">
+                    {pillar.title}
+                  </h3>
+
+                  <p className="text-slate-400 text-xs leading-relaxed">
+                    {pillar.description}
+                  </p>
                 </div>
-
-                <h3 className="text-lg font-bold text-white mb-2.5 group-hover:text-blue-300 transition-colors">
-                  {pillar.title}
-                </h3>
-
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  {pillar.description}
-                </p>
               </div>
             );
           })}
+        </div>
+
+        {/* Explore Security CTA */}
+        <div className="mt-12 text-center">
+          <Link
+            href="/security"
+            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-blue-500/10"
+          >
+            <span>Explore Complete Enterprise Security Architecture</span>
+            <span>→</span>
+          </Link>
         </div>
       </div>
     </section>

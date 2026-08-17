@@ -1,14 +1,15 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { siteConfig } from "@/config/site-config";
 import { getCurrentYear } from "@/lib/utils";
 
 interface FooterProps {
-  onOpenLegal: (docId: "terms" | "privacy" | "refund") => void;
+  onOpenLegal?: (docId: "terms" | "privacy" | "refund") => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
+export const Footer: React.FC<FooterProps> = () => {
   const currentYear = getCurrentYear();
 
   return (
@@ -17,7 +18,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 2xl:gap-14 pb-12 2xl:pb-16 border-b border-slate-800/80">
           {/* Col 1: Brand & Tagline (Span 2) */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3 inline-flex">
               <img
                 src="/branding/pay2pay-logo.png"
                 alt="Pay2Pay"
@@ -26,7 +27,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
               <span className="font-extrabold text-white text-lg tracking-wider">
                 {siteConfig.company.brandName}
               </span>
-            </div>
+            </Link>
 
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
               {siteConfig.company.tagline}. Powering secure, scalable, and connected digital financial services for retail networks across India.
@@ -45,19 +46,25 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
             </h4>
             <ul className="space-y-2.5">
               <li>
-                <a href="#about" className="hover:text-blue-400 transition-colors">About Pay2Pay</a>
+                <Link href="/about" className="hover:text-blue-400 transition-colors">About Pay2Pay</Link>
               </li>
               <li>
-                <a href="#services" className="hover:text-blue-400 transition-colors">Services</a>
+                <Link href="/services" className="hover:text-blue-400 transition-colors">Services</Link>
               </li>
               <li>
-                <a href="#how-it-works" className="hover:text-blue-400 transition-colors">How It Works</a>
+                <Link href="/ecosystem" className="hover:text-blue-400 transition-colors">Ecosystem</Link>
               </li>
               <li>
-                <a href="#security" className="hover:text-blue-400 transition-colors">Security</a>
+                <Link href="/how-it-works" className="hover:text-blue-400 transition-colors">How It Works</Link>
               </li>
               <li>
-                <a href="#contact" className="hover:text-blue-400 transition-colors">Contact</a>
+                <Link href="/security" className="hover:text-blue-400 transition-colors">Security</Link>
+              </li>
+              <li>
+                <Link href="/workspaces" className="hover:text-blue-400 transition-colors">Workspaces</Link>
+              </li>
+              <li>
+                <Link href="/contact" className="hover:text-blue-400 transition-colors">Contact</Link>
               </li>
             </ul>
           </div>
@@ -69,54 +76,52 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
             </h4>
             <ul className="space-y-2.5">
               <li>
-                <a
-                  href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-blue-400 transition-colors font-medium"
+                <Link
+                  href="/partner-portals"
+                  className="hover:text-blue-400 transition-colors font-medium text-blue-400"
                 >
-                  Retailer Login
-                </a>
+                  Partner Portals Hub →
+                </Link>
               </li>
               <li>
-                <a
-                  href={process.env.NEXT_PUBLIC_DISTRIBUTOR_LOGIN_URL || "/distributor/login"}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/retailer/login"
+                  className="hover:text-blue-400 transition-colors"
+                >
+                  Retailer Login
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/distributor/login"
                   className="hover:text-blue-400 transition-colors"
                 >
                   Distributor Login
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/super-distributor/login"}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/super-distributor/login"
                   className="hover:text-blue-400 transition-colors"
                 >
                   Super Distributor Login
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href={process.env.NEXT_PUBLIC_DIT_LOGIN_URL || "/dit-dashboard"}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/dit/login"
                   className="hover:text-blue-400 transition-colors"
                 >
                   DIT Login
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href={process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL || "/admin/login"}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/company-admin/login"
                   className="hover:text-blue-400 transition-colors"
                 >
                   Company Admin Login
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -128,28 +133,28 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
             </h4>
             <ul className="space-y-2.5">
               <li>
-                <button
-                  onClick={() => onOpenLegal("terms")}
-                  className="hover:text-blue-400 transition-colors text-left"
+                <Link
+                  href="/terms"
+                  className="hover:text-blue-400 transition-colors block"
                 >
                   Terms & Conditions
-                </button>
+                </Link>
               </li>
               <li>
-                <button
-                  onClick={() => onOpenLegal("privacy")}
-                  className="hover:text-blue-400 transition-colors text-left"
+                <Link
+                  href="/privacy"
+                  className="hover:text-blue-400 transition-colors block"
                 >
                   Privacy Policy
-                </button>
+                </Link>
               </li>
               <li>
-                <button
-                  onClick={() => onOpenLegal("refund")}
-                  className="hover:text-blue-400 transition-colors text-left"
+                <Link
+                  href="/refund-policy"
+                  className="hover:text-blue-400 transition-colors block"
                 >
-                  Refund / Cancellation Policy
-                </button>
+                  Refund & Cancellation Policy
+                </Link>
               </li>
             </ul>
           </div>
@@ -158,7 +163,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
         {/* Bottom Bar: Copyright & Headquarters */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
           <div>
-            © {currentYear} Pay2Pay. All rights reserved.
+            © {currentYear} {siteConfig.company.brandName} Financial Technologies Private Limited. All rights reserved.
           </div>
           <div className="text-center sm:text-right text-slate-500 max-w-md">
             Headquarters: {siteConfig.company.headquarters}

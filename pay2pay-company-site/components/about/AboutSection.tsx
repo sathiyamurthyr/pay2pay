@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { Target, Compass, Cpu, CheckCircle } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 
@@ -22,7 +23,7 @@ export const AboutSection: React.FC = () => {
               className="mb-8"
             />
 
-            <div className="space-y-4">
+            <div className="space-y-4 mb-6">
               <div className="flex items-start gap-4 p-4 rounded-2xl glass-panel border-slate-800">
                 <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
                   <Target size={20} />
@@ -47,6 +48,14 @@ export const AboutSection: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            <Link
+              href="/about"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold text-xs transition-all"
+            >
+              <span>Read Full Company Overview & Vision</span>
+              <span>→</span>
+            </Link>
           </div>
 
           {/* Right Column: Technology Architecture & Facts */}

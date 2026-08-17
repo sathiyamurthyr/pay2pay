@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, LogIn, ChevronDown, Shield, Users, Landmark } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 import { MobileMenu } from "./MobileMenu";
 
 export const Navbar: React.FC = () => {
+  const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [portalDropdownOpen, setPortalDropdownOpen] = useState(false);
@@ -29,7 +32,7 @@ export const Navbar: React.FC = () => {
       >
         <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24 flex items-center justify-between">
           {/* Brand Logo */}
-          <a href="#home" className="flex items-center gap-3 2xl:gap-4 group">
+          <Link href="/" className="flex items-center gap-3 2xl:gap-4 group">
             <img
               src="/branding/pay2pay-logo.png"
               alt="Pay2Pay Logo"
@@ -43,44 +46,76 @@ export const Navbar: React.FC = () => {
                 Enterprise FinTech
               </span>
             </div>
-          </a>
+          </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation with Active State Highlighting */}
           <nav className="hidden lg:flex items-center gap-1 2xl:gap-2 3xl:gap-3 bg-slate-900/60 border border-slate-800/80 rounded-full px-4 py-1.5 2xl:px-6 2xl:py-2 3xl:px-8 3xl:py-2.5 backdrop-blur-md">
-            {siteConfig.navigation.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="px-3.5 py-1.5 2xl:px-4 2xl:py-2 text-xs 2xl:text-sm 3xl:text-base font-semibold text-slate-300 hover:text-white rounded-full hover:bg-blue-600/10 transition-colors whitespace-nowrap"
-              >
-                {item.label}
-              </a>
-            ))}
+            {siteConfig.navigation.map((item) => {
+              const isActive =
+                item.href === "/"
+                  ? pathname === "/"
+                  : pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href + "/"));
+
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`px-3.5 py-1.5 2xl:px-4 2xl:py-2 text-xs 2xl:text-sm 3xl:text-base font-semibold rounded-full transition-all whitespace-nowrap ${
+                    isActive
+                      ? "bg-blue-600/25 text-white border border-blue-500/40 shadow-sm shadow-blue-500/20"
+                      : "text-slate-300 hover:text-white hover:bg-blue-600/10"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Right Role Login Actions */}
           <div className="hidden sm:flex items-center gap-3">
             {/* Multi-Portal Dropdown Menu */}
             <div className="relative">
-              <button
-                onClick={() => setPortalDropdownOpen(!portalDropdownOpen)}
-                onBlur={() => setTimeout(() => setPortalDropdownOpen(false), 200)}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white rounded-lg hover:bg-slate-800/60 transition-colors border border-transparent hover:border-slate-700"
-                aria-expanded={portalDropdownOpen}
-              >
-                <span>Partner Portals</span>
-                <ChevronDown size={14} className={`transition-transform duration-200 ${portalDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
+              <div className="flex items-center">
+                <Link
+                  href="/partner-portals"
+                  className={`px-3 py-2 text-xs font-semibold rounded-l-lg transition-colors border border-r-0 ${
+                    pathname === "/partner-portals"
+                      ? "bg-blue-600/20 text-white border-blue-500/30"
+                      : "text-slate-300 hover:text-white hover:bg-slate-800/60 border-transparent hover:border-slate-700"
+                  }`}
+                >
+                  Partner Portals
+                </Link>
+                <button
+                  onClick={() => setPortalDropdownOpen(!portalDropdownOpen)}
+                  onBlur={() => setTimeout(() => setPortalDropdownOpen(false), 200)}
+                  className="px-2 py-2 text-xs font-semibold text-slate-300 hover:text-white rounded-r-lg hover:bg-slate-800/60 transition-colors border border-l-0 border-transparent hover:border-slate-700"
+                  aria-expanded={portalDropdownOpen}
+                  aria-label="Toggle portal menu"
+                >
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${
+                      portalDropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+              </div>
 
               {portalDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#091122] border border-slate-700/80 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                    Select Workspace
+                <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#091122] border border-slate-700/80 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 flex items-center justify-between">
+                    <span>Select Workspace</span>
+                    <Link
+                      href="/partner-portals"
+                      className="text-[10px] text-blue-400 hover:underline normal-case"
+                    >
+                      View Hub →
+                    </Link>
                   </div>
-                  <a
-                    href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href="/retailer/login"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-blue-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -90,11 +125,9 @@ export const Navbar: React.FC = () => {
                       <div className="font-semibold">Retailer Portal</div>
                       <div className="text-[10px] text-slate-400">Point of Sale Workspace</div>
                     </div>
-                  </a>
-                  <a
-                    href={process.env.NEXT_PUBLIC_DISTRIBUTOR_LOGIN_URL || "/distributor/login"}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  </Link>
+                  <Link
+                    href="/distributor/login"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-indigo-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
@@ -104,11 +137,9 @@ export const Navbar: React.FC = () => {
                       <div className="font-semibold">Distributor Portal</div>
                       <div className="text-[10px] text-slate-400">Network Management</div>
                     </div>
-                  </a>
-                  <a
-                    href={process.env.NEXT_PUBLIC_SD_LOGIN_URL || "/super-distributor/login"}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  </Link>
+                  <Link
+                    href="/super-distributor/login"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-amber-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
@@ -118,11 +149,9 @@ export const Navbar: React.FC = () => {
                       <div className="font-semibold">Super-Distributor</div>
                       <div className="text-[10px] text-slate-400">Master Franchise Hub</div>
                     </div>
-                  </a>
-                  <a
-                    href={process.env.NEXT_PUBLIC_DIT_LOGIN_URL || "/dit-dashboard"}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  </Link>
+                  <Link
+                    href="/dit/login"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-cyan-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-lg bg-cyan-600/20 text-cyan-400 flex items-center justify-center group-hover:bg-cyan-600 group-hover:text-white transition-colors">
@@ -132,11 +161,9 @@ export const Navbar: React.FC = () => {
                       <div className="font-semibold">DIT Portal</div>
                       <div className="text-[10px] text-slate-400">Technical Operations</div>
                     </div>
-                  </a>
-                  <a
-                    href={process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL || "/admin/login"}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  </Link>
+                  <Link
+                    href="/company-admin/login"
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-purple-600/15 text-slate-200 hover:text-white text-xs font-medium transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-lg bg-purple-600/20 text-purple-400 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
@@ -146,21 +173,19 @@ export const Navbar: React.FC = () => {
                       <div className="font-semibold">Company Admin</div>
                       <div className="text-[10px] text-slate-400">Enterprise Control</div>
                     </div>
-                  </a>
+                  </Link>
                 </div>
               )}
             </div>
 
             {/* Primary Retailer Login Button */}
-            <a
-              href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/retailer/login"
               className="inline-flex items-center justify-center gap-2 h-11 px-5 sm:px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm tracking-wide shadow-lg shadow-blue-500/35 hover:shadow-xl hover:shadow-blue-500/50 hover:-translate-y-0.5 active:translate-y-0 border border-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#050B14] transition-all duration-200 cursor-pointer"
             >
               <LogIn size={16} className="text-white shrink-0" />
               <span className="whitespace-nowrap">Retailer Login</span>
-            </a>
+            </Link>
           </div>
 
           {/* Mobile Hamburger Button */}

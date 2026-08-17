@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   Send,
   Zap,
@@ -81,13 +82,13 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
         </div>
       </div>
 
-      <a
-        href="#contact"
+      <Link
+        href="/contact"
         className="inline-flex items-center justify-between w-full py-2.5 px-4 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:border-blue-500/50 hover:bg-blue-600/10 transition-all"
       >
         <span>Partner Inquiry</span>
         <span className="text-blue-400 group-hover:translate-x-1 transition-transform">→</span>
-      </a>
+      </Link>
     </div>
   );
 };

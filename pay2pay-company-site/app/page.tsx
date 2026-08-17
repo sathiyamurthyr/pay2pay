@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { Navbar } from "@/components/header/Navbar";
+import React from "react";
 import { HeroSection } from "@/components/hero/HeroSection";
 import { BusinessOverview } from "@/components/overview/BusinessOverview";
 import { ServicesGrid } from "@/components/services/ServicesGrid";
@@ -11,54 +10,36 @@ import { SecuritySection } from "@/components/security/SecuritySection";
 import { RoleLoginSection } from "@/components/auth-portals/RoleLoginSection";
 import { AboutSection } from "@/components/about/AboutSection";
 import { ContactSection } from "@/components/contact/ContactSection";
-import { Footer } from "@/components/footer/Footer";
-import { LegalModal } from "@/components/legal/LegalModal";
 
 export default function HomePage() {
-  const [activeLegalDoc, setActiveLegalDoc] = useState<"terms" | "privacy" | "refund" | null>(null);
-
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* 1. Header Navigation */}
-      <Navbar />
+    <div className="w-full">
+      {/* 1. Hero Section with Ecosystem Graph */}
+      <HeroSection />
 
-      <main className="flex-grow">
-        {/* 2. Hero Section with Ecosystem Graph */}
-        <HeroSection />
+      {/* 2. Business Overview Preview */}
+      <BusinessOverview />
 
-        {/* 3. Business Overview */}
-        <BusinessOverview />
+      {/* 3. Services Grid Preview */}
+      <ServicesGrid />
 
-        {/* 4. Services Grid */}
-        <ServicesGrid />
+      {/* 4. Retailer Ecosystem Flow Preview */}
+      <RetailerEcosystem />
 
-        {/* 5. Retailer Ecosystem Flow */}
-        <RetailerEcosystem />
+      {/* 5. How Pay2Pay Works Preview */}
+      <HowItWorks />
 
-        {/* 6. How Pay2Pay Works */}
-        <HowItWorks />
+      {/* 6. Security & Compliance Preview */}
+      <SecuritySection />
 
-        {/* 7. Security & Compliance */}
-        <SecuritySection />
+      {/* 7. Role-Based Login Workspace Preview */}
+      <RoleLoginSection />
 
-        {/* 8. Role-Based Login Workspace */}
-        <RoleLoginSection />
+      {/* 8. About Pay2Pay Preview */}
+      <AboutSection />
 
-        {/* 9. About Pay2Pay */}
-        <AboutSection />
-
-        {/* 10. Contact Us */}
-        <ContactSection />
-      </main>
-
-      {/* 11. Footer */}
-      <Footer onOpenLegal={(docId) => setActiveLegalDoc(docId)} />
-
-      {/* 12. Dynamic Legal Dialog Modal */}
-      <LegalModal
-        documentId={activeLegalDoc}
-        onClose={() => setActiveLegalDoc(null)}
-      />
+      {/* 9. Contact Us Preview */}
+      <ContactSection />
     </div>
   );
 }

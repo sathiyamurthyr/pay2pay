@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { ArrowRight, ShieldCheck, CheckCircle2, Store } from "lucide-react";
 import { siteConfig } from "@/config/site-config";
 import { EcosystemCanvas } from "./EcosystemCanvas";
@@ -36,32 +37,28 @@ export const HeroSection: React.FC = () => {
 
             {/* Primary Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 2xl:gap-4 w-full sm:w-auto mb-6 2xl:mb-8">
-              <a
-                href={process.env.NEXT_PUBLIC_RETAILER_LOGIN_URL || "https://pay2pay.in/retailer/login"}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/retailer/login"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-11 2xl:h-12 px-5 sm:px-6 2xl:px-8 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-bold text-xs sm:text-sm 2xl:text-base shadow-xl shadow-blue-600/35 hover:shadow-blue-600/55 hover:brightness-110 active:scale-95 transition-all"
               >
                 <span>{siteConfig.hero.primaryCta}</span>
                 <ArrowRight size={15} className="2xl:w-5 2xl:h-5" />
-              </a>
+              </Link>
 
-              <a
-                href={process.env.NEXT_PUBLIC_RETAILER_REGISTER_URL || "/retailer/onboarding"}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/workspaces"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-11 2xl:h-12 px-5 sm:px-6 2xl:px-8 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-100 hover:text-white hover:border-slate-500 font-semibold text-xs sm:text-sm 2xl:text-base transition-all"
               >
                 <Store size={15} className="text-blue-400 2xl:w-5 2xl:h-5" />
-                <span>{siteConfig.hero.secondaryCta}</span>
-              </a>
+                <span>Partner Workspaces</span>
+              </Link>
 
-              <a
-                href="#services"
+              <Link
+                href="/services"
                 className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-3 text-xs 2xl:text-sm font-semibold text-slate-400 hover:text-slate-200 transition-colors"
               >
-                <span>{siteConfig.hero.tertiaryCta} ↓</span>
-              </a>
+                <span>{siteConfig.hero.tertiaryCta} →</span>
+              </Link>
             </div>
 
             {/* Trust Highlights */}

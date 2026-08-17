@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { siteConfig } from "@/config/site-config";
 
 import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
@@ -18,12 +19,12 @@ export const HowItWorks: React.FC = () => {
           description={siteConfig.workflow.subtitle}
         />
 
-        {/* 6-Step Timeline Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-6 2xl:gap-6">
+        {/* 8-Step Timeline Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-4 gap-6 2xl:gap-6">
           {siteConfig.workflow.steps.map((step) => (
             <div
               key={step.number}
-              className="glass-panel p-7 rounded-2xl relative flex flex-col justify-between group"
+              className="glass-panel p-7 rounded-2xl relative flex flex-col justify-between group hover:border-blue-500/40 transition-all"
             >
               <div>
                 <div className="flex items-center justify-between mb-6">
@@ -61,14 +62,20 @@ export const HowItWorks: React.FC = () => {
               Start registration now and our team will guide you through instant verification.
             </p>
           </div>
-          <a
-            href={process.env.NEXT_PUBLIC_RETAILER_REGISTER_URL || "/retailer/onboarding"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 rounded-xl bg-white text-slate-950 font-bold text-sm hover:bg-slate-100 hover:scale-105 active:scale-95 transition-all shrink-0 shadow-lg"
-          >
-            Become a Retailer Today →
-          </a>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <Link
+              href="/how-it-works"
+              className="px-5 py-3 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 hover:text-white font-semibold text-xs sm:text-sm transition-all"
+            >
+              Detailed Operational Guide →
+            </Link>
+            <Link
+              href="/workspaces"
+              className="px-6 py-3 rounded-xl bg-white text-slate-950 font-bold text-xs sm:text-sm hover:bg-slate-100 hover:scale-105 active:scale-95 transition-all shadow-lg"
+            >
+              Access Workspaces →
+            </Link>
+          </div>
         </div>
       </div>
     </section>
