@@ -132,8 +132,8 @@ export default function AdminAnnouncementsPage() {
     setDisplayType("MODAL");
     setIsActive(true);
     setLinks([
-      { label: "SLPE WhatsApp Channel", url: "https://whatsapp.com/channel/0029Vb94N1mKQuJB1o6T5L0Q" },
-      { label: "Play Store Link: SLPE Mobile Application", url: "https://play.google.com/store/apps/details?id=com.slpe.pay" }
+      { label: "Pay2Pay WhatsApp Channel", url: "https://whatsapp.com/channel/0029Vb94N1mKQuJB1o6T5L0Q" },
+      { label: "Play Store Link: Pay2Pay Mobile Application", url: "https://play.google.com/store/apps/details?id=com.slpe.pay" }
     ]);
     setDialogOpen(true);
   };
@@ -498,7 +498,7 @@ export default function AdminAnnouncementsPage() {
               multiline
               rows={4}
               variant="outlined"
-              placeholder="e.g. Get latest update on SLPE official channel"
+              placeholder="e.g. Get latest update on Pay2Pay official channel"
               InputLabelProps={{ sx: { color: "#94A3B8" } }}
               sx={{ textarea: { color: "#FFF" }, fieldset: { borderColor: "rgba(255, 255, 255, 0.15)" } }}
             />
@@ -564,7 +564,7 @@ export default function AdminAnnouncementsPage() {
                 <TextField
                   size="small"
                   label="Link Button Label"
-                  placeholder="e.g. SLPE WhatsApp Channel"
+                  placeholder="e.g. Pay2Pay WhatsApp Channel"
                   value={newLinkLabel}
                   onChange={(e) => setNewLinkLabel(e.target.value)}
                   sx={{ flex: 1, input: { color: "#FFF" }, fieldset: { borderColor: "rgba(255, 255, 255, 0.15)" } }}
