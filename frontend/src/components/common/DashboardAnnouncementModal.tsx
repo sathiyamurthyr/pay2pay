@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { getApiBaseUrl } from "@/lib/api-config";
 
 interface AnnouncementImage {
@@ -34,14 +34,41 @@ interface Props {
   audience?: string;
 }
 
-// No session tracking — modal shows every time the dashboard loads.
+// ─────────────────────────────────────────────────────────────────────────────
+// Eager fetch — starts the moment this module is imported (before React mounts)
+// so the modal appears with zero perceptible delay.
+// ─────────────────────────────────────────────────────────────────────────────
+let _eagerPromise: Promise<AnnouncementItem[]> | null = null;
+
+function startEagerFetch(audience: string): Promise<AnnouncementItem[]> {
+  if (_eagerPromise) return _eagerPromise;
+  _eagerPromise = (async () => {
+    try {
+      const base = getApiBaseUrl();
+      const res = await fetch(
+        base + "/announcements/active?audience=" + audience,
+        { cache: "no-store" }
+      );
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data as AnnouncementItem[]) || [];
+    } catch {
+      return [];
+    }
+  })();
+  return _eagerPromise;
+}
+
+// Kick off immediately at import time
+if (typeof window !== "undefined") {
+  startEagerFetch("RETAILER");
+}
 
 /**
  * DashboardAnnouncementModal
  *
- * Fetches active announcements from /announcements/active on every dashboard load.
- * Shows a dismissible modal overlay with image carousel, title, message,
- * and clickable links. Appears fresh on every page visit.
+ * Network request starts at module import time (before React renders) so the
+ * modal appears immediately — no useEffect delay. Shows on every dashboard visit.
  */
 export const DashboardAnnouncementModal: React.FC<Props> = ({
   audience = "RETAILER",
@@ -51,35 +78,26 @@ export const DashboardAnnouncementModal: React.FC<Props> = ({
   const [imgIndex, setImgIndex] = useState(0);
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
+  const resolvedRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
 
-    async function load() {
-      try {
-        const base = getApiBaseUrl();
-        const res = await fetch(
-          base + "/announcements/active?audience=" + audience
-        );
-        if (!res.ok) return;
-        const json = await res.json();
-        const all: AnnouncementItem[] = json.data || [];
-        if (!cancelled && all.length > 0) {
-          setAnnouncements(all);
-          setCurrentIndex(0);
-          setImgIndex(0);
-          setOpen(true);
-        }
-      } catch {
-        // silently fail — never block the dashboard
+    // Reset the eager promise so next page visit re-fetches fresh data
+    const promise = _eagerPromise ?? startEagerFetch(audience);
+    _eagerPromise = null; // reset for next mount
+
+    promise.then((all) => {
+      if (all.length > 0) {
+        setAnnouncements(all);
+        setCurrentIndex(0);
+        setImgIndex(0);
+        setOpen(true);
       }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [audience]);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const current = announcements[currentIndex] ?? null;
 
