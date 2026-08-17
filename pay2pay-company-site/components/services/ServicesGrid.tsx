@@ -93,17 +93,17 @@ export const ServicesGrid: React.FC = () => {
               </div>
             </div>
 
-            <div className="lg:col-span-6 relative rounded-2xl overflow-hidden border border-slate-700/60 shadow-xl group">
-              <div className="relative aspect-video w-full">
+            <div className="lg:col-span-6 relative rounded-2xl overflow-hidden border border-slate-700/60 shadow-xl group bg-slate-900/60">
+              <div className="relative w-full overflow-hidden">
                 <Image
                   src="/images/services-preview.jpg"
                   alt="Pay2Pay Digital Services Ecosystem"
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  width={720}
+                  height={405}
+                  className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl"
                 />
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent pointer-events-none rounded-2xl" />
             </div>
           </div>
         </div>

@@ -22,18 +22,18 @@ export const BusinessOverview: React.FC = () => {
         <div className="glass-panel p-6 sm:p-10 2xl:p-12 rounded-3xl border-slate-700/60 shadow-2xl relative overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Left: Visual Image */}
-            <div className="lg:col-span-6 relative rounded-2xl overflow-hidden border border-slate-700/60 shadow-2xl group">
-              <div className="relative aspect-video w-full">
+            <div className="lg:col-span-6 relative rounded-2xl overflow-hidden border border-slate-700/60 shadow-2xl group bg-slate-900/60">
+              <div className="relative w-full overflow-hidden">
                 <Image
                   src="/images/business-snapshot.jpg"
                   alt="Pay2Pay Connected Financial Platform"
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  width={720}
+                  height={405}
+                  className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl"
                   priority
                 />
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none rounded-2xl" />
               <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700/80">
                 <span className="text-blue-400 font-bold">Pay2Pay Core Mesh</span>
                 <span>High-Speed Transaction Rails</span>
