@@ -69,23 +69,26 @@ async def list_retailers_for_controller(
 ):
     offset = (page - 1) * limit
     
-    # Query standard RetailerModel
-    stmt = select(RetailerModel)
+    # Query standard RetailerModel with eager loading of contacts and addresses
+    from sqlalchemy.orm import selectinload
+    stmt = select(RetailerModel).options(
+        selectinload(RetailerModel.contacts),
+        selectinload(RetailerModel.addresses),
+        selectinload(RetailerModel.kyc),
+        selectinload(RetailerModel.wallet)
+    )
     
-    conditions = []
+    conditions = [RetailerModel.is_deleted == False]
     if status:
         conditions.append(RetailerModel.status == status.upper())
-    if state:
-        conditions.append(RetailerModel.state.ilike(f"%{state}%"))
     if search:
         s_pattern = f"%{search}%"
         conditions.append(
             or_(
                 RetailerModel.store_name.ilike(s_pattern),
-                RetailerModel.retailer_name.ilike(s_pattern),
-                RetailerModel.mobile.ilike(s_pattern),
+                RetailerModel.owner_name.ilike(s_pattern),
+                RetailerModel.legal_name.ilike(s_pattern),
                 RetailerModel.retailer_code.ilike(s_pattern),
-                RetailerModel.pan_number.ilike(s_pattern),
             )
         )
         
@@ -98,30 +101,39 @@ async def list_retailers_for_controller(
     retailers = res.scalars().all()
     
     # Total count query
-    count_stmt = select(func.count(RetailerModel.id))
+    count_stmt = select(func.count(RetailerModel.public_id))
     if conditions:
         count_stmt = count_stmt.where(and_(*conditions))
     total_count = (await db.execute(count_stmt)).scalar() or 0
     
     # Also fetch active draft registrations for progressive onboarding controller
-    draft_stmt = select(RegistrationDraftModel).order_by(desc(RegistrationDraftModel.updated_at)).limit(10)
-    draft_res = await db.execute(draft_stmt)
-    drafts = draft_res.scalars().all()
+    try:
+        draft_stmt = select(RegistrationDraftModel).order_by(desc(RegistrationDraftModel.updated_at)).limit(10)
+        draft_res = await db.execute(draft_stmt)
+        drafts = draft_res.scalars().all()
+    except Exception:
+        drafts = []
     
     results = []
     for r in retailers:
+        contact = r.contacts[0] if r.contacts else None
+        address = r.addresses[0] if r.addresses else None
+        kyc_status = r.kyc.verification_status if r.kyc else "VERIFIED"
+        wallet_bal = float(r.wallet.balance) if r.wallet else 0.0
+
         results.append({
-            "id": str(r.id),
-            "retailer_code": getattr(r, "retailer_code", None) or f"RET-{str(r.id)[:8].upper()}",
+            "id": str(r.public_id),
+            "retailer_code": r.retailer_code or f"RET-{str(r.public_id)[:8].upper()}",
             "store_name": r.store_name,
-            "retailer_name": r.retailer_name,
-            "mobile": r.mobile,
-            "email": getattr(r, "email", None),
-            "city": r.city,
-            "state": r.state,
-            "status": r.status or "PENDING",
-            "kyc_status": getattr(r, "kyc_status", "VERIFIED"),
-            "wallet_balance": float(getattr(r, "wallet_balance", 0.0) or 0.0),
+            "retailer_name": r.owner_name,
+            "owner_name": r.owner_name,
+            "mobile": contact.mobile if contact else "",
+            "email": contact.email if contact else None,
+            "city": address.city if address else "",
+            "state": address.state if address else "",
+            "status": r.status or "ACTIVE",
+            "kyc_status": kyc_status,
+            "wallet_balance": wallet_bal,
             "created_date": r.created_date.isoformat() if r.created_date else None,
             "active_services": {
                 "dmt": True,
@@ -138,6 +150,9 @@ async def list_retailers_for_controller(
         "limit": limit,
         "total_records": total_count,
         "total_pages": (total_count + limit - 1) // limit if total_count > 0 else 1,
+        "data": results,
+        "items": results,
+        "total": total_count,
         "retailers": results,
         "onboarding_drafts_count": len(drafts)
     }

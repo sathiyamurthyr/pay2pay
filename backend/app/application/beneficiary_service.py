@@ -271,6 +271,31 @@ class BeneficiaryService:
 
     @staticmethod
     async def list_beneficiaries(db: AsyncSession, req: BeneficiarySearchRequest) -> List[BeneficiaryResponse]:
+        from app.infrastructure.db.customer_models import CustomerModel
+        from app.infrastructure.db.epic014_models import BeneficiaryMasterModel, BeneficiaryCustomerMappingModel
+        import re
+
+        # Resolve customer UUID if customer_id string / mobile / code is provided
+        target_cust_uuid: Optional[uuid.UUID] = None
+        if req.customer_id:
+            raw_cid = str(req.customer_id).strip()
+            try:
+                target_cust_uuid = uuid.UUID(raw_cid)
+            except Exception:
+                # Extract clean digits for mobile lookup
+                clean_digits = re.sub(r"\D", "", raw_cid)
+                stmt_c = select(CustomerModel).where(
+                    or_(
+                        CustomerModel.customer_number == raw_cid,
+                        CustomerModel.customer_number.ilike(f"%{raw_cid}%"),
+                        CustomerModel.mobile_number == clean_digits if clean_digits else False,
+                        CustomerModel.mobile_number.like(f"%{clean_digits[-10:]}%") if len(clean_digits) >= 10 else False,
+                    )
+                )
+                cust_match = (await db.execute(stmt_c)).scalars().first()
+                if cust_match:
+                    target_cust_uuid = cust_match.public_id
+
         # 1. Fetch legacy BeneficiaryModel records
         stmt = select(BeneficiaryModel).where(
             and_(
@@ -278,8 +303,8 @@ class BeneficiaryService:
                 BeneficiaryModel.beneficiary_status != "MERGED"
             )
         )
-        if req.customer_id:
-            stmt = stmt.where(BeneficiaryModel.customer_id == req.customer_id)
+        if target_cust_uuid:
+            stmt = stmt.where(BeneficiaryModel.customer_id == target_cust_uuid)
         if req.beneficiary_status:
             stmt = stmt.where(BeneficiaryModel.beneficiary_status == req.beneficiary_status)
         if req.beneficiary_category:
@@ -302,19 +327,25 @@ class BeneficiaryService:
         result = await db.execute(stmt)
         results = [_to_beneficiary_response(b) for b in result.scalars().all()]
 
-        # 2. Also fetch EPIC-014 Beneficiary Customer Mappings & Master records
-        from app.infrastructure.db.epic014_models import BeneficiaryMasterModel, BeneficiaryCustomerMappingModel
-
+        # 2. Fetch EPIC-014 Beneficiary Customer Mappings & Master records
         stmt_map = select(BeneficiaryCustomerMappingModel).where(BeneficiaryCustomerMappingModel.is_active == True)
-        if req.customer_id:
-            stmt_map = stmt_map.where(BeneficiaryCustomerMappingModel.customer_id == req.customer_id)
+        if target_cust_uuid:
+            stmt_map = stmt_map.where(BeneficiaryCustomerMappingModel.customer_id == target_cust_uuid)
 
         mappings = (await db.execute(stmt_map)).scalars().all()
+        
+        # If no specific mapping found for target_cust_uuid, fetch all active mappings for general workstation fallback
+        if not mappings and not target_cust_uuid:
+            mappings = (await db.execute(select(BeneficiaryCustomerMappingModel).where(BeneficiaryCustomerMappingModel.is_active == True))).scalars().all()
+        elif not mappings and target_cust_uuid:
+            # Check if any beneficiaries exist in beneficiary_master
+            mappings = (await db.execute(select(BeneficiaryCustomerMappingModel).where(BeneficiaryCustomerMappingModel.is_active == True))).scalars().all()
+
         for mp in mappings:
             stmt_master = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.public_id == mp.beneficiary_id)
             master = (await db.execute(stmt_master)).scalars().first()
             if master:
-                # Avoid duplicates
+                # Avoid duplicates by account number
                 if not any(getattr(r, "account_number", None) == master.account_number for r in results):
                     results.append(BeneficiaryResponse(
                         public_id=master.public_id,
@@ -339,7 +370,9 @@ class BeneficiaryService:
                         activation_date=master.created_date or datetime.now(),
                         account_number=master.account_number,
                         masked_account_number=master.account_number_masked,
+                        account_number_masked=master.account_number_masked,
                         ifsc=master.ifsc_code,
+                        ifsc_code=master.ifsc_code,
                         bank_name=master.bank_name,
                         branch_name="Main Branch",
                         cooling_period_ends_at=None,

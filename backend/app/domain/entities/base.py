@@ -35,9 +35,9 @@ class EnterpriseBaseMixin:
     month_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     quarter_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     year_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    financial_year_key: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    financial_quarter_key: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    financial_month_key: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    financial_year_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    financial_quarter_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    financial_month_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     date_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     time_key: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 

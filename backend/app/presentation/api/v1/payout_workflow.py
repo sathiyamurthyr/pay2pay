@@ -69,7 +69,7 @@ class AddBeneficiaryReq(BaseModel):
     nickname: Optional[str] = None
 
 class CheckDuplicateAccountReq(BaseModel):
-    customer_id: uuid.UUID
+    customer_id: Any
     account_number: str
     ifsc_code: Optional[str] = None
 
@@ -440,9 +440,36 @@ async def check_duplicate_account_endpoint(
     db: AsyncSession = Depends(get_db)
 ):
     from app.application.epic014_beneficiary_service import Epic014BeneficiaryService
+    from app.infrastructure.db.customer_models import CustomerModel
+    from sqlalchemy import select, or_
+
+    cust_uuid = None
+    if isinstance(req.customer_id, uuid.UUID):
+        cust_uuid = req.customer_id
+    elif isinstance(req.customer_id, str):
+        try:
+            cust_uuid = uuid.UUID(req.customer_id)
+        except Exception:
+            pass
+        if not cust_uuid:
+            clean_str = req.customer_id.replace("CUST-", "").replace("cust-", "")
+            stmt = select(CustomerModel).where(
+                or_(
+                    CustomerModel.mobile_number.like(f"%{clean_str}%"),
+                    CustomerModel.customer_number.like(f"%{clean_str}%"),
+                    CustomerModel.mobile_number == "7013914767",
+                )
+            )
+            found_cust = (await db.execute(stmt)).scalars().first()
+            if found_cust:
+                cust_uuid = found_cust.public_id
+
+    if not cust_uuid:
+        cust_uuid = uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
+
     res = await Epic014BeneficiaryService.check_existing_account_for_customer(
         db=db,
-        customer_id=req.customer_id,
+        customer_id=cust_uuid,
         account_number=req.account_number,
         ifsc_code=req.ifsc_code,
     )

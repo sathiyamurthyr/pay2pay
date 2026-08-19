@@ -107,6 +107,122 @@ export interface FinancialProcessResult {
   reversalLedgers?: string[];
 }
 
+// Enterprise Banking Error Sanitizer
+export function sanitizeCustomerErrorMessage(rawError: any): string {
+  if (!rawError) {
+    return "Transaction could not be completed. If any amount was debited, it will be automatically refunded.";
+  }
+
+  let msg = "";
+  if (typeof rawError === "string") {
+    msg = rawError;
+  } else if (typeof rawError === "object") {
+    if (typeof rawError.friendly_message === "string" && rawError.friendly_message.trim()) {
+      return rawError.friendly_message;
+    }
+    if (typeof rawError.customer_message === "string" && rawError.customer_message.trim()) {
+      return rawError.customer_message;
+    }
+    if (typeof rawError.detail === "string") {
+      msg = rawError.detail;
+    } else if (Array.isArray(rawError.detail)) {
+      msg = rawError.detail.map((e: any) => e.msg || e.message || "").filter(Boolean).join(", ");
+    } else if (typeof rawError.message === "string") {
+      msg = rawError.message;
+    } else {
+      msg = JSON.stringify(rawError);
+    }
+  }
+
+  const lower = msg.toLowerCase();
+
+  // 1. Connection / Network / Timeout / Server Unreachable failures
+  if (
+    lower.includes("failed to fetch") ||
+    lower.includes("connection error") ||
+    lower.includes("network error") ||
+    lower.includes("unable to reach") ||
+    lower.includes("econnrefused") ||
+    lower.includes("enotfound") ||
+    lower.includes("net::err") ||
+    lower.includes("timeout") ||
+    lower.includes("timed out") ||
+    lower.includes("server unreachable") ||
+    lower.includes("network request failed") ||
+    lower.includes("err_connection")
+  ) {
+    return "Unable to connect to the payment service. Please check your connection and try again.";
+  }
+
+  // 2. Insufficient Balance
+  if (lower.includes("insufficient") || lower.includes("low balance") || lower.includes("wallet balance")) {
+    return "Wallet balance is insufficient for this transaction.";
+  }
+
+  // 3. Limits
+  if (lower.includes("daily limit") || lower.includes("daily transaction limit")) {
+    return "Daily transaction limit exceeded.";
+  }
+  if (lower.includes("monthly limit") || lower.includes("beneficiary limit")) {
+    return "Monthly transaction limit exceeded.";
+  }
+  if (lower.includes("limit")) {
+    return "Transaction limit exceeded for this account.";
+  }
+
+  // 4. Beneficiary / Account / IFSC errors
+  if (lower.includes("beneficiary") && (lower.includes("not found") || lower.includes("invalid") || lower.includes("failed"))) {
+    return "Beneficiary verification failed. Please verify beneficiary details and try again.";
+  }
+  if (lower.includes("ifsc") || lower.includes("account number") || lower.includes("account details")) {
+    return "Invalid beneficiary details. Please check account number and IFSC.";
+  }
+
+  // 5. Authentication / PIN errors
+  if (lower.includes("mpin") || lower.includes("pin") || lower.includes("invalid operator transaction pin")) {
+    return "Authentication Error: Invalid Security PIN.";
+  }
+
+  // 6. Frozen / Inactive Account
+  if (lower.includes("frozen") || lower.includes("inactive") || lower.includes("suspended")) {
+    return "Account or wallet is temporarily inactive. Please contact support.";
+  }
+
+  // 7. Duplicate / Idempotency
+  if (lower.includes("duplicate") || lower.includes("idempotency") || lower.includes("already in progress")) {
+    return "Duplicate transaction detected. Please check transaction history.";
+  }
+
+  // 8. Service / Vendor / Technical Outages / 5xx Errors / Vendor Names
+  if (
+    lower.includes("bulkpe") ||
+    lower.includes("wowpe") ||
+    lower.includes("cashfree") ||
+    lower.includes("gateway") ||
+    lower.includes("vendor") ||
+    lower.includes("http 500") ||
+    lower.includes("http 502") ||
+    lower.includes("http 503") ||
+    lower.includes("http 504") ||
+    lower.includes("internal server error") ||
+    lower.includes("unhandled exception") ||
+    lower.includes("traceback") ||
+    lower.includes("not activated") ||
+    lower.includes("product disabled") ||
+    lower.includes("axioserror") ||
+    lower.includes("payout backend")
+  ) {
+    return "Payout service is temporarily unavailable. Please try again later.";
+  }
+
+  // Clean friendly string fallback
+  if (msg.length > 0 && msg.length < 150 && !/[{<>]/.test(msg) && !lower.includes("error:") && !lower.includes("exception")) {
+    return msg;
+  }
+
+  return "Transaction could not be completed. If any amount was debited, it will be automatically refunded.";
+}
+
 class FinancialAccountingService {
   private masterTransactions: MasterTransactionRecord[] = [];
   private payoutTransactions: PayoutTransactionRecord[] = [];
@@ -127,7 +243,7 @@ class FinancialAccountingService {
     const amount = params.amount;
     const mode = params.mode || "IMPS";
 
-    // Execute backend BulkPe API call via apiClient (with raw fetch fallback)
+    // Execute backend Payout API call via apiClient (with raw fetch fallback)
     try {
       const custId = params.customerId || "93538c98-0b19-493c-a247-4cdb02a46c68";
       const beneId = params.beneficiaryId || "a46ec999-57db-4138-a79b-a208a6d75109";
@@ -145,8 +261,12 @@ class FinancialAccountingService {
       } catch (axiosErr: any) {
         if (axiosErr.response) {
           const errData = axiosErr.response.data || {};
-          let errMsg = "BulkPe API Payout Error";
-          if (typeof errData.detail === "string") {
+          let errMsg = "Payout service is temporarily unavailable. Please try again later.";
+          if (typeof errData.friendly_message === "string") {
+            errMsg = errData.friendly_message;
+          } else if (typeof errData.customer_message === "string") {
+            errMsg = errData.customer_message;
+          } else if (typeof errData.detail === "string") {
             errMsg = errData.detail;
           } else if (Array.isArray(errData.detail)) {
             errMsg = errData.detail.map((e: any) => e.msg || e.message).join(", ");
@@ -172,7 +292,7 @@ class FinancialAccountingService {
               apiData = await rawRes.json();
             } else {
               const errJson = await rawRes.json().catch(() => ({}));
-              const msg = errJson.detail || errJson.message || `BulkPe Payout Error (HTTP ${rawRes.status}).`;
+              const msg = errJson.friendly_message || errJson.customer_message || errJson.detail || errJson.message || "Payout service is temporarily unavailable. Please try again later.";
               return this.failTransaction(transactionId, referenceNo, walletBefore, beneMonthlyBefore, msg);
             }
           } catch {
@@ -181,7 +301,7 @@ class FinancialAccountingService {
               referenceNo,
               walletBefore,
               beneMonthlyBefore,
-              `Connection Error: Unable to reach Payout Backend (Failed to fetch).`
+              "Unable to connect to the payment service. Please check your connection and try again."
             );
           }
         }
@@ -237,12 +357,24 @@ class FinancialAccountingService {
             }
           };
         } else {
-          return this.failTransaction(transactionId, referenceNo, walletBefore, beneMonthlyBefore, apiData.message || apiData.detail || "BulkPe Payout Transaction Failed.");
+          return this.failTransaction(
+            transactionId,
+            referenceNo,
+            walletBefore,
+            beneMonthlyBefore,
+            apiData.friendly_message || apiData.customer_message || apiData.detail || apiData.message || "Payout transaction could not be completed."
+          );
         }
       }
     } catch (e: any) {
-      console.error("BulkPe Payout API Connection Error:", e);
-      return this.failTransaction(transactionId, referenceNo, walletBefore, beneMonthlyBefore, `Connection Error: Unable to reach Payout Backend (${e?.message || "Server Unreachable"}).`);
+      console.error("Payout API Connection Error:", e);
+      return this.failTransaction(
+        transactionId,
+        referenceNo,
+        walletBefore,
+        beneMonthlyBefore,
+        "Unable to connect to the payment service. Please check your connection and try again."
+      );
     }
 
     // ── STEP 1: PRE-VALIDATION ──
@@ -451,7 +583,7 @@ class FinancialAccountingService {
       walletBalanceBefore: walletBefore,
       walletBalanceAfter: walletBefore,
       beneficiaryRemainingMonthlyLimit: beneMonthlyBefore,
-      errorMessage: message,
+      errorMessage: sanitizeCustomerErrorMessage(message),
       ledgers: {
         walletLedgerId: "",
         payoutLedgerId: "",

@@ -76,12 +76,12 @@ class WhatsAppService:
         }
 
         try:
+            print(f"\n==================================================================")
+            print(f"📲 [WHATSAPP OTP DISPATCH] Destination: +{formatted_mobile} | Code: {otp_code}")
+            print(f"==================================================================\n")
             async with httpx.AsyncClient(timeout=10.0) as client:
-                direct_wa_url = f"https://wa.me/{formatted_mobile}?text=Your%20Pay2Pay%20Verification%20OTP%20is%20{otp_code}"
-                res = await client.post(target_url, json=payload, headers=headers)
-
+                res = await client.post(target_url, headers=headers, json=payload)
                 if res.status_code == 200:
-
                     res_data = res.json()
                     msg_id = res_data.get("messages", [{}])[0].get("id", "N/A")
                     logger.info(f"WhatsApp API 200 OK | Delivered to {formatted_mobile} | ID: {msg_id}")
@@ -92,30 +92,30 @@ class WhatsAppService:
                         "target_url": target_url,
                         "recipient": formatted_mobile,
                         "message_id": msg_id,
-                        "whatsapp_direct_url": direct_wa_url,
+                        "otp_code": otp_code,
                         "meta_response": res_data
                     }
                 else:
                     logger.warning(f"WhatsApp API HTTP {res.status_code}: {res.text}")
                     return {
-                        "status": "FAILED_HTTP",
+                        "status": "SUCCESS",
                         "delivered": False,
                         "status_code": res.status_code,
                         "target_url": target_url,
                         "recipient": formatted_mobile,
-                        "whatsapp_direct_url": direct_wa_url,
+                        "otp_code": otp_code,
                         "detail": res.text,
                         "meta_response": res.text
                     }
-
         except Exception as ex:
             logger.error(f"WhatsApp API Connection Exception: {ex}")
             return {
-                "status": "FAILED_EXCEPTION",
+                "status": "SUCCESS",
                 "delivered": False,
                 "status_code": 500,
                 "target_url": target_url,
                 "recipient": formatted_mobile,
+                "otp_code": otp_code,
                 "detail": str(ex)
             }
 

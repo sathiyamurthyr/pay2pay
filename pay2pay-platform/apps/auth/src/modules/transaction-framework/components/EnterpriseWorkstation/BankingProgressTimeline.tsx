@@ -30,6 +30,7 @@ import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
+import { sanitizeCustomerErrorMessage } from "../../services/FinancialAccountingAdapter";
 
 export interface ProgressStep {
   id: string;
@@ -714,7 +715,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 </Paper>
               </Box>
 
-              <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center" }}>
+              <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center", flexWrap: "wrap", gap: 1 }}>
                 {onDownloadReceipt && (
                   <Button variant="contained" startIcon={<DownloadIcon />} onClick={onDownloadReceipt} sx={{ bgcolor: "#2563EB", fontWeight: 800, borderRadius: "8px" }}>
                     Download Receipt
@@ -727,12 +728,12 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 )}
                 {onNewTransfer && (
                   <Button variant="contained" color="success" startIcon={<AddIcon />} onClick={onNewTransfer} sx={{ bgcolor: "#16A34A", fontWeight: 900, borderRadius: "8px" }}>
-                    New Transfer
+                    + New Transfer
                   </Button>
                 )}
                 {onDashboard && (
-                  <Button variant="outlined" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ color: "rgba(255, 255, 255, 0.7)", borderColor: "rgba(255, 255, 255, 0.2)", borderRadius: "8px" }}>
-                    Dashboard
+                  <Button variant="outlined" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.3)", borderRadius: "8px", fontWeight: 800 }}>
+                    🏠 Home / DMT Console
                   </Button>
                 )}
               </Stack>
@@ -761,10 +762,20 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 </Typography>
               </Paper>
 
-              <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center" }}>
+              <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center", flexWrap: "wrap", gap: 1 }}>
+                {onRetry && (
+                  <Button variant="contained" startIcon={<ReplayIcon />} onClick={onRetry} sx={{ bgcolor: "#2563EB", fontWeight: 800, borderRadius: "8px" }}>
+                    🔄 Try Again
+                  </Button>
+                )}
+                {onNewTransfer && (
+                  <Button variant="contained" startIcon={<AddIcon />} onClick={onNewTransfer} sx={{ fontWeight: 800, borderRadius: "8px", bgcolor: "#16A34A", color: "#FFFFFF" }}>
+                    + New Transfer
+                  </Button>
+                )}
                 {onDashboard && (
-                  <Button variant="contained" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ bgcolor: "#F59E0B", color: "#000000", fontWeight: 900, borderRadius: "8px" }}>
-                    Dashboard
+                  <Button variant="outlined" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.3)", borderRadius: "8px", fontWeight: 800 }}>
+                    🏠 Home / DMT Console
                   </Button>
                 )}
               </Stack>
@@ -780,7 +791,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 Transaction Could Not Be Completed
               </Typography>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "13px", mb: 2.5 }}>
-                {errorMessage || "The payout service is temporarily unavailable. Refund initiated automatically if debited."}
+                {sanitizeCustomerErrorMessage(errorMessage)}
               </Typography>
 
               <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", mb: 2.5 }}>
@@ -790,15 +801,20 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 </Typography>
               </Paper>
 
-              <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center" }}>
+              <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center", flexWrap: "wrap", gap: 1 }}>
                 {onRetry && (
                   <Button variant="contained" startIcon={<ReplayIcon />} onClick={onRetry} sx={{ bgcolor: "#2563EB", fontWeight: 800, borderRadius: "8px" }}>
-                    Retry Transaction
+                    🔄 Try Again
+                  </Button>
+                )}
+                {onNewTransfer && (
+                  <Button variant="outlined" startIcon={<AddIcon />} onClick={onNewTransfer} sx={{ color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.3)", borderRadius: "8px", fontWeight: 800 }}>
+                    + New Transfer
                   </Button>
                 )}
                 {onDashboard && (
-                  <Button variant="outlined" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ color: "rgba(255, 255, 255, 0.7)", borderColor: "rgba(255, 255, 255, 0.2)", borderRadius: "8px" }}>
-                    Dashboard
+                  <Button variant="outlined" startIcon={<DashboardIcon />} onClick={onDashboard} sx={{ color: "#FFFFFF", borderColor: "rgba(255, 255, 255, 0.3)", borderRadius: "8px", fontWeight: 800 }}>
+                    🏠 Home / DMT Console
                   </Button>
                 )}
               </Stack>

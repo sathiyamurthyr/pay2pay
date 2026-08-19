@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useRetailerStore } from "@/stores/use-retailer-store";
+import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 import {
   Box,
   Typography,
@@ -14,10 +16,14 @@ import {
   MenuItem,
   Select,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Collapse,
 } from "@mui/material";
 import { retailerApi } from "@/services/retailer-api";
 
@@ -28,6 +34,12 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import DeleteIcon from "@mui/icons-material/Delete";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
@@ -39,9 +51,7 @@ import {
   RuleEngineService,
   TransactionModeRecord,
 } from "../../services/RuleEngineAdapter";
-import { BeneficiaryInlineDrawer } from "../Beneficiary/BeneficiaryInlineDrawer";
 import { CustomerSummaryHeader } from "@/components/customers/customer-summary-header";
-import { DuplicateBeneficiaryModal } from "@/components/payout/duplicate-beneficiary-modal";
 import apiClient from "@/lib/api";
 
 export interface WorkstationStep2Props {
@@ -73,23 +83,32 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   onModeChange,
   onAddBeneficiary,
 }) => {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "favorite">("all");
   const [sortBy, setSortBy] = useState<"recent" | "used" | "alphabetical">("recent");
-  const [visibleCount, setVisibleCount] = useState(24);
+  const [visibleCount, setVisibleCount] = useState(30);
 
-  // Add Beneficiary Modal State
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [beneName, setBeneName] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [ifsc, setIfsc] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [isSubmittingBene, setIsSubmittingBene] = useState(false);
-  const [addBeneError, setAddBeneError] = useState<string | null>(null);
+  // Track which row is expanded for inline details
+  const [expandedBeneficiaryId, setExpandedBeneficiaryId] = useState<string | null>(
+    selectedBeneficiary?.id || null
+  );
 
-  // Duplicate beneficiary modal state
-  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
-  const [existingDuplicateBene, setExistingDuplicateBene] = useState<any>(null);
+  // Track unmasked account viewing
+  const [revealedAccounts, setRevealedAccounts] = useState<{ [id: string]: boolean }>({});
+
+  const toggleAccountVisibility = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRevealedAccounts((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const toggleExpandRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedBeneficiaryId((prev) => (prev === id ? null : id));
+  };
 
   // Load Transaction Modes from Database
   const dbTransactionModes: TransactionModeRecord[] = RuleEngineService.getTransactionModes();
@@ -125,24 +144,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         const data = res.data?.data || res.data;
         if (!isMounted || !data) return;
 
-        const freshDailyRem   = Number(data.daily_remaining   ?? selectedBeneficiary.dailyRemaining ?? 50000);
+        const freshDailyRem = Number(data.daily_remaining ?? selectedBeneficiary.dailyRemaining ?? 50000);
         const freshMonthlyRem = Number(data.monthly_remaining ?? selectedBeneficiary.monthlyRemaining ?? 200000);
-        const isActive        = Boolean(data.is_active ?? (selectedBeneficiary.status !== "INACTIVE"));
-        const isVerified      = Boolean(data.is_verified ?? true);
-
-        if (process.env.NODE_ENV !== "production") {
-          console.log("[Beneficiary Limit Validation]", {
-            beneficiary_id:   benId,
-            daily_limit:      Number(data.daily_limit   ?? 50000),
-            daily_used:       Number(data.daily_used    ?? 0),
-            daily_remaining:  freshDailyRem,
-            monthly_limit:    Number(data.monthly_limit  ?? 200000),
-            monthly_used:     Number(data.monthly_used   ?? 0),
-            monthly_remaining: freshMonthlyRem,
-            is_active:        isActive,
-            is_verified:      isVerified,
-          });
-        }
+        const isActive = Boolean(data.is_active ?? (selectedBeneficiary.status !== "INACTIVE"));
 
         setBeneficiaryDailyRem(freshDailyRem);
         setBeneficiaryMonthlyRem(freshMonthlyRem);
@@ -152,307 +156,242 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
       })
       .catch((err) => {
         if (!isMounted) return;
-        console.warn("[Beneficiary Limit Validation] Gracefully falling back to local beneficiary limits:", err);
-        
-        // Fall back to local beneficiary properties or standard default limits
-        const fallbackDaily = selectedBeneficiary.dailyRemaining ?? 50000;
-        const fallbackMonthly = selectedBeneficiary.monthlyRemaining ?? 200000;
-        const isActive = selectedBeneficiary.status !== "INACTIVE";
-
-        setBeneficiaryDailyRem(fallbackDaily);
-        setBeneficiaryMonthlyRem(fallbackMonthly);
-        setBeneficiaryIsActive(isActive);
+        setBeneficiaryDailyRem(selectedBeneficiary.dailyRemaining ?? 50000);
+        setBeneficiaryMonthlyRem(selectedBeneficiary.monthlyRemaining ?? 200000);
+        setBeneficiaryIsActive(selectedBeneficiary.status !== "INACTIVE");
         setBeneficiaryLimitLoaded(true);
-        setBeneficiaryLimitFailed(false);
+        setBeneficiaryLimitFailed(true);
       });
 
-    return () => { isMounted = false; };
-  }, [selectedBeneficiary?.id, selectedBeneficiary?.status, selectedBeneficiary?.dailyRemaining, selectedBeneficiary?.monthlyRemaining]);
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedBeneficiary?.id]);
 
-  // Real-time Pricing Recalculation on Mode or Amount Change
-  const pricingResult = RuleEngineService.evaluatePricing({
-    service: "DMT",
+  // Navigate to dedicated Add Beneficiary page (NO MODAL)
+  const handleNavigateToAddBeneficiary = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("draftCustomerId", customer?.id || "");
+      sessionStorage.setItem("draftCustomerMobile", customer?.mobile || "");
+      sessionStorage.setItem("draftCustomerName", customer?.name || "");
+    }
+    useTransactionMemoryStore.getState().setSelectedCustomer(customer);
+    useTransactionMemoryStore.getState().setReferrerUrl("/retailer/dmt");
+    router.push(`/retailer/beneficiaries/add?customerId=${customer?.id || ""}&customerMobile=${customer?.mobile || ""}`);
+  };
+
+  // Navigate to dedicated Remove Beneficiary page (NO MODAL)
+  const handleNavigateToRemoveBeneficiary = (b: BeneficiaryData, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("selected_bene_for_remove", JSON.stringify(b));
+    }
+    router.push(`/retailer/beneficiaries/remove?id=${b.id}&customerId=${customer?.id || ""}`);
+  };
+
+  // Handle transaction mode changes
+  const handleModeSelect = (mode: "IMPS" | "NEFT" | "RTGS" | "UPI") => {
+    setSelectedMode(mode);
+    if (onModeChange) {
+      onModeChange(mode);
+    }
+  };
+
+  // Dynamic pricing calculations
+  const modeInfo = dbTransactionModes.find((m) => m.mode_code === selectedMode) || dbTransactionModes[0];
+  const isModeDisabled = !modeInfo?.enabled;
+
+  const retailerWallet = useRetailerStore((state) => state.wallet);
+  const currentWalletBalance = retailerWallet?.mainBalance ?? initialPricingResult.walletBalance ?? 235750.00;
+
+  const livePricingResult = useMemo(() => {
+    return RuleEngineService.evaluatePricing({
+      amount,
+      transactionMode: selectedMode,
+      walletBalance: currentWalletBalance,
+      dailyRemaining: initialPricingResult.dailyLimitRemaining,
+      monthlyRemaining: initialPricingResult.monthlyLimitRemaining,
+      beneficiaryBankName: selectedBeneficiary?.bankName || "Partner Bank",
+      beneficiaryDailyRemaining: beneficiaryLimitLoaded && beneficiaryDailyRem >= 0 ? beneficiaryDailyRem : initialPricingResult.dailyLimitRemaining,
+      beneficiaryMonthlyRemaining: beneficiaryLimitLoaded && beneficiaryMonthlyRem >= 0 ? beneficiaryMonthlyRem : initialPricingResult.monthlyLimitRemaining,
+      beneficiaryStatus: selectedBeneficiary?.status || "ACTIVE",
+      isBeneficiaryActive: beneficiaryIsActive,
+      limitLoadFailed: beneficiaryLimitFailed,
+    });
+  }, [
     amount,
-    transactionMode: selectedMode,
-    customerId: customer?.id,
-    walletBalance: useRetailerStore.getState().wallet.mainBalance,
-    beneficiaryDailyRemaining:   beneficiaryDailyRem,
-    beneficiaryMonthlyRemaining: beneficiaryMonthlyRem,
-    isBeneficiaryActive:         beneficiaryIsActive,
-    beneficiaryStatus:           selectedBeneficiary?.status || "ACTIVE",
-    limitLoadFailed:             beneficiaryLimitFailed,
+    selectedMode,
+    initialPricingResult,
+    selectedBeneficiary,
+    beneficiaryLimitLoaded,
+    beneficiaryDailyRem,
+    beneficiaryMonthlyRem,
+    beneficiaryIsActive,
+    beneficiaryLimitFailed,
+  ]);
+
+  const pricingResult = {
+    ...livePricingResult,
+    dailyLimitRemaining: beneficiaryLimitLoaded && beneficiaryDailyRem >= 0 ? beneficiaryDailyRem : initialPricingResult.dailyLimitRemaining,
+    monthlyLimitRemaining: beneficiaryLimitLoaded && beneficiaryMonthlyRem >= 0 ? beneficiaryMonthlyRem : initialPricingResult.monthlyLimitRemaining,
+    isBeneficiaryLimitLoaded: beneficiaryLimitLoaded,
+    isBeneficiaryLimitFailed: beneficiaryLimitFailed,
+  };
+
+  const fee = Number(pricingResult?.convenienceFee ?? 0);
+  const gst = Number(pricingResult?.gstAmount ?? 0);
+  const totalDebit = amount > 0 ? Number(pricingResult?.totalDebit ?? pricingResult?.totalPayable ?? (amount + fee + gst)) : 0;
+  const hasLimitBreach = amount > 0 && (amount > (pricingResult?.dailyLimitRemaining ?? 0) || amount > (pricingResult?.monthlyLimitRemaining ?? 0));
+  const hasInsufficientWallet = amount > 0 && totalDebit > (pricingResult?.walletBalance ?? 0);
+
+  // Filter and Sort Beneficiaries
+  const filteredBeneficiaries = beneficiaries.filter((b) => {
+    const matchesSearch =
+      b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.accountNumber.includes(searchTerm) ||
+      b.bankName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.ifsc.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesFilter = filterType === "favorite" ? b.isFavorite : true;
+    return matchesSearch && matchesFilter;
   });
 
-  const handleModeSelect = (modeCode: "IMPS" | "NEFT" | "RTGS" | "UPI") => {
-    setSelectedMode(modeCode);
-    if (onModeChange) onModeChange(modeCode);
+  const sortedBeneficiaries = [...filteredBeneficiaries].sort((a, b) => {
+    if (sortBy === "used") {
+      return (b.transferCount || 0) - (a.transferCount || 0);
+    }
+    if (sortBy === "alphabetical") {
+      return a.name.localeCompare(b.name);
+    }
+    return 0;
+  });
+
+  const displayedBeneficiaries = sortedBeneficiaries.slice(0, visibleCount);
+
+  const handleRowClick = (b: BeneficiaryData) => {
+    onSelectBeneficiary(b);
+    setTimeout(() => {
+      const el = document.querySelector('input[inputmode="numeric"]') as HTMLInputElement;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    }, 50);
   };
-
-  // Deduplicate beneficiaries array so each account number / ID appears ONLY ONCE
-  const uniqueBeneficiaries = React.useMemo(() => {
-    const seen = new Set<string>();
-    const list: BeneficiaryData[] = [];
-    for (const b of beneficiaries) {
-      if (b.status === "MERGED" || b.status === "INACTIVE") continue;
-      const cleanAcc = (b.accountNumber || "").replace(/\D/g, "");
-      const key = cleanAcc ? `${cleanAcc}-${(b.ifsc || "").toUpperCase()}` : b.id;
-      if (!seen.has(key)) {
-        seen.add(key);
-        list.push(b);
-      }
-    }
-    return list;
-  }, [beneficiaries]);
-
-  const filteredBeneficiaries = uniqueBeneficiaries
-    .filter((b) => {
-      const matchesSearch =
-        b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.accountNumber.includes(searchTerm) ||
-        b.bankName.toLowerCase().includes(searchTerm.toLowerCase());
-      if (filterType === "favorite") return matchesSearch && b.isFavorite;
-      return matchesSearch;
-    })
-    .sort((a, b) => {
-      if (sortBy === "alphabetical") return a.name.localeCompare(b.name);
-      if (sortBy === "used") return (b.transferCount || 0) - (a.transferCount || 0);
-      return 0;
-    });
-
-  const displayedBeneficiaries = filteredBeneficiaries.slice(0, visibleCount);
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollHeight - scrollTop <= clientHeight + 100) {
-      if (visibleCount < filteredBeneficiaries.length) {
-        setVisibleCount((prev) => prev + 24);
-      }
-    }
-  };
-
-  const handleAddBeneficiarySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!beneName.trim() || !accountNumber.trim() || !ifsc.trim()) {
-      setAddBeneError("Beneficiary Name, Account Number, and IFSC are required.");
-      return;
-    }
-
-    const cleanAcc = accountNumber.trim().replace(/\D/g, "");
-    const cleanIfsc = ifsc.trim().toUpperCase();
-
-    // Local Pre-check for duplicate active beneficiary
-    const localMatch = beneficiaries.find(
-      (b) =>
-        b.status !== "MERGED" &&
-        b.status !== "INACTIVE" &&
-        ((b.accountNumber || "").replace(/\D/g, "") === cleanAcc) &&
-        ((b.ifsc || "").toUpperCase() === cleanIfsc)
-    );
-
-    if (localMatch) {
-      setExistingDuplicateBene({
-        id: localMatch.id,
-        name: localMatch.name,
-        bankName: localMatch.bankName,
-        accountNumber: localMatch.accountNumber,
-        maskedAccountNumber: localMatch.maskedAccountNumber || `XXXX-${cleanAcc.slice(-4)}`,
-        ifsc: localMatch.ifsc,
-        verification_status: "VERIFIED",
-        status: "ACTIVE",
-      });
-      setAddModalOpen(false);
-      setDuplicateModalOpen(true);
-      return;
-    }
-
-    setIsSubmittingBene(true);
-    setAddBeneError(null);
-
-    const newBene: BeneficiaryData = {
-      id: `BEN-${Date.now()}`,
-      name: beneName.trim(),
-      accountNumber: accountNumber.trim(),
-      maskedAccountNumber: `XXXX${accountNumber.trim().slice(-4)}`,
-      ifsc: cleanIfsc,
-      bankName: bankName.trim(),
-      isFavorite: false,
-      isVerified: true,
-      transferCount: 0,
-      monthlyUsage: 0,
-      monthlyRemaining: 200000,
-    };
-
-    try {
-      const res = await apiClient.post("/beneficiaries", {
-        customer_id: customer?.id,
-        full_name: beneName.trim(),
-        account_number: accountNumber.trim(),
-        ifsc_code: cleanIfsc,
-        bank_name: bankName.trim(),
-      });
-
-      if (res.status === 200 || res.status === 201) {
-        setIsSubmittingBene(false);
-        if (onAddBeneficiary) onAddBeneficiary(newBene);
-        onSelectBeneficiary(newBene);
-        setAddModalOpen(false);
-      }
-    } catch (err: any) {
-      setIsSubmittingBene(false);
-      const detail = err?.response?.data?.detail;
-      const status_code = err?.response?.status;
-      if (status_code === 409 || (detail && typeof detail === "object" && detail.code === "BENEFICIARY_ALREADY_EXISTS")) {
-        const existingData = detail?.existing_beneficiary || {
-          name: beneName.trim(),
-          bankName: bankName.trim(),
-          maskedAccountNumber: `XXXX-${cleanAcc.slice(-4)}`,
-          ifsc: cleanIfsc,
-        };
-        setExistingDuplicateBene(existingData);
-        setAddModalOpen(false);
-        setDuplicateModalOpen(true);
-      } else {
-        // Fallback for local demo
-        if (onAddBeneficiary) onAddBeneficiary(newBene);
-        onSelectBeneficiary(newBene);
-        setAddModalOpen(false);
-      }
-    }
-  };
-
-  // Dynamic Rule Engine Financial Parameters
-  const fee = pricingResult.convenienceFee;
-  const gst = pricingResult.gstAmount;
-  const commission = pricingResult.commission;
-  const totalPayable = pricingResult.totalPayable;
-  const balanceAfter = pricingResult.walletBalanceAfter;
-
-  const currentModeInfo = dbTransactionModes.find((m) => m.mode_code === selectedMode);
-  const isModeDisabled = currentModeInfo ? !currentModeInfo.enabled : false;
-
-  const beneficiaryAvailableToReceive = selectedBeneficiary
-    ? selectedBeneficiary.monthlyRemaining ?? Math.max(0, 200000 - (selectedBeneficiary.monthlyUsage ?? 0))
-    : 50000;
-  const isBeneficiaryLimitExceeded = amount > beneficiaryAvailableToReceive;
-
-  const isProceedDisabled =
-    amount <= 0 ||
-    !selectedBeneficiary ||
-    !pricingResult.canProceed ||
-    isBeneficiaryLimitExceeded ||
-    isModeDisabled;
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "Enter") {
-        e.preventDefault();
-        if (!isProceedDisabled) {
-          onContinue();
-        }
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isProceedDisabled, onContinue]);
 
   return (
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: {
-          xs: "1fr",
-          lg: "68% 32%",
-        },
-        gap: 2,
-        height: "100%",
+        gridTemplateColumns: { xs: "1fr", lg: "1.45fr 1fr" },
+        gap: 2.5,
+        alignItems: "start",
         width: "100%",
         maxWidth: "100%",
-        overflowX: "hidden",
-        overflowY: "hidden",
+        boxSizing: "border-box",
+        minHeight: "75vh",
       }}
     >
-      {/* ── LEFT PANEL (68%): BENEFICIARY SELECTION CONSOLE ── */}
+      {/* ── LEFT PANEL: COMPACT ENTERPRISE BENEFICIARY TABLE CONSOLE ── */}
       <Paper
         elevation={0}
         sx={{
-          p: 2.25,
-          borderRadius: "14px",
+          p: 2.5,
+          borderRadius: "16px",
           bgcolor: "rgba(18, 27, 48, 0.85)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           display: "flex",
           flexDirection: "column",
-          height: "100%",
-          width: "100%",
-          maxWidth: "100%",
-          overflowX: "hidden",
-          overflowY: "hidden",
+          minHeight: "75vh",
           boxSizing: "border-box",
         }}
       >
-        {/* PROMINENT ENTERPRISE CUSTOMER SUMMARY HEADER */}
+        {/* Customer Header Component */}
         <CustomerSummaryHeader
           customer={customer}
-          onChangeCustomer={onBack}
-          onEditCustomer={() => {
-            if (typeof window !== "undefined") {
-              sessionStorage.setItem("draftCustomerMobile", customer?.mobile || "");
-            }
-            window.location.href = "/retailer/customers";
+          onChangeCustomer={() => {
+            if (onBack) onBack();
           }}
           onViewCustomerProfile={() => {
-            if (typeof window !== "undefined") {
-              sessionStorage.setItem("draftCustomerMobile", customer?.mobile || "");
-            }
-            window.location.href = "/retailer/customers";
+            if (onBack) onBack();
           }}
         />
 
-        {/* Quick Filters & Actions Bar */}
-        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
-          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "15px", letterSpacing: "-0.2px" }}>
-            Beneficiary Selection Console
+        {/* ── CONSOLE HEADER: TITLE & + ADD BENEFICIARY BUTTON ── */}
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5, flexWrap: "wrap", gap: 1 }}>
+          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", letterSpacing: "-0.2px" }}>
+            Beneficiary Selection
           </Typography>
 
-          <Stack direction="row" spacing={1}>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<PersonAddIcon sx={{ fontSize: 16 }} />}
-              onClick={async () => {
-                try {
-                  await retailerApi.createBeneficiarySession({
-                    customer_id: customer?.id || (customer as any)?.public_id || "",
-                    customer_mobile: customer?.mobile || "",
-                    customer_name: customer?.name || "",
-                    referrer: "/retailer/dmt",
-                  });
-                } catch {}
-                window.location.href = "/retailer/beneficiary";
-              }}
-              sx={{
-                height: 32,
-                px: 2,
-                borderRadius: "8px",
-                fontWeight: 800,
-                fontSize: "12px",
-                bgcolor: "#2563EB",
-                color: "#FFFFFF",
-              }}
-            >
-              + Add Beneficiary
-            </Button>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<PersonAddIcon sx={{ fontSize: 16 }} />}
+            onClick={handleNavigateToAddBeneficiary}
+            sx={{
+              height: 32,
+              px: 2,
+              borderRadius: "8px",
+              fontWeight: 800,
+              fontSize: "12px",
+              bgcolor: "#2563EB",
+              color: "#FFFFFF",
+              "&:hover": { bgcolor: "#1D4ED8" },
+            }}
+          >
+            + Add Beneficiary
+          </Button>
+        </Stack>
 
+        {/* ── SEARCH & FILTER CONTROLS ── */}
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            suppressHydrationWarning
+            autoComplete="off"
+            placeholder="Search beneficiary / account / bank / IFSC..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            slotProps={{
+              htmlInput: {
+                suppressHydrationWarning: true,
+                autoComplete: "off",
+                name: "disable_autofill_bene_search",
+                "data-lpignore": "true",
+                "data-1p-ignore": "true",
+                "data-bwignore": "true",
+              },
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+                sx: {
+                  height: 36,
+                  borderRadius: "8px",
+                  bgcolor: "rgba(255, 255, 255, 0.05)",
+                  color: "#FFFFFF",
+                  fontSize: "12.5px",
+                },
+              },
+            }}
+          />
+
+          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
             <Select
               size="small"
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}
               sx={{
-                height: 32,
+                height: 36,
                 fontSize: "12px",
                 fontWeight: 700,
                 color: "#FFFFFF",
                 bgcolor: "rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
                 ".MuiSelect-icon": { color: "#FFFFFF" },
               }}
             >
@@ -465,11 +404,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
               sx={{
-                height: 32,
+                height: 36,
                 fontSize: "12px",
                 fontWeight: 700,
                 color: "#FFFFFF",
                 bgcolor: "rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
                 ".MuiSelect-icon": { color: "#FFFFFF" },
               }}
             >
@@ -480,74 +420,26 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           </Stack>
         </Stack>
 
-        {/* Search Field */}
-        <TextField
-          fullWidth
-          size="small"
-          autoComplete="off"
-          placeholder="Search by Name, Account Number, or Bank..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          slotProps={{
-            htmlInput: {
-              autoComplete: "off",
-              name: "disable_autofill_bene_search",
-              autoCorrect: "off",
-              autoCapitalize: "off",
-              spellCheck: "false",
-              "data-lpignore": "true",
-              "data-1p-ignore": "true",
-              "data-bwignore": "true",
-              "aria-autocomplete": "none",
-            },
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: "#60A5FA" }} />
-                </InputAdornment>
-              ),
-              sx: {
-                height: 40,
-                borderRadius: "10px",
-                bgcolor: "rgba(255, 255, 255, 0.05)",
-                color: "#FFFFFF",
-                fontSize: "13px",
-              },
-            },
-          }}
-          sx={{ mb: 2, width: "100%" }}
-        />
-
-        {/* Beneficiary Grid */}
+        {/* ── BENEFICIARY LIST: COMPACT ENTERPRISE TABLE WITH INTERNAL SCROLL ── */}
         <Box
-          onScroll={handleScroll}
           sx={{
             flex: 1,
-            overflowY: "auto",
-            overflowX: "hidden",
-            pr: 0.5,
             width: "100%",
-            maxWidth: "100%",
-            "&::-webkit-scrollbar": {
-              width: "4px",
-            },
-            "&::-webkit-scrollbar-track": {
-              background: "transparent",
-            },
-            "&::-webkit-scrollbar-thumb": {
-              background: "rgba(255, 255, 255, 0.2)",
-              borderRadius: "4px",
-            },
-            "&::-webkit-scrollbar-thumb:hover": {
-              background: "rgba(255, 255, 255, 0.4)",
-            },
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "auto",
+            maxHeight: { xs: "500px", lg: "calc(100vh - 270px)" },
+            pr: 0.5,
+            "&::-webkit-scrollbar": { width: "6px", height: "6px" },
+            "&::-webkit-scrollbar-track": { background: "rgba(255, 255, 255, 0.02)", borderRadius: "4px" },
+            "&::-webkit-scrollbar-thumb": { background: "rgba(96, 165, 250, 0.3)", borderRadius: "4px" },
+            "&::-webkit-scrollbar-thumb:hover": { background: "rgba(96, 165, 250, 0.6)" },
           }}
         >
           {filteredBeneficiaries.length === 0 ? (
-            /* ACTIONABLE EMPTY STATE CARD (REPLACING DEAD-END MESSAGE) */
             <Paper
               elevation={0}
-              onClick={() => setAddModalOpen(true)}
+              onClick={handleNavigateToAddBeneficiary}
               sx={{
                 p: 4,
                 textAlign: "center",
@@ -561,160 +453,390 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 "&:hover": {
                   bgcolor: "rgba(37, 99, 235, 0.12)",
                   borderColor: "#2563EB",
-                  transform: "translateY(-2px)",
                 },
               }}
             >
-              <PersonAddIcon sx={{ fontSize: 56, color: "#2563EB", mb: 1 }} />
-              <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "19px", mb: 0.5 }}>
-                No Beneficiaries Found
+              <AccountBalanceIcon sx={{ fontSize: 44, color: "#60A5FA", mb: 1 }} />
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px", mb: 0.5 }}>
+                {searchTerm ? "No matching beneficiaries found." : "No beneficiaries found"}
               </Typography>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13.5px", mb: 3, maxWidth: 460, mx: "auto" }}>
-                No beneficiary accounts match your search for this customer. Click below to add a new beneficiary and transfer money directly.
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px", mb: 2.5, maxWidth: 400, mx: "auto" }}>
+                {searchTerm
+                  ? "Try searching with a different name, bank or account number."
+                  : "Add a beneficiary to make a payout."}
               </Typography>
               <Button
                 variant="contained"
                 startIcon={<PersonAddIcon />}
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.stopPropagation();
-                  try {
-                    await retailerApi.createBeneficiarySession({
-                      customer_id: customer?.id || (customer as any)?.public_id || "",
-                      customer_mobile: customer?.mobile || "",
-                      customer_name: customer?.name || "",
-                      referrer: "/retailer/dmt",
-                    });
-                  } catch {}
-                  window.location.href = "/retailer/beneficiary";
+                  handleNavigateToAddBeneficiary();
                 }}
                 sx={{
-                  height: 44,
-                  px: 3.5,
-                  borderRadius: "10px",
-                  fontWeight: 900,
-                  fontSize: "14px",
+                  height: 38,
+                  px: 3,
+                  borderRadius: "8px",
+                  fontWeight: 800,
+                  fontSize: "13px",
                   bgcolor: "#2563EB",
                   color: "#FFFFFF",
-                  boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
                 }}
               >
-                + Add New Beneficiary
+                + Add Beneficiary
               </Button>
             </Paper>
           ) : (
-            <Box
+            <TableContainer
+              component={Paper}
+              elevation={0}
               sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, 1fr)",
-                  md: "repeat(2, 1fr)",
-                  lg: "repeat(3, 1fr)",
-                  xl: "repeat(4, 1fr)",
-                },
-                gap: 2,
-                width: "100%",
-                maxWidth: "100%",
-                boxSizing: "border-box",
+                bgcolor: "transparent",
+                borderRadius: "10px",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                overflow: "visible",
               }}
             >
-              {displayedBeneficiaries.map((b) => {
-                const isSelected = selectedBeneficiary?.id === b.id;
-                return (
-                  <React.Fragment key={b.id}>
-                    <Paper
-                      elevation={0}
-                      onClick={() => {
-                        onSelectBeneficiary(b);
-                        setTimeout(() => {
-                          const el = document.querySelector('input[inputmode="numeric"]') as HTMLInputElement;
-                          if (el) {
-                            el.focus();
-                            el.select();
-                          }
-                        }, 50);
-                      }}
-                      sx={{
-                        width: "100%",
-                        minWidth: 0,
-                        boxSizing: "border-box",
-                        p: 1.75,
-                        borderRadius: "12px",
-                        bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.04)",
-                        border: isSelected ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.08)",
-                        cursor: "pointer",
-                        transition: "all 150ms ease",
-                        "&:hover": {
-                          bgcolor: "rgba(37, 99, 235, 0.15)",
-                          borderColor: "rgba(37, 99, 235, 0.5)",
-                        },
-                      }}
-                    >
-                      <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0 }}>
-                        <Avatar
+              <Table size="small" aria-label="beneficiary table" stickyHeader>
+                {/* ── TABLE HEAD (5 PRIMARY COLUMNS) ── */}
+                <TableHead>
+                  <TableRow sx={{ "& th": { bgcolor: "#131E38" } }}>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pl: 2 }}>
+                      Beneficiary
+                    </TableCell>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>
+                      Bank Account
+                    </TableCell>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>
+                      Monthly Limit
+                    </TableCell>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, textAlign: "center" }}>
+                      Verified
+                    </TableCell>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pr: 2, textAlign: "right" }}>
+                      Action
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {displayedBeneficiaries.map((b) => {
+                    const isSelected = selectedBeneficiary?.id === b.id;
+                    const isExpanded = expandedBeneficiaryId === b.id;
+                    const isAccountRevealed = Boolean(revealedAccounts[b.id]);
+                    const rawAccount = b.accountNumber || "0630104000156974";
+                    const maskedAcc = b.maskedAccountNumber || (rawAccount.length >= 4 ? `XXXX-XXXX-${rawAccount.slice(-4)}` : rawAccount);
+                    const bAny = b as any;
+
+                    return (
+                      <React.Fragment key={b.id}>
+                        {/* ── MAIN ROW ── */}
+                        <TableRow
+                          onClick={() => handleRowClick(b)}
                           sx={{
-                            width: 40,
-                            height: 40,
-                            bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.1)",
-                            color: "#FFFFFF",
-                            fontWeight: 800,
-                            fontSize: "13px",
-                            flexShrink: 0,
+                            cursor: "pointer",
+                            transition: "all 120ms ease",
+                            bgcolor: isSelected
+                              ? "rgba(37, 99, 235, 0.20)"
+                              : isExpanded
+                              ? "rgba(255, 255, 255, 0.04)"
+                              : "transparent",
+                            borderLeft: isSelected ? "4px solid #2563EB" : "4px solid transparent",
+                            "&:hover": {
+                              bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                            },
                           }}
                         >
-                          {b.name.slice(0, 2).toUpperCase()}
-                        </Avatar>
+                          {/* Column 1: Beneficiary Name + Favorite */}
+                          <TableCell sx={{ py: 1.25, pl: isSelected ? 1.5 : 2, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                              <Avatar
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.10)",
+                                  color: "#FFFFFF",
+                                  fontWeight: 800,
+                                  fontSize: "11px",
+                                }}
+                              >
+                                {b.name.slice(0, 2).toUpperCase()}
+                              </Avatar>
 
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                            <Typography noWrap sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
-                              {b.name}
+                              <Box>
+                                <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                                  <Typography sx={{ fontWeight: 800, color: isSelected ? "#93C5FD" : "#FFFFFF", fontSize: "13px", lineHeight: 1.2 }}>
+                                    {b.name}
+                                  </Typography>
+                                  {b.isFavorite && (
+                                    <StarIcon sx={{ color: "#FBBF24", fontSize: 14 }} />
+                                  )}
+                                </Stack>
+                              </Box>
+                            </Stack>
+                          </TableCell>
+
+                          {/* Column 2: Bank Account (Bank Name + Masked Account) */}
+                          <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                            <Typography sx={{ color: "#60A5FA", fontSize: "12.5px", fontWeight: 800, lineHeight: 1.2 }}>
+                              {b.bankName}
                             </Typography>
-                            {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 15, flexShrink: 0 }} />}
-                          </Stack>
+                            <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontFamily: "monospace", fontSize: "11.5px" }}>
+                              {isAccountRevealed ? rawAccount : maskedAcc}
+                            </Typography>
+                          </TableCell>
 
-                          <Typography noWrap sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px" }}>
-                            {b.bankName} • {b.maskedAccountNumber}
-                          </Typography>
+                          {/* Column 3: Monthly Limit */}
+                          <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                            <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "13px" }}>
+                              ₹{(b.monthlyLimit ?? 200000).toLocaleString()}
+                            </Typography>
+                            <Typography sx={{ color: "#4ADE80", fontSize: "10.5px", fontWeight: 700 }}>
+                              ₹{(b.monthlyRemaining ?? 200000).toLocaleString()} rem
+                            </Typography>
+                          </TableCell>
 
-                          <Typography noWrap sx={{ color: "#60A5FA", fontSize: "11px", fontWeight: 700 }}>
-                            {b.ifsc}
-                          </Typography>
-                        </Box>
+                          {/* Column 4: Verified Status */}
+                          <TableCell sx={{ py: 1.25, textAlign: "center", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                            {b.isVerified !== false ? (
+                              <Chip
+                                icon={<CheckCircleIcon sx={{ "&&": { color: "#4ADE80", fontSize: 13 } }} />}
+                                label="✓ Verified"
+                                size="small"
+                                sx={{
+                                  height: 22,
+                                  bgcolor: "rgba(74, 222, 128, 0.12)",
+                                  color: "#4ADE80",
+                                  fontWeight: 800,
+                                  fontSize: "10.5px",
+                                }}
+                              />
+                            ) : (
+                              <Chip
+                                label="● Pending"
+                                size="small"
+                                sx={{
+                                  height: 22,
+                                  bgcolor: "rgba(251, 191, 36, 0.12)",
+                                  color: "#FBBF24",
+                                  fontWeight: 800,
+                                  fontSize: "10.5px",
+                                }}
+                              />
+                            )}
+                          </TableCell>
 
-                        {isSelected && <CheckCircleIcon sx={{ color: "#2563EB", fontSize: 22, flexShrink: 0 }} />}
-                      </Stack>
-                    </Paper>
+                          {/* Column 5: Action (View Details / Select) */}
+                          <TableCell sx={{ py: 1.25, pr: 2, textAlign: "right", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                            <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", alignItems: "center" }}>
+                              <Button
+                                size="small"
+                                variant="text"
+                                onClick={(e) => toggleExpandRow(b.id, e)}
+                                endIcon={isExpanded ? <KeyboardArrowUpIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
+                                sx={{
+                                  color: isExpanded ? "#60A5FA" : "rgba(255, 255, 255, 0.75)",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  textTransform: "none",
+                                  p: 0.5,
+                                  minWidth: "auto",
+                                  "&:hover": { color: "#93C5FD", bgcolor: "rgba(255, 255, 255, 0.05)" },
+                                }}
+                              >
+                                View Details
+                              </Button>
 
-                    {isSelected && (
-                      <BeneficiaryInlineDrawer beneficiary={b} isOpen={isSelected} />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </Box>
+                              <Button
+                                size="small"
+                                variant={isSelected ? "contained" : "outlined"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRowClick(b);
+                                }}
+                                sx={{
+                                  height: 26,
+                                  px: 1.25,
+                                  fontSize: "10.5px",
+                                  fontWeight: 800,
+                                  borderRadius: "6px",
+                                  bgcolor: isSelected ? "#2563EB" : "transparent",
+                                  borderColor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.2)",
+                                  color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.8)",
+                                  "&:hover": {
+                                    bgcolor: isSelected ? "#1D4ED8" : "rgba(37, 99, 235, 0.15)",
+                                    borderColor: "#2563EB",
+                                  },
+                                }}
+                              >
+                                {isSelected ? "Selected ✓" : "Select"}
+                              </Button>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+
+                        {/* ── INLINE EXPANDED ROW DETAILS (NO MODAL) ── */}
+                        <TableRow>
+                          <TableCell colSpan={5} sx={{ p: 0, borderBottom: isExpanded ? "1px solid rgba(255, 255, 255, 0.10)" : "none" }}>
+                            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                              <Box
+                                sx={{
+                                  p: 2,
+                                  bgcolor: "rgba(10, 17, 34, 0.95)",
+                                  borderTop: "1px dashed rgba(255, 255, 255, 0.10)",
+                                }}
+                              >
+                                <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5 }}>
+                                  Beneficiary Details
+                                </Typography>
+
+                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }, gap: 1.5, mb: 2 }}>
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Beneficiary Name</Typography>
+                                    <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "13px" }}>{b.name}</Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Bank</Typography>
+                                    <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "13px" }}>{b.bankName}</Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Account Number</Typography>
+                                    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                                      <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>
+                                        {isAccountRevealed ? rawAccount : maskedAcc}
+                                      </Typography>
+                                      <Tooltip title={isAccountRevealed ? "Hide Full Account" : "View Full Account"}>
+                                        <IconButton size="small" onClick={(e) => toggleAccountVisibility(b.id, e)} sx={{ color: "#60A5FA", p: 0.25 }}>
+                                          {isAccountRevealed ? <VisibilityOffIcon sx={{ fontSize: 14 }} /> : <VisibilityIcon sx={{ fontSize: 14 }} />}
+                                        </IconButton>
+                                      </Tooltip>
+                                    </Stack>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>IFSC</Typography>
+                                    <Typography sx={{ color: "#93C5FD", fontFamily: "monospace", fontWeight: 800, fontSize: "12.5px" }}>{b.ifsc}</Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Branch</Typography>
+                                    <Typography sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "12.5px" }}>{b.branchName || "Main Branch"}</Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Relationship</Typography>
+                                    <Typography sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "12.5px" }}>{b.relationship || "Family"}</Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Risk Level</Typography>
+                                    <Typography sx={{ color: "#4ADE80", fontWeight: 800, fontSize: "12px" }}>{bAny.riskLevel || "Low Risk"}</Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Status</Typography>
+                                    <Typography sx={{ color: b.status === "INACTIVE" ? "#F87171" : "#60A5FA", fontWeight: 800, fontSize: "12px" }}>
+                                      {b.status === "INACTIVE" ? "Inactive" : "Active"}
+                                    </Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Verification</Typography>
+                                    <Typography sx={{ color: "#4ADE80", fontWeight: 800, fontSize: "12px" }}>
+                                      {b.isVerified !== false ? "Verified" : "Pending"}
+                                    </Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Today's Remaining</Typography>
+                                    <Typography sx={{ color: "#34D399", fontWeight: 800, fontSize: "12.5px" }}>₹{(b.todayRemaining ?? 24990).toLocaleString()}</Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Monthly Remaining</Typography>
+                                    <Typography sx={{ color: "#4ADE80", fontWeight: 800, fontSize: "12.5px" }}>₹{(b.monthlyRemaining ?? 200000).toLocaleString()}</Typography>
+                                  </Box>
+
+                                  <Box>
+                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Total Transactions</Typography>
+                                    <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "12.5px" }}>{b.transferCount || 6}</Typography>
+                                  </Box>
+                                </Box>
+
+                                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1.5 }} />
+
+                                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    startIcon={<DeleteIcon sx={{ fontSize: 14 }} />}
+                                    onClick={(e) => handleNavigateToRemoveBeneficiary(b, e)}
+                                    sx={{
+                                      height: 28,
+                                      px: 1.5,
+                                      borderRadius: "6px",
+                                      fontWeight: 800,
+                                      fontSize: "11px",
+                                      borderColor: "rgba(239, 68, 68, 0.4)",
+                                      color: "#FCA5A5",
+                                      "&:hover": { bgcolor: "rgba(239, 68, 68, 0.15)", borderColor: "#EF4444" },
+                                    }}
+                                  >
+                                    Remove Beneficiary
+                                  </Button>
+
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    onClick={() => handleRowClick(b)}
+                                    sx={{
+                                      height: 28,
+                                      px: 2,
+                                      borderRadius: "6px",
+                                      fontWeight: 800,
+                                      fontSize: "11px",
+                                      bgcolor: "#2563EB",
+                                      color: "#FFFFFF",
+                                    }}
+                                  >
+                                    Transfer to This Beneficiary →
+                                  </Button>
+                                </Stack>
+                              </Box>
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
         </Box>
       </Paper>
 
-      {/* ── RIGHT PANEL (32%): TRANSACTION MODE & TRANSFER AMOUNT ── */}
+      {/* ── RIGHT PANEL (TRANSACTION MODE & TRANSFER AMOUNT) ── */}
       <Paper
         elevation={0}
         sx={{
-          p: 2.25,
-          borderRadius: "14px",
+          p: 2.5,
+          borderRadius: "16px",
           bgcolor: "rgba(18, 27, 48, 0.85)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           display: "flex",
           flexDirection: "column",
-          height: "100%",
+          minHeight: "75vh",
           justifyContent: "space-between",
+          boxSizing: "border-box",
         }}
       >
         <Box>
           {/* ── TRANSACTION MODE SEGMENTED CONTROL ── */}
-          <Box sx={{ mb: 1.5 }}>
+          <Box sx={{ mb: 2 }}>
             <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1 }}>
               TRANSACTION MODE
             </Typography>
@@ -784,79 +906,65 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           {/* One-Click Enterprise Auto Correction Bar */}
           <SmartAutoCorrectionBar validationResult={pricingResult} onAutoFixAmount={onAmountChange} />
 
-          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1 }} />
+          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1.5 }} />
 
           {/* Financial Summary Table */}
-          <Stack spacing={0.75}>
+          <Stack spacing={1}>
             <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               FINANCIAL SUMMARY ({selectedMode})
             </Typography>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Transfer Amount</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>₹{amount.toLocaleString()}</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px" }}>Transfer Amount</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13.5px" }}>₹{Number(amount || 0).toLocaleString()}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "#4ADE80", fontWeight: 700, fontSize: "12px" }}>Beneficiary Receives</Typography>
-              <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "13px" }}>₹{amount.toLocaleString()}</Typography>
+              <Typography sx={{ color: "#4ADE80", fontWeight: 700, fontSize: "12.5px" }}>Beneficiary Receives</Typography>
+              <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "13.5px" }}>₹{Number(amount || 0).toLocaleString()}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Convenience Fee</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>+ ₹{fee.toLocaleString(undefined, { minimumFractionDigits: fee % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px" }}>Convenience Fee</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12.5px" }}>+ ₹{Number(fee || 0).toLocaleString(undefined, { minimumFractionDigits: (fee || 0) % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST ({pricingResult.gstPercentage}%)</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12px" }}>+ ₹{gst.toLocaleString(undefined, { minimumFractionDigits: gst % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px" }}>GST ({pricingResult?.gstPercentage ?? 18}%)</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12.5px" }}>+ ₹{Number(gst || 0).toLocaleString(undefined, { minimumFractionDigits: (gst || 0) % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Retailer Commission</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12px" }}>+ ₹{commission.toLocaleString(undefined, { minimumFractionDigits: commission % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
-            </Stack>
-
-            <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
-
-            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "12px" }}>NET WALLET DEBIT</Typography>
-              <Typography sx={{ fontWeight: 900, color: !pricingResult.canProceed ? "#EF4444" : "#3B82F6", fontSize: "15px" }}>
-                ₹{totalPayable.toLocaleString()}
-              </Typography>
-            </Stack>
-
-            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet After Transfer</Typography>
-              <Typography sx={{ fontWeight: 800, color: !pricingResult.canProceed ? "#EF4444" : "#FBBF24", fontSize: "13px" }}>
-                ₹{balanceAfter.toLocaleString()}
-              </Typography>
-            </Stack>
-
-            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Settlement ETA</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12px" }}>{pricingResult.settlementEtaText}</Typography>
-            </Stack>
-
-            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Recommended Route</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "11px" }}>{pricingResult.recommendedGateway}</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px" }}>Total Debit from Wallet</Typography>
+              <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "14px" }}>₹{Number(totalDebit || 0).toLocaleString(undefined, { minimumFractionDigits: (totalDebit || 0) % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
             </Stack>
           </Stack>
         </Box>
 
-        {/* Action Buttons */}
-        <Stack spacing={1} sx={{ pt: 1 }}>
-          <Tooltip title={isProceedDisabled ? `Transfer cannot continue. Reason: ${pricingResult.validationMessage}` : ""} arrow placement="top">
-            <Box component="span" sx={{ width: "100%" }}>
+        {/* ── BOTTOM ACTIONS ── */}
+        <Stack spacing={1.5} sx={{ mt: 3 }}>
+          <Tooltip
+            title={
+              !selectedBeneficiary
+                ? "Please select a beneficiary from the left panel"
+                : amount <= 0
+                ? "Please enter a valid transfer amount"
+                : hasLimitBreach
+                ? "Transfer amount exceeds available limits"
+                : hasInsufficientWallet
+                ? "Insufficient wallet balance"
+                : ""
+            }
+          >
+            <Box sx={{ width: "100%" }}>
               <Button
                 fullWidth
                 variant="contained"
-                disabled={isProceedDisabled}
+                disabled={!selectedBeneficiary || amount <= 0 || hasLimitBreach || hasInsufficientWallet || isModeDisabled}
                 onClick={onContinue}
                 endIcon={<ArrowForwardIcon />}
                 sx={{
-                  height: 44,
+                  height: 46,
                   borderRadius: "10px",
                   fontWeight: 900,
                   fontSize: "14px",
@@ -881,126 +989,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             variant="outlined"
             onClick={onBack}
             startIcon={<ArrowBackIcon />}
-            sx={{ height: 34, borderRadius: "8px", fontWeight: 700, fontSize: "11.5px", color: "rgba(255, 255, 255, 0.8)", borderColor: "rgba(255, 255, 255, 0.2)" }}
+            sx={{ height: 36, borderRadius: "8px", fontWeight: 700, fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", borderColor: "rgba(255, 255, 255, 0.2)" }}
           >
             Back to Customer
           </Button>
         </Stack>
       </Paper>
-
-      {/* ── ADD BENEFICIARY DIALOG MODAL ── */}
-      <Dialog open={addModalOpen} onClose={() => setAddModalOpen(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleAddBeneficiarySubmit} autoComplete="off" autoCorrect="off" autoCapitalize="off">
-          <DialogTitle sx={{ bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 900, fontSize: "18px" }}>
-            💳 Add New Beneficiary
-          </DialogTitle>
-          <DialogContent sx={{ bgcolor: "#0F172A", pt: 2 }}>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px", mb: 2 }}>
-              Register a new beneficiary bank account for customer <strong>{customer?.name}</strong>.
-            </Typography>
-
-            {addBeneError && (
-              <Paper elevation={0} sx={{ p: 1.5, mb: 2, bgcolor: "rgba(239, 68, 68, 0.15)", border: "1px solid #EF4444", color: "#EF4444", fontSize: "12px", fontWeight: 800 }}>
-                {addBeneError}
-              </Paper>
-            )}
-
-            <Stack spacing={2}>
-              <TextField
-                fullWidth
-                label="Beneficiary Full Name"
-                value={beneName}
-                onChange={(e) => setBeneName(e.target.value)}
-                required
-                autoComplete="off"
-                slotProps={{
-                  htmlInput: { autoComplete: "new-password", name: "no_autofill_bene_fullname", autoCorrect: "off", autoCapitalize: "off", spellCheck: "false" },
-                  input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
-                  inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Bank Account Number"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
-                required
-                autoComplete="off"
-                slotProps={{
-                  htmlInput: { autoComplete: "new-password", name: "no_autofill_bene_accnum", autoCorrect: "off", autoCapitalize: "off", spellCheck: "false" },
-                  input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
-                  inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
-                }}
-              />
-
-              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2 }}>
-                <TextField
-                  fullWidth
-                  label="IFSC Code"
-                  value={ifsc}
-                  onChange={(e) => setIfsc(e.target.value.toUpperCase())}
-                  required
-                  autoComplete="off"
-                  slotProps={{
-                    htmlInput: { autoComplete: "new-password", name: "no_autofill_bene_ifsc", autoCorrect: "off", autoCapitalize: "off", spellCheck: "false" },
-                    input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
-                    inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  label="Bank Name"
-                  value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                  required
-                  autoComplete="off"
-                  slotProps={{
-                    htmlInput: { autoComplete: "new-password", name: "no_autofill_bene_bankname", autoCorrect: "off", autoCapitalize: "off", spellCheck: "false" },
-                    input: { sx: { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.08)", borderRadius: "8px" } },
-                    inputLabel: { sx: { color: "rgba(255, 255, 255, 0.7)" } },
-                  }}
-                />
-              </Box>
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ bgcolor: "#0F172A", p: 2 }}>
-            <Button onClick={() => setAddModalOpen(false)} sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="contained" disabled={isSubmittingBene} sx={{ bgcolor: "#2563EB", fontWeight: 900 }}>
-              {isSubmittingBene ? "Adding..." : "Add & Select Beneficiary"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
-
-      {/* ── DUPLICATE BENEFICIARY EXPLICIT CONFLICT MODAL ── */}
-      <DuplicateBeneficiaryModal
-        open={duplicateModalOpen}
-        onClose={() => setDuplicateModalOpen(false)}
-        existingBeneficiary={existingDuplicateBene}
-        onUseExisting={(existingBene) => {
-          const formattedBene: BeneficiaryData = {
-            id: existingBene.id || `BEN-${Date.now()}`,
-            name: existingBene.name || beneName.trim() || "Existing Beneficiary",
-            accountNumber: existingBene.accountNumber || accountNumber.trim(),
-            maskedAccountNumber: existingBene.maskedAccountNumber || `XXXX-${accountNumber.trim().slice(-4)}`,
-            ifsc: existingBene.ifsc || ifsc.trim().toUpperCase(),
-            bankName: existingBene.bankName || bankName.trim() || "Partner Bank",
-            isFavorite: false,
-            isVerified: true,
-            transferCount: 0,
-            monthlyUsage: 0,
-            monthlyRemaining: 200000,
-          };
-          if (onAddBeneficiary) {
-            onAddBeneficiary(formattedBene);
-          }
-          onSelectBeneficiary(formattedBene);
-          setDuplicateModalOpen(false);
-        }}
-      />
     </Box>
   );
 };

@@ -39,7 +39,7 @@ import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
 import { AuthEngine, AuthorizeResponsePayload } from "../../services/AuthEngineAdapter";
-import { FinancialAccounting } from "../../services/FinancialAccountingAdapter";
+import { FinancialAccounting, sanitizeCustomerErrorMessage } from "../../services/FinancialAccountingAdapter";
 import { ReceiptShare, ReceiptShareRecord, VerificationResult } from "../../services/ReceiptShareAdapter";
 import { BankingProgressTimeline, BankingExecutionCenter, ProgressStep, FULL_16_STEPS_TEMPLATE } from "./BankingProgressTimeline";
 
@@ -373,7 +373,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
       const remaining = attemptsLeft - 1;
       setAttemptsLeft(remaining);
-      setErrorMessage(finResult.errorMessage || "Transaction Failed");
+      setErrorMessage(sanitizeCustomerErrorMessage(finResult.errorMessage));
 
       setTimeout(() => {
         setViewState("FAILURE_RECEIPT");
@@ -892,22 +892,24 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   </Typography>
                 </Box>
 
-                <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+                <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
                   <Button
-                    fullWidth
                     variant="contained"
-                    onClick={() => onAuthorize && onAuthorize()}
-                    sx={{ height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
+                    onClick={() => {
+                      if (onBack) onBack();
+                    }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
                   >
-                    View Transaction
+                    Transfer Again (Same Customer)
                   </Button>
                   <Button
-                    fullWidth
                     variant="outlined"
-                    onClick={() => window.location.href = "/payout-dashboard"}
-                    sx={{ height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
+                    onClick={() => {
+                      if (onAuthorize) onAuthorize();
+                    }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
                   >
-                    Dashboard
+                    🏠 Home / DMT Console
                   </Button>
                 </Stack>
               </Paper>
@@ -968,26 +970,35 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   </Box>
                 </Box>
 
-                <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+                <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
                   <Button
-                    fullWidth
                     variant="contained"
                     onClick={() => {
                       setViewState("PIN_ENTRY");
                       setPinDigits(Array(pinLength).fill(""));
                       setIsReversing(false);
                     }}
-                    sx={{ height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "120px", height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
                   >
-                    Try Again
+                    🔄 Try Again
                   </Button>
                   <Button
-                    fullWidth
                     variant="outlined"
-                    onClick={() => window.location.href = "/payout-dashboard"}
-                    sx={{ height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
+                    onClick={() => {
+                      if (onBack) onBack();
+                    }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
                   >
-                    Dashboard
+                    Change Beneficiary
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      if (onAuthorize) onAuthorize();
+                    }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
+                  >
+                    🏠 Home / DMT Console
                   </Button>
                 </Stack>
               </Paper>
@@ -1325,8 +1336,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           viewState={viewState as "PROCESSING" | "SUCCESS_RECEIPT" | "PENDING_RECEIPT" | "FAILURE_RECEIPT"}
           errorMessage={errorMessage}
           utr={utr}
-          onNewTransfer={onAuthorize}
-          onDashboard={() => { window.location.href = "/retailer/dmt"; }}
+          onNewTransfer={() => {
+            setViewState("PIN_ENTRY");
+            if (onAuthorize) onAuthorize();
+          }}
+          onDashboard={() => {
+            setViewState("PIN_ENTRY");
+            if (onAuthorize) onAuthorize();
+          }}
           onDownloadReceipt={() => {
             bankingSounds.playSuccess();
             alert(`Banking Receipt PNG/PDF Downloaded for Txn: ${activeTxId || "TXN-85472190"}`);
@@ -1335,6 +1352,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           onRetry={() => {
             setViewState("PIN_ENTRY");
             setPinDigits(Array(pinLength).fill(""));
+            setIsReversing(false);
           }}
         />
       </Dialog>
@@ -1519,14 +1537,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               fullWidth
               variant="contained"
               color="primary"
-              startIcon={<DashboardIcon />}
+              startIcon={<SyncIcon />}
               onClick={() => {
                 setErrorModalOpen(false);
-                if (onBack) {
-                  onBack();
-                } else {
-                  window.location.href = "/retailer/dmt";
-                }
+                setPinDigits(Array(pinLength).fill(""));
+                setRevealedIndex(null);
+                setTimeout(() => inputRefs.current[0]?.focus(), 100);
               }}
               sx={{
                 height: 44,
@@ -1537,7 +1553,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 "&:hover": { bgcolor: "#1D4ED8" },
               }}
             >
-              Redirect to Home / DMT Dashboard
+              Retry PIN Entry
             </Button>
 
             <Button
@@ -1545,11 +1561,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               variant="outlined"
               onClick={() => {
                 setErrorModalOpen(false);
-                setPinDigits(Array(pinLength).fill(""));
-                setRevealedIndex(null);
-                setTimeout(() => inputRefs.current[0]?.focus(), 100);
+                if (onBack) onBack();
               }}
-              startIcon={<SyncIcon />}
               sx={{
                 height: 40,
                 borderRadius: "10px",
@@ -1559,7 +1572,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 borderColor: "rgba(255, 255, 255, 0.2)",
               }}
             >
-              Retry PIN Entry
+              Change Beneficiary / Amount
             </Button>
           </Stack>
         </DialogContent>

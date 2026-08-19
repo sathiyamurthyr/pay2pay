@@ -205,11 +205,6 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       setProfileDetails((prev) => ({ ...prev, loading: false, error: true }));
     }
   }, [setApprovalStatus]);
-    } catch (err) {
-      console.warn("Profile details fetch error:", err);
-      setProfileDetails((prev) => ({ ...prev, loading: false, error: true }));
-    }
-  }, [setApprovalStatus]);
 
   useEffect(() => {
     fetchProfileDetails();
@@ -926,6 +921,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     </Typography>
                     <Typography
                       variant="subtitle1"
+                      suppressHydrationWarning
                       sx={{
                         fontWeight: 900,
                         color: "#FFD700",
@@ -1164,7 +1160,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   WALLET BALANCE
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography variant="h5" sx={{ fontSize: "22px", fontWeight: 800, color: effectiveTheme === "dark" ? "#FFFFFF" : "#0F172A", fontFamily: "monospace", lineHeight: 1.1 }}>
+                  <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: effectiveTheme === "dark" ? "#FFFFFF" : "#0F172A", fontFamily: "monospace", lineHeight: 1.1 }}>
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
                   <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ p: 0.25 }}>

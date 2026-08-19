@@ -27,10 +27,11 @@ import {
   Maximize2,
   RefreshCcw,
   ArrowUpRight,
-  ArrowDownRight,
   Landmark,
   TrendingUp,
 } from "lucide-react";
+
+const fmt = (n: number) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
 export default function SettlementBatchesPage() {
   const [txns, setTxns]           = useState<any[]>([]);

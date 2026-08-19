@@ -97,11 +97,11 @@ class BeneficiaryResponse(BaseModel):
     beneficiary_status: str = "ACTIVE"
     cooling_period_ends_at: Optional[datetime] = None
     is_favourite: bool = False
-    registration_date: Optional[datetime] = None
-    activation_date: Optional[datetime] = None
     account_number: Optional[str] = None
     masked_account_number: Optional[str] = None
+    account_number_masked: Optional[str] = None
     ifsc: Optional[str] = None
+    ifsc_code: Optional[str] = None
     bank_name: Optional[str] = None
     branch_name: Optional[str] = None
 
@@ -203,7 +203,7 @@ class BeneficiaryDashboardMetricsResponse(BaseModel):
 
 class BeneficiarySearchRequest(BaseModel):
     query: Optional[str] = None
-    customer_id: Optional[uuid.UUID] = None
+    customer_id: Optional[str] = None
     beneficiary_status: Optional[str] = None
     beneficiary_category: Optional[str] = None
     verification_status: Optional[str] = None

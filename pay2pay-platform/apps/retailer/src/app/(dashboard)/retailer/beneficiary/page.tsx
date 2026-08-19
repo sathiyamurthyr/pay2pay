@@ -538,7 +538,13 @@ function BeneficiaryWorkspaceContent() {
         current_wallet_balance: walletBalance,
       });
 
-      if (res.status === "SUCCESS" || res.verification_status === "VERIFIED") {
+      const isSuccess = Boolean(
+        res &&
+        (res.status === "SUCCESS" || res.verification_status === "VERIFIED") &&
+        (res.beneficiary || res.data)
+      );
+
+      if (isSuccess) {
         const beneData = res.beneficiary || res.data || {};
         const officialName = beneData.registered_name_in_bank || beneData.name_at_bank || beneData.account_holder_name || benName.toUpperCase();
         const shortBenId   = `BEN-${(beneData.beneficiary_id || Date.now()).toString().slice(-8).toUpperCase()}`;
@@ -631,10 +637,25 @@ function BeneficiaryWorkspaceContent() {
 
         setActiveStep(1);
       } else {
-        throw new Error(res.message || "Verification failed");
+        const errorDetail = res?.detail;
+        let msg = "Penny Drop Verification failed with bank gateway.";
+        if (typeof errorDetail === "string") {
+          msg = errorDetail;
+        } else if (errorDetail && typeof errorDetail === "object") {
+          if (errorDetail.code === "BENEFICIARY_ALREADY_EXISTS") {
+            const existing = errorDetail.existing_beneficiary;
+            const holder = existing?.registered_name_in_bank || existing?.account_holder_name || "Existing Beneficiary";
+            msg = `Account already registered for this customer. Registered Holder: ${holder}`;
+          } else {
+            msg = errorDetail.message || errorDetail.error || res?.message || msg;
+          }
+        } else if (res?.message) {
+          msg = res.message;
+        }
+        throw new Error(msg);
       }
     } catch (err: any) {
-      const errMsg = err?.message || "Penny Drop Verification Failed. Please try again.";
+      const errMsg = err?.message || "Penny Drop Verification Failed. Please check bank details and try again.";
       setVerificationError(errMsg);
       setResultModalSuccess(false);
       setResultModalData({ error: errMsg });

@@ -90,7 +90,19 @@ async def resolve_retailer_context(
             )
             ret_model = (await db.execute(ret_stmt)).scalars().first()
 
-        # 2. Search RetailerVerificationModel if not found in RetailerModel
+        # 2. Search RetailerContactModel by mobile to find RetailerModel
+        if not ret_model and clean_mobile:
+            mob_vars = [clean_mobile, f"91{clean_mobile}"]
+            if clean_mobile.startswith("91") and len(clean_mobile) == 10:
+                mob_vars.append(clean_mobile[2:])
+            ret_contact_stmt = (
+                select(RetailerModel)
+                .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                .where(RetailerContactModel.mobile.in_(mob_vars))
+            )
+            ret_model = (await db.execute(ret_contact_stmt)).scalars().first()
+
+        # 3. Search RetailerVerificationModel if not found in RetailerModel
         if not ret_model:
             verif_conds = []
             if r_uuid:
@@ -105,7 +117,7 @@ async def resolve_retailer_context(
                 verif_stmt = select(RetailerVerificationModel).where(or_(*verif_conds)).order_by(desc(RetailerVerificationModel.submitted_at))
                 verif = (await db.execute(verif_stmt)).scalars().first()
 
-        # 3. Default fallback to primary active merchant in DB (RET-10928 / Sathus Pay Store)
+        # 4. Default fallback to primary active merchant in DB (RET-10928 / Sathus Pay Store)
         if not ret_model and not verif:
             ret_stmt = select(RetailerModel).where(RetailerModel.status == "ACTIVE").order_by(RetailerModel.created_date.desc())
             ret_model = (await db.execute(ret_stmt)).scalars().first()

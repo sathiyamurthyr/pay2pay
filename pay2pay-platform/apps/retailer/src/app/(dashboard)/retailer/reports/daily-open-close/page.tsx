@@ -2,12 +2,12 @@
 
 import React from "react";
 import { AppShell } from "@/app-shell/AppShell";
-import DailyOpenCloseReportPage from "@/app/(dashboard)/admin/reports/daily-open-close/page";
+import { RetailerLedgerReport } from "@/modules/reports/RetailerLedgerReport";
 
 export default function RetailerDailyOpenCloseReportPage() {
   return (
     <AppShell pageTitle="Retailer Portal — Daily Open & Close Reconciliation" activePath="/retailer/reports/daily-open-close">
-      <DailyOpenCloseReportPage />
+      <RetailerLedgerReport />
     </AppShell>
   );
 }

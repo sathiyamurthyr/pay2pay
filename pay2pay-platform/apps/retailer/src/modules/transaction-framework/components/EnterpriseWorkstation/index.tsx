@@ -6,6 +6,7 @@ import { WorkstationStep4 } from "./WorkstationStep4";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { PricingEvaluationResult, RuleEngineService } from "../../services/RuleEngineAdapter";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export interface EnterpriseWorkstationProps {
   amount: number;
@@ -40,6 +41,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [selectedMode, setSelectedMode] = useState<"IMPS" | "NEFT" | "RTGS" | "UPI">("IMPS");
+  const retailerWallet = useRetailerStore((state) => state.wallet);
 
   // Dynamic Rule Engine Evaluation with Transaction Mode
   const pricingResult =
@@ -49,7 +51,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
       amount,
       transactionMode: selectedMode,
       customerId: customer?.id,
-      walletBalance: customer?.walletBalance ?? 0,
+      walletBalance: retailerWallet.mainBalance ?? 235750.00,
     });
 
   useEffect(() => {
@@ -79,18 +81,17 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
     <Box
       sx={{
         width: "100%",
-        height: "calc(100vh - 56px)",
-        maxHeight: "calc(100vh - 56px)",
+        minHeight: "calc(100vh - 56px)",
         bgcolor: "#0B132B",
         color: "#FFFFFF",
-        overflow: "hidden",
+        overflowY: "auto",
         display: "flex",
         flexDirection: "column",
         p: 1.5,
       }}
     >
-      {/* ZERO-SCROLL WORKSTATION BODY */}
-      <Box sx={{ flex: 1, height: "100%", overflow: "hidden" }}>
+      {/* WORKSTATION BODY */}
+      <Box sx={{ flex: 1, width: "100%" }}>
         {currentStep === 1 && (
           <WorkstationStep1
             customer={customer}

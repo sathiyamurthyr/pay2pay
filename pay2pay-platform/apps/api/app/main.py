@@ -124,6 +124,8 @@ app.include_router(financial_config.router, prefix=settings.API_V1_STR)
 app.include_router(settlement_intake.router, prefix=settings.API_V1_STR)
 app.include_router(settlement_processing.router, prefix=settings.API_V1_STR)
 app.include_router(wallet_ledger.router, prefix=settings.API_V1_STR)
+app.include_router(wallet_ledger.router, prefix="/api")
+app.include_router(wallet_ledger.router, prefix="")
 app.include_router(payouts.router, prefix=settings.API_V1_STR)
 app.include_router(reporting.router, prefix=settings.API_V1_STR)
 app.include_router(operations.router, prefix=settings.API_V1_STR)
@@ -150,11 +152,23 @@ app.include_router(epic014_beneficiary_router.router, prefix=settings.API_V1_STR
 app.include_router(customer_mpin.router, prefix=settings.API_V1_STR)
 from app.presentation.api.v1 import reverse_penny_drop_router
 from app.presentation.api.v1 import bulkpe_payout_router
+from app.presentation.api.v1 import wowpe_payout_router
+from app.presentation.api.v1 import utkaldigital_payout_router
+from app.presentation.api.v1 import admin_payout_routing_router
 from app.presentation.api.v1 import admin_error_management_router
 from app.presentation.api.v1 import enterprise_auth_router
+from app.presentation.api.v1 import transaction_router
 app.include_router(beneficiary_verification.router, prefix=settings.API_V1_STR)
 app.include_router(reverse_penny_drop_router.router, prefix=settings.API_V1_STR)
 app.include_router(bulkpe_payout_router.router, prefix=settings.API_V1_STR)
+app.include_router(wowpe_payout_router.router, prefix=settings.API_V1_STR)
+app.include_router(wowpe_payout_router.notify_router)
+app.include_router(utkaldigital_payout_router.router, prefix=settings.API_V1_STR)
+app.include_router(utkaldigital_payout_router.router, prefix="/api")
+app.include_router(admin_payout_routing_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_payout_routing_router.router, prefix="/api")
+app.include_router(transaction_router.router, prefix=settings.API_V1_STR)
+app.include_router(transaction_router.router, prefix="/api")
 app.include_router(enterprise_auth_router.router, prefix=settings.API_V1_STR)
 app.include_router(enterprise_auth_router.router, prefix="/api")
 app.include_router(enterprise_auth_router.router, prefix="")
@@ -171,6 +185,7 @@ from app.presentation.api.v1 import report_center_router
 from app.presentation.api.v1 import progressive_onboarding_router
 from app.presentation.api.v1 import admin_verification_router
 from app.presentation.api.v1 import announcements_router
+from app.presentation.api.v1 import admin_retailer_controller
 
 app.include_router(announcements_router.router, prefix=settings.API_V1_STR)
 app.include_router(announcements_router.router, prefix="/api")
@@ -184,15 +199,17 @@ app.include_router(retailer_verification_router.router, prefix=settings.API_V1_S
 app.include_router(company_onboarding_router.router, prefix=settings.API_V1_STR)
 app.include_router(admin_reports_router.router, prefix=settings.API_V1_STR)
 app.include_router(portal_reports_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_retailer_controller.router, prefix=settings.API_V1_STR)
+app.include_router(admin_retailer_controller.router, prefix="/api")
+app.include_router(admin_retailer_controller.router, prefix="")
 app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)
-app.include_router(progressive_onboarding_router.router, prefix="")
-app.include_router(progressive_onboarding_router.router, prefix="/api")
-app.include_router(admin_verification_router.router, prefix=settings.API_V1_STR)
-app.include_router(retailer_verification_router.router, prefix=settings.API_V1_STR)
-app.include_router(company_onboarding_router.router, prefix=settings.API_V1_STR)
-app.include_router(admin_reports_router.router, prefix=settings.API_V1_STR)
+from app.presentation.api.v1 import retailer_profile_router
+app.include_router(retailer_profile_router.router, prefix=settings.API_V1_STR)
+app.include_router(retailer_profile_router.router, prefix="/api")
+app.include_router(retailer_profile_router.router, prefix="")
+
 
 
 @app.get("/health", tags=["Health"])

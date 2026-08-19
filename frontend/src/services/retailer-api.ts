@@ -641,7 +641,7 @@ export const retailerApi = {
     // 2. Try primary backend API endpoint GET /customers/?query=
     try {
       const res = await apiClient.get(`/customers/?query=${encodeURIComponent(normalizedQuery)}`);
-      if (res.status === 200 && res.data && Array.isArray(res.data.data)) {
+      if (res.status === 200 && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
         const rawList = res.data.data;
         const mapped = rawList.map((c: any) => ({
           public_id: c.public_id || c.id || `c-${Date.now()}`,
@@ -1315,10 +1315,21 @@ export const retailerApi = {
       return resData;
     } catch (err: any) {
       if (err.response && err.response.data) {
-        return err.response.data;
+        const d = err.response.data;
+        const msg = typeof d.detail === "string"
+          ? d.detail
+          : (d.detail?.message || d.message || "Penny Drop verification failed");
+        return {
+          status: "FAILED",
+          verification_status: "FAILED",
+          message: msg,
+          detail: d.detail,
+          raw_response: d,
+        };
       }
       return {
-        status: "ERROR",
+        status: "FAILED",
+        verification_status: "FAILED",
         message: err?.message || "Failed to connect to Cashfree V2 verification server"
       };
     }

@@ -99,7 +99,7 @@ function HourlyBarChart({ trend }: { trend: { hour: string; volume: number }[] }
 
 /* ── Main Page ──────────────────────────────────────────────────── */
 export default function SettlementDashboardPage() {
-  const [metrics, setMetrics] = useState(MOCK_METRICS);
+  const [metrics, setMetrics] = useState(ZERO_SETTLEMENT_METRICS);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -108,9 +108,9 @@ export default function SettlementDashboardPage() {
     try {
       setRefreshing(true);
       const res = await api.get("/api/v1/settlements/dashboard/metrics");
-      setMetrics(res.data || MOCK_METRICS);
+      setMetrics(res.data || ZERO_SETTLEMENT_METRICS);
     } catch {
-      setMetrics(MOCK_METRICS);
+      setMetrics(ZERO_SETTLEMENT_METRICS);
     } finally {
       setLoading(false);
       setRefreshing(false);

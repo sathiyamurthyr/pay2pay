@@ -195,6 +195,49 @@ class CashfreeVerificationAdapter(BaseVerificationVendorAdapter):
         )
 
 
+class WowPeVerificationAdapter(BaseVerificationVendorAdapter):
+    """Official WowPe Account Validation Adapter."""
+
+    async def verify_bank_account(
+        self,
+        account_number: str,
+        ifsc_code: str,
+        account_holder_name: str,
+        mobile: Optional[str] = None,
+        correlation_id: Optional[str] = None
+    ) -> VerificationVendorResult:
+        from app.application.wowpe_client import WowPeApiClient
+
+        start_time = time.time()
+        res = await WowPeApiClient.verify_bank_account(
+            account_number=account_number,
+            ifsc_code=ifsc_code,
+            mobile=mobile or "9876543210",
+            client_order_id=correlation_id
+        )
+        latency_ms = round(res.get("latency_ms", (time.time() - start_time) * 1000), 2)
+        is_success = res.get("success", False)
+        bank_name = res.get("beneficiary_name") or (account_holder_name if is_success else None)
+        score = calculate_name_similarity(account_holder_name, bank_name or "") if bank_name else 0.0
+        
+        match_status = "EXACT_MATCH" if score >= 90 else ("PARTIAL_MATCH" if score >= 50 else "NO_MATCH")
+
+        return VerificationVendorResult(
+            success=is_success,
+            vendor_code="WOWPE",
+            vendor_ref_id=res.get("order_id") or f"WOW-VER-{uuid.uuid4().hex[:8].upper()}",
+            http_status=res.get("http_status", 200),
+            account_exists=is_success,
+            name_at_bank=bank_name,
+            name_match_score=score,
+            name_match_status=match_status,
+            utr=res.get("utr") or f"WOW{res.get('order_id', '')}",
+            latency_ms=latency_ms,
+            raw_response=res.get("response_payload", {}),
+            error_message=None if is_success else res.get("message", "WowPe Account Verification Failed")
+        )
+
+
 class InternalSwitchVerificationAdapter(BaseVerificationVendorAdapter):
     """Internal Backup Verification Switch Adapter."""
 
@@ -231,9 +274,11 @@ class VendorAdapterRegistry:
 
     _adapters: Dict[str, BaseVerificationVendorAdapter] = {
         "CASHFREE": CashfreeVerificationAdapter(),
+        "WOWPE": WowPeVerificationAdapter(),
         "INTERNAL_SWITCH": InternalSwitchVerificationAdapter()
     }
 
     @classmethod
     def get_adapter(cls, vendor_code: str = "CASHFREE") -> BaseVerificationVendorAdapter:
         return cls._adapters.get(vendor_code.upper(), cls._adapters["CASHFREE"])
+

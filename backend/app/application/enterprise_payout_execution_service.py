@@ -11,11 +11,9 @@ from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel, PayoutDoubleEntryLedgerModel,
     PayoutAuditLogModel, PayoutNotificationLogModel, PayoutTransactionStatus
 )
-from app.infrastructure.db.models import (
-    RetailerModel, RetailerWalletModel
-)
+from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
 from app.infrastructure.db.customer_models import CustomerModel
-from app.infrastructure.db.beneficiary_models import BeneficiaryModel
+from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
 from app.application.mpin_service import CustomerMPINService
 from app.application.bulkpe_client import BulkPeApiClient
 from app.application.error_management_service import ErrorManagementService
@@ -52,21 +50,19 @@ STATUS_DESCRIPTIONS: Dict[PayoutTransactionStatus, str] = {
 }
 
 
-from app.core.transaction_id_generator import generate_transaction_number
+from app.application.transaction_reference_service import TransactionReferenceService
 
 
-async def generate_unique_payout_transaction_number(db: AsyncSession, service_prefix: str = "PO") -> str:
+async def generate_unique_payout_transaction_number(db: AsyncSession, tenant_id: Optional[uuid.UUID] = None, vendor_code: str = "WOWPE") -> str:
     """
-    Generates a unique transaction number with format:
-    [Service Prefix][DDMMYY][5-digit Random Integer]
-    Example: PO09082649201 (e.g. PO + 090826 + 5-digit random integer)
-    Validates uniqueness against EnterprisePayoutTransactionModel in DB before returning.
+    Generates an authoritative, collision-free transaction reference with format:
+    <VENDOR_FIRST_CHAR><DD><MM><YY><HH><MI><5_DIGIT_UNIQUE_NUMBER>
+    Example: W170826093612345
     """
-    return await generate_transaction_number(
+    return await TransactionReferenceService.generate_unique_reference(
         db=db,
-        service_prefix=service_prefix,
-        model_class=EnterprisePayoutTransactionModel,
-        column_name="transaction_number"
+        tenant_id=tenant_id,
+        vendor_code=vendor_code
     )
 
 
@@ -223,7 +219,7 @@ class EnterprisePayoutExecutionService:
         # STEP 3: BEGIN DB TRANSACTION & Create Transaction Record (INITIATED)
         # =========================================================================
         tx_id = uuid.uuid4()
-        tx_number = await generate_unique_payout_transaction_number(db, service_prefix="PO")
+        tx_number = await generate_unique_payout_transaction_number(db, tenant_id=tenant_id, vendor_code="WOWPE")
 
         tx_obj = EnterprisePayoutTransactionModel(
             public_id=tx_id,
@@ -348,39 +344,153 @@ class EnterprisePayoutExecutionService:
         logger.info(f"STEP 7 PASSED: Database TX committed for {tx_number}. Pre-Call consistency achieved.")
 
         # =========================================================================
-        # STEP 8: Call Vendor API (BulkPe / Cashfree)
+        # STEP 8: Call Vendor API (WowPe / BulkPe / Utkal Digital Dynamic Routing)
         # =========================================================================
+        from app.application.wowpe_client import WowPeApiClient
+        from app.application.bulkpe_client import BulkPeApiClient
+        from app.application.utkaldigital_client import UtkalDigitalApiClient
+        from app.application.payout_routing_service import PayoutRoutingService
+
+        active_provider = await PayoutRoutingService.get_active_primary_provider(db, tenant_id)
+        policy = await PayoutRoutingService.get_routing_policy(db, tenant_id)
+
+        # Resolve Beneficiary Bank Account
+        stmt_bank = select(BeneficiaryBankAccountModel).where(
+            BeneficiaryBankAccountModel.beneficiary_id == beneficiary_id,
+            BeneficiaryBankAccountModel.is_deleted == False
+        ).order_by(desc(BeneficiaryBankAccountModel.is_primary), desc(BeneficiaryBankAccountModel.created_date))
+        bank_obj = (await db.execute(stmt_bank)).scalars().first()
+
+        acc_num = (bank_obj.account_number if bank_obj else None) or getattr(bene_obj, "account_number", "0630104000156974")
+        ifsc = (bank_obj.ifsc_code if bank_obj else None) or getattr(bene_obj, "ifsc_code", "IBKL0000630")
+        acc_holder = (bank_obj.account_holder_name if bank_obj else None) or getattr(bene_obj, "full_name", "Sathiya Murthy R")
+        cust_mobile = getattr(cust_obj, "mobile_number", "9176669426")
+        cust_name = getattr(cust_obj, "full_name", "Sathiya Murthy")
+        bank_name = (bank_obj.bank_name if bank_obj else None) or getattr(bene_obj, "bank_name", "IDBI Bank")
+
         vendor_payload = {
             "merchant_ref": tx_number,
-            "account_number": bene_obj.account_number if hasattr(bene_obj, "account_number") else "918273645019",
-            "ifsc": bene_obj.ifsc_code if hasattr(bene_obj, "ifsc_code") else "SBIN0001234",
+            "account_number": acc_num,
+            "ifsc": ifsc,
             "amount": amount,
             "mode": mode
         }
 
-        # Log vendor API request
-        await ErrorManagementService.log_vendor_api(
-            db=db,
-            vendor_name="BulkPe",
-            vendor_url="https://api.bulkpe.in/payout",
-            http_method="POST",
-            headers={"Content-Type": "application/json"},
-            request_json=vendor_payload,
-            response_json={},
-            http_status=0,
-            correlation_id=f"CORR-{tx_number}"
-        )
+        executed_vendor = active_provider
+        vendor_resp = None
 
-        # Execute Vendor API call
-        vendor_resp = await BulkPeApiClient.initiate_payout(
-            merchant_ref=tx_number,
-            account_number=getattr(bene_obj, "account_number", "918273645019"),
-            ifsc_code=getattr(bene_obj, "ifsc_code", "SBIN0001234"),
-            account_holder=getattr(bene_obj, "full_name", "Beneficiary Holder"),
-            amount=amount,
-            mode=mode
-        )
-        logger.info(f"STEP 8 VENDOR RESPONSE: {vendor_resp}")
+        if active_provider == "UTKALDIGITAL":
+            vendor_url = "https://singleptxn.utkaldigital.co.in/ProcessRequest/transaction"
+            await ErrorManagementService.log_vendor_api(
+                db=db,
+                vendor_name="UtkalDigital",
+                vendor_url=vendor_url,
+                http_method="POST",
+                headers={"Content-Type": "application/json"},
+                request_json=vendor_payload,
+                response_json={},
+                http_status=0,
+                correlation_id=f"CORR-{tx_number}"
+            )
+            vendor_resp = await UtkalDigitalApiClient.initiate_payout(
+                merchant_ref=tx_number,
+                account_number=acc_num,
+                ifsc_code=ifsc,
+                account_holder=acc_holder,
+                amount=amount,
+                sender_mobile=cust_mobile,
+                sender_name=cust_name,
+                bank_name=bank_name,
+                bank_code="MAGNI",
+                service_id="27"
+            )
+            if vendor_resp.get("status") == "FAILED" and policy.auto_failover_enabled:
+                logger.warning(f"[PAYOUT FAILOVER] Utkal Digital returned failure: {vendor_resp.get('message')}. Failing over to WowPe.")
+                wowpe_resp = await WowPeApiClient.initiate_payout(
+                    merchant_ref=f"FO-{tx_number}",
+                    account_number=acc_num,
+                    ifsc_code=ifsc,
+                    account_holder=acc_holder,
+                    amount=amount,
+                    mode=mode,
+                    mobile=cust_mobile
+                )
+                if wowpe_resp.get("status") in ("SUCCESS", "PENDING"):
+                    vendor_resp = wowpe_resp
+                    executed_vendor = "WowPe"
+        elif active_provider == "WOWPE":
+            vendor_url = "https://api.wowpe.in/api/api/api-module/payout/payout"
+            await ErrorManagementService.log_vendor_api(
+                db=db,
+                vendor_name="WowPe",
+                vendor_url=vendor_url,
+                http_method="POST",
+                headers={"Content-Type": "application/json"},
+                request_json=vendor_payload,
+                response_json={},
+                http_status=0,
+                correlation_id=f"CORR-{tx_number}"
+            )
+            vendor_resp = await WowPeApiClient.initiate_payout(
+                merchant_ref=tx_number,
+                account_number=acc_num,
+                ifsc_code=ifsc,
+                account_holder=acc_holder,
+                amount=amount,
+                mode=mode,
+                mobile=cust_mobile
+            )
+            if vendor_resp.get("status") == "FAILED" and policy.auto_failover_enabled:
+                logger.warning(f"[PAYOUT FAILOVER] WowPe returned failure: {vendor_resp.get('message')}. Failing over to BulkPe.")
+                bulkpe_resp = await BulkPeApiClient.initiate_payout(
+                    merchant_ref=f"FO-{tx_number}",
+                    account_number=acc_num,
+                    ifsc_code=ifsc,
+                    account_holder=acc_holder,
+                    amount=amount,
+                    mode=mode,
+                    remarks=f"Failover Payout {tx_number}"
+                )
+                if bulkpe_resp.get("status") in ("SUCCESS", "PENDING"):
+                    vendor_resp = bulkpe_resp
+                    executed_vendor = "BulkPe"
+        else:
+            vendor_url = "https://api.bulkpe.in/payout"
+            await ErrorManagementService.log_vendor_api(
+                db=db,
+                vendor_name="BulkPe",
+                vendor_url=vendor_url,
+                http_method="POST",
+                headers={"Content-Type": "application/json"},
+                request_json=vendor_payload,
+                response_json={},
+                http_status=0,
+                correlation_id=f"CORR-{tx_number}"
+            )
+            vendor_resp = await BulkPeApiClient.initiate_payout(
+                merchant_ref=tx_number,
+                account_number=acc_num,
+                ifsc_code=ifsc,
+                account_holder=acc_holder,
+                amount=amount,
+                mode=mode
+            )
+            if vendor_resp.get("status") == "FAILED" and policy.auto_failover_enabled:
+                logger.warning(f"[PAYOUT FAILOVER] BulkPe returned failure: {vendor_resp.get('message')}. Failing over to WowPe.")
+                wowpe_resp = await WowPeApiClient.initiate_payout(
+                    merchant_ref=f"FO-{tx_number}",
+                    account_number=acc_num,
+                    ifsc_code=ifsc,
+                    account_holder=acc_holder,
+                    amount=amount,
+                    mode=mode,
+                    mobile=cust_mobile
+                )
+                if wowpe_resp.get("status") in ("SUCCESS", "PENDING"):
+                    vendor_resp = wowpe_resp
+                    executed_vendor = "WowPe"
+
+        logger.info(f"STEP 8 {executed_vendor} VENDOR RESPONSE: {vendor_resp}")
 
         # Refresh transaction lock in DB session context
         stmt_ref = select(EnterprisePayoutTransactionModel).where(
@@ -389,12 +499,13 @@ class EnterprisePayoutExecutionService:
         res_ref = await db.execute(stmt_ref)
         cur_tx = res_ref.scalars().first()
 
+        cur_tx.vendor_name = executed_vendor
         cur_tx.status = PayoutTransactionStatus.VENDOR_REQUEST_SENT
         cur_tx.status_description = STATUS_DESCRIPTIONS[PayoutTransactionStatus.VENDOR_REQUEST_SENT]
         await db.flush()
 
         status_str = str(vendor_resp.get("status", "")).upper()
-        v_ref = vendor_resp.get("vendor_tx_id") or vendor_resp.get("vendor_ref") or f"BLK-{tx_number}"
+        v_ref = vendor_resp.get("vendor_tx_id") or vendor_resp.get("order_id") or vendor_resp.get("vendor_ref") or f"{executed_vendor}-{tx_number}"
 
         if status_str == "SUCCESS":
             cur_tx.status = PayoutTransactionStatus.SUCCESS
@@ -712,10 +823,24 @@ class EnterprisePayoutExecutionService:
                 )
                 continue
 
-            # Poll Vendor Status API
-            v_status = await BulkPeApiClient.check_payout_status(
-                tx.vendor_ref or tx.transaction_number
-            )
+            # Poll Vendor Status API (Utkal Digital, WowPe or BulkPe)
+            from app.application.wowpe_client import WowPeApiClient
+            from app.application.bulkpe_client import BulkPeApiClient
+            from app.application.utkaldigital_client import UtkalDigitalApiClient
+            
+            v_name_upper = str(tx.vendor_name or "").upper()
+            if "UTKAL" in v_name_upper:
+                v_status = await UtkalDigitalApiClient.check_payout_status(
+                    request_id=tx.vendor_ref or tx.transaction_number
+                )
+            elif "WOWPE" in v_name_upper:
+                v_status = await WowPeApiClient.check_payout_status(
+                    tx.vendor_ref or tx.transaction_number
+                )
+            else:
+                v_status = await BulkPeApiClient.check_payout_status(
+                    tx.vendor_ref or tx.transaction_number
+                )
             status_str = str(v_status.get("status", "")).upper()
 
             if status_str == "SUCCESS":

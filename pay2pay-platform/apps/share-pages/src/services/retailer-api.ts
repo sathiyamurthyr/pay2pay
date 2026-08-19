@@ -641,7 +641,7 @@ export const retailerApi = {
     // 2. Try primary backend API endpoint GET /customers/?query=
     try {
       const res = await apiClient.get(`/customers/?query=${encodeURIComponent(normalizedQuery)}`);
-      if (res.status === 200 && res.data && Array.isArray(res.data.data)) {
+      if (res.status === 200 && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
         const rawList = res.data.data;
         const mapped = rawList.map((c: any) => ({
           public_id: c.public_id || c.id || `c-${Date.now()}`,

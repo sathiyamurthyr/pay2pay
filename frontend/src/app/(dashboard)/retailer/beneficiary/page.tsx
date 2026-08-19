@@ -631,10 +631,25 @@ function BeneficiaryWorkspaceContent() {
 
         setActiveStep(1);
       } else {
-        throw new Error(res.message || "Verification failed");
+        const errorDetail = res?.detail;
+        let msg = "Penny Drop Verification failed with bank gateway.";
+        if (typeof errorDetail === "string") {
+          msg = errorDetail;
+        } else if (errorDetail && typeof errorDetail === "object") {
+          if (errorDetail.code === "BENEFICIARY_ALREADY_EXISTS") {
+            const existing = errorDetail.existing_beneficiary;
+            const holder = existing?.registered_name_in_bank || existing?.account_holder_name || "Existing Beneficiary";
+            msg = `Account already registered for this customer. Registered Holder: ${holder}`;
+          } else {
+            msg = errorDetail.message || errorDetail.error || res?.message || msg;
+          }
+        } else if (res?.message) {
+          msg = res.message;
+        }
+        throw new Error(msg);
       }
     } catch (err: any) {
-      const errMsg = err?.message || "Penny Drop Verification Failed. Please try again.";
+      const errMsg = err?.message || "Penny Drop Verification Failed. Please check bank details and try again.";
       setVerificationError(errMsg);
       setResultModalSuccess(false);
       setResultModalData({ error: errMsg });

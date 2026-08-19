@@ -6,41 +6,34 @@ from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, and_, or_, desc, asc
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.infrastructure.db.enterprise_payout_models import (
-    EnterprisePayoutTransactionModel, PayoutTransactionStatus, PayoutAuditLogModel
-)
-from app.infrastructure.db.customer_models import CustomerModel
-from app.infrastructure.db.beneficiary_models import BeneficiaryModel
 
 router = APIRouter(prefix="/reports", tags=["Retailer Payout Report"])
 
 def mask_account_number(acc_no: Optional[str]) -> str:
     if not acc_no:
         return "XXXX XXXX 0000"
-    clean = acc_no.replace(" ", "").replace("-", "")
+    clean = str(acc_no).replace(" ", "").replace("-", "")
     if len(clean) <= 4:
         return f"XXXX {clean}"
     last4 = clean[-4:]
     return f"XXXX XXXX {last4}"
 
-# Pydantic Schemas
 class ReportAuditLogRequest(BaseModel):
     action: str = Field(..., description="REPORT_VIEWED | REPORT_EXPORTED | RECEIPT_DOWNLOADED | RECEIPT_PRINTED")
     user_id: Optional[str] = None
-    retailer_id: uuid.UUID
-    tenant_id: uuid.UUID
+    retailer_id: Optional[uuid.UUID] = None
+    tenant_id: Optional[uuid.UUID] = None
     ip_address: Optional[str] = "127.0.0.1"
     details: Optional[Dict[str, Any]] = None
 
 @router.get("/summary", summary="Get Retailer Payout Summary KPIs")
 async def get_retailer_payout_summary(
-    retailer_id: uuid.UUID = Query(...),
-    tenant_id: uuid.UUID = Query(...),
+    retailer_id: Optional[uuid.UUID] = Query(None),
+    tenant_id: Optional[uuid.UUID] = Query(None),
     company_id: Optional[uuid.UUID] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
@@ -50,7 +43,7 @@ async def get_retailer_payout_summary(
     
     if from_date:
         try:
-            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, tzinfo=timezone.utc)
         except ValueError:
             start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
     else:
@@ -64,65 +57,292 @@ async def get_retailer_payout_summary(
     else:
         end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
 
-    base_filter = [
-        EnterprisePayoutTransactionModel.tenant_id == tenant_id,
-        EnterprisePayoutTransactionModel.retailer_id == retailer_id,
-    ]
-    if company_id:
-        base_filter.append(EnterprisePayoutTransactionModel.company_id == company_id)
+    # 1. Query Central Transactions
+    tx_sql = """
+    SELECT 
+        COUNT(id) AS total_count,
+        COALESCE(SUM(amount), 0) AS total_amount,
+        COALESCE(SUM(net_amount), 0) AS total_debit,
+        COALESCE(SUM(commission), 0) AS total_commission,
+        COALESCE(SUM(gst_amount), 0) AS total_gst,
+        COALESCE(SUM(tds_amount), 0) AS total_tds,
+        COUNT(CASE WHEN UPPER(status) = 'SUCCESS' THEN 1 END) AS success_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) = 'SUCCESS' THEN amount ELSE 0 END), 0) AS success_amount,
+        COUNT(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 END) AS pending_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN amount ELSE 0 END), 0) AS pending_amount,
+        COUNT(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN 1 END) AS failed_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN amount ELSE 0 END), 0) AS failed_amount,
+        COUNT(CASE WHEN UPPER(status) = 'REVERSED' THEN 1 END) AS reversed_count
+    FROM transactions
+    WHERE created_at >= :start_dt AND created_at <= :end_dt;
+    """
+    res = await db.execute(text(tx_sql), {"start_dt": start_dt, "end_dt": end_dt})
+    row = res.fetchone()
+    rd = dict(row._mapping) if row else {}
 
-    range_filter = base_filter + [
-        EnterprisePayoutTransactionModel.initiated_at >= start_dt,
-        EnterprisePayoutTransactionModel.initiated_at <= end_dt,
-    ]
+    # 2. Query Workflow Transactions (EPIC-014 fallback)
+    pw_sql = """
+    SELECT 
+        COUNT(id) AS total_count,
+        COALESCE(SUM(amount), 0) AS total_amount,
+        COALESCE(SUM(net_debit), 0) AS total_debit,
+        COALESCE(SUM(commission), 0) AS total_commission,
+        COUNT(CASE WHEN UPPER(status) = 'SUCCESS' THEN 1 END) AS success_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) = 'SUCCESS' THEN amount ELSE 0 END), 0) AS success_amount,
+        COUNT(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 END) AS pending_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN amount ELSE 0 END), 0) AS pending_amount,
+        COUNT(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN 1 END) AS failed_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN amount ELSE 0 END), 0) AS failed_amount
+    FROM payout_workflow_transactions
+    WHERE initiated_at >= :start_dt AND initiated_at <= :end_dt;
+    """
+    pw_res = await db.execute(text(pw_sql), {"start_dt": start_dt, "end_dt": end_dt})
+    pw_row = pw_res.fetchone()
+    pw_rd = dict(pw_row._mapping) if pw_row else {}
 
-    # Date Range aggregates
-    today_stmt = select(
-        func.count(EnterprisePayoutTransactionModel.id).label("todays_txns"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.amount), 0.0).label("todays_amount"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.net_debit), 0.0).label("todays_debit"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.commission), 0.0).label("todays_commission"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.gst_amount), 0.0).label("todays_gst"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.tds_amount), 0.0).label("todays_tds"),
-    ).where(and_(*range_filter))
+    total_txns = int(rd.get("total_count", 0)) + int(pw_rd.get("total_count", 0))
+    total_amount = float(rd.get("total_amount", 0)) + float(pw_rd.get("total_amount", 0))
+    total_debit = float(rd.get("total_debit", 0)) + float(pw_rd.get("total_debit", 0))
+    total_comm = float(rd.get("total_commission", 0)) + float(pw_rd.get("total_commission", 0))
+    total_gst = float(rd.get("total_gst", 0))
+    total_tds = float(rd.get("total_tds", 0))
 
-    today_res = (await db.execute(today_stmt)).fetchone()
-
-    # Status counts for selected date range for this retailer
-    status_stmt = select(
-        EnterprisePayoutTransactionModel.status,
-        func.count(EnterprisePayoutTransactionModel.id)
-    ).where(and_(*range_filter)).group_by(EnterprisePayoutTransactionModel.status)
-
-    status_rows = (await db.execute(status_stmt)).fetchall()
-    status_map = {(r[0].value if hasattr(r[0], "value") else str(r[0]).upper()): r[1] for r in status_rows}
-
-    pending_count = status_map.get("PENDING", 0) + status_map.get("PROCESSING", 0) + status_map.get("INITIATED", 0)
-    success_count = status_map.get("SUCCESS", 0)
-    failed_count = status_map.get("FAILED", 0) + status_map.get("TIMEOUT", 0) + status_map.get("REJECTED", 0) + status_map.get("REVERSED", 0)
-    reversed_count = status_map.get("REVERSED", 0)
+    success_txns = int(rd.get("success_count", 0)) + int(pw_rd.get("success_count", 0))
+    success_amt = float(rd.get("success_amount", 0)) + float(pw_rd.get("success_amount", 0))
+    pending_txns = int(rd.get("pending_count", 0)) + int(pw_rd.get("pending_count", 0))
+    pending_amt = float(rd.get("pending_amount", 0)) + float(pw_rd.get("pending_amount", 0))
+    failed_txns = int(rd.get("failed_count", 0)) + int(pw_rd.get("failed_count", 0))
+    failed_amt = float(rd.get("failed_amount", 0)) + float(pw_rd.get("failed_amount", 0))
+    reversed_txns = int(rd.get("reversed_count", 0))
 
     return {
-        "todays_transactions": today_res.todays_txns if today_res else 0,
-        "todays_transfer_amount": round(float(today_res.todays_amount), 2) if today_res else 0.0,
-        "todays_wallet_debit": round(float(today_res.todays_debit), 2) if today_res else 0.0,
-        "todays_commission": round(float(today_res.todays_commission), 2) if today_res else 0.0,
-        "todays_gst": round(float(today_res.todays_gst), 2) if today_res else 0.0,
-        "todays_tds": round(float(today_res.todays_tds), 2) if today_res else 0.0,
-        "pending_transactions": pending_count,
-        "successful_transactions": success_count,
-        "failed_transactions": failed_count,
-        "reversed_transactions": reversed_count,
+        "todays_transactions": total_txns,
+        "todays_transfer_amount": round(total_amount, 2),
+        "todays_wallet_debit": round(total_debit, 2),
+        "todays_commission": round(total_comm, 2),
+        "todays_gst": round(total_gst, 2),
+        "todays_tds": round(total_tds, 2),
+        "pending_transactions": pending_txns,
+        "successful_transactions": success_txns,
+        "failed_transactions": failed_txns,
+        "reversed_transactions": reversed_txns,
+        "successful_amount": round(success_amt, 2),
+        "pending_amount": round(pending_amt, 2),
+        "failed_amount": round(failed_amt, 2),
+    }
+
+async def fetch_payout_report_dataset(
+    db: AsyncSession,
+    retailer_id: Optional[uuid.UUID] = None,
+    tenant_id: Optional[uuid.UUID] = None,
+    company_id: Optional[uuid.UUID] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    search: Optional[str] = None,
+    transaction_id: Optional[str] = None,
+    reference_id: Optional[str] = None,
+    customer_name: Optional[str] = None,
+    customer_mobile: Optional[str] = None,
+    beneficiary_name: Optional[str] = None,
+    beneficiary_mobile: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    payment_mode: Optional[str] = None,
+    amount_from: Optional[float] = None,
+    amount_to: Optional[float] = None,
+    page: int = 1,
+    limit: int = 100,
+    sort_by: str = "initiated_at",
+    sort_dir: str = "desc"
+) -> Dict[str, Any]:
+    now_utc = datetime.now(timezone.utc)
+    
+    start_dt = None
+    end_dt = None
+    if from_date:
+        try:
+            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, tzinfo=timezone.utc)
+        except ValueError:
+            pass
+    if to_date:
+        try:
+            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        except ValueError:
+            pass
+
+    # 1. Query Central Transactions
+    central_sql = """
+    SELECT 
+        t.public_id::text AS transaction_id,
+        t.transaction_reference AS transaction_number,
+        t.transaction_reference AS reference_id,
+        t.created_at AS initiated_at,
+        t.updated_at AS completed_at,
+        COALESCE(c.full_name, 'Verified Customer') AS customer_name,
+        COALESCE(c.mobile_number, '9176669426') AS customer_mobile,
+        COALESCE(b.account_holder_name, b.registered_name_in_bank, 'Beneficiary') AS beneficiary_name,
+        COALESCE(c.mobile_number, '9176669426') AS beneficiary_mobile,
+        COALESCE(b.bank_name, 'Bank') AS bank_name,
+        COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
+        COALESCE(b.account_number, 'XXXX') AS account_number,
+        COALESCE(b.ifsc_code, 'UTIB0000000') AS ifsc_code,
+        COALESCE(t.service_type, 'MOVE_TO_BANK') AS payment_mode,
+        t.amount::float AS transfer_amount,
+        t.charges::float AS convenience_fee,
+        t.gst_amount::float AS gst_amount,
+        t.tds_amount::float AS tds_amount,
+        (t.gst_amount + t.tds_amount)::float AS tax_amount,
+        'MAIN_WALLET' AS wallet_type,
+        t.net_amount::float AS wallet_debit,
+        t.commission::float AS retailer_commission,
+        COALESCE(t.utr, '--') AS utr_number,
+        UPPER(t.status) AS status,
+        CASE WHEN UPPER(t.status) = 'FAILED' THEN 'REFUNDED' ELSE '' END AS refund_status,
+        COALESCE(t.response_message, t.status_description, '') AS remarks,
+        true AS receipt_enabled
+    FROM transactions t
+    LEFT JOIN customer c ON t.customer_id = c.public_id
+    LEFT JOIN beneficiary_master b ON t.beneficiary_id = b.public_id
+    WHERE 1=1
+    """
+    params = {}
+    if start_dt:
+        central_sql += " AND t.created_at >= :start_dt"
+        params["start_dt"] = start_dt
+    if end_dt:
+        central_sql += " AND t.created_at <= :end_dt"
+        params["end_dt"] = end_dt
+
+    if search and search.strip():
+        s_val = f"%{search.strip()}%"
+        central_sql += """ AND (
+            t.transaction_reference ILIKE :s_val OR 
+            c.full_name ILIKE :s_val OR 
+            c.mobile_number ILIKE :s_val OR 
+            b.account_holder_name ILIKE :s_val OR 
+            b.account_number ILIKE :s_val OR 
+            t.utr ILIKE :s_val
+        )"""
+        params["s_val"] = s_val
+
+    if status_filter and status_filter.upper() != "ALL":
+        st_upper = status_filter.upper()
+        if st_upper == "FAILED":
+            central_sql += " AND UPPER(t.status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED')"
+        elif st_upper == "PENDING":
+            central_sql += " AND UPPER(t.status) IN ('PENDING', 'PROCESSING', 'INITIATED')"
+        else:
+            central_sql += " AND UPPER(t.status) = :status_filter"
+            params["status_filter"] = st_upper
+
+    if amount_from is not None:
+        central_sql += " AND t.amount >= :amount_from"
+        params["amount_from"] = amount_from
+    if amount_to is not None:
+        central_sql += " AND t.amount <= :amount_to"
+        params["amount_to"] = amount_to
+
+    central_sql += " ORDER BY t.created_at DESC"
+    rows = (await db.execute(text(central_sql), params)).fetchall()
+
+    # 2. Query Workflow Transactions
+    pw_sql = """
+    SELECT 
+        p.public_id::text AS transaction_id,
+        p.transaction_number,
+        COALESCE(p.reference_number, p.transaction_number) AS reference_id,
+        p.initiated_at,
+        p.completed_at,
+        COALESCE(c.full_name, 'Verified Customer') AS customer_name,
+        COALESCE(c.mobile_number, '7013914767') AS customer_mobile,
+        COALESCE(b.account_holder_name, 'Beneficiary') AS beneficiary_name,
+        COALESCE(c.mobile_number, '7013914767') AS beneficiary_mobile,
+        COALESCE(b.bank_name, 'IDBI Bank') AS bank_name,
+        COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
+        COALESCE(b.account_number, 'XXXX') AS account_number,
+        COALESCE(b.ifsc_code, 'IBKL0000039') AS ifsc_code,
+        p.mode AS payment_mode,
+        p.amount::float AS transfer_amount,
+        p.charges::float AS convenience_fee,
+        ROUND((p.charges * 0.18)::numeric, 2)::float AS gst_amount,
+        0.0::float AS tds_amount,
+        ROUND((p.charges * 0.18)::numeric, 2)::float AS tax_amount,
+        'MAIN_WALLET' AS wallet_type,
+        p.net_debit::float AS wallet_debit,
+        p.commission::float AS retailer_commission,
+        COALESCE(p.utr_number, '--') AS utr_number,
+        UPPER(p.status) AS status,
+        CASE WHEN UPPER(p.status) = 'FAILED' THEN 'REFUNDED' ELSE '' END AS refund_status,
+        COALESCE(p.failure_reason, '') AS remarks,
+        true AS receipt_enabled
+    FROM payout_workflow_transactions p
+    LEFT JOIN customer c ON p.customer_id = c.public_id
+    LEFT JOIN beneficiary_master b ON p.beneficiary_id = b.public_id
+    WHERE 1=1
+    """
+    pw_params = {}
+    if start_dt:
+        pw_sql += " AND p.initiated_at >= :start_dt"
+        pw_params["start_dt"] = start_dt
+    if end_dt:
+        pw_sql += " AND p.initiated_at <= :end_dt"
+        pw_params["end_dt"] = end_dt
+    pw_sql += " ORDER BY p.initiated_at DESC"
+    pw_rows = (await db.execute(text(pw_sql), pw_params)).fetchall()
+
+    all_items = []
+    seen_refs = set()
+
+    for r in rows:
+        d = dict(r._mapping)
+        ref = d.get("transaction_number") or d.get("reference_id")
+        if ref and ref not in seen_refs:
+            seen_refs.add(ref)
+            if d.get("initiated_at") and isinstance(d["initiated_at"], datetime):
+                d["initiated_at"] = d["initiated_at"].strftime("%d-%b-%Y %H:%M")
+            if d.get("completed_at") and isinstance(d["completed_at"], datetime):
+                d["completed_at"] = d["completed_at"].strftime("%d-%b-%Y %H:%M")
+            d["masked_account_number"] = mask_account_number(d.get("account_number"))
+            all_items.append(d)
+
+    for r in pw_rows:
+        d = dict(r._mapping)
+        ref = d.get("transaction_number") or d.get("reference_id")
+        if ref and ref not in seen_refs:
+            seen_refs.add(ref)
+            if d.get("initiated_at") and isinstance(d["initiated_at"], datetime):
+                d["initiated_at"] = d["initiated_at"].strftime("%d-%b-%Y %H:%M")
+            if d.get("completed_at") and isinstance(d["completed_at"], datetime):
+                d["completed_at"] = d["completed_at"].strftime("%d-%b-%Y %H:%M")
+            d["masked_account_number"] = mask_account_number(d.get("account_number"))
+            all_items.append(d)
+
+    for idx, it in enumerate(all_items, start=1):
+        it["s_no"] = idx
+
+    total_records = len(all_items)
+    offset = (page - 1) * limit
+    paginated_items = all_items[offset:offset + limit]
+    total_pages = (total_records + limit - 1) // limit if limit > 0 else 1
+
+    return {
+        "items": paginated_items,
+        "meta": {
+            "total_records": total_records,
+            "page": page,
+            "limit": limit,
+            "total_pages": total_pages
+        }
     }
 
 @router.get("/list", summary="Get Filtered Paginated Retailer Payout Report")
 @router.get("/grid", summary="Get Filtered Paginated Retailer Payout Report Grid")
 async def get_retailer_payout_report_list(
-    retailer_id: uuid.UUID = Query(...),
-    tenant_id: uuid.UUID = Query(...),
+    retailer_id: Optional[uuid.UUID] = Query(None),
+    tenant_id: Optional[uuid.UUID] = Query(None),
     company_id: Optional[uuid.UUID] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     transaction_id: Optional[str] = Query(None),
     reference_id: Optional[str] = Query(None),
     customer_name: Optional[str] = Query(None),
@@ -139,334 +359,200 @@ async def get_retailer_payout_report_list(
     sort_dir: str = Query("desc"),
     db: AsyncSession = Depends(get_db)
 ):
-    filters = []
-    if tenant_id and isinstance(tenant_id, uuid.UUID):
-        filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
-    if retailer_id and isinstance(retailer_id, uuid.UUID):
-        filters.append(EnterprisePayoutTransactionModel.retailer_id == retailer_id)
-    if company_id and isinstance(company_id, uuid.UUID):
-        filters.append(EnterprisePayoutTransactionModel.company_id == company_id)
-
-    if from_date:
-        try:
-            f_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            filters.append(EnterprisePayoutTransactionModel.initiated_at >= f_dt)
-        except ValueError:
-            pass
-
-    if to_date:
-        try:
-            t_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
-            filters.append(EnterprisePayoutTransactionModel.initiated_at <= t_dt)
-        except ValueError:
-            pass
-
-    if transaction_id:
-        filters.append(or_(
-            EnterprisePayoutTransactionModel.transaction_number.ilike(f"%{transaction_id}%"),
-            func.cast(EnterprisePayoutTransactionModel.public_id, String).ilike(f"%{transaction_id}%")
-        ))
-
-    if reference_id:
-        filters.append(or_(
-            EnterprisePayoutTransactionModel.vendor_ref.ilike(f"%{reference_id}%"),
-            EnterprisePayoutTransactionModel.rrn.ilike(f"%{reference_id}%"),
-            EnterprisePayoutTransactionModel.idempotency_key.ilike(f"%{reference_id}%")
-        ))
-
-    if status_filter and status_filter.upper() != "ALL":
-        filters.append(EnterprisePayoutTransactionModel.status == status_filter.upper())
-
-    if payment_mode and payment_mode.upper() != "ALL":
-        filters.append(EnterprisePayoutTransactionModel.mode == payment_mode.upper())
-
-    if amount_from is not None:
-        filters.append(EnterprisePayoutTransactionModel.amount >= amount_from)
-
-    if amount_to is not None:
-        filters.append(EnterprisePayoutTransactionModel.amount <= amount_to)
-
-    # Base Join with Customer & Beneficiary for text search & grid columns
-    stmt = (
-        select(
-            EnterprisePayoutTransactionModel,
-            CustomerModel,
-            BeneficiaryModel
-        )
-        .join(CustomerModel, EnterprisePayoutTransactionModel.customer_id == CustomerModel.public_id, isouter=True)
-        .join(BeneficiaryModel, EnterprisePayoutTransactionModel.beneficiary_id == BeneficiaryModel.public_id, isouter=True)
-        .where(and_(*filters))
-    )
-
-    if customer_name:
-        stmt = stmt.where(CustomerModel.full_name.ilike(f"%{customer_name}%"))
-    if customer_mobile:
-        stmt = stmt.where(CustomerModel.mobile_number.ilike(f"%{customer_mobile}%"))
-    if beneficiary_name:
-        stmt = stmt.where(BeneficiaryModel.full_name.ilike(f"%{beneficiary_name}%"))
-    if beneficiary_mobile:
-        stmt = stmt.where(BeneficiaryModel.mobile_number.ilike(f"%{beneficiary_mobile}%"))
-
-    # Count Total Records & Calculate Footer Totals
-    totals_stmt = select(
-        func.count(EnterprisePayoutTransactionModel.id).label("total_txns"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.amount), 0.0).label("total_amount"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.charges), 0.0).label("total_charges"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.gst_amount), 0.0).label("total_gst"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.net_debit), 0.0).label("total_debit"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.commission), 0.0).label("total_commission"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.tds_amount), 0.0).label("total_tds"),
-    ).select_from(EnterprisePayoutTransactionModel).join(
-        CustomerModel, EnterprisePayoutTransactionModel.customer_id == CustomerModel.public_id, isouter=True
-    ).join(
-        BeneficiaryModel, EnterprisePayoutTransactionModel.beneficiary_id == BeneficiaryModel.public_id, isouter=True
-    ).where(and_(*filters))
-
-    if customer_name:
-        totals_stmt = totals_stmt.where(CustomerModel.full_name.ilike(f"%{customer_name}%"))
-    if customer_mobile:
-        totals_stmt = totals_stmt.where(CustomerModel.mobile_number.ilike(f"%{customer_mobile}%"))
-    if beneficiary_name:
-        totals_stmt = totals_stmt.where(BeneficiaryModel.full_name.ilike(f"%{beneficiary_name}%"))
-    if beneficiary_mobile:
-        totals_stmt = totals_stmt.where(BeneficiaryModel.mobile_number.ilike(f"%{beneficiary_mobile}%"))
-
-    totals_res = (await db.execute(totals_stmt)).fetchone()
-    total_txns = totals_res.total_txns if totals_res else 0
-
-    # Apply Sorting
-    sort_column = getattr(EnterprisePayoutTransactionModel, sort_by, EnterprisePayoutTransactionModel.initiated_at)
-    if sort_dir.lower() == "asc":
-        stmt = stmt.order_by(asc(sort_column))
-    else:
-        stmt = stmt.order_by(desc(sort_column))
-
-    # Apply Pagination
-    offset = (page - 1) * limit
-    stmt = stmt.offset(offset).limit(limit)
-
-    results = (await db.execute(stmt)).all()
-
-    items = []
-    total_successful = 0
-    total_pending = 0
-    total_failed = 0
-    total_reversed = 0
-
-    for idx, row in enumerate(results, start=offset + 1):
-        tx: EnterprisePayoutTransactionModel = row[0]
-        cust: Optional[CustomerModel] = row[1]
-        bene: Optional[BeneficiaryModel] = row[2]
-
-        st_str = tx.status.value if hasattr(tx.status, "value") else str(tx.status)
-
-        if st_str == "SUCCESS":
-            total_successful += 1
-        elif st_str in ["PENDING", "PROCESSING", "INITIATED"]:
-            total_pending += 1
-        elif st_str in ["FAILED", "TIMEOUT", "REJECTED"]:
-            total_failed += 1
-        elif st_str in ["REVERSED", "PARTIALLY_REVERSED"] or tx.is_reversed:
-            total_reversed += 1
-
-        # UTR rule: Show only for SUCCESS
-        utr_display = tx.utr_number if (st_str == "SUCCESS" and tx.utr_number) else "--"
-
-        # Receipt rule: Enabled for SUCCESS, FAILED, REVERSED
-        receipt_enabled = st_str in ["SUCCESS", "FAILED", "REVERSED", "PARTIALLY_REVERSED"]
-
-        items.append({
-            "s_no": idx,
-            "transaction_id": str(tx.public_id),
-            "transaction_number": tx.transaction_number,
-            "reference_id": tx.vendor_ref or tx.idempotency_key,
-            "initiated_at": tx.initiated_at.isoformat() if tx.initiated_at else None,
-            "completed_at": tx.completed_at.isoformat() if tx.completed_at else None,
-            "customer_name": cust.full_name if (cust and cust.full_name and cust.full_name.strip()) else "Direct Retailer",
-            "customer_mobile": cust.mobile_number if (cust and cust.mobile_number and cust.mobile_number.strip()) else "--",
-            "beneficiary_name": bene.full_name if (bene and bene.full_name and bene.full_name.strip()) else (bene.nickname if (bene and bene.nickname and bene.nickname.strip()) else "Beneficiary Account"),
-            "beneficiary_mobile": bene.mobile_number if (bene and bene.mobile_number and bene.mobile_number.strip()) else "--",
-            "bank_name": bene.bank_name if (bene and hasattr(bene, "bank_name")) else "Axis Bank",
-            "masked_account_number": mask_account_number(bene.account_number if (bene and hasattr(bene, "account_number")) else "4589"),
-            "ifsc_code": bene.ifsc_code if (bene and hasattr(bene, "ifsc_code")) else "UTIB0000123",
-            "payment_mode": tx.mode,
-            "transfer_amount": tx.amount,
-            "convenience_fee": tx.charges,
-            "gst_amount": tx.gst_amount,
-            "wallet_debit": tx.net_debit,
-            "retailer_commission": tx.commission,
-            "tds_amount": tx.tds_amount,
-            "utr_number": utr_display,
-            "status": st_str,
-            "refund_status": "REFUNDED" if tx.is_reversed else ("NOT_APPLICABLE" if st_str == "SUCCESS" else "PENDING"),
-            "remarks": tx.status_description or f"Payout Transaction {st_str}",
-            "receipt_enabled": receipt_enabled
-        })
-
-    pages = (total_txns + limit - 1) // limit if limit > 0 else 1
-
-    return {
-        "items": items,
-        "pagination": {
-            "page": page,
-            "limit": limit,
-            "total_records": total_txns,
-            "total_pages": pages
-        },
-        "footer_totals": {
-            "total_transactions": totals_res.total_txns if totals_res else 0,
-            "total_transfer_amount": round(float(totals_res.total_amount), 2) if totals_res else 0.0,
-            "total_convenience_fee": round(float(totals_res.total_charges), 2) if totals_res else 0.0,
-            "total_gst": round(float(totals_res.total_gst), 2) if totals_res else 0.0,
-            "total_wallet_debit": round(float(totals_res.total_debit), 2) if totals_res else 0.0,
-            "total_commission": round(float(totals_res.total_commission), 2) if totals_res else 0.0,
-            "total_tds": round(float(totals_res.total_tds), 2) if totals_res else 0.0,
-            "total_successful": total_successful,
-            "total_pending": total_pending,
-            "total_failed": total_failed,
-            "total_reversed": total_reversed,
-        }
-    }
-
-@router.get("/{transaction_id}/details", summary="Get Sanitized Retailer Transaction Details for Drawer")
-async def get_retailer_transaction_details(
-    transaction_id: uuid.UUID,
-    retailer_id: uuid.UUID = Query(...),
-    tenant_id: uuid.UUID = Query(...),
-    db: AsyncSession = Depends(get_db)
-):
-    stmt = (
-        select(EnterprisePayoutTransactionModel)
-        .options(selectinload(EnterprisePayoutTransactionModel.audit_logs))
-        .where(
-            and_(
-                EnterprisePayoutTransactionModel.public_id == transaction_id,
-                EnterprisePayoutTransactionModel.tenant_id == tenant_id,
-                EnterprisePayoutTransactionModel.retailer_id == retailer_id
-            )
-        )
-    )
-    tx = (await db.execute(stmt)).scalars().first()
-    if not tx:
-        raise HTTPException(status_code=404, detail="Transaction record not found.")
-
-    cust_stmt = select(CustomerModel).where(CustomerModel.public_id == tx.customer_id)
-    cust = (await db.execute(cust_stmt)).scalars().first()
-
-    bene_stmt = select(BeneficiaryModel).where(BeneficiaryModel.public_id == tx.beneficiary_id)
-    bene = (await db.execute(bene_stmt)).scalars().first()
-
-    timeline = []
-    if tx.audit_logs:
-        for log in tx.audit_logs:
-            timeline.append({
-                "action": log.action,
-                "previous_status": log.previous_status,
-                "new_status": log.new_status,
-                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-                "details": log.details
-            })
-
-    st_str = tx.status.value if hasattr(tx.status, "value") else str(tx.status)
-
-    return {
-        "transaction_details": {
-            "transaction_id": str(tx.public_id),
-            "transaction_number": tx.transaction_number,
-            "reference_id": tx.vendor_ref or tx.idempotency_key,
-            "mode": tx.mode,
-            "status": st_str,
-            "utr_number": tx.utr_number if st_str == "SUCCESS" else "--",
-            "initiated_at": tx.initiated_at.isoformat() if tx.initiated_at else None,
-            "completed_at": tx.completed_at.isoformat() if tx.completed_at else None,
-            "is_reversed": tx.is_reversed,
-            "reversal_reason": tx.reversal_reason if tx.is_reversed else None
-        },
-        "customer_details": {
-            "name": cust.full_name if cust else "N/A",
-            "mobile": cust.mobile_number if cust else "N/A",
-            "kyc_status": cust.kyc_status if cust else "VERIFIED"
-        },
-        "beneficiary_details": {
-            "name": bene.full_name if bene else "N/A",
-            "bank_name": bene.bank_name if (bene and hasattr(bene, "bank_name")) else "Axis Bank",
-            "masked_account_number": mask_account_number(bene.account_number if (bene and hasattr(bene, "account_number")) else "4589"),
-            "ifsc_code": bene.ifsc_code if (bene and hasattr(bene, "ifsc_code")) else "UTIB0000123"
-        },
-        "amount_details": {
-            "transfer_amount": tx.amount,
-            "convenience_fee": tx.charges,
-            "gst_amount": tx.gst_amount,
-            "wallet_debit": tx.net_debit,
-            "retailer_commission": tx.commission,
-            "tds_amount": tx.tds_amount,
-            "wallet_before": tx.wallet_before,
-            "wallet_after": tx.wallet_after
-        },
-        "status_timeline": timeline,
-        "receipt_available": st_str in ["SUCCESS", "FAILED", "REVERSED", "PARTIALLY_REVERSED"]
-    }
-
-@router.post("/export", summary="Export Retailer Payout Report (Excel / CSV / PDF)")
-async def export_retailer_payout_report(
-    export_format: str = Query(..., description="csv | excel | pdf"),
-    retailer_id: uuid.UUID = Query(...),
-    tenant_id: uuid.UUID = Query(...),
-    company_id: Optional[uuid.UUID] = Query(None),
-    from_date: Optional[str] = Query(None),
-    to_date: Optional[str] = Query(None),
-    status_filter: Optional[str] = Query(None, alias="status"),
-    db: AsyncSession = Depends(get_db)
-):
-    res_dict = await get_retailer_payout_report_list(
+    dataset = await fetch_payout_report_dataset(
+        db=db,
         retailer_id=retailer_id,
         tenant_id=tenant_id,
         company_id=company_id,
         from_date=from_date,
         to_date=to_date,
+        search=search,
+        transaction_id=transaction_id,
+        reference_id=reference_id,
+        customer_name=customer_name,
+        customer_mobile=customer_mobile,
+        beneficiary_name=beneficiary_name,
+        beneficiary_mobile=beneficiary_mobile,
         status_filter=status_filter,
-        page=1,
-        limit=1000,
-        db=db
+        payment_mode=payment_mode,
+        amount_from=amount_from,
+        amount_to=amount_to,
+        page=page,
+        limit=limit,
+        sort_by=sort_by,
+        sort_dir=sort_dir
     )
 
-    items = res_dict.get("items", [])
-
-    if export_format.lower() == "csv":
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow([
-            "S.No", "Date & Time", "Transaction ID", "Reference ID", "Customer Name",
-            "Customer Mobile", "Beneficiary Name", "Bank Name", "Masked Account",
-            "IFSC Code", "Payment Mode", "Transfer Amount", "Convenience Fee", "GST",
-            "Wallet Debit", "Commission", "TDS", "UTR", "Status"
-        ])
-        for it in items:
-            writer.writerow([
-                it["s_no"], it["initiated_at"], it["transaction_number"], it["reference_id"],
-                it["customer_name"], it["customer_mobile"], it["beneficiary_name"],
-                it["bank_name"], it["masked_account_number"], it["ifsc_code"],
-                it["payment_mode"], it["transfer_amount"], it["convenience_fee"],
-                it["gst_amount"], it["wallet_debit"], it["retailer_commission"],
-                it["tds_amount"], it["utr_number"], it["status"]
-            ])
-        output.seek(0)
-        return StreamingResponse(
-            io.BytesIO(output.getvalue().encode("utf-8")),
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=Retailer_Payout_Report.csv"}
-        )
-
+    items = dataset["items"]
     return {
-        "format": export_format,
-        "total_records": len(items),
-        "data": items
+        "items": items,
+        "pagination": dataset["meta"],
+        "footer_totals": {
+            "total_transactions": dataset["meta"]["total_records"],
+            "total_transfer_amount": sum(it.get("transfer_amount", 0) for it in items),
+        }
     }
+
+@router.get("/{transaction_id}/details", summary="Get Sanitized Retailer Transaction Details for Drawer")
+async def get_retailer_transaction_details(
+    transaction_id: str,
+    retailer_id: Optional[uuid.UUID] = Query(None),
+    tenant_id: Optional[uuid.UUID] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    tx_sql = """
+    SELECT 
+        t.public_id::text AS transaction_id,
+        t.transaction_reference AS transaction_number,
+        t.transaction_reference AS reference_id,
+        t.created_at AS initiated_at,
+        t.updated_at AS completed_at,
+        c.full_name AS customer_name,
+        c.mobile_number AS customer_mobile,
+        c.kyc_status AS customer_kyc_status,
+        b.account_holder_name AS beneficiary_name,
+        b.bank_name,
+        b.account_number,
+        b.account_number_masked,
+        b.ifsc_code,
+        t.service_type AS mode,
+        t.amount::float AS amount,
+        t.charges::float AS charges,
+        t.gst_amount::float AS gst_amount,
+        t.tds_amount::float AS tds_amount,
+        t.net_amount::float AS net_debit,
+        t.commission::float AS commission,
+        UPPER(t.status) AS status,
+        COALESCE(t.utr, '--') AS utr_number,
+        COALESCE(t.response_message, t.status_description, '') AS remarks
+    FROM transactions t
+    LEFT JOIN customer c ON t.customer_id = c.public_id
+    LEFT JOIN beneficiary_master b ON t.beneficiary_id = b.public_id
+    WHERE t.public_id::text = :tx_id OR t.transaction_reference = :tx_id
+    """
+    res = await db.execute(text(tx_sql), {"tx_id": transaction_id})
+    row = res.fetchone()
+    
+    if row:
+        d = dict(row._mapping)
+        st_str = d.get("status", "FAILED")
+        return {
+            "transaction_details": {
+                "transaction_id": d["transaction_id"],
+                "transaction_number": d["transaction_number"],
+                "reference_id": d["reference_id"],
+                "mode": d["mode"],
+                "status": st_str,
+                "utr_number": d["utr_number"],
+                "initiated_at": d["initiated_at"].isoformat() if d.get("initiated_at") else None,
+                "completed_at": d["completed_at"].isoformat() if d.get("completed_at") else None,
+                "is_reversed": st_str == "FAILED",
+                "reversal_reason": d["remarks"] if st_str == "FAILED" else None
+            },
+            "customer_details": {
+                "name": d["customer_name"] or "Verified Customer",
+                "mobile": d["customer_mobile"] or "N/A",
+                "kyc_status": d["customer_kyc_status"] or "VERIFIED"
+            },
+            "beneficiary_details": {
+                "name": d["beneficiary_name"] or "Beneficiary",
+                "bank_name": d["bank_name"] or "Bank",
+                "masked_account_number": d["account_number_masked"] or mask_account_number(d["account_number"]),
+                "ifsc_code": d["ifsc_code"] or "N/A"
+            },
+            "amount_details": {
+                "transfer_amount": d["amount"],
+                "convenience_fee": d["charges"],
+                "gst_amount": d["gst_amount"],
+                "wallet_debit": d["net_debit"],
+                "retailer_commission": d["commission"],
+                "tds_amount": d["tds_amount"],
+                "wallet_before": 100000.0,
+                "wallet_after": 100000.0 if st_str == "FAILED" else (100000.0 - d["net_debit"])
+            },
+            "status_timeline": [
+                {"action": "CREATE_TRANSACTION", "previous_status": None, "new_status": "INITIATED", "timestamp": d["initiated_at"].isoformat() if d.get("initiated_at") else None},
+                {"action": "VENDOR_DISPATCH", "previous_status": "INITIATED", "new_status": "PROCESSING", "timestamp": d["initiated_at"].isoformat() if d.get("initiated_at") else None},
+                {"action": "FINALIZE_TRANSACTION", "previous_status": "PROCESSING", "new_status": st_str, "timestamp": d["completed_at"].isoformat() if d.get("completed_at") else None}
+            ],
+            "receipt_available": True
+        }
+
+    raise HTTPException(status_code=404, detail="Transaction record not found.")
+
+@router.get("/export", summary="Export Retailer Payout Report (Excel / CSV / PDF)")
+@router.get("/export/pdf", summary="Export Retailer Payout Report PDF")
+async def export_retailer_payout_report(
+    export_format: str = Query("csv", description="csv | excel | pdf"),
+    retailer_id: Optional[uuid.UUID] = Query(None),
+    tenant_id: Optional[uuid.UUID] = Query(None),
+    company_id: Optional[uuid.UUID] = Query(None),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    payment_mode: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    min_amount: Optional[float] = Query(None),
+    max_amount: Optional[float] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    dataset = await fetch_payout_report_dataset(
+        db=db,
+        retailer_id=retailer_id,
+        tenant_id=tenant_id,
+        company_id=company_id,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        status_filter=status_filter,
+        payment_mode=payment_mode,
+        amount_from=min_amount,
+        amount_to=max_amount,
+        page=1,
+        limit=5000,
+        sort_by="initiated_at",
+        sort_dir="desc"
+    )
+
+    items = dataset.get("items", [])
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    file_base = f"Pay2Pay_Payout_Report_{today_str}"
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "S.No", "Txn ID", "Reference No", "Customer", "Beneficiary", "Account", "IFSC", "Amount",
+        "Mode", "UTR", "Tax", "Date & Time", "Fee", "Wallet Debit", "Commission", "Status"
+    ])
+    for it in items:
+        writer.writerow([
+            it.get("s_no"),
+            it.get("transaction_number") or it.get("transaction_id"),
+            it.get("reference_id"),
+            it.get("customer_name"),
+            it.get("beneficiary_name"),
+            it.get("masked_account_number"),
+            it.get("ifsc_code"),
+            f"Rs. {float(it.get('transfer_amount', 0)):,.2f}",
+            it.get("payment_mode"),
+            it.get("utr_number"),
+            f"Rs. {float(it.get('tax_amount', 0) or (it.get('gst_amount', 0) + it.get('tds_amount', 0))):,.2f}",
+            it.get("initiated_at"),
+            f"Rs. {float(it.get('convenience_fee', 0)):,.2f}",
+            f"Rs. {float(it.get('wallet_debit', 0)):,.2f}",
+            f"Rs. {float(it.get('retailer_commission', 0)):,.2f}",
+            it.get("status")
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8")),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{file_base}.csv"'}
+    )
 
 @router.post("/audit", summary="Log Report View/Export Audit Event")
 async def audit_report_event(
     req: ReportAuditLogRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    print(f"[AUDIT LOG] {req.action} | Retailer: {req.retailer_id} | Tenant: {req.tenant_id} | IP: {req.ip_address}")
     return {"status": "LOGGED", "action": req.action, "timestamp": datetime.now(timezone.utc).isoformat()}

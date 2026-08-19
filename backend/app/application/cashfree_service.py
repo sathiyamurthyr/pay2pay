@@ -10,11 +10,18 @@ import requests
 import httpx
 from datetime import datetime
 from typing import Dict, Any, Optional
+from app.core.config import settings
 
-CASHFREE_CLIENT_ID = os.getenv("CASHFREE_CLIENT_ID", "")
-CASHFREE_CLIENT_SECRET = os.getenv("CASHFREE_CLIENT_SECRET", "")
-CASHFREE_BASE_URL = os.getenv("CASHFREE_BASE_URL", "https://api.cashfree.com/verification")
-CASHFREE_API_VERSION = os.getenv("CASHFREE_API_VERSION", "2025-01-01")
+DEFAULT_CASHFREE_CLIENT_ID = os.getenv("CASHFREE_CLIENT_ID", "")
+DEFAULT_CASHFREE_CLIENT_SECRET = os.getenv("CASHFREE_CLIENT_SECRET", "")
+DEFAULT_CASHFREE_BASE_URL = "https://api.cashfree.com/verification"
+DEFAULT_CASHFREE_API_VERSION = "2025-01-01"
+
+CASHFREE_BASE_URL = (
+    getattr(settings, "CASHFREE_BASE_URL", None)
+    or os.getenv("CASHFREE_BASE_URL")
+    or DEFAULT_CASHFREE_BASE_URL
+)
 
 
 class CashfreeVerificationService:
@@ -22,13 +29,25 @@ class CashfreeVerificationService:
 
     @classmethod
     def _get_headers(cls) -> Dict[str, str]:
-        client_id = os.getenv("CASHFREE_CLIENT_ID") or CASHFREE_CLIENT_ID
-        client_secret = os.getenv("CASHFREE_CLIENT_SECRET") or CASHFREE_CLIENT_SECRET
-        api_version = os.getenv("CASHFREE_API_VERSION") or CASHFREE_API_VERSION
+        client_id = (
+            getattr(settings, "CASHFREE_CLIENT_ID", None)
+            or os.getenv("CASHFREE_CLIENT_ID")
+            or DEFAULT_CASHFREE_CLIENT_ID
+        )
+        client_secret = (
+            getattr(settings, "CASHFREE_CLIENT_SECRET", None)
+            or os.getenv("CASHFREE_CLIENT_SECRET")
+            or DEFAULT_CASHFREE_CLIENT_SECRET
+        )
+        api_version = (
+            getattr(settings, "CASHFREE_API_VERSION", None)
+            or os.getenv("CASHFREE_API_VERSION")
+            or DEFAULT_CASHFREE_API_VERSION
+        )
         return {
-            "x-client-id": client_id,
-            "x-client-secret": client_secret,
-            "x-api-version": api_version,
+            "x-client-id": client_id.strip(),
+            "x-client-secret": client_secret.strip(),
+            "x-api-version": api_version.strip(),
             "Content-Type": "application/json",
         }
 
@@ -169,8 +188,11 @@ class CashfreeVerificationService:
         }
 
         try:
-            res = httpx.post(url, json=payload, headers=cls._get_headers(), timeout=5.0)
-            data = res.json()
+            res = httpx.post(url, json=payload, headers=cls._get_headers(), timeout=15.0)
+            try:
+                data = res.json()
+            except Exception:
+                data = {"raw": res.text}
 
             if res.status_code in [200, 201]:
                 account_status = data.get("account_status") or data.get("status") or "VALID"
@@ -179,65 +201,73 @@ class CashfreeVerificationService:
                 ref_id = data.get("ref_id") or data.get("reference_id") or f"CFV2-PD-{int(datetime.now().timestamp() * 1000)}"
                 utr = data.get("utr") or f"UTR{int(datetime.now().timestamp() * 1000)}99"
 
+                if not is_valid:
+                    status_code_detail = data.get("account_status_code")
+                    if status_code_detail == "INVALID_ACCOUNT_FAIL":
+                        rej_msg = "Bank account number does not exist or was rejected by the beneficiary bank."
+                    elif status_code_detail == "ACCOUNT_BLOCKED":
+                        rej_msg = "Bank account is blocked or inactive."
+                    else:
+                        rej_msg = data.get("message") or f"Bank account verification rejected: {account_status}"
+
+                    return {
+                        "status": "FAILED",
+                        "account_status": account_status,
+                        "is_valid": False,
+                        "bank_account_masked": f"XXXX-XXXX-{clean_account[-4:]}",
+                        "ifsc": clean_ifsc,
+                        "name_at_bank": name_at_bank,
+                        "ref_id": ref_id,
+                        "utr": utr,
+                        "message": rej_msg,
+                        "raw_response": data,
+                        "http_status_code": res.status_code,
+                    }
+
                 return {
-                    "status": "SUCCESS" if is_valid else "FAILED",
+                    "status": "SUCCESS",
                     "account_status": account_status,
-                    "is_valid": is_valid,
+                    "is_valid": True,
                     "bank_account_masked": f"XXXX-XXXX-{clean_account[-4:]}",
                     "ifsc": clean_ifsc,
                     "name_at_bank": name_at_bank.upper(),
                     "ref_id": ref_id,
                     "utr": utr,
-                    "message": data.get("message") or ("Bank Account verified successfully via Cashfree V2 Penny Drop" if is_valid else "Bank account verification failed"),
+                    "message": data.get("message") or "Bank Account verified successfully via Cashfree V2 Penny Drop",
                     "raw_response": data,
                     "http_status_code": res.status_code,
                 }
-            elif (
-                data.get("code") in ["authentication_failed", "invalid_client", "ip_validation_failed"]
-                or "clientId" in str(data.get("message", ""))
-                or res.status_code in [400, 401, 403]
-            ):
-                # Fallback simulation for sandbox environments or unconfigured API keys
-                ref_id = f"CFV2-PD-{int(datetime.now().timestamp() * 1000)}"
-                utr = f"UTR{int(datetime.now().timestamp() * 1000)}88"
-                verified_name = (name or "ACCOUNT HOLDER").upper()
-                return {
-                    "status": "SUCCESS",
-                    "account_status": "VALID",
-                    "is_valid": True,
-                    "bank_account_masked": f"XXXX-XXXX-{clean_account[-4:]}",
-                    "ifsc": clean_ifsc,
-                    "name_at_bank": verified_name,
-                    "ref_id": ref_id,
-                    "utr": utr,
-                    "message": f"Bank account verified via Cashfree V2 Penny Drop (Ref: {ref_id})",
-                    "raw_response": data,
-                    "http_status_code": 200,
-                }
             else:
+                err_msg = data.get("message") or (data.get("error", {}) if isinstance(data.get("error"), dict) else {}).get("message") or f"Cashfree API Error (HTTP {res.status_code})"
+                if data.get("code") == "beneficiary_bank_offline":
+                    err_msg = "Beneficiary bank server is currently offline or under maintenance. Please try again later."
+                elif data.get("code") == "ifsc_value_invalid":
+                    err_msg = "Invalid IFSC code format. Please check the IFSC and try again."
+
                 return {
                     "status": "FAILED",
                     "account_status": "INVALID",
                     "is_valid": False,
-                    "message": data.get("message") or f"Cashfree API Error: HTTP {res.status_code}",
+                    "message": err_msg,
                     "raw_response": data,
                     "http_status_code": res.status_code,
                 }
-        except Exception as err:
-            ref_id = f"CFV2-PD-{int(datetime.now().timestamp() * 1000)}"
-            utr = f"UTR{int(datetime.now().timestamp() * 1000)}88"
-            verified_name = (name or "ACCOUNT HOLDER").upper()
+        except httpx.TimeoutException:
             return {
-                "status": "SUCCESS",
-                "account_status": "VALID",
-                "is_valid": True,
-                "bank_account_masked": f"XXXX-XXXX-{clean_account[-4:]}",
-                "ifsc": clean_ifsc,
-                "name_at_bank": verified_name,
-                "ref_id": ref_id,
-                "utr": utr,
-                "message": f"Bank account verified via Cashfree V2 Penny Drop (Ref: {ref_id})",
-                "raw_response": {"message": f"Verified via Cashfree V2 Sync Gateway ({err})", "ref_id": ref_id, "utr": utr},
-                "http_status_code": 200,
+                "status": "FAILED",
+                "account_status": "TIMEOUT",
+                "is_valid": False,
+                "message": "Bank gateway timed out during verification. Please check IFSC and account number and try again.",
+                "raw_response": {"error": "TimeoutException"},
+                "http_status_code": 504,
+            }
+        except Exception as err:
+            return {
+                "status": "FAILED",
+                "account_status": "ERROR",
+                "is_valid": False,
+                "message": f"Cashfree Gateway Connection Error: {str(err)}",
+                "raw_response": {"error": str(err)},
+                "http_status_code": 502,
             }
 

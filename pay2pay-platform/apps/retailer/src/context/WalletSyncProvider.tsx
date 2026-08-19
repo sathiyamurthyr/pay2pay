@@ -1,15 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
-import axios from "axios";
+import apiClient from "@/lib/api";
 
 export interface WalletDataPayload {
-  greeting: string;
-  short_name: string;
+  retailer_id: string;
+  retailer_code: string;
   retailer_name: string;
   owner_name: string;
-  company_name: string;
-  retailer_code: string;
-  retailer_id: string;
-  current_time_iso: string;
+  short_name: string;
   wallet_balance: number;
   available_balance: number;
   blocked_balance: number;
@@ -18,17 +15,24 @@ export interface WalletDataPayload {
   todays_commission: number;
   todays_gst: number;
   todays_tds: number;
+  pending_count: number;
   settlement_pending_amount: number;
-  unread_notifications_count: number;
-  is_approved?: boolean;
-  status?: string;
+  soundbox_active: boolean;
+  soundbox_lang: string;
+  plan_name: string;
+  is_approved: boolean;
+  status: string;
+  environment: string;
+  updated_at: string;
+  payout_rates?: any;
 }
 
-interface WalletSyncContextType {
+export interface WalletSyncContextType {
   walletData: WalletDataPayload | null;
   isLoading: boolean;
   error: string | null;
   refreshWallet: () => Promise<void>;
+  updateBalanceLocally: (newBalance: number) => void;
 }
 
 const WalletSyncContext = createContext<WalletSyncContextType | undefined>(undefined);
@@ -43,6 +47,12 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
   const [walletData, setWalletData] = useState<WalletDataPayload | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false); // No auto-loader on page load
   const [error, setError] = useState<string | null>(null);
+
+  const updateBalanceLocally = (newBalance: number) => {
+    if (walletData) {
+      setWalletData({ ...walletData, wallet_balance: newBalance });
+    }
+  };
 
   const fetchWalletData = useCallback(async () => {
     setIsLoading(true);
@@ -76,7 +86,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
         params.retailer_id = activeRetailerId;
       }
 
-      const res = await axios.get<WalletDataPayload>("/api/v1/payout/dashboard/retailer/header-wallet", {
+      const res = await apiClient.get<WalletDataPayload>("/dashboard/retailer/header-wallet", {
         params,
       });
 

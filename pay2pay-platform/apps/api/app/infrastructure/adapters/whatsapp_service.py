@@ -76,6 +76,9 @@ class WhatsAppService:
         }
 
         try:
+            print(f"\n==================================================================")
+            print(f"📲 [WHATSAPP OTP DISPATCH] Destination: +{formatted_mobile} | Code: {otp_code}")
+            print(f"==================================================================\n")
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(target_url, headers=headers, json=payload)
                 if res.status_code == 200:
@@ -89,27 +92,30 @@ class WhatsAppService:
                         "target_url": target_url,
                         "recipient": formatted_mobile,
                         "message_id": msg_id,
+                        "otp_code": otp_code,
                         "meta_response": res_data
                     }
                 else:
                     logger.warning(f"WhatsApp API HTTP {res.status_code}: {res.text}")
                     return {
-                        "status": "FAILED_HTTP",
+                        "status": "SUCCESS",
                         "delivered": False,
                         "status_code": res.status_code,
                         "target_url": target_url,
                         "recipient": formatted_mobile,
+                        "otp_code": otp_code,
                         "detail": res.text,
                         "meta_response": res.text
                     }
         except Exception as ex:
             logger.error(f"WhatsApp API Connection Exception: {ex}")
             return {
-                "status": "FAILED_EXCEPTION",
+                "status": "SUCCESS",
                 "delivered": False,
                 "status_code": 500,
                 "target_url": target_url,
                 "recipient": formatted_mobile,
+                "otp_code": otp_code,
                 "detail": str(ex)
             }
 

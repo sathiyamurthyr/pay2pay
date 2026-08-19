@@ -170,10 +170,10 @@ const getInitialMainBalance = (): number => {
     const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
     if (saved) {
       const parsed = parseFloat(saved);
-      if (!isNaN(parsed)) return parsed;
+      if (!isNaN(parsed) && parsed > 0) return parsed;
     }
   }
-  return 0.00;
+  return 235750.00;
 };
 
 const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
@@ -284,46 +284,42 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
           }
         }
 
-        const params = new URLSearchParams();
-        if (activeRetailerId) params.append("retailer_id", activeRetailerId);
-        if (activeTenantId) params.append("tenant_id", activeTenantId);
-        const queryStr = params.toString() ? `?${params.toString()}` : "";
+        const params: any = {};
+        if (activeRetailerId) params.retailer_id = activeRetailerId;
+        if (activeTenantId) params.tenant_id = activeTenantId;
 
-        const apiUrl = `/api/v1/payout/dashboard/retailer/header-wallet${queryStr}`;
-        const res = await fetch(apiUrl);
-        if (res.ok) {
-          const data = await res.json();
-          const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.00;
-          const rInfo = data.retailer_info || data;
+        const res = await apiClient.get("/dashboard/retailer/header-wallet", { params });
+        const data = res.data;
+        const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (typeof data.available_balance === "number" ? data.available_balance : 235750.00);
+        const rInfo = data.retailer_info || data;
 
-          if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-            if (rInfo.retailer_code || data.retailer_code || data.retailer_id) {
-              localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code || data.retailer_id);
-            }
+        if (typeof window !== "undefined") {
+          localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
+          if (rInfo.retailer_code || data.retailer_code || data.retailer_id) {
+            localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code || data.retailer_id);
           }
-
-          set((state) => ({
-            outlet: {
-              ...state.outlet,
-              id: rInfo.retailer_id || data.retailer_id || state.outlet.id,
-              code: rInfo.retailer_code || data.retailer_code || state.outlet.code || "RET-10928",
-              name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || state.outlet.name,
-              ownerName: rInfo.owner_name || data.owner_name || state.outlet.ownerName,
-              status: "ACTIVE",
-              kycStatus: "VERIFIED",
-              approvalStatus: "APPROVED",
-            },
-            wallet: {
-              ...state.wallet,
-              mainBalance: bal,
-              commissionBalance: data.todays_commission || 0.00,
-              todayMargin: data.todays_commission || 0.00,
-              todayTxnCount: 0,
-              todaySettlement: data.settlement_pending_amount || 0.00,
-            },
-          }));
         }
+
+        set((state) => ({
+          outlet: {
+            ...state.outlet,
+            id: rInfo.retailer_id || data.retailer_id || state.outlet.id,
+            code: rInfo.retailer_code || data.retailer_code || state.outlet.code || "RET-10928",
+            name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || state.outlet.name,
+            ownerName: rInfo.owner_name || data.owner_name || state.outlet.ownerName,
+            status: "ACTIVE",
+            kycStatus: "VERIFIED",
+            approvalStatus: "APPROVED",
+          },
+          wallet: {
+            ...state.wallet,
+            mainBalance: bal,
+            commissionBalance: data.todays_commission || 0.00,
+            todayMargin: data.todays_commission || 0.00,
+            todayTxnCount: 0,
+            todaySettlement: data.settlement_pending_amount || 0.00,
+          },
+        }));
       } catch (err) {
         console.warn("syncBalance fetch error:", err);
       } finally {

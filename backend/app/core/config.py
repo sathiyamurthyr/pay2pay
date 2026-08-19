@@ -1,7 +1,15 @@
 import os
 from typing import List
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Ensure .env is explicitly loaded into os.environ
+_env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env")
+if os.path.exists(_env_path):
+    load_dotenv(_env_path)
+else:
+    load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -43,6 +51,14 @@ class Settings(BaseSettings):
     SESSION_TIMEOUT_MINUTES: int = 30
     
     # System Defaults
+    PLATFORM_TENANT_CODE: str = "PLATFORM"
+    DEFAULT_COMPANY_CODE: str = "HQ_COMP"
+
+    # ── Cashfree Production Verification Suite v2 Credentials ──────────────────
+    CASHFREE_CLIENT_ID: str = Field(default="")
+    CASHFREE_CLIENT_SECRET: str = Field(default="")
+    CASHFREE_BASE_URL: str = Field(default="https://api.cashfree.com/verification")
+    CASHFREE_API_VERSION: str = Field(default="2025-01-01")
     PLATFORM_TENANT_CODE: str = "PLATFORM"
     DEFAULT_COMPANY_CODE: str = "HQ_COMP"
 

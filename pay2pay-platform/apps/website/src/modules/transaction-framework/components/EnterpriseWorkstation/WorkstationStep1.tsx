@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
@@ -47,6 +48,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   const [searchInput, setSearchInput] = useState("");
   const [localHasSearched, setLocalHasSearched] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const wallet = useRetailerStore((state) => state.wallet);
 
@@ -76,7 +78,11 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
       if (typeof window !== "undefined" && mobileParam) {
         sessionStorage.setItem("draftCustomerMobile", mobileParam);
       }
-      window.location.href = "/retailer/customers";
+      try {
+        router.push("/retailer/customers");
+      } catch {
+        window.location.href = "/retailer/customers";
+      }
     }
   };
 
@@ -123,6 +129,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             <TextField
               fullWidth
               autoFocus
+              suppressHydrationWarning
               inputRef={searchInputRef}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -130,6 +137,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               autoComplete="off"
               slotProps={{
                 htmlInput: {
+                  suppressHydrationWarning: true,
                   readOnly: isReadOnly,
                   onFocus: () => setIsReadOnly(false),
                   onBlur: () => setIsReadOnly(true),

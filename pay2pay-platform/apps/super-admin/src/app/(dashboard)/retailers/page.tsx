@@ -91,14 +91,40 @@ function OnboardingHubContent() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [retRes, distRes, sdRes] = await Promise.all([
-        api.get("/api/v1/retailers", { params: { search, status: statusFilter } }),
+      const [retRes, distRes, sdRes] = await Promise.allSettled([
+        api.get("/api/v1/retailers", {
+          params: {
+            ...(search ? { search } : {}),
+            ...(statusFilter ? { status: statusFilter } : {}),
+          },
+        }),
         api.get("/api/v1/organization/distributors"),
         api.get("/api/v1/organization/super-distributors"),
       ]);
-      setRetailers(retRes.data.items || []);
-      setDistributors(distRes.data.items || []);
-      setSuperDistributors(sdRes.data.items || []);
+
+      if (retRes.status === "fulfilled") {
+        const d = retRes.value.data;
+        const items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
+        setRetailers(items);
+      } else {
+        console.error("Failed to fetch retailers:", retRes.reason);
+      }
+
+      if (distRes.status === "fulfilled") {
+        const d = distRes.value.data;
+        const items = Array.isArray(d) ? d : (d?.items || d?.distributors || d?.data || []);
+        setDistributors(items);
+      } else {
+        console.error("Failed to fetch distributors:", distRes.reason);
+      }
+
+      if (sdRes.status === "fulfilled") {
+        const d = sdRes.value.data;
+        const items = Array.isArray(d) ? d : (d?.items || d?.super_distributors || d?.data || []);
+        setSuperDistributors(items);
+      } else {
+        console.error("Failed to fetch super distributors:", sdRes.reason);
+      }
     } catch (err) {
       console.error("Failed to fetch onboarding directory data", err);
     } finally {

@@ -39,7 +39,7 @@ import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
 import { AuthEngine, AuthorizeResponsePayload } from "../../services/AuthEngineAdapter";
-import { FinancialAccounting } from "../../services/FinancialAccountingAdapter";
+import { FinancialAccounting, sanitizeCustomerErrorMessage } from "../../services/FinancialAccountingAdapter";
 import { ReceiptShare, ReceiptShareRecord, VerificationResult } from "../../services/ReceiptShareAdapter";
 import { BankingProgressTimeline, BankingExecutionCenter, ProgressStep, FULL_16_STEPS_TEMPLATE } from "./BankingProgressTimeline";
 
@@ -373,7 +373,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
       const remaining = attemptsLeft - 1;
       setAttemptsLeft(remaining);
-      setErrorMessage(finResult.errorMessage || "Transaction Failed");
+      setErrorMessage(sanitizeCustomerErrorMessage(finResult.errorMessage));
 
       setTimeout(() => {
         setViewState("FAILURE_RECEIPT");

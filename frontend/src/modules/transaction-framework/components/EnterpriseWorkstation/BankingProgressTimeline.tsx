@@ -30,6 +30,7 @@ import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
+import { sanitizeCustomerErrorMessage } from "../../services/FinancialAccountingAdapter";
 
 export interface ProgressStep {
   id: string;
@@ -780,7 +781,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 Transaction Could Not Be Completed
               </Typography>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "13px", mb: 2.5 }}>
-                {errorMessage || "The payout service is temporarily unavailable. Refund initiated automatically if debited."}
+                {sanitizeCustomerErrorMessage(errorMessage)}
               </Typography>
 
               <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", mb: 2.5 }}>

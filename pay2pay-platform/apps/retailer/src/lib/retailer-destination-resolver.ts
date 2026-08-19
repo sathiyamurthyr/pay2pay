@@ -277,8 +277,10 @@ export async function verifyAndRoutePostLogin(
     }
 
     // 4. Route based on authoritative decision
+    const redirectTarget = (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null);
+
     if (status.account_access === "ALLOWED" || status.access === "ALLOWED" || status.destination === "DASHBOARD") {
-      router.replace("/retailer/dashboard");
+      router.replace(redirectTarget || "/retailer/dashboard");
       return { success: true, destination: "DASHBOARD" };
     }
 
@@ -292,8 +294,8 @@ export async function verifyAndRoutePostLogin(
       return { success: true, destination: "APPLICATION_REJECTED" };
     }
 
-    // Default -> /retailer/dashboard (never block retailer on account-under-review)
-    router.replace("/retailer/dashboard");
+    // Default -> redirect target or /retailer/dashboard (never block retailer on account-under-review)
+    router.replace(redirectTarget || "/retailer/dashboard");
     return { success: true, destination: "DASHBOARD" };
   } catch (err) {
     // FAIL CLOSED
