@@ -376,7 +376,6 @@ export const RetailerDashboardView: React.FC = () => {
               <RefreshIcon sx={{ fontSize: 18, animation: loading ? "spin 1s linear infinite" : "none" }} />
             </IconButton>
           </Tooltip>
-          <NotificationCenter />
         </Box>
       </Paper>
 
