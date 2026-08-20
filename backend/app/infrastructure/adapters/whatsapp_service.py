@@ -37,10 +37,8 @@ class WhatsAppService:
         """
         # Normalize mobile number to exact 10 digits
         clean_digits = "".join(filter(str.isdigit, str(mobile_number)))
-        if clean_digits.startswith("91") and len(clean_digits) == 12:
-            clean_mobile = clean_digits[2:]
-        elif clean_digits.startswith("0") and len(clean_digits) == 11:
-            clean_mobile = clean_digits[1:]
+        if len(clean_digits) >= 10:
+            clean_mobile = clean_digits[-10:]
         else:
             clean_mobile = clean_digits
 
@@ -76,9 +74,8 @@ class WhatsAppService:
         }
 
         try:
-            print(f"\n==================================================================")
-            print(f"📲 [WHATSAPP OTP DISPATCH] Destination: +{formatted_mobile} | Code: {otp_code}")
-            print(f"==================================================================\n")
+            logger.info(f"[WHATSAPP OTP DISPATCH] Destination: +{formatted_mobile} | Code: {otp_code}")
+            print(f"[WHATSAPP OTP DISPATCH] Destination: +{formatted_mobile} | Code: {otp_code}")
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(target_url, headers=headers, json=payload)
                 if res.status_code == 200:
