@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - prod
   workflow_dispatch:
 
 jobs:
@@ -36,21 +37,17 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          # FIX 1: Use the monorepo lock file, not the non-existent frontend/package-lock.json
           cache-dependency-path: pay2pay-platform/package-lock.json
 
       - name: Install Monorepo Dependencies
-        # FIX 2: Build from pay2pay-platform/ (the actual monorepo root), not legacy frontend/
         run: |
           cd pay2pay-platform
           npm ci --legacy-peer-deps
 
       - name: Build App
         env:
-          # FIX 3: Inject env vars at build time so NEXT_PUBLIC_* vars are embedded correctly
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'https://api.pay2pay.in' }}
           BACKEND_URL: ${{ secrets.BACKEND_URL || 'https://api.pay2pay.in' }}
-          # FIX 4: Increase Node heap to 3072MB (was 1536, caused OOM on large builds)
           NODE_OPTIONS: "--max-old-space-size=3072"
         run: |
           cd pay2pay-platform/apps/${{ matrix.app.name }}
@@ -60,13 +57,30 @@ jobs:
         run: |
           APP_DIR="pay2pay-platform/apps/${{ matrix.app.name }}"
           STANDALONE="$APP_DIR/.next/standalone"
+          APP_SUBDIR="$STANDALONE/apps/${{ matrix.app.name }}"
 
-          # FIX 5: Copy .next/static + public into standalone BEFORE archiving.
-          # This was the ROOT CAUSE of 404 JS chunks on production.
+          # Copy .next/static and public into root standalone AND app subfolder
           mkdir -p "$STANDALONE/.next"
           cp -r "$APP_DIR/.next/static" "$STANDALONE/.next/static"
+          if [ -d "$APP_SUBDIR" ]; then
+            mkdir -p "$APP_SUBDIR/.next"
+            cp -r "$APP_DIR/.next/static" "$APP_SUBDIR/.next/static"
+          fi
+
           if [ -d "$APP_DIR/public" ]; then
             cp -r "$APP_DIR/public" "$STANDALONE/public"
+            if [ -d "$APP_SUBDIR" ]; then
+              cp -r "$APP_DIR/public" "$APP_SUBDIR/public"
+            fi
+          fi
+
+          # Create root server.js entrypoint wrapper if monorepo nested server.js
+          if [ -f "$APP_SUBDIR/server.js" ] && [ ! -f "$STANDALONE/server.js" ]; then
+            cat > "$STANDALONE/server.js" << 'EOF'
+          const path = require("path");
+          process.chdir(path.join(__dirname, "apps/${{ matrix.app.name }}"));
+          require("./apps/${{ matrix.app.name }}/server.js");
+          EOF
           fi
 
           tar -czf "${{ matrix.app.name }}.tar.gz" -C "$STANDALONE" .
@@ -76,7 +90,6 @@ jobs:
         with:
           name: "${{ matrix.app.name }}-build"
           path: "${{ matrix.app.name }}.tar.gz"
-          # FIX 6: 7-day retention (default 90 days wastes storage quota)
           retention-days: 7
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -94,7 +107,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          # FIX 7: Cache pip to skip re-downloading on every run
           cache: "pip"
           cache-dependency-path: backend/requirements.txt
 
@@ -102,7 +114,6 @@ jobs:
         run: |
           cd backend
           python -m pip install --upgrade pip
-          # FIX 8: Remove || true — pip failures are real errors and must fail the build
           pip install -r requirements.txt
           pip install gunicorn
 
@@ -117,7 +128,6 @@ jobs:
   deploy:
     name: Deploy to Production VPS
     runs-on: ubuntu-latest
-    # FIX 9: Gate deploy on both upstream jobs completing successfully
     needs: [build-frontend, verify-backend]
     environment: production
 
@@ -142,12 +152,12 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          # FIX 10: script_stop: true + set -e — stop immediately on any failed command
           script_stop: true
           script: |
             set -e
             DEPLOY_DIR="/tmp/pay2pay-deploy/artifacts"
             APPS_BASE="/home/ubuntu/pay2pay/platform/apps"
+            BRANCH="${{ github.ref_name }}"
 
             declare -A APP_PORTS=(
               [website]=3001
@@ -160,7 +170,7 @@ jobs:
               [auth]=3008
             )
 
-            echo "=== DEPLOYING PAY2PAY PLATFORM ==="
+            echo "=== DEPLOYING PAY2PAY PLATFORM ($BRANCH) ==="
             for APP in "${!APP_PORTS[@]}"; do
               PORT="${APP_PORTS[$APP]}"
               ARCHIVE="$DEPLOY_DIR/${APP}-build/${APP}.tar.gz"
@@ -185,18 +195,31 @@ jobs:
             BACKEND_URL=http://127.0.0.1:8000
             EOF
 
-              # Restart or start PM2 process
-              if pm2 describe "p2p-$APP" > /dev/null 2>&1; then
-                pm2 restart "p2p-$APP"
-              else
-                pm2 start "$TARGET/server.js" --name "p2p-$APP" --env production
+              # Also write env to subfolder if monorepo nested
+              if [ -d "$TARGET/apps/$APP" ]; then
+                cp "$TARGET/.env.production" "$TARGET/apps/$APP/.env.production"
+                mkdir -p "$TARGET/apps/$APP/.next"
+                [ -d "$TARGET/.next/static" ] && cp -r "$TARGET/.next/static" "$TARGET/apps/$APP/.next/static"
+                [ -d "$TARGET/public" ] && cp -r "$TARGET/public" "$TARGET/apps/$APP/public"
               fi
+
+              # Identify runtime server file
+              RUN_SCRIPT="$TARGET/server.js"
+              RUN_CWD="$TARGET"
+              if [ ! -f "$RUN_SCRIPT" ] && [ -f "$TARGET/apps/$APP/server.js" ]; then
+                RUN_SCRIPT="$TARGET/apps/$APP/server.js"
+                RUN_CWD="$TARGET/apps/$APP"
+              fi
+
+              # Restart or start PM2 process
+              pm2 delete "p2p-$APP" > /dev/null 2>&1 || true
+              PORT=$PORT HOSTNAME=0.0.0.0 pm2 start "$RUN_SCRIPT" --name "p2p-$APP" --cwd "$RUN_CWD" --env production
             done
 
             echo "=== UPDATING BACKEND ==="
             cd /home/ubuntu/pay2pay/backend
-            git fetch origin main
-            git reset --hard origin/main
+            git fetch origin "$BRANCH"
+            git reset --hard "origin/$BRANCH"
             source venv/bin/activate
             pip install -r requirements.txt --quiet
             sudo systemctl restart pay2pay-backend
