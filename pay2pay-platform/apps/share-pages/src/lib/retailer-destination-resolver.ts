@@ -217,18 +217,23 @@ export async function verifyAndRoutePostLogin(
 ): Promise<{ success: boolean; destination?: RetailerDestination; error?: string }> {
   options?.onProgress?.("Verifying your account access...");
 
-  // 1. Store session tokens
+  // 1. Store session tokens with 24-Hour Max Lifetime (86400 seconds)
   if (typeof window !== "undefined") {
     const validToken = token || "p2p_access_token_" + Date.now();
     const role = (user?.role || "RETAILER").toUpperCase();
+    const now = Date.now();
 
-    document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
-    document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-    document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-    document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `p2p_user_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+    document.cookie = `p2p_access_token=${validToken}; path=/; max-age=86400; SameSite=Lax`;
+    document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=86400; SameSite=Lax`;
+    document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=86400; SameSite=Lax`;
 
     localStorage.setItem("pay2pay_user_role", role);
     localStorage.setItem("pay2pay_access_token", validToken);
+    localStorage.setItem("p2p_session_start_time", String(now));
+    localStorage.setItem("p2p_session_last_active", String(now));
+    localStorage.removeItem("p2p_session_locked");
+    localStorage.removeItem("p2p_session_locked_at");
     if (user) {
       localStorage.setItem("pay2pay_user_data", JSON.stringify(user));
     }

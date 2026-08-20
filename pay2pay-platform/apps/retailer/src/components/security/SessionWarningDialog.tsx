@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import {
   Dialog,
@@ -18,18 +20,18 @@ export const SessionWarningDialog: React.FC = () => {
   const { sessionState, remainingWarningSeconds, stayActive, lockSession } = useSessionSecurity();
 
   const isOpen = sessionState === "WARNING";
-  const progressPct = ((30 - remainingWarningSeconds) / 30) * 100;
+  const progressPct = ((60 - remainingWarningSeconds) / 60) * 100;
 
   return (
     <Dialog
       open={isOpen}
       onClose={() => {}}
-      maxWidth="sm"
+      maxWidth="xs"
       fullWidth
       slotProps={{
         paper: {
           sx: {
-            borderRadius: "20px",
+            borderRadius: "24px",
             bgcolor: "rgba(15, 23, 42, 0.98)",
             backdropFilter: "blur(24px)",
             border: "2px solid #F59E0B",
@@ -65,34 +67,34 @@ export const SessionWarningDialog: React.FC = () => {
             <Typography variant="h1" sx={{ fontSize: "36px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1 }}>
               {remainingWarningSeconds}
             </Typography>
-            <Typography variant="caption" sx={{ fontSize: "12px", color: "#FBBF24", fontWeight: 800, textTransform: "uppercase" }}>
+            <Typography variant="caption" sx={{ fontSize: "11px", color: "#FBBF24", fontWeight: 800, textTransform: "uppercase" }}>
               SEC
             </Typography>
           </Box>
         </Box>
 
-        <Typography variant="h3" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "22px", mb: 1 }}>
+        <Typography variant="h3" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "20px", mb: 1 }}>
           Inactivity Security Warning
         </Typography>
 
-        <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "16px", lineHeight: 1.6, px: 2, mb: 3 }}>
-          For your banking security, your retailer session will automatically lock in{" "}
-          <strong style={{ color: "#F59E0B" }}>{remainingWarningSeconds} seconds</strong> due to inactivity.
+        <Typography variant="body1" sx={{ color: "#CBD5E1", fontSize: "14px", lineHeight: 1.6, px: 1, mb: 3 }}>
+          For your banking security, your session will close and log out in{" "}
+          <strong style={{ color: "#F59E0B" }}>{remainingWarningSeconds} seconds</strong> due to 15 minutes of inactivity.
         </Typography>
       </DialogContent>
 
       <DialogActions sx={{ p: 0, justifyContent: "center" }}>
-        <Stack direction="row" spacing={2} sx={{ width: "100%" }}>
+        <Stack direction="row" spacing={1.5} sx={{ width: "100%" }}>
           <Button
             fullWidth
             variant="outlined"
             onClick={lockSession}
             startIcon={<LockIcon />}
             sx={{
-              height: 50,
+              height: 44,
               borderRadius: "12px",
               fontWeight: 700,
-              fontSize: "17px",
+              fontSize: "14px",
               color: "#F8FAFC",
               borderColor: "rgba(255, 255, 255, 0.25)",
               "&:hover": { borderColor: "#EF4444", color: "#EF4444" },
@@ -107,13 +109,16 @@ export const SessionWarningDialog: React.FC = () => {
             onClick={stayActive}
             startIcon={<CheckCircleIcon />}
             sx={{
-              height: 50,
+              height: 44,
               borderRadius: "12px",
-              fontWeight: 800,
-              fontSize: "17px",
-              bgcolor: "#2563EB",
-              boxShadow: "0 8px 20px rgba(37, 99, 235, 0.4)",
-              "&:hover": { bgcolor: "#1D4ED8" },
+              fontWeight: 700,
+              fontSize: "14px",
+              background: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
+              color: "#FFFFFF",
+              boxShadow: "0 4px 14px rgba(16, 185, 129, 0.4)",
+              "&:hover": {
+                background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+              },
             }}
           >
             Stay Active

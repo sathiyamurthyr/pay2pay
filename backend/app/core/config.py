@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default="e674b934091a133f9dfca4b967a544c207908b8b8017c669145695029a73887c")
     REFRESH_SECRET_KEY: str = Field(default="5f3a0937a098863f6696b997c6d66e7f12e8ad28b8577a111b154b5e6702c2e0")
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours (Maximum Session Validity)
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7     # 7 days
     
     # CORS
@@ -47,8 +47,8 @@ class Settings(BaseSettings):
         "https://pay2pay.vercel.app",
     ]
     
-    # Session Timeout (Minutes)
-    SESSION_TIMEOUT_MINUTES: int = 30
+    # Session Inactivity Timeout (Minutes) - Closes session after 15m idle
+    SESSION_TIMEOUT_MINUTES: int = 15
     
     # System Defaults
     PLATFORM_TENANT_CODE: str = "PLATFORM"
