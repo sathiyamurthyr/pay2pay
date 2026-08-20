@@ -3,7 +3,7 @@ import logging
 import random
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List
-from sqlalchemy import select, update
+from sqlalchemy import select, update, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import DomainException
@@ -305,7 +305,7 @@ class EnterprisePayoutExecutionService:
             ("CREDIT", "VENDOR_CHARGE_PAYABLE", vendor_charge, vendor_charge, f"Vendor Charge Payable for TX {tx_number}")
         ]
 
-        for idx, (etype, acctype, amt, bal, desc) in enumerate(ledger_entries_data, 1):
+        for idx, (etype, acctype, amt, bal, entry_desc) in enumerate(ledger_entries_data, 1):
             l_entry = PayoutDoubleEntryLedgerModel(
                 public_id=uuid.uuid4(),
                 tenant_id=tenant_id,
@@ -315,7 +315,7 @@ class EnterprisePayoutExecutionService:
                 account_type=acctype,
                 amount=amt,
                 balance_after=bal,
-                description=desc,
+                description=entry_desc,
                 is_reversal_entry=False,
                 is_active=True,
                 is_deleted=False
@@ -727,7 +727,7 @@ class EnterprisePayoutExecutionService:
             ("DEBIT", "VENDOR_CHARGE_PAYABLE", tx.vendor_charge, 0.0, f"Reversal Vendor Charge Payable for TX {tx.transaction_number}")
         ]
 
-        for idx, (etype, acctype, amt, bal, desc) in enumerate(contra_entries, 1):
+        for idx, (etype, acctype, amt, bal, entry_desc) in enumerate(contra_entries, 1):
             c_entry = PayoutDoubleEntryLedgerModel(
                 public_id=uuid.uuid4(),
                 tenant_id=tx.tenant_id,
@@ -737,7 +737,7 @@ class EnterprisePayoutExecutionService:
                 account_type=acctype,
                 amount=amt,
                 balance_after=bal,
-                description=desc,
+                description=entry_desc,
                 is_reversal_entry=True,
                 is_active=True,
                 is_deleted=False

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Enterprise Payout Gateway Routing & Controller Service.
 Manages persistent provider configurations, admin priority switching,

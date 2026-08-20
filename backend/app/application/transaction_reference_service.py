@@ -18,7 +18,13 @@ import secrets
 import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
-from zoneinfo import ZoneInfo
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    try:
+        from backports.zoneinfo import ZoneInfo
+    except ImportError:
+        ZoneInfo = None
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -131,10 +137,18 @@ class TransactionReferenceService:
         Generates a candidate reference string in format:
         <VENDOR_FIRST_CHAR><DD><MM><YY><HH><MI><5_DIGIT_UNIQUE_NUMBER>
         """
-        try:
-            tz = ZoneInfo(tz_name)
-        except Exception:
-            tz = timezone.utc
+        tz = timezone.utc
+        if ZoneInfo:
+            try:
+                tz = ZoneInfo(tz_name)
+            except Exception:
+                tz = timezone.utc
+        else:
+            try:
+                import pytz
+                tz = pytz.timezone(tz_name)
+            except Exception:
+                tz = timezone.utc
 
         now = datetime.now(tz)
         # Format: DD (2 digits), MM (2 digits), YY (2 digits), HH (2 digits 24h), MI (2 digits)

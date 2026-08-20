@@ -40,7 +40,7 @@ sudo systemctl status pay2pay-backend --no-pager
 """
 
     ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-i", KEY_PATH, SERVER_HOST, remote_script]
-    res = subprocess.run(ssh_cmd, capture_output=True, text=True)
+    res = subprocess.run(ssh_cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
     print("STDOUT:\n", res.stdout)
     if res.stderr:
         print("STDERR:\n", res.stderr)
