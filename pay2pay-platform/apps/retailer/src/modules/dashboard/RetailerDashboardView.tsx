@@ -148,7 +148,7 @@ export const RetailerDashboardView: React.FC = () => {
   const { walletData: headerWallet } = useWalletSync();
   const { isApproved, setApprovalStatus } = useRetailerApprovalGuard();
   const { openContactSupportModal } = useContactSupportModal();
-  const { kpiTheme, wallet, outlet } = useRetailerStore();
+  const { kpiTheme, wallet, outlet, syncBalance, isSyncing } = useRetailerStore();
   const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["classic-blue"];
   const [dashboardLockedModal, setDashboardLockedModal] = useState<{ label: string } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -424,6 +424,27 @@ export const RetailerDashboardView: React.FC = () => {
             <Button
               variant="outlined"
               size="small"
+              startIcon={<RefreshIcon sx={{ fontSize: 16, animation: isSyncing ? "spin 1s linear infinite" : "none" }} />}
+              onClick={syncBalance}
+              disabled={isSyncing}
+              sx={{
+                py: 0.8,
+                px: 2,
+                fontSize: "13px",
+                fontWeight: 600,
+                borderRadius: "8px",
+                borderColor: "rgba(59, 130, 246, 0.4)",
+                color: "#60A5FA",
+                bgcolor: "rgba(59, 130, 246, 0.1)",
+                "&:hover": { borderColor: "rgba(59, 130, 246, 0.6)", bgcolor: "rgba(59, 130, 246, 0.2)" },
+                textTransform: "none",
+              }}
+            >
+              {isSyncing ? "Refreshing..." : "↻ Refresh"}
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
               startIcon={<HistoryIcon sx={{ fontSize: 16 }} />}
               onClick={() => router.push("/retailer/dmt/ledger")}
               sx={{
@@ -438,7 +459,7 @@ export const RetailerDashboardView: React.FC = () => {
                 textTransform: "none",
               }}
             >
-              ↻ Passbook
+              Passbook
             </Button>
           </Stack>
         </Box>
@@ -456,9 +477,20 @@ export const RetailerDashboardView: React.FC = () => {
                 height: "100%",
               }}
             >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
-                AVAILABLE
-              </Typography>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "block" }}>
+                  AVAILABLE
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={syncBalance}
+                  disabled={isSyncing}
+                  sx={{ p: 0.25, color: "#4ADE80", "&:hover": { bgcolor: "rgba(74, 222, 128, 0.1)" } }}
+                  title="Refresh Wallet Balance"
+                >
+                  <RefreshIcon sx={{ fontSize: 14, animation: isSyncing ? "spin 1s linear infinite" : "none" }} />
+                </IconButton>
+              </Box>
               <Typography variant="h4" sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "22px", mt: 0.5 }}>
                 ₹{formatAmount(headerWallet?.available_balance ?? wallet.availableBalance ?? wallet.mainBalance)}
               </Typography>

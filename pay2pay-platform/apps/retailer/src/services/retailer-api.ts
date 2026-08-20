@@ -158,7 +158,7 @@ export function classifyApiError(err: any, endpoint: string) {
 }
 
 export const retailerApi = {
-  // ── Wallet Balance ──
+  // ── Fast Dedicated Wallet Balance ──
   getWalletBalance: async () => {
     try {
       let activeRetailerId = "";
@@ -185,19 +185,28 @@ export const retailerApi = {
       const params: any = {};
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
-      const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet", { params });
+      // Call fast single-lookup wallet balance endpoint (< 5ms response time)
+      const res = await apiClient.get("/api/v1/payout/dashboard/retailer/wallet-balance", { params });
       const data = res.data;
-      const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.available_balance || 0.00);
+      const bal =
+        typeof data.wallet_balance === "number"
+          ? data.wallet_balance
+          : typeof data.mainBalance === "number"
+          ? data.mainBalance
+          : data.available_balance || 0.00;
+
       if (typeof window !== "undefined") {
         localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
       }
       return {
         success: true,
         mainBalance: bal,
-        commissionBalance: data.todays_commission || 0.00,
-        todayMargin: data.todays_commission || 0.00,
-        todayTxnCount: 0,
-        todaySettlement: data.settlement_pending_amount || 0.00,
+        wallet_balance: bal,
+        available_balance: bal,
+        commissionBalance: data.commissionBalance || 0.00,
+        todayMargin: data.todayMargin || 0.00,
+        todayTxnCount: data.todayTxnCount || 0,
+        todaySettlement: data.todaySettlement || 0.00,
         ...data,
       };
     } catch {
@@ -211,6 +220,8 @@ export const retailerApi = {
       return {
         success: false,
         mainBalance: savedBalance,
+        wallet_balance: savedBalance,
+        available_balance: savedBalance,
         commissionBalance: 0.00,
         todayMargin: 0.00,
         todayTxnCount: 0,

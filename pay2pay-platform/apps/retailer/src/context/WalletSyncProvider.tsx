@@ -162,6 +162,69 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, []);
 
+  const refreshWalletFast = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId =
+            localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("pay2pay_reg_mobile") ||
+            localStorage.getItem("pay2pay_reg_id") ||
+            "";
+        }
+      }
+
+      const params: any = {};
+      if (activeRetailerId) params.retailer_id = activeRetailerId;
+
+      const res = await apiClient.get("/api/v1/payout/dashboard/retailer/wallet-balance", { params });
+      const data = res.data;
+      const bal =
+        typeof data.wallet_balance === "number"
+          ? data.wallet_balance
+          : typeof data.available_balance === "number"
+          ? data.available_balance
+          : 0.0;
+      const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
+        useRetailerStore.getState().updateWallet({
+          mainBalance: bal,
+          availableBalance: avail,
+        });
+      }
+
+      setWalletData((prev) =>
+        prev
+          ? {
+              ...prev,
+              wallet_balance: bal,
+              available_balance: avail,
+            }
+          : null
+      );
+      setError(null);
+    } catch (err: any) {
+      console.warn("Fast wallet sync error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Initial fetch on component mount
   useEffect(() => {
     fetchWalletData();
@@ -170,12 +233,12 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
   // Event listener for explicit transaction action refreshes
   useEffect(() => {
     const handleCustomUpdate = () => {
-      fetchWalletData();
+      refreshWalletFast();
     };
 
     window.addEventListener("p2p_wallet_update", handleCustomUpdate);
     return () => window.removeEventListener("p2p_wallet_update", handleCustomUpdate);
-  }, [fetchWalletData]);
+  }, [refreshWalletFast]);
 
   return (
     <WalletSyncContext.Provider
@@ -183,7 +246,8 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
         walletData,
         isLoading,
         error,
-        refreshWallet: fetchWalletData,
+        refreshWallet: refreshWalletFast,
+        updateBalanceLocally,
       }}
     >
       {children}
@@ -196,6 +260,7 @@ const DEFAULT_WALLET_FALLBACK: WalletSyncContextType = {
   isLoading: false,
   error: null,
   refreshWallet: async () => {},
+  updateBalanceLocally: () => {},
 };
 
 export const useWalletSync = () => {

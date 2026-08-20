@@ -333,36 +333,29 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
         if (activeRetailerId) params.retailer_id = activeRetailerId;
         if (activeTenantId) params.tenant_id = activeTenantId;
 
-        const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet", { params });
+        // Ultra-fast dedicated wallet balance API (< 5ms response)
+        const res = await apiClient.get("/api/v1/payout/dashboard/retailer/wallet-balance", { params });
         const data = res.data;
-        const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (typeof data.available_balance === "number" ? data.available_balance : 0.00);
-        const rInfo = data.retailer_info || data;
+        const bal =
+          typeof data.wallet_balance === "number"
+            ? data.wallet_balance
+            : typeof data.mainBalance === "number"
+            ? data.mainBalance
+            : typeof data.available_balance === "number"
+            ? data.available_balance
+            : 0.00;
 
         if (typeof window !== "undefined") {
           localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-          if (rInfo.retailer_code || data.retailer_code || data.retailer_id) {
-            localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code || data.retailer_id);
-          }
         }
 
         set((state) => ({
-          outlet: {
-            ...state.outlet,
-            id: rInfo.retailer_id || data.retailer_id || state.outlet.id,
-            code: rInfo.retailer_code || data.retailer_code || state.outlet.code || "",
-            name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || state.outlet.name,
-            ownerName: rInfo.owner_name || data.owner_name || state.outlet.ownerName,
-            status: "ACTIVE",
-            kycStatus: "VERIFIED",
-            approvalStatus: "APPROVED",
-          },
           wallet: {
             ...state.wallet,
             mainBalance: bal,
-            commissionBalance: data.todays_commission || 0.00,
-            todayMargin: data.todays_commission || 0.00,
-            todayTxnCount: 0,
-            todaySettlement: data.settlement_pending_amount || 0.00,
+            commissionBalance: data.commissionBalance ?? state.wallet.commissionBalance,
+            todayMargin: data.todayMargin ?? state.wallet.todayMargin,
+            todaySettlement: data.todaySettlement ?? state.wallet.todaySettlement,
           },
         }));
       } catch (err) {
