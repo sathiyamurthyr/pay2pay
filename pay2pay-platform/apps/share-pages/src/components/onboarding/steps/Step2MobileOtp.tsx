@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquare, ArrowRight, Loader2, AlertCircle, RefreshCw, CheckCircle2, LogIn, RotateCcw } from "lucide-react";
+import { soundSystem } from "@/lib/audio-engine";
 
 interface Step2Props {
   registrationId: string;
@@ -65,10 +66,12 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpValue.length !== 6) {
+      soundSystem.playErrorSound();
       setErrorMsg("Please enter the complete 6-digit OTP.");
       return;
     }
     if (attemptsLeft <= 0) {
+      soundSystem.playErrorSound();
       setErrorMsg("Maximum attempts exceeded. Please request a new OTP.");
       return;
     }
@@ -88,6 +91,7 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
       if (res.ok) {
         const data = await res.json();
         if (data.status === "SUCCESS") {
+          soundSystem.playSuccessSound();
           // CASE 2 — MOBILE EXISTS + ONBOARDING COMPLETED
           if (data.onboarding_completed === true) {
             setIsCompleted(true);
@@ -108,16 +112,19 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
           // CASE 1 — BRAND NEW USER
           onSuccess(data.next_route, data.current_step);
         } else {
+          soundSystem.playErrorSound();
           setAttemptsLeft((prev) => prev - 1);
           setErrorMsg(data.message || data.detail || `Invalid OTP. ${attemptsLeft - 1} attempt(s) remaining.`);
         }
       } else {
+        soundSystem.playErrorSound();
         const errJson = await res.json().catch(() => ({}));
         setErrorMsg(errJson.detail || errJson.message || "We couldn't determine your registration status. Please try again.");
         setUnresolvedError(true);
       }
     } catch {
       setLoading(false);
+      soundSystem.playErrorSound();
       setErrorMsg("We couldn't determine your registration status. Please try again.");
       setUnresolvedError(true);
     }
@@ -134,15 +141,6 @@ export const Step2MobileOtp: React.FC<Step2Props> = ({ registrationId, mobileNum
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile_number: mobileNumber })
       });
-      setLoading(false);
-      setCountdown(60);
-      setAttemptsLeft(5);
-      setErrorMsg("");
-      setOtpDigits(["", "", "", "", "", ""]);
-    } catch {
-      setLoading(false);
-      setCountdown(60);
-      setAttemptsLeft(5);
       setErrorMsg("");
       setOtpDigits(["", "", "", "", "", ""]);
     }

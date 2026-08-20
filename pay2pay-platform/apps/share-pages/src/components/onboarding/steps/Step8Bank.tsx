@@ -5,6 +5,7 @@ import {
   CreditCard, ArrowRight, Loader2, AlertCircle,
   CheckCircle2, Building2, BadgeCheck, Hash, MapPin, ChevronRight
 } from "lucide-react";
+import { soundSystem } from "@/lib/audio-engine";
 
 interface Step8Props {
   registrationId: string;
@@ -33,14 +34,17 @@ export const Step8Bank: React.FC<Step8Props> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountNumber || !ifsc || !name) {
+      soundSystem.playErrorSound();
       setErrorMsg("Please fill all required bank details.");
       return;
     }
     if (accountNumber.length < 9) {
+      soundSystem.playErrorSound();
       setErrorMsg("Please enter a valid bank account number (min 9 digits).");
       return;
     }
     if (ifsc.length !== 11) {
+      soundSystem.playErrorSound();
       setErrorMsg("IFSC code must be exactly 11 characters.");
       return;
     }
@@ -63,12 +67,15 @@ export const Step8Bank: React.FC<Step8Props> = ({
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
+        soundSystem.playSuccessSound();
         setBankResult(data);
       } else {
+        soundSystem.playErrorSound();
         setErrorMsg(data.detail || data.message || "Bank account verification failed. Please check your details.");
       }
     } catch {
       setLoading(false);
+      soundSystem.playErrorSound();
       setErrorMsg("Network error. Please check your connection and try again.");
     }
   };

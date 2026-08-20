@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { collectSilentTelemetry, TelemetryData } from "@/lib/telemetry";
 import { verifyAndRoutePostLogin } from "@/lib/retailer-destination-resolver";
+import { soundSystem } from "@/lib/audio-engine";
 import { ConfettiBurst } from "./motion/ConfettiBurst";
 import {
   glassPanelVariants,
@@ -315,6 +316,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const triggerError = (msg: string) => {
     setErrorMsg(msg);
     setIsShakeError(true);
+    soundSystem.playLoginFailure();
     setTimeout(() => setIsShakeError(false), 500);
   };
 
@@ -401,6 +403,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setIsLocked(false);
         setLockTimer(0);
         setShowConfetti(true);
+        soundSystem.playLoginSuccess();
         setSuccessMsg("✓ Authentication Successful! Redirecting...");
         await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user);
       } else {
@@ -435,6 +438,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       if (res.ok && data.status === "SUCCESS") {
         setOtpSent(true);
         const masked = data.data?.masked_mobile || `******${mobileNumber.slice(-4)}`;
+        soundSystem.playNotificationSound();
         setSuccessMsg(`✓ OTP sent successfully to WhatsApp ${masked}.`);
         setErrorMsg("");
         setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
@@ -475,6 +479,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
       if (res.ok && data.status === "SUCCESS") {
         setShowConfetti(true);
+        soundSystem.playLoginSuccess();
         const flow = data.data?.flow;
         const destination = data.data?.destination;
         const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";

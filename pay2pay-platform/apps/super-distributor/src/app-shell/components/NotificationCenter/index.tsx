@@ -18,6 +18,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import InfoIcon from "@mui/icons-material/Info";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import { soundSystem } from "@/lib/audio-engine";
 
 export interface NotificationItem {
   id: string;
@@ -77,6 +78,7 @@ export const NotificationCenter: React.FC<{
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
+    soundSystem.playNotificationSound();
     fetchNotifications(); // Load only when user explicitly opens the notification panel
   };
 

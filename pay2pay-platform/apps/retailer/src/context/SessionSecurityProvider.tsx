@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef, ReactNod
 import axios from "axios";
 import { SessionLockScreenOverlay } from "@/components/security/SessionLockScreenOverlay";
 import { getApiBaseUrl } from "@/lib/api-config";
+import { soundSystem } from "@/lib/audio-engine";
 
 export interface SecuritySettings {
   auto_lock_enabled: boolean;
@@ -213,7 +214,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       localStorage.setItem("p2p_session_locked_at", String(lockTime));
     } catch (e) {}
 
-    playLockChime();
+    soundSystem.playLockChime();
     logAuditEvent("SESSION_LOCKED");
 
     if (broadcastChannelRef.current) {
@@ -239,6 +240,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
 
     // 1. Strict 4-digit format check
     if (!/^\d{4}$/.test(inputPin)) {
+      soundSystem.playLoginFailure();
       return { success: false, message: "PIN must be exactly 4 numeric digits." };
     }
 
@@ -274,6 +276,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       if (response.data && (response.data.success === true || response.data.unlocked === true || response.data.status === "UNLOCKED")) {
         setSessionState("ACTIVE");
         setLockedAt(null);
+        soundSystem.playUnlockChime();
         const now = Date.now();
         lastActivityRef.current = now;
         try {
@@ -292,6 +295,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       if (VALID_PINS.has(inputPin)) {
         setSessionState("ACTIVE");
         setLockedAt(null);
+        soundSystem.playUnlockChime();
         try {
           localStorage.removeItem("p2p_session_locked");
           localStorage.removeItem("p2p_session_locked_at");
@@ -299,6 +303,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         return { success: true };
       }
 
+      soundSystem.playLoginFailure();
       return {
         success: false,
         message: response.data?.message || "Invalid security PIN",
@@ -307,6 +312,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       if (VALID_PINS.has(inputPin)) {
         setSessionState("ACTIVE");
         setLockedAt(null);
+        soundSystem.playUnlockChime();
         try {
           localStorage.removeItem("p2p_session_locked");
           localStorage.removeItem("p2p_session_locked_at");
@@ -314,6 +320,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         return { success: true };
       }
 
+      soundSystem.playLoginFailure();
       if (err.response?.status === 401) {
         const serverMsg = err.response?.data?.detail || err.response?.data?.message;
         return { success: false, message: serverMsg || "Incorrect MPIN. Please try again." };
@@ -329,7 +336,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
 
       return {
         success: false,
-        message: "Unable to verify security PIN. Default PIN: 4827 / 1234",
+        message: "Unable to reach security service. Please try again.",
       };
     }
   };
