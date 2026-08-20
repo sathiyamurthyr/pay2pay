@@ -49,6 +49,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { retailerApi } from "@/services/retailer-api";
 
 import { useRetailerApprovalGuard } from "@/hooks/useRetailerApprovalGuard";
+import { useSessionSecurity } from "@/context/SessionSecurityProvider";
 
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
@@ -157,6 +158,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const { outlet, wallet, isSyncing, syncBalance, soundboxEnabled, toggleSoundbox, unreadNotifications, setUnreadNotifications, kpiTheme, setKpiTheme } = useRetailerStore();
   const { isApproved, approvalStatus, isPathLocked, setApprovalStatus } = useRetailerApprovalGuard();
   const { openContactSupportModal } = useContactSupportModal();
+  const { lockSession } = useSessionSecurity();
 
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -264,6 +266,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
     }
   }, []);
+
+  // Global Lock Screen Keyboard Shortcut (Ctrl+L / Cmd+L)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        lockSession();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lockSession]);
 
   const toggleFavorite = (path: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1064,6 +1078,24 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             {/* Dynamic DB-Backed Notification Center */}
             <NotificationCenter />
 
+            {/* Quick Lock Terminal Icon */}
+            <Tooltip title="Lock Terminal (Ctrl+L)">
+              <IconButton
+                onClick={lockSession}
+                size="small"
+                sx={{
+                  color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
+                  p: 0.75,
+                  "&:hover": {
+                    color: "#F59E0B",
+                    backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
+                  },
+                }}
+              >
+                <LockIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+
             {/* User Profile Avatar Icon (Clicking this opens the full Retailer Profile Card!) */}
             <Tooltip title="View Retailer Profile Info">
               <IconButton onClick={(e) => setProfileAnchor(e.currentTarget)} size="small" sx={{ p: 0.25 }}>
@@ -1288,6 +1320,32 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   }}
                 >
                   View Full Profile
+                </Button>
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  startIcon={<LockIcon sx={{ fontSize: 18, color: "#F59E0B" }} />}
+                  onClick={() => {
+                    setProfileAnchor(null);
+                    lockSession();
+                  }}
+                  sx={{
+                    borderRadius: "10px",
+                    height: 36,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    fontSize: "12px",
+                    borderColor: "rgba(245, 158, 11, 0.4)",
+                    color: "#F59E0B",
+                    backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.08)" : "rgba(245, 158, 11, 0.05)",
+                    "&:hover": {
+                      borderColor: "#F59E0B",
+                      backgroundColor: "rgba(245, 158, 11, 0.16)",
+                    },
+                  }}
+                >
+                  Lock Terminal (Ctrl+L)
                 </Button>
                 <Button
                   fullWidth

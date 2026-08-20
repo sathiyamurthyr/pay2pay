@@ -6,6 +6,7 @@ import { AuthProvider } from "@/lib/auth";
 import { WalletSyncProvider } from "@/context/WalletSyncProvider";
 import { ContactSupportModalProvider } from "@/context/ContactSupportModalContext";
 import { CustomThemeProvider } from "@/context/ThemeContext";
+import { SessionSecurityProvider } from "@/context/SessionSecurityProvider";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -27,7 +28,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <AuthProvider>
           <WalletSyncProvider>
             <ContactSupportModalProvider>
-              {children}
+              <SessionSecurityProvider>
+                {children}
+              </SessionSecurityProvider>
             </ContactSupportModalProvider>
           </WalletSyncProvider>
         </AuthProvider>
