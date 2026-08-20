@@ -7,69 +7,203 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
-    name: Build & Deploy to Production Server
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 1: Build all 8 Next.js apps in parallel via matrix strategy
+  # ─────────────────────────────────────────────────────────────────────────
+  build-frontend:
+    name: "Build - ${{ matrix.app.name }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false          # Let all matrix jobs run even if one fails
+      matrix:
+        app:
+          - { name: website,           port: 3001 }
+          - { name: super-admin,       port: 3002 }
+          - { name: admin,             port: 3003 }
+          - { name: super-distributor, port: 3004 }
+          - { name: distributor,       port: 3005 }
+          - { name: retailer,          port: 3006 }
+          - { name: share-pages,       port: 3007 }
+          - { name: auth,              port: 3008 }
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          # FIX 1: Use the monorepo lock file, not the non-existent frontend/package-lock.json
+          cache-dependency-path: pay2pay-platform/package-lock.json
+
+      - name: Install Monorepo Dependencies
+        # FIX 2: Build from pay2pay-platform/ (the actual monorepo root), not legacy frontend/
+        run: |
+          cd pay2pay-platform
+          npm ci --legacy-peer-deps
+
+      - name: Build App
+        env:
+          # FIX 3: Inject env vars at build time so NEXT_PUBLIC_* vars are embedded correctly
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'https://api.pay2pay.in' }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL || 'https://api.pay2pay.in' }}
+          # FIX 4: Increase Node heap to 3072MB (was 1536, caused OOM on large builds)
+          NODE_OPTIONS: "--max-old-space-size=3072"
+        run: |
+          cd pay2pay-platform/apps/${{ matrix.app.name }}
+          npm run build
+
+      - name: Package Standalone Build
+        run: |
+          APP_DIR="pay2pay-platform/apps/${{ matrix.app.name }}"
+          STANDALONE="$APP_DIR/.next/standalone"
+
+          # FIX 5: Copy .next/static + public into standalone BEFORE archiving.
+          # This was the ROOT CAUSE of 404 JS chunks on production.
+          mkdir -p "$STANDALONE/.next"
+          cp -r "$APP_DIR/.next/static" "$STANDALONE/.next/static"
+          if [ -d "$APP_DIR/public" ]; then
+            cp -r "$APP_DIR/public" "$STANDALONE/public"
+          fi
+
+          tar -czf "${{ matrix.app.name }}.tar.gz" -C "$STANDALONE" .
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ matrix.app.name }}-build"
+          path: "${{ matrix.app.name }}.tar.gz"
+          # FIX 6: 7-day retention (default 90 days wastes storage quota)
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 2: Verify the Python backend installs and imports cleanly
+  # ─────────────────────────────────────────────────────────────────────────
+  verify-backend:
+    name: Backend Verify
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          # FIX 7: Cache pip to skip re-downloading on every run
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Backend Test & Lint Verification
+      - name: Install Backend Dependencies
         run: |
           cd backend
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
+          # FIX 8: Remove || true — pip failures are real errors and must fail the build
+          pip install -r requirements.txt
+          pip install gunicorn
 
-      - name: Frontend Build & Typecheck
+      - name: Verify App Can Be Imported
         run: |
-          cd frontend
-          npm ci || npm install --legacy-peer-deps
-          npm run build
+          cd backend
+          python -c "from app.main import app; print('Backend import OK')"
 
-      - name: Deploy to Remote Production VPS (129.225.91.190)
-        uses: appleboy/ssh-action@v1.0.3
-        continue-on-error: true
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 3: Deploy ONLY after all matrix builds + backend verify pass
+  # ─────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Production VPS
+    runs-on: ubuntu-latest
+    # FIX 9: Gate deploy on both upstream jobs completing successfully
+    needs: [build-frontend, verify-backend]
+    environment: production
+
+    steps:
+      - name: Download All App Build Artifacts
+        uses: actions/download-artifact@v4
         with:
-          host: ${{ secrets.SERVER_HOST || '129.225.91.190' }}
+          path: artifacts/
+
+      - name: Upload Builds to Server via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script_stop: false
+          source: "artifacts/"
+          target: "/tmp/pay2pay-deploy/"
+
+      - name: Deploy and Restart Services on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # FIX 10: script_stop: true + set -e — stop immediately on any failed command
+          script_stop: true
           script: |
-            echo "=== 1. PULLING LATEST MAIN BRANCH ==="
-            cd /home/ubuntu/pay2pay || cd ~/pay2pay
+            set -e
+            DEPLOY_DIR="/tmp/pay2pay-deploy/artifacts"
+            APPS_BASE="/home/ubuntu/pay2pay/platform/apps"
+
+            declare -A APP_PORTS=(
+              [website]=3001
+              [super-admin]=3002
+              [admin]=3003
+              [super-distributor]=3004
+              [distributor]=3005
+              [retailer]=3006
+              [share-pages]=3007
+              [auth]=3008
+            )
+
+            echo "=== DEPLOYING PAY2PAY PLATFORM ==="
+            for APP in "${!APP_PORTS[@]}"; do
+              PORT="${APP_PORTS[$APP]}"
+              ARCHIVE="$DEPLOY_DIR/${APP}-build/${APP}.tar.gz"
+              TARGET="$APPS_BASE/$APP"
+
+              if [ ! -f "$ARCHIVE" ]; then
+                echo "WARNING: Skipping $APP — archive not found at $ARCHIVE"
+                continue
+              fi
+
+              echo "--- Deploying $APP → port $PORT ---"
+              rm -rf "$TARGET"
+              mkdir -p "$TARGET"
+              tar -xzf "$ARCHIVE" -C "$TARGET"
+
+              # Write runtime env file for each app
+              cat > "$TARGET/.env.production" <<EOF
+            NODE_ENV=production
+            PORT=$PORT
+            HOSTNAME=0.0.0.0
+            NEXT_PUBLIC_API_URL=https://api.pay2pay.in
+            BACKEND_URL=http://127.0.0.1:8000
+            EOF
+
+              # Restart or start PM2 process
+              if pm2 describe "p2p-$APP" > /dev/null 2>&1; then
+                pm2 restart "p2p-$APP"
+              else
+                pm2 start "$TARGET/server.js" --name "p2p-$APP" --env production
+              fi
+            done
+
+            echo "=== UPDATING BACKEND ==="
+            cd /home/ubuntu/pay2pay/backend
             git fetch origin main
             git reset --hard origin/main
+            source venv/bin/activate
+            pip install -r requirements.txt --quiet
+            sudo systemctl restart pay2pay-backend
 
-            echo "=== 2. UPDATING BACKEND DEPENDENCIES ==="
-            cd /home/ubuntu/pay2pay/backend || cd ~/pay2pay/backend
-            if [ -d "venv" ]; then
-              source venv/bin/activate
-              pip install -r requirements.txt || true
-            fi
+            echo "=== FINALISING ==="
+            pm2 save
+            sudo systemctl reload nginx
+            rm -rf /tmp/pay2pay-deploy
 
-            echo "=== 3. BUILDING FRONTEND NEXT.JS ==="
-            cd /home/ubuntu/pay2pay/frontend || cd ~/pay2pay/frontend
-            npm install --legacy-peer-deps
-            NODE_OPTIONS="--max-old-space-size=1536" npx next build
-            mkdir -p .next/standalone/.next/
-            cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
-            cp -r public .next/standalone/ 2>/dev/null || true
-
-            echo "=== 4. RESTARTING PM2 SERVICES & NGINX ==="
-            pm2 restart all || pm2 restart pay2pay-frontend || true
-            sudo systemctl reload nginx 2>/dev/null || true
-
-            echo "=== CI/CD DEPLOYMENT FINISHED ==="
+            echo "SUCCESS: All services deployed."

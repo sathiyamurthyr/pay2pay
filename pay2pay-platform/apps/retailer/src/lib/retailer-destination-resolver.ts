@@ -231,9 +231,24 @@ export async function verifyAndRoutePostLogin(
     localStorage.setItem("pay2pay_access_token", validToken);
     if (user) {
       localStorage.setItem("pay2pay_user_data", JSON.stringify(user));
+      localStorage.setItem("user_info", JSON.stringify(user));
+      const rCode = user.retailer_code || user.code || user.retailer_id || user.id || options?.mobile || "";
+      if (rCode) {
+        localStorage.setItem("p2p_active_retailer_id", rCode);
+        localStorage.setItem("p2p_retailer_code", rCode);
+      }
+      if (user.wallet_balance !== undefined && user.wallet_balance !== null) {
+        localStorage.setItem("p2p_active_retailer_wallet_balance", user.wallet_balance.toString());
+      }
+      if (user.company_name || user.store_name || user.full_name || user.name) {
+        localStorage.setItem("p2p_retailer_name", user.company_name || user.store_name || user.full_name || user.name);
+      }
     }
     if (options?.mobile) {
       localStorage.setItem("pay2pay_reg_mobile", options.mobile);
+      if (!localStorage.getItem("p2p_active_retailer_id")) {
+        localStorage.setItem("p2p_active_retailer_id", options.mobile);
+      }
     }
   }
 

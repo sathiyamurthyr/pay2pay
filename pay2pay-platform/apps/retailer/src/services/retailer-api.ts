@@ -164,14 +164,22 @@ export const retailerApi = {
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
         try {
-          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
-            activeRetailerId = u.retailer_id || u.id || "";
+            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
           }
         } catch {}
         if (!activeRetailerId) {
-          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+          activeRetailerId =
+            localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("pay2pay_reg_mobile") ||
+            localStorage.getItem("pay2pay_reg_id") ||
+            "";
         }
       }
       const params: any = {};

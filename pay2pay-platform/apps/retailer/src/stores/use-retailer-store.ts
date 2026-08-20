@@ -170,13 +170,13 @@ const getInitialMainBalance = (): number => {
     const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
     if (saved) {
       const parsed = parseFloat(saved);
-      if (!isNaN(parsed) && parsed > 0) return parsed;
+      if (!isNaN(parsed) && parsed >= 0) return parsed;
     }
   }
-  return 235750.00;
+  return 0.00;
 };
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
+const DEFAULT_RETAILER_ID = "";
 const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
 
 const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW" => {
@@ -193,6 +193,55 @@ const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDE
   return "PENDING";
 };
 
+const getInitialOutlet = (): RetailerOutlet => {
+  let id = "";
+  let code = "";
+  let name = "Retailer Store";
+  let ownerName = "Retailer Partner";
+  let mobile = "";
+  let email = "";
+
+  if (typeof window !== "undefined") {
+    try {
+      const userStr =
+        localStorage.getItem("user_info") ||
+        localStorage.getItem("user") ||
+        localStorage.getItem("auth_user") ||
+        localStorage.getItem("pay2pay_user_data");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        id = u.id || u.public_id || u.retailer_id || "";
+        code = u.retailer_code || u.code || "";
+        name = u.company_name || u.store_name || u.name || name;
+        ownerName = u.owner_name || u.full_name || u.name || ownerName;
+        mobile = u.mobile || u.mobile_number || u.phone || "";
+        email = u.email || "";
+      }
+    } catch {}
+    if (!code) {
+      code = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("p2p_retailer_code") || "";
+    }
+    if (!name || name === "Retailer Store") {
+      name = localStorage.getItem("p2p_retailer_name") || name;
+    }
+  }
+
+  return {
+    id,
+    code,
+    name,
+    ownerName,
+    mobile,
+    email,
+    location: "India",
+    status: "ACTIVE",
+    kycStatus: "VERIFIED",
+    approvalStatus: "APPROVED",
+    soundboxActive: true,
+    soundboxLang: "en",
+  };
+};
+
 const getInitialTheme = (): KpiTheme => {
   if (typeof window !== "undefined") {
     const saved = (localStorage.getItem("kpi_card_theme") || localStorage.getItem("pay2pay_app_theme")) as KpiTheme;
@@ -207,20 +256,7 @@ const getInitialTheme = (): KpiTheme => {
 export const useRetailerStore = create<RetailerStoreState>((set, get) => {
   const initApproval = getInitialApprovalStatus();
   return {
-    outlet: {
-      id: "e238fb8b-beb3-4cd4-862b-319b5d05d24e",
-      code: "RET-10928",
-      name: "Sathus Pay Store",
-      ownerName: "Sathiya Murthy",
-      mobile: "+91 70139 14767",
-      email: "retailer@pay2pay.in",
-      location: "Chennai, TN",
-      status: "ACTIVE",
-      kycStatus: "VERIFIED",
-      approvalStatus: "APPROVED",
-      soundboxActive: true,
-      soundboxLang: "en",
-    },
+    outlet: getInitialOutlet(),
     wallet: {
       mainBalance: getInitialMainBalance(),
       commissionBalance: 0.00,
@@ -267,17 +303,26 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       try {
         let activeRetailerId = "";
         let activeTenantId = "";
+
         if (typeof window !== "undefined") {
           try {
-            const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+            const userStr =
+              localStorage.getItem("user_info") ||
+              localStorage.getItem("user") ||
+              localStorage.getItem("auth_user") ||
+              localStorage.getItem("pay2pay_user_data");
             if (userStr) {
               const u = JSON.parse(userStr);
-              activeRetailerId = u.retailer_code || u.retailer_id || u.id || "";
+              activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
               activeTenantId = u.tenant_id || "";
             }
           } catch {}
           if (!activeRetailerId) {
-            activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "RET-10928";
+            activeRetailerId =
+              localStorage.getItem("p2p_active_retailer_id") ||
+              localStorage.getItem("pay2pay_reg_mobile") ||
+              localStorage.getItem("pay2pay_reg_id") ||
+              "";
           }
           if (!activeTenantId) {
             activeTenantId = localStorage.getItem("p2p_tenant_id") || "";
@@ -288,9 +333,9 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
         if (activeRetailerId) params.retailer_id = activeRetailerId;
         if (activeTenantId) params.tenant_id = activeTenantId;
 
-        const res = await apiClient.get("/dashboard/retailer/header-wallet", { params });
+        const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet", { params });
         const data = res.data;
-        const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (typeof data.available_balance === "number" ? data.available_balance : 235750.00);
+        const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (typeof data.available_balance === "number" ? data.available_balance : 0.00);
         const rInfo = data.retailer_info || data;
 
         if (typeof window !== "undefined") {
@@ -304,7 +349,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
           outlet: {
             ...state.outlet,
             id: rInfo.retailer_id || data.retailer_id || state.outlet.id,
-            code: rInfo.retailer_code || data.retailer_code || state.outlet.code || "RET-10928",
+            code: rInfo.retailer_code || data.retailer_code || state.outlet.code || "",
             name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || state.outlet.name,
             ownerName: rInfo.owner_name || data.owner_name || state.outlet.ownerName,
             status: "ACTIVE",

@@ -92,13 +92,14 @@ async def resolve_retailer_context(
 
         # 2. Search RetailerContactModel by mobile to find RetailerModel
         if not ret_model and clean_mobile:
-            mob_vars = [clean_mobile, f"91{clean_mobile}"]
-            if clean_mobile.startswith("91") and len(clean_mobile) == 10:
+            mob_vars = [clean_mobile, f"+91{clean_mobile}", f"91{clean_mobile}"]
+            if clean_mobile.startswith("91") and len(clean_mobile) == 12:
                 mob_vars.append(clean_mobile[2:])
             ret_contact_stmt = (
                 select(RetailerModel)
                 .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
                 .where(RetailerContactModel.mobile.in_(mob_vars))
+                .order_by(desc(RetailerModel.created_date))
             )
             ret_model = (await db.execute(ret_contact_stmt)).scalars().first()
 
@@ -111,36 +112,39 @@ async def resolve_retailer_context(
                 verif_conds.append(RetailerVerificationModel.retailer_id == target_ident)
                 verif_conds.append(RetailerVerificationModel.registration_id == target_ident)
             if clean_mobile:
-                verif_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}"))
+                verif_conds.append(RetailerVerificationModel.mobile_number == clean_mobile)
+                verif_conds.append(RetailerVerificationModel.mobile_number == f"+91{clean_mobile}")
+                verif_conds.append(RetailerVerificationModel.mobile_number == f"91{clean_mobile}")
+                verif_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}%"))
 
             if verif_conds:
                 verif_stmt = select(RetailerVerificationModel).where(or_(*verif_conds)).order_by(desc(RetailerVerificationModel.submitted_at))
                 verif = (await db.execute(verif_stmt)).scalars().first()
 
-        # 4. Default fallback to primary active merchant in DB (RET-10928 / Sathus Pay Store)
-        if not ret_model and not verif:
-            ret_stmt = select(RetailerModel).where(RetailerModel.status == "ACTIVE").order_by(RetailerModel.created_date.desc())
+        # 4. Default fallback to primary active merchant in DB (ordered by latest)
+        if not ret_model and not verif and not target_ident:
+            ret_stmt = select(RetailerModel).where(RetailerModel.status == "ACTIVE").order_by(desc(RetailerModel.created_date))
             ret_model = (await db.execute(ret_stmt)).scalars().first()
 
     # Determine dynamic identity: Prioritize active RetailerModel
     if ret_model:
-        final_id = ret_model.retailer_code or "RET-10928"
-        final_reg_id = ret_model.retailer_code or "RET-10928"
-        final_name = ret_model.store_name or ret_model.owner_name or "Sathus Pay Store"
-        final_owner = ret_model.owner_name or "Sathiya Murthy"
-        final_store = ret_model.store_name or "Sathus Pay Store"
-        final_mobile = clean_mobile or "7013914767"
+        final_id = ret_model.retailer_code or str(ret_model.public_id)
+        final_reg_id = ret_model.retailer_code or str(ret_model.public_id)
+        final_name = ret_model.store_name or ret_model.owner_name or "Retailer Store"
+        final_owner = ret_model.owner_name or "Retailer Partner"
+        final_store = ret_model.store_name or "Retailer Store"
+        final_mobile = clean_mobile or "9176669426"
         final_status = (ret_model.status or "ACTIVE").upper()
         final_kyc = "APPROVED"
         final_public_id = ret_model.public_id
         final_tenant_id = ret_model.tenant_id or t_uuid
         final_company_id = ret_model.company_id or c_uuid
     elif verif:
-        final_id = str(verif.retailer_id or verif.registration_id or "RET-10928")
+        final_id = str(verif.retailer_id or verif.registration_id or clean_mobile or "RET-PENDING")
         final_reg_id = str(verif.registration_id or final_id)
-        final_name = verif.shop_name or verif.retailer_name or "Sathus Pay Store"
-        final_owner = verif.retailer_name or "Sathiya Murthy"
-        final_store = verif.shop_name or "Sathus Pay Store"
+        final_name = verif.shop_name or verif.retailer_name or "Retailer Store"
+        final_owner = verif.retailer_name or "Retailer Partner"
+        final_store = verif.shop_name or "Retailer Store"
         final_mobile = verif.mobile_number or clean_mobile or ""
         final_status = (verif.account_status or verif.verification_status or "ACTIVE").upper()
         final_kyc = (verif.verification_status or "APPROVED").upper()
@@ -148,12 +152,12 @@ async def resolve_retailer_context(
         final_tenant_id = verif.tenant_id or t_uuid
         final_company_id = verif.company_id or c_uuid
     else:
-        final_id = "RET-10928"
-        final_reg_id = "RET-10928"
-        final_name = "Sathus Pay Store"
-        final_owner = "Sathiya Murthy"
-        final_store = "Sathus Pay Store"
-        final_mobile = "7013914767"
+        final_id = target_ident or clean_mobile or "RET-UNKNOWN"
+        final_reg_id = target_ident or clean_mobile or "REG-UNKNOWN"
+        final_name = "Retailer Store"
+        final_owner = "Retailer Partner"
+        final_store = "Retailer Store"
+        final_mobile = clean_mobile or ""
         final_status = "ACTIVE"
         final_kyc = "APPROVED"
         final_public_id = r_uuid
@@ -204,14 +208,27 @@ async def get_retailer_header_wallet(
             wal_obj = (await db.execute(wal_stmt)).scalars().first()
             if wal_obj:
                 wallet_balance = float(wal_obj.wallet_balance)
+                blocked_balance = 0.00
+                is_initialized = True
+            else:
+                # Initialize wallet record for this merchant
+                new_wal = RetailerWalletModel(
+                    retailer_id=pub_id,
+                    tenant_id=ctx.get("tenant_id") or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
+                    wallet_balance=0.00,
+                )
+                db.add(new_wal)
+                await db.commit()
+                wallet_balance = 0.00
+                blocked_balance = 0.00
                 is_initialized = True
         except Exception as e:
             logger.warning(f"Wallet balance lookup exception: {e}")
 
-    # Fallback lookup by retailer_code if wallet not found by pub_id
-    if not is_initialized or wallet_balance == 0.0:
+    # Fallback lookup by retailer_code ONLY if no wallet found for pub_id and not initialized
+    if not is_initialized and ctx.get("retailer_id"):
         try:
-            target_code = ctx.get("retailer_id") or "RET-10928"
+            target_code = ctx.get("retailer_id")
             ret_lookup = select(RetailerModel).where(RetailerModel.retailer_code == target_code)
             ret_row = (await db.execute(ret_lookup)).scalars().first()
             if ret_row:
@@ -219,6 +236,7 @@ async def get_retailer_header_wallet(
                 wal_obj = (await db.execute(wal_stmt)).scalars().first()
                 if wal_obj:
                     wallet_balance = float(wal_obj.wallet_balance)
+                    blocked_balance = 0.00
                     is_initialized = True
                     pub_id = ret_row.public_id
         except Exception as e:

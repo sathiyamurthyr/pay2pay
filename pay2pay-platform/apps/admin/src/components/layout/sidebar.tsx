@@ -10,6 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
+  Megaphone,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -64,7 +65,8 @@ const ADMIN_NAV: NavCategory[] = [
       { label: "Beneficiary Policy", href: "/policies/evaluator", icon: Sliders },
       { label: "Risk", href: "/fraud/rules", icon: ShieldAlert },
       { label: "AML", href: "/compliance/reports", icon: ShieldCheck },
-      { label: "Notifications", href: "/notification-dashboard", icon: Bell },
+      { label: "Announcements", href: "/announcements", icon: Megaphone, badge: "Live" },
+      { label: "Notifications", href: "/notifications", icon: Bell },
       { label: "API", href: "/developer/api-keys", icon: Webhook },
       { label: "Security", href: "/settings/secrets", icon: Key },
     ],
@@ -126,7 +128,7 @@ export const Sidebar: React.FC = () => {
       const allowedLabels: Record<string, string[]> = {
         "Main": ["Dashboard"],
         "Administration": ["Super Distributor", "Distributor", "Retailer", "POS Machine"],
-        "Configuration": ["Customer Policy", "Notifications"],
+        "Configuration": ["Customer Policy", "Notifications", "Announcements"],
         "Approvals": ["KYC & Onboarding"],
         "Reports": ["Settlement", "Wallet", "Retailers", "Machines", "Audit", "Reconciliation"],
       };

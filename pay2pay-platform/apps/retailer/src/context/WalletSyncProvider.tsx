@@ -62,12 +62,16 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
         try {
-          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
             localName = u.full_name || u.name || u.owner_name || u.retailer_name || "";
             localCode = u.retailer_code || u.code || "";
-            activeRetailerId = u.retailer_code || u.retailer_id || u.id || "";
+            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
           }
         } catch {}
         if (!localName) {
@@ -77,7 +81,11 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
           localCode = localStorage.getItem("p2p_retailer_code") || localStorage.getItem("pay2pay_user_code") || localStorage.getItem("pay2pay_reg_code") || "";
         }
         if (!activeRetailerId) {
-          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "RET-10928";
+          activeRetailerId =
+            localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("pay2pay_reg_mobile") ||
+            localStorage.getItem("pay2pay_reg_id") ||
+            "";
         }
       }
 
@@ -86,7 +94,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
         params.retailer_id = activeRetailerId;
       }
 
-      const res = await apiClient.get<WalletDataPayload>("/dashboard/retailer/header-wallet", {
+      const res = await apiClient.get<WalletDataPayload>("/api/v1/payout/dashboard/retailer/header-wallet", {
         params,
       });
 
@@ -109,7 +117,11 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
 
       // If user is logged in as Super Admin / Admin, ensure approval flag is active
       try {
-        const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+        const userStr =
+          localStorage.getItem("user_info") ||
+          localStorage.getItem("user") ||
+          localStorage.getItem("auth_user") ||
+          localStorage.getItem("pay2pay_user_data");
         if (userStr) {
           const u = JSON.parse(userStr);
           const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
@@ -125,11 +137,19 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
 
       // Update localStorage & useRetailerStore
       if (typeof window !== "undefined") {
-        const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.0;
+        const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (typeof data.available_balance === "number" ? data.available_balance : 0.0);
+        const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
         localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
         if (data.retailer_code || data.retailer_id) {
           localStorage.setItem("p2p_active_retailer_id", data.retailer_code || data.retailer_id);
         }
+        useRetailerStore.getState().updateWallet({
+          mainBalance: bal,
+          availableBalance: avail,
+          commissionBalance: data.todays_commission || 0.0,
+          todayMargin: data.todays_commission || 0.0,
+          todaySettlement: data.settlement_pending_amount || 0.0,
+        });
       }
 
       setWalletData(data);

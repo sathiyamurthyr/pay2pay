@@ -114,3 +114,53 @@ async def get_upload_constraints(
         "max_file_size_mb": MAX_FILE_SIZE_BYTES // (1024 * 1024),
         "entity_types": sorted(ALLOWED_ENTITY_TYPES),
     }
+
+
+@router.post("/image", summary="Upload Announcement / Banner Image to Local Fast Storage")
+async def upload_local_image(
+    file: UploadFile = File(..., description="Image file: PNG, JPG, WEBP, GIF, SVG (max 5 MB)"),
+    folder: str = Form("announcements", description="Subfolder within uploads"),
+):
+    """
+    Saves image to local static folder (/uploads/announcements/...)
+    for zero-latency, super-fast loading on user dashboards.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No filename provided.")
+
+    from pathlib import Path
+    ext = Path(file.filename).suffix.lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"]:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="File type is not allowed. Upload JPG, PNG, WEBP, GIF, or SVG images only.",
+        )
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Image size exceeds 5 MB limit.",
+        )
+
+    # Sanitize folder path
+    safe_folder = "".join(c for c in folder if c.isalnum() or c in ("-", "_")) or "announcements"
+    target_dir = Path("uploads") / safe_folder
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    unique_name = f"{uuid.uuid4().hex[:12]}{ext}"
+    file_path = target_dir / unique_name
+    file_path.write_bytes(file_bytes)
+
+    relative_url = f"/uploads/{safe_folder}/{unique_name}"
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "success": True,
+            "message": "Image uploaded successfully to local storage",
+            "url": relative_url,
+            "path": relative_url,
+            "filename": unique_name,
+            "file_size": len(file_bytes),
+        },
+    )

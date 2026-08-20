@@ -87,14 +87,22 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
         try {
-          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
-            activeRetailerId = u.retailer_code || u.retailer_id || u.id || "";
+            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
           }
         } catch {}
         if (!activeRetailerId) {
-          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "RET-10928";
+          activeRetailerId =
+            localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("pay2pay_reg_mobile") ||
+            localStorage.getItem("pay2pay_reg_id") ||
+            "";
         }
       }
       const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
@@ -123,9 +131,9 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
           todaySettlement: data.settlement_pending_amount || 0.0,
         });
         useRetailerStore.getState().updateOutlet({
-          code: rInfo.retailer_code || data.retailer_code || "RET-10928",
-          name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || "Sathus Pay Store",
-          ownerName: rInfo.owner_name || data.owner_name || "Sathiya Murthy",
+          code: rInfo.retailer_code || data.retailer_code || "",
+          name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || "Retailer Store",
+          ownerName: rInfo.owner_name || data.owner_name || "Retailer Partner",
           status: "ACTIVE",
           kycStatus: "VERIFIED",
           approvalStatus: "APPROVED",
