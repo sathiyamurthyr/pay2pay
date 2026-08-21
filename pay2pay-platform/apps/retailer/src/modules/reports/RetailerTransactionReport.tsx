@@ -112,6 +112,85 @@ const SERVICE_BADGES: Record<string, { label: string; bg: string; text: string; 
   TOPUP: { label: "Topup", bg: "rgba(34, 197, 94, 0.15)", text: "#4ADE80", border: "rgba(34, 197, 94, 0.3)" },
 };
 
+const BANK_SHORT_NAMES: Record<string, string> = {
+  "STATE BANK OF INDIA": "SBI",
+  "STATE BANK OF HYDERABAD": "SBH",
+  "STATE BANK OF PATIALA": "SBP",
+  "HDFC BANK": "HDFC",
+  "HDFC BANK LIMITED": "HDFC",
+  "ICICI BANK": "ICICI",
+  "ICICI BANK LIMITED": "ICICI",
+  "PUNJAB NATIONAL BANK": "PNB",
+  "BANK OF BARODA": "BOB",
+  "AXIS BANK": "AXIS",
+  "AXIS BANK LIMITED": "AXIS",
+  "KOTAK MAHINDRA BANK": "KOTAK",
+  "KOTAK MAHINDRA BANK LIMITED": "KOTAK",
+  "UNION BANK OF INDIA": "UBI",
+  "CANARA BANK": "CANARA",
+  "INDIAN OVERSEAS BANK": "IOB",
+  "IDBI BANK": "IDBI",
+  "IDBI BANK LIMITED": "IDBI",
+  "IDBI": "IDBI",
+  "INDUSIND BANK": "INDUSIND",
+  "INDUSIND BANK LIMITED": "INDUSIND",
+  "FEDERAL BANK": "FEDERAL",
+  "FEDERAL BANK LIMITED": "FEDERAL",
+  "YES BANK": "YES",
+  "YES BANK LIMITED": "YES",
+  "BANK OF INDIA": "BOI",
+  "CENTRAL BANK OF INDIA": "CBI",
+  "INDIAN BANK": "INDIAN",
+  "UCO BANK": "UCO",
+  "BANK OF MAHARASHTRA": "BOM",
+  "PUNJAB & SIND BANK": "PSB",
+  "PUNJAB AND SIND BANK": "PSB",
+  "AIRTEL PAYMENTS BANK": "AIRTEL",
+  "PAYTM PAYMENTS BANK": "PAYTM",
+  "FINO PAYMENTS BANK": "FINO",
+  "AU SMALL FINANCE BANK": "AU BANK",
+  "EQUITAS SMALL FINANCE BANK": "EQUITAS",
+  "UJJIVAN SMALL FINANCE BANK": "UJJIVAN",
+  "JANA SMALL FINANCE BANK": "JANA",
+  "SOUTH INDIAN BANK": "SIB",
+  "KARUR VYSYA BANK": "KVB",
+  "CITY UNION BANK": "CUB",
+  "TAMILNAD MERCANTILE BANK": "TMB",
+  "BANDHAN BANK": "BANDHAN",
+  "RBL BANK": "RBL",
+  "STANDARD CHARTERED BANK": "SCB",
+  "HSBC BANK": "HSBC",
+  "CITI BANK": "CITI",
+  "DBS BANK": "DBS",
+};
+
+export const getShortBankName = (bankName?: string): string => {
+  if (!bankName) return "";
+  const cleaned = bankName.trim().toUpperCase();
+  if (BANK_SHORT_NAMES[cleaned]) return BANK_SHORT_NAMES[cleaned];
+  for (const [full, short] of Object.entries(BANK_SHORT_NAMES)) {
+    if (cleaned === full || cleaned.startsWith(full) || full.startsWith(cleaned)) return short;
+  }
+  return bankName
+    .replace(/\s+Limited$/i, "")
+    .replace(/\s+Ltd\.?$/i, "")
+    .replace(/\s+Bank$/i, "")
+    .trim();
+};
+
+export const getShortAccountNumber = (acc?: string): string => {
+  if (!acc) return "";
+  const digits = acc.replace(/\D/g, "");
+  if (digits.length >= 4) {
+    return `•••• ${digits.slice(-4)}`;
+  }
+  const clean = acc.replace(/[\s-]/g, "");
+  if (clean.length > 4) {
+    return `•••• ${clean.slice(-4)}`;
+  }
+  return clean;
+};
+
 export const RetailerTransactionReport: React.FC = () => {
   // State: Real Data directly from Database API
   const [items, setItems] = useState<TransactionReportItem[]>([]);
@@ -733,53 +812,31 @@ export const RetailerTransactionReport: React.FC = () => {
         }}
       >
         <TableContainer>
-          <Table sx={{ minWidth: 1050 }} size="small">
+          <Table sx={{ minWidth: 1100 }} size="small">
             <TableHead sx={{ bgcolor: "#0F172A" }}>
-              <TableRow>
+              <TableRow sx={{ "& th": { color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase", py: 1.8, px: 2, whiteSpace: "nowrap", borderBottom: "1px solid #1E293B" } }}>
                 {/* 1. Txn ID */}
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase", py: 1.8 }}>
-                  Txn ID
-                </TableCell>
+                <TableCell>Txn ID</TableCell>
                 {/* 2. Service */}
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  Service
-                </TableCell>
+                <TableCell>Service</TableCell>
                 {/* 3. Type */}
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  Type
-                </TableCell>
+                <TableCell>Type</TableCell>
                 {/* 4. Recipient / Bank Details */}
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  Beneficiary &amp; Bank
-                </TableCell>
+                <TableCell>Beneficiary &amp; Bank</TableCell>
                 {/* 5. Previous Balance */}
-                <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  Prev Bal (₹)
-                </TableCell>
+                <TableCell align="right">Prev Bal (₹)</TableCell>
                 {/* 6. CR / DR */}
-                <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  CR / DR (₹)
-                </TableCell>
+                <TableCell align="right">CR / DR (₹)</TableCell>
                 {/* 7. Current Balance */}
-                <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  Closing Bal (₹)
-                </TableCell>
+                <TableCell align="right">Closing Bal (₹)</TableCell>
                 {/* 8. Amount */}
-                <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  Amount (₹)
-                </TableCell>
+                <TableCell align="right">Amount (₹)</TableCell>
                 {/* 9. Date & Time */}
-                <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  Date &amp; Time
-                </TableCell>
+                <TableCell>Date &amp; Time</TableCell>
                 {/* 10. Status */}
-                <TableCell align="center" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  Status
-                </TableCell>
+                <TableCell align="center">Status</TableCell>
                 {/* Action */}
-                <TableCell align="center" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  Action
-                </TableCell>
+                <TableCell align="center">Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -787,7 +844,7 @@ export const RetailerTransactionReport: React.FC = () => {
                 Array.from({ length: 5 }).map((_, idx) => (
                   <TableRow key={idx}>
                     {Array.from({ length: 11 }).map((_, cIdx) => (
-                      <TableCell key={cIdx} sx={{ py: 2 }}>
+                      <TableCell key={cIdx} sx={{ py: 2, px: 2 }}>
                         <Skeleton variant="text" sx={{ bgcolor: "#1E293B" }} />
                       </TableCell>
                     ))}
@@ -820,6 +877,9 @@ export const RetailerTransactionReport: React.FC = () => {
               ) : (
                 items.map((row) => {
                   const badge = SERVICE_BADGES[row.service] || { label: row.service, bg: "#1E293B", text: "#94A3B8", border: "#334155" };
+                  const shortBank = getShortBankName(row.bank_name);
+                  const shortAcc = getShortAccountNumber(row.account_number);
+
                   return (
                     <TableRow
                       key={row.id || row.txn_id}
@@ -828,15 +888,18 @@ export const RetailerTransactionReport: React.FC = () => {
                         "&:hover": { bgcolor: "rgba(30, 41, 59, 0.5) !important" },
                         borderBottom: "1px solid #1E293B",
                         cursor: "pointer",
+                        "& td": { py: 1.5, px: 2, whiteSpace: "nowrap" },
                       }}
                       onClick={() => openDetailsDrawer(row)}
                     >
                       {/* 1. Txn ID */}
-                      <TableCell sx={{ py: 1.8 }}>
+                      <TableCell sx={{ py: 1.5 }}>
                         <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>
-                            {row.txn_id}
-                          </Typography>
+                          <Tooltip title={row.txn_id} arrow placement="top">
+                            <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#60A5FA", fontSize: "12px", whiteSpace: "nowrap" }}>
+                              {row.txn_id}
+                            </Typography>
+                          </Tooltip>
                           <IconButton
                             size="small"
                             onClick={(e) => {
@@ -849,7 +912,7 @@ export const RetailerTransactionReport: React.FC = () => {
                           </IconButton>
                         </Stack>
                         {row.provider_ref && (
-                          <Typography variant="caption" sx={{ color: "#34D399", fontSize: "10px", display: "block", fontFamily: "monospace" }}>
+                          <Typography variant="caption" sx={{ color: "#34D399", fontSize: "10px", display: "block", fontFamily: "monospace", whiteSpace: "nowrap" }}>
                             UTR: {row.provider_ref}
                           </Typography>
                         )}
@@ -873,24 +936,40 @@ export const RetailerTransactionReport: React.FC = () => {
 
                       {/* 3. Type */}
                       <TableCell>
-                        <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", fontWeight: 600 }}>
+                        <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
                           {row.type}
                         </Typography>
                       </TableCell>
 
                       {/* 4. Beneficiary & Bank */}
                       <TableCell>
-                        <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "12px" }}>
+                        <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "12px", whiteSpace: "nowrap" }}>
                           {row.beneficiary_name || row.customer_name}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
-                          {row.bank_name ? `${row.bank_name} (${row.account_number})` : row.customer_mobile}
+                        <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 0.6 }}>
+                          {shortBank ? (
+                            <>
+                              <span style={{ fontWeight: 700, color: "#93C5FD" }}>
+                                {shortBank}
+                              </span>
+                              {shortAcc && (
+                                <>
+                                  <span style={{ color: "#475569" }}>•</span>
+                                  <span style={{ fontFamily: "monospace", color: "#CBD5E1" }}>
+                                    {shortAcc}
+                                  </span>
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            row.customer_mobile
+                          )}
                         </Typography>
                       </TableCell>
 
                       {/* 5. Previous Balance */}
                       <TableCell align="right">
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#94A3B8", fontSize: "12px" }}>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#94A3B8", fontSize: "12px", whiteSpace: "nowrap" }}>
                           ₹{row.previous_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
@@ -898,11 +977,11 @@ export const RetailerTransactionReport: React.FC = () => {
                       {/* 6. CR / DR */}
                       <TableCell align="right">
                         {row.cr > 0 ? (
-                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#34D399", fontSize: "12px" }}>
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#34D399", fontSize: "12px", whiteSpace: "nowrap" }}>
                             +₹{row.cr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </Typography>
                         ) : (
-                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#F87171", fontSize: "12px" }}>
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#F87171", fontSize: "12px", whiteSpace: "nowrap" }}>
                             -₹{row.dr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </Typography>
                         )}
@@ -910,30 +989,30 @@ export const RetailerTransactionReport: React.FC = () => {
 
                       {/* 7. Current Balance */}
                       <TableCell align="right">
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#CBD5E1", fontSize: "12px" }}>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#CBD5E1", fontSize: "12px", whiteSpace: "nowrap" }}>
                           ₹{row.current_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
 
                       {/* 8. Amount */}
                       <TableCell align="right">
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#FFFFFF", fontSize: "13px", whiteSpace: "nowrap" }}>
                           ₹{row.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </Typography>
                         {row.charges > 0 && (
-                          <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "10px" }}>
+                          <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "10px", display: "block", whiteSpace: "nowrap" }}>
                             Fee: ₹{row.charges.toFixed(2)}
                           </Typography>
                         )}
                       </TableCell>
 
                       {/* 9. Date & Time */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ color: "#E2E8F0", fontSize: "12px", fontWeight: 600 }}>
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        <Typography variant="body2" sx={{ color: "#E2E8F0", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
                           {new Date(row.transaction_datetime).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
-                          {new Date(row.transaction_datetime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                        <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px", whiteSpace: "nowrap", display: "block" }}>
+                          {new Date(row.transaction_datetime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
                         </Typography>
                       </TableCell>
 
