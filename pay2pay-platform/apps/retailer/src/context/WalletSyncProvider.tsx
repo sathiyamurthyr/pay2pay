@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import apiClient from "@/lib/api";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export interface WalletDataPayload {
   retailer_id: string;
