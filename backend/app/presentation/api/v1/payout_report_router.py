@@ -32,9 +32,9 @@ class ReportAuditLogRequest(BaseModel):
 
 @router.get("/summary", summary="Get Retailer Payout Summary KPIs")
 async def get_retailer_payout_summary(
-    retailer_id: Optional[uuid.UUID] = Query(None),
-    tenant_id: Optional[uuid.UUID] = Query(None),
-    company_id: Optional[uuid.UUID] = Query(None),
+    retailer_id: Optional[str] = Query(None),
+    tenant_id: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
@@ -80,7 +80,30 @@ async def get_retailer_payout_summary(
     row = res.fetchone()
     rd = dict(row._mapping) if row else {}
 
-    # 2. Query Workflow Transactions (EPIC-014 fallback)
+    # 2. Query Enterprise Payout Transactions
+    ep_summary_sql = """
+    SELECT 
+        COUNT(id) AS total_count,
+        COALESCE(SUM(amount), 0) AS total_amount,
+        COALESCE(SUM(net_debit), 0) AS total_debit,
+        COALESCE(SUM(commission), 0) AS total_commission,
+        COALESCE(SUM(gst_amount), 0) AS total_gst,
+        COALESCE(SUM(tds_amount), 0) AS total_tds,
+        COUNT(CASE WHEN UPPER(status::text) = 'SUCCESS' THEN 1 END) AS success_count,
+        COALESCE(SUM(CASE WHEN UPPER(status::text) = 'SUCCESS' THEN amount ELSE 0 END), 0) AS success_amount,
+        COUNT(CASE WHEN UPPER(status::text) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 END) AS pending_count,
+        COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN amount ELSE 0 END), 0) AS pending_amount,
+        COUNT(CASE WHEN UPPER(status::text) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN 1 END) AS failed_count,
+        COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN amount ELSE 0 END), 0) AS failed_amount,
+        COUNT(CASE WHEN UPPER(status::text) = 'REVERSED' OR is_reversed = true THEN 1 END) AS reversed_count
+    FROM enterprise_payout_transactions
+    WHERE created_date >= :start_dt AND created_date <= :end_dt;
+    """
+    ep_res = await db.execute(text(ep_summary_sql), {"start_dt": start_dt, "end_dt": end_dt})
+    ep_row = ep_res.fetchone()
+    ep_rd = dict(ep_row._mapping) if ep_row else {}
+
+    # 3. Query Workflow Transactions (EPIC-014 fallback)
     pw_sql = """
     SELECT 
         COUNT(id) AS total_count,
@@ -100,20 +123,20 @@ async def get_retailer_payout_summary(
     pw_row = pw_res.fetchone()
     pw_rd = dict(pw_row._mapping) if pw_row else {}
 
-    total_txns = int(rd.get("total_count", 0)) + int(pw_rd.get("total_count", 0))
-    total_amount = float(rd.get("total_amount", 0)) + float(pw_rd.get("total_amount", 0))
-    total_debit = float(rd.get("total_debit", 0)) + float(pw_rd.get("total_debit", 0))
-    total_comm = float(rd.get("total_commission", 0)) + float(pw_rd.get("total_commission", 0))
-    total_gst = float(rd.get("total_gst", 0))
-    total_tds = float(rd.get("total_tds", 0))
+    total_txns = int(rd.get("total_count", 0)) + int(ep_rd.get("total_count", 0)) + int(pw_rd.get("total_count", 0))
+    total_amount = float(rd.get("total_amount", 0)) + float(ep_rd.get("total_amount", 0)) + float(pw_rd.get("total_amount", 0))
+    total_debit = float(rd.get("total_debit", 0)) + float(ep_rd.get("total_debit", 0)) + float(pw_rd.get("total_debit", 0))
+    total_comm = float(rd.get("total_commission", 0)) + float(ep_rd.get("total_commission", 0)) + float(pw_rd.get("total_commission", 0))
+    total_gst = float(rd.get("total_gst", 0)) + float(ep_rd.get("total_gst", 0))
+    total_tds = float(rd.get("total_tds", 0)) + float(ep_rd.get("total_tds", 0))
 
-    success_txns = int(rd.get("success_count", 0)) + int(pw_rd.get("success_count", 0))
-    success_amt = float(rd.get("success_amount", 0)) + float(pw_rd.get("success_amount", 0))
-    pending_txns = int(rd.get("pending_count", 0)) + int(pw_rd.get("pending_count", 0))
-    pending_amt = float(rd.get("pending_amount", 0)) + float(pw_rd.get("pending_amount", 0))
-    failed_txns = int(rd.get("failed_count", 0)) + int(pw_rd.get("failed_count", 0))
-    failed_amt = float(rd.get("failed_amount", 0)) + float(pw_rd.get("failed_amount", 0))
-    reversed_txns = int(rd.get("reversed_count", 0))
+    success_txns = int(rd.get("success_count", 0)) + int(ep_rd.get("success_count", 0)) + int(pw_rd.get("success_count", 0))
+    success_amt = float(rd.get("success_amount", 0)) + float(ep_rd.get("success_amount", 0)) + float(pw_rd.get("success_amount", 0))
+    pending_txns = int(rd.get("pending_count", 0)) + int(ep_rd.get("pending_count", 0)) + int(pw_rd.get("pending_count", 0))
+    pending_amt = float(rd.get("pending_amount", 0)) + float(ep_rd.get("pending_amount", 0)) + float(pw_rd.get("pending_amount", 0))
+    failed_txns = int(rd.get("failed_count", 0)) + int(ep_rd.get("failed_count", 0)) + int(pw_rd.get("failed_count", 0))
+    failed_amt = float(rd.get("failed_amount", 0)) + float(ep_rd.get("failed_amount", 0)) + float(pw_rd.get("failed_amount", 0))
+    reversed_txns = int(rd.get("reversed_count", 0)) + int(ep_rd.get("reversed_count", 0))
 
     return {
         "todays_transactions": total_txns,
@@ -133,9 +156,9 @@ async def get_retailer_payout_summary(
 
 async def fetch_payout_report_dataset(
     db: AsyncSession,
-    retailer_id: Optional[uuid.UUID] = None,
-    tenant_id: Optional[uuid.UUID] = None,
-    company_id: Optional[uuid.UUID] = None,
+    retailer_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    company_id: Optional[str] = None,
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     search: Optional[str] = None,
@@ -169,7 +192,7 @@ async def fetch_payout_report_dataset(
         except ValueError:
             pass
 
-    # 1. Query Central Transactions
+    # 1. Query Central Transactions joined with Double-Entry Ledger Entries
     central_sql = """
     SELECT 
         t.public_id::text AS transaction_id,
@@ -185,7 +208,8 @@ async def fetch_payout_report_dataset(
         COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
         COALESCE(b.account_number, 'XXXX') AS account_number,
         COALESCE(b.ifsc_code, 'UTIB0000000') AS ifsc_code,
-        COALESCE(t.service_type, 'MOVE_TO_BANK') AS payment_mode,
+        COALESCE(t.service_type, t.transaction_type, 'MOVE_TO_BANK') AS payment_mode,
+        COALESCE(t.transaction_type, 'SERVICES') AS service_category,
         t.amount::float AS transfer_amount,
         t.charges::float AS convenience_fee,
         t.gst_amount::float AS gst_amount,
@@ -198,10 +222,17 @@ async def fetch_payout_report_dataset(
         UPPER(t.status) AS status,
         CASE WHEN UPPER(t.status) = 'FAILED' THEN 'REFUNDED' ELSE '' END AS refund_status,
         COALESCE(t.response_message, t.status_description, '') AS remarks,
+        l.balance_before::float AS wallet_before,
+        l.balance_after::float AS wallet_after,
+        COALESCE(l.entry_type, 'DEBIT') AS entry_type,
+        COALESCE(l.narration, t.status_description, '') AS narration,
         true AS receipt_enabled
     FROM transactions t
     LEFT JOIN customer c ON t.customer_id = c.public_id
     LEFT JOIN beneficiary_master b ON t.beneficiary_id = b.public_id
+    LEFT JOIN transaction_ledger_entries l 
+        ON (t.public_id = l.transaction_id OR t.transaction_reference = l.transaction_reference)
+        AND l.account_type = 'RETAILER_WALLET'
     WHERE 1=1
     """
     params = {}
@@ -244,7 +275,57 @@ async def fetch_payout_report_dataset(
     central_sql += " ORDER BY t.created_at DESC"
     rows = (await db.execute(text(central_sql), params)).fetchall()
 
-    # 2. Query Workflow Transactions
+    # 2. Query Enterprise Payout Transactions
+    ep_sql = """
+    SELECT 
+        e.public_id::text AS transaction_id,
+        e.transaction_number,
+        e.transaction_number AS reference_id,
+        e.initiated_at,
+        e.completed_at,
+        COALESCE(c.full_name, 'Verified Customer') AS customer_name,
+        COALESCE(c.mobile_number, '9176669426') AS customer_mobile,
+        COALESCE(b.account_holder_name, 'Beneficiary') AS beneficiary_name,
+        COALESCE(c.mobile_number, '9176669426') AS beneficiary_mobile,
+        COALESCE(b.bank_name, 'State Bank of India') AS bank_name,
+        COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
+        COALESCE(b.account_number, 'XXXX') AS account_number,
+        COALESCE(b.ifsc_code, 'SBIN0001234') AS ifsc_code,
+        COALESCE(e.mode, 'IMPS') AS payment_mode,
+        'PAYOUT' AS service_category,
+        e.amount::float AS transfer_amount,
+        e.charges::float AS convenience_fee,
+        e.gst_amount::float AS gst_amount,
+        e.tds_amount::float AS tds_amount,
+        (e.gst_amount + e.tds_amount)::float AS tax_amount,
+        'MAIN_WALLET' AS wallet_type,
+        e.net_debit::float AS wallet_debit,
+        e.commission::float AS retailer_commission,
+        COALESCE(e.utr_number, '--') AS utr_number,
+        UPPER(e.status::text) AS status,
+        CASE WHEN e.is_reversed THEN 'REFUNDED' ELSE '' END AS refund_status,
+        COALESCE(e.reversal_reason, e.status_description, '') AS remarks,
+        e.wallet_before::float AS wallet_before,
+        e.wallet_after::float AS wallet_after,
+        'DEBIT' AS entry_type,
+        COALESCE(e.reversal_reason, e.status_description, '') AS narration,
+        true AS receipt_enabled
+    FROM enterprise_payout_transactions e
+    LEFT JOIN customer c ON e.customer_id = c.public_id
+    LEFT JOIN beneficiary_master b ON e.beneficiary_id = b.public_id
+    WHERE 1=1
+    """
+    ep_params = {}
+    if start_dt:
+        ep_sql += " AND e.created_date >= :start_dt"
+        ep_params["start_dt"] = start_dt
+    if end_dt:
+        ep_sql += " AND e.created_date <= :end_dt"
+        ep_params["end_dt"] = end_dt
+    ep_sql += " ORDER BY e.created_date DESC"
+    ep_rows = (await db.execute(text(ep_sql), ep_params)).fetchall()
+
+    # 3. Query Workflow Transactions
     pw_sql = """
     SELECT 
         p.public_id::text AS transaction_id,
@@ -261,6 +342,7 @@ async def fetch_payout_report_dataset(
         COALESCE(b.account_number, 'XXXX') AS account_number,
         COALESCE(b.ifsc_code, 'IBKL0000039') AS ifsc_code,
         p.mode AS payment_mode,
+        'DMT' AS service_category,
         p.amount::float AS transfer_amount,
         p.charges::float AS convenience_fee,
         ROUND((p.charges * 0.18)::numeric, 2)::float AS gst_amount,
@@ -273,6 +355,10 @@ async def fetch_payout_report_dataset(
         UPPER(p.status) AS status,
         CASE WHEN UPPER(p.status) = 'FAILED' THEN 'REFUNDED' ELSE '' END AS refund_status,
         COALESCE(p.failure_reason, '') AS remarks,
+        p.wallet_before::float AS wallet_before,
+        p.wallet_after::float AS wallet_after,
+        'DEBIT' AS entry_type,
+        COALESCE(p.failure_reason, '') AS narration,
         true AS receipt_enabled
     FROM payout_workflow_transactions p
     LEFT JOIN customer c ON p.customer_id = c.public_id
@@ -292,19 +378,7 @@ async def fetch_payout_report_dataset(
     all_items = []
     seen_refs = set()
 
-    for r in rows:
-        d = dict(r._mapping)
-        ref = d.get("transaction_number") or d.get("reference_id")
-        if ref and ref not in seen_refs:
-            seen_refs.add(ref)
-            if d.get("initiated_at") and isinstance(d["initiated_at"], datetime):
-                d["initiated_at"] = d["initiated_at"].strftime("%d-%b-%Y %H:%M")
-            if d.get("completed_at") and isinstance(d["completed_at"], datetime):
-                d["completed_at"] = d["completed_at"].strftime("%d-%b-%Y %H:%M")
-            d["masked_account_number"] = mask_account_number(d.get("account_number"))
-            all_items.append(d)
-
-    for r in pw_rows:
+    for r in list(rows) + list(ep_rows) + list(pw_rows):
         d = dict(r._mapping)
         ref = d.get("transaction_number") or d.get("reference_id")
         if ref and ref not in seen_refs:
@@ -337,9 +411,9 @@ async def fetch_payout_report_dataset(
 @router.get("/list", summary="Get Filtered Paginated Retailer Payout Report")
 @router.get("/grid", summary="Get Filtered Paginated Retailer Payout Report Grid")
 async def get_retailer_payout_report_list(
-    retailer_id: Optional[uuid.UUID] = Query(None),
-    tenant_id: Optional[uuid.UUID] = Query(None),
-    company_id: Optional[uuid.UUID] = Query(None),
+    retailer_id: Optional[str] = Query(None),
+    tenant_id: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
@@ -396,8 +470,8 @@ async def get_retailer_payout_report_list(
 @router.get("/{transaction_id}/details", summary="Get Sanitized Retailer Transaction Details for Drawer")
 async def get_retailer_transaction_details(
     transaction_id: str,
-    retailer_id: Optional[uuid.UUID] = Query(None),
-    tenant_id: Optional[uuid.UUID] = Query(None),
+    retailer_id: Optional[str] = Query(None),
+    tenant_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     tx_sql = """
@@ -484,9 +558,9 @@ async def get_retailer_transaction_details(
 @router.get("/export/pdf", summary="Export Retailer Payout Report PDF")
 async def export_retailer_payout_report(
     export_format: str = Query("csv", description="csv | excel | pdf"),
-    retailer_id: Optional[uuid.UUID] = Query(None),
-    tenant_id: Optional[uuid.UUID] = Query(None),
-    company_id: Optional[uuid.UUID] = Query(None),
+    retailer_id: Optional[str] = Query(None),
+    tenant_id: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),

@@ -132,6 +132,13 @@ export interface FooterTotals {
 const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
 const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
 
+const getActiveRetailerId = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || DEFAULT_RETAILER_ID;
+  }
+  return DEFAULT_RETAILER_ID;
+};
+
 const getTodayIso = () => new Date().toISOString().split("T")[0];
 
 const getDateOffsetIso = (daysOffset: number) => {
@@ -173,12 +180,12 @@ export const RetailerPayoutReport: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState<number>(10);
   const [totalRecords, setTotalRecords] = useState<number>(0);
 
-  // Quick Search & Date Filters
+  // Quick Search & Date Filters (Default to this month to show active transactions immediately)
   const [globalSearch, setGlobalSearch] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
-  const [fromDate, setFromDate] = useState<string>(getTodayIso());
+  const [fromDate, setFromDate] = useState<string>(getFirstDayOfMonthIso(0));
   const [toDate, setToDate] = useState<string>(getTodayIso());
-  const [activePreset, setActivePreset] = useState<string>("TODAY");
+  const [activePreset, setActivePreset] = useState<string>("THIS_MONTH");
 
   // Filter Bar Controls
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -232,8 +239,9 @@ export const RetailerPayoutReport: React.FC = () => {
     setIsSummaryLoading(true);
     setSummaryError(false);
     try {
+      const activeRetailer = getActiveRetailerId();
       const q = new URLSearchParams({
-        retailer_id: DEFAULT_RETAILER_ID,
+        retailer_id: activeRetailer,
         tenant_id: DEFAULT_TENANT_ID,
       });
       if (fDate) q.append("from_date", fDate);
@@ -260,8 +268,9 @@ export const RetailerPayoutReport: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
+      const activeRetailer = getActiveRetailerId();
       const q = new URLSearchParams({
-        retailer_id: DEFAULT_RETAILER_ID,
+        retailer_id: activeRetailer,
         tenant_id: DEFAULT_TENANT_ID,
         page: (page + 1).toString(),
         limit: rowsPerPage.toString(),
