@@ -57,8 +57,13 @@ class AnnouncementResponse(BaseModel):
 
 
 class AnnouncementCreatePayload(BaseModel):
-    title: str = Field(..., example="Platform System Update")
-    message: str = Field(..., example="Get latest update on our official channel.")
+    title: Optional[str] = Field(None, example="Platform System Update")
+    header: Optional[str] = None
+    message: Optional[str] = Field(None, example="Get latest update on our official channel.")
+    body: Optional[str] = None
+    image_url: Optional[str] = None
+    image_urls: Optional[List[str]] = None
+    images: Optional[List[Any]] = None
     links: Optional[List[AnnouncementLinkItem]] = Field(default_factory=list)
     display_type: Optional[str] = Field("MODAL", example="MODAL")
     priority: Optional[int] = Field(10, example=10)
@@ -71,7 +76,12 @@ class AnnouncementCreatePayload(BaseModel):
 
 class AnnouncementUpdatePayload(BaseModel):
     title: Optional[str] = None
+    header: Optional[str] = None
     message: Optional[str] = None
+    body: Optional[str] = None
+    image_url: Optional[str] = None
+    image_urls: Optional[List[str]] = None
+    images: Optional[List[Any]] = None
     links: Optional[List[AnnouncementLinkItem]] = None
     display_type: Optional[str] = None
     priority: Optional[int] = None
@@ -130,8 +140,10 @@ async def get_active_announcements(
         img_list = []
         for img in sorted(a.images, key=lambda x: x.display_order):
             if not img.is_deleted and img.is_active:
-                # Ensure download URL has B2 access token or public URL
-                full_img_url = BackblazeStorageService.get_download_url(img.b2_object_key) or img.image_url
+                if img.image_url and (img.image_url.startswith("/uploads") or img.image_url.startswith("http://") or img.image_url.startswith("https://") or img.image_url.startswith("data:")):
+                    full_img_url = img.image_url
+                else:
+                    full_img_url = BackblazeStorageService.get_download_url(img.b2_object_key) or img.image_url
                 img_list.append({
                     "id": str(img.public_id),
                     "b2_object_key": img.b2_object_key,
@@ -142,11 +154,15 @@ async def get_active_announcements(
                     "display_order": img.display_order
                 })
 
+        top_img = img_list[0]["image_url"] if img_list else None
         announcements_data.append({
             "id": str(a.public_id),
             "announcement_code": a.announcement_code,
             "title": a.title,
+            "header": a.title,
             "message": a.content,
+            "body": a.content,
+            "image_url": top_img,
             "links": a.links or [],
             "display_type": a.display_type or "MODAL",
             "priority": a.priority or 10,
@@ -187,7 +203,10 @@ async def admin_list_announcements(db: AsyncSession = Depends(get_db)):
         img_list = []
         for img in sorted(a.images, key=lambda x: x.display_order):
             if not img.is_deleted:
-                full_img_url = BackblazeStorageService.get_download_url(img.b2_object_key) or img.image_url
+                if img.image_url and (img.image_url.startswith("/uploads") or img.image_url.startswith("http://") or img.image_url.startswith("https://") or img.image_url.startswith("data:")):
+                    full_img_url = img.image_url
+                else:
+                    full_img_url = BackblazeStorageService.get_download_url(img.b2_object_key) or img.image_url
                 img_list.append({
                     "id": str(img.public_id),
                     "b2_object_key": img.b2_object_key,
@@ -198,11 +217,15 @@ async def admin_list_announcements(db: AsyncSession = Depends(get_db)):
                     "display_order": img.display_order
                 })
 
+        top_img = img_list[0]["image_url"] if img_list else None
         announcements_data.append({
             "id": str(a.public_id),
             "announcement_code": a.announcement_code,
             "title": a.title,
+            "header": a.title,
             "message": a.content,
+            "body": a.content,
+            "image_url": top_img,
             "links": a.links or [],
             "display_type": a.display_type or "MODAL",
             "priority": a.priority or 10,
@@ -228,19 +251,21 @@ async def admin_create_announcement(
     payload: AnnouncementCreatePayload,
     db: AsyncSession = Depends(get_db)
 ):
-    """Admin endpoint to create a new announcement with links, audience, and priority."""
+    """Admin endpoint to create a new announcement with links, audience, priority, and images."""
     code = f"ANN-{datetime.now().year}-{uuid.uuid4().hex[:6].upper()}"
     pub_id = uuid.uuid4()
 
     links_dict_list = [l.dict() if hasattr(l, "dict") else dict(l) for l in payload.links] if payload.links else []
+    resolved_title = (payload.title or payload.header or "Announcement").strip()
+    resolved_content = (payload.message or payload.body or "").strip()
 
     ann = AnnouncementModel(
         tenant_id=DEFAULT_TENANT_ID,
         company_id=DEFAULT_COMPANY_ID,
         public_id=pub_id,
         announcement_code=code,
-        title=payload.title.strip(),
-        content=payload.message.strip(),
+        title=resolved_title,
+        content=resolved_content,
         links=links_dict_list,
         display_type=payload.display_type or "MODAL",
         priority=payload.priority if payload.priority is not None else 10,
@@ -252,6 +277,41 @@ async def admin_create_announcement(
         created_by="ADMIN"
     )
     db.add(ann)
+
+    # Persist images if image_url or images array is provided
+    img_candidates: List[str] = []
+    if payload.image_url and isinstance(payload.image_url, str) and payload.image_url.strip():
+        img_candidates.append(payload.image_url.strip())
+    if payload.image_urls:
+        for u in payload.image_urls:
+            if u and isinstance(u, str) and u.strip():
+                img_candidates.append(u.strip())
+    if payload.images:
+        for item in payload.images:
+            if isinstance(item, str) and item.strip():
+                img_candidates.append(item.strip())
+            elif isinstance(item, dict) and item.get("image_url"):
+                img_candidates.append(str(item["image_url"]).strip())
+
+    for idx, u in enumerate(img_candidates, start=1):
+        img_pub_id = uuid.uuid4()
+        ann_img = AnnouncementImageModel(
+            tenant_id=ann.tenant_id,
+            company_id=ann.company_id,
+            public_id=img_pub_id,
+            announcement_id=ann.public_id,
+            b2_object_key=u if not u.startswith("/uploads") else f"local_{img_pub_id.hex[:8]}",
+            b2_bucket="local" if u.startswith("/uploads") else B2_BUCKET_NAME,
+            image_url=u,
+            original_filename="banner.jpg",
+            content_type="image/jpeg",
+            file_size=1024,
+            display_order=idx,
+            is_active=True,
+            created_by="ADMIN"
+        )
+        db.add(ann_img)
+
     await db.commit()
 
     return {
@@ -262,6 +322,7 @@ async def admin_create_announcement(
             "id": str(pub_id),
             "announcement_code": code,
             "title": ann.title,
+            "image_url": img_candidates[0] if img_candidates else None,
             "is_active": ann.is_active
         }
     }
@@ -273,22 +334,22 @@ async def admin_update_announcement(
     payload: AnnouncementUpdatePayload,
     db: AsyncSession = Depends(get_db)
 ):
-    """Admin endpoint to edit announcement title, content, links, status, and dates."""
+    """Admin endpoint to edit announcement title, content, links, status, dates, and images."""
     try:
         ann_uuid = uuid.UUID(announcement_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid announcement ID format.")
 
-    stmt = select(AnnouncementModel).where(and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False))
+    stmt = select(AnnouncementModel).options(selectinload(AnnouncementModel.images)).where(and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False))
     ann = (await db.execute(stmt)).scalars().first()
 
     if not ann:
         raise HTTPException(status_code=404, detail="Announcement not found.")
 
-    if payload.title is not None:
-        ann.title = payload.title.strip()
-    if payload.message is not None:
-        ann.content = payload.message.strip()
+    if payload.title is not None or payload.header is not None:
+        ann.title = (payload.title or payload.header or ann.title).strip()
+    if payload.message is not None or payload.body is not None:
+        ann.content = (payload.message or payload.body or ann.content).strip()
     if payload.links is not None:
         ann.links = [l.dict() if hasattr(l, "dict") else dict(l) for l in payload.links]
     if payload.display_type is not None:
@@ -305,6 +366,32 @@ async def admin_update_announcement(
         ann.start_at = payload.start_at
     if payload.end_at is not None:
         ann.end_at = payload.end_at
+
+    if payload.image_url and isinstance(payload.image_url, str) and payload.image_url.strip():
+        # Update or add image
+        img_url = payload.image_url.strip()
+        if ann.images:
+            ann.images[0].image_url = img_url
+            ann.images[0].is_active = True
+            ann.images[0].is_deleted = False
+        else:
+            img_pub_id = uuid.uuid4()
+            ann_img = AnnouncementImageModel(
+                tenant_id=ann.tenant_id,
+                company_id=ann.company_id,
+                public_id=img_pub_id,
+                announcement_id=ann.public_id,
+                b2_object_key=img_url if not img_url.startswith("/uploads") else f"local_{img_pub_id.hex[:8]}",
+                b2_bucket="local" if img_url.startswith("/uploads") else B2_BUCKET_NAME,
+                image_url=img_url,
+                original_filename="banner.jpg",
+                content_type="image/jpeg",
+                file_size=1024,
+                display_order=1,
+                is_active=True,
+                created_by="ADMIN"
+            )
+            db.add(ann_img)
 
     ann.updated_date = datetime.now(timezone.utc)
     ann.updated_by = "ADMIN"

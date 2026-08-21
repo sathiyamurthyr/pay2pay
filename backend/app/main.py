@@ -214,6 +214,10 @@ app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_S
 app.include_router(report_center_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)
 from app.presentation.api.v1 import retailer_profile_router
+from app.presentation.api.v1 import enterprise_transaction_report_router
+app.include_router(enterprise_transaction_report_router.router, prefix=settings.API_V1_STR)
+app.include_router(enterprise_transaction_report_router.router, prefix="/api")
+app.include_router(enterprise_transaction_report_router.router, prefix="")
 app.include_router(retailer_profile_router.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_profile_router.router, prefix="/api")
 app.include_router(retailer_profile_router.router, prefix="")
