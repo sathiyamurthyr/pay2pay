@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { RetailerPayoutReport } from "@/modules/reports/RetailerPayoutReport";
+import { RetailerTransactionReport } from "@/modules/reports/RetailerTransactionReport";
 
 export default function RetailerTransactionsReportPage() {
-  return <RetailerPayoutReport />;
+  return <RetailerTransactionReport />;
 }
