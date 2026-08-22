@@ -319,19 +319,35 @@ class BulkPePayoutEngine:
         api_res = None
         executed_vendor = active_provider
 
-        if active_provider in ("UTKAL", "UTKAL_DIGITAL"):
-            from app.application.utkal_digital_client import UtkalDigitalClient
-            api_res = await UtkalDigitalClient.initiate_payout(
+        if active_provider in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
+            from app.application.utkaldigital_client import UtkalDigitalApiClient
+            api_res = await UtkalDigitalApiClient.initiate_payout(
                 merchant_ref=merchant_ref,
                 account_number=acc_num,
                 ifsc_code=ifsc,
                 account_holder=acc_holder,
                 amount=amount,
-                mode=mode,
-                mobile=cust_mobile,
-                db=db
+                sender_mobile=cust_mobile,
+                sender_name=getattr(customer, "full_name", "Customer"),
+                bank_name=getattr(beneficiary, "bank_name", "Bank"),
+                bank_code="SBIN" if "SBIN" in str(ifsc).upper() else "MAGNI",
+                service_id="27"
             )
+            print(f"\n[DIAGNOSTIC] UtkalDigitalApiClient returned: {api_res}\n")
             executed_vendor = "UtkalDigital"
+            if api_res.get("status") == "FAILED" and policy.auto_failover_enabled:
+                wowpe_res = await WowPeApiClient.initiate_payout(
+                    merchant_ref=f"FO-{merchant_ref}",
+                    account_number=acc_num,
+                    ifsc_code=ifsc,
+                    account_holder=acc_holder,
+                    amount=amount,
+                    mode=mode,
+                    mobile=cust_mobile
+                )
+                if wowpe_res.get("status") in ("SUCCESS", "PENDING"):
+                    api_res = wowpe_res
+                    executed_vendor = "WowPe"
         elif active_provider == "WOWPE":
             api_res = await WowPeApiClient.initiate_payout(
                 merchant_ref=merchant_ref,

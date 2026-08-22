@@ -301,18 +301,20 @@ class CentralTransactionService:
                 details={"vendor_code": v_code}
             )
 
-            if v_code in ("UTKAL", "UTKAL_DIGITAL"):
+            if v_code in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
                 try:
-                    from app.application.utkal_digital_client import UtkalDigitalClient
-                    payout_res = await UtkalDigitalClient.initiate_payout(
+                    from app.application.utkaldigital_client import UtkalDigitalApiClient
+                    payout_res = await UtkalDigitalApiClient.initiate_payout(
                         merchant_ref=txn_ref,
                         account_number=recipient_account,
                         ifsc_code=recipient_ifsc,
                         account_holder=recipient_name or "Retailer Beneficiary",
                         amount=amount,
-                        mode=transfer_mode,
-                        mobile=recipient_mobile or "9876543210",
-                        db=db
+                        sender_mobile=recipient_mobile or "9876543210",
+                        sender_name="Retailer Beneficiary",
+                        bank_name="Commercial Bank",
+                        bank_code="SBIN" if "SBIN" in str(recipient_ifsc).upper() else "MAGNI",
+                        service_id="27"
                     )
 
                     res_status = payout_res.get("status")
