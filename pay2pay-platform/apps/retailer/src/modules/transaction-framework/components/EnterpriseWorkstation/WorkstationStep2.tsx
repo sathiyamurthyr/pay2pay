@@ -524,6 +524,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 <TableBody>
                   {displayedBeneficiaries.map((b) => {
                     const isSelected = selectedBeneficiary?.id === b.id;
+                    const isExpanded = expandedBeneficiaryId === b.id;
                     const isAccountRevealed = true;
                     const rawAccount = b.accountNumber || b.maskedAccountNumber || "0630104000156974";
                     const maskedAcc = rawAccount;
@@ -561,7 +562,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                   fontSize: "11px",
                                 }}
                               >
-                                {b.name.slice(0, 2).toUpperCase()}
+                                {(b.name || "Beneficiary").slice(0, 2).toUpperCase()}
                               </Avatar>
 
                               <Box>
