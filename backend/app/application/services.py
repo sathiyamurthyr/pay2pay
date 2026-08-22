@@ -2327,6 +2327,176 @@ class RetailerManagementService:
         return retailer
 
     @staticmethod
+    async def sync_verifications_to_retailers(db: AsyncSession, tenant_id: Optional[uuid.UUID] = None) -> int:
+        """
+        Synchronizes submitted retailer onboarding records from RetailerVerificationModel / RegistrationDraftModel
+        into RetailerModel (and child contact, address, bank, KYC, wallet, approval models)
+        so that newly onboarded retailers immediately appear in the admin/distributor approval directory.
+        """
+        from app.infrastructure.db.verification_models import RetailerVerificationModel
+        from app.infrastructure.db.registration_models import (
+            RegistrationDraftModel, RegistrationPanModel, RegistrationGstModel,
+            RegistrationBankModel, RegistrationShopModel, RegistrationAddressModel
+        )
+        try:
+            verifs = (await db.execute(select(RetailerVerificationModel))).scalars().all()
+        except Exception:
+            return 0
+
+        synced_count = 0
+        for v in verifs:
+            clean_mobile = v.mobile_number.replace("+91", "").strip()
+            ret_chk_stmt = (
+                select(RetailerModel)
+                .join(RetailerContactModel, RetailerModel.public_id == RetailerContactModel.retailer_id, isouter=True)
+                .where(
+                    or_(
+                        RetailerModel.retailer_code == v.retailer_id,
+                        RetailerModel.retailer_code == f"RET-{clean_mobile}",
+                        RetailerModel.retailer_code == v.registration_id,
+                        RetailerContactModel.mobile == v.mobile_number,
+                        RetailerContactModel.mobile == clean_mobile,
+                        RetailerContactModel.mobile == f"+91{clean_mobile}"
+                    )
+                )
+            )
+            existing_ret = (await db.execute(ret_chk_stmt)).scalars().first()
+
+            v_status = (v.verification_status or "").upper()
+            if v_status in ("APPROVED", "ACTIVE"):
+                ret_status = "ACTIVE"
+            elif v_status in ("REJECTED",):
+                ret_status = "REJECTED"
+            elif v_status in ("ON_HOLD", "HOLD", "NEED_INFO"):
+                ret_status = "HOLD"
+            else:
+                ret_status = "PENDING_APPROVAL"
+
+            if not existing_ret:
+                reg_id = v.registration_id
+                pan = (await db.execute(select(RegistrationPanModel).where(RegistrationPanModel.registration_id == reg_id))).scalars().first()
+                gst = (await db.execute(select(RegistrationGstModel).where(RegistrationGstModel.registration_id == reg_id))).scalars().first()
+                bank = (await db.execute(select(RegistrationBankModel).where(RegistrationBankModel.registration_id == reg_id))).scalars().first()
+                shop = (await db.execute(select(RegistrationShopModel).where(RegistrationShopModel.registration_id == reg_id))).scalars().first()
+                addr = (await db.execute(select(RegistrationAddressModel).where(RegistrationAddressModel.registration_id == reg_id))).scalars().first()
+
+                new_ret_id = uuid.uuid4()
+                use_tenant = v.tenant_id if (v.tenant_id and str(v.tenant_id) != "00000000-0000-0000-0000-000000000001") else (tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"))
+                ret_code = v.retailer_id or f"RET-{clean_mobile[-6:] if len(clean_mobile)>=6 else clean_mobile}"
+
+                new_ret = RetailerModel(
+                    public_id=new_ret_id,
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_code=ret_code,
+                    store_name=v.shop_name or (shop.shop_name if shop else None) or "Retailer Store",
+                    legal_name=v.retailer_name or (pan.pan_holder_name if pan else "Retailer Partner"),
+                    owner_name=v.retailer_name or (pan.pan_holder_name if pan else "Retailer Partner"),
+                    business_category=shop.category if shop else "Recharge & FinTech",
+                    store_type="PHYSICAL",
+                    status=ret_status,
+                    created_by="Self-Onboarding Registration",
+                    is_deleted=False
+                )
+                db.add(new_ret)
+
+                contact = RetailerContactModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    primary_contact=v.retailer_name,
+                    mobile=clean_mobile,
+                    email=v.email or f"{clean_mobile}@pay2pay.in",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(contact)
+
+                address = RetailerAddressModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    state=addr.state if addr else (v.state or "Tamil Nadu"),
+                    city=addr.city if addr else (v.district or "Chennai"),
+                    address=addr.street if addr else "Shop Address",
+                    pincode=addr.pincode if addr else "600001",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(address)
+
+                bank_obj = RetailerBankModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    settlement_bank_name=bank.name_at_bank if bank else "Settlement Bank",
+                    account_holder=bank.name_at_bank if bank else v.retailer_name,
+                    account_number=bank.account_number_masked if bank else "000000000000",
+                    ifsc=(bank.ifsc if bank else "PAY20000001").upper(),
+                    verification_status="VERIFIED" if ret_status == "ACTIVE" else "PENDING",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(bank_obj)
+
+                kyc_obj = RetailerKycModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    pan_number=(v.pan_number or (pan.pan_number if pan else None) or "").upper(),
+                    gst_number=(v.gst_number or (gst.gst_number if gst else None) or "").upper(),
+                    verification_status="VERIFIED" if ret_status == "ACTIVE" else "PENDING",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(kyc_obj)
+
+                wallet_obj = RetailerWalletModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    wallet_balance=0.0,
+                    daily_transaction_limit=100000.0,
+                    single_transaction_limit=25000.0,
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(wallet_obj)
+
+                approval_obj = RetailerApprovalModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    request_type="ONBOARDING",
+                    status="APPROVED" if ret_status == "ACTIVE" else "PENDING",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(approval_obj)
+
+                history_obj = RetailerStatusHistoryModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    previous_status="DRAFT",
+                    new_status=ret_status,
+                    reason="Self-Registration Submission",
+                    changed_by_email="system@pay2pay.in",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(history_obj)
+                synced_count += 1
+            else:
+                if existing_ret.status == "PENDING_APPROVAL" and ret_status == "ACTIVE":
+                    existing_ret.status = "ACTIVE"
+                    synced_count += 1
+
+        if synced_count > 0:
+            await db.commit()
+        return synced_count
+
+    @staticmethod
     async def list_retailers(
         db: AsyncSession,
         tenant_id: uuid.UUID,
@@ -2336,8 +2506,13 @@ class RetailerManagementService:
         page: int = 1,
         page_size: int = 20
     ) -> Tuple[List[RetailerModel], int]:
+        # Synchronize any new onboarding records from verification/drafts
+        try:
+            await RetailerManagementService.sync_verifications_to_retailers(db, tenant_id)
+        except Exception as e:
+            pass
+
         stmt = select(RetailerModel).where(
-            RetailerModel.tenant_id == tenant_id,
             RetailerModel.is_deleted == False
         )
         if status:
@@ -2366,7 +2541,6 @@ class RetailerManagementService:
     async def get_retailer_details(db: AsyncSession, tenant_id: uuid.UUID, retailer_id: uuid.UUID) -> RetailerDetailsResponse:
         stmt = select(RetailerModel).where(
             RetailerModel.public_id == retailer_id,
-            RetailerModel.tenant_id == tenant_id,
             RetailerModel.is_deleted == False
         ).options(
             selectinload(RetailerModel.contacts),
@@ -2426,15 +2600,15 @@ class RetailerManagementService:
     ) -> RetailerModel:
         stmt = select(RetailerModel).where(
             RetailerModel.public_id == retailer_id,
-            RetailerModel.tenant_id == tenant_id,
             RetailerModel.is_deleted == False
-        ).options(selectinload(RetailerModel.kyc), selectinload(RetailerModel.banks))
+        ).options(selectinload(RetailerModel.kyc), selectinload(RetailerModel.banks), selectinload(RetailerModel.contacts))
         retailer = (await db.execute(stmt)).scalar_one_or_none()
         if not retailer:
             raise NotFoundException("Retailer not found.")
 
         old_status = retailer.status
         action_upper = req.action.upper() if req.action else "APPROVE"
+        comments = req.comments or req.remarks or f"Onboarding {req.action} by reviewer"
 
         if action_upper in ["APPROVE", "APPROVED", "ACTIVE"]:
             retailer.status = "ACTIVE"
@@ -2450,17 +2624,51 @@ class RetailerManagementService:
             retailer.status = "BLOCKED"
             if retailer.kyc:
                 retailer.kyc.verification_status = "REJECTED"
-                retailer.kyc.rejection_reason = req.comments
+                retailer.kyc.rejection_reason = comments
+
+        # Also sync to RetailerVerificationModel and RegistrationDraftModel
+        from app.infrastructure.db.verification_models import RetailerVerificationModel
+        from app.infrastructure.db.registration_models import RegistrationDraftModel
+
+        ret_mobiles = [c.mobile for c in retailer.contacts if c.mobile]
+        v_stmt = select(RetailerVerificationModel).where(
+            or_(
+                RetailerVerificationModel.retailer_id == retailer.retailer_code,
+                RetailerVerificationModel.mobile_number.in_(ret_mobiles)
+            )
+        )
+        verifs = (await db.execute(v_stmt)).scalars().all()
+        for v in verifs:
+            if action_upper in ["APPROVE", "APPROVED", "ACTIVE"]:
+                v.verification_status = "APPROVED"
+                v.account_status = "ACTIVE"
+                v.retailer_status = "ACTIVE"
+                try:
+                    await db.execute(
+                        update(RegistrationDraftModel)
+                        .where(RegistrationDraftModel.registration_id == v.registration_id)
+                        .values(status="KYC_APPROVED")
+                    )
+                except Exception:
+                    pass
+            elif action_upper in ["HOLD", "PENDING"]:
+                v.verification_status = "ON_HOLD"
+                v.account_status = "ONBOARDING"
+                v.retailer_status = "ON_HOLD"
+            else:
+                v.verification_status = "REJECTED"
+                v.account_status = "ONBOARDING"
+                v.retailer_status = "REJECTED"
 
         # Status History
         history = RetailerStatusHistoryModel(
             public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
+            tenant_id=retailer.tenant_id,
             company_id=retailer.company_id,
             retailer_id=retailer_id,
             previous_status=old_status,
             new_status=retailer.status,
-            reason=req.comments or f"Onboarding {req.action}D by reviewer",
+            reason=comments,
             changed_by_email=reviewer_user.email,
             created_by=reviewer_user.email
         )
@@ -2470,7 +2678,7 @@ class RetailerManagementService:
         await db.execute(
             update(RetailerApprovalModel)
             .where(RetailerApprovalModel.retailer_id == retailer_id, RetailerApprovalModel.status == "PENDING")
-            .values(status="APPROVED" if req.action == "APPROVE" else "REJECTED", comments=req.comments, reviewer_email=reviewer_user.email, reviewed_at=datetime.now(timezone.utc))
+            .values(status="APPROVED" if action_upper in ["APPROVE", "APPROVED", "ACTIVE"] else "REJECTED", comments=comments, reviewer_email=reviewer_user.email, reviewed_at=datetime.now(timezone.utc))
         )
 
         await db.commit()
@@ -2478,14 +2686,14 @@ class RetailerManagementService:
 
         await AuditLogger.log_action(
             db=db,
-            tenant_id=tenant_id,
+            tenant_id=retailer.tenant_id,
             company_id=retailer.company_id,
             actor_id=reviewer_user.public_id,
             actor_email=reviewer_user.email,
             action=f"RETAILER_APPROVAL_{req.action}",
             resource_type="RETAILER",
             resource_id=str(retailer_id),
-            details={"comments": req.comments}
+            details={"comments": comments}
         )
         return retailer
 

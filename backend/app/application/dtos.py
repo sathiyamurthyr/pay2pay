@@ -710,8 +710,9 @@ class RetailerUpdateRequest(BaseModel):
 
 
 class RetailerApprovalRequest(BaseModel):
-    action: str = Field(..., description="APPROVE or REJECT")
+    action: str = Field(..., description="APPROVE, APPROVED, HOLD, REJECT, REJECTED")
     comments: Optional[str] = None
+    remarks: Optional[str] = None
 
 
 class RetailerStatusChangeRequest(BaseModel):

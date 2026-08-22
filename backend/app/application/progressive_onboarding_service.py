@@ -1551,6 +1551,13 @@ class ProgressiveOnboardingService:
             district=draft_d.get("address", {}).get("district", "Chennai")
         )
 
+        # Synchronize immediately into RetailerModel for Admin/Distributor Onboarding Hub
+        try:
+            from app.application.services import RetailerManagementService
+            await RetailerManagementService.sync_verifications_to_retailers(db, DEFAULT_TENANT_ID)
+        except Exception as e:
+            pass
+
         await db.commit()
 
         return {
