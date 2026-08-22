@@ -1137,7 +1137,10 @@ function BeneficiaryWorkspaceContent() {
                                 sx={{
                                   "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
                                   "& .MuiInputLabel-root": { color: "#94A3B8" },
-                                  "& .MuiFormHelperText-root": { color: "#64748B" },
+                                  "& .MuiFormHelperText-root": {
+                                    color: accNum.length >= 9 ? "#FACC15" : "#64748B",
+                                    fontWeight: accNum.length >= 9 ? 700 : 400
+                                  },
                                 }}
                               />
                               {/* Character count badge */}
@@ -1145,14 +1148,14 @@ function BeneficiaryWorkspaceContent() {
                                 position: "absolute", top: 8, right: 10,
                                 bgcolor: accNum.length === 0 ? "#1E293B"
                                   : accNum.length < 9 ? "rgba(245, 158, 11, 0.2)"
-                                  : accNum.length <= 18 ? "rgba(16, 185, 129, 0.2)"
+                                  : accNum.length <= 18 ? "rgba(245, 158, 11, 0.2)"
                                   : "rgba(239, 68, 68, 0.2)",
                                 color: accNum.length === 0 ? "#94A3B8"
                                   : accNum.length < 9 ? "#F59E0B"
-                                  : "#34D399",
+                                  : "#FACC15",
                                 px: 1, py: 0.25, borderRadius: "6px",
                                 fontSize: "11px", fontWeight: 800,
-                                border: `1px solid ${accNum.length === 0 ? "#334155" : accNum.length < 9 ? "#F59E0B" : "#10B981"}`,
+                                border: `1px solid ${accNum.length === 0 ? "#334155" : accNum.length < 9 ? "#F59E0B" : "#F59E0B"}`,
                                 lineHeight: 1.6, minWidth: 44, textAlign: "center",
                                 pointerEvents: "none",
                                 zIndex: 1,
@@ -1195,21 +1198,28 @@ function BeneficiaryWorkspaceContent() {
                                 sx={{
                                   "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
                                   "& .MuiInputLabel-root": { color: "#94A3B8" },
-                                  "& .MuiFormHelperText-root": { color: duplicateError ? "#F87171" : "#64748B" },
+                                  "& .MuiFormHelperText-root": {
+                                    color: duplicateError
+                                      ? "#F87171"
+                                      : confirmAccNum === accNum && confirmAccNum.length >= 9
+                                      ? "#FACC15"
+                                      : "#64748B",
+                                    fontWeight: confirmAccNum === accNum && confirmAccNum.length >= 9 ? 700 : 400
+                                  },
                                 }}
                               />
                               {/* Character count badge */}
                               <Box sx={{
                                 position: "absolute", top: 8, right: 10,
                                 bgcolor: confirmAccNum.length === 0 ? "#1E293B"
-                                  : confirmAccNum === accNum && !duplicateError ? "rgba(16, 185, 129, 0.2)"
+                                  : confirmAccNum === accNum && !duplicateError ? "rgba(245, 158, 11, 0.2)"
                                   : "rgba(239, 68, 68, 0.2)",
                                 color: confirmAccNum.length === 0 ? "#94A3B8"
-                                  : confirmAccNum === accNum && !duplicateError ? "#34D399"
+                                  : confirmAccNum === accNum && !duplicateError ? "#FACC15"
                                   : "#F87171",
                                 px: 1, py: 0.25, borderRadius: "6px",
                                 fontSize: "11px", fontWeight: 800,
-                                border: `1px solid ${confirmAccNum.length === 0 ? "#334155" : confirmAccNum === accNum && !duplicateError ? "#10B981" : "#EF4444"}`,
+                                border: `1px solid ${confirmAccNum.length === 0 ? "#334155" : confirmAccNum === accNum && !duplicateError ? "#F59E0B" : "#EF4444"}`,
                                 lineHeight: 1.6, minWidth: 44, textAlign: "center",
                                 pointerEvents: "none",
                                 zIndex: 1,
@@ -1221,8 +1231,33 @@ function BeneficiaryWorkspaceContent() {
                           {accNum && confirmAccNum && (
                             <Grid size={{ xs: 12 }}>
                               <Alert
-                                severity={duplicateError ? "error" : accNum === confirmAccNum ? "success" : "error"}
-                                sx={{ borderRadius: 2, py: 0.5, fontSize: "12px", fontWeight: 700 }}
+                                severity={duplicateError ? "error" : accNum === confirmAccNum ? "warning" : "error"}
+                                icon={
+                                  accNum === confirmAccNum && !duplicateError ? (
+                                    <CheckCircleIcon sx={{ color: "#FACC15 !important", fontSize: "20px" }} />
+                                  ) : undefined
+                                }
+                                sx={{
+                                  borderRadius: 2,
+                                  py: 0.75,
+                                  fontSize: "13px",
+                                  fontWeight: 800,
+                                  ...(accNum === confirmAccNum && !duplicateError
+                                    ? {
+                                        bgcolor: "rgba(245, 158, 11, 0.12)",
+                                        color: "#FACC15",
+                                        border: "1px solid rgba(245, 158, 11, 0.4)",
+                                        "& .MuiAlert-icon": {
+                                          color: "#FACC15 !important",
+                                        },
+                                        "& .MuiAlert-message": {
+                                          color: "#FACC15 !important",
+                                          fontWeight: 800,
+                                          letterSpacing: "0.2px",
+                                        },
+                                      }
+                                    : {})
+                                }}
                               >
                                 {accNum !== confirmAccNum
                                   ? "✗ Account numbers do not match"

@@ -999,10 +999,17 @@ export function BeneficiaryMasterSlideOver({
                       {confirmAccNum.length > 0 && (
                         isAccNumMatched ? (
                           <Chip
-                            icon={<CheckCircleIcon sx={{ fontSize: "14px !important", color: "#22C55E !important" }} />}
+                            icon={<CheckCircleIcon sx={{ fontSize: "14px !important", color: "#FACC15 !important" }} />}
                             label="✓ Account Numbers Match"
                             size="small"
-                            sx={{ bgcolor: "#F0FDF4", color: "#16A34A", fontWeight: 800, fontSize: "0.7rem", height: 22 }}
+                            sx={{
+                              bgcolor: "rgba(245, 158, 11, 0.15)",
+                              color: "#FACC15",
+                              fontWeight: 800,
+                              fontSize: "0.7rem",
+                              height: 22,
+                              border: "1px solid rgba(245, 158, 11, 0.4)",
+                            }}
                           />
                         ) : (
                           <Chip

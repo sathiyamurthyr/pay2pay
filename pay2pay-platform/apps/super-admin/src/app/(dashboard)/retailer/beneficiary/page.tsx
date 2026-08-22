@@ -26,9 +26,11 @@ import {
   DialogContent,
   DialogActions,
   Table,
+  TableHead,
   TableBody,
   TableCell,
   TableRow,
+  TableContainer,
   MenuItem,
   Select,
   FormControl,
@@ -37,6 +39,7 @@ import {
   InputAdornment,
   ListSubheader,
 } from "@mui/material";
+import TableChartIcon from "@mui/icons-material/TableChart";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
@@ -187,29 +190,98 @@ function playClickSound() {
 function BeneficiaryWorkspaceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedCustomer, setSelectedBeneficiary, referrerUrl } = useTransactionMemoryStore();
+  const { selectedCustomer, setSelectedCustomer, setSelectedBeneficiary, referrerUrl } = useTransactionMemoryStore();
 
-  const [sessionCustomer, setSessionCustomer] = useState<any | null>(null);
+  const [activeCustomer, setActiveCustomer] = useState<any | null>(null);
+  const [isCustomerLoading, setIsCustomerLoading] = useState<boolean>(true);
+
+  // Read URL query parameters
+  const urlCustomerId = searchParams?.get("customerId") || searchParams?.get("id") || searchParams?.get("customer_id") || "";
+  const urlCustomerMobile = searchParams?.get("customerMobile") || searchParams?.get("mobile") || searchParams?.get("mobile_number") || "";
+  const urlCustomerName = searchParams?.get("customerName") || searchParams?.get("name") || searchParams?.get("full_name") || "";
 
   useEffect(() => {
     loadCustomerContext();
-  }, []);
+  }, [urlCustomerId, urlCustomerMobile]);
 
   const loadCustomerContext = async () => {
+    setIsCustomerLoading(true);
     try {
+      // 1. If customer mobile or customer ID is provided in URL query parameters
+      if (urlCustomerMobile || urlCustomerId) {
+        const query = urlCustomerMobile || urlCustomerId;
+        try {
+          const res = await retailerApi.searchPayoutCustomer(query);
+          if (res?.status === "SUCCESS" && Array.isArray(res.data) && res.data.length > 0) {
+            const found = res.data.find((c: any) =>
+              (urlCustomerMobile && (c.mobile_number === urlCustomerMobile || c.mobile === urlCustomerMobile)) ||
+              (urlCustomerId && (c.public_id === urlCustomerId || c.id === urlCustomerId || c.customer_number === urlCustomerId))
+            ) || res.data[0];
+
+            if (found) {
+              const custObj = {
+                ...found,
+                id: found.public_id || found.id || urlCustomerId,
+                public_id: found.public_id || found.id || urlCustomerId,
+                full_name: found.full_name || found.name || urlCustomerName || "Customer",
+                name: found.full_name || found.name || urlCustomerName || "Customer",
+                mobile_number: found.mobile_number || found.mobile || urlCustomerMobile,
+                mobile: found.mobile_number || found.mobile || urlCustomerMobile,
+                customer_number: found.customer_number || (found.mobile_number ? `CUST-${found.mobile_number}` : ""),
+              };
+              setActiveCustomer(custObj);
+              setSelectedCustomer(custObj);
+              setIsCustomerLoading(false);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("Customer search by query param error:", e);
+        }
+
+        // If backend search returned no match, construct customer object cleanly from URL
+        const fallbackFromUrl = {
+          id: urlCustomerId || (urlCustomerMobile ? `cust-${urlCustomerMobile}` : ""),
+          public_id: urlCustomerId || (urlCustomerMobile ? `cust-${urlCustomerMobile}` : ""),
+          full_name: urlCustomerName || (urlCustomerMobile ? `Customer (${urlCustomerMobile})` : "Customer"),
+          name: urlCustomerName || (urlCustomerMobile ? `Customer (${urlCustomerMobile})` : "Customer"),
+          mobile_number: urlCustomerMobile,
+          mobile: urlCustomerMobile,
+          customer_number: urlCustomerMobile ? `CUST-${urlCustomerMobile}` : (urlCustomerId ? formatShortCustomerId(urlCustomerId) : ""),
+        };
+        setActiveCustomer(fallbackFromUrl);
+        setSelectedCustomer(fallbackFromUrl);
+        setIsCustomerLoading(false);
+        return;
+      }
+
+      // 2. If memory store has active selected customer
+      if (selectedCustomer && (selectedCustomer.id || (selectedCustomer as any).public_id || selectedCustomer.mobile)) {
+        setActiveCustomer(selectedCustomer);
+        setIsCustomerLoading(false);
+        return;
+      }
+
+      // 3. Fallback: try session context
       const res = await retailerApi.getBeneficiaryContext();
       if (res?.data?.customer) {
-        setSessionCustomer(res.data.customer);
+        setActiveCustomer(res.data.customer);
+      } else {
+        setActiveCustomer(null);
       }
     } catch (err) {
       console.error("Failed to load secure beneficiary context:", err);
+      setActiveCustomer(null);
+    } finally {
+      setIsCustomerLoading(false);
     }
   };
 
-  const activeCustomerName   = sessionCustomer?.full_name || selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || "Ramesh Kumar";
-  const activeCustomerMobile = sessionCustomer?.mobile_number || selectedCustomer?.mobile || selectedCustomer?.mobile_number || "7013914767";
-  const rawId                = sessionCustomer?.customer_id || selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || "cust-8f64d450-7013914767";
-  const activeCustomerId     = formatShortCustomerId(rawId);
+  const effectiveCustomer = activeCustomer || selectedCustomer;
+  const activeCustomerName   = effectiveCustomer?.full_name || effectiveCustomer?.name || effectiveCustomer?.fullName || (urlCustomerName ? urlCustomerName : "Customer");
+  const activeCustomerMobile = effectiveCustomer?.mobile_number || effectiveCustomer?.mobile || urlCustomerMobile || "";
+  const rawId                = effectiveCustomer?.public_id || effectiveCustomer?.id || effectiveCustomer?.customer_id || urlCustomerId || "";
+  const activeCustomerId     = effectiveCustomer?.customer_number || (rawId ? formatShortCustomerId(rawId) : "");
 
   // ── Step ──────────────────────────────────────────────────────────────────
   const [activeStep, setActiveStep] = useState(0);
@@ -237,7 +309,7 @@ function BeneficiaryWorkspaceContent() {
   // ── Pre-checks ────────────────────────────────────────────────────────────
   const [precheckLoading, setPrecheckLoading] = useState(false);
   const [precheckResult, setPrecheckResult]   = useState<any | null>(null);
-  const [walletBalance, setWalletBalance]     = useState<number>(48250.75);
+  const [walletBalance, setWalletBalance]     = useState<number>(0);
   const [verificationCharge, setVerificationCharge] = useState<{ base: number; gst: number; total: number } | null>(null);
 
   // ── Verification ──────────────────────────────────────────────────────────
@@ -252,7 +324,7 @@ function BeneficiaryWorkspaceContent() {
   const [resultModalData, setResultModalData]   = useState<any | null>(null);
 
   // ── Saved Beneficiaries & Delete State ──
-  const { beneficiaries, setBeneficiaries, deleteBeneficiary } = useBeneficiary(selectedCustomer);
+  const { beneficiaries, setBeneficiaries, deleteBeneficiary } = useBeneficiary(effectiveCustomer);
   const [savedBenModalOpen, setSavedBenModalOpen] = useState(false);
   const [targetDeleteBen, setTargetDeleteBen]     = useState<BeneficiaryData | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen]   = useState(false);
@@ -286,9 +358,9 @@ function BeneficiaryWorkspaceContent() {
   const loadWalletBalance = async () => {
     try {
       const res = await retailerApi.getWalletBalance();
-      if (res && res.mainBalance) setWalletBalance(res.mainBalance);
+      if (res && res.mainBalance != null) setWalletBalance(res.mainBalance);
     } catch {
-      setWalletBalance(48250.75);
+      // On failure, keep existing balance (don't override with a fake value)
     }
   };
 
@@ -494,14 +566,17 @@ function BeneficiaryWorkspaceContent() {
       setVerificationCharge({ base, gst, total });
 
       const checks = {
-        wallet_balance: walletBalance >= total,
+        // Verification (penny drop) is allowed even with 0 wallet balance.
+        // The ₹3.54 fee is post-paid when balance is insufficient — never a blocker.
+        wallet_balance: true,
         retailer_active: true,
         customer_active: true,
         tenant_active: true,
         company_active: true,
       };
       const passed = Object.values(checks).every(Boolean);
-      setPrecheckResult({ passed, checks, wallet_balance: walletBalance, charge: total });
+      const lowBalance = walletBalance < total;
+      setPrecheckResult({ passed, checks, wallet_balance: walletBalance, charge: total, low_balance: lowBalance });
     } catch {
       setVerificationCharge({ base: 3.00, gst: 0.54, total: 3.54 });
       setPrecheckResult({
@@ -538,7 +613,13 @@ function BeneficiaryWorkspaceContent() {
         current_wallet_balance: walletBalance,
       });
 
-      if (res.status === "SUCCESS" || res.verification_status === "VERIFIED") {
+      const isSuccess = Boolean(
+        res &&
+        (res.status === "SUCCESS" || res.verification_status === "VERIFIED") &&
+        (res.beneficiary || res.data)
+      );
+
+      if (isSuccess) {
         const beneData = res.beneficiary || res.data || {};
         const officialName = beneData.registered_name_in_bank || beneData.name_at_bank || beneData.account_holder_name || benName.toUpperCase();
         const shortBenId   = `BEN-${(beneData.beneficiary_id || Date.now()).toString().slice(-8).toUpperCase()}`;
@@ -631,10 +712,25 @@ function BeneficiaryWorkspaceContent() {
 
         setActiveStep(1);
       } else {
-        throw new Error(res.message || "Verification failed");
+        const errorDetail = res?.detail;
+        let msg = "Penny Drop Verification failed with bank gateway.";
+        if (typeof errorDetail === "string") {
+          msg = errorDetail;
+        } else if (errorDetail && typeof errorDetail === "object") {
+          if (errorDetail.code === "BENEFICIARY_ALREADY_EXISTS") {
+            const existing = errorDetail.existing_beneficiary;
+            const holder = existing?.registered_name_in_bank || existing?.account_holder_name || "Existing Beneficiary";
+            msg = `Account already registered for this customer. Registered Holder: ${holder}`;
+          } else {
+            msg = errorDetail.message || errorDetail.error || res?.message || msg;
+          }
+        } else if (res?.message) {
+          msg = res.message;
+        }
+        throw new Error(msg);
       }
     } catch (err: any) {
-      const errMsg = err?.message || "Penny Drop Verification Failed. Please try again.";
+      const errMsg = err?.message || "Penny Drop Verification Failed. Please check bank details and try again.";
       setVerificationError(errMsg);
       setResultModalSuccess(false);
       setResultModalData({ error: errMsg });
@@ -1041,7 +1137,10 @@ function BeneficiaryWorkspaceContent() {
                                 sx={{
                                   "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
                                   "& .MuiInputLabel-root": { color: "#94A3B8" },
-                                  "& .MuiFormHelperText-root": { color: "#64748B" },
+                                  "& .MuiFormHelperText-root": {
+                                    color: accNum.length >= 9 ? "#FACC15" : "#64748B",
+                                    fontWeight: accNum.length >= 9 ? 700 : 400
+                                  },
                                 }}
                               />
                               {/* Character count badge */}
@@ -1049,14 +1148,14 @@ function BeneficiaryWorkspaceContent() {
                                 position: "absolute", top: 8, right: 10,
                                 bgcolor: accNum.length === 0 ? "#1E293B"
                                   : accNum.length < 9 ? "rgba(245, 158, 11, 0.2)"
-                                  : accNum.length <= 18 ? "rgba(16, 185, 129, 0.2)"
+                                  : accNum.length <= 18 ? "rgba(245, 158, 11, 0.2)"
                                   : "rgba(239, 68, 68, 0.2)",
                                 color: accNum.length === 0 ? "#94A3B8"
                                   : accNum.length < 9 ? "#F59E0B"
-                                  : "#34D399",
+                                  : "#FACC15",
                                 px: 1, py: 0.25, borderRadius: "6px",
                                 fontSize: "11px", fontWeight: 800,
-                                border: `1px solid ${accNum.length === 0 ? "#334155" : accNum.length < 9 ? "#F59E0B" : "#10B981"}`,
+                                border: `1px solid ${accNum.length === 0 ? "#334155" : accNum.length < 9 ? "#F59E0B" : "#F59E0B"}`,
                                 lineHeight: 1.6, minWidth: 44, textAlign: "center",
                                 pointerEvents: "none",
                                 zIndex: 1,
@@ -1099,21 +1198,28 @@ function BeneficiaryWorkspaceContent() {
                                 sx={{
                                   "& .MuiInputBase-root": { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: 2 },
                                   "& .MuiInputLabel-root": { color: "#94A3B8" },
-                                  "& .MuiFormHelperText-root": { color: duplicateError ? "#F87171" : "#64748B" },
+                                  "& .MuiFormHelperText-root": {
+                                    color: duplicateError
+                                      ? "#F87171"
+                                      : confirmAccNum === accNum && confirmAccNum.length >= 9
+                                      ? "#FACC15"
+                                      : "#64748B",
+                                    fontWeight: confirmAccNum === accNum && confirmAccNum.length >= 9 ? 700 : 400
+                                  },
                                 }}
                               />
                               {/* Character count badge */}
                               <Box sx={{
                                 position: "absolute", top: 8, right: 10,
                                 bgcolor: confirmAccNum.length === 0 ? "#1E293B"
-                                  : confirmAccNum === accNum && !duplicateError ? "rgba(16, 185, 129, 0.2)"
+                                  : confirmAccNum === accNum && !duplicateError ? "rgba(245, 158, 11, 0.2)"
                                   : "rgba(239, 68, 68, 0.2)",
                                 color: confirmAccNum.length === 0 ? "#94A3B8"
-                                  : confirmAccNum === accNum && !duplicateError ? "#34D399"
+                                  : confirmAccNum === accNum && !duplicateError ? "#FACC15"
                                   : "#F87171",
                                 px: 1, py: 0.25, borderRadius: "6px",
                                 fontSize: "11px", fontWeight: 800,
-                                border: `1px solid ${confirmAccNum.length === 0 ? "#334155" : confirmAccNum === accNum && !duplicateError ? "#10B981" : "#EF4444"}`,
+                                border: `1px solid ${confirmAccNum.length === 0 ? "#334155" : confirmAccNum === accNum && !duplicateError ? "#F59E0B" : "#EF4444"}`,
                                 lineHeight: 1.6, minWidth: 44, textAlign: "center",
                                 pointerEvents: "none",
                                 zIndex: 1,
@@ -1125,8 +1231,33 @@ function BeneficiaryWorkspaceContent() {
                           {accNum && confirmAccNum && (
                             <Grid size={{ xs: 12 }}>
                               <Alert
-                                severity={duplicateError ? "error" : accNum === confirmAccNum ? "success" : "error"}
-                                sx={{ borderRadius: 2, py: 0.5, fontSize: "12px", fontWeight: 700 }}
+                                severity={duplicateError ? "error" : accNum === confirmAccNum ? "warning" : "error"}
+                                icon={
+                                  accNum === confirmAccNum && !duplicateError ? (
+                                    <CheckCircleIcon sx={{ color: "#FACC15 !important", fontSize: "20px" }} />
+                                  ) : undefined
+                                }
+                                sx={{
+                                  borderRadius: 2,
+                                  py: 0.75,
+                                  fontSize: "13px",
+                                  fontWeight: 800,
+                                  ...(accNum === confirmAccNum && !duplicateError
+                                    ? {
+                                        bgcolor: "rgba(245, 158, 11, 0.12)",
+                                        color: "#FACC15",
+                                        border: "1px solid rgba(245, 158, 11, 0.4)",
+                                        "& .MuiAlert-icon": {
+                                          color: "#FACC15 !important",
+                                        },
+                                        "& .MuiAlert-message": {
+                                          color: "#FACC15 !important",
+                                          fontWeight: 800,
+                                          letterSpacing: "0.2px",
+                                        },
+                                      }
+                                    : {})
+                                }}
                               >
                                 {accNum !== confirmAccNum
                                   ? "✗ Account numbers do not match"
@@ -1469,6 +1600,260 @@ function BeneficiaryWorkspaceContent() {
           </Grid>
         </Grid>
 
+        {/* ── 4. REGISTERED BENEFICIARIES TABLE (Live Linked Accounts) ── */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, sm: 3 },
+            borderRadius: 3,
+            border: "1px solid #1E293B",
+            bgcolor: "#0F172A",
+            color: "#FFFFFF",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.4)",
+            mt: 3,
+          }}
+        >
+          {/* Header */}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            sx={{
+              justifyContent: "space-between",
+              alignItems: { xs: "flex-start", sm: "center" },
+              gap: 2,
+              mb: 2.5,
+              pb: 2,
+              borderBottom: "1px solid #1E293B",
+            }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2.5,
+                  bgcolor: "rgba(37, 99, 235, 0.15)",
+                  border: "1px solid rgba(37, 99, 235, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <TableChartIcon sx={{ fontSize: 22, color: "#38BDF8" }} />
+              </Box>
+              <Box>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                  <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "17px", letterSpacing: "-0.3px" }}>
+                    Registered Beneficiaries
+                  </Typography>
+                  <Chip
+                    label={`${beneficiaries.length} Active`}
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      bgcolor: "rgba(16, 185, 129, 0.2)",
+                      color: "#34D399",
+                      border: "1px solid rgba(16, 185, 129, 0.3)",
+                    }}
+                  />
+                </Stack>
+                <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px" }}>
+                  Linked bank accounts for <strong className="text-[#38BDF8]">{activeCustomerName}</strong> {activeCustomerMobile ? `(${activeCustomerMobile})` : ""}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", alignSelf: { xs: "flex-end", sm: "auto" } }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setSavedBenModalOpen(true)}
+                startIcon={<ListIcon sx={{ fontSize: 16 }} />}
+                sx={{
+                  borderColor: "rgba(56, 189, 248, 0.4)",
+                  color: "#38BDF8",
+                  fontWeight: 800,
+                  fontSize: "11px",
+                  borderRadius: 2.5,
+                  px: 2,
+                  py: 0.75,
+                  textTransform: "none",
+                  "&:hover": { borderColor: "#38BDF8", bgcolor: "rgba(56, 189, 248, 0.1)" },
+                }}
+              >
+                Manage / Delete
+              </Button>
+            </Stack>
+          </Stack>
+
+          {/* Beneficiary List / Table */}
+          {beneficiaries.length === 0 ? (
+            <Box sx={{ py: 6, textAlign: "center" }}>
+              <AccountBalanceIcon sx={{ fontSize: 44, color: "#475569", mb: 1.5 }} />
+              <Typography sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "14px", mb: 0.5 }}>
+                No Beneficiaries Registered Yet
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#64748B", display: "block", maxWidth: 420, mx: "auto" }}>
+                Use the form above to add and instantly Penny Drop verify a bank account for {activeCustomerName}.
+              </Typography>
+            </Box>
+          ) : (
+            <TableContainer sx={{ borderRadius: 2, border: "1px solid #1E293B", overflowX: "auto" }}>
+              <Table size="medium">
+                <TableHead sx={{ bgcolor: "#1E293B" }}>
+                  <TableRow>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Beneficiary
+                    </TableCell>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Bank & Branch
+                    </TableCell>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Account Number
+                    </TableCell>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      IFSC Code
+                    </TableCell>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Status
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Action
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {beneficiaries.map((b, idx) => {
+                    const accClear = b.accountNumber || b.maskedAccountNumber || "—";
+                    return (
+                      <TableRow
+                        key={b.id || idx}
+                        hover
+                        sx={{
+                          bgcolor: "#0F172A",
+                          "&:hover": { bgcolor: "rgba(30, 41, 59, 0.7) !important" },
+                          "& td": { borderBottom: "1px solid #1E293B" },
+                        }}
+                      >
+                        {/* Beneficiary Name */}
+                        <TableCell>
+                          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                            <Avatar sx={{ width: 34, height: 34, bgcolor: "#2563EB", fontWeight: 800, fontSize: "13px" }}>
+                              {b.name?.charAt(0).toUpperCase() || "B"}
+                            </Avatar>
+                            <Box>
+                              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
+                                {b.name}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
+                                {b.relationship || "Beneficiary"} {b.beneficiaryCode ? `• ${b.beneficiaryCode}` : ""}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </TableCell>
+
+                        {/* Bank & Branch */}
+                        <TableCell>
+                          <Typography sx={{ fontWeight: 700, color: "#E2E8F0", fontSize: "13px" }}>
+                            {b.bankName || "Bank Account"}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
+                            {b.branchName || "Main Branch"}
+                          </Typography>
+                        </TableCell>
+
+                        {/* Account Number (Clear Text) */}
+                        <TableCell>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            <Typography sx={{ fontWeight: 800, color: "#38BDF8", fontFamily: "monospace", fontSize: "13px", letterSpacing: "0.5px" }}>
+                              {accClear}
+                            </Typography>
+                            <Tooltip title={copied === `acc-${idx}` ? "Copied!" : "Copy Account"}>
+                              <IconButton size="small" onClick={() => copyToClipboard(accClear, `acc-${idx}`)} sx={{ color: "#64748B", p: 0.25 }}>
+                                <ContentCopyIcon sx={{ fontSize: 13 }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+
+                        {/* IFSC */}
+                        <TableCell>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            <Typography sx={{ fontWeight: 700, color: "#CBD5E1", fontFamily: "monospace", fontSize: "12px" }}>
+                              {b.ifsc || "—"}
+                            </Typography>
+                            {b.ifsc && (
+                              <Tooltip title={copied === `ifsc-${idx}` ? "Copied!" : "Copy IFSC"}>
+                                <IconButton size="small" onClick={() => copyToClipboard(b.ifsc, `ifsc-${idx}`)} sx={{ color: "#64748B", p: 0.25 }}>
+                                  <ContentCopyIcon sx={{ fontSize: 13 }} />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell>
+                          <Chip
+                            icon={<CheckCircleIcon sx={{ fontSize: "14px !important", color: "#10B981 !important" }} />}
+                            label="VERIFIED"
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: "10px",
+                              fontWeight: 800,
+                              bgcolor: "rgba(16, 185, 129, 0.15)",
+                              color: "#34D399",
+                              border: "1px solid rgba(16, 185, 129, 0.3)",
+                            }}
+                          />
+                        </TableCell>
+
+                        {/* Action */}
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={() => {
+                                setSelectedBeneficiary(b);
+                                router.push(`/retailer/dmt/transfer?customerId=${encodeURIComponent(rawId)}&beneficiaryId=${encodeURIComponent(b.id)}`);
+                              }}
+                              sx={{
+                                bgcolor: "#2563EB",
+                                "&:hover": { bgcolor: "#1D4ED8" },
+                                color: "#FFFFFF",
+                                fontWeight: 800,
+                                fontSize: "11px",
+                                borderRadius: 2,
+                                px: 1.75,
+                                textTransform: "none",
+                              }}
+                            >
+                              Transfer
+                            </Button>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setTargetDeleteBen(b);
+                                setDeleteDialogOpen(true);
+                              }}
+                              sx={{ color: "#EF4444", "&:hover": { bgcolor: "rgba(239, 68, 68, 0.1)" } }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Paper>
+
       {/* ══════════════════════════════════════════════════════════════════════
           CONFIRM DEBIT MODAL (Ultra-Premium Glassmorphism & Gold/Yellow Theme)
       ══════════════════════════════════════════════════════════════════════ */}
@@ -1506,14 +1891,34 @@ function BeneficiaryWorkspaceContent() {
           }}
         />
 
-        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pt: 2.5, pb: 1, px: 3, display: "flex", alignItems: "center", justify: "space-between" }}>
+        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pt: 2.5, pb: 1, px: 3, display: "flex", alignItems: "center", gap: 1 }}>
           <span>Confirm Penny Drop Verification</span>
-          <Chip label="₹3.54 DEBIT" size="small" sx={{ bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FBBF24", fontWeight: 900, fontSize: "10px", border: "1px solid #F59E0B" }} />
+          <Chip
+            label={precheckResult?.low_balance ? "₹3.54 — Post-Paid" : "₹3.54 DEBIT"}
+            size="small"
+            sx={{
+              bgcolor: precheckResult?.low_balance ? "rgba(234, 179, 8, 0.2)" : "rgba(245, 158, 11, 0.2)",
+              color: precheckResult?.low_balance ? "#FCD34D" : "#FBBF24",
+              fontWeight: 900, fontSize: "10px",
+              border: `1px solid ${precheckResult?.low_balance ? "#CA8A04" : "#F59E0B"}`,
+            }}
+          />
         </DialogTitle>
         <DialogContent sx={{ px: 3, pb: 2 }}>
+          {precheckResult?.low_balance && (
+            <Box sx={{ mb: 2, p: 1.5, borderRadius: 2, bgcolor: "rgba(234, 179, 8, 0.1)", border: "1px solid rgba(234, 179, 8, 0.4)", display: "flex", gap: 1, alignItems: "flex-start" }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+              <Typography variant="caption" sx={{ color: "#FDE68A", fontWeight: 700, lineHeight: 1.4 }}>
+                Wallet balance (₹{(precheckResult?.wallet_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}) is below the ₹{verificationCharge?.total?.toFixed(2) || "3.54"} verification fee.
+                Verification will proceed — the fee will be settled post-paid when your wallet is loaded.
+              </Typography>
+            </Box>
+          )}
           <Typography variant="body2" sx={{ color: "#CBD5E1", mb: 2, fontSize: "13px" }}>
             A ₹1 penny drop will be sent to verify this account. The amount is instantly recovered.
-            A verification charge of <strong style={{ color: "#FBBF24" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited from your wallet.
+            {precheckResult?.low_balance
+              ? " Verification fee will be recorded as a post-paid obligation."
+              : <> A verification charge of <strong style={{ color: "#FBBF24" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited from your wallet.</>}
           </Typography>
 
           <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(30, 41, 59, 0.65)", border: "1px solid rgba(245, 158, 11, 0.3)", backdropFilter: "blur(12px)", mb: 2 }}>
@@ -1535,7 +1940,9 @@ function BeneficiaryWorkspaceContent() {
                   <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, color: "#FFFFFF", fontSize: "12px" }}>₹{verificationCharge?.gst?.toFixed(2) || "0.54"}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell sx={{ borderTop: "1px solid rgba(245, 158, 11, 0.3)", p: 0.5, fontWeight: 900, color: "#FFFFFF", fontSize: "13px" }}>Total</TableCell>
+                  <TableCell sx={{ borderTop: "1px solid rgba(245, 158, 11, 0.3)", p: 0.5, fontWeight: 900, color: "#FFFFFF", fontSize: "13px" }}>
+                    {precheckResult?.low_balance ? "Total (Post-Paid)" : "Total"}
+                  </TableCell>
                   <TableCell align="right" sx={{ borderTop: "1px solid rgba(245, 158, 11, 0.3)", p: 0.5, fontWeight: 900, color: "#FBBF24", fontSize: "14px" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</TableCell>
                 </TableRow>
               </TableBody>
@@ -1549,11 +1956,12 @@ function BeneficiaryWorkspaceContent() {
               onClick={handleRunPennyDrop}
               className="py-2.5 px-5 rounded-2xl bg-gradient-to-r from-[#F59E0B] via-[#FBBF24] to-[#D97706] hover:from-[#D97706] hover:to-[#B45309] text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              <span>Confirm & Debit ₹{verificationCharge?.total?.toFixed(2) || "3.54"} →</span>
+              <span>{precheckResult?.low_balance ? `Proceed (Post-Paid ₹${verificationCharge?.total?.toFixed(2) || "3.54"}) →` : `Confirm & Debit ₹${verificationCharge?.total?.toFixed(2) || "3.54"} →`}</span>
             </button>
           </motion.div>
         </DialogActions>
       </Dialog>
+
 
       {/* ══════════════════════════════════════════════════════════════════════
           PENNY DROP HIGH-TECH PROCESSING LOADER OVERLAY
