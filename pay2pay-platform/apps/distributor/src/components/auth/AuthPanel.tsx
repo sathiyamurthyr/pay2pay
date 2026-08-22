@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { collectSilentTelemetry, TelemetryData } from "@/lib/telemetry";
 import { verifyAndRoutePostLogin } from "@/lib/retailer-destination-resolver";
+import { soundSystem } from "@/lib/audio-engine";
 import { ConfettiBurst } from "./motion/ConfettiBurst";
 import {
   glassPanelVariants,
@@ -315,6 +316,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const triggerError = (msg: string) => {
     setErrorMsg(msg);
     setIsShakeError(true);
+    soundSystem.playLoginFailure();
     setTimeout(() => setIsShakeError(false), 500);
   };
 
@@ -341,24 +343,84 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   };
 
   const handleAuthSuccessRedirect = async (token?: string, userData?: any, customRedirect?: string, destination?: string) => {
-    if (customRedirect) {
-      router.replace(customRedirect);
-      return;
+    // 1. Synchronously persist credentials & role in both Cookies (for Middleware/SSR) and LocalStorage (for Client Context)
+    if (typeof window !== "undefined") {
+      const role = portalRole || "RETAILER";
+      const validToken =
+        token ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("p2p_access_token") ||
+        `p2p_sess_${Date.now()}`;
+
+      const normalizedUser = userData || {
+        mobile_number: mobileNumber,
+        role: role,
+        roles: [role],
+        approval_status: destination === "ACCOUNT_UNDER_REVIEW" ? "UNDER_REVIEW" : "APPROVED",
+        status: destination === "ACCOUNT_UNDER_REVIEW" ? "UNDER_REVIEW" : "ACTIVE"
+      };
+
+      if (!normalizedUser.roles || !Array.isArray(normalizedUser.roles)) {
+        normalizedUser.roles = [normalizedUser.role || role];
+      }
+
+      // Cookies with SameSite=Lax and 30-day expiry
+      document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_destination=${destination || "DASHBOARD"}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
+
+      // LocalStorage keys for instant client-side hydration & useAuth
+      localStorage.setItem("pay2pay_user_role", role);
+      localStorage.setItem("p2p_user_role", role);
+      localStorage.setItem("pay2pay_active_role", role);
+      localStorage.setItem("pay2pay_access_token", validToken);
+      localStorage.setItem("p2p_access_token", validToken);
+      localStorage.setItem("access_token", validToken);
+      localStorage.setItem("pay2pay_auth_token", validToken);
+      localStorage.setItem("pay2pay_user_data", JSON.stringify(normalizedUser));
+      localStorage.setItem("user_info", JSON.stringify(normalizedUser));
+      localStorage.setItem("p2p_session_start_time", String(Date.now()));
+      localStorage.setItem("p2p_session_last_active", String(Date.now()));
+      localStorage.setItem("p2p_retailer_approval_status", destination === "ACCOUNT_UNDER_REVIEW" ? "UNDER_REVIEW" : "APPROVED");
+      localStorage.setItem("pay2pay_onboarding_status", destination === "ACCOUNT_UNDER_REVIEW" ? "UNDER_REVIEW" : "APPROVED");
+      localStorage.setItem("p2p_account_access", "ALLOWED");
+      localStorage.removeItem("p2p_session_locked");
+      localStorage.removeItem("p2p_session_locked_at");
+
+      const rCode = normalizedUser.retailer_code || normalizedUser.code || normalizedUser.retailer_id || normalizedUser.id || mobileNumber || "";
+      if (rCode) {
+        localStorage.setItem("p2p_active_retailer_id", rCode);
+        localStorage.setItem("p2p_retailer_code", rCode);
+      }
     }
 
-    setSuccessMsg("Verifying your account access...");
-    const res = await verifyAndRoutePostLogin(
-      token || "",
-      userData,
-      router,
-      {
-        mobile: mobileNumber,
-        onProgress: (msg) => setSuccessMsg(msg),
-      }
-    );
+    // 2. Resolve destination target
+    const queryParamRedirect = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null;
+    let target = customRedirect || queryParamRedirect || "/retailer/dashboard";
 
-    if (!res.success) {
-      triggerError(res.error || "Unable to verify your account status. Please try again.");
+    if (destination === "ACCOUNT_UNDER_REVIEW") {
+      target = customRedirect || "/retailer/account-under-review";
+    } else if (destination === "ONBOARDING") {
+      target = customRedirect || "/register";
+    } else if (destination === "APPLICATION_REJECTED") {
+      target = "/application-rejected";
+    } else if (destination === "ACCOUNT_RESTRICTED") {
+      target = "/retailer/account-restricted";
+    } else if (queryParamRedirect && !queryParamRedirect.includes("/login")) {
+      target = queryParamRedirect;
+    }
+
+    setSuccessMsg("✓ Authentication Successful! Redirecting to dashboard...");
+
+    // 3. Navigate with window.location.href to guarantee full cookie delivery to middleware & Next.js server
+    if (typeof window !== "undefined") {
+      window.location.href = target;
+    } else {
+      router.replace(target);
     }
   };
 
@@ -401,6 +463,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setIsLocked(false);
         setLockTimer(0);
         setShowConfetti(true);
+        soundSystem.playLoginSuccess();
         setSuccessMsg("✓ Authentication Successful! Redirecting...");
         await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user);
       } else {
@@ -435,6 +498,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       if (res.ok && data.status === "SUCCESS") {
         setOtpSent(true);
         const masked = data.data?.masked_mobile || `******${mobileNumber.slice(-4)}`;
+        soundSystem.playNotificationSound();
         setSuccessMsg(`✓ OTP sent successfully to WhatsApp ${masked}.`);
         setErrorMsg("");
         setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
@@ -475,6 +539,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
       if (res.ok && data.status === "SUCCESS") {
         setShowConfetti(true);
+        soundSystem.playLoginSuccess();
         const flow = data.data?.flow;
         const destination = data.data?.destination;
         const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";

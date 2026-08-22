@@ -34,6 +34,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Check Retailer Approval Status
     let isApproved = false;
     let statusStr = "";
+    if (user?.approval_status === "APPROVED" || (user as any)?.status === "ACTIVE" || (user as any)?.is_approved) {
+      isApproved = true;
+    }
     if (typeof window !== "undefined") {
       const storedStatus = localStorage.getItem("p2p_retailer_approval_status") || localStorage.getItem("pay2pay_onboarding_status") || "";
       const accountAccess = localStorage.getItem("p2p_account_access") || "";

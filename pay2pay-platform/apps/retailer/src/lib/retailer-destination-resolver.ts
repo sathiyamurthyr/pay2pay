@@ -190,13 +190,29 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
  * Enforces strict routing: approved -> dashboard, pending -> account-under-review, rejected -> application-rejected.
  */
 export async function verifyAndRoutePostLogin(
-  router: AppRouterInstance,
-  options?: {
-    mobile?: string;
-    token?: string;
-    userData?: any;
-  }
+  firstArg: any,
+  secondArg?: any,
+  thirdArg?: any,
+  fourthArg?: any
 ): Promise<{ success: boolean; destination: RetailerDestination }> {
+  let router: AppRouterInstance = typeof window !== "undefined" ? (window as any).__next_router : null;
+  let options: { mobile?: string; token?: string; userData?: any; onProgress?: (msg: string) => void } = {};
+
+  if (typeof firstArg === "string") {
+    options.token = firstArg;
+    options.userData = secondArg;
+    router = thirdArg;
+    if (fourthArg) {
+      options.mobile = fourthArg.mobile;
+      options.onProgress = fourthArg.onProgress;
+    }
+  } else {
+    router = firstArg;
+    if (secondArg) {
+      options = secondArg;
+    }
+  }
+
   // 1. Synchronously persist credentials & role
   if (typeof window !== "undefined") {
     const role = "RETAILER";

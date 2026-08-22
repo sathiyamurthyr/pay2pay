@@ -17,7 +17,7 @@ from app.infrastructure.db.models import (
 )
 from app.infrastructure.db.auth_models import LoginHistoryModel, AuthUserModel
 from app.infrastructure.db.verification_models import RetailerVerificationModel
-from app.infrastructure.db.registration_models import RegistrationDraftModel
+from app.infrastructure.db.registration_models import RegistrationDraftModel, RegistrationAadhaarModel
 from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel, PayoutDoubleEntryLedgerModel, PayoutTransactionStatus
 )
@@ -330,6 +330,41 @@ async def get_retailer_header_wallet(
     hr = now_utc.hour + 5  # IST offset approximation
     greeting = "Good Morning" if 4 <= hr < 12 else ("Good Afternoon" if 12 <= hr < 17 else "Good Evening")
 
+    # Resolve direct photo URL from database
+    direct_photo_url = None
+    reg_id_target = ctx.get("registration_id") or ctx.get("retailer_id")
+    clean_mob = ctx.get("mobile") or clean_mobile
+
+    # 1. Resolve actual registration_id if reg_id_target is not REG-*
+    actual_reg_id = reg_id_target if (reg_id_target and str(reg_id_target).startswith("REG-")) else None
+    if not actual_reg_id and (clean_mob or reg_id_target):
+        try:
+            v_conds = []
+            if reg_id_target:
+                v_conds.append(RetailerVerificationModel.retailer_id == str(reg_id_target))
+                v_conds.append(RetailerVerificationModel.registration_id == str(reg_id_target))
+            if clean_mob and len(clean_mob) >= 10:
+                cm = clean_mob[-10:]
+                v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{cm}"))
+            if v_conds:
+                v_row = (await db.execute(select(RetailerVerificationModel).where(or_(*v_conds)).order_by(desc(RetailerVerificationModel.created_date)))).scalars().first()
+                if v_row:
+                    actual_reg_id = v_row.registration_id
+        except Exception:
+            pass
+
+    # 2. Query RegistrationAadhaarModel or RegistrationDraftModel for photo_url
+    if actual_reg_id:
+        try:
+            a_stmt = select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == actual_reg_id).order_by(desc(RegistrationAadhaarModel.created_date))
+            aadhaar_r = (await db.execute(a_stmt)).scalars().first()
+            if aadhaar_r and aadhaar_r.photo_url and (aadhaar_r.photo_url.startswith("/uploads/") or aadhaar_r.photo_url.startswith("http")):
+                direct_photo_url = aadhaar_r.photo_url
+        except Exception:
+            pass
+
+    resolved_photo = direct_photo_url or (f"/api/v1/retailer/profile/photo-image?retailer_id={actual_reg_id or reg_id_target}" if (actual_reg_id or reg_id_target) else None)
+
     return {
         # Top-level flattened fields for WalletSyncProvider compatibility
         "greeting": greeting,
@@ -351,8 +386,8 @@ async def get_retailer_header_wallet(
         "settlement_pending_amount": 0.0,
         "unread_notifications_count": pending_count,
         "is_wallet_initialized": is_initialized,
-        "photo_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}",
-        "avatar_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}",
+        "photo_url": resolved_photo,
+        "avatar_url": resolved_photo,
         # Structured nested objects
         "retailer_info": {
             "retailer_id": str(pub_id) if pub_id else ctx["retailer_id"],
@@ -365,8 +400,8 @@ async def get_retailer_header_wallet(
             "kyc_status": ctx["kyc_status"],
             "plan_name": "Enterprise Workstation",
             "role_title": "Enterprise Retailer Workstation",
-            "photo_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}",
-            "avatar_url": f"/api/v1/retailer/profile/photo-image?retailer_id={ctx['retailer_id']}"
+            "photo_url": resolved_photo,
+            "avatar_url": resolved_photo
         },
         "wallet": {
             "main_balance": round(float(wallet_balance), 2),

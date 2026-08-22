@@ -146,7 +146,9 @@ class BackblazeStorageService:
 
         b2_path = _build_b2_path(entity_type, original_filename)
         api_obj, bucket = cls._get_api()
+        file_id = None
 
+        # 1. Upload to Backblaze B2 for secure cloud persistence
         if api_obj and bucket:
             try:
                 file_info = bucket.upload_bytes(
@@ -154,20 +156,11 @@ class BackblazeStorageService:
                     file_name=b2_path,
                     content_type=content_type,
                 )
-                download_url = api_obj.get_download_url_for_fileid(file_info.id_)
-                return {
-                    "url": download_url,
-                    "path": b2_path,
-                    "filename": _sanitize_filename(original_filename),
-                    "entity_type": entity_type.upper(),
-                    "size_bytes": len(file_bytes),
-                    "file_id": file_info.id_,
-                    "storage": "B2",
-                }
+                file_id = file_info.id_
             except Exception as err:
-                print(f"[StorageService] B2 Upload failed: {err}, using local structured storage.")
+                print(f"[StorageService] B2 Upload notice: {err}")
 
-        # Local fallback with exact B2 folder structure: cmp/sd/YYYY/MM/DD/...
+        # 2. Save to local structured storage for fast static direct URL serving
         uploads_dir = Path("uploads") / Path(b2_path).parent
         uploads_dir.mkdir(parents=True, exist_ok=True)
         local_filepath = Path("uploads") / b2_path
@@ -175,15 +168,16 @@ class BackblazeStorageService:
         with open(local_filepath, "wb") as f:
             f.write(file_bytes)
 
-        fallback_url = f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/{b2_path}"
+        direct_url = f"/uploads/{b2_path}"
 
         return {
-            "url": fallback_url,
+            "url": direct_url,
             "path": b2_path,
             "filename": _sanitize_filename(original_filename),
             "entity_type": entity_type.upper(),
             "size_bytes": len(file_bytes),
-            "storage": "LOCAL_STRUCTURED",
+            "file_id": file_id,
+            "storage": "B2+LOCAL_DIRECT",
         }
 
     @classmethod
@@ -194,8 +188,8 @@ class BackblazeStorageService:
         filename: str = "profile_photo.jpg"
     ) -> str:
         """
-        Decodes base64/data-URL image string, saves to local uploads folder (or B2 if available),
-        and returns local/server URL path to store in DB.
+        Decodes base64/data-URL image string, uploads to Backblaze B2 for backup,
+        saves to local uploads folder, and returns direct /uploads/... URL path to store in DB.
         """
         import base64
         if not base64_data:
@@ -221,20 +215,19 @@ class BackblazeStorageService:
             with open(local_filepath, "wb") as f:
                 f.write(image_bytes)
 
-            # Try uploading to B2 asynchronously/sync if B2 API is available
+            # Upload to B2 for permanent cloud storage
             api_obj, bucket = cls._get_api()
             if api_obj and bucket:
                 try:
-                    file_info = bucket.upload_bytes(
+                    bucket.upload_bytes(
                         data_bytes=image_bytes,
                         file_name=b2_path,
                         content_type="image/jpeg"
                     )
-                    return api_obj.get_download_url_for_fileid(file_info.id_)
                 except Exception as b2_err:
-                    print(f"[StorageService] B2 Base64 upload error: {b2_err}, serving local static URL.")
+                    print(f"[StorageService] B2 Base64 upload notice: {b2_err}")
 
-            # Return relative static server route URL for local file
+            # Return direct relative static route URL for database storage
             return f"/uploads/{b2_path}"
         except Exception as ex:
             print(f"[StorageService Warning] Base64 photo decode/save failed: {ex}")
@@ -250,12 +243,14 @@ class BackblazeStorageService:
     ) -> dict:
         """
         Synchronous/Direct upload method for document and video uploads.
+        Uploads to Backblaze B2 for backup, saves to local uploads directory, and returns direct /uploads/... URL.
         """
         if len(file_bytes) > MAX_FILE_SIZE_BYTES:
             raise ValueError(f"File size {len(file_bytes)} bytes exceeds maximum of {MAX_FILE_SIZE_BYTES} bytes.")
 
         b2_path = _build_b2_path(entity_type, filename)
         api_obj, bucket = cls._get_api()
+        file_id = None
 
         if api_obj and bucket:
             try:
@@ -264,21 +259,11 @@ class BackblazeStorageService:
                     file_name=b2_path,
                     content_type=content_type,
                 )
-                download_url = api_obj.get_download_url_for_fileid(file_info.id_)
-                return {
-                    "url": download_url,
-                    "file_name": b2_path,
-                    "path": b2_path,
-                    "filename": _sanitize_filename(filename),
-                    "entity_type": entity_type.upper(),
-                    "size_bytes": len(file_bytes),
-                    "file_id": file_info.id_,
-                    "storage": "B2",
-                }
+                file_id = file_info.id_
             except Exception as err:
-                print(f"[StorageService] B2 Upload failed: {err}, using local structured storage.")
+                print(f"[StorageService] B2 Upload notice: {err}, using local structured storage.")
 
-        # Local fallback
+        # Save to local uploads folder structure
         uploads_dir = Path("uploads") / Path(b2_path).parent
         uploads_dir.mkdir(parents=True, exist_ok=True)
         local_filepath = Path("uploads") / b2_path
@@ -292,54 +277,31 @@ class BackblazeStorageService:
             "filename": _sanitize_filename(filename),
             "entity_type": entity_type.upper(),
             "size_bytes": len(file_bytes),
-            "storage": "LOCAL_STRUCTURED",
+            "file_id": file_id,
+            "storage": "B2+LOCAL_DIRECT",
         }
 
     @classmethod
     def get_download_url(cls, file_path: str) -> str:
-        """Get accessible download/preview URL with Backblaze B2 authorization token or local fallback."""
+        """Get accessible direct /uploads/ static URL or valid HTTP URL."""
         if not file_path:
             return ""
         
-        # If it's already an authorized URL
-        if "Authorization=" in file_path:
-            return file_path
-
-        # If already starts with /uploads/ or non-B2 HTTP URL
+        # If it's already a direct static /uploads/ URL
         if file_path.startswith("/uploads/"):
             return file_path
-        if file_path.startswith("http://") or (file_path.startswith("https://") and "backblazeb2.com" not in file_path):
-            return file_path
 
-        api_obj, bucket = cls._get_api()
-        clean_path = None
+        # If it's a relative path (e.g. cmp/ret/...)
+        if not file_path.startswith("http://") and not file_path.startswith("https://"):
+            return f"/uploads/{file_path.lstrip('/')}"
 
-        if "fileId=" in file_path and api_obj:
-            try:
-                file_id = file_path.split("fileId=")[-1].split("&")[0]
-                file_info = api_obj.get_file_info(file_id)
-                clean_path = file_info.file_name
-            except Exception as err:
-                print(f"[StorageService] Failed to get file info by id: {err}")
-
-        if not clean_path:
+        # If it's a Backblaze B2 URL (either download_file_by_id or file/bucket/path)
+        if "backblazeb2.com" in file_path:
             clean_path = file_path.replace(f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/", "")
             clean_path = clean_path.split("?")[0].lstrip("/")
+            local_file = Path("uploads") / clean_path
+            if local_file.exists():
+                return f"/uploads/{clean_path}"
 
-        if api_obj and bucket:
-            try:
-                token = bucket.get_download_authorization(
-                    file_name_prefix=clean_path,
-                    valid_duration_in_seconds=86400
-                )
-                return f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/{clean_path}?Authorization={token}"
-            except Exception as err:
-                print(f"[StorageService] Failed to generate B2 download auth token: {err}")
-
-        # Check if local fallback file exists
-        local_file = Path("uploads") / clean_path
-        if local_file.exists():
-            return f"/uploads/{clean_path}"
-        
-        return f"https://f003.backblazeb2.com/file/{B2_BUCKET_NAME}/{clean_path}"
+        return file_path
 

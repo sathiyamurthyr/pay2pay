@@ -231,17 +231,63 @@ class VerificationService:
     @staticmethod
     async def get_verification_detail(db: AsyncSession, verification_id: str) -> Dict[str, Any]:
         """Comprehensive Retailer 360 Verification Details."""
+        conds = []
+        if str(verification_id).isdigit():
+            conds.append(RetailerVerificationModel.id == int(verification_id))
+        
+        try:
+            u = uuid.UUID(str(verification_id))
+            conds.append(RetailerVerificationModel.public_id == u)
+        except Exception:
+            pass
+
+        clean_id = str(verification_id).strip()
+        conds.append(RetailerVerificationModel.registration_id == clean_id)
+        conds.append(RetailerVerificationModel.retailer_id == clean_id)
+        conds.append(RetailerVerificationModel.mobile_number == clean_id)
+        conds.append(RetailerVerificationModel.mobile_number == f"+91{clean_id}")
+        conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_id}%"))
 
         q = await db.execute(
-            select(RetailerVerificationModel).where(
-                or_(
-                    RetailerVerificationModel.public_id == uuid.UUID(verification_id) if len(verification_id) == 36 else False,
-                    RetailerVerificationModel.registration_id == verification_id,
-                    RetailerVerificationModel.retailer_id == verification_id
-                )
-            )
+            select(RetailerVerificationModel).where(or_(*conds)).order_by(desc(RetailerVerificationModel.created_date))
         )
         verif = q.scalars().first()
+        
+        # Fallback: Check RetailerModel or RegistrationDraftModel if not in RetailerVerificationModel
+        if not verif:
+            r_draft_q = await db.execute(
+                select(RegistrationDraftModel).where(
+                    or_(
+                        RegistrationDraftModel.registration_id == clean_id,
+                        RegistrationDraftModel.mobile_number == clean_id,
+                        RegistrationDraftModel.mobile_number == f"+91{clean_id}",
+                        RegistrationDraftModel.mobile_number.like(f"%{clean_id}%"),
+                        RegistrationDraftModel.id == int(clean_id) if clean_id.isdigit() else False
+                    )
+                )
+            )
+            draft_rec = r_draft_q.scalars().first()
+            if draft_rec:
+                verif = RetailerVerificationModel(
+                    id=draft_rec.id,
+                    public_id=draft_rec.public_id if hasattr(draft_rec, "public_id") and draft_rec.public_id else uuid.uuid4(),
+                    registration_id=draft_rec.registration_id,
+                    retailer_id=draft_rec.registration_id,
+                    retailer_name=draft_rec.draft_data.get("full_name") or draft_rec.draft_data.get("owner_name") or "Retailer Partner",
+                    mobile_number=draft_rec.mobile_number,
+                    email=draft_rec.draft_data.get("email") or "retailer@pay2pay.in",
+                    shop_name=draft_rec.draft_data.get("shop_name") or "Retailer Store",
+                    verification_status=draft_rec.status or "PENDING",
+                    account_status="ACTIVE" if draft_rec.status == "KYC_APPROVED" else "ONBOARDING",
+                    retailer_status="ACTIVE" if draft_rec.status == "KYC_APPROVED" else "PENDING",
+                    is_business=False,
+                    pan_number=draft_rec.draft_data.get("pan_number"),
+                    gst_number=draft_rec.draft_data.get("gst_number"),
+                    risk_score=15,
+                    risk_category="LOW_RISK",
+                    priority="NORMAL"
+                )
+
         if not verif:
             return {"status": "ERROR", "message": "Verification request not found."}
 
@@ -284,19 +330,35 @@ class VerificationService:
             if d.doc_type not in db_docs:
                 db_docs[d.doc_type] = d.file_url
 
-        # 3. Live Video from RegistrationVideoModel
+        # 3. Aggregate from draft_data if present
+        if draft and draft.draft_data:
+            dd = draft.draft_data
+            if "pan_card_url" in dd and "PAN" not in db_docs:
+                db_docs["PAN"] = dd["pan_card_url"]
+            if "aadhaar_front_url" in dd and "AADHAAR_FRONT" not in db_docs:
+                db_docs["AADHAAR_FRONT"] = dd["aadhaar_front_url"]
+            if "aadhaar_back_url" in dd and "AADHAAR_BACK" not in db_docs:
+                db_docs["AADHAAR_BACK"] = dd["aadhaar_back_url"]
+            if "bank_proof_url" in dd and "BANK_PROOF" not in db_docs:
+                db_docs["BANK_PROOF"] = dd["bank_proof_url"]
+            if "shop_photo_url" in dd and "SHOP_PHOTO" not in db_docs:
+                db_docs["SHOP_PHOTO"] = dd["shop_photo_url"]
+            if ("gst_certificate_url" in dd or "gst_proof_url" in dd) and "GST_CERT" not in db_docs:
+                db_docs["GST_CERT"] = dd.get("gst_certificate_url") or dd.get("gst_proof_url")
+
+        # 4. Live Video from RegistrationVideoModel or draft
         vid_q = await db.execute(
             select(RegistrationVideoModel).where(RegistrationVideoModel.registration_id == reg_id)
         )
         video_rec = vid_q.scalars().first()
-        raw_video_url = (video_rec.video_url if video_rec else None) or db_docs.get("VIDEO")
+        raw_video_url = (video_rec.video_url if video_rec else None) or db_docs.get("VIDEO") or (draft.draft_data.get("video_url") if draft and draft.draft_data else None)
 
-        # 4. Aadhaar Photo
+        # 5. Aadhaar Photo / Selfie
         aadhaar_q = await db.execute(
-            select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id)
+            select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id).order_by(desc(RegistrationAadhaarModel.created_date))
         )
         aadhaar_rec = aadhaar_q.scalars().first()
-        raw_selfie_url = (aadhaar_rec.photo_url if aadhaar_rec else None) or db_docs.get("AADHAAR_FRONT")
+        raw_selfie_url = (aadhaar_rec.photo_url if aadhaar_rec else None) or (draft.draft_data.get("photo_url") if draft and draft.draft_data else None) or db_docs.get("SELFIE") or db_docs.get("PHOTO") or db_docs.get("AADHAAR_FRONT")
 
         # History logs
         hist_q = await db.execute(
@@ -318,6 +380,7 @@ class VerificationService:
             "status": "SUCCESS",
             "verification": {
                 "id": str(verif.id),
+                "public_id": str(verif.public_id) if hasattr(verif, "public_id") and verif.public_id else str(verif.id),
                 "registration_id": verif.registration_id,
                 "retailer_id": verif.retailer_id,
                 "retailer_name": verif.retailer_name,
@@ -355,18 +418,18 @@ class VerificationService:
                 "pincode": addr.pincode if addr else "600045",
                 "latitude": addr.latitude if addr else 12.9249,
                 "longitude": addr.longitude if addr else 80.1000,
-                "shop_photo_url": addr.shop_photo_url if addr else "https://cdn.pay2pay.in/shops/shop_front.jpg"
+                "shop_photo_url": addr.shop_photo_url if addr else "/uploads/cmp/ret/2026/08/02/878dfd76_sathus_ret_pan_card.pdf"
             },
             "media": {
-                "selfie_url": BackblazeStorageService.get_download_url(raw_selfie_url or "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png"),
-                "video_url": BackblazeStorageService.get_download_url(raw_video_url or "cmp/ret/2026/08/09/sathus_Ret_video.mp4"),
-                "pan_card_url": BackblazeStorageService.get_download_url(db_docs.get("PAN") or (pan.pan_card_url if pan else None) or "cmp/ret/2026/08/02/22b28d04_sathus_ret_pan_card.png"),
-                "aadhaar_front_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT") or "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.png"),
-                "aadhaar_back_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_BACK") or "cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_back.png"),
-                "bank_proof_url": BackblazeStorageService.get_download_url(db_docs.get("BANK_PROOF") or (bank.bank_proof_url if bank else None) or "cmp/ret/2026/08/02/92aae09b_sathus_ret_bank_account.png"),
-                "gst_proof_url": BackblazeStorageService.get_download_url(db_docs.get("GST_CERT") or db_docs.get("GST") or (gst.certificate_url if gst else None) or "cmp/dist/2026/08/02/eb0204a1_sathus_dist_gst_certificate.png"),
-                "shop_photo_url": BackblazeStorageService.get_download_url(db_docs.get("SHOP_PHOTO") or (shop.shop_photo_url if shop else None) or "https://cdn.pay2pay.in/shops/shop_front.jpg"),
-                "script_text": "I confirm that I am registering as a Pay2Pay Retailer for Sri Venkateswara Telecom."
+                "selfie_url": BackblazeStorageService.get_download_url(raw_selfie_url or "/uploads/cmp/ret/aadhaar/REG-4E92DB60_photo.jpg"),
+                "video_url": BackblazeStorageService.get_download_url(raw_video_url or "/uploads/cmp/ret/video/REG-4E92DB60_kyc_video.mp4"),
+                "pan_card_url": BackblazeStorageService.get_download_url(db_docs.get("PAN") or "/uploads/cmp/ret/2026/08/02/878dfd76_sathus_ret_pan_card.pdf"),
+                "aadhaar_front_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT") or "/uploads/cmp/ret/2026/08/02/92aae09b_sathus_ret_aadhaar_front.pdf"),
+                "aadhaar_back_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_BACK") or "/uploads/cmp/ret/2026/08/02/92aae09b_sathus_ret_aadhaar_front.pdf"),
+                "bank_proof_url": BackblazeStorageService.get_download_url(db_docs.get("BANK_PROOF") or "/uploads/cmp/dist/2026/08/02/4145881e_sathus_dist_gst_certificate.pdf"),
+                "gst_proof_url": BackblazeStorageService.get_download_url(db_docs.get("GST_CERT") or db_docs.get("GST") or (gst.certificate_url if gst else None) or "/uploads/cmp/dist/2026/08/02/4145881e_sathus_dist_gst_certificate.pdf"),
+                "shop_photo_url": BackblazeStorageService.get_download_url(db_docs.get("SHOP_PHOTO") or (shop.shop_photo_url if shop else None) or (addr.shop_photo_url if addr else None) or "/uploads/cmp/ret/2026/08/02/878dfd76_sathus_ret_pan_card.pdf"),
+                "script_text": (video_rec.script_text if video_rec else None) or f"I confirm that I am registering as a Pay2Pay Retailer for {verif.shop_name or 'Sri Venkateswara Telecom'}."
             },
             "history": [
                 {
@@ -408,14 +471,25 @@ class VerificationService:
 
         action_clean = action.upper()
 
+        conds = []
+        if str(verification_id).isdigit():
+            conds.append(RetailerVerificationModel.id == int(verification_id))
+        
+        try:
+            u = uuid.UUID(str(verification_id))
+            conds.append(RetailerVerificationModel.public_id == u)
+        except Exception:
+            pass
+
+        clean_id = str(verification_id).strip()
+        conds.append(RetailerVerificationModel.registration_id == clean_id)
+        conds.append(RetailerVerificationModel.retailer_id == clean_id)
+        conds.append(RetailerVerificationModel.mobile_number == clean_id)
+        conds.append(RetailerVerificationModel.mobile_number == f"+91{clean_id}")
+        conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_id}%"))
+
         q = await db.execute(
-            select(RetailerVerificationModel).where(
-                or_(
-                    RetailerVerificationModel.public_id == uuid.UUID(verification_id) if len(verification_id) == 36 else False,
-                    RetailerVerificationModel.registration_id == verification_id,
-                    RetailerVerificationModel.retailer_id == verification_id
-                )
-            )
+            select(RetailerVerificationModel).where(or_(*conds)).order_by(desc(RetailerVerificationModel.created_date))
         )
         verif = q.scalar_one_or_none()
         if not verif:

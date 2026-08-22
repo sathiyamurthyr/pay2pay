@@ -1434,21 +1434,7 @@ export const retailerApi = {
       });
       return res.data;
     } catch {
-      return {
-        status: "SUCCESS",
-        data: {
-          session_id: "BSESSION-MOCK",
-          customer: {
-            customer_id: "cust-8f64d450-7013914767",
-            full_name: "Ramesh Kumar",
-            mobile_number: "7013914767",
-            kyc_status: "VERIFIED",
-            monthly_limit: 250000.0,
-            remaining_limit: 215000.0,
-          },
-          wallet: { balance: 48250.75 }
-        }
-      };
+      return null;
     }
   },
 

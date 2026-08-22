@@ -59,7 +59,16 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
     setSelectedBeneficiary(null);
     setError(null);
 
-    if (!selectedCustomer || !selectedCustomer.id) {
+    const customerLookupId =
+      (selectedCustomer as any)?.public_id ||
+      (selectedCustomer as any)?.customer_id ||
+      selectedCustomer?.id ||
+      (selectedCustomer as any)?.customer_number ||
+      (selectedCustomer as any)?.mobile_number ||
+      selectedCustomer?.mobile ||
+      "";
+
+    if (!selectedCustomer || !customerLookupId) {
       setIsLoading(false);
       return;
     }
@@ -73,13 +82,6 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
         const tenantId = typeof window !== "undefined" ? localStorage.getItem("p2p_tenant_id") || "tenant_default" : "tenant_default";
         const companyId = typeof window !== "undefined" ? localStorage.getItem("p2p_company_id") || "company_default" : "company_default";
         const storeId = typeof window !== "undefined" ? localStorage.getItem("p2p_store_id") || "store_default" : "store_default";
-        const customerLookupId =
-          (selectedCustomer as any).public_id ||
-          selectedCustomer.id ||
-          (selectedCustomer as any).customer_number ||
-          (selectedCustomer as any).mobile_number ||
-          selectedCustomer.mobile ||
-          "";
 
         const response = await apiClient.get("/beneficiaries", {
           params: {

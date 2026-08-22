@@ -196,12 +196,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       if (rInfo.approval_status && typeof setApprovalStatus === "function") {
         setApprovalStatus(rInfo.approval_status as any);
       }
+      const activeCode = rInfo.retailer_code || rInfo.retailer_id || rInfo.registration_id || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "9176669426" : "9176669426");
       setProfileDetails((prev) => ({
         ...prev,
         owner_name: rInfo.owner_name || "Sathiya Murthy",
         retailer_name: rInfo.retailer_name || rInfo.company_name || rInfo.store_name || "Sathus Pay Store",
-        retailer_code: rInfo.retailer_code || "RET-10928",
-        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || prev.photo_url || "/api/v1/retailer/profile/photo-image",
+        retailer_code: rInfo.retailer_code || activeCode || "RET-10928",
+        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || (activeCode ? `/api/v1/retailer/profile/photo-image?retailer_id=${encodeURIComponent(activeCode)}` : undefined),
         approval_status: rInfo.approval_status || "ACTIVE",
         kyc_status: rInfo.kyc_status || "VERIFIED",
         location: rInfo.location || "Chennai, TN",

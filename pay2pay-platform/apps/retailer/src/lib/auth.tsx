@@ -78,18 +78,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token =
         localStorage.getItem("access_token") ||
         localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("p2p_access_token") ||
         localStorage.getItem("pay2pay_auth_token");
-      const storedUser = localStorage.getItem("user_info");
+      const storedUser = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
       if (token && storedUser) {
         try {
           const parsed = JSON.parse(storedUser);
-          setUser(parsed);
-          if (parsed.roles && parsed.roles[0]) {
-            setActiveRole(parsed.roles[0] === "RETAILER" ? "RETAILER" : "PLATFORM_ADMIN");
+          if (!parsed.roles || !Array.isArray(parsed.roles)) {
+            parsed.roles = [parsed.role || "RETAILER"];
           }
+          setUser(parsed);
+          const isRet = parsed.roles.includes("RETAILER") || parsed.role === "RETAILER";
+          setActiveRole(isRet ? "RETAILER" : "PLATFORM_ADMIN");
           if (typeof document !== "undefined") {
-            document.cookie = `p2p_access_token=${token}; path=/; max-age=86400`;
-            document.cookie = `pay2pay_auth_token=${token}; path=/; max-age=86400`;
+            document.cookie = `p2p_access_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+            document.cookie = `pay2pay_access_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+            document.cookie = `pay2pay_auth_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+            document.cookie = `p2p_user_role=${isRet ? "RETAILER" : "ADMIN"}; path=/; max-age=2592000; SameSite=Lax`;
+            document.cookie = `pay2pay_user_role=${isRet ? "RETAILER" : "ADMIN"}; path=/; max-age=2592000; SameSite=Lax`;
           }
         } catch {
           localStorage.removeItem("user_info");

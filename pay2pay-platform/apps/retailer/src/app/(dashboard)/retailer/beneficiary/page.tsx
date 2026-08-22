@@ -26,9 +26,11 @@ import {
   DialogContent,
   DialogActions,
   Table,
+  TableHead,
   TableBody,
   TableCell,
   TableRow,
+  TableContainer,
   MenuItem,
   Select,
   FormControl,
@@ -37,6 +39,7 @@ import {
   InputAdornment,
   ListSubheader,
 } from "@mui/material";
+import TableChartIcon from "@mui/icons-material/TableChart";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
@@ -187,29 +190,98 @@ function playClickSound() {
 function BeneficiaryWorkspaceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedCustomer, setSelectedBeneficiary, referrerUrl } = useTransactionMemoryStore();
+  const { selectedCustomer, setSelectedCustomer, setSelectedBeneficiary, referrerUrl } = useTransactionMemoryStore();
 
-  const [sessionCustomer, setSessionCustomer] = useState<any | null>(null);
+  const [activeCustomer, setActiveCustomer] = useState<any | null>(null);
+  const [isCustomerLoading, setIsCustomerLoading] = useState<boolean>(true);
+
+  // Read URL query parameters
+  const urlCustomerId = searchParams?.get("customerId") || searchParams?.get("id") || searchParams?.get("customer_id") || "";
+  const urlCustomerMobile = searchParams?.get("customerMobile") || searchParams?.get("mobile") || searchParams?.get("mobile_number") || "";
+  const urlCustomerName = searchParams?.get("customerName") || searchParams?.get("name") || searchParams?.get("full_name") || "";
 
   useEffect(() => {
     loadCustomerContext();
-  }, []);
+  }, [urlCustomerId, urlCustomerMobile]);
 
   const loadCustomerContext = async () => {
+    setIsCustomerLoading(true);
     try {
+      // 1. If customer mobile or customer ID is provided in URL query parameters
+      if (urlCustomerMobile || urlCustomerId) {
+        const query = urlCustomerMobile || urlCustomerId;
+        try {
+          const res = await retailerApi.searchPayoutCustomer(query);
+          if (res?.status === "SUCCESS" && Array.isArray(res.data) && res.data.length > 0) {
+            const found = res.data.find((c: any) =>
+              (urlCustomerMobile && (c.mobile_number === urlCustomerMobile || c.mobile === urlCustomerMobile)) ||
+              (urlCustomerId && (c.public_id === urlCustomerId || c.id === urlCustomerId || c.customer_number === urlCustomerId))
+            ) || res.data[0];
+
+            if (found) {
+              const custObj = {
+                ...found,
+                id: found.public_id || found.id || urlCustomerId,
+                public_id: found.public_id || found.id || urlCustomerId,
+                full_name: found.full_name || found.name || urlCustomerName || "Customer",
+                name: found.full_name || found.name || urlCustomerName || "Customer",
+                mobile_number: found.mobile_number || found.mobile || urlCustomerMobile,
+                mobile: found.mobile_number || found.mobile || urlCustomerMobile,
+                customer_number: found.customer_number || (found.mobile_number ? `CUST-${found.mobile_number}` : ""),
+              };
+              setActiveCustomer(custObj);
+              setSelectedCustomer(custObj);
+              setIsCustomerLoading(false);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("Customer search by query param error:", e);
+        }
+
+        // If backend search returned no match, construct customer object cleanly from URL
+        const fallbackFromUrl = {
+          id: urlCustomerId || (urlCustomerMobile ? `cust-${urlCustomerMobile}` : ""),
+          public_id: urlCustomerId || (urlCustomerMobile ? `cust-${urlCustomerMobile}` : ""),
+          full_name: urlCustomerName || (urlCustomerMobile ? `Customer (${urlCustomerMobile})` : "Customer"),
+          name: urlCustomerName || (urlCustomerMobile ? `Customer (${urlCustomerMobile})` : "Customer"),
+          mobile_number: urlCustomerMobile,
+          mobile: urlCustomerMobile,
+          customer_number: urlCustomerMobile ? `CUST-${urlCustomerMobile}` : (urlCustomerId ? formatShortCustomerId(urlCustomerId) : ""),
+        };
+        setActiveCustomer(fallbackFromUrl);
+        setSelectedCustomer(fallbackFromUrl);
+        setIsCustomerLoading(false);
+        return;
+      }
+
+      // 2. If memory store has active selected customer
+      if (selectedCustomer && (selectedCustomer.id || (selectedCustomer as any).public_id || selectedCustomer.mobile)) {
+        setActiveCustomer(selectedCustomer);
+        setIsCustomerLoading(false);
+        return;
+      }
+
+      // 3. Fallback: try session context
       const res = await retailerApi.getBeneficiaryContext();
       if (res?.data?.customer) {
-        setSessionCustomer(res.data.customer);
+        setActiveCustomer(res.data.customer);
+      } else {
+        setActiveCustomer(null);
       }
     } catch (err) {
       console.error("Failed to load secure beneficiary context:", err);
+      setActiveCustomer(null);
+    } finally {
+      setIsCustomerLoading(false);
     }
   };
 
-  const activeCustomerName   = sessionCustomer?.full_name || selectedCustomer?.name || selectedCustomer?.full_name || selectedCustomer?.fullName || "Ramesh Kumar";
-  const activeCustomerMobile = sessionCustomer?.mobile_number || selectedCustomer?.mobile || selectedCustomer?.mobile_number || "7013914767";
-  const rawId                = sessionCustomer?.customer_id || selectedCustomer?.public_id || selectedCustomer?.id || selectedCustomer?.customer_id || selectedCustomer?.customerCode || "cust-8f64d450-7013914767";
-  const activeCustomerId     = formatShortCustomerId(rawId);
+  const effectiveCustomer = activeCustomer || selectedCustomer;
+  const activeCustomerName   = effectiveCustomer?.full_name || effectiveCustomer?.name || effectiveCustomer?.fullName || (urlCustomerName ? urlCustomerName : "Customer");
+  const activeCustomerMobile = effectiveCustomer?.mobile_number || effectiveCustomer?.mobile || urlCustomerMobile || "";
+  const rawId                = effectiveCustomer?.public_id || effectiveCustomer?.id || effectiveCustomer?.customer_id || urlCustomerId || "";
+  const activeCustomerId     = effectiveCustomer?.customer_number || (rawId ? formatShortCustomerId(rawId) : "");
 
   // ── Step ──────────────────────────────────────────────────────────────────
   const [activeStep, setActiveStep] = useState(0);
@@ -252,7 +324,7 @@ function BeneficiaryWorkspaceContent() {
   const [resultModalData, setResultModalData]   = useState<any | null>(null);
 
   // ── Saved Beneficiaries & Delete State ──
-  const { beneficiaries, setBeneficiaries, deleteBeneficiary } = useBeneficiary(selectedCustomer);
+  const { beneficiaries, setBeneficiaries, deleteBeneficiary } = useBeneficiary(effectiveCustomer);
   const [savedBenModalOpen, setSavedBenModalOpen] = useState(false);
   const [targetDeleteBen, setTargetDeleteBen]     = useState<BeneficiaryData | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen]   = useState(false);
@@ -1492,6 +1564,260 @@ function BeneficiaryWorkspaceContent() {
             </AnimatePresence>
           </Grid>
         </Grid>
+
+        {/* ── 4. REGISTERED BENEFICIARIES TABLE (Live Linked Accounts) ── */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, sm: 3 },
+            borderRadius: 3,
+            border: "1px solid #1E293B",
+            bgcolor: "#0F172A",
+            color: "#FFFFFF",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.4)",
+            mt: 3,
+          }}
+        >
+          {/* Header */}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            sx={{
+              justifyContent: "space-between",
+              alignItems: { xs: "flex-start", sm: "center" },
+              gap: 2,
+              mb: 2.5,
+              pb: 2,
+              borderBottom: "1px solid #1E293B",
+            }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2.5,
+                  bgcolor: "rgba(37, 99, 235, 0.15)",
+                  border: "1px solid rgba(37, 99, 235, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <TableChartIcon sx={{ fontSize: 22, color: "#38BDF8" }} />
+              </Box>
+              <Box>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                  <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "17px", letterSpacing: "-0.3px" }}>
+                    Registered Beneficiaries
+                  </Typography>
+                  <Chip
+                    label={`${beneficiaries.length} Active`}
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      bgcolor: "rgba(16, 185, 129, 0.2)",
+                      color: "#34D399",
+                      border: "1px solid rgba(16, 185, 129, 0.3)",
+                    }}
+                  />
+                </Stack>
+                <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "12px" }}>
+                  Linked bank accounts for <strong className="text-[#38BDF8]">{activeCustomerName}</strong> {activeCustomerMobile ? `(${activeCustomerMobile})` : ""}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", alignSelf: { xs: "flex-end", sm: "auto" } }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setSavedBenModalOpen(true)}
+                startIcon={<ListIcon sx={{ fontSize: 16 }} />}
+                sx={{
+                  borderColor: "rgba(56, 189, 248, 0.4)",
+                  color: "#38BDF8",
+                  fontWeight: 800,
+                  fontSize: "11px",
+                  borderRadius: 2.5,
+                  px: 2,
+                  py: 0.75,
+                  textTransform: "none",
+                  "&:hover": { borderColor: "#38BDF8", bgcolor: "rgba(56, 189, 248, 0.1)" },
+                }}
+              >
+                Manage / Delete
+              </Button>
+            </Stack>
+          </Stack>
+
+          {/* Beneficiary List / Table */}
+          {beneficiaries.length === 0 ? (
+            <Box sx={{ py: 6, textAlign: "center" }}>
+              <AccountBalanceIcon sx={{ fontSize: 44, color: "#475569", mb: 1.5 }} />
+              <Typography sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "14px", mb: 0.5 }}>
+                No Beneficiaries Registered Yet
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#64748B", display: "block", maxWidth: 420, mx: "auto" }}>
+                Use the form above to add and instantly Penny Drop verify a bank account for {activeCustomerName}.
+              </Typography>
+            </Box>
+          ) : (
+            <TableContainer sx={{ borderRadius: 2, border: "1px solid #1E293B", overflowX: "auto" }}>
+              <Table size="medium">
+                <TableHead sx={{ bgcolor: "#1E293B" }}>
+                  <TableRow>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Beneficiary
+                    </TableCell>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Bank & Branch
+                    </TableCell>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Account Number
+                    </TableCell>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      IFSC Code
+                    </TableCell>
+                    <TableCell sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Status
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #334155" }}>
+                      Action
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {beneficiaries.map((b, idx) => {
+                    const accClear = b.accountNumber || b.maskedAccountNumber || "—";
+                    return (
+                      <TableRow
+                        key={b.id || idx}
+                        hover
+                        sx={{
+                          bgcolor: "#0F172A",
+                          "&:hover": { bgcolor: "rgba(30, 41, 59, 0.7) !important" },
+                          "& td": { borderBottom: "1px solid #1E293B" },
+                        }}
+                      >
+                        {/* Beneficiary Name */}
+                        <TableCell>
+                          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                            <Avatar sx={{ width: 34, height: 34, bgcolor: "#2563EB", fontWeight: 800, fontSize: "13px" }}>
+                              {b.name?.charAt(0).toUpperCase() || "B"}
+                            </Avatar>
+                            <Box>
+                              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
+                                {b.name}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px" }}>
+                                {b.relationship || "Beneficiary"} {b.beneficiaryCode ? `• ${b.beneficiaryCode}` : ""}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </TableCell>
+
+                        {/* Bank & Branch */}
+                        <TableCell>
+                          <Typography sx={{ fontWeight: 700, color: "#E2E8F0", fontSize: "13px" }}>
+                            {b.bankName || "Bank Account"}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
+                            {b.branchName || "Main Branch"}
+                          </Typography>
+                        </TableCell>
+
+                        {/* Account Number (Clear Text) */}
+                        <TableCell>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            <Typography sx={{ fontWeight: 800, color: "#38BDF8", fontFamily: "monospace", fontSize: "13px", letterSpacing: "0.5px" }}>
+                              {accClear}
+                            </Typography>
+                            <Tooltip title={copied === `acc-${idx}` ? "Copied!" : "Copy Account"}>
+                              <IconButton size="small" onClick={() => copyToClipboard(accClear, `acc-${idx}`)} sx={{ color: "#64748B", p: 0.25 }}>
+                                <ContentCopyIcon sx={{ fontSize: 13 }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+
+                        {/* IFSC */}
+                        <TableCell>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            <Typography sx={{ fontWeight: 700, color: "#CBD5E1", fontFamily: "monospace", fontSize: "12px" }}>
+                              {b.ifsc || "—"}
+                            </Typography>
+                            {b.ifsc && (
+                              <Tooltip title={copied === `ifsc-${idx}` ? "Copied!" : "Copy IFSC"}>
+                                <IconButton size="small" onClick={() => copyToClipboard(b.ifsc, `ifsc-${idx}`)} sx={{ color: "#64748B", p: 0.25 }}>
+                                  <ContentCopyIcon sx={{ fontSize: 13 }} />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell>
+                          <Chip
+                            icon={<CheckCircleIcon sx={{ fontSize: "14px !important", color: "#10B981 !important" }} />}
+                            label="VERIFIED"
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: "10px",
+                              fontWeight: 800,
+                              bgcolor: "rgba(16, 185, 129, 0.15)",
+                              color: "#34D399",
+                              border: "1px solid rgba(16, 185, 129, 0.3)",
+                            }}
+                          />
+                        </TableCell>
+
+                        {/* Action */}
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={() => {
+                                setSelectedBeneficiary(b);
+                                router.push(`/retailer/dmt/transfer?customerId=${encodeURIComponent(rawId)}&beneficiaryId=${encodeURIComponent(b.id)}`);
+                              }}
+                              sx={{
+                                bgcolor: "#2563EB",
+                                "&:hover": { bgcolor: "#1D4ED8" },
+                                color: "#FFFFFF",
+                                fontWeight: 800,
+                                fontSize: "11px",
+                                borderRadius: 2,
+                                px: 1.75,
+                                textTransform: "none",
+                              }}
+                            >
+                              Transfer
+                            </Button>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setTargetDeleteBen(b);
+                                setDeleteDialogOpen(true);
+                              }}
+                              sx={{ color: "#EF4444", "&:hover": { bgcolor: "rgba(239, 68, 68, 0.1)" } }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Paper>
 
       {/* ══════════════════════════════════════════════════════════════════════
           CONFIRM DEBIT MODAL (Ultra-Premium Glassmorphism & Gold/Yellow Theme)
