@@ -1312,7 +1312,7 @@ export const retailerApi = {
                 lastUsedAt: "Just now",
                 transferCount: 0,
                 status: "ACTIVE",
-                preferredGateway: "Cashfree Verified",
+                preferredGateway: "Bank Verified",
                 dailyUsage: 0,
                 monthlyUsage: 0,
                 dailyRemaining: 50000,
@@ -1344,7 +1344,7 @@ export const retailerApi = {
       return {
         status: "FAILED",
         verification_status: "FAILED",
-        message: err?.message || "Failed to connect to Cashfree V2 verification server"
+        message: err?.message || "Failed to connect to bank verification server"
       };
     }
   },

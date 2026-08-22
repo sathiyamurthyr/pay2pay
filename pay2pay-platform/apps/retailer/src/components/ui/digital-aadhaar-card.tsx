@@ -86,7 +86,7 @@ export const DigitalAadhaarCard: React.FC<DigitalAadhaarCardProps> = ({ aadhaarD
               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
               <span>OFFICIAL eKYC VERIFIED</span>
             </span>
-            <span className="text-[10px] font-mono text-slate-400 mt-1">Cashfree Offline API</span>
+            <span className="text-[10px] font-mono text-slate-400 mt-1">UIDAI eKYC Verified</span>
           </div>
         </div>
 

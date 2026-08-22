@@ -572,7 +572,7 @@ export function CustomerDetailsDrawer({
                     <div><span className="text-slate-500">Full Name:</span> <div className="font-bold text-slate-900 dark:text-white">{displayName}</div></div>
                     <div><span className="text-slate-500">Masked Aadhaar:</span> <div className="font-mono font-bold text-blue-600">{maskedAadhaar}</div></div>
                     <div><span className="text-slate-500">Mobile Number:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 {mobile.replace("+91 ", "")}</div></div>
-                    <div><span className="text-slate-500">Verification Provider:</span> <div className="font-bold text-slate-900 dark:text-white">Cashfree Aadhaar eKYC API</div></div>
+                    <div><span className="text-slate-500">Verification Provider:</span> <div className="font-bold text-slate-900 dark:text-white">UIDAI eKYC Gateway</div></div>
                     <div><span className="text-slate-500">Verification Status:</span> <div className="font-mono font-bold text-emerald-600">{kycStatus}</div></div>
                     <div><span className="text-slate-500">Verification Date:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{verifyDate}</div></div>
                   </div>

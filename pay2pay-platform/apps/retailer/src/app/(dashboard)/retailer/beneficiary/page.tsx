@@ -1970,9 +1970,53 @@ function BeneficiaryWorkspaceContent() {
         open={pennyDropLoading}
         maxWidth="xs"
         fullWidth
-        slotProps={{ paper: { sx: { borderRadius: 4, overflow: "hidden", p: 3.5, textAlign: "center", bgcolor: "#0F172A", color: "#FFFFFF", border: "1px solid rgba(255, 255, 255, 0.15)", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" } } }}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 4,
+              overflow: "hidden",
+              p: 0,
+              bgcolor: "#0F172A",
+              color: "#FFFFFF",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
+            },
+          },
+        }}
       >
-        <Box sx={{ py: 2, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        {/* TOP HEADER BAR */}
+        <Box
+          sx={{
+            px: 2.5,
+            py: 1.5,
+            bgcolor: "rgba(30, 41, 59, 0.75)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.10)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <ShieldIcon sx={{ fontSize: 16, color: "#60A5FA" }} />
+            <Typography variant="caption" sx={{ fontSize: "11px", fontWeight: 800, color: "#CBD5E1", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              Bank Account Verification
+            </Typography>
+          </Stack>
+          <Chip
+            label="NPCI • IMPS Live"
+            size="small"
+            sx={{
+              height: 20,
+              fontSize: "10px",
+              fontWeight: 800,
+              bgcolor: "rgba(34, 197, 94, 0.15)",
+              color: "#4ADE80",
+              border: "1px solid rgba(74, 222, 128, 0.3)",
+            }}
+          />
+        </Box>
+
+        <Box sx={{ p: 3.5, py: 4, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
           <Box sx={{ position: "relative", width: 72, height: 72, mb: 3 }}>
             <motion.div
               animate={{ rotate: 360 }}
@@ -1995,7 +2039,7 @@ function BeneficiaryWorkspaceContent() {
             Verifying Bank Account…
           </Typography>
           <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.70)", fontSize: "13px", mb: 2.5, px: 2 }}>
-            Executing Cashfree V2 Penny Drop Deposit & Validating Official Name at Bank…
+            Executing ₹1.00 Penny Drop Deposit & Validating Official Name with Bank Network…
           </Typography>
           <Chip
             icon={<SwapHorizIcon sx={{ "&&": { color: "#60A5FA", fontSize: 16 } }} />}
