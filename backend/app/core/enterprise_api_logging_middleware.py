@@ -30,6 +30,8 @@ EXCLUDED_PATHS = {
     "/openapi.json",
     "/favicon.ico",
     "/api/v1/payout-workflow/health",
+    "/api/v1/session/audit",
+    "/api/v1/bpm/approvals",
 }
 
 def infer_service_name(path: str) -> str:
@@ -143,7 +145,15 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
     """
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         path = request.url.path
-        if path in EXCLUDED_PATHS or path.startswith("/uploads") or path.startswith("/static"):
+        if (
+            path in EXCLUDED_PATHS
+            or path.startswith("/api/v1/api-logs")
+            or path.startswith("/api-logs")
+            or path.startswith("/api/v1/session/audit")
+            or path.startswith("/api/v1/bpm/approvals")
+            or path.startswith("/uploads")
+            or path.startswith("/static")
+        ):
             return await call_next(request)
 
         # Only log /api/v1/ requests or main application APIs
