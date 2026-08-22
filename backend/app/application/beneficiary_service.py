@@ -285,16 +285,27 @@ class BeneficiaryService:
             try:
                 target_cust_uuid = uuid.UUID(raw_cid)
             except Exception:
-                # Extract clean digits for mobile lookup
+                # Strip common display prefixes (e.g. "CUST-9176669426" -> "9176669426")
+                stripped_cid = re.sub(r"^(CUST|C|CUSTOMER)[-_]?", "", raw_cid, flags=re.IGNORECASE).strip()
                 clean_digits = re.sub(r"\D", "", raw_cid)
-                stmt_c = select(CustomerModel).where(
-                    or_(
-                        CustomerModel.customer_number == raw_cid,
-                        CustomerModel.customer_number.ilike(f"%{raw_cid}%"),
-                        CustomerModel.mobile_number == clean_digits if clean_digits else False,
-                        CustomerModel.mobile_number.like(f"%{clean_digits[-10:]}%") if len(clean_digits) >= 10 else False,
-                    )
-                )
+                stripped_digits = re.sub(r"\D", "", stripped_cid)
+
+                lookup_conditions = [
+                    CustomerModel.customer_number == raw_cid,
+                    CustomerModel.customer_number.ilike(f"%{raw_cid}%"),
+                ]
+                # Also try without the display prefix
+                if stripped_cid and stripped_cid != raw_cid:
+                    lookup_conditions.append(CustomerModel.customer_number == stripped_cid)
+                    lookup_conditions.append(CustomerModel.customer_number.ilike(f"%{stripped_cid}%"))
+                # Mobile number fallback (only if digits look like a phone number)
+                if clean_digits and len(clean_digits) >= 10:
+                    lookup_conditions.append(CustomerModel.mobile_number == clean_digits)
+                    lookup_conditions.append(CustomerModel.mobile_number.like(f"%{clean_digits[-10:]}%"))
+                if stripped_digits and len(stripped_digits) >= 6 and stripped_digits != clean_digits:
+                    lookup_conditions.append(CustomerModel.customer_number == stripped_digits)
+
+                stmt_c = select(CustomerModel).where(or_(*lookup_conditions))
                 cust_match = (await db.execute(stmt_c)).scalars().first()
                 if cust_match:
                     target_cust_uuid = cust_match.public_id

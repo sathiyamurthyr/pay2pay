@@ -41,7 +41,8 @@ import { retailerApi } from "@/services/retailer-api";
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface CustomerRecord {
-  id: string;
+  id: string;      // Display-formatted ID (e.g. CUST-9176669426) — for UI only
+  rawId?: string;  // Raw UUID / public_id from backend — used for API lookups (e.g. beneficiaries)
   name: string;
   mobile: string;
   email: string;
@@ -146,6 +147,9 @@ function CustomersContent() {
         if (!isCancelled && res.status === "SUCCESS" && Array.isArray(res.data) && res.data.length > 0) {
           const mapped: CustomerRecord[] = res.data.map((c: any) => ({
             id: formatShortCustomerId(c.customer_number || c.public_id || c.id),
+            // rawId: preserve the authoritative UUID for API lookups (beneficiaries, limits, etc.)
+            // Priority: public_id (UUID) > customer_number (raw) — never the formatted display id
+            rawId: c.public_id || c.id || c.customer_number || "",
             name: c.full_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Verified Customer",
             mobile: c.mobile_number ? (c.mobile_number.startsWith("+91") ? c.mobile_number : `+91 ${c.mobile_number}`) : "",
             email: c.email || "",

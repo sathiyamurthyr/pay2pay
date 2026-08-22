@@ -948,7 +948,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 : hasLimitBreach
                 ? "Transfer amount exceeds available limits"
                 : hasInsufficientWallet
-                ? "Insufficient wallet balance"
+                ? `Wallet balance (₹${(pricingResult?.walletBalance ?? 0).toLocaleString()}) is insufficient. Please load your wallet to proceed with this transfer.`
                 : ""
             }
           >

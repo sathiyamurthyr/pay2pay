@@ -237,7 +237,7 @@ function BeneficiaryWorkspaceContent() {
   // ── Pre-checks ────────────────────────────────────────────────────────────
   const [precheckLoading, setPrecheckLoading] = useState(false);
   const [precheckResult, setPrecheckResult]   = useState<any | null>(null);
-  const [walletBalance, setWalletBalance]     = useState<number>(48250.75);
+  const [walletBalance, setWalletBalance]     = useState<number>(0);
   const [verificationCharge, setVerificationCharge] = useState<{ base: number; gst: number; total: number } | null>(null);
 
   // ── Verification ──────────────────────────────────────────────────────────
@@ -286,9 +286,9 @@ function BeneficiaryWorkspaceContent() {
   const loadWalletBalance = async () => {
     try {
       const res = await retailerApi.getWalletBalance();
-      if (res && res.mainBalance) setWalletBalance(res.mainBalance);
+      if (res && res.mainBalance != null) setWalletBalance(res.mainBalance);
     } catch {
-      setWalletBalance(48250.75);
+      // On failure, keep existing balance (don't override with a fake value)
     }
   };
 
@@ -494,14 +494,17 @@ function BeneficiaryWorkspaceContent() {
       setVerificationCharge({ base, gst, total });
 
       const checks = {
-        wallet_balance: walletBalance >= total,
+        // Verification (penny drop) is allowed even with 0 wallet balance.
+        // The ₹3.54 fee is post-paid when balance is insufficient — never a blocker.
+        wallet_balance: true,
         retailer_active: true,
         customer_active: true,
         tenant_active: true,
         company_active: true,
       };
       const passed = Object.values(checks).every(Boolean);
-      setPrecheckResult({ passed, checks, wallet_balance: walletBalance, charge: total });
+      const lowBalance = walletBalance < total;
+      setPrecheckResult({ passed, checks, wallet_balance: walletBalance, charge: total, low_balance: lowBalance });
     } catch {
       setVerificationCharge({ base: 3.00, gst: 0.54, total: 3.54 });
       setPrecheckResult({
@@ -1527,14 +1530,34 @@ function BeneficiaryWorkspaceContent() {
           }}
         />
 
-        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pt: 2.5, pb: 1, px: 3, display: "flex", alignItems: "center", justify: "space-between" }}>
+        <DialogTitle sx={{ fontWeight: 900, color: "#FFFFFF", pt: 2.5, pb: 1, px: 3, display: "flex", alignItems: "center", gap: 1 }}>
           <span>Confirm Penny Drop Verification</span>
-          <Chip label="₹3.54 DEBIT" size="small" sx={{ bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FBBF24", fontWeight: 900, fontSize: "10px", border: "1px solid #F59E0B" }} />
+          <Chip
+            label={precheckResult?.low_balance ? "₹3.54 — Post-Paid" : "₹3.54 DEBIT"}
+            size="small"
+            sx={{
+              bgcolor: precheckResult?.low_balance ? "rgba(234, 179, 8, 0.2)" : "rgba(245, 158, 11, 0.2)",
+              color: precheckResult?.low_balance ? "#FCD34D" : "#FBBF24",
+              fontWeight: 900, fontSize: "10px",
+              border: `1px solid ${precheckResult?.low_balance ? "#CA8A04" : "#F59E0B"}`,
+            }}
+          />
         </DialogTitle>
         <DialogContent sx={{ px: 3, pb: 2 }}>
+          {precheckResult?.low_balance && (
+            <Box sx={{ mb: 2, p: 1.5, borderRadius: 2, bgcolor: "rgba(234, 179, 8, 0.1)", border: "1px solid rgba(234, 179, 8, 0.4)", display: "flex", gap: 1, alignItems: "flex-start" }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+              <Typography variant="caption" sx={{ color: "#FDE68A", fontWeight: 700, lineHeight: 1.4 }}>
+                Wallet balance (₹{(precheckResult?.wallet_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}) is below the ₹{verificationCharge?.total?.toFixed(2) || "3.54"} verification fee.
+                Verification will proceed — the fee will be settled post-paid when your wallet is loaded.
+              </Typography>
+            </Box>
+          )}
           <Typography variant="body2" sx={{ color: "#CBD5E1", mb: 2, fontSize: "13px" }}>
             A ₹1 penny drop will be sent to verify this account. The amount is instantly recovered.
-            A verification charge of <strong style={{ color: "#FBBF24" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited from your wallet.
+            {precheckResult?.low_balance
+              ? " Verification fee will be recorded as a post-paid obligation."
+              : <> A verification charge of <strong style={{ color: "#FBBF24" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</strong> will be debited from your wallet.</>}
           </Typography>
 
           <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(30, 41, 59, 0.65)", border: "1px solid rgba(245, 158, 11, 0.3)", backdropFilter: "blur(12px)", mb: 2 }}>
@@ -1556,7 +1579,9 @@ function BeneficiaryWorkspaceContent() {
                   <TableCell align="right" sx={{ border: 0, p: 0.5, fontWeight: 700, color: "#FFFFFF", fontSize: "12px" }}>₹{verificationCharge?.gst?.toFixed(2) || "0.54"}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell sx={{ borderTop: "1px solid rgba(245, 158, 11, 0.3)", p: 0.5, fontWeight: 900, color: "#FFFFFF", fontSize: "13px" }}>Total</TableCell>
+                  <TableCell sx={{ borderTop: "1px solid rgba(245, 158, 11, 0.3)", p: 0.5, fontWeight: 900, color: "#FFFFFF", fontSize: "13px" }}>
+                    {precheckResult?.low_balance ? "Total (Post-Paid)" : "Total"}
+                  </TableCell>
                   <TableCell align="right" sx={{ borderTop: "1px solid rgba(245, 158, 11, 0.3)", p: 0.5, fontWeight: 900, color: "#FBBF24", fontSize: "14px" }}>₹{verificationCharge?.total?.toFixed(2) || "3.54"}</TableCell>
                 </TableRow>
               </TableBody>
@@ -1570,11 +1595,12 @@ function BeneficiaryWorkspaceContent() {
               onClick={handleRunPennyDrop}
               className="py-2.5 px-5 rounded-2xl bg-gradient-to-r from-[#F59E0B] via-[#FBBF24] to-[#D97706] hover:from-[#D97706] hover:to-[#B45309] text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              <span>Confirm & Debit ₹{verificationCharge?.total?.toFixed(2) || "3.54"} →</span>
+              <span>{precheckResult?.low_balance ? `Proceed (Post-Paid ₹${verificationCharge?.total?.toFixed(2) || "3.54"}) →` : `Confirm & Debit ₹${verificationCharge?.total?.toFixed(2) || "3.54"} →`}</span>
             </button>
           </motion.div>
         </DialogActions>
       </Dialog>
+
 
       {/* ══════════════════════════════════════════════════════════════════════
           PENNY DROP HIGH-TECH PROCESSING LOADER OVERLAY

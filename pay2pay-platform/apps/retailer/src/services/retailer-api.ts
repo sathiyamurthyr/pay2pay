@@ -1284,16 +1284,10 @@ export const retailerApi = {
           city: beneInfo.city || "",
         };
 
-        const keys = Array.from(new Set([
-          custId,
-          "7013914767",
-          "8f64d450-8b7c-4414-a998-52f1d99e01b1",
-          "CUST3914767",
-          "CUST-CUST3914767",
-          "cust-8f64d450-7013914767",
-        ]));
+        // Store ONLY under the actual customer's ID — never under hardcoded fallback keys
+        const storeKeys = [custId].filter(Boolean);
 
-        keys.forEach((k) => {
+        storeKeys.forEach((k) => {
           if (!dynamicBeneficiaryStore[k]) dynamicBeneficiaryStore[k] = [];
           dynamicBeneficiaryStore[k] = [
             newBen,
@@ -1330,6 +1324,7 @@ export const retailerApi = {
             } catch {}
           }
         });
+
       }
       return resData;
     } catch (err: any) {

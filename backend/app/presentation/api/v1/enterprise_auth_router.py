@@ -854,8 +854,43 @@ async def get_account_status(
     redirect_url = "/retailer/account-under-review"
     login_enabled = True
 
-    # 1. Evaluate from live retailer_verifications
-    if verif:
+    # AUTHORITATIVE PRIORITY: RetailerModel.status is the single source of truth.
+    # If retailer master record is ACTIVE/APPROVED, immediately grant access —
+    # this prevents stale RetailerVerificationModel records from blocking approved retailers.
+    # (Scenario: admin approves retailer → RetailerModel.status = ACTIVE, but
+    #  RetailerVerificationModel.verification_status may still be KYC_SUBMITTED/PENDING)
+    if retailer_record and (retailer_record.status or "").upper() in ("ACTIVE", "APPROVED"):
+        is_approved = True
+        approval_status = "APPROVED"
+        account_status = "ACTIVE"
+        access = "ALLOWED"
+        reason = None
+        destination = "DASHBOARD"
+        redirect_url = "/retailer/dashboard"
+        login_enabled = True
+
+    elif retailer_record and (retailer_record.status or "").upper() == "REJECTED":
+        is_approved = False
+        approval_status = "REJECTED"
+        account_status = "REJECTED"
+        access = "RESTRICTED"
+        reason = "APPLICATION_REJECTED"
+        destination = "APPLICATION_REJECTED"
+        redirect_url = "/application-rejected"
+        login_enabled = False
+
+    elif retailer_record and (retailer_record.status or "").upper() in ("SUSPENDED", "BLOCKED", "FROZEN", "HOLD"):
+        is_approved = False
+        approval_status = "SUSPENDED"
+        account_status = "RESTRICTED"
+        access = "RESTRICTED"
+        reason = "ACCOUNT_RESTRICTED"
+        destination = "ACCOUNT_UNDER_REVIEW"
+        redirect_url = "/retailer/account-under-review"
+        login_enabled = False
+
+    # 1. Evaluate from live retailer_verifications (only when retailer_record is not ACTIVE/APPROVED/REJECTED)
+    elif verif:
         v_status = (verif.verification_status or "").upper()
         r_status = (verif.retailer_status or verif.account_status or "").upper()
 
@@ -897,7 +932,7 @@ async def get_account_status(
             redirect_url = "/retailer/account-under-review"
             login_enabled = True
 
-    # 2. Evaluate from existing retailer master record
+    # 2. Evaluate from existing retailer master record (no verif record found)
     elif retailer_record:
         ret_st = (retailer_record.status or "").upper()
         if ret_st in ("ACTIVE", "APPROVED"):

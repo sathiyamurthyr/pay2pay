@@ -245,7 +245,9 @@ export function CustomerDetailsDrawer({
   // Lazy fetch beneficiaries ONLY when customer is selected AND Beneficiaries tab is explicitly opened
   useEffect(() => {
     if (isOpen && customer?.id && activeTab === "beneficiaries" && !hasLoadedBeneficiaries) {
-      fetchBeneficiaries(customer.id);
+      // Prefer rawId (UUID) for accurate backend lookup; fall back to display id
+      const lookupId = (customer as any).rawId || customer.id;
+      fetchBeneficiaries(lookupId);
     }
   }, [isOpen, customer?.id, activeTab, hasLoadedBeneficiaries]);
 
@@ -258,34 +260,29 @@ export function CustomerDetailsDrawer({
   const fetchBeneficiaries = async (custNumberOrId: string) => {
     setIsLoadingBeneficiaries(true);
     try {
-      const res = await apiClient.get(`/beneficiaries?customer_id=${custNumberOrId}`);
+      const res = await apiClient.get(`/beneficiaries?customer_id=${encodeURIComponent(custNumberOrId)}`);
       const list = res.data?.data || res.data || [];
       if (Array.isArray(list) && list.length > 0) {
         setBeneficiaries(
           list.map((b: any) => ({
             id: b.id || b.public_id || b.beneficiary_id,
             name: b.full_name || b.name || "Linked Beneficiary",
-            accountNumber: b.account_number || b.accountNumber || "••••4589",
-            ifsc: b.ifsc_code || b.ifsc || "SBIN0001824",
-            bankName: b.bank_name || b.bankName || "State Bank of India",
-            branch: b.branch || "Main Branch",
+            accountNumber: b.account_number || b.accountNumber || "N/A",
+            ifsc: b.ifsc_code || b.ifsc || "N/A",
+            bankName: b.bank_name || b.bankName || "N/A",
+            branch: b.branch_name || b.branch || "Main Branch",
             accountType: b.account_type || "SAVINGS",
-            isVerified: b.is_verified ?? true,
-            status: b.status || "ACTIVE",
+            isVerified: b.is_verified ?? (b.verification_status === "VERIFIED"),
+            status: b.beneficiary_status || b.status || "ACTIVE",
           }))
         );
       } else {
-        // Sample beneficiaries for verified fallback
-        setBeneficiaries([
-          { id: "ben-1", name: "Ramesh Sharma", accountNumber: "••••4589", ifsc: "SBIN0001824", bankName: "State Bank of India", branch: "Cyber City Branch", accountType: "SAVINGS", isVerified: true, isPrimary: true, isUpiEnabled: true },
-          { id: "ben-2", name: "Priya Natarajan", accountNumber: "••••3411", ifsc: "HDFC0000128", bankName: "HDFC Bank", branch: "Sector 18 Branch", accountType: "CURRENT", isVerified: true, isPrimary: false, isUpiEnabled: true },
-        ]);
+        // Genuine empty state — customer has no beneficiaries
+        setBeneficiaries([]);
       }
     } catch (err) {
-      setBeneficiaries([
-        { id: "ben-1", name: "Ramesh Sharma", accountNumber: "••••4589", ifsc: "SBIN0001824", bankName: "State Bank of India", branch: "Cyber City Branch", accountType: "SAVINGS", isVerified: true, isPrimary: true, isUpiEnabled: true },
-        { id: "ben-2", name: "Priya Natarajan", accountNumber: "••••3411", ifsc: "HDFC0000128", bankName: "HDFC Bank", branch: "Sector 18 Branch", accountType: "CURRENT", isVerified: true, isPrimary: false, isUpiEnabled: true },
-      ]);
+      // On API failure, show empty — do NOT show fake data
+      setBeneficiaries([]);
     } finally {
       setIsLoadingBeneficiaries(false);
       setHasLoadedBeneficiaries(true);
