@@ -88,10 +88,11 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
         display: "flex",
         flexDirection: "column",
         p: 1.5,
+        pb: 8,
       }}
     >
       {/* WORKSTATION BODY */}
-      <Box sx={{ flex: 1, width: "100%" }}>
+      <Box sx={{ flex: 1, width: "100%", pb: 4 }}>
         {currentStep === 1 && (
           <WorkstationStep1
             customer={customer}
@@ -102,6 +103,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
             }}
             onContinue={() => setCurrentStep(2)}
             isSearching={isSearching}
+            hasSearched={hasSearched}
           />
         )}
 

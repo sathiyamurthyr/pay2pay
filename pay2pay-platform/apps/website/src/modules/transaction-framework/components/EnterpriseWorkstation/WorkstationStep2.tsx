@@ -39,6 +39,9 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DeleteIcon from "@mui/icons-material/Delete";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import CheckIcon from "@mui/icons-material/Check";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
@@ -320,9 +323,24 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
         {/* ── CONSOLE HEADER: TITLE & + ADD BENEFICIARY BUTTON ── */}
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5, flexWrap: "wrap", gap: 1 }}>
-          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", letterSpacing: "-0.2px" }}>
-            Beneficiary Selection
-          </Typography>
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
+            <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", letterSpacing: "-0.2px" }}>
+              Beneficiary Selection
+            </Typography>
+            <Chip
+              label={`${filteredBeneficiaries.length}${filteredBeneficiaries.length !== beneficiaries.length ? ` / ${beneficiaries.length}` : ""}`}
+              size="small"
+              sx={{
+                height: 22,
+                px: 0.5,
+                fontSize: "11px",
+                fontWeight: 800,
+                bgcolor: "rgba(37, 99, 235, 0.2)",
+                color: "#60A5FA",
+                border: "1px solid rgba(96, 165, 250, 0.35)",
+              }}
+            />
+          </Stack>
 
           <Button
             size="small"
@@ -425,11 +443,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           sx={{
             flex: 1,
             width: "100%",
-            minHeight: 0,
+            minHeight: "360px",
             overflowY: "auto",
             overflowX: "auto",
-            maxHeight: { xs: "500px", lg: "calc(100vh - 270px)" },
+            maxHeight: { xs: "560px", lg: "calc(100vh - 230px)" },
             pr: 0.5,
+            pb: 5,
             "&::-webkit-scrollbar": { width: "6px", height: "6px" },
             "&::-webkit-scrollbar-track": { background: "rgba(255, 255, 255, 0.02)", borderRadius: "4px" },
             "&::-webkit-scrollbar-thumb": { background: "rgba(96, 165, 250, 0.3)", borderRadius: "4px" },
@@ -522,9 +541,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   {displayedBeneficiaries.map((b) => {
                     const isSelected = selectedBeneficiary?.id === b.id;
                     const isExpanded = expandedBeneficiaryId === b.id;
-                    const isAccountRevealed = Boolean(revealedAccounts[b.id]);
-                    const rawAccount = b.accountNumber || "0630104000156974";
-                    const maskedAcc = b.maskedAccountNumber || (rawAccount.length >= 4 ? `XXXX-XXXX-${rawAccount.slice(-4)}` : rawAccount);
+                    const isAccountRevealed = true;
+                    const rawAccount = b.accountNumber || b.maskedAccountNumber || "0630104000156974";
+                    const maskedAcc = rawAccount;
                     const bAny = b as any;
 
                     return (
@@ -559,7 +578,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                   fontSize: "11px",
                                 }}
                               >
-                                {b.name.slice(0, 2).toUpperCase()}
+                                {(b.name || "Beneficiary").slice(0, 2).toUpperCase()}
                               </Avatar>
 
                               <Box>
@@ -575,13 +594,13 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                             </Stack>
                           </TableCell>
 
-                          {/* Column 2: Bank Account (Bank Name + Masked Account) */}
+                          {/* Column 2: Bank Account (Bank Name + Full Account Number) */}
                           <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                             <Typography sx={{ color: "#60A5FA", fontSize: "12.5px", fontWeight: 800, lineHeight: 1.2 }}>
                               {b.bankName}
                             </Typography>
-                            <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontFamily: "monospace", fontSize: "11.5px" }}>
-                              {isAccountRevealed ? rawAccount : maskedAcc}
+                            <Typography sx={{ color: "rgba(255, 255, 255, 0.90)", fontFamily: "monospace", fontSize: "12px", fontWeight: 700 }}>
+                              {rawAccount}
                             </Typography>
                           </TableCell>
 
@@ -702,16 +721,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
                                   <Box>
                                     <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Account Number</Typography>
-                                    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                                      <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>
-                                        {isAccountRevealed ? rawAccount : maskedAcc}
-                                      </Typography>
-                                      <Tooltip title={isAccountRevealed ? "Hide Full Account" : "View Full Account"}>
-                                        <IconButton size="small" onClick={(e) => toggleAccountVisibility(b.id, e)} sx={{ color: "#60A5FA", p: 0.25 }}>
-                                          {isAccountRevealed ? <VisibilityOffIcon sx={{ fontSize: 14 }} /> : <VisibilityIcon sx={{ fontSize: 14 }} />}
-                                        </IconButton>
-                                      </Tooltip>
-                                    </Stack>
+                                    <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>
+                                      {rawAccount}
+                                    </Typography>
                                   </Box>
 
                                   <Box>
@@ -952,7 +964,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 : hasLimitBreach
                 ? "Transfer amount exceeds available limits"
                 : hasInsufficientWallet
-                ? "Insufficient wallet balance"
+                ? `Wallet balance (₹${(pricingResult?.walletBalance ?? 0).toLocaleString()}) is insufficient. Please load your wallet to proceed with this transfer.`
                 : ""
             }
           >

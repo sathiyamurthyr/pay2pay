@@ -323,9 +323,24 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
         {/* ── CONSOLE HEADER: TITLE & + ADD BENEFICIARY BUTTON ── */}
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5, flexWrap: "wrap", gap: 1 }}>
-          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", letterSpacing: "-0.2px" }}>
-            Beneficiary Selection
-          </Typography>
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
+            <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", letterSpacing: "-0.2px" }}>
+              Beneficiary Selection
+            </Typography>
+            <Chip
+              label={`${filteredBeneficiaries.length}${filteredBeneficiaries.length !== beneficiaries.length ? ` / ${beneficiaries.length}` : ""}`}
+              size="small"
+              sx={{
+                height: 22,
+                px: 0.5,
+                fontSize: "11px",
+                fontWeight: 800,
+                bgcolor: "rgba(37, 99, 235, 0.2)",
+                color: "#60A5FA",
+                border: "1px solid rgba(96, 165, 250, 0.35)",
+              }}
+            />
+          </Stack>
 
           <Button
             size="small"
@@ -428,11 +443,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           sx={{
             flex: 1,
             width: "100%",
-            minHeight: 0,
+            minHeight: "360px",
             overflowY: "auto",
             overflowX: "auto",
-            maxHeight: { xs: "500px", lg: "calc(100vh - 270px)" },
+            maxHeight: { xs: "560px", lg: "calc(100vh - 230px)" },
             pr: 0.5,
+            pb: 5,
             "&::-webkit-scrollbar": { width: "6px", height: "6px" },
             "&::-webkit-scrollbar-track": { background: "rgba(255, 255, 255, 0.02)", borderRadius: "4px" },
             "&::-webkit-scrollbar-thumb": { background: "rgba(96, 165, 250, 0.3)", borderRadius: "4px" },
