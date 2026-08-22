@@ -25,6 +25,10 @@ router = APIRouter(prefix="/payout/bulkpe", tags=["BulkPe Payout Engine"])
 class InitiateBulkPePayoutRequest(BaseModel):
     customer_id: Union[uuid.UUID, str] = Field(..., description="Customer ID or Mobile Number")
     beneficiary_id: Union[uuid.UUID, str] = Field(..., description="Beneficiary ID or Account Number")
+    account_number: Optional[str] = Field(None, description="Explicit Beneficiary Account Number")
+    ifsc_code: Optional[str] = Field(None, description="Explicit Beneficiary IFSC Code")
+    account_holder_name: Optional[str] = Field(None, description="Explicit Beneficiary Name")
+    bank_name: Optional[str] = Field(None, description="Explicit Beneficiary Bank Name")
     retailer_id: Optional[Union[uuid.UUID, str]] = Field(None, description="Retailer ID")
     tenant_id: Optional[Union[uuid.UUID, str]] = Field(None, description="Tenant ID")
     amount: float = Field(..., gt=0, description="Payout Transfer Amount")
@@ -54,7 +58,11 @@ async def initiate_bulkpe_payout(
         amount=req.amount,
         mpin=req.mpin,
         mode=req.mode,
-        idempotency_key=req.idempotency_key
+        idempotency_key=req.idempotency_key,
+        account_number=req.account_number,
+        ifsc_code=req.ifsc_code,
+        account_holder_name=req.account_holder_name,
+        bank_name=req.bank_name
     )
 
 

@@ -155,9 +155,7 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
         >
           {beneficiaries.map((b) => {
             const isSelected = selectedBeneficiary?.id === b.id;
-            const isAccountRevealed = Boolean(revealedAccounts[b.id]);
-            const rawAccount = b.accountNumber || "0630104000156974";
-            const maskedAcc = b.maskedAccountNumber || (rawAccount.length >= 4 ? `•••• •••• ${rawAccount.slice(-4)}` : rawAccount);
+            const rawAccount = b.accountNumber || b.maskedAccountNumber || "0630104000156974";
 
             return (
               <Paper
@@ -200,16 +198,9 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
                     {b.bankName}
                   </Typography>
 
-                  <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", mb: 0.25 }}>
-                    <Typography sx={{ color: "rgba(255, 255, 255, 0.90)", fontFamily: "monospace", fontWeight: 700, fontSize: "13px" }}>
-                      Acc: {isAccountRevealed ? rawAccount : maskedAcc}
-                    </Typography>
-                    <Tooltip title={isAccountRevealed ? "Hide Full Account" : "View Full Account"}>
-                      <IconButton size="small" onClick={(e) => toggleAccountVisibility(b.id, e)} sx={{ color: "#60A5FA", p: 0.25 }}>
-                        {isAccountRevealed ? <VisibilityOffIcon sx={{ fontSize: 14 }} /> : <VisibilityIcon sx={{ fontSize: 14 }} />}
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.95)", fontFamily: "monospace", fontWeight: 700, fontSize: "13px", mb: 0.25 }}>
+                    Acc: {rawAccount}
+                  </Typography>
 
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontWeight: 600, fontSize: "11.5px" }}>
                     IFSC: <strong style={{ color: "#93C5FD", fontFamily: "monospace" }}>{b.ifsc}</strong> {b.relationship ? `· ${b.relationship}` : ""}

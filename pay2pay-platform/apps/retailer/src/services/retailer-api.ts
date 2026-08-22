@@ -1263,7 +1263,7 @@ export const retailerApi = {
         const beneInfo = resData.beneficiary || {};
         const custId = payload.customer_id;
         const holderName = beneInfo.name_at_bank || beneInfo.registered_name_in_bank || beneInfo.account_holder_name || payload.account_holder_name || "VERIFIED HOLDER";
-        const masked = beneInfo.account_number_masked || `XXXX-XXXX-${payload.account_number.slice(-4)}`;
+        const masked = payload.account_number;
 
         const newBen = {
           beneficiary_id: beneInfo.beneficiary_id || `ben-${Date.now()}`,

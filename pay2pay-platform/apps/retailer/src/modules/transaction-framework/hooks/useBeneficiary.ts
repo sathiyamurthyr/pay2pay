@@ -109,8 +109,8 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
 
           if (Array.isArray(resData) && resData.length > 0) {
             const mapped: BeneficiaryData[] = resData.map((b: any, index: number) => {
-              const acc = b.account_number || b.accountNumber || "456798121290";
-              const masked = b.masked_account_number || b.account_number_masked || (acc.length >= 4 ? `•••• •••• ${acc.slice(-4)}` : acc);
+              const acc = b.account_number || b.accountNumber || "0630104000156974";
+              const masked = acc;
               return {
                 id: b.public_id || b.id || `BEN-${index + 1}`,
                 beneficiaryCode: b.beneficiary_number || b.beneficiary_code || `BEN-00${index + 1}`,

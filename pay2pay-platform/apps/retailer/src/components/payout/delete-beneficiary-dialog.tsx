@@ -63,10 +63,9 @@ export const DeleteBeneficiaryDialog: React.FC<DeleteBeneficiaryDialogProps> = (
   if (!beneficiary) return null;
 
   const maskedAcc =
+    beneficiary.accountNumber ||
     beneficiary.maskedAccountNumber ||
-    (beneficiary.accountNumber.length >= 4
-      ? `•••• •••• ${beneficiary.accountNumber.slice(-4)}`
-      : beneficiary.accountNumber);
+    "0630104000156974";
 
   const handleDelete = async () => {
     setIsDeleting(true);

@@ -705,13 +705,13 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
               <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5, mb: 3 }}>
                 <Paper elevation={0} sx={{ p: 1.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", textAlign: "left" }}>
                   <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.5)", fontWeight: 700 }}>CUSTOMER</Typography>
-                  <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>{customer?.name || "Rajesh Sharma"}</Typography>
-                  <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>{customer?.mobile || "9876543210"}</Typography>
+                  <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>{customer?.name || "Customer"}</Typography>
+                  <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>{customer?.mobile || ""}</Typography>
                 </Paper>
                 <Paper elevation={0} sx={{ p: 1.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", textAlign: "left" }}>
                   <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.5)", fontWeight: 700 }}>BENEFICIARY</Typography>
                   <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>{beneficiary?.name || "Beneficiary"}</Typography>
-                  <Typography sx={{ fontSize: "11px", color: "#60A5FA" }}>{beneficiary?.bankName || "Axis Bank"}</Typography>
+                  <Typography sx={{ fontSize: "11px", color: "#60A5FA" }}>{beneficiary?.bankName || "IDBI Bank"}</Typography>
                 </Paper>
               </Box>
 
@@ -858,12 +858,12 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontSize: "9.5px", color: "#60A5FA", fontWeight: 800, textTransform: "uppercase" }}>CUSTOMER</Typography>
                       <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {customer?.name || "Rajesh Sharma"}
+                        {customer?.name || "Customer"}
                       </Typography>
                     </Box>
                   </Stack>
                   <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.65)" }}>
-                    Mob: {customer?.mobile || "9876543210"}
+                    Mob: {customer?.mobile || ""}
                   </Typography>
                 </Paper>
 
@@ -881,10 +881,10 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     </Box>
                   </Stack>
                   <Typography sx={{ fontSize: "11px", color: "#60A5FA", fontWeight: 700 }}>
-                    {beneficiary?.bankName || "Axis Bank"}
+                    {beneficiary?.bankName || "IDBI Bank"}
                   </Typography>
-                  <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.6)", fontFamily: "monospace" }}>
-                    Account: ••••••••3210
+                  <Typography sx={{ fontSize: "10.5px", color: "#FFFFFF", fontFamily: "monospace", fontWeight: 700 }}>
+                    Account: {beneficiary?.accountNumber || beneficiary?.maskedAccountNumber || "—"}
                   </Typography>
                 </Paper>
               </Box>

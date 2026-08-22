@@ -152,7 +152,7 @@ function RemoveBeneficiaryContent() {
   const name = beneficiary?.name || beneficiary?.full_name || beneficiary?.account_holder_name || "Beneficiary";
   const bankName = beneficiary?.bankName || beneficiary?.bank_name || "Bank";
   const rawAcc = beneficiary?.accountNumber || beneficiary?.account_number || "0630104000156974";
-  const maskedAcc = beneficiary?.maskedAccountNumber || (rawAcc.length >= 4 ? `•••• •••• ${rawAcc.slice(-4)}` : rawAcc);
+  const maskedAcc = rawAcc;
   const ifsc = beneficiary?.ifsc || beneficiary?.ifsc_code || "IBKL0000630";
   const branch = beneficiary?.branchName || beneficiary?.branch_name || "Main Branch";
   const rel = beneficiary?.relationship || "Self";

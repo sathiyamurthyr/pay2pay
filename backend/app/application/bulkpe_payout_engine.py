@@ -38,7 +38,11 @@ class BulkPePayoutEngine:
         amount: float,
         mpin: str,
         mode: str = "IMPS",
-        idempotency_key: Optional[str] = None
+        idempotency_key: Optional[str] = None,
+        account_number: Optional[str] = None,
+        ifsc_code: Optional[str] = None,
+        account_holder_name: Optional[str] = None,
+        bank_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Executes complete BulkPe Payout transaction lifecycle:
@@ -113,7 +117,10 @@ class BulkPePayoutEngine:
             if mpin not in ("2468", "1234"):
                 raise mpin_err
 
-        # 1.2 Verify Beneficiary
+        # 1.2 Verify Beneficiary & Bank Account
+        from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
+        from app.infrastructure.db.epic014_models import BeneficiaryMasterModel
+
         bene_uuid = None
         if isinstance(beneficiary_id, uuid.UUID):
             bene_uuid = beneficiary_id
@@ -124,38 +131,70 @@ class BulkPePayoutEngine:
                 bene_uuid = None
 
         beneficiary = None
+        bank_account = None
+
         if bene_uuid:
             stmt_bene = select(BeneficiaryModel).where(BeneficiaryModel.public_id == bene_uuid)
             beneficiary = (await db.execute(stmt_bene)).scalars().first()
+            if beneficiary:
+                stmt_bank = select(BeneficiaryBankAccountModel).where(
+                    BeneficiaryBankAccountModel.beneficiary_id == beneficiary.public_id
+                ).order_by(BeneficiaryBankAccountModel.is_primary.desc(), BeneficiaryBankAccountModel.id.desc())
+                bank_account = (await db.execute(stmt_bank)).scalars().first()
 
-        if not beneficiary:
-            from app.infrastructure.db.epic014_models import BeneficiaryMasterModel
+        if not beneficiary and not bank_account:
+            # Check if bene_uuid matches a BeneficiaryBankAccountModel directly
+            if bene_uuid:
+                stmt_bank_direct = select(BeneficiaryBankAccountModel).where(BeneficiaryBankAccountModel.public_id == bene_uuid)
+                bank_account = (await db.execute(stmt_bank_direct)).scalars().first()
+                if bank_account:
+                    stmt_b = select(BeneficiaryModel).where(BeneficiaryModel.public_id == bank_account.beneficiary_id)
+                    beneficiary = (await db.execute(stmt_b)).scalars().first()
+
+        if not beneficiary and not bank_account:
+            # Check if bene_uuid matches BeneficiaryMasterModel (EPIC-014)
             if bene_uuid:
                 stmt_master = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.public_id == bene_uuid)
-            else:
-                raw_bid = str(beneficiary_id).strip()
-                clean_digits_b = re.sub(r"\D", "", raw_bid)
-                stmt_master = select(BeneficiaryMasterModel).where(
+                beneficiary = (await db.execute(stmt_master)).scalars().first()
+
+        if not beneficiary and not bank_account:
+            raw_bid = str(beneficiary_id).strip()
+            clean_digits_b = re.sub(r"\D", "", raw_bid)
+            if clean_digits_b:
+                stmt_bank_num = select(BeneficiaryBankAccountModel).where(
                     or_(
-                        BeneficiaryMasterModel.account_number == clean_digits_b if clean_digits_b else False,
-                        BeneficiaryMasterModel.account_number.like(f"%{clean_digits_b}%") if clean_digits_b else False,
-                        BeneficiaryMasterModel.registered_name_in_bank.ilike(f"%{raw_bid}%"),
-                        BeneficiaryMasterModel.account_holder_name.ilike(f"%{raw_bid}%"),
+                        BeneficiaryBankAccountModel.account_number == clean_digits_b,
+                        BeneficiaryBankAccountModel.account_number.like(f"%{clean_digits_b}%")
                     )
+                ).order_by(BeneficiaryBankAccountModel.id.desc())
+                bank_account = (await db.execute(stmt_bank_num)).scalars().first()
+                if bank_account:
+                    stmt_b = select(BeneficiaryModel).where(BeneficiaryModel.public_id == bank_account.beneficiary_id)
+                    beneficiary = (await db.execute(stmt_b)).scalars().first()
+
+        if not beneficiary and not bank_account:
+            raw_bid = str(beneficiary_id).strip()
+            clean_digits_b = re.sub(r"\D", "", raw_bid)
+            stmt_master = select(BeneficiaryMasterModel).where(
+                or_(
+                    BeneficiaryMasterModel.account_number == clean_digits_b if clean_digits_b else False,
+                    BeneficiaryMasterModel.account_number.like(f"%{clean_digits_b}%") if clean_digits_b else False,
+                    BeneficiaryMasterModel.registered_name_in_bank.ilike(f"%{raw_bid}%"),
+                    BeneficiaryMasterModel.account_holder_name.ilike(f"%{raw_bid}%"),
                 )
-            master_bene = (await db.execute(stmt_master)).scalars().first()
-            if master_bene:
-                beneficiary = master_bene
+            )
+            beneficiary = (await db.execute(stmt_master)).scalars().first()
 
-        if not beneficiary:
-            from app.infrastructure.db.epic014_models import BeneficiaryMasterModel
-            stmt_any_b = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.is_active == True).order_by(BeneficiaryMasterModel.id.desc())
-            beneficiary = (await db.execute(stmt_any_b)).scalars().first()
+        # Resolve final account attributes with top priority given to explicit caller arguments
+        final_acc_num = account_number or (bank_account.account_number if bank_account else getattr(beneficiary, "account_number", None))
+        final_ifsc = ifsc_code or (bank_account.ifsc_code if bank_account else getattr(beneficiary, "ifsc_code", None))
+        final_acc_holder = account_holder_name or (bank_account.account_holder_name if bank_account else getattr(beneficiary, "full_name", None) or getattr(beneficiary, "registered_name_in_bank", None) or getattr(beneficiary, "account_holder_name", "Beneficiary"))
+        final_bank_name = bank_name or (bank_account.bank_name if bank_account else getattr(beneficiary, "bank_name", "Bank"))
 
-        if not beneficiary:
+        if not final_acc_num:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Beneficiary record not found."
+                detail="Beneficiary bank account number not found or invalid."
             )
 
         # 1.3 Idempotency & Duplicate Check
@@ -311,10 +350,11 @@ class BulkPePayoutEngine:
         active_provider = await PayoutRoutingService.get_active_primary_provider(db, tenant_id)
         policy = await PayoutRoutingService.get_routing_policy(db, tenant_id)
 
-        acc_num = getattr(beneficiary, "account_number", None) or "918273645019"
-        ifsc = getattr(beneficiary, "ifsc_code", None) or "SBIN0001234"
-        acc_holder = getattr(beneficiary, "full_name", None) or getattr(beneficiary, "beneficiary_name", "Beneficiary")
-        cust_mobile = getattr(customer, "mobile_number", "9876543210")
+        acc_num = final_acc_num
+        ifsc = final_ifsc or "IBKL0000630"
+        acc_holder = final_acc_holder or "Beneficiary"
+        cust_mobile = getattr(customer, "mobile_number", "9176669426")
+        target_bank = final_bank_name or "IDBI Bank"
 
         api_res = None
         executed_vendor = active_provider
@@ -329,11 +369,11 @@ class BulkPePayoutEngine:
                 amount=amount,
                 sender_mobile=cust_mobile,
                 sender_name=getattr(customer, "full_name", "Customer"),
-                bank_name=getattr(beneficiary, "bank_name", "Bank"),
+                bank_name=target_bank,
                 bank_code="SBIN" if "SBIN" in str(ifsc).upper() else "MAGNI",
                 service_id="27"
             )
-            print(f"\n[DIAGNOSTIC] UtkalDigitalApiClient returned: {api_res}\n")
+            print(f"\n[DIAGNOSTIC] UtkalDigitalApiClient returned for acc {acc_num}: {api_res}\n")
             executed_vendor = "UtkalDigital"
             if api_res.get("status") == "FAILED" and policy.auto_failover_enabled:
                 wowpe_res = await WowPeApiClient.initiate_payout(

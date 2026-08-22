@@ -92,6 +92,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [reversalSteps, setReversalSteps] = useState<ProgressStep[]>(REVERSAL_PIPELINE_STEPS);
   const [activeReversalStepId, setActiveReversalStepId] = useState<string>("r1");
   const [activeTxId, setActiveTxId] = useState<string | null>(null);
+  const [liveFinResult, setLiveFinResult] = useState<any>(null);
 
   const [activeTimelineStep, setActiveTimelineStep] = useState<number>(0);
   const [supervisorModalOpen, setSupervisorModalOpen] = useState<boolean>(false);
@@ -347,19 +348,22 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     setActiveStepId("s8");
     setTimelineSteps([...stepsCopy]);
 
-    // Execute backend ACID transaction
+    // Execute backend ACID transaction with exact beneficiary details
     const finResult = await FinancialAccounting.executeACIDTransaction({
       customerId: customer?.id,
       beneficiaryId: beneficiary?.id,
       beneficiaryName: beneficiary?.name,
       bankName: beneficiary?.bankName,
-      maskedAccount: beneficiary?.maskedAccountNumber,
+      accountNumber: beneficiary?.accountNumber,
+      ifsc: beneficiary?.ifsc,
       amount,
       mode: transactionMode,
       pin: pinValue,
       walletBalance: customer?.walletBalance,
       beneficiaryMonthlyRemaining: beneficiary?.monthlyRemaining,
     });
+
+    setLiveFinResult(finResult);
 
     if (finResult.transactionId) {
       setActiveTxId(finResult.transactionId);
@@ -463,11 +467,33 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   };
   const modeDisplay = modeIcons[transactionMode] || `⚡ ${transactionMode}`;
 
-  const utr = "421809124012";
-  const refNo = "REF-89120412";
-  const txnId = "TXN-98124012";
-  const timestamp = "07-Aug-2026 06:08 PM";
-  const publicShareUrl = shareRecord ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken) : `https://receipt.pay2pay.in/r/P2P-4F8A9B2C`;
+  // Dynamic live transaction attributes
+  const utr = liveFinResult?.utr || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "421809124012");
+  const refNo = liveFinResult?.referenceNo || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "REF-89120412");
+  const txnId = liveFinResult?.transactionId || activeTxId || "TXN-98124012";
+  const timestamp = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + " " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+
+  // Dynamic Retailer details from store / localStorage
+  const activeRetailer = useRetailerStore((state) => state.outlet);
+  let savedUserInfo: any = null;
+  if (typeof window !== "undefined") {
+    try {
+      const uStr = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
+      if (uStr) savedUserInfo = JSON.parse(uStr);
+    } catch {}
+  }
+  const displayRetailerName = savedUserInfo?.full_name || savedUserInfo?.name || activeRetailer?.ownerName || activeRetailer?.name || "Sathiya Murthy";
+  const rawMobile = String(savedUserInfo?.mobile_number || savedUserInfo?.mobile || activeRetailer?.mobile || "9176669426");
+  const displayRetailerMobile = rawMobile.startsWith("+91") ? rawMobile : `+91 ${rawMobile.replace(/^(\+91|91)/, "")}`;
+  const displayRetailerCode = savedUserInfo?.retailer_code || activeRetailer?.code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : "") || "RET-9176669426";
+
+  const displayBeneName = beneficiary?.name || "Sathiya Murthy R";
+  const displayBeneBank = beneficiary?.bankName || "IDBI Bank";
+  const displayBeneAccount = beneficiary?.accountNumber || "0630104000156974";
+  const displayBeneIfsc = beneficiary?.ifsc || "IBKL0000630";
+  const liveToken = shareRecord?.receiptToken || (liveFinResult?.transactionId ? `P2P-${liveFinResult.transactionId.slice(-8).toUpperCase()}` : "P2P-69439E2E");
+
+  const publicShareUrl = shareRecord ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken) : `https://receipt.pay2pay.in/r/${liveToken}`;
 
   const copyShareUrlToClipboard = () => {
     navigator.clipboard.writeText(publicShareUrl);
@@ -588,14 +614,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Customer</Typography>
                   <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
-                    {(!customer?.name || customer.name.toLowerCase().includes("test")) ? "Sathya Moorthy" : customer.name}
+                    {customer?.name || "Sathya Moorthy"}
                   </Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Beneficiary</Typography>
                   <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
-                    {(!beneficiary?.name || beneficiary.name.toLowerCase().includes("test")) ? "Kavitha Sharma" : beneficiary.name}
+                    {displayBeneName}
                   </Typography>
                 </Stack>
 
@@ -607,13 +633,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Bank</Typography>
                   <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>
-                    {(!beneficiary?.bankName || beneficiary.bankName === "Bank Account" || beneficiary.bankName.toLowerCase().includes("test")) ? "Axis Bank" : beneficiary.bankName}
+                    {displayBeneBank}
                   </Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Account</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12px" }}>{beneficiary?.maskedAccountNumber || "•••• •••• 1290"}</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12px" }}>{displayBeneAccount}</Typography>
                 </Stack>
 
                 <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
@@ -1102,9 +1128,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
                     <Paper elevation={0} sx={{ p: 0.75, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                       <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>RETAILER DETAILS</Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Name: <span style={{ color: "#111827", fontWeight: 700 }}>Rajesh Sharma</span></Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Mobile: <span style={{ color: "#111827", fontWeight: 700 }}>+91 98765 43210</span></Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>ID: <span style={{ color: "#2563EB", fontWeight: 700 }}>RET-DELHI-001</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Name: <span style={{ color: "#111827", fontWeight: 700 }}>{displayRetailerName}</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Mobile: <span style={{ color: "#111827", fontWeight: 700 }}>{displayRetailerMobile}</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>ID: <span style={{ color: "#2563EB", fontWeight: 700 }}>{displayRetailerCode}</span></Typography>
                     </Paper>
                   </Box>
 
@@ -1113,15 +1139,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>BENEFICIARY DETAILS</Typography>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                       <Typography sx={{ fontSize: "9px", color: "#111827", fontWeight: 700 }}>
-                        {(!beneficiary?.name || beneficiary.name.toLowerCase().includes("test")) ? "Kavitha Sharma" : beneficiary.name}
+                        {displayBeneName}
                       </Typography>
                       <Typography sx={{ fontSize: "9px", color: "#2563EB", fontWeight: 700 }}>
-                        {(!beneficiary?.bankName || beneficiary.bankName === "Bank Account" || beneficiary.bankName.toLowerCase().includes("test")) ? "Axis Bank" : beneficiary.bankName}
+                        {displayBeneBank}
                       </Typography>
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between", mt: 0.25 }}>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563", fontFamily: "monospace" }}>XXXX XXXX 3210</Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>IFSC: {beneficiary?.ifsc || "UTIB0000123"}</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#111827", fontFamily: "monospace", fontWeight: 700 }}>{displayBeneAccount}</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>IFSC: {displayBeneIfsc}</Typography>
                     </Stack>
                   </Paper>
 
@@ -1447,15 +1473,16 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             <Typography sx={{ fontWeight: 800, fontSize: "10.5px", color: "#4B5563" }}>Domestic Money Transfer (DMT)</Typography>
             <Typography sx={{ fontWeight: 900, fontSize: "13px", color: "#16A34A", mt: 0.5 }}>SUCCESS · Money Transferred</Typography>
             <Divider sx={{ my: 1 }} />
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Token: {shareRecord?.receiptToken || "P2P-4F8A9B2C"}</Typography>
+            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Token: {liveToken}</Typography>
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Ref: {refNo}</Typography>
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>UTR: {utr}</Typography>
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Mode: {transactionMode}</Typography>
             <Divider sx={{ my: 1 }} />
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Retailer: Rajesh Sharma (+91 98765 43210)</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Beneficiary: {(!beneficiary?.name || beneficiary.name.toLowerCase().includes("test")) ? "Kavitha Sharma" : beneficiary.name}</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Bank: {(!beneficiary?.bankName || beneficiary.bankName === "Bank Account" || beneficiary.bankName.toLowerCase().includes("test")) ? "Axis Bank" : beneficiary.bankName}</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Account: XXXX XXXX 3210</Typography>
+            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Retailer: {displayRetailerName} ({displayRetailerMobile})</Typography>
+            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Beneficiary: {displayBeneName}</Typography>
+            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Bank: {displayBeneBank}</Typography>
+            <Typography sx={{ fontSize: "10.5px", color: "#111827", fontFamily: "monospace", fontWeight: 700 }}>Account: {displayBeneAccount}</Typography>
+            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>IFSC: {displayBeneIfsc}</Typography>
             <Divider sx={{ my: 1 }} />
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Transfer Amount: ₹{amount.toLocaleString()}.00</Typography>
             <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Convenience Fee: ₹{charges}.00</Typography>

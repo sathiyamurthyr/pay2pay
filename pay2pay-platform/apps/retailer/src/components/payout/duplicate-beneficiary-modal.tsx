@@ -65,11 +65,7 @@ export const DuplicateBeneficiaryModal: React.FC<DuplicateBeneficiaryModalProps>
     existingBeneficiary.account_number ||
     existingBeneficiary.accountNumber ||
     "";
-  const maskedAcc = rawAcc.includes("X") || rawAcc.includes("•")
-    ? rawAcc
-    : rawAcc.length >= 4
-    ? `•••• •••• ${rawAcc.slice(-4)}`
-    : rawAcc || "•••• •••• 9012";
+  const maskedAcc = rawAcc || "0630104000156974";
   const ifsc = existingBeneficiary.ifsc_code || existingBeneficiary.ifsc || "";
   const statusLabel = (
     existingBeneficiary.verification_status ||

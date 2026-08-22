@@ -40,8 +40,8 @@ export const BeneficiaryInlineDrawer: React.FC<BeneficiaryInlineDrawerProps> = (
   const router = useRouter();
   const [showFullAccount, setShowFullAccount] = useState(false);
 
-  const rawAccount = beneficiary.accountNumber || "0630104000156974";
-  const maskedAcc = beneficiary.maskedAccountNumber || (rawAccount.length >= 4 ? `•••• •••• ${rawAccount.slice(-4)}` : rawAccount);
+  const rawAccount = beneficiary.accountNumber || beneficiary.maskedAccountNumber || "0630104000156974";
+  const maskedAcc = rawAccount;
 
   const details = {
     monthlyLimit: beneficiary.monthlyLimit ?? 250000.0,

@@ -75,6 +75,8 @@ export interface ProcessTransactionParams {
   beneficiaryId?: string;
   beneficiaryName?: string;
   bankName?: string;
+  accountNumber?: string;
+  ifsc?: string;
   maskedAccount?: string;
   amount: number;
   mode?: "IMPS" | "NEFT" | "RTGS" | "UPI";
@@ -247,16 +249,21 @@ class FinancialAccountingService {
     try {
       const custId = params.customerId || "93538c98-0b19-493c-a247-4cdb02a46c68";
       const beneId = params.beneficiaryId || "a46ec999-57db-4138-a79b-a208a6d75109";
+      const payload = {
+        customer_id: custId,
+        beneficiary_id: beneId,
+        account_number: params.accountNumber || (params as any).account || params.maskedAccount,
+        ifsc_code: params.ifsc,
+        account_holder_name: params.beneficiaryName,
+        bank_name: params.bankName,
+        amount: amount,
+        mpin: params.pin,
+        mode: mode
+      };
 
       let apiData: any = null;
       try {
-        const res = await apiClient.post("/payout/bulkpe/initiate", {
-          customer_id: custId,
-          beneficiary_id: beneId,
-          amount: amount,
-          mpin: params.pin,
-          mode: mode
-        });
+        const res = await apiClient.post("/payout/bulkpe/initiate", payload);
         apiData = res.data;
       } catch (axiosErr: any) {
         if (axiosErr.response) {
@@ -280,13 +287,7 @@ class FinancialAccountingService {
             const rawRes = await fetch(`${getApiBaseUrl()}/payout/bulkpe/initiate`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                customer_id: custId,
-                beneficiary_id: beneId,
-                amount: amount,
-                mpin: params.pin,
-                mode: mode
-              })
+              body: JSON.stringify(payload)
             });
             if (rawRes.ok) {
               apiData = await rawRes.json();

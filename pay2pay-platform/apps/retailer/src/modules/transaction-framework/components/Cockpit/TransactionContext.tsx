@@ -12,7 +12,7 @@ export interface TransactionContextProps {
 
 export const TransactionContext: React.FC<TransactionContextProps> = ({ customer, beneficiary }) => {
   const displayCode = customer?.customerCode || customer?.id || "—";
-  const maskedAcc = beneficiary?.maskedAccountNumber || (beneficiary?.accountNumber && beneficiary.accountNumber.length >= 4 ? `•••• ${beneficiary.accountNumber.slice(-4)}` : "—");
+  const maskedAcc = beneficiary?.accountNumber || beneficiary?.maskedAccountNumber || "—";
 
   return (
     <Stack spacing={2.5} sx={{ width: "100%" }}>

@@ -524,10 +524,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 <TableBody>
                   {displayedBeneficiaries.map((b) => {
                     const isSelected = selectedBeneficiary?.id === b.id;
-                    const isExpanded = expandedBeneficiaryId === b.id;
-                    const isAccountRevealed = Boolean(revealedAccounts[b.id]);
-                    const rawAccount = b.accountNumber || "0630104000156974";
-                    const maskedAcc = b.maskedAccountNumber || (rawAccount.length >= 4 ? `XXXX-XXXX-${rawAccount.slice(-4)}` : rawAccount);
+                    const isAccountRevealed = true;
+                    const rawAccount = b.accountNumber || b.maskedAccountNumber || "0630104000156974";
+                    const maskedAcc = rawAccount;
                     const bAny = b as any;
 
                     return (
@@ -578,13 +577,13 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                             </Stack>
                           </TableCell>
 
-                          {/* Column 2: Bank Account (Bank Name + Masked Account) */}
+                          {/* Column 2: Bank Account (Bank Name + Full Account Number) */}
                           <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
                             <Typography sx={{ color: "#60A5FA", fontSize: "12.5px", fontWeight: 800, lineHeight: 1.2 }}>
                               {b.bankName}
                             </Typography>
-                            <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontFamily: "monospace", fontSize: "11.5px" }}>
-                              {isAccountRevealed ? rawAccount : maskedAcc}
+                            <Typography sx={{ color: "rgba(255, 255, 255, 0.90)", fontFamily: "monospace", fontSize: "12px", fontWeight: 700 }}>
+                              {rawAccount}
                             </Typography>
                           </TableCell>
 
@@ -705,16 +704,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
                                   <Box>
                                     <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Account Number</Typography>
-                                    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                                      <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>
-                                        {isAccountRevealed ? rawAccount : maskedAcc}
-                                      </Typography>
-                                      <Tooltip title={isAccountRevealed ? "Hide Full Account" : "View Full Account"}>
-                                        <IconButton size="small" onClick={(e) => toggleAccountVisibility(b.id, e)} sx={{ color: "#60A5FA", p: 0.25 }}>
-                                          {isAccountRevealed ? <VisibilityOffIcon sx={{ fontSize: 14 }} /> : <VisibilityIcon sx={{ fontSize: 14 }} />}
-                                        </IconButton>
-                                      </Tooltip>
-                                    </Stack>
+                                    <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>
+                                      {rawAccount}
+                                    </Typography>
                                   </Box>
 
                                   <Box>
