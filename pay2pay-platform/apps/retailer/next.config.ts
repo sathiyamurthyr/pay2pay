@@ -13,8 +13,8 @@ const nextConfig: NextConfig = {
       process.env.BACKEND_URL ||
       (process.env.NEXT_PUBLIC_API_URL?.startsWith("http")
         ? process.env.NEXT_PUBLIC_API_URL
-        : "http://127.0.0.1:8001");
-    const cleanUrl = rawUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "") || "http://127.0.0.1:8001";
+        : "http://127.0.0.1:8000");
+    const cleanUrl = rawUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "") || "http://127.0.0.1:8000";
     return [
       {
         source: "/api/v1/:path*",
