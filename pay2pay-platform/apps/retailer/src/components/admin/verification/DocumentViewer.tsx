@@ -41,7 +41,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const handleDownload = () => {
     const link = document.createElement("a");
     link.href = documentUrl;
-    link.download = `${documentTitle.replace(/\s+/g, "_")}_admin_copy.jpg`;
+    const safeTitle = (documentTitle || "document").split(" ").join("_");
+    link.download = `${safeTitle}_admin_copy.jpg`;
     link.click();
   };
 
@@ -182,6 +183,5 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           </div>
         )}
       </div>
-    </div>
   );
 };
