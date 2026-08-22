@@ -123,12 +123,17 @@ jobs:
           python -c "from app.main import app; print('Backend import OK')"
 
   # ─────────────────────────────────────────────────────────────────────────
-  # JOB 3: Deploy ONLY after all matrix builds + backend verify pass
+  # JOB 3: Deploy after builds complete — tolerates partial matrix failures.
+  # Non-critical apps (website, distributor, etc.) may fail without blocking
+  # deploy of working apps (retailer, admin) and the backend.
+  # The deploy script skips missing archives with a WARNING, so this is safe.
   # ─────────────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Production VPS
     runs-on: ubuntu-latest
     needs: [build-frontend, verify-backend]
+    # Run deploy even if some matrix builds failed — only skip if cancelled
+    if: always() && !cancelled() && needs.verify-backend.result != 'failure'
     environment: production
 
     steps:
