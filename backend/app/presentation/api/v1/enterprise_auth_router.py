@@ -836,6 +836,13 @@ async def get_account_status(
                     if auth_user:
                         ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
                         retailer_record = (await db.execute(ret_stmt)).scalars().first()
+            elif retailer_id:
+                try:
+                    r_uuid = uuid.UUID(retailer_id)
+                    ret_stmt = select(RetailerModel).where(or_(RetailerModel.public_id == r_uuid, RetailerModel.retailer_code == retailer_id))
+                except Exception:
+                    ret_stmt = select(RetailerModel).where(RetailerModel.retailer_code == retailer_id)
+                retailer_record = (await db.execute(ret_stmt)).scalars().first()
 
             # 3. Query draft registration if no retailer record exists
             if mobile_variants:

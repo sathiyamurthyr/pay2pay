@@ -4,6 +4,9 @@ import zipfile
 import subprocess
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 BASE_DIR = Path(r"d:\pay2pay")
 BACKEND_DIR = BASE_DIR / "backend"
 KEY_PATH = r"C:\Users\Sathyamoorthy\.ssh\id_rsa_129_225_91_190"
