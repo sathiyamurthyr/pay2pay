@@ -28,6 +28,9 @@ pay2pay-platform/**/.turbo/
 
 # Deploy & Scratch Artifacts
 *.zip
+*.tar.gz
+*.tar
+*.tsbuildinfo
 bw.exe
 scratch/
 backend/scratch/

@@ -10,6 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
+  Terminal,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -83,6 +84,7 @@ const ADMIN_NAV: NavCategory[] = [
     category: "Monitoring",
     items: [
       { label: "Services", href: "/ops-dashboard", icon: Activity },
+      { label: "API Logs", href: "/operations/api-logs", icon: Terminal },
       { label: "Queues", href: "/bpm/queues", icon: GitMerge },
       { label: "API", href: "/developer-dashboard", icon: Code },
       { label: "Wallet", href: "/wallet-ledger/reconciliation", icon: Wallet },

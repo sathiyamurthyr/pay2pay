@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import apiClient from "@/lib/api";
 import { retailerApi } from "@/services/retailer-api";
 
 export type KpiTheme = "classic-blue" | "royal-gold" | "emerald-green" | "purple" | "dark" | "corporate-white";

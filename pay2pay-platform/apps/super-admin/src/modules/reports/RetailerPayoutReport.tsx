@@ -64,11 +64,11 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import EmailIcon from "@mui/icons-material/Email";
 import ImageIcon from "@mui/icons-material/Image";
 import SendIcon from "@mui/icons-material/Send";
-import { CopyButton } from "@/components/common/CopyButton";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RotateLeftIcon from "@mui/icons-material/RotateLeft";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import TerminalIcon from "@mui/icons-material/Terminal";
 
 export interface PayoutReportSummary {
   todays_transactions: number;
@@ -2287,6 +2287,18 @@ export const RetailerPayoutReport: React.FC = () => {
                 gap: 1.5,
               }}
             >
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<TerminalIcon />}
+                onClick={() => {
+                  const ref = selectedTxn.transaction_number || selectedTxn.reference_id || selectedTxn.utr_number;
+                  window.open(`/operations/api-logs?search=${encodeURIComponent(ref)}`, "_blank");
+                }}
+                sx={{ borderColor: "#6366F1", color: "#818CF8", textTransform: "none", fontSize: "13px", height: "42px", fontWeight: 700, "&:hover": { bgcolor: "rgba(99, 102, 241, 0.1)" } }}
+              >
+                API Logs
+              </Button>
               <Button
                 variant="outlined"
                 fullWidth

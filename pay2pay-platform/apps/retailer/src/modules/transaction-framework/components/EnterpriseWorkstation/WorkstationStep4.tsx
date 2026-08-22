@@ -73,6 +73,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   onBack,
   onAuthorize,
 }) => {
+  const { walletBalance } = useRetailerStore();
   const config = AuthEngine.getConfig();
   const pinLength = config.pinLength || 4;
 
@@ -1325,8 +1326,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           customer={customer}
           beneficiary={beneficiary}
           transactionMode={transactionMode}
-          walletBefore={customer?.walletBalance || 50000}
-          walletAfter={Math.max(0, (customer?.walletBalance || 50000) - totalAmountPaid)}
+          walletBefore={walletBalance || customer?.walletBalance || 0}
+          walletAfter={Math.max(0, (walletBalance || customer?.walletBalance || 0) - totalAmountPaid)}
           dailyLimitRemaining={94982.30}
           monthlyLimitRemaining={beneficiary?.monthlyRemaining || 244982.30}
           elapsedSeconds={4.2}

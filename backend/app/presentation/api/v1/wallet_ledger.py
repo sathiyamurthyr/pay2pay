@@ -200,34 +200,52 @@ async def execute_manual_topup(
 ):
     from sqlalchemy import select, update, or_
     from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
-    import datetime
+    from app.infrastructure.db.transaction_engine_models import CentralTransactionModel, TransactionLedgerEntryModel
+    from datetime import datetime, timezone
 
     target_code = req.entity_code or req.entity_id or ""
     delta = req.amount if req.txn_type.upper() == "CREDIT" else -req.amount
+    now_utc = datetime.now(timezone.utc)
     
-    # 1. Search for Retailer in DB
+    # 1. Search for Retailer in DB by code or public_id
+    r_uuid = None
+    try:
+        r_uuid = uuid.UUID(str(target_code))
+    except (ValueError, AttributeError):
+        pass
+
+    where_conds = [
+        RetailerModel.retailer_code == target_code,
+        RetailerModel.retailer_code == (req.entity_id or "")
+    ]
+    if r_uuid:
+        where_conds.append(RetailerModel.public_id == r_uuid)
+
     ret_stmt = select(RetailerModel).where(
-        or_(
-            RetailerModel.retailer_code == target_code,
-            RetailerModel.retailer_code == (req.entity_id or "")
-        )
+        or_(*where_conds),
+        RetailerModel.is_deleted == False
     )
     ret_res = await db.execute(ret_stmt)
     ret_obj = ret_res.scalars().first()
 
     updated_bal = req.balance_after or 0.0
+    now_date_str = now_utc.strftime("%Y%m%d")
+    txn_ref = req.transaction_id or f"TOP-{now_date_str}-{uuid.uuid4().hex[:6].upper()}"
+    txn_uuid = uuid.uuid4()
 
     if ret_obj:
-        # Check / update RetailerWalletModel
-        wal_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == ret_obj.public_id)
+        # Check / update RetailerWalletModel with row lock
+        wal_stmt = select(RetailerWalletModel).where(
+            RetailerWalletModel.retailer_id == ret_obj.public_id
+        ).with_for_update()
         wal_res = await db.execute(wal_stmt)
         wal_obj = wal_res.scalars().first()
 
+        opening_bal = float(wal_obj.wallet_balance) if wal_obj else 0.0
         if wal_obj:
-            curr = float(wal_obj.wallet_balance)
-            updated_bal = max(0.0, curr + delta)
+            updated_bal = max(0.0, opening_bal + delta)
             wal_obj.wallet_balance = updated_bal
-            wal_obj.updated_date = datetime.datetime.now(datetime.timezone.utc)
+            wal_obj.updated_date = now_utc
         else:
             updated_bal = max(0.0, req.amount if req.txn_type.upper() == "CREDIT" else 0.0)
             wal_obj = RetailerWalletModel(
@@ -243,23 +261,81 @@ async def execute_manual_topup(
                 record_status="ACTIVE",
                 is_deleted=False,
                 version_no=1,
-                created_date=datetime.datetime.now(datetime.timezone.utc),
-                updated_date=datetime.datetime.now(datetime.timezone.utc),
+                created_date=now_utc,
+                updated_date=now_utc,
             )
             db.add(wal_obj)
+
+        # 2. Write to TransactionLedgerEntryModel
+        ledger_entry = TransactionLedgerEntryModel(
+            tenant_id=ret_obj.tenant_id,
+            transaction_id=txn_uuid,
+            transaction_reference=txn_ref,
+            entry_type=req.txn_type.upper(),
+            account_type="RETAILER_WALLET",
+            account_number=str(ret_obj.public_id),
+            amount=req.amount,
+            balance_before=opening_bal,
+            balance_after=updated_bal,
+            currency="INR",
+            narration=req.comments or f"Admin Manual {req.txn_type} Top-up ({req.service_name}) by {req.performed_by}",
+            created_at=now_utc
+        )
+        db.add(ledger_entry)
+
+        # 3. Write to Central Transactions table (transactions)
+        central_txn = CentralTransactionModel(
+            public_id=txn_uuid,
+            tenant_id=ret_obj.tenant_id,
+            company_id=ret_obj.company_id,
+            vendor_code="ADMIN_MANUAL",
+            transaction_reference=txn_ref,
+            transaction_type="MANUAL_TOPUP" if req.txn_type.upper() == "CREDIT" else "MANUAL_DEBIT",
+            service_type="TOPUP",
+            retailer_id=ret_obj.public_id,
+            amount=req.amount,
+            currency="INR",
+            charges=0.0,
+            commission=0.0,
+            gst_amount=0.0,
+            tds_amount=0.0,
+            net_amount=req.amount,
+            status="SUCCESS",
+            status_description=req.comments or f"Admin Manual {req.txn_type} Top-up ({req.service_name}) by {req.performed_by}",
+            request_id=req.transaction_id or txn_ref,
+            utr=req.transaction_id or txn_ref,
+            created_at=now_utc,
+            updated_at=now_utc,
+            created_by=req.performed_by or "Platform Admin",
+            updated_by=req.performed_by or "Platform Admin",
+            metadata_json={
+                "service_name": req.service_name,
+                "wallet_type": req.wallet_type,
+                "txn_type": req.txn_type,
+                "entity_code": req.entity_code,
+                "entity_name": req.entity_name,
+                "retailer_code": ret_obj.retailer_code,
+                "retailer_name": ret_obj.store_name,
+                "previous_balance": opening_bal,
+                "current_balance": updated_bal,
+                "performed_by": req.performed_by or "Platform Admin",
+                "comments": req.comments
+            }
+        )
+        db.add(central_txn)
         
         await db.commit()
     
     return {
         "success": True,
-        "transaction_id": req.transaction_id or f"TOPUP-{uuid.uuid4().hex[:8].upper()}",
+        "transaction_id": txn_ref,
         "entity_code": req.entity_code,
         "entity_name": req.entity_name,
         "txn_type": req.txn_type,
         "amount": req.amount,
         "new_balance": updated_bal,
         "status": "COMPLETED",
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "timestamp": now_utc.isoformat(),
         "message": f"Successfully {req.txn_type.lower()}ed ₹{req.amount:,.2f} for {req.entity_code}."
     }
 

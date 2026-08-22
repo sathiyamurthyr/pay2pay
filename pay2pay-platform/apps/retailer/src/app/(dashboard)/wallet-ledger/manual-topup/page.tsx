@@ -3,11 +3,13 @@
 export const dynamic = "force-dynamic";
 
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { DataTable, type TableColumn } from "@/components/ui/data-table";
 import {
   ArrowLeftRight,
+  UploadCloud,
   Plus,
   Minus,
   Search,
@@ -201,13 +203,75 @@ function ManualTopupContent() {
 
   const [frozenWalletsMap, setFrozenWalletsMap] = useState<any>({});
 
-  // Load balances, ledger & freeze locks from localStorage
+  // Load balances, ledger & freeze locks from localStorage + Live Backend API
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedBal = localStorage.getItem("pay2pay_entity_balances_map");
-      if (storedBal) {
-        try { setMockEntities(JSON.parse(storedBal)); } catch (e) {}
+    const initData = async () => {
+      let currentMap = { ...INITIAL_ENTITIES };
+      if (typeof window !== "undefined") {
+        const storedBal = localStorage.getItem("pay2pay_entity_balances_map");
+        if (storedBal) {
+          try {
+            const parsed = JSON.parse(storedBal);
+            if (parsed && (parsed.SUPER_DISTRIBUTOR?.length || parsed.DISTRIBUTOR?.length || parsed.RETAILER?.length)) {
+              currentMap = {
+                SUPER_DISTRIBUTOR: parsed.SUPER_DISTRIBUTOR?.length ? parsed.SUPER_DISTRIBUTOR : INITIAL_ENTITIES.SUPER_DISTRIBUTOR,
+                DISTRIBUTOR: parsed.DISTRIBUTOR?.length ? parsed.DISTRIBUTOR : INITIAL_ENTITIES.DISTRIBUTOR,
+                RETAILER: parsed.RETAILER?.length ? parsed.RETAILER : INITIAL_ENTITIES.RETAILER,
+              };
+            }
+          } catch (e) {}
+        }
       }
+
+      // Fetch live retailers from backend API
+      try {
+        const res = await api.get("/api/v1/retailers");
+        const items = res.data?.items || res.data || [];
+        if (Array.isArray(items) && items.length > 0) {
+          const liveRetailers = items.map((r: any) => ({
+            id: String(r.public_id || r.id || r.retailer_code),
+            name: r.store_name || r.owner_name || r.legal_name || "Retailer Store",
+            code: r.retailer_code || String(r.public_id || r.id || "").substring(0, 10),
+            currentBal: typeof r.wallet_balance === "number" ? r.wallet_balance : (typeof r.current_wallet_balance === "number" ? r.current_wallet_balance : 0.0),
+          }));
+
+          // Live retailers from database are the SINGLE SOURCE OF TRUTH
+          const liveMap = new Map<string, typeof liveRetailers[0]>();
+          liveRetailers.forEach((lr: any) => liveMap.set(lr.code, lr));
+
+          // Replace existing entries with authoritative live database values
+          const updatedRetailers = currentMap.RETAILER.map((e) => {
+            if (liveMap.has(e.code)) {
+              const live = liveMap.get(e.code)!;
+              liveMap.delete(e.code);
+              return { ...e, id: live.id, name: live.name, currentBal: live.currentBal };
+            }
+            return e;
+          });
+
+          // Append any newly created retailers
+          liveMap.forEach((lr) => updatedRetailers.push(lr));
+          currentMap.RETAILER = updatedRetailers;
+        }
+      } catch (err) {
+        console.warn("Failed to fetch live retailers for manual topup:", err);
+      }
+
+      setMockEntities(currentMap);
+      setSelectedEntity((prev) => {
+        if (!prev) return null;
+        const matched = currentMap.RETAILER.find((r) => r.code === prev.code);
+        return matched || prev;
+      });
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("pay2pay_entity_balances_map", JSON.stringify(currentMap));
+      }
+    };
+
+    initData();
+
+    if (typeof window !== "undefined") {
       const storedLedger = localStorage.getItem("pay2pay_topup_ledger");
       if (storedLedger) {
         try { setTopupLedger(JSON.parse(storedLedger)); } catch (e) {}
@@ -795,6 +859,13 @@ Thank you for using Pay2Pay Enterprise Portal!`;
             Instant credit/debit wallet allocations for SDs, Distributors, and Retailers with audit tracking
           </p>
         </div>
+        <Link
+          href="/wallet-ledger/topup-request"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+        >
+          <UploadCloud className="w-4 h-4" />
+          Request Top-up (Slip Upload) →
+        </Link>
       </div>
 
       {/* Success Notification */}

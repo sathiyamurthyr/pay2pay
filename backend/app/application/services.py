@@ -2358,7 +2358,7 @@ class RetailerManagementService:
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = (await db.execute(count_stmt)).scalar() or 0
 
-        stmt = stmt.order_by(RetailerModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        stmt = stmt.options(selectinload(RetailerModel.wallet)).order_by(RetailerModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
         res = await db.execute(stmt)
         return res.scalars().all(), total
 

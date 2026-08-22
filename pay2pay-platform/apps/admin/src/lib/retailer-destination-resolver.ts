@@ -252,12 +252,8 @@ export async function verifyAndRoutePostLogin(
     router.replace("/distributor/dashboard");
     return { success: true, destination: "DASHBOARD" };
   }
-  if (role === "ADMIN") {
-    router.replace("/admin/dashboard");
-    return { success: true, destination: "DASHBOARD" };
-  }
-  if (role === "SUPER_ADMIN") {
-    router.replace("/super-admin/dashboard");
+  if (role === "ADMIN" || role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN" || role === "COMPANY_ADMIN") {
+    router.replace("/dashboard");
     return { success: true, destination: "DASHBOARD" };
   }
 

@@ -10,7 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
-  Megaphone,
+  Megaphone, Terminal,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -47,6 +47,7 @@ const ADMIN_NAV: NavCategory[] = [
       { label: "Retailer", href: "/retailers", icon: Store },
       { label: "Entity User", href: "/wallet-ledger/wallets", icon: Wallet },
       { label: "Manual Top-up", href: "/wallet-ledger/manual-topup", icon: ArrowLeftRight },
+      { label: "Topup Requests", href: "/operations/topup-requests", icon: ArrowLeftRight, badge: "Live" },
       { label: "POS Machine", href: "/machines", icon: CreditCard },
       { label: "Users", href: "/users", icon: Users },
       { label: "Roles", href: "/roles", icon: ShieldCheck },
@@ -74,6 +75,7 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Approvals",
     items: [
+      { label: "Topup Requests", href: "/operations/topup-requests", icon: ArrowLeftRight, badge: "P0" },
       { label: "KYC & Onboarding", href: "/approvals", icon: CheckSquare },
       { label: "Settlement", href: "/settlements/batches", icon: Receipt },
       { label: "Wallet Adjustments", href: "/wallet-ledger/wallets", icon: Wallet },
@@ -85,6 +87,7 @@ const ADMIN_NAV: NavCategory[] = [
     category: "Monitoring",
     items: [
       { label: "Services", href: "/ops-dashboard", icon: Activity },
+      { label: "API Logs", href: "/operations/api-logs", icon: Terminal },
       { label: "Queues", href: "/bpm/queues", icon: GitMerge },
       { label: "API", href: "/developer-dashboard", icon: Code },
       { label: "Wallet", href: "/wallet-ledger/reconciliation", icon: Wallet },
@@ -160,9 +163,9 @@ export const Sidebar: React.FC = () => {
     if (isFinance) {
       const allowedLabels: Record<string, string[]> = {
         "Main": ["Dashboard"],
-        "Administration": ["Entity User", "Manual Top-up"],
+        "Administration": ["Entity User", "Manual Top-up", "Topup Requests"],
         "Configuration": ["Payout Switch", "Wallet", "Chart of Accounts", "Transactions", "Commission", "Charges"],
-        "Approvals": ["Settlement", "Wallet Adjustments"],
+        "Approvals": ["Topup Requests", "Settlement", "Wallet Adjustments"],
         "Reports": ["Settlement", "Wallet", "Reconciliation"],
       };
 

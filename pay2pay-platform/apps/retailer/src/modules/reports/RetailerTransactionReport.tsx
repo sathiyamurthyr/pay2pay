@@ -94,6 +94,8 @@ export interface TransactionReportItem {
   status: string;
   raw_status?: string;
   status_description?: string;
+  comments?: string;
+  narration?: string;
   provider_name?: string;
   provider_txn_id?: string;
   provider_ref?: string;
@@ -189,6 +191,47 @@ export const getShortAccountNumber = (acc?: string): string => {
     return `•••• ${clean.slice(-4)}`;
   }
   return clean;
+};
+
+export const getTransactionComments = (row: TransactionReportItem): string => {
+  if (row.status_description && row.status_description.trim() && !["SUCCESS", "LEDGER_POSTED", "COMPLETED"].includes(row.status_description.toUpperCase())) {
+    return row.status_description;
+  }
+  if (row.comments && row.comments.trim()) return row.comments;
+  if (row.narration && row.narration.trim()) return row.narration;
+
+  const bene = row.beneficiary_name || row.customer_name;
+  const shortBank = getShortBankName(row.bank_name);
+  const shortAcc = getShortAccountNumber(row.account_number);
+
+  if (row.status === "REVERSED" || row.raw_status === "REVERSED") {
+    return `Reversal refund for ${row.txn_id}`;
+  }
+  if (row.status === "FAILED" && row.status_description) {
+    return row.status_description;
+  }
+  if (row.service === "Payout" || row.service === "PAYOUT") {
+    const bankDetails = [shortBank, shortAcc].filter(Boolean).join(" • ");
+    return bene ? `Payout to ${bene}${bankDetails ? ` (${bankDetails})` : ""}` : "Payout transfer";
+  }
+  if (row.service === "Topup" || row.service === "TOPUP") {
+    if (row.type === "MANUAL_TOPUP") return `Admin Manual Topup Allocation (+₹${row.amount.toLocaleString("en-IN")})`;
+    if (row.type === "MANUAL_DEBIT") return `Admin Manual Wallet Debit (-₹${row.amount.toLocaleString("en-IN")})`;
+    return `Wallet Topup (+₹${row.amount.toLocaleString("en-IN")}) [Ref: ${row.provider_ref || row.txn_id}]`;
+  }
+  if (row.service === "DMT") {
+    return `DMT transfer to ${bene || row.customer_mobile || "Beneficiary"}`;
+  }
+  if (row.service === "Recharge") {
+    return `Mobile Recharge ${row.customer_mobile ? `(${row.customer_mobile})` : ""}`;
+  }
+  if (row.service === "Bill Payment" || row.service === "BBPS") {
+    return `Utility Bill Payment`;
+  }
+  if (row.status_description && row.status_description.trim()) {
+    return row.status_description;
+  }
+  return `${row.service} Transaction`;
 };
 
 export const RetailerTransactionReport: React.FC = () => {
@@ -302,20 +345,15 @@ export const RetailerTransactionReport: React.FC = () => {
         if (sumRes.ok) {
           const sumJson = await sumRes.json();
           const sData = sumJson.data || {};
-          const succ = mappedItems.filter((t) => t.status === "SUCCESS").length;
-          const pend = mappedItems.filter((t) => t.status === "PENDING").length;
-          const fail = mappedItems.filter((t) => t.status === "FAILED").length;
-          const rev = mappedItems.filter((t) => t.status === "REVERSED").length;
-
           setSummary({
-            total_transactions: sData.total_records || total,
-            total_volume: sData.total_amount || 0,
-            total_credit: sData.total_cr || 0,
-            total_debit: sData.total_dr || 0,
-            successful_transactions: succ,
-            pending_transactions: pend,
-            failed_transactions: fail,
-            reversed_transactions: rev,
+            total_transactions: sData.total_records ?? total,
+            total_volume: sData.total_amount ?? sData.total_volume ?? 0,
+            total_credit: sData.total_cr ?? sData.total_credit ?? 0,
+            total_debit: sData.total_dr ?? sData.total_debit ?? 0,
+            successful_transactions: sData.successful_transactions ?? 0,
+            pending_transactions: sData.pending_transactions ?? 0,
+            failed_transactions: sData.failed_transactions ?? 0,
+            reversed_transactions: sData.reversed_transactions ?? 0,
           });
         }
       } else {
@@ -394,7 +432,7 @@ export const RetailerTransactionReport: React.FC = () => {
     const headers = [
       "Txn ID",
       "Service",
-      "Type",
+      "Comments",
       "Previous Balance (INR)",
       "Credit (+CR)",
       "Debit (-DR)",
@@ -403,15 +441,12 @@ export const RetailerTransactionReport: React.FC = () => {
       "Date & Time",
       "Status",
       "UTR / Reference",
-      "Customer Name",
-      "Beneficiary Name",
-      "Bank Name",
-      "Account Number",
+      "Customer Mobile",
     ];
     const rows = items.map((t) => [
       t.txn_id,
       t.service,
-      t.type,
+      getTransactionComments(t),
       t.previous_balance.toFixed(2),
       t.cr.toFixed(2),
       t.dr.toFixed(2),
@@ -420,10 +455,7 @@ export const RetailerTransactionReport: React.FC = () => {
       t.transaction_datetime,
       t.status,
       t.provider_ref || "--",
-      t.customer_name,
-      t.beneficiary_name || "--",
-      t.bank_name || "--",
-      t.account_number || "--",
+      t.customer_mobile || "--",
     ]);
 
     const csvContent = [headers.join(","), ...rows.map((e) => e.map((cell) => `"${cell}"`).join(","))].join("\n");
@@ -440,63 +472,491 @@ export const RetailerTransactionReport: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 3 }, bgcolor: "#0B132B", minHeight: "100vh", color: "#F8FAFC" }}>
-      {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={2} sx={{ mb: 3 }}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 1.5 }}>
-            <TrendingUpIcon sx={{ color: "#3B82F6", fontSize: 28 }} />
-            Transaction Report
-          </Typography>
-          <Typography variant="body2" sx={{ color: "#94A3B8", mt: 0.5 }}>
-            Authoritative database ledger across Payouts, DMT, Move-to-Bank, Topup, AEPS &amp; Bill Payments
-          </Typography>
+    <Box sx={{ width: "100%", color: "#F8FAFC" }}>
+      {/* 1. SINGLE INTEGRATED COMPACT HEADER + FINANCIAL TOOLBAR CONTAINER (HEIGHT ~78-90px) */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 2,
+          p: 1.5,
+          px: 2.5,
+          bgcolor: "#121B28",
+          border: "1px solid #1E293B",
+          borderRadius: "8px",
+          minHeight: "78px",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "22% repeat(4, 19.5%)" },
+            gap: { xs: 2, lg: 0 },
+            width: "100%",
+            alignItems: "center",
+          }}
+        >
+          {/* SECTION 1 — PAGE TITLE (Width ~22%) */}
+          <Box sx={{ pr: { lg: 2.5 } }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 800,
+                fontSize: "20px",
+                color: "#FFFFFF",
+                letterSpacing: "-0.3px",
+                lineHeight: 1.2,
+              }}
+            >
+              Transactions
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#94A3B8",
+                fontSize: "11px",
+                fontWeight: 500,
+                display: "block",
+                mt: 0.3,
+                lineHeight: 1.3,
+              }}
+            >
+              Unified multi-service transaction ledger &amp; report
+            </Typography>
+          </Box>
+
+          {/* SECTION 2 — TOTAL VOLUME */}
+          <Box
+            sx={{
+              borderLeft: { lg: "1px solid #1E293B" },
+              pl: { lg: 2.5 },
+              pr: { lg: 2 },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#94A3B8",
+                fontWeight: 700,
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.6px",
+              }}
+            >
+              TOTAL VOLUME
+            </Typography>
+            {isLoading ? (
+              <Skeleton variant="text" width={90} height={26} sx={{ bgcolor: "rgba(255,255,255,0.08)", my: 0.2 }} />
+            ) : (
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  color: "#FFFFFF",
+                  fontSize: "19px",
+                  my: 0.1,
+                  lineHeight: 1.1,
+                }}
+              >
+                ₹{(summary?.total_volume || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px", fontWeight: 500 }}>
+              {summary?.total_transactions || totalRecords} txns
+            </Typography>
+          </Box>
+
+          {/* SECTION 3 — TOTAL CREDIT */}
+          <Box
+            sx={{
+              borderLeft: { lg: "1px solid #1E293B" },
+              pl: { lg: 2.5 },
+              pr: { lg: 2 },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#4ADE80",
+                fontWeight: 700,
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.6px",
+              }}
+            >
+              TOTAL CREDIT (CR)
+            </Typography>
+            {isLoading ? (
+              <Skeleton variant="text" width={90} height={26} sx={{ bgcolor: "rgba(255,255,255,0.08)", my: 0.2 }} />
+            ) : (
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  color: "#4ADE80",
+                  fontSize: "19px",
+                  my: 0.1,
+                  lineHeight: 1.1,
+                }}
+              >
+                +₹{(summary?.total_credit || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>
+              Wallet Inflow &amp; Reversals
+            </Typography>
+          </Box>
+
+          {/* SECTION 4 — TOTAL DEBIT */}
+          <Box
+            sx={{
+              borderLeft: { lg: "1px solid #1E293B" },
+              pl: { lg: 2.5 },
+              pr: { lg: 2 },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#F87171",
+                fontWeight: 700,
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.6px",
+              }}
+            >
+              TOTAL DEBIT (DR)
+            </Typography>
+            {isLoading ? (
+              <Skeleton variant="text" width={90} height={26} sx={{ bgcolor: "rgba(255,255,255,0.08)", my: 0.2 }} />
+            ) : (
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  color: "#F87171",
+                  fontSize: "19px",
+                  my: 0.1,
+                  lineHeight: 1.1,
+                }}
+              >
+                -₹{(summary?.total_debit || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>
+              Payouts &amp; Outflows
+            </Typography>
+          </Box>
+
+          {/* SECTION 5 — SUCCESSFUL / STATUS */}
+          <Box
+            sx={{
+              borderLeft: { lg: "1px solid #1E293B" },
+              pl: { lg: 2.5 },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#60A5FA",
+                fontWeight: 700,
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.6px",
+              }}
+            >
+              SUCCESSFUL
+            </Typography>
+            {isLoading ? (
+              <Skeleton variant="text" width={90} height={26} sx={{ bgcolor: "rgba(255,255,255,0.08)", my: 0.2 }} />
+            ) : (
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 800,
+                  color: "#60A5FA",
+                  fontSize: "19px",
+                  my: 0.1,
+                  lineHeight: 1.1,
+                }}
+              >
+                {summary?.total_transactions ? Math.round(((summary.successful_transactions || 0) / summary.total_transactions) * 100) : 100}%
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>
+              {summary?.successful_transactions || 0} success · {summary?.reversed_transactions || 0} rev
+            </Typography>
+          </Box>
         </Box>
-        <Stack direction="row" spacing={1.5}>
+      </Paper>
+
+      {/* 2. SEARCH + DATE RANGE TOOLBAR */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 2,
+          p: 1,
+          px: 1.5,
+          bgcolor: "#121B28",
+          border: "1px solid #1E293B",
+          borderRadius: "8px",
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+        }}
+      >
+        {/* Search Input */}
+        <TextField
+          placeholder="Search by Transaction ID, Client Ref, Recipient, Bank, UTR, Service..."
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          size="small"
+          sx={{
+            flexGrow: 1,
+            width: { xs: "100%", md: "auto" },
+            "& .MuiOutlinedInput-root": {
+              bgcolor: "#090D16",
+              borderRadius: "6px",
+              fontSize: "13px",
+              color: "#F8FAFC",
+              height: "40px",
+              "& fieldset": { borderColor: "#1E293B" },
+              "&:hover fieldset": { borderColor: "#3B82F6" },
+              "&.Mui-focused fieldset": { borderColor: "#3B82F6", borderWidth: "1.5px" },
+            },
+          }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: "#64748B", fontSize: 18 }} />
+                </InputAdornment>
+              ),
+              endAdornment: globalSearch ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setGlobalSearch("")} sx={{ color: "#64748B" }}>
+                    <ClearIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            },
+          }}
+        />
+
+        {/* Date Presets Segmented Control */}
+        <Stack direction="row" spacing={0.5} sx={{ bgcolor: "#090D16", p: 0.5, borderRadius: "6px", border: "1px solid #1E293B", width: { xs: "100%", md: "auto" }, justifyContent: "center" }}>
+          {[
+            { key: "ALL", label: "All History" },
+            { key: "TODAY", label: "Today" },
+            { key: "YESTERDAY", label: "Yesterday" },
+            { key: "7_DAYS", label: "7 Days" },
+            { key: "30_DAYS", label: "30 Days" },
+            { key: "THIS_MONTH", label: "This Month" },
+          ].map((preset) => (
+            <Button
+              key={preset.key}
+              size="small"
+              onClick={() => handleDatePreset(preset.key)}
+              sx={{
+                px: 1.5,
+                py: 0.4,
+                fontSize: "12px",
+                fontWeight: activePreset === preset.key ? 700 : 500,
+                color: activePreset === preset.key ? "#FFFFFF" : "#94A3B8",
+                bgcolor: activePreset === preset.key ? "#2563EB" : "transparent",
+                borderRadius: "5px",
+                textTransform: "none",
+                minWidth: "auto",
+                "&:hover": {
+                  bgcolor: activePreset === preset.key ? "#1D4ED8" : "rgba(255, 255, 255, 0.06)",
+                  color: "#FFFFFF",
+                },
+              }}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </Stack>
+      </Paper>
+
+      {/* 3. FILTER TOOLBAR + ACTION BUTTONS */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 1,
+          px: 1.5,
+          bgcolor: "#121B28",
+          border: "1px solid #1E293B",
+          borderRadius: "8px",
+          mb: 2,
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+        }}
+      >
+        {/* Left Controls: Service, Status & CR/DR Selectors */}
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+          {/* Service Selector */}
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <Select
+              value={serviceFilter}
+              onChange={(e) => {
+                setServiceFilter(e.target.value);
+                setPage(0);
+              }}
+              displayEmpty
+              sx={{
+                height: "34px",
+                fontSize: "12px",
+                bgcolor: "#0F172A",
+                color: "#F8FAFC",
+                borderRadius: "6px",
+                "& fieldset": { borderColor: "#1E293B" },
+              }}
+            >
+              <MenuItem value="ALL" sx={{ fontSize: "13px" }}>All Services</MenuItem>
+              <MenuItem value="PAYOUT" sx={{ fontSize: "13px" }}>Payout</MenuItem>
+              <MenuItem value="DMT" sx={{ fontSize: "13px" }}>DMT Transfer</MenuItem>
+              <MenuItem value="AEPS" sx={{ fontSize: "13px" }}>AEPS Cash Out</MenuItem>
+              <MenuItem value="UPI" sx={{ fontSize: "13px" }}>UPI Payments</MenuItem>
+              <MenuItem value="BBPS" sx={{ fontSize: "13px" }}>BBPS Bill Payment</MenuItem>
+              <MenuItem value="RECHARGE" sx={{ fontSize: "13px" }}>Recharge</MenuItem>
+              <MenuItem value="CARD_TO_CASH" sx={{ fontSize: "13px" }}>Card-to-Cash (POS)</MenuItem>
+              <MenuItem value="TOPUP" sx={{ fontSize: "13px" }}>Topup / Move to Bank</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Status Selector */}
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <Select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(0);
+              }}
+              displayEmpty
+              sx={{
+                height: "34px",
+                fontSize: "12px",
+                bgcolor: "#0F172A",
+                color: "#F8FAFC",
+                borderRadius: "6px",
+                "& fieldset": { borderColor: "#1E293B" },
+              }}
+            >
+              <MenuItem value="ALL" sx={{ fontSize: "13px" }}>All Statuses</MenuItem>
+              <MenuItem value="SUCCESS" sx={{ fontSize: "13px" }}>Success</MenuItem>
+              <MenuItem value="PENDING" sx={{ fontSize: "13px" }}>Pending</MenuItem>
+              <MenuItem value="FAILED" sx={{ fontSize: "13px" }}>Failed</MenuItem>
+              <MenuItem value="REVERSED" sx={{ fontSize: "13px" }}>Reversed</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Credit/Debit Filter */}
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <Select
+              value={creditDebitFilter}
+              onChange={(e) => {
+                setCreditDebitFilter(e.target.value);
+                setPage(0);
+              }}
+              displayEmpty
+              sx={{
+                height: "34px",
+                fontSize: "12px",
+                bgcolor: "#0F172A",
+                color: "#F8FAFC",
+                borderRadius: "6px",
+                "& fieldset": { borderColor: "#1E293B" },
+              }}
+            >
+              <MenuItem value="ALL" sx={{ fontSize: "13px" }}>All Entries (CR &amp; DR)</MenuItem>
+              <MenuItem value="CR" sx={{ fontSize: "13px" }}>Credit Only (+CR)</MenuItem>
+              <MenuItem value="DR" sx={{ fontSize: "13px" }}>Debit Only (-DR)</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Reset Filters Button */}
+          {(serviceFilter !== "ALL" || statusFilter !== "ALL" || creditDebitFilter !== "ALL" || globalSearch || activePreset !== "ALL") && (
+            <Button
+              size="small"
+              onClick={() => {
+                setServiceFilter("ALL");
+                setStatusFilter("ALL");
+                setCreditDebitFilter("ALL");
+                setGlobalSearch("");
+                handleDatePreset("ALL");
+              }}
+              sx={{
+                color: "#F87171",
+                fontSize: "12px",
+                fontWeight: 700,
+                textTransform: "none",
+                "&:hover": { bgcolor: "rgba(248, 113, 113, 0.1)" },
+              }}
+            >
+              Reset Filters
+            </Button>
+          )}
+        </Stack>
+
+        {/* Right Actions: Refresh & Export */}
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           <Button
             variant="outlined"
             size="small"
-            startIcon={<RefreshIcon className={isRefreshing ? "animate-spin" : ""} />}
+            startIcon={<RefreshIcon className={isRefreshing ? "animate-spin" : ""} sx={{ fontSize: 16 }} />}
             onClick={() => {
               setIsRefreshing(true);
               fetchData();
             }}
             sx={{
+              height: "34px",
               borderColor: "#1E293B",
-              bgcolor: "#111827",
+              bgcolor: "#0F172A",
               color: "#94A3B8",
               textTransform: "none",
-              borderRadius: "10px",
+              borderRadius: "6px",
               fontWeight: 600,
+              fontSize: "12px",
               "&:hover": { borderColor: "#3B82F6", color: "#FFFFFF", bgcolor: "#1E293B" },
             }}
           >
             Refresh
           </Button>
+
           <Button
             variant="contained"
             size="small"
-            startIcon={<FileDownloadIcon />}
-            endIcon={<ArrowDropDownIcon />}
+            startIcon={<FileDownloadIcon sx={{ fontSize: 16 }} />}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16 }} />}
             onClick={(e) => setExportAnchorEl(e.currentTarget)}
             sx={{
+              height: "34px",
               bgcolor: "#2563EB",
               color: "#FFFFFF",
               textTransform: "none",
-              borderRadius: "10px",
+              borderRadius: "6px",
               fontWeight: 700,
-              boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
+              fontSize: "12px",
+              boxShadow: "0 2px 8px rgba(37, 99, 235, 0.3)",
               "&:hover": { bgcolor: "#1D4ED8" },
             }}
           >
             Export
           </Button>
+
           <Menu
             anchorEl={exportAnchorEl}
             open={Boolean(exportAnchorEl)}
             onClose={() => setExportAnchorEl(null)}
             PaperProps={{
-              sx: { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: "12px", border: "1px solid #334155", mt: 1 },
+              sx: { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: "8px", border: "1px solid #334155", mt: 0.5 },
             }}
           >
             <MenuItem onClick={handleExportCsv} sx={{ fontSize: "13px", fontWeight: 600, gap: 1.5, py: 1 }}>
@@ -510,305 +970,16 @@ export const RetailerTransactionReport: React.FC = () => {
             </MenuItem>
           </Menu>
         </Stack>
-      </Stack>
-
-      {/* ── Summary KPI Cards (Calculated directly from Database) ─────────────── */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
-          gap: 2,
-          mb: 3,
-        }}
-      >
-        {/* Card 1: Total Volume */}
-        <Paper
-          sx={{
-            p: 2,
-            borderRadius: "16px",
-            bgcolor: "rgba(17, 24, 39, 0.7)",
-            border: "1px solid #1E293B",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Total Volume
-            </Typography>
-            <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
-          </Stack>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace" }}>
-            ₹{(summary?.total_volume || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-          </Typography>
-          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
-            {summary?.total_transactions || totalRecords} Database Transactions
-          </Typography>
-        </Paper>
-
-        {/* Card 2: Total Credits */}
-        <Paper
-          sx={{
-            p: 2,
-            borderRadius: "16px",
-            bgcolor: "rgba(17, 24, 39, 0.7)",
-            border: "1px solid #1E293B",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="caption" sx={{ color: "#34D399", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Total Credit (CR)
-            </Typography>
-            <ArrowDownwardIcon sx={{ color: "#34D399", fontSize: 18 }} />
-          </Stack>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: "#34D399", fontFamily: "monospace" }}>
-            +₹{(summary?.total_credit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-          </Typography>
-          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
-            Wallet Inflow &amp; Cash-in
-          </Typography>
-        </Paper>
-
-        {/* Card 3: Total Debits */}
-        <Paper
-          sx={{
-            p: 2,
-            borderRadius: "16px",
-            bgcolor: "rgba(17, 24, 39, 0.7)",
-            border: "1px solid #1E293B",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="caption" sx={{ color: "#F87171", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Total Debit (DR)
-            </Typography>
-            <ArrowUpwardIcon sx={{ color: "#F87171", fontSize: 18 }} />
-          </Stack>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: "#F87171", fontFamily: "monospace" }}>
-            -₹{(summary?.total_debit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-          </Typography>
-          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
-            Payouts &amp; Transfers
-          </Typography>
-        </Paper>
-
-        {/* Card 4: Success / Status Rate */}
-        <Paper
-          sx={{
-            p: 2,
-            borderRadius: "16px",
-            bgcolor: "rgba(17, 24, 39, 0.7)",
-            border: "1px solid #1E293B",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Completed Txns
-            </Typography>
-            <CheckCircleIcon sx={{ color: "#60A5FA", fontSize: 18 }} />
-          </Stack>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace" }}>
-            {summary?.total_transactions ? Math.round(((summary.successful_transactions || 0) / summary.total_transactions) * 100) : 100}%
-          </Typography>
-          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 600 }}>
-            {summary?.successful_transactions || 0} Successful • {summary?.pending_transactions || 0} Pending
-          </Typography>
-        </Paper>
-      </Box>
-
-      {/* ── Filter Toolbar ────────────────────────────────────────────────────── */}
-      <Paper
-        sx={{
-          p: 2.5,
-          borderRadius: "18px",
-          bgcolor: "rgba(17, 24, 39, 0.75)",
-          border: "1px solid #1E293B",
-          backdropFilter: "blur(16px)",
-          mb: 3,
-        }}
-      >
-        <Stack spacing={2}>
-          {/* Row 1: Search & Date Presets */}
-          <Stack direction={{ xs: "column", lg: "row" }} spacing={2} justifyContent="space-between" alignItems={{ xs: "stretch", lg: "center" }}>
-            {/* Search Input */}
-            <TextField
-              placeholder="Search by Txn ID, Recipient, Bank, UTR, Service..."
-              value={globalSearch}
-              onChange={(e) => setGlobalSearch(e.target.value)}
-              size="small"
-              sx={{
-                flexGrow: 1,
-                "& .MuiOutlinedInput-root": {
-                  bgcolor: "#0F172A",
-                  borderRadius: "12px",
-                  color: "#FFFFFF",
-                  "& fieldset": { borderColor: "#1E293B" },
-                  "&:hover fieldset": { borderColor: "#3B82F6" },
-                  "&.Mui-focused fieldset": { borderColor: "#3B82F6" },
-                },
-                "& input::placeholder": { color: "#64748B", opacity: 1 },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#64748B" }} />
-                  </InputAdornment>
-                ),
-                endAdornment: globalSearch ? (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setGlobalSearch("")} sx={{ color: "#64748B" }}>
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-              }}
-            />
-
-            {/* Quick Date Presets */}
-            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 0.5 }}>
-              {[
-                { id: "ALL", label: "All History" },
-                { id: "TODAY", label: "Today" },
-                { id: "YESTERDAY", label: "Yesterday" },
-                { id: "7_DAYS", label: "7 Days" },
-                { id: "30_DAYS", label: "30 Days" },
-                { id: "THIS_MONTH", label: "This Month" },
-              ].map((p) => (
-                <Button
-                  key={p.id}
-                  size="small"
-                  onClick={() => handleDatePreset(p.id)}
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: 700,
-                    fontSize: "12px",
-                    px: 1.8,
-                    py: 0.7,
-                    borderRadius: "10px",
-                    bgcolor: activePreset === p.id ? "#2563EB" : "#0F172A",
-                    color: activePreset === p.id ? "#FFFFFF" : "#94A3B8",
-                    border: `1px solid ${activePreset === p.id ? "#2563EB" : "#1E293B"}`,
-                    "&:hover": { bgcolor: activePreset === p.id ? "#1D4ED8" : "#1E293B", color: "#FFFFFF" },
-                  }}
-                >
-                  {p.label}
-                </Button>
-              ))}
-            </Stack>
-          </Stack>
-
-          {/* Row 2: Service & Status Dropdowns */}
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
-            {/* Service Filter */}
-            <FormControl size="small" sx={{ minWidth: 160, flexGrow: { xs: 1, sm: 0 } }}>
-              <Select
-                value={serviceFilter}
-                onChange={(e) => setServiceFilter(e.target.value)}
-                sx={{
-                  bgcolor: "#0F172A",
-                  color: "#FFFFFF",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#1E293B" },
-                  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#3B82F6" },
-                  "& .MuiSvgIcon-root": { color: "#64748B" },
-                }}
-              >
-                <MenuItem value="ALL">All Services</MenuItem>
-                <MenuItem value="PAYOUT">Payout</MenuItem>
-                <MenuItem value="DMT">DMT Transfer</MenuItem>
-                <MenuItem value="AEPS">AEPS Cash Out</MenuItem>
-                <MenuItem value="UPI">UPI Payments</MenuItem>
-                <MenuItem value="BBPS">BBPS Bill Payment</MenuItem>
-                <MenuItem value="RECHARGE">Recharge</MenuItem>
-                <MenuItem value="CARD_TO_CASH">Card-to-Cash (POS)</MenuItem>
-                <MenuItem value="TOPUP">Topup / Move to Bank</MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* Status Filter */}
-            <FormControl size="small" sx={{ minWidth: 140, flexGrow: { xs: 1, sm: 0 } }}>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                sx={{
-                  bgcolor: "#0F172A",
-                  color: "#FFFFFF",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#1E293B" },
-                  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#3B82F6" },
-                  "& .MuiSvgIcon-root": { color: "#64748B" },
-                }}
-              >
-                <MenuItem value="ALL">All Statuses</MenuItem>
-                <MenuItem value="SUCCESS">Success</MenuItem>
-                <MenuItem value="PENDING">Pending</MenuItem>
-                <MenuItem value="FAILED">Failed</MenuItem>
-                <MenuItem value="REVERSED">Reversed</MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* Credit/Debit Filter */}
-            <FormControl size="small" sx={{ minWidth: 140, flexGrow: { xs: 1, sm: 0 } }}>
-              <Select
-                value={creditDebitFilter}
-                onChange={(e) => setCreditDebitFilter(e.target.value)}
-                sx={{
-                  bgcolor: "#0F172A",
-                  color: "#FFFFFF",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#1E293B" },
-                  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#3B82F6" },
-                  "& .MuiSvgIcon-root": { color: "#64748B" },
-                }}
-              >
-                <MenuItem value="ALL">All Entries (CR &amp; DR)</MenuItem>
-                <MenuItem value="CR">Credit Only (+CR)</MenuItem>
-                <MenuItem value="DR">Debit Only (-DR)</MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* Reset Filters */}
-            {(serviceFilter !== "ALL" || statusFilter !== "ALL" || creditDebitFilter !== "ALL" || globalSearch || activePreset !== "ALL") && (
-              <Button
-                size="small"
-                onClick={() => {
-                  setServiceFilter("ALL");
-                  setStatusFilter("ALL");
-                  setCreditDebitFilter("ALL");
-                  setGlobalSearch("");
-                  handleDatePreset("ALL");
-                }}
-                sx={{
-                  color: "#F87171",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  textTransform: "none",
-                  "&:hover": { bgcolor: "rgba(248, 113, 113, 0.1)" },
-                }}
-              >
-                Reset Filters
-              </Button>
-            )}
-          </Stack>
-        </Stack>
       </Paper>
 
       {/* ── Transaction Data Grid (Exact 10 Columns Contract) ─────────────────── */}
       <Paper
+        elevation={0}
         sx={{
-          borderRadius: "18px",
-          bgcolor: "rgba(17, 24, 39, 0.75)",
+          borderRadius: "8px",
+          bgcolor: "#121B28",
           border: "1px solid #1E293B",
           overflow: "hidden",
-          backdropFilter: "blur(16px)",
         }}
       >
         <TableContainer>
@@ -819,23 +990,21 @@ export const RetailerTransactionReport: React.FC = () => {
                 <TableCell>Txn ID</TableCell>
                 {/* 2. Service */}
                 <TableCell>Service</TableCell>
-                {/* 3. Type */}
-                <TableCell>Type</TableCell>
-                {/* 4. Recipient / Bank Details */}
-                <TableCell>Beneficiary &amp; Bank</TableCell>
-                {/* 5. Previous Balance */}
+                {/* 3. Comments */}
+                <TableCell>Comments</TableCell>
+                {/* 4. Previous Balance */}
                 <TableCell align="right">Prev Bal (₹)</TableCell>
-                {/* 6. CR / DR */}
+                {/* 5. CR / DR */}
                 <TableCell align="right">CR / DR (₹)</TableCell>
-                {/* 7. Current Balance */}
+                {/* 6. Current Balance */}
                 <TableCell align="right">Closing Bal (₹)</TableCell>
-                {/* 8. Amount */}
+                {/* 7. Amount */}
                 <TableCell align="right">Amount (₹)</TableCell>
-                {/* 9. Date & Time */}
+                {/* 8. Date & Time */}
                 <TableCell>Date &amp; Time</TableCell>
-                {/* 10. Status */}
+                {/* 9. Status */}
                 <TableCell align="center">Status</TableCell>
-                {/* Action */}
+                {/* 10. Action */}
                 <TableCell align="center">Action</TableCell>
               </TableRow>
             </TableHead>
@@ -843,7 +1012,7 @@ export const RetailerTransactionReport: React.FC = () => {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, idx) => (
                   <TableRow key={idx}>
-                    {Array.from({ length: 11 }).map((_, cIdx) => (
+                    {Array.from({ length: 10 }).map((_, cIdx) => (
                       <TableCell key={cIdx} sx={{ py: 2, px: 2 }}>
                         <Skeleton variant="text" sx={{ bgcolor: "#1E293B" }} />
                       </TableCell>
@@ -852,7 +1021,7 @@ export const RetailerTransactionReport: React.FC = () => {
                 ))
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
                     <Stack alignItems="center" spacing={1.5}>
                       <ReceiptIcon sx={{ fontSize: 48, color: "#334155" }} />
                       <Typography variant="body1" sx={{ color: "#94A3B8", fontWeight: 600 }}>
@@ -877,8 +1046,6 @@ export const RetailerTransactionReport: React.FC = () => {
               ) : (
                 items.map((row) => {
                   const badge = SERVICE_BADGES[row.service] || { label: row.service, bg: "#1E293B", text: "#94A3B8", border: "#334155" };
-                  const shortBank = getShortBankName(row.bank_name);
-                  const shortAcc = getShortAccountNumber(row.account_number);
 
                   return (
                     <TableRow
@@ -934,47 +1101,33 @@ export const RetailerTransactionReport: React.FC = () => {
                         />
                       </TableCell>
 
-                      {/* 3. Type */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
-                          {row.type}
-                        </Typography>
+                      {/* 3. Comments */}
+                      <TableCell sx={{ maxWidth: 280, minWidth: 180 }}>
+                        <Tooltip title={getTransactionComments(row)} arrow placement="top">
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: "#F1F5F9",
+                              fontWeight: 600,
+                              fontSize: "12px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {getTransactionComments(row)}
+                          </Typography>
+                        </Tooltip>
                       </TableCell>
 
-                      {/* 4. Beneficiary & Bank */}
-                      <TableCell>
-                        <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "12px", whiteSpace: "nowrap" }}>
-                          {row.beneficiary_name || row.customer_name}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 0.6 }}>
-                          {shortBank ? (
-                            <>
-                              <span style={{ fontWeight: 700, color: "#93C5FD" }}>
-                                {shortBank}
-                              </span>
-                              {shortAcc && (
-                                <>
-                                  <span style={{ color: "#475569" }}>•</span>
-                                  <span style={{ fontFamily: "monospace", color: "#CBD5E1" }}>
-                                    {shortAcc}
-                                  </span>
-                                </>
-                              )}
-                            </>
-                          ) : (
-                            row.customer_mobile
-                          )}
-                        </Typography>
-                      </TableCell>
-
-                      {/* 5. Previous Balance */}
+                      {/* 4. Previous Balance */}
                       <TableCell align="right">
                         <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#94A3B8", fontSize: "12px", whiteSpace: "nowrap" }}>
                           ₹{row.previous_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
 
-                      {/* 6. CR / DR */}
+                      {/* 5. CR / DR */}
                       <TableCell align="right">
                         {row.cr > 0 ? (
                           <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#34D399", fontSize: "12px", whiteSpace: "nowrap" }}>
@@ -987,14 +1140,14 @@ export const RetailerTransactionReport: React.FC = () => {
                         )}
                       </TableCell>
 
-                      {/* 7. Current Balance */}
+                      {/* 6. Current Balance */}
                       <TableCell align="right">
                         <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#CBD5E1", fontSize: "12px", whiteSpace: "nowrap" }}>
                           ₹{row.current_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
 
-                      {/* 8. Amount */}
+                      {/* 7. Amount */}
                       <TableCell align="right">
                         <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#FFFFFF", fontSize: "13px", whiteSpace: "nowrap" }}>
                           ₹{row.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -1006,7 +1159,7 @@ export const RetailerTransactionReport: React.FC = () => {
                         )}
                       </TableCell>
 
-                      {/* 9. Date & Time */}
+                      {/* 8. Date & Time */}
                       <TableCell sx={{ whiteSpace: "nowrap" }}>
                         <Typography variant="body2" sx={{ color: "#E2E8F0", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
                           {new Date(row.transaction_datetime).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
@@ -1016,7 +1169,7 @@ export const RetailerTransactionReport: React.FC = () => {
                         </Typography>
                       </TableCell>
 
-                      {/* 10. Status */}
+                      {/* 9. Status */}
                       <TableCell align="center">
                         <Chip
                           label={row.status}
@@ -1040,7 +1193,7 @@ export const RetailerTransactionReport: React.FC = () => {
                         />
                       </TableCell>
 
-                      {/* Action */}
+                      {/* 10. Action */}
                       <TableCell align="center">
                         <IconButton
                           size="small"

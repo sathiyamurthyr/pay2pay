@@ -46,6 +46,7 @@ const ADMIN_NAV: NavCategory[] = [
       { label: "Retailer", href: "/retailers", icon: Store },
       { label: "Entity User", href: "/wallet-ledger/wallets", icon: Wallet },
       { label: "Manual Top-up", href: "/wallet-ledger/manual-topup", icon: ArrowLeftRight },
+      { label: "Topup Request", href: "/wallet-ledger/topup-request", icon: UploadCloud, badge: "Proof" },
       { label: "POS Machine", href: "/machines", icon: CreditCard },
       { label: "Users", href: "/users", icon: Users },
       { label: "Roles", href: "/roles", icon: ShieldCheck },

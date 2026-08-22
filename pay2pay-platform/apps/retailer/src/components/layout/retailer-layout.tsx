@@ -217,7 +217,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setApprovalStatus]);
 
   useEffect(() => {
-    fetchProfileDetails();
+    fetchProfileDetails(true);
+    syncBalance();
+
+    const handleWalletUpdate = () => {
+      syncBalance();
+    };
+    window.addEventListener("p2p_wallet_update", handleWalletUpdate);
+
     // Also load verified profile photo directly from profile endpoint
     const loadVerifiedPhoto = async () => {
       try {
@@ -231,7 +238,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
     loadVerifiedPhoto();
-  }, [fetchProfileDetails]);
+
+    return () => {
+      window.removeEventListener("p2p_wallet_update", handleWalletUpdate);
+    };
+  }, [fetchProfileDetails, syncBalance]);
 
   const formatLastLogin = (isoString?: string | null) => {
     if (!isoString) return "Not available";

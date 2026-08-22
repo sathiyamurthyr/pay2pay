@@ -134,13 +134,13 @@ const MASTER_ENTITIES_DEFAULTS: Record<string, any[]> = {
       code: "RET-10928",
       parent_dist: "Metro Apex Distributors (DIST-5012)",
       parent_sd: "South India Super Network (SD-1002)",
-      phone: "+91 98765 43210",
+      phone: "+91 91766 69426",
       email: "sathus.store@pay2pay.in",
       location: "T-Nagar, Chennai",
       kyc_status: "VERIFIED",
-      main_balance: 245800.0,
-      hold_balance: 15000.0,
-      pending_settlement: 32400.0,
+      main_balance: 49680.53,
+      hold_balance: 0.0,
+      pending_settlement: 0.0,
       comm_balance: 28500.0,
       escrow_deposit: 10000.0,
       total_tds_deducted: 1425.0,
@@ -359,6 +359,61 @@ export default function EntityWalletsPage() {
     refreshWalletsFromStorage();
     const handleUpdate = () => refreshWalletsFromStorage();
     window.addEventListener("pay2pay_wallets_updated", handleUpdate);
+
+    async function loadLiveWallets() {
+      try {
+        const [retRes, distRes, sdRes, walRes] = await Promise.allSettled([
+          api.get("/api/v1/retailers"),
+          api.get("/api/v1/organization/distributors"),
+          api.get("/api/v1/organization/super-distributors"),
+          api.get("/api/v1/wallet-ledger/wallets"),
+        ]);
+
+        const walletMap: Record<string, number> = {};
+        if (walRes.status === "fulfilled" && Array.isArray(walRes.value.data)) {
+          walRes.value.data.forEach((w: any) => {
+            if (w.wallet_number) walletMap[w.wallet_number] = w.current_balance;
+            if (w.owner_id) walletMap[w.owner_id] = w.current_balance;
+          });
+        }
+
+        if (retRes.status === "fulfilled") {
+          const d = retRes.value.data;
+          const items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
+          if (items.length > 0) {
+            const liveRetailers = items
+              .filter((r: any) => !r.is_deleted && r.status !== "DEACTIVATED_MERGED")
+              .map((r: any) => ({
+                id: r.public_id || r.id,
+                name: r.store_name || r.owner_name || "Retailer",
+                code: r.retailer_code || "RET-UNKNOWN",
+                parent_dist: "Metro Apex Distributors (DIST-5012)",
+                parent_sd: "South India Super Network (SD-1002)",
+                phone: r.phone || r.mobile || "+91 91766 69426",
+                email: r.email || "retailer@pay2pay.in",
+                location: r.location || "Chennai, Tamil Nadu",
+                kyc_status: r.kyc_status || "VERIFIED",
+                main_balance: typeof r.wallet_balance === "number" ? r.wallet_balance : (walletMap[r.retailer_code] ?? walletMap[r.public_id] ?? 49680.53),
+                hold_balance: 0.0,
+                pending_settlement: 0.0,
+                comm_balance: 28500.0,
+                escrow_deposit: 10000.0,
+                total_tds_deducted: 1425.0,
+              }));
+
+            setEntitiesMap((prev) => ({
+              ...prev,
+              RETAILER: liveRetailers,
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load live entity wallets:", err);
+      }
+    }
+
+    loadLiveWallets();
+
     return () => window.removeEventListener("pay2pay_wallets_updated", handleUpdate);
   }, []);
 

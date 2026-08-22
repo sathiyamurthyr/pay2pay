@@ -3836,6 +3836,10 @@ class NotificationAnalyticsModel(BaseEntity, EnterpriseBaseMixin):
     provider_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
+from app.infrastructure.db.enterprise_api_log_model import EnterpriseApiLogModel
+from app.infrastructure.db.topup_request_model import TopupRequestModel
+
+
 
 
 

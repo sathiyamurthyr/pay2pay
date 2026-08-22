@@ -84,6 +84,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.core.enterprise_api_logging_middleware import EnterpriseApiLoggingMiddleware
+app.add_middleware(EnterpriseApiLoggingMiddleware)
+
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -221,6 +224,16 @@ app.include_router(enterprise_transaction_report_router.router, prefix="")
 app.include_router(retailer_profile_router.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_profile_router.router, prefix="/api")
 app.include_router(retailer_profile_router.router, prefix="")
+
+from app.presentation.api.v1 import enterprise_api_logs_router
+app.include_router(enterprise_api_logs_router.router, prefix=settings.API_V1_STR)
+app.include_router(enterprise_api_logs_router.router, prefix="/api")
+app.include_router(enterprise_api_logs_router.router, prefix="")
+
+from app.presentation.api.v1 import topup_router
+app.include_router(topup_router.router, prefix=settings.API_V1_STR)
+app.include_router(topup_router.router, prefix="/api")
+app.include_router(topup_router.router, prefix="")
 
 
 

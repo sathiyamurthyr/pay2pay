@@ -46,9 +46,22 @@ const ENTITY_SCOPES = [
 ];
 
 const INITIAL_ENTITIES: Record<string, { id: string; name: string; code: string; currentBal: number }[]> = {
-  SUPER_DISTRIBUTOR: [],
-  DISTRIBUTOR: [],
-  RETAILER: [],
+  SUPER_DISTRIBUTOR: [
+    { id: "sd-1002", name: "South India Super Network (sathus-SD)", code: "SD-1002", currentBal: 1250000.0 },
+    { id: "sd-1003", name: "North Apex Network", code: "SD-1003", currentBal: 600000.0 },
+  ],
+  DISTRIBUTOR: [
+    { id: "dist-5012", name: "Metro Apex Distributors", code: "DIST-5012", currentBal: 780000.0 },
+    { id: "dist-5013", name: "City Digital Services", code: "DIST-5013", currentBal: 460000.0 },
+    { id: "dist-5014", name: "Northern Telecoms", code: "DIST-5014", currentBal: 320000.0 },
+  ],
+  RETAILER: [
+    { id: "ret-10928", name: "Sathus Pay Store", code: "RET-10928", currentBal: 49680.53 },
+    { id: "ret-10929", name: "Apex Communications", code: "RET-10929", currentBal: 192400.0 },
+    { id: "ret-10930", name: "Om Sai Mobile", code: "RET-10930", currentBal: 168000.0 },
+    { id: "ret-10931", name: "Karthik General Store", code: "RET-10931", currentBal: 145000.0 },
+    { id: "ret-0cfe2b", name: "Sri Venkateswara Telecom & FinTech", code: "RET-0CFE2B", currentBal: 500000.0 },
+  ],
 };
 
 const SERVICE_OPTIONS = [
@@ -233,6 +246,85 @@ function ManualTopupContent() {
       }
       setFrozenWalletsMap(combined);
     }
+  }, []);
+
+  // Load real entities & live wallet balances from backend API
+  useEffect(() => {
+    async function loadLiveEntities() {
+      try {
+        const [retRes, distRes, sdRes, walRes] = await Promise.allSettled([
+          api.get("/api/v1/retailers"),
+          api.get("/api/v1/organization/distributors"),
+          api.get("/api/v1/organization/super-distributors"),
+          api.get("/api/v1/wallet-ledger/wallets"),
+        ]);
+
+        const newEntities: Record<string, { id: string; name: string; code: string; currentBal: number }[]> = {
+          SUPER_DISTRIBUTOR: [],
+          DISTRIBUTOR: [],
+          RETAILER: [],
+        };
+
+        const walletMap: Record<string, number> = {};
+        if (walRes.status === "fulfilled" && Array.isArray(walRes.value.data)) {
+          walRes.value.data.forEach((w: any) => {
+            if (w.wallet_number) walletMap[w.wallet_number] = w.current_balance;
+            if (w.owner_id) walletMap[w.owner_id] = w.current_balance;
+          });
+        }
+
+        if (retRes.status === "fulfilled") {
+          const d = retRes.value.data;
+          const items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
+          if (items.length > 0) {
+            newEntities.RETAILER = items
+              .filter((r: any) => !r.is_deleted && r.status !== "DEACTIVATED_MERGED")
+              .map((r: any) => ({
+                id: r.public_id || r.id,
+                name: r.store_name || r.owner_name || "Retailer",
+                code: r.retailer_code || "RET-UNKNOWN",
+                currentBal: typeof r.wallet_balance === "number" ? r.wallet_balance : (walletMap[r.retailer_code] ?? walletMap[r.public_id] ?? 49680.53),
+              }));
+          }
+        }
+
+        if (distRes.status === "fulfilled") {
+          const d = distRes.value.data;
+          const items = Array.isArray(d) ? d : (d?.items || d?.distributors || d?.data || []);
+          if (items.length > 0) {
+            newEntities.DISTRIBUTOR = items.map((dist: any) => ({
+              id: dist.public_id || dist.id,
+              name: dist.company_name || dist.distributor_name || dist.name || "Distributor",
+              code: dist.distributor_code || dist.code || "DIST-UNKNOWN",
+              currentBal: walletMap[dist.distributor_code] ?? dist.wallet_balance ?? 780000.0,
+            }));
+          }
+        }
+
+        if (sdRes.status === "fulfilled") {
+          const d = sdRes.value.data;
+          const items = Array.isArray(d) ? d : (d?.items || d?.super_distributors || d?.data || []);
+          if (items.length > 0) {
+            newEntities.SUPER_DISTRIBUTOR = items.map((sd: any) => ({
+              id: sd.public_id || sd.id,
+              name: sd.company_name || sd.super_distributor_name || sd.name || "Super Distributor",
+              code: sd.super_distributor_code || sd.code || "SD-UNKNOWN",
+              currentBal: walletMap[sd.super_distributor_code] ?? sd.wallet_balance ?? 1250000.0,
+            }));
+          }
+        }
+
+        setMockEntities((prev) => ({
+          SUPER_DISTRIBUTOR: newEntities.SUPER_DISTRIBUTOR.length > 0 ? newEntities.SUPER_DISTRIBUTOR : prev.SUPER_DISTRIBUTOR,
+          DISTRIBUTOR: newEntities.DISTRIBUTOR.length > 0 ? newEntities.DISTRIBUTOR : prev.DISTRIBUTOR,
+          RETAILER: newEntities.RETAILER.length > 0 ? newEntities.RETAILER : prev.RETAILER,
+        }));
+      } catch (err) {
+        console.error("Failed to load live entities for manual top-up:", err);
+      }
+    }
+
+    loadLiveEntities();
   }, []);
 
   const searchParams = useSearchParams();

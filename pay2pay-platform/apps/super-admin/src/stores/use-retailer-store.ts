@@ -28,6 +28,108 @@ export interface WalletState {
 
 export type KpiTheme = "classic-blue" | "royal-gold" | "emerald-green" | "purple" | "dark" | "corporate-white";
 
+export interface ThemeConfig {
+  id: KpiTheme;
+  label: string;
+  swatch: string;
+  headerBg: string;
+  headerText: string;
+  primaryColor: string;
+  pageBg: string;
+  cardBg: string;
+  cardBorder: string;
+  textColor: string;
+  subtextColor: string;
+  badgeBg: string;
+}
+
+export const THEME_CONFIGS: Record<KpiTheme, ThemeConfig> = {
+  "classic-blue": {
+    id: "classic-blue",
+    label: "Classic Blue",
+    swatch: "#2563EB",
+    headerBg: "#0B1528",
+    headerText: "#FFFFFF",
+    primaryColor: "#2563EB",
+    pageBg: "#060D1B",
+    cardBg: "rgba(18, 27, 48, 0.85)",
+    cardBorder: "rgba(255, 255, 255, 0.12)",
+    textColor: "#F8FAFC",
+    subtextColor: "#94A3B8",
+    badgeBg: "rgba(37, 99, 235, 0.2)",
+  },
+  "royal-gold": {
+    id: "royal-gold",
+    label: "Royal Gold",
+    swatch: "#FFD54F",
+    headerBg: "#1C1405",
+    headerText: "#FEF3C7",
+    primaryColor: "#D97706",
+    pageBg: "#120D03",
+    cardBg: "rgba(36, 25, 6, 0.85)",
+    cardBorder: "rgba(251, 191, 36, 0.25)",
+    textColor: "#FEF3C7",
+    subtextColor: "#FDE68A",
+    badgeBg: "rgba(217, 119, 6, 0.2)",
+  },
+  "emerald-green": {
+    id: "emerald-green",
+    label: "Emerald Green",
+    swatch: "#16A34A",
+    headerBg: "#041B12",
+    headerText: "#D1FAE5",
+    primaryColor: "#059669",
+    pageBg: "#02120B",
+    cardBg: "rgba(6, 36, 24, 0.85)",
+    cardBorder: "rgba(52, 211, 153, 0.25)",
+    textColor: "#ECFDF5",
+    subtextColor: "#A7F3D0",
+    badgeBg: "rgba(5, 150, 105, 0.2)",
+  },
+  "purple": {
+    id: "purple",
+    label: "Purple Velvet",
+    swatch: "#7C3AED",
+    headerBg: "#160B29",
+    headerText: "#EDE9FE",
+    primaryColor: "#7C3AED",
+    pageBg: "#0D061A",
+    cardBg: "rgba(30, 15, 54, 0.85)",
+    cardBorder: "rgba(167, 139, 250, 0.25)",
+    textColor: "#F5F3FF",
+    subtextColor: "#C4B5FD",
+    badgeBg: "rgba(124, 58, 237, 0.2)",
+  },
+  "dark": {
+    id: "dark",
+    label: "Dark Onyx",
+    swatch: "#0F172A",
+    headerBg: "#0B0F19",
+    headerText: "#FFFFFF",
+    primaryColor: "#38BDF8",
+    pageBg: "#050810",
+    cardBg: "rgba(15, 23, 42, 0.9)",
+    cardBorder: "rgba(255, 255, 255, 0.15)",
+    textColor: "#F8FAFC",
+    subtextColor: "#94A3B8",
+    badgeBg: "rgba(56, 189, 248, 0.2)",
+  },
+  "corporate-white": {
+    id: "corporate-white",
+    label: "Corporate White",
+    swatch: "#FFFFFF",
+    headerBg: "#FFFFFF",
+    headerText: "#0F172A",
+    primaryColor: "#2563EB",
+    pageBg: "#F1F5F9",
+    cardBg: "#FFFFFF",
+    cardBorder: "#E2E8F0",
+    textColor: "#0F172A",
+    subtextColor: "#64748B",
+    badgeBg: "rgba(37, 99, 235, 0.1)",
+  },
+};
+
 interface RetailerStoreState {
   outlet: RetailerOutlet;
   wallet: WalletState;

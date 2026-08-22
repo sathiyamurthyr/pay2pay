@@ -243,24 +243,38 @@ function ManualTopupContent() {
             id: String(r.public_id || r.id || r.retailer_code),
             name: r.store_name || r.owner_name || r.legal_name || "Retailer Store",
             code: r.retailer_code || String(r.public_id || r.id || "").substring(0, 10),
-            currentBal: typeof r.wallet_balance === "number" ? r.wallet_balance : 75000.0,
+            currentBal: typeof r.wallet_balance === "number" ? r.wallet_balance : (typeof r.current_wallet_balance === "number" ? r.current_wallet_balance : 0.0),
           }));
 
-          const existingCodes = new Set(currentMap.RETAILER.map((e) => e.code));
-          const merged = [...currentMap.RETAILER];
-          liveRetailers.forEach((lr: any) => {
-            if (!existingCodes.has(lr.code)) {
-              merged.push(lr);
-              existingCodes.add(lr.code);
+          // Live retailers from database are the SINGLE SOURCE OF TRUTH
+          const liveMap = new Map<string, typeof liveRetailers[0]>();
+          liveRetailers.forEach((lr: any) => liveMap.set(lr.code, lr));
+
+          // Replace existing entries with authoritative live database values
+          const updatedRetailers = currentMap.RETAILER.map((e) => {
+            if (liveMap.has(e.code)) {
+              const live = liveMap.get(e.code)!;
+              liveMap.delete(e.code);
+              return { ...e, id: live.id, name: live.name, currentBal: live.currentBal };
             }
+            return e;
           });
-          currentMap.RETAILER = merged;
+
+          // Append any newly created retailers
+          liveMap.forEach((lr) => updatedRetailers.push(lr));
+          currentMap.RETAILER = updatedRetailers;
         }
       } catch (err) {
         console.warn("Failed to fetch live retailers for manual topup:", err);
       }
 
       setMockEntities(currentMap);
+      setSelectedEntity((prev) => {
+        if (!prev) return null;
+        const matched = currentMap.RETAILER.find((r) => r.code === prev.code);
+        return matched || prev;
+      });
+
       if (typeof window !== "undefined") {
         localStorage.setItem("pay2pay_entity_balances_map", JSON.stringify(currentMap));
       }

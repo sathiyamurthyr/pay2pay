@@ -134,6 +134,8 @@ async def list_retailers(
             "business_category": r.business_category,
             "status": r.status,
             "mapped_distributor_id": str(r.mapped_distributor_id) if r.mapped_distributor_id else None,
+            "wallet_balance": float(r.wallet.wallet_balance) if getattr(r, "wallet", None) and r.wallet else 0.0,
+            "wallet_id": str(r.wallet.public_id) if getattr(r, "wallet", None) and r.wallet else None,
             "created_date": r.created_date
         }
         for r in retailers
