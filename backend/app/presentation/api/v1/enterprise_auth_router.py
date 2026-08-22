@@ -295,16 +295,38 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
         outlet_name = existing_retailer.store_name if existing_retailer and existing_retailer.store_name else "Sathus Pay Store"
         ret_code = existing_retailer.retailer_code if existing_retailer and existing_retailer.retailer_code else "RET-10928"
         ret_public_id = str(existing_retailer.public_id) if existing_retailer else subject_id
+        ret_status = (existing_retailer.status if existing_retailer else "PENDING_APPROVAL").upper()
+        is_approved = ret_status in ("ACTIVE", "APPROVED")
+
+        if is_approved:
+            redirect_url = "/retailer/dashboard"
+            onboarding_status = "COMPLETED"
+            destination = "DASHBOARD"
+        elif ret_status == "REJECTED":
+            redirect_url = "/application-rejected"
+            onboarding_status = "REJECTED"
+            destination = "APPLICATION_REJECTED"
+        elif ret_status in ("HOLD", "BLOCKED", "RESTRICTED", "SUSPENDED"):
+            redirect_url = "/retailer/account-restricted"
+            onboarding_status = "RESTRICTED"
+            destination = "ACCOUNT_RESTRICTED"
+        else:
+            redirect_url = "/retailer/account-under-review"
+            onboarding_status = "UNDER_REVIEW"
+            destination = "ACCOUNT_UNDER_REVIEW"
 
         return {
             "status": "SUCCESS",
-            "message": "Authentication successful",
+            "message": "Authentication successful" if is_approved else "Authentication successful. Your account is pending admin verification.",
             "data": {
                 "session_id": session_id,
                 "correlation_id": correlation_id,
                 "trace_id": trace_id,
                 "access_token": access_token,
                 "token_type": "Bearer",
+                "destination": destination,
+                "is_approved": is_approved,
+                "account_status": ret_status,
                 "user": {
                     "id": ret_public_id,
                     "public_id": ret_public_id,
@@ -314,16 +336,19 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                     "role": "RETAILER",
                     "roles": ["RETAILER"],
                     "outlet_name": outlet_name,
-                    "retailer_code": ret_code
+                    "retailer_code": ret_code,
+                    "status": ret_status,
+                    "is_approved": is_approved,
+                    "approval_status": "APPROVED" if is_approved else "PENDING"
                 },
                 "onboarding": {
-                    "completed": True,
-                    "current_step": 13,
-                    "progress_percentage": 100,
-                    "status": "COMPLETED",
-                    "redirect_url": "/retailer/dashboard"
+                    "completed": is_approved,
+                    "current_step": 13 if is_approved else 12,
+                    "progress_percentage": 100 if is_approved else 90,
+                    "status": onboarding_status,
+                    "redirect_url": redirect_url
                 },
-                "redirect_url": "/retailer/dashboard",
+                "redirect_url": redirect_url,
                 "risk_assessment": risk_info,
                 "require_otp": False
             }

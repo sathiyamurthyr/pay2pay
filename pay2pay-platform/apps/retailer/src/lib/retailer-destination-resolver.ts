@@ -109,23 +109,37 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
         const rawStatus = (d.account_status || "").toUpperCase();
         const rawVerif = (d.verification_status || d.approval_status || "").toUpperCase();
 
-        // 1. Authoritative account_access decision
+        // 1. Authoritative account_access decision: Only true if explicitly approved/active
         const isAppr =
-          rawAccess === "ALLOWED" ||
           d.is_approved === true ||
+          (rawAccess === "ALLOWED" && rawStatus === "ACTIVE") ||
           rawStatus === "ACTIVE" ||
           rawVerif === "ACTIVE" ||
-          rawVerif === "APPROVED" ||
-          d.destination === "DASHBOARD";
+          rawVerif === "APPROVED";
 
         const accessCat: "ALLOWED" | "RESTRICTED" = isAppr ? "ALLOWED" : "RESTRICTED";
 
         const normalizedDest: RetailerDestination =
-          d.destination === "APPLICATION_REJECTED"
+          d.destination === "APPLICATION_REJECTED" || rawVerif === "REJECTED" || rawStatus === "REJECTED"
             ? "APPLICATION_REJECTED"
             : d.destination === "ONBOARDING"
             ? "ONBOARDING"
-            : "DASHBOARD";
+            : d.destination === "ACCOUNT_RESTRICTED" || rawStatus === "SUSPENDED" || rawStatus === "BLOCKED" || rawStatus === "HOLD"
+            ? "ACCOUNT_RESTRICTED"
+            : isAppr
+            ? "DASHBOARD"
+            : "ACCOUNT_UNDER_REVIEW";
+
+        const defaultRedirectUrl =
+          normalizedDest === "APPLICATION_REJECTED"
+            ? "/application-rejected"
+            : normalizedDest === "ONBOARDING"
+            ? "/register"
+            : normalizedDest === "ACCOUNT_RESTRICTED"
+            ? "/retailer/account-restricted"
+            : normalizedDest === "ACCOUNT_UNDER_REVIEW"
+            ? "/retailer/account-under-review"
+            : "/retailer/dashboard";
 
         const resolved: AuthoritativeAccountStatus = {
           retailer_id: d.retailer_id || null,
@@ -136,7 +150,7 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           legal_name: d.legal_name || "Retailer Outlet",
           registered_mobile: d.registered_mobile || (mobile ? `+91 ${mobile}` : "+91 --"),
           application_reference: d.application_reference || "APP-PENDING",
-          verification_status: d.verification_status || (isAppr ? "ACTIVE" : "KYC_SUBMITTED"),
+          verification_status: d.verification_status || (isAppr ? "ACTIVE" : "PENDING"),
           approval_status: d.approval_status || (isAppr ? "APPROVED" : "PENDING"),
           account_status: d.account_status || (isAppr ? "ACTIVE" : "UNDER_REVIEW"),
           is_approved: isAppr,
@@ -146,28 +160,22 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           login_enabled: d.login_enabled !== false,
           payment_permission: d.payment_permission || (isAppr ? "PERMITTED & UNLOCKED" : "PROHIBITED & LOCKED"),
           destination: normalizedDest,
-          redirect_url: d.redirect_url || (d.destination === "APPLICATION_REJECTED" ? "/application-rejected" : d.destination === "ONBOARDING" ? "/register" : "/retailer/dashboard"),
+          redirect_url: d.redirect_url || defaultRedirectUrl,
           created_at: d.created_at || null,
           updated_at: d.updated_at || null,
-          support_contact: d.support_contact,
+          support_contact: d.support_contact || {
+            phone: "+91 8000 123 456",
+            email: "support@pay2pay.in",
+            desk: "24x7 Priority Support Desk",
+          },
         };
 
         cachedStatus = resolved;
         lastFetchTime = Date.now();
-
-        if (typeof window !== "undefined") {
-          localStorage.setItem("p2p_account_access", accessCat);
-          localStorage.setItem("p2p_retailer_approval_status", isAppr ? "APPROVED" : "UNDER_REVIEW");
-          localStorage.setItem("pay2pay_onboarding_status", isAppr ? "APPROVED" : "UNDER_REVIEW");
-          document.cookie = `p2p_account_access=${accessCat}; path=/; max-age=2592000; SameSite=Lax`;
-          document.cookie = `p2p_destination=${normalizedDest}; path=/; max-age=2592000; SameSite=Lax`;
-        }
-
         return resolved;
       }
       return cachedStatus;
-    } catch (e) {
-      console.warn("Notice: Failed to fetch authoritative retailer status:", e);
+    } catch {
       return cachedStatus;
     } finally {
       activeFetchPromise = null;
@@ -178,67 +186,40 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
 }
 
 /**
- * Returns canonical destination route for a given destination.
- */
-export function getCanonicalDestinationRoute(destination: RetailerDestination): string {
-  switch (destination) {
-    case "DASHBOARD":
-      return "/retailer/dashboard";
-    case "ACCOUNT_UNDER_REVIEW":
-      return "/retailer/account-under-review";
-    case "ONBOARDING":
-      return "/register";
-    case "APPLICATION_REJECTED":
-      return "/application-rejected";
-    case "ACCOUNT_RESTRICTED":
-      return "/retailer/account-under-review";
-    case "LOGIN":
-      return "/retailer/login";
-    default:
-      return "/retailer/dashboard";
-  }
-}
-
-/**
- * Single Post-Login Verifier and Router:
- * 1. Authenticates & sets session tokens/cookies.
- * 2. Fetches ONE authoritative account status from backend.
- * 3. Enforces fail-closed routing (ALLOWED -> Dashboard, RESTRICTED -> Account Under Review / Onboarding / Rejected).
- * 4. Returns { success: boolean, destination: RetailerDestination, error?: string }.
+ * Universal Post-Login Router:
+ * Enforces strict routing: approved -> dashboard, pending -> account-under-review, rejected -> application-rejected.
  */
 export async function verifyAndRoutePostLogin(
-  token: string,
-  user: any,
   router: AppRouterInstance,
   options?: {
     mobile?: string;
-    onProgress?: (msg: string) => void;
+    token?: string;
+    userData?: any;
   }
-): Promise<{ success: boolean; destination?: RetailerDestination; error?: string }> {
-  options?.onProgress?.("Verifying your account access...");
-
-  // 1. Store session tokens with 24-Hour Max Lifetime (86400 seconds)
+): Promise<{ success: boolean; destination: RetailerDestination }> {
+  // 1. Synchronously persist credentials & role
   if (typeof window !== "undefined") {
-    const validToken = token || "p2p_access_token_" + Date.now();
-    const role = "RETAILER"; // Always RETAILER in retailer portal
+    const role = "RETAILER";
+    const validToken =
+      options?.token ||
+      localStorage.getItem("pay2pay_access_token") ||
+      localStorage.getItem("p2p_access_token") ||
+      `p2p_sess_${Date.now()}`;
+    const user = options?.userData;
     const now = Date.now();
 
-    document.cookie = `p2p_user_role=${role}; path=/; max-age=86400; SameSite=Lax`;
-    document.cookie = `p2p_access_token=${validToken}; path=/; max-age=86400; SameSite=Lax`;
-    document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=86400; SameSite=Lax`;
-    document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=86400; SameSite=Lax`;
-    document.cookie = `p2p_destination=DASHBOARD; path=/; max-age=2592000; SameSite=Lax`;
-    document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
 
     localStorage.setItem("pay2pay_user_role", role);
     localStorage.setItem("pay2pay_access_token", validToken);
-    localStorage.setItem("p2p_account_access", "ALLOWED");
-    localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
-    localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
     localStorage.setItem("p2p_session_start_time", String(now));
     localStorage.setItem("p2p_session_last_active", String(now));
     localStorage.removeItem("p2p_session_locked");
     localStorage.removeItem("p2p_session_locked_at");
+
     if (user) {
       localStorage.setItem("pay2pay_user_data", JSON.stringify(user));
       localStorage.setItem("user_info", JSON.stringify(user));
@@ -247,37 +228,23 @@ export async function verifyAndRoutePostLogin(
         localStorage.setItem("p2p_active_retailer_id", rCode);
         localStorage.setItem("p2p_retailer_code", rCode);
       }
-      if (user.wallet_balance !== undefined && user.wallet_balance !== null) {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", user.wallet_balance.toString());
-      }
-      if (user.company_name || user.store_name || user.full_name || user.name) {
-        localStorage.setItem("p2p_retailer_name", user.company_name || user.store_name || user.full_name || user.name);
-      }
-    }
-    if (options?.mobile) {
-      localStorage.setItem("pay2pay_reg_mobile", options.mobile);
-      if (!localStorage.getItem("p2p_active_retailer_id")) {
-        localStorage.setItem("p2p_active_retailer_id", options.mobile);
-      }
     }
   }
 
-  // 2. Perform authoritative status check with timeout / graceful fallback
   try {
-    const statusPromise = fetchAuthoritativeRetailerStatus(true);
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
-    const status = await Promise.race([statusPromise, timeoutPromise]);
-
+    const status = await fetchAuthoritativeRetailerStatus(true);
     const redirectTarget = (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null);
     const targetDashboard = redirectTarget || "/retailer/dashboard";
 
     if (status) {
+      const isApproved = status.is_approved === true || status.approval_status === "APPROVED" || status.account_status === "ACTIVE";
+
       if (typeof window !== "undefined") {
         document.cookie = `p2p_destination=${status.destination}; path=/; max-age=2592000; SameSite=Lax`;
         document.cookie = `p2p_account_access=${status.account_access}; path=/; max-age=2592000; SameSite=Lax`;
         localStorage.setItem("p2p_account_access", status.account_access);
-        localStorage.setItem("p2p_retailer_approval_status", status.is_approved ? "APPROVED" : "UNDER_REVIEW");
-        localStorage.setItem("pay2pay_onboarding_status", status.is_approved ? "APPROVED" : "UNDER_REVIEW");
+        localStorage.setItem("p2p_retailer_approval_status", isApproved ? "APPROVED" : "UNDER_REVIEW");
+        localStorage.setItem("pay2pay_onboarding_status", isApproved ? "APPROVED" : "UNDER_REVIEW");
       }
 
       if (status.destination === "ONBOARDING") {
@@ -287,37 +254,54 @@ export async function verifyAndRoutePostLogin(
         return { success: true, destination: "ONBOARDING" };
       }
 
-      if (status.destination === "APPLICATION_REJECTED") {
+      if (status.destination === "APPLICATION_REJECTED" || status.approval_status === "REJECTED") {
         const dest = status.redirect_url || "/application-rejected";
         if (typeof window !== "undefined") window.location.href = dest;
         else router.replace(dest);
         return { success: true, destination: "APPLICATION_REJECTED" };
       }
+
+      if (status.destination === "ACCOUNT_RESTRICTED") {
+        const dest = status.redirect_url || "/retailer/account-restricted";
+        if (typeof window !== "undefined") window.location.href = dest;
+        else router.replace(dest);
+        return { success: true, destination: "ACCOUNT_RESTRICTED" };
+      }
+
+      if (status.destination === "ACCOUNT_UNDER_REVIEW" || !isApproved) {
+        const dest = status.redirect_url || "/retailer/account-under-review";
+        if (typeof window !== "undefined") window.location.href = dest;
+        else router.replace(dest);
+        return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
+      }
     }
 
-    // Default -> Direct route to /retailer/dashboard
+    // Default for unapproved fallback check
     if (typeof window !== "undefined") {
+      const storedStatus = localStorage.getItem("p2p_retailer_approval_status");
+      if (storedStatus === "UNDER_REVIEW" || storedStatus === "PENDING") {
+        window.location.href = "/retailer/account-under-review";
+        return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
+      }
       window.location.href = targetDashboard;
     } else {
       router.replace(targetDashboard);
     }
     return { success: true, destination: "DASHBOARD" };
   } catch (err) {
-    // Graceful fallback to dashboard
-    const targetDashboard = "/retailer/dashboard";
+    const targetDashboard = "/retailer/account-under-review";
     if (typeof window !== "undefined") {
       window.location.href = targetDashboard;
     } else {
       router.replace(targetDashboard);
     }
-    return { success: true, destination: "DASHBOARD" };
+    return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
   }
 }
 
 /**
  * Single Authoritative Navigation Guard:
  * Evaluates current pathname against authoritative destination and navigates ONLY when path differs.
- * Disabled all redirection to account-under-review.
  */
 export function enforceAuthoritativeRouting(
   status: AuthoritativeAccountStatus,
@@ -326,28 +310,41 @@ export function enforceAuthoritativeRouting(
 ): boolean {
   if (isRedirecting) return false;
 
-  // If user is sitting on account-under-review, always route them to dashboard
-  if (currentPathname === "/retailer/account-under-review" || currentPathname === "/account-under-review") {
-    isRedirecting = true;
-    router.replace("/retailer/dashboard");
-    setTimeout(() => {
-      isRedirecting = false;
-    }, 500);
-    return true;
-  }
+  const isApproved = status.is_approved === true || status.approval_status === "APPROVED" || status.account_status === "ACTIVE";
 
-  // If destination is explicitly APPLICATION_REJECTED:
-  if (status.destination === "APPLICATION_REJECTED" || status.approval_status === "REJECTED") {
-    if (currentPathname !== "/application-rejected") {
+  if (!isApproved) {
+    if (status.destination === "APPLICATION_REJECTED" || status.approval_status === "REJECTED") {
+      if (currentPathname !== "/application-rejected") {
+        isRedirecting = true;
+        router.replace("/application-rejected");
+        setTimeout(() => { isRedirecting = false; }, 500);
+        return true;
+      }
+    } else if (status.destination === "ACCOUNT_RESTRICTED") {
+      if (currentPathname !== "/retailer/account-restricted" && currentPathname !== "/account-restricted") {
+        isRedirecting = true;
+        router.replace("/retailer/account-restricted");
+        setTimeout(() => { isRedirecting = false; }, 500);
+        return true;
+      }
+    } else {
+      // Pending Admin Approval / Under Review
+      if (currentPathname !== "/retailer/account-under-review" && currentPathname !== "/account-under-review") {
+        isRedirecting = true;
+        router.replace("/retailer/account-under-review");
+        setTimeout(() => { isRedirecting = false; }, 500);
+        return true;
+      }
+    }
+  } else {
+    // Approved retailer on under-review page should be routed to dashboard
+    if (currentPathname === "/retailer/account-under-review" || currentPathname === "/account-under-review") {
       isRedirecting = true;
-      router.replace("/application-rejected");
-      setTimeout(() => {
-        isRedirecting = false;
-      }, 500);
+      router.replace("/retailer/dashboard");
+      setTimeout(() => { isRedirecting = false; }, 500);
       return true;
     }
   }
 
   return false;
 }
-
