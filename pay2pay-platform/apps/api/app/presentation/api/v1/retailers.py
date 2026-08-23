@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.application.dtos import (
     RetailerOnboardCreateRequest, RetailerResponse, RetailerDetailsResponse,
-    RetailerApprovalRequest, RetailerDashboardMetricsResponse, PaginatedResponse
+    RetailerApprovalRequest, RetailerDashboardMetricsResponse, PaginatedResponse,
+    RetailerHierarchyMapRequest
 )
 from app.application.services import RetailerManagementService
 from app.application.dependencies import get_current_user, get_current_tenant_id, require_permission
@@ -18,6 +19,15 @@ from app.application.retailer_duplicate_validation_service import (
 )
 
 router = APIRouter(prefix="/retailers", tags=["Retailer Management (EPIC-004)"])
+
+
+@router.get("/hierarchy-options")
+async def get_retailer_hierarchy_options(
+    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await RetailerManagementService.get_hierarchy_options(db, tenant_id)
 
 
 class ValidateDuplicateRequest(BaseModel):
@@ -134,6 +144,8 @@ async def list_retailers(
             "business_category": r.business_category,
             "status": r.status,
             "mapped_distributor_id": str(r.mapped_distributor_id) if r.mapped_distributor_id else None,
+            "wallet_balance": float(r.wallet.wallet_balance) if getattr(r, "wallet", None) and r.wallet else 0.0,
+            "wallet_id": str(r.wallet.public_id) if getattr(r, "wallet", None) and r.wallet else None,
             "created_date": r.created_date
         }
         for r in retailers
@@ -205,3 +217,15 @@ async def reset_retailer_password(
     db: AsyncSession = Depends(get_db)
 ):
     return {"message": "Password updated successfully for Retailer", "retailer_id": str(retailer_id)}
+
+
+@router.put("/{retailer_id}/hierarchy", response_model=RetailerDetailsResponse)
+@router.post("/{retailer_id}/hierarchy", response_model=RetailerDetailsResponse)
+async def map_retailer_hierarchy(
+    retailer_id: uuid.UUID,
+    req: RetailerHierarchyMapRequest,
+    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await RetailerManagementService.map_retailer_hierarchy(db, tenant_id, retailer_id, req, current_user)

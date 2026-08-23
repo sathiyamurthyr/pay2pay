@@ -405,7 +405,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     let target = customRedirect || queryParamRedirect || "/retailer/dashboard";
 
     if (destination === "ACCOUNT_UNDER_REVIEW") {
-      target = customRedirect || "/retailer/account-under-review";
+      target = customRedirect || queryParamRedirect || portalDashboardUrl || "/retailer/dashboard";
     } else if (destination === "ONBOARDING") {
       target = customRedirect || "/register";
     } else if (destination === "APPLICATION_REJECTED") {

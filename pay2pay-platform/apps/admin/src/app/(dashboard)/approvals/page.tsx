@@ -1009,22 +1009,34 @@ export default function AdminApprovalsPage() {
                             </div>
                           </div>
                         ) : hasUrl && !hasFailed ? (
-                          <>
-                            <BlurImage
-                              src={doc.url}
-                              alt={doc.label}
-                              blurhash={resolveBlurHash(doc.label || doc.id)}
-                              onError={() => setFailedImages((prev) => ({ ...prev, [doc.id]: true }))}
-                              className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                            />
-                            {/* Hover overlay */}
-                            <div className="absolute inset-0 bg-[#0F172A]/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 text-white backdrop-blur-[2px]">
-                              <div className="p-2.5 rounded-full bg-[#2563EB] text-white shadow-lg">
-                                <ZoomIn className="w-5 h-5" />
+                          doc.url.toLowerCase().includes(".pdf") || doc.type?.toUpperCase().includes("PDF") ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 bg-gradient-to-b from-[#1E293B] to-[#0F172A] text-white">
+                              <div className="p-3 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 group-hover:scale-110 transition-transform">
+                                <FileText className="w-8 h-8" />
                               </div>
-                              <span className="text-xs font-black tracking-wide">Click to Enlarge</span>
+                              <span className="text-xs font-black text-slate-200">PDF Document</span>
+                              <span className="px-2 py-0.5 rounded-md bg-blue-500/20 border border-blue-400/30 text-[10px] font-bold text-blue-300">
+                                Click to Inspect PDF
+                              </span>
                             </div>
-                          </>
+                          ) : (
+                            <>
+                              <BlurImage
+                                src={doc.url}
+                                alt={doc.label}
+                                blurhash={resolveBlurHash(doc.label || doc.id)}
+                                onError={() => setFailedImages((prev) => ({ ...prev, [doc.id]: true }))}
+                                className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                              />
+                              {/* Hover overlay */}
+                              <div className="absolute inset-0 bg-[#0F172A]/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 text-white backdrop-blur-[2px]">
+                                <div className="p-2.5 rounded-full bg-[#2563EB] text-white shadow-lg">
+                                  <ZoomIn className="w-5 h-5" />
+                                </div>
+                                <span className="text-xs font-black tracking-wide">Click to Enlarge</span>
+                              </div>
+                            </>
+                          )
                         ) : (
                           /* Realistic High-Fidelity SVG ID / Document Card Fallback Graphic */
                           <div className="w-full h-full p-3 flex flex-col justify-between bg-gradient-to-br from-[#1E293B] to-[#0F172A] text-white relative overflow-hidden group-hover:scale-102 transition-transform">
@@ -1222,7 +1234,7 @@ export default function AdminApprovalsPage() {
                 {previewModalDoc.url && (
                   <a
                     href={previewModalDoc.url}
-                    download={`${previewModalDoc.label.replace(/\s+/g, "_")}.png`}
+                    download={`${previewModalDoc.label.replace(/\s+/g, "_")}.${previewModalDoc.url.toLowerCase().includes(".pdf") ? "pdf" : "png"}`}
                     className="px-3 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-xs font-black text-white flex items-center gap-1.5 transition-all shadow-md shadow-emerald-900/30"
                   >
                     <Download className="w-3.5 h-3.5" />
@@ -1264,6 +1276,14 @@ export default function AdminApprovalsPage() {
                   <source src="/sample_video.mp4" type="video/mp4" />
                   Your browser does not support HTML5 video playback.
                 </video>
+              ) : previewModalDoc.url && (previewModalDoc.url.toLowerCase().includes(".pdf") || previewModalDoc.type?.toUpperCase().includes("PDF")) ? (
+                <div className="w-full h-full min-h-[75vh] max-w-5xl flex items-center justify-center p-2">
+                  <iframe
+                    src={previewModalDoc.url}
+                    title={previewModalDoc.label}
+                    className="w-full h-[75vh] rounded-2xl bg-white border border-[#334155] shadow-2xl"
+                  />
+                </div>
               ) : previewModalDoc.url && !failedImages[previewModalDoc.label] ? (
                 <div
                   className="transition-transform duration-200 ease-out max-w-full max-h-full flex items-center justify-center"

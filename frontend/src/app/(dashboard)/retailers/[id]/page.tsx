@@ -30,6 +30,12 @@ import {
   Network,
   KeyRound,
   Settings2,
+  Eye,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Download,
+  X,
 } from "lucide-react";
 
 export default function RetailerDetailsPage() {
@@ -43,6 +49,12 @@ export default function RetailerDetailsPage() {
   const [approvalComments, setApprovalComments] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
+
+  // Interactive Document Lightbox state
+  const [previewModalDoc, setPreviewModalDoc] = useState<{ label: string; url: string; category?: string; docNumber?: string } | null>(null);
+  const [lightboxZoom, setLightboxZoom] = useState<number>(1);
+  const [lightboxRotation, setLightboxRotation] = useState<number>(0);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   const fetchDetails = async () => {
     try {
@@ -90,19 +102,96 @@ export default function RetailerDetailsPage() {
     );
   }
 
-  const { retailer, contacts, addresses, banks, kyc, wallet, status_history } = data;
+  const { retailer, contacts, addresses, banks, kyc, documents, wallet, status_history } = data;
 
   const primaryContact = contacts && contacts.length > 0 ? contacts[0] : null;
   const primaryAddress = addresses && addresses.length > 0 ? addresses[0] : null;
   const primaryBank = banks && banks.length > 0 ? banks[0] : null;
 
-  const emailVal = primaryContact?.email || retailer.email || "ret_sathus@pay2pay.com";
-  const mobileVal = primaryContact?.mobile || retailer.mobile || "9876500004";
-  const panVal = kyc?.pan_number || retailer.pan_number || "SATHUS9999";
-  const gstVal = kyc?.gst_number || retailer.gst_number || "33SATHU0000R1Z5";
-  const bankNameVal = primaryBank?.settlement_bank_name || primaryBank?.bank_name || retailer.settlement_bank_name || "HDFC Bank";
-  const accNoVal = primaryBank?.account_number || retailer.account_number || "501009998877";
-  const ifscVal = primaryBank?.ifsc || retailer.ifsc || "HDFC0001234";
+  const emailVal = primaryContact?.email || retailer.email || "—";
+  const mobileVal = primaryContact?.mobile || retailer.mobile || "—";
+  const panVal = kyc?.pan_number || kyc?.pan || retailer.pan_number || "—";
+  const gstVal = kyc?.gst_number || kyc?.gst || retailer.gst_number || "—";
+  const bankNameVal = primaryBank?.settlement_bank_name || primaryBank?.bank_name || retailer.settlement_bank_name || "—";
+  const accNoVal = primaryBank?.account_number || retailer.account_number || "—";
+  const ifscVal = primaryBank?.ifsc || retailer.ifsc || "—";
+
+  // Dynamic Document Catalog from DB
+  const docList = (documents && documents.length > 0 ? documents : [
+    {
+      id: "aadhaar_front",
+      type: "AADHAAR_FRONT",
+      label: "Aadhaar Card Front",
+      category: "Identity Proof",
+      url: kyc?.aadhaar_front_url || null,
+      doc_number: kyc?.aadhaar_number || "—",
+      is_uploaded: !!kyc?.aadhaar_front_url
+    },
+    {
+      id: "aadhaar_back",
+      type: "AADHAAR_BACK",
+      label: "Aadhaar Card Back",
+      category: "Address Proof",
+      url: kyc?.aadhaar_back_url || null,
+      doc_number: kyc?.aadhaar_number || "—",
+      is_uploaded: !!kyc?.aadhaar_back_url
+    },
+    {
+      id: "pan_card",
+      type: "PAN",
+      label: "PAN Card Document",
+      category: "Tax Verification",
+      url: kyc?.pan_card_url || null,
+      doc_number: panVal,
+      is_uploaded: !!kyc?.pan_card_url
+    },
+    {
+      id: "business_proof",
+      type: "GST_CERT",
+      label: "Business / GST Proof",
+      category: "Enterprise Proof",
+      url: kyc?.business_proof_url || null,
+      doc_number: gstVal,
+      is_uploaded: !!kyc?.business_proof_url
+    },
+    {
+      id: "bank_proof",
+      type: "BANK_PROOF",
+      label: "Bank Passbook / Cheque",
+      category: "Settlement Account",
+      url: kyc?.bank_proof_url || null,
+      doc_number: accNoVal,
+      is_uploaded: !!kyc?.bank_proof_url
+    },
+    {
+      id: "shop_photo",
+      type: "SHOP_PHOTO",
+      label: "Shop Exterior Photo",
+      category: "Storefront Geotagged",
+      url: kyc?.shop_photo_url || null,
+      doc_number: retailer.store_name,
+      is_uploaded: !!kyc?.shop_photo_url
+    },
+    {
+      id: "video_kyc",
+      type: "VIDEO",
+      label: "Live Video KYC",
+      category: "Biometric Liveness",
+      url: kyc?.video_url || null,
+      is_video: true,
+      doc_number: retailer.retailer_code,
+      is_uploaded: !!kyc?.video_url
+    },
+    {
+      id: "selfie",
+      type: "SELFIE",
+      label: "Selfie / Profile Photo",
+      category: "Biometric Identity",
+      url: kyc?.selfie_url || null,
+      doc_number: retailer.owner_name,
+      is_uploaded: !!kyc?.selfie_url
+    },
+  ]);
 
   const getStatusBadge = (status: string) => {
     switch (status?.toUpperCase()) {
@@ -309,10 +398,10 @@ export default function RetailerDetailsPage() {
             </span>
             <div className="font-bold text-[#0F172A]">
               {primaryAddress
-                ? `${primaryAddress.address}, ${primaryAddress.city}, ${primaryAddress.state} - ${primaryAddress.pincode}`
+                ? [primaryAddress.address, primaryAddress.city, primaryAddress.state ? `${primaryAddress.state} - ${primaryAddress.pincode || ""}` : primaryAddress.pincode].filter(Boolean).join(", ")
                 : retailer.address
-                ? `${retailer.address}, ${retailer.city || "Chennai"}, ${retailer.state || "Tamil Nadu"} - ${retailer.pincode || "600001"}`
-                : "78 Sathus Retail Shop, Anna Salai, Chennai, Tamil Nadu - 600002"}
+                ? [retailer.address, retailer.city, retailer.state ? `${retailer.state} - ${retailer.pincode || ""}` : retailer.pincode].filter(Boolean).join(", ")
+                : "—"}
             </div>
           </div>
         </div>
@@ -336,7 +425,7 @@ export default function RetailerDetailsPage() {
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Account Holder</span>
-              <div className="font-bold text-[#0F172A]">{retailer.owner_name}</div>
+              <div className="font-bold text-[#0F172A]">{primaryBank?.account_holder || retailer.owner_name}</div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1.5">
@@ -395,73 +484,174 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-white border border-[#93C5FD] space-y-1.5">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">GST Number</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-base font-extrabold text-[#0F172A]">{gstVal}</span>
-                <button
-                  onClick={() => copyToClipboard(gstVal, "gst_number")}
-                  className="p-1 text-[#64748B] hover:text-[#2563EB]"
-                >
-                  {copiedField === "gst_number" ? <Check className="w-3.5 h-3.5 text-[#16A34A]" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
+                <span className="font-mono text-base font-extrabold text-[#0F172A]">{gstVal || "Not Provided"}</span>
+                {gstVal && (
+                  <button
+                    onClick={() => copyToClipboard(gstVal, "gst_number")}
+                    className="p-1 text-[#64748B] hover:text-[#2563EB]"
+                  >
+                    {copiedField === "gst_number" ? <Check className="w-3.5 h-3.5 text-[#16A34A]" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Document Preview & Direct Link Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
-            <div className="flex items-center justify-between p-4 rounded-xl border border-[#93C5FD] bg-white">
-              <div className="flex items-center gap-2.5">
-                <FileText className="w-5 h-5 text-[#2563EB]" />
-                <div>
-                  <div className="font-extrabold text-[#1E3A8A]">Aadhaar Card Document</div>
-                  <div className="text-[10px] text-[#64748B] font-mono">Bucket: sathus-pay2pay (cmp/ret/...)</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => copyToClipboard(kyc?.aadhaar_front_url || "https://f003.backblazeb2.com/file/sathus-pay2pay/cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.pdf", "b2_aadhaar")}
-                  className="p-2 rounded-lg border border-[#D1D5DB] text-[#374151] hover:bg-[#F8FAFC]"
-                  title="Copy B2 URL"
-                >
-                  {copiedField === "b2_aadhaar" ? <Check className="w-4 h-4 text-[#16A34A]" /> : <Copy className="w-4 h-4" />}
-                </button>
-                <a
-                  href={kyc?.aadhaar_front_url || "https://f003.backblazeb2.com/file/sathus-pay2pay/cmp/ret/2026/08/02/4bff19fe_sathus_ret_aadhaar_front.pdf"}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
-                  title="Open Document"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
+          {/* Document Preview & Interactive Inspection Cards */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-black text-[#1E293B] uppercase tracking-wider">Verification & Compliance Documents</h3>
+              <span className="text-[11px] font-bold text-[#2563EB] bg-[#DBEAFE] px-2.5 py-0.5 rounded-full">
+                {docList.filter((d: any) => d.is_uploaded).length} of {docList.length} Uploaded
+              </span>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              {docList.map((doc: any, idx: number) => {
+                const isUploaded = Boolean(doc.is_uploaded && doc.url);
+                const isPdf = isUploaded && doc.url.toLowerCase().includes(".pdf");
+                const isVid = isUploaded && (doc.is_video || doc.url.toLowerCase().includes(".mp4") || doc.url.toLowerCase().includes(".webm"));
+                const hasFailed = failedImages[doc.id];
 
-            <div className="flex items-center justify-between p-4 rounded-xl border border-[#93C5FD] bg-white">
-              <div className="flex items-center gap-2.5">
-                <FileText className="w-5 h-5 text-[#2563EB]" />
-                <div>
-                  <div className="font-extrabold text-[#1E3A8A]">PAN / GST Proof Document</div>
-                  <div className="text-[10px] text-[#64748B] font-mono">Bucket: sathus-pay2pay (cmp/ret/...)</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => copyToClipboard(kyc?.business_proof_url || "https://f003.backblazeb2.com/file/sathus-pay2pay/cmp/ret/2026/08/02/22b28d04_sathus_ret_pan_card.pdf", "b2_pan")}
-                  className="p-2 rounded-lg border border-[#D1D5DB] text-[#374151] hover:bg-[#F8FAFC]"
-                  title="Copy B2 URL"
-                >
-                  {copiedField === "b2_pan" ? <Check className="w-4 h-4 text-[#16A34A]" /> : <Copy className="w-4 h-4" />}
-                </button>
-                <a
-                  href={kyc?.business_proof_url || "https://f003.backblazeb2.com/file/sathus-pay2pay/cmp/ret/2026/08/02/22b28d04_sathus_ret_pan_card.pdf"}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
-                  title="Open Document"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
+                return (
+                  <div
+                    key={doc.id || idx}
+                    className={`flex flex-col bg-white rounded-2xl border transition-all duration-200 overflow-hidden group ${
+                      isUploaded
+                        ? "border-[#CBD5E1] hover:border-[#2563EB] shadow-xs hover:shadow-md"
+                        : "border-[#E2E8F0] opacity-80"
+                    }`}
+                  >
+                    {/* Header */}
+                    <div className="p-3 bg-gradient-to-r from-[#F8FAFC] to-[#EFF6FF] border-b border-[#E2E8F0] flex items-center justify-between">
+                      <div className="truncate">
+                        <h4 className="text-xs font-black text-[#0F172A] truncate leading-tight">{doc.label}</h4>
+                        <p className="text-[10px] font-bold text-[#64748B] truncate">{doc.category}</p>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold border shrink-0 ${
+                          !isUploaded
+                            ? "bg-[#F1F5F9] text-[#64748B] border-[#CBD5E1]"
+                            : isPdf
+                            ? "bg-red-50 text-red-700 border-red-200"
+                            : isVid
+                            ? "bg-purple-50 text-purple-700 border-purple-200"
+                            : "bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]"
+                        }`}
+                      >
+                        {!isUploaded ? "NOT UPLOADED" : isPdf ? "PDF" : isVid ? "VIDEO" : "IMAGE"}
+                      </span>
+                    </div>
+
+                    {/* Preview Box */}
+                    <div
+                      onClick={() => {
+                        if (!isUploaded) return;
+                        setPreviewModalDoc({
+                          label: doc.label,
+                          url: doc.url,
+                          category: doc.category,
+                          docNumber: doc.doc_number || doc.docNumber,
+                          isVideo: isVid
+                        });
+                        setLightboxZoom(1);
+                        setLightboxRotation(0);
+                      }}
+                      className={`relative h-36 w-full overflow-hidden flex items-center justify-center select-none ${
+                        isUploaded ? "bg-[#0F172A] cursor-pointer" : "bg-[#F8FAFC]"
+                      }`}
+                    >
+                      {!isUploaded ? (
+                        <div className="flex flex-col items-center justify-center gap-1.5 p-3 text-[#94A3B8]">
+                          <FileText className="w-8 h-8 opacity-40 text-[#94A3B8]" />
+                          <span className="text-[11px] font-bold text-[#64748B]">Document Not Uploaded</span>
+                          <span className="text-[9px] text-[#94A3B8]">Skipped or Pending</span>
+                        </div>
+                      ) : isPdf ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3 bg-gradient-to-b from-[#1E293B] to-[#0F172A] text-white">
+                          <div className="p-2.5 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 group-hover:scale-110 transition-transform">
+                            <FileText className="w-7 h-7" />
+                          </div>
+                          <span className="text-[11px] font-black text-slate-200">PDF Document</span>
+                          <span className="px-2 py-0.5 rounded bg-blue-500/20 text-[9px] font-bold text-blue-300">
+                            Click to Inspect
+                          </span>
+                        </div>
+                      ) : isVid ? (
+                        <div className="relative w-full h-full flex items-center justify-center bg-slate-950">
+                          <video src={doc.url} muted preload="metadata" className="w-full h-full object-cover opacity-70" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <ZoomIn className="w-4 h-4" />
+                            </div>
+                          </div>
+                          <span className="absolute bottom-2 text-[9px] font-bold text-slate-300 bg-black/60 px-2 py-0.5 rounded">
+                            Video Recording
+                          </span>
+                        </div>
+                      ) : !hasFailed ? (
+                        <>
+                          <img
+                            src={doc.url}
+                            alt={doc.label}
+                            onError={() => setFailedImages((prev) => ({ ...prev, [doc.id]: true }))}
+                            className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-[#0F172A]/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white backdrop-blur-[2px]">
+                            <div className="p-2 rounded-full bg-[#2563EB] text-white shadow-lg">
+                              <ZoomIn className="w-4 h-4" />
+                            </div>
+                            <span className="text-[10px] font-black tracking-wide">Enlarge</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full p-3 flex flex-col justify-between bg-gradient-to-br from-[#1E293B] to-[#0F172A] text-white">
+                          <div className="flex items-center justify-between">
+                            <ShieldCheck className="w-4 h-4 text-[#60A5FA]" />
+                            <span className="text-[9px] font-bold text-emerald-400">UPLOADED</span>
+                          </div>
+                          <div className="my-auto">
+                            <p className="text-[9px] text-slate-400 uppercase">Document Number</p>
+                            <p className="font-mono text-xs font-bold text-blue-300 truncate">{doc.doc_number || doc.docNumber}</p>
+                          </div>
+                          <span className="text-[9px] text-blue-400 font-bold flex items-center gap-1">
+                            <Eye className="w-3 h-3" /> Inspect
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="p-2.5 bg-[#F8FAFC] border-t border-[#E2E8F0] flex items-center justify-between gap-1.5">
+                      {isUploaded ? (
+                        <>
+                          <button
+                            onClick={() => copyToClipboard(doc.url, doc.id)}
+                            className="px-2 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[#475569] hover:text-[#0F172A] text-[10px] font-bold flex items-center gap-1 hover:bg-[#F1F5F9] transition-all cursor-pointer"
+                            title="Copy URL"
+                          >
+                            {copiedField === doc.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            <span>Copy URL</span>
+                          </button>
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[10px] font-extrabold flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
+                            title="Open in new tab"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Open</span>
+                          </a>
+                        </>
+                      ) : (
+                        <span className="text-[10px] font-medium text-[#94A3B8] italic py-1">
+                          No file available
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -545,6 +735,130 @@ export default function RetailerDetailsPage() {
             await api.post(`/api/v1/retailers/${retailerId}/reset-password`, { new_password: newPassword });
           }}
         />
+      )}
+
+      {/* Document Inspection Lightbox Modal */}
+      {previewModalDoc && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0F172A] border border-[#334155] rounded-3xl w-full max-w-5xl h-[88vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-4 border-b border-[#334155] flex items-center justify-between bg-[#1E293B]">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">{previewModalDoc.label}</h3>
+                  <p className="text-[11px] text-[#94A3B8]">{previewModalDoc.category} • {previewModalDoc.docNumber}</p>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div className="flex items-center gap-2">
+                {!previewModalDoc.url.toLowerCase().includes(".pdf") && (
+                  <>
+                    <button
+                      onClick={() => setLightboxZoom((z) => Math.max(0.5, z - 0.25))}
+                      className="p-2 rounded-xl bg-[#0F172A] text-slate-300 hover:text-white transition-all cursor-pointer"
+                      title="Zoom Out"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-mono font-bold text-slate-400 min-w-[40px] text-center">
+                      {Math.round(lightboxZoom * 100)}%
+                    </span>
+                    <button
+                      onClick={() => setLightboxZoom((z) => Math.min(3, z + 0.25))}
+                      className="p-2 rounded-xl bg-[#0F172A] text-slate-300 hover:text-white transition-all cursor-pointer"
+                      title="Zoom In"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setLightboxRotation((r) => (r + 90) % 360)}
+                      className="p-2 rounded-xl bg-[#0F172A] text-slate-300 hover:text-white transition-all cursor-pointer"
+                      title="Rotate"
+                    >
+                      <RotateCw className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+
+                <a
+                  href={previewModalDoc.url}
+                  download={`${previewModalDoc.label.replace(/\s+/g, "_")}.${previewModalDoc.url.toLowerCase().includes(".pdf") ? "pdf" : "png"}`}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-black text-white flex items-center gap-1.5 transition-all shadow-md"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download</span>
+                </a>
+
+                <a
+                  href={previewModalDoc.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-[#0F172A] text-blue-400 hover:text-blue-300 text-xs font-bold flex items-center gap-1.5 transition-all"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Direct Link</span>
+                </a>
+
+                <button
+                  onClick={() => setPreviewModalDoc(null)}
+                  className="p-2 rounded-xl bg-[#0F172A] hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-all cursor-pointer ml-2"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Canvas */}
+            <div className="flex-1 bg-[#050811] p-4 overflow-auto flex items-center justify-center relative">
+              {previewModalDoc.url.toLowerCase().includes(".pdf") ? (
+                <iframe
+                  src={previewModalDoc.url}
+                  title={previewModalDoc.label}
+                  className="w-full h-full rounded-2xl bg-white border border-[#334155]"
+                />
+              ) : (previewModalDoc.isVideo || previewModalDoc.url.toLowerCase().includes(".mp4") || previewModalDoc.url.toLowerCase().includes(".webm")) ? (
+                <video
+                  src={previewModalDoc.url}
+                  controls
+                  autoPlay
+                  className="max-h-[75vh] w-auto max-w-full rounded-2xl shadow-2xl border border-[#1E293B]"
+                />
+              ) : !failedImages[previewModalDoc.label] ? (
+                <div
+                  className="transition-transform duration-200 ease-out max-w-full max-h-full flex items-center justify-center"
+                  style={{
+                    transform: `scale(${lightboxZoom}) rotate(${lightboxRotation}deg)`,
+                  }}
+                >
+                  <img
+                    src={previewModalDoc.url}
+                    alt={previewModalDoc.label}
+                    onError={() => setFailedImages((prev) => ({ ...prev, [previewModalDoc.label]: true }))}
+                    className="max-h-[75vh] w-auto max-w-full rounded-2xl shadow-2xl object-contain border border-[#1E293B]"
+                  />
+                </div>
+              ) : (
+                <div className="p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center text-white space-y-4 max-w-md">
+                  <ShieldCheck className="w-12 h-12 text-blue-400 mx-auto" />
+                  <h4 className="text-base font-black">{previewModalDoc.label}</h4>
+                  <p className="text-xs text-slate-400 font-mono">Identifier: {previewModalDoc.docNumber}</p>
+                  <a
+                    href={previewModalDoc.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
+                  >
+                    <ExternalLink className="w-4 h-4" /> Open Full Document
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

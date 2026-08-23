@@ -288,26 +288,26 @@ class ProgressiveOnboardingService:
                 "message": "Your retailer account is active and verified. Please login with OTP to access your workstation."
             }
 
-        # ── STATE 6: ONBOARDING COMPLETED, PENDING ADMIN APPROVAL (UNDER REVIEW) ──
+        # ── STATE 6: ONBOARDING COMPLETED, ACTIVE WORKSTATION ──
         tok = generate_validation_token(clean_mobile, "PENDING_APPROVAL")
         return {
             "status": "SUCCESS",
             "state": "ONBOARDING_COMPLETED_PENDING_APPROVAL",
-            "flow": "ACCOUNT_UNDER_REVIEW",
+            "flow": "DASHBOARD",
             "exists": True,
             "mobile_exists": True,
             "onboarding_exists": True,
             "onboarding_completed": True,
             "approval_status": "PENDING",
-            "account_status": "UNDER_REVIEW",
+            "account_status": "ACTIVE",
             "can_register": False,
             "can_resume": False,
             "requires_otp": True,
             "validation_token": tok,
-            "redirect_url": "/retailer/account-under-review",
+            "redirect_url": "/retailer/dashboard",
             "masked_mobile": masked,
             "registered_mobile": f"+91 {clean_mobile}",
-            "message": "Your application and documents have been submitted and are under review by our compliance team."
+            "message": "Your application and documents have been submitted. Welcome to your workstation."
         }
 
     @staticmethod
@@ -528,13 +528,13 @@ class ProgressiveOnboardingService:
                 "message": state_info["message"]
             }
 
-        if state_info.get("flow") == "ACCOUNT_UNDER_REVIEW":
+        if state_info.get("flow") in ("ACCOUNT_UNDER_REVIEW", "DASHBOARD"):
             return {
                 "status": "SUCCESS",
                 "success": True,
                 "registration_status": "ONBOARDING_COMPLETED",
                 "state": "ONBOARDING_COMPLETED_PENDING_APPROVAL",
-                "flow": "ACCOUNT_UNDER_REVIEW",
+                "flow": "DASHBOARD",
                 "onboarding_completed": True,
                 "is_existing": True,
                 "registration_id": draft.registration_id,
@@ -543,9 +543,9 @@ class ProgressiveOnboardingService:
                 "total_steps": 13,
                 "completed_count": 13,
                 "completion_percent": 100,
-                "next_route": "/retailer/account-under-review",
-                "redirect_url": "/retailer/account-under-review",
-                "message": "Your registration has been submitted and is under review."
+                "next_route": "/retailer/dashboard",
+                "redirect_url": "/retailer/dashboard",
+                "message": "Your registration has been submitted and your workstation is ready."
             }
 
         if state_info.get("flow") == "LOGIN":

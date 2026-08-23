@@ -325,9 +325,9 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
             onboarding_status = "RESTRICTED"
             destination = "ACCOUNT_RESTRICTED"
         else:
-            redirect_url = "/retailer/account-under-review"
-            onboarding_status = "UNDER_REVIEW"
-            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/dashboard"
+            onboarding_status = "ACTIVE"
+            destination = "DASHBOARD"
 
         return {
             "status": "SUCCESS",
@@ -991,13 +991,13 @@ async def get_account_status(
         logger.warning(f"Database lookup notice in get_account_status: {e}")
 
     # Pure DB-driven Authoritative State Resolution
-    is_approved = False
+    is_approved = True
     approval_status = "PENDING"
-    account_status = "UNDER_REVIEW"
-    access = "RESTRICTED"
-    reason = "ACCOUNT_UNDER_REVIEW"
-    destination = "ACCOUNT_UNDER_REVIEW"
-    redirect_url = "/retailer/account-under-review"
+    account_status = "ACTIVE"
+    access = "ALLOWED"
+    reason = None
+    destination = "DASHBOARD"
+    redirect_url = "/retailer/dashboard"
     login_enabled = True
 
     # AUTHORITATIVE PRIORITY: RetailerModel.status is the single source of truth.
@@ -1031,8 +1031,8 @@ async def get_account_status(
         account_status = "RESTRICTED"
         access = "RESTRICTED"
         reason = "ACCOUNT_RESTRICTED"
-        destination = "ACCOUNT_UNDER_REVIEW"
-        redirect_url = "/retailer/account-under-review"
+        destination = "ACCOUNT_RESTRICTED"
+        redirect_url = "/retailer/account-restricted"
         login_enabled = False
 
     # 1. Evaluate from live retailer_verifications (only when retailer_record is not ACTIVE/APPROVED/REJECTED)
@@ -1064,18 +1064,18 @@ async def get_account_status(
             account_status = "RESTRICTED"
             access = "RESTRICTED"
             reason = "ACCOUNT_RESTRICTED"
-            destination = "ACCOUNT_UNDER_REVIEW"
-            redirect_url = "/retailer/account-under-review"
+            destination = "ACCOUNT_RESTRICTED"
+            redirect_url = "/retailer/account-restricted"
             login_enabled = False
         else:
-            # PENDING / UNDER_REVIEW / ON_HOLD / KYC_SUBMITTED
-            is_approved = False
+            # PENDING / UNDER_REVIEW / ON_HOLD / KYC_SUBMITTED -> Open dashboard directly
+            is_approved = True
             approval_status = "PENDING"
-            account_status = "UNDER_REVIEW"
-            access = "RESTRICTED"
-            reason = "ACCOUNT_UNDER_REVIEW"
-            destination = "ACCOUNT_UNDER_REVIEW"
-            redirect_url = "/retailer/account-under-review"
+            account_status = "ACTIVE"
+            access = "ALLOWED"
+            reason = None
+            destination = "DASHBOARD"
+            redirect_url = "/retailer/dashboard"
             login_enabled = True
 
     # 2. Evaluate from existing retailer master record (no verif record found)
@@ -1105,17 +1105,17 @@ async def get_account_status(
             account_status = "RESTRICTED"
             access = "RESTRICTED"
             reason = "ACCOUNT_RESTRICTED"
-            destination = "ACCOUNT_UNDER_REVIEW"
-            redirect_url = "/retailer/account-under-review"
+            destination = "ACCOUNT_RESTRICTED"
+            redirect_url = "/retailer/account-restricted"
             login_enabled = False
         else:
-            is_approved = False
+            is_approved = True
             approval_status = "PENDING"
-            account_status = "UNDER_REVIEW"
-            access = "RESTRICTED"
-            reason = "ACCOUNT_UNDER_REVIEW"
-            destination = "ACCOUNT_UNDER_REVIEW"
-            redirect_url = "/retailer/account-under-review"
+            account_status = "ACTIVE"
+            access = "ALLOWED"
+            reason = None
+            destination = "DASHBOARD"
+            redirect_url = "/retailer/dashboard"
             login_enabled = True
 
     # 3. Evaluate from registration drafts (onboarding)
@@ -1133,13 +1133,13 @@ async def get_account_status(
             redirect_url = "/retailer/dashboard"
             login_enabled = True
         elif dr_st in ("KYC_SUBMITTED", "SUBMITTED", "PENDING_APPROVAL", "UNDER_REVIEW") or dr_step >= 13:
-            is_approved = False
+            is_approved = True
             approval_status = "PENDING"
-            account_status = "UNDER_REVIEW"
-            access = "RESTRICTED"
-            reason = "ACCOUNT_UNDER_REVIEW"
-            destination = "ACCOUNT_UNDER_REVIEW"
-            redirect_url = "/retailer/account-under-review"
+            account_status = "ACTIVE"
+            access = "ALLOWED"
+            reason = None
+            destination = "DASHBOARD"
+            redirect_url = "/retailer/dashboard"
             login_enabled = True
         else:
             # Incomplete Onboarding Draft

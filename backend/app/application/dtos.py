@@ -736,15 +736,29 @@ class RetailerResponse(BaseModel):
     created_date: datetime
 
 
+class RetailerHierarchyMapRequest(BaseModel):
+    company_id: Optional[uuid.UUID] = None
+    distributor_id: Optional[uuid.UUID] = None
+    super_distributor_id: Optional[uuid.UUID] = None
+    rm_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = None
+
+
 class RetailerDetailsResponse(BaseModel):
     retailer: RetailerResponse
     contacts: List[Dict[str, Any]]
     addresses: List[Dict[str, Any]]
     banks: List[Dict[str, Any]]
     kyc: Optional[Dict[str, Any]] = None
+    documents: Optional[List[Dict[str, Any]]] = None
     wallet: Optional[Dict[str, Any]] = None
     status_history: List[Dict[str, Any]]
     approvals: List[Dict[str, Any]]
+    hierarchy: Optional[Dict[str, Any]] = None
+    assigned_distributor: Optional[Dict[str, Any]] = None
+    assigned_sd: Optional[Dict[str, Any]] = None
+    assigned_rm: Optional[Dict[str, Any]] = None
+    company: Optional[Dict[str, Any]] = None
 
 
 class RetailerDashboardMetricsResponse(BaseModel):

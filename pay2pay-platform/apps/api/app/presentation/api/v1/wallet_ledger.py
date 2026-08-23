@@ -2,6 +2,7 @@ import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.application.dtos import (
@@ -89,6 +90,162 @@ async def toggle_wallet_freeze(
     )
 
 
+class ManualTopupRequest(BaseModel):
+    transaction_id: str
+    entity_scope: str = "RETAILER"
+    entity_id: str
+    entity_name: str
+    entity_code: str
+    service_name: str = "General Allocation"
+    wallet_type: str = "MAIN"
+    txn_type: str = "CREDIT"
+    amount: float
+    opening_balance: float = 0.0
+    balance_after: float = 0.0
+    comments: str = "Manual wallet allocation"
+    created_date: Optional[str] = None
+    status: str = "COMPLETED"
+    performed_by: str = "Platform Admin"
+
+
+@router.post("/wallets/manual-topup", summary="Create Manual Topup Transaction")
+async def create_manual_topup(
+    req: ManualTopupRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import select
+    from app.infrastructure.db.transaction_engine_models import CentralTransactionModel
+    from app.infrastructure.db.models import RetailerModel
+    from datetime import datetime, timezone
+    import uuid as uuid_mod
+
+    # Resolve retailer_id if entity is a RETAILER
+    retailer_id = None
+    try:
+        if req.entity_scope == "RETAILER":
+            try:
+                r_uuid = uuid_mod.UUID(req.entity_id)
+                stmt = select(RetailerModel).where(RetailerModel.public_id == r_uuid)
+                res = await db.execute(stmt)
+                retailer = res.scalar_one_or_none()
+                if retailer:
+                    retailer_id = retailer.public_id
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Attempt idempotency — check if transaction_id already exists
+    try:
+        existing_stmt = select(CentralTransactionModel).where(
+            CentralTransactionModel.transaction_reference == req.transaction_id
+        )
+        existing_res = await db.execute(existing_stmt)
+        existing = existing_res.scalar_one_or_none()
+        if existing:
+            return {
+                "success": True,
+                "message": "Transaction already recorded (idempotent)",
+                "transaction_id": req.transaction_id,
+                "public_id": str(existing.public_id),
+            }
+    except Exception:
+        pass
+
+    # Default tenant_id (pay2pay platform)
+    DEFAULT_TENANT_ID = uuid_mod.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+
+    metadata = {
+        "entity_scope": req.entity_scope,
+        "entity_name": req.entity_name,
+        "entity_code": req.entity_code,
+        "service_name": req.service_name,
+        "wallet_type": req.wallet_type,
+        "txn_type": req.txn_type,
+        "previous_balance": req.opening_balance,
+        "current_balance": req.balance_after,
+        "comments": req.comments,
+        "performed_by": req.performed_by,
+    }
+
+    txn = CentralTransactionModel(
+        tenant_id=DEFAULT_TENANT_ID,
+        transaction_reference=req.transaction_id,
+        transaction_type="WALLET_TOPUP",
+        service_type="WALLET_TOPUP",
+        retailer_id=retailer_id,
+        amount=req.amount,
+        net_amount=req.amount,
+        status=req.status,
+        response_message=req.comments,
+        metadata_json=metadata,
+        created_by=req.performed_by,
+        updated_by=req.performed_by,
+        vendor_code="PLATFORM_ADMIN",
+    )
+    db.add(txn)
+    await db.commit()
+    await db.refresh(txn)
+
+    return {
+        "success": True,
+        "message": "Manual topup recorded successfully",
+        "transaction_id": req.transaction_id,
+        "public_id": str(txn.public_id),
+        "amount": req.amount,
+        "entity_code": req.entity_code,
+        "balance_after": req.balance_after,
+    }
+
+
+@router.get("/wallets/manual-topup", summary="Get Recent Manual Topup Ledger Transactions")
+@router.get("/manual-topup", summary="Get Recent Manual Topup Ledger Transactions Alias")
+async def get_manual_topup_ledger(
+    page_size: int = 50,
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import select, desc
+    from app.infrastructure.db.transaction_engine_models import CentralTransactionModel
+    from datetime import datetime, timezone
+    
+    stmt = select(CentralTransactionModel).where(
+        CentralTransactionModel.service_type == "WALLET_TOPUP"
+    ).order_by(desc(CentralTransactionModel.created_at)).limit(page_size)
+    
+    res = await db.execute(stmt)
+    txns = res.scalars().all()
+    
+    items = []
+    for t in txns:
+        meta = t.metadata_json or {}
+        created_iso = t.created_at.isoformat() if t.created_at else datetime.now(timezone.utc).isoformat()
+        items.append({
+            "public_id": str(t.public_id),
+            "transaction_id": t.transaction_reference,
+            "entity_scope": meta.get("entity_scope", "RETAILER"),
+            "entity_id": str(t.retailer_id or t.customer_id or ""),
+            "entity_name": meta.get("entity_name") or meta.get("retailer_name") or "Retailer Store",
+            "entity_code": meta.get("entity_code") or meta.get("retailer_code") or "RET-UNKNOWN",
+            "service_name": meta.get("service_name", "General Allocation"),
+            "wallet_type": meta.get("wallet_type", "MAIN"),
+            "txn_type": meta.get("txn_type", "CREDIT"),
+            "amount": float(t.amount or 0.0),
+            "opening_balance": float(meta.get("previous_balance", 0.0)),
+            "balance_after": float(meta.get("current_balance", t.amount or 0.0)),
+            "comments": meta.get("comments") or t.response_message or "Manual wallet allocation",
+            "created_date": created_iso,
+            "status": t.status or "COMPLETED",
+            "performed_by": meta.get("performed_by", "Platform Admin"),
+        })
+    
+    return {
+        "success": True,
+        "items": items,
+        "total": len(items)
+    }
+
+
+
 @router.post("/wallets/{id}/adjust")
 async def adjust_wallet_balance(
     id: uuid.UUID,
@@ -121,7 +278,6 @@ async def list_chart_of_accounts(
     ]
 
 
-from pydantic import BaseModel
 
 class AccountStatusUpdateRequest(BaseModel):
     status: str

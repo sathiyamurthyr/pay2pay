@@ -418,18 +418,18 @@ class VerificationService:
                 "pincode": addr.pincode if addr else "600045",
                 "latitude": addr.latitude if addr else 12.9249,
                 "longitude": addr.longitude if addr else 80.1000,
-                "shop_photo_url": addr.shop_photo_url if addr else "/uploads/cmp/ret/2026/08/02/878dfd76_sathus_ret_pan_card.pdf"
+                "shop_photo_url": addr.shop_photo_url if addr else None
             },
             "media": {
-                "selfie_url": BackblazeStorageService.get_download_url(raw_selfie_url or "/uploads/cmp/ret/aadhaar/REG-4E92DB60_photo.jpg"),
-                "video_url": BackblazeStorageService.get_download_url(raw_video_url or "/uploads/cmp/ret/video/REG-4E92DB60_kyc_video.mp4"),
-                "pan_card_url": BackblazeStorageService.get_download_url(db_docs.get("PAN") or "/uploads/cmp/ret/2026/08/02/878dfd76_sathus_ret_pan_card.pdf"),
-                "aadhaar_front_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT") or "/uploads/cmp/ret/2026/08/02/92aae09b_sathus_ret_aadhaar_front.pdf"),
-                "aadhaar_back_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_BACK") or "/uploads/cmp/ret/2026/08/02/92aae09b_sathus_ret_aadhaar_front.pdf"),
-                "bank_proof_url": BackblazeStorageService.get_download_url(db_docs.get("BANK_PROOF") or "/uploads/cmp/dist/2026/08/02/4145881e_sathus_dist_gst_certificate.pdf"),
-                "gst_proof_url": BackblazeStorageService.get_download_url(db_docs.get("GST_CERT") or db_docs.get("GST") or (gst.certificate_url if gst else None) or "/uploads/cmp/dist/2026/08/02/4145881e_sathus_dist_gst_certificate.pdf"),
-                "shop_photo_url": BackblazeStorageService.get_download_url(db_docs.get("SHOP_PHOTO") or (shop.shop_photo_url if shop else None) or (addr.shop_photo_url if addr else None) or "/uploads/cmp/ret/2026/08/02/878dfd76_sathus_ret_pan_card.pdf"),
-                "script_text": (video_rec.script_text if video_rec else None) or f"I confirm that I am registering as a Pay2Pay Retailer for {verif.shop_name or 'Sri Venkateswara Telecom'}."
+                "selfie_url": BackblazeStorageService.get_download_url(raw_selfie_url) if raw_selfie_url else None,
+                "video_url": BackblazeStorageService.get_download_url(raw_video_url) if raw_video_url else None,
+                "pan_card_url": BackblazeStorageService.get_download_url(db_docs.get("PAN")) if db_docs.get("PAN") else None,
+                "aadhaar_front_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_FRONT")) if db_docs.get("AADHAAR_FRONT") else None,
+                "aadhaar_back_url": BackblazeStorageService.get_download_url(db_docs.get("AADHAAR_BACK")) if db_docs.get("AADHAAR_BACK") else None,
+                "bank_proof_url": BackblazeStorageService.get_download_url(db_docs.get("BANK_PROOF")) if db_docs.get("BANK_PROOF") else None,
+                "gst_proof_url": BackblazeStorageService.get_download_url(db_docs.get("GST_CERT") or db_docs.get("GST") or (gst.certificate_url if gst else None)) if (db_docs.get("GST_CERT") or db_docs.get("GST") or (gst.certificate_url if gst else None)) else None,
+                "shop_photo_url": BackblazeStorageService.get_download_url(db_docs.get("SHOP_PHOTO") or (shop.shop_photo_url if shop else None) or (addr.shop_photo_url if addr else None)) if (db_docs.get("SHOP_PHOTO") or (shop.shop_photo_url if shop else None) or (addr.shop_photo_url if addr else None)) else None,
+                "script_text": (video_rec.script_text if video_rec else None) or f"I confirm that I am registering as a Pay2Pay Retailer for {verif.shop_name or 'Retailer Store'}."
             },
             "history": [
                 {

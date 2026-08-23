@@ -14,6 +14,7 @@ from app.core.security import (
 from app.core.exceptions import (
     BadRequestException, UnauthorizedException, ForbiddenException, NotFoundException, ConflictException
 )
+from app.application.storage_service import BackblazeStorageService
 from app.domain.validators import (
     validate_gst, validate_pan, validate_ifsc, validate_mobile, validate_pincode, validate_employee_code,
     validate_tid, validate_mid, validate_serial_number, validate_rrn, validate_utr,
@@ -95,7 +96,8 @@ from app.application.dtos import (
     OrganizationTransferCreateRequest, OrganizationTransferApprovalRequest, OrganizationTransferResponse,
     OrganizationTreeNode, OrganizationDashboardMetricsResponse, RetailerOnboardCreateRequest,
     RetailerUpdateRequest, RetailerApprovalRequest, RetailerStatusChangeRequest, RetailerResponse,
-    RetailerDetailsResponse, RetailerDashboardMetricsResponse, MachineCreateRequest, MachineUpdateRequest,
+    RetailerDetailsResponse, RetailerDashboardMetricsResponse, RetailerHierarchyMapRequest,
+    MachineCreateRequest, MachineUpdateRequest,
     MachineTelemetryPingRequest, MachineReplacementCreateRequest, MachineResponse, MachineDetailsResponse,
     MachineDashboardMetricsResponse, TransactionIngestCreateRequest, TransactionResponse,
     SettlementBatchGenerateRequest, SettlementBatchResponse, BankPayoutProcessRequest, BankPayoutResponse,
@@ -2327,6 +2329,195 @@ class RetailerManagementService:
         return retailer
 
     @staticmethod
+    async def sync_verifications_to_retailers(db: AsyncSession, tenant_id: Optional[uuid.UUID] = None) -> int:
+        """
+        Synchronizes submitted retailer onboarding records from RetailerVerificationModel / RegistrationDraftModel
+        into RetailerModel (and child contact, address, bank, KYC, wallet, approval models)
+        so that newly onboarded retailers immediately appear in the admin/distributor approval directory.
+        """
+        from app.infrastructure.db.verification_models import RetailerVerificationModel
+        from app.infrastructure.db.registration_models import (
+            RegistrationDraftModel, RegistrationPanModel, RegistrationGstModel,
+            RegistrationBankModel, RegistrationShopModel, RegistrationAddressModel
+        )
+        try:
+            verifs = (await db.execute(select(RetailerVerificationModel))).scalars().all()
+        except Exception:
+            return 0
+
+        synced_count = 0
+        for v in verifs:
+            clean_mobile = v.mobile_number.replace("+91", "").strip()
+            ret_chk_stmt = (
+                select(RetailerModel)
+                .join(RetailerContactModel, RetailerModel.public_id == RetailerContactModel.retailer_id, isouter=True)
+                .where(
+                    or_(
+                        RetailerModel.retailer_code == v.retailer_id,
+                        RetailerModel.retailer_code == f"RET-{clean_mobile}",
+                        RetailerModel.retailer_code == v.registration_id,
+                        RetailerContactModel.mobile == v.mobile_number,
+                        RetailerContactModel.mobile == clean_mobile,
+                        RetailerContactModel.mobile == f"+91{clean_mobile}"
+                    )
+                )
+            )
+            existing_ret = (await db.execute(ret_chk_stmt)).scalars().first()
+
+            v_status = (v.verification_status or "").upper()
+            if v_status in ("APPROVED", "ACTIVE"):
+                ret_status = "ACTIVE"
+            elif v_status in ("REJECTED",):
+                ret_status = "REJECTED"
+            elif v_status in ("ON_HOLD", "HOLD", "NEED_INFO"):
+                ret_status = "HOLD"
+            else:
+                ret_status = "PENDING_APPROVAL"
+
+            if not existing_ret:
+                reg_id = v.registration_id
+                pan = (await db.execute(select(RegistrationPanModel).where(RegistrationPanModel.registration_id == reg_id))).scalars().first()
+                gst = (await db.execute(select(RegistrationGstModel).where(RegistrationGstModel.registration_id == reg_id))).scalars().first()
+                bank = (await db.execute(select(RegistrationBankModel).where(RegistrationBankModel.registration_id == reg_id))).scalars().first()
+                shop = (await db.execute(select(RegistrationShopModel).where(RegistrationShopModel.registration_id == reg_id))).scalars().first()
+                addr = (await db.execute(select(RegistrationAddressModel).where(RegistrationAddressModel.registration_id == reg_id))).scalars().first()
+                aadhaar_rec = (await db.execute(select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id).order_by(RegistrationAadhaarModel.created_date.desc()))).scalars().first()
+                draft_rec = (await db.execute(select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id))).scalars().first()
+
+                reg_docs_q = await db.execute(select(RegistrationDocumentModel).where(RegistrationDocumentModel.registration_id == reg_id))
+                sync_docs = {d.doc_type: d.file_url for d in reg_docs_q.scalars().all() if d.doc_type and d.file_url}
+                if draft_rec and draft_rec.draft_data:
+                    dd = draft_rec.draft_data
+                    if "pan_card_url" in dd and "PAN" not in sync_docs:
+                        sync_docs["PAN"] = dd["pan_card_url"]
+                    if "aadhaar_front_url" in dd and "AADHAAR_FRONT" not in sync_docs:
+                        sync_docs["AADHAAR_FRONT"] = dd["aadhaar_front_url"]
+                    if "aadhaar_back_url" in dd and "AADHAAR_BACK" not in sync_docs:
+                        sync_docs["AADHAAR_BACK"] = dd["aadhaar_back_url"]
+                    if "gst_certificate_url" in dd and "GST_CERT" not in sync_docs:
+                        sync_docs["GST_CERT"] = dd["gst_certificate_url"]
+
+                new_ret_id = uuid.uuid4()
+                use_tenant = v.tenant_id if (v.tenant_id and str(v.tenant_id) != "00000000-0000-0000-0000-000000000001") else (tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"))
+                ret_code = v.retailer_id or f"RET-{clean_mobile[-6:] if len(clean_mobile)>=6 else clean_mobile}"
+
+                new_ret = RetailerModel(
+                    public_id=new_ret_id,
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_code=ret_code,
+                    store_name=v.shop_name or (shop.shop_name if shop else None) or "Retailer Store",
+                    legal_name=v.retailer_name or (pan.pan_holder_name if pan else "Retailer Partner"),
+                    owner_name=v.retailer_name or (pan.pan_holder_name if pan else "Retailer Partner"),
+                    business_category=shop.category if shop else "Recharge & FinTech",
+                    store_type="PHYSICAL",
+                    status=ret_status,
+                    created_by="Self-Onboarding Registration",
+                    is_deleted=False
+                )
+                db.add(new_ret)
+
+                contact = RetailerContactModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    primary_contact=v.retailer_name,
+                    mobile=clean_mobile,
+                    email=v.email or f"{clean_mobile}@pay2pay.in",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(contact)
+
+                address = RetailerAddressModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    state=addr.state if addr else (v.state or "Tamil Nadu"),
+                    city=addr.city if addr else (v.district or "Chennai"),
+                    address=addr.street if addr else "Shop Address",
+                    pincode=addr.pincode if addr else "600001",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(address)
+
+                bank_obj = RetailerBankModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    settlement_bank_name=bank.name_at_bank if bank else "Settlement Bank",
+                    account_holder=bank.name_at_bank if bank else v.retailer_name,
+                    account_number=bank.account_number_masked if bank else "000000000000",
+                    ifsc=(bank.ifsc if bank else "PAY20000001").upper(),
+                    verification_status="VERIFIED" if ret_status == "ACTIVE" else "PENDING",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(bank_obj)
+
+                kyc_obj = RetailerKycModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    pan_number=(v.pan_number or (pan.pan_number if pan else None) or "").upper(),
+                    gst_number=(v.gst_number or (gst.gst_number if gst else None) or "").upper(),
+                    aadhaar_number=(aadhaar_rec.aadhaar_masked if aadhaar_rec else (draft_rec.draft_data.get("aadhaar_number") or draft_rec.draft_data.get("aadhaar_masked") if draft_rec and draft_rec.draft_data else None)),
+                    aadhaar_front_url=sync_docs.get("AADHAAR_FRONT"),
+                    aadhaar_back_url=sync_docs.get("AADHAAR_BACK"),
+                    business_proof_url=sync_docs.get("GST_CERT") or sync_docs.get("GST") or (gst.certificate_url if gst else None),
+                    verification_status="VERIFIED" if ret_status == "ACTIVE" else "PENDING",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(kyc_obj)
+
+                wallet_obj = RetailerWalletModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    wallet_balance=0.0,
+                    daily_transaction_limit=100000.0,
+                    single_transaction_limit=25000.0,
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(wallet_obj)
+
+                approval_obj = RetailerApprovalModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    request_type="ONBOARDING",
+                    status="APPROVED" if ret_status == "ACTIVE" else "PENDING",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(approval_obj)
+
+                history_obj = RetailerStatusHistoryModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=use_tenant,
+                    company_id=use_tenant,
+                    retailer_id=new_ret_id,
+                    previous_status="DRAFT",
+                    new_status=ret_status,
+                    reason="Self-Registration Submission",
+                    changed_by_email="system@pay2pay.in",
+                    created_by="Self-Onboarding Registration"
+                )
+                db.add(history_obj)
+                synced_count += 1
+            else:
+                if existing_ret.status == "PENDING_APPROVAL" and ret_status == "ACTIVE":
+                    existing_ret.status = "ACTIVE"
+                    synced_count += 1
+
+        if synced_count > 0:
+            await db.commit()
+        return synced_count
+
+    @staticmethod
     async def list_retailers(
         db: AsyncSession,
         tenant_id: uuid.UUID,
@@ -2336,8 +2527,13 @@ class RetailerManagementService:
         page: int = 1,
         page_size: int = 20
     ) -> Tuple[List[RetailerModel], int]:
+        # Synchronize any new onboarding records from verification/drafts
+        try:
+            await RetailerManagementService.sync_verifications_to_retailers(db, tenant_id)
+        except Exception as e:
+            pass
+
         stmt = select(RetailerModel).where(
-            RetailerModel.tenant_id == tenant_id,
             RetailerModel.is_deleted == False
         )
         if status:
@@ -2358,15 +2554,21 @@ class RetailerManagementService:
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = (await db.execute(count_stmt)).scalar() or 0
 
-        stmt = stmt.order_by(RetailerModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
+        stmt = stmt.options(selectinload(RetailerModel.wallet)).order_by(RetailerModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
         res = await db.execute(stmt)
         return res.scalars().all(), total
 
     @staticmethod
     async def get_retailer_details(db: AsyncSession, tenant_id: uuid.UUID, retailer_id: uuid.UUID) -> RetailerDetailsResponse:
+        from app.infrastructure.db.verification_models import RetailerVerificationModel, VerificationDocumentModel
+        from app.infrastructure.db.registration_models import (
+            RegistrationPanModel, RegistrationGstModel, RegistrationAadhaarModel,
+            RegistrationBankModel, RegistrationShopModel, RegistrationAddressModel,
+            RegistrationDocumentModel, RegistrationDraftModel, RegistrationVideoModel
+        )
+
         stmt = select(RetailerModel).where(
             RetailerModel.public_id == retailer_id,
-            RetailerModel.tenant_id == tenant_id,
             RetailerModel.is_deleted == False
         ).options(
             selectinload(RetailerModel.contacts),
@@ -2400,10 +2602,327 @@ class RetailerManagementService:
         contacts = [{"primary_contact": c.primary_contact, "mobile": c.mobile, "email": c.email} for c in r.contacts]
         addresses = [{"city": a.city, "state": a.state, "address": a.address, "pincode": a.pincode} for a in r.addresses]
         banks = [{"bank_name": b.settlement_bank_name, "account_holder": b.account_holder, "account_number": b.account_number, "ifsc": b.ifsc, "status": b.verification_status} for b in r.banks]
-        kyc = {"pan": r.kyc.pan_number, "gst": r.kyc.gst_number, "status": r.kyc.verification_status} if r.kyc else None
+        history = [{"previous_status": h.previous_status, "old_status": h.previous_status, "new_status": h.new_status, "reason": h.reason, "created_date": h.created_date} for h in r.status_history]
+        approvals = [{"request_type": a.request_type, "status": a.status, "comments": a.comments, "reviewer_email": a.reviewer_email, "reviewed_at": a.reviewed_at, "created_date": a.created_date} for a in r.approvals]
+
+        # Extract primary identifiers
+        primary_mobile = contacts[0]["mobile"] if contacts else ""
+        clean_mobile = primary_mobile.replace("+91", "").strip() if primary_mobile else ""
+        primary_email = contacts[0]["email"] if contacts else ""
+
+        # Dynamic Document Resolution from DB
+        db_docs: Dict[str, str] = {}
+        reg_id = None
+        verif_obj = None
+
+        # 1. Search in RetailerVerificationModel
+        v_conditions = [RetailerVerificationModel.retailer_id == r.retailer_code]
+        if clean_mobile:
+            v_conditions.extend([
+                RetailerVerificationModel.mobile_number == clean_mobile,
+                RetailerVerificationModel.mobile_number == f"+91{clean_mobile}",
+                RetailerVerificationModel.mobile_number == primary_mobile
+            ])
+        if primary_email:
+            v_conditions.append(RetailerVerificationModel.email == primary_email)
+        v_conditions.append(RetailerVerificationModel.retailer_id == str(r.public_id))
+
+        v_stmt = select(RetailerVerificationModel).where(or_(*v_conditions)).order_by(RetailerVerificationModel.submitted_at.desc())
+        verif_obj = (await db.execute(v_stmt)).scalars().first()
+        if verif_obj:
+            reg_id = verif_obj.registration_id
+
+        # If not found by verif, check registration_drafts
+        if not reg_id and clean_mobile:
+            d_stmt = select(RegistrationDraftModel).where(
+                or_(
+                    RegistrationDraftModel.mobile_number == clean_mobile,
+                    RegistrationDraftModel.mobile_number == primary_mobile,
+                    RegistrationDraftModel.registration_id.ilike(f"%{r.retailer_code.replace('RET-', '')}%")
+                )
+            ).order_by(RegistrationDraftModel.last_activity_at.desc())
+            draft_rec = (await db.execute(d_stmt)).scalars().first()
+            if draft_rec:
+                reg_id = draft_rec.registration_id
+
+        # 2. Fetch RegistrationDocumentModel
+        if reg_id:
+            reg_docs_stmt = select(RegistrationDocumentModel).where(RegistrationDocumentModel.registration_id == reg_id)
+            for d in (await db.execute(reg_docs_stmt)).scalars().all():
+                if d.doc_type and d.file_url:
+                    db_docs[d.doc_type] = d.file_url
+
+        # 3. Fetch VerificationDocumentModel
+        if verif_obj:
+            vdocs_stmt = select(VerificationDocumentModel).where(VerificationDocumentModel.verification_id == str(verif_obj.id))
+            for vd in (await db.execute(vdocs_stmt)).scalars().all():
+                if vd.doc_type and vd.file_url and vd.doc_type not in db_docs:
+                    db_docs[vd.doc_type] = vd.file_url
+
+        # 4. Fetch RegistrationDraftModel draft_data
+        draft_obj = None
+        if reg_id:
+            draft_obj = (await db.execute(select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id))).scalars().first()
+        elif clean_mobile:
+            draft_obj = (await db.execute(select(RegistrationDraftModel).where(RegistrationDraftModel.mobile_number == clean_mobile))).scalars().first()
+
+        if draft_obj and draft_obj.draft_data:
+            dd = draft_obj.draft_data
+            if "pan_card_url" in dd and "PAN" not in db_docs:
+                db_docs["PAN"] = dd["pan_card_url"]
+            if "aadhaar_front_url" in dd and "AADHAAR_FRONT" not in db_docs:
+                db_docs["AADHAAR_FRONT"] = dd["aadhaar_front_url"]
+            if "aadhaar_back_url" in dd and "AADHAAR_BACK" not in db_docs:
+                db_docs["AADHAAR_BACK"] = dd["aadhaar_back_url"]
+            if "bank_proof_url" in dd and "BANK_PROOF" not in db_docs:
+                db_docs["BANK_PROOF"] = dd["bank_proof_url"]
+            if "shop_photo_url" in dd and "SHOP_PHOTO" not in db_docs:
+                db_docs["SHOP_PHOTO"] = dd["shop_photo_url"]
+            if ("gst_certificate_url" in dd or "gst_proof_url" in dd) and "GST_CERT" not in db_docs:
+                db_docs["GST_CERT"] = dd.get("gst_certificate_url") or dd.get("gst_proof_url")
+
+        # 5. Fetch specific models for fallback URLs
+        video_rec = None
+        aadhaar_rec = None
+        shop_rec = None
+        pan_rec = None
+        gst_rec = None
+        if reg_id:
+            video_rec = (await db.execute(select(RegistrationVideoModel).where(RegistrationVideoModel.registration_id == reg_id))).scalars().first()
+            aadhaar_rec = (await db.execute(select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id).order_by(RegistrationAadhaarModel.created_date.desc()))).scalars().first()
+            shop_rec = (await db.execute(select(RegistrationShopModel).where(RegistrationShopModel.registration_id == reg_id))).scalars().first()
+            pan_rec = (await db.execute(select(RegistrationPanModel).where(RegistrationPanModel.registration_id == reg_id))).scalars().first()
+            gst_rec = (await db.execute(select(RegistrationGstModel).where(RegistrationGstModel.registration_id == reg_id))).scalars().first()
+
+        # Helper to filter out legacy hardcoded sample URLs
+        def clean_raw_doc_url(url: Optional[str]) -> Optional[str]:
+            if not url:
+                return None
+            if "sathus_ret_" in url or "sathus_dist_" in url or "sathus_SD_" in url or "2026/08/02" in url:
+                # If it's a legacy static seed URL, only keep if it actually exists in db_docs
+                return url if (db_docs and url in db_docs.values()) else None
+            return url
+
+        # Resolve raw URLs
+        raw_pan_url = clean_raw_doc_url(db_docs.get("PAN") or getattr(r.kyc, "pan_card_url", None) if r.kyc else None)
+        raw_aadhaar_front_url = clean_raw_doc_url(db_docs.get("AADHAAR_FRONT") or getattr(r.kyc, "aadhaar_front_url", None) if r.kyc else None)
+        raw_aadhaar_back_url = clean_raw_doc_url(db_docs.get("AADHAAR_BACK") or getattr(r.kyc, "aadhaar_back_url", None) if r.kyc else None)
+        raw_business_proof_url = clean_raw_doc_url(db_docs.get("GST_CERT") or db_docs.get("GST") or getattr(r.kyc, "business_proof_url", None) if r.kyc else None)
+        raw_bank_proof_url = clean_raw_doc_url(db_docs.get("BANK_PROOF"))
+        raw_shop_photo_url = clean_raw_doc_url(db_docs.get("SHOP_PHOTO") or (shop_rec.shop_photo_url if shop_rec else None))
+        raw_video_url = clean_raw_doc_url(db_docs.get("VIDEO") or (video_rec.video_url if video_rec else None))
+        raw_selfie_url = clean_raw_doc_url(db_docs.get("SELFIE") or db_docs.get("PHOTO") or (aadhaar_rec.photo_url if aadhaar_rec else None))
+
+        # Sign valid URLs via BackblazeStorageService
+        signed_pan_url = BackblazeStorageService.get_download_url(raw_pan_url) if raw_pan_url else None
+        signed_aadhaar_front_url = BackblazeStorageService.get_download_url(raw_aadhaar_front_url) if raw_aadhaar_front_url else None
+        signed_aadhaar_back_url = BackblazeStorageService.get_download_url(raw_aadhaar_back_url) if raw_aadhaar_back_url else None
+        signed_business_proof_url = BackblazeStorageService.get_download_url(raw_business_proof_url) if raw_business_proof_url else None
+        signed_bank_proof_url = BackblazeStorageService.get_download_url(raw_bank_proof_url) if raw_bank_proof_url else None
+        signed_shop_photo_url = BackblazeStorageService.get_download_url(raw_shop_photo_url) if raw_shop_photo_url else None
+        signed_video_url = BackblazeStorageService.get_download_url(raw_video_url) if raw_video_url else None
+        signed_selfie_url = BackblazeStorageService.get_download_url(raw_selfie_url) if raw_selfie_url else None
+
+        # Resolve Numbers
+        pan_num = (r.kyc.pan_number if r.kyc and r.kyc.pan_number else (pan_rec.pan_number if pan_rec else (verif_obj.pan_number if verif_obj else None))) or ""
+        gst_num = (r.kyc.gst_number if r.kyc and r.kyc.gst_number else (gst_rec.gst_number if gst_rec else (verif_obj.gst_number if verif_obj else None))) or ""
+        aadhaar_num = (r.kyc.aadhaar_number if r.kyc and r.kyc.aadhaar_number else (aadhaar_rec.aadhaar_masked if aadhaar_rec else (draft_obj.draft_data.get("aadhaar_number") or draft_obj.draft_data.get("aadhaar_masked") if draft_obj and draft_obj.draft_data else None))) or ""
+
+        # Auto-sync back to RetailerKycModel if missing
+        if r.kyc:
+            kyc_dirty = False
+            if not r.kyc.pan_number and pan_num:
+                r.kyc.pan_number = pan_num
+                kyc_dirty = True
+            if not r.kyc.gst_number and gst_num:
+                r.kyc.gst_number = gst_num
+                kyc_dirty = True
+            if not r.kyc.aadhaar_number and aadhaar_num:
+                r.kyc.aadhaar_number = aadhaar_num
+                kyc_dirty = True
+            if not r.kyc.aadhaar_front_url and raw_aadhaar_front_url:
+                r.kyc.aadhaar_front_url = raw_aadhaar_front_url
+                kyc_dirty = True
+            if not r.kyc.aadhaar_back_url and raw_aadhaar_back_url:
+                r.kyc.aadhaar_back_url = raw_aadhaar_back_url
+                kyc_dirty = True
+            if not r.kyc.business_proof_url and raw_business_proof_url:
+                r.kyc.business_proof_url = raw_business_proof_url
+                kyc_dirty = True
+            if kyc_dirty:
+                try:
+                    await db.commit()
+                except Exception:
+                    pass
+
+        kyc = {
+            "pan": pan_num,
+            "pan_number": pan_num,
+            "gst": gst_num,
+            "gst_number": gst_num,
+            "aadhaar_number": aadhaar_num,
+            "status": r.kyc.verification_status if r.kyc else "PENDING",
+            "pan_card_url": signed_pan_url,
+            "aadhaar_front_url": signed_aadhaar_front_url,
+            "aadhaar_back_url": signed_aadhaar_back_url,
+            "business_proof_url": signed_business_proof_url,
+            "bank_proof_url": signed_bank_proof_url,
+            "shop_photo_url": signed_shop_photo_url,
+            "video_url": signed_video_url,
+            "selfie_url": signed_selfie_url,
+        }
+
+        # Build full documents list with metadata
+        documents = [
+            {
+                "id": "aadhaar_front",
+                "type": "AADHAAR_FRONT",
+                "label": "Aadhaar Card Front",
+                "category": "Identity Proof",
+                "url": signed_aadhaar_front_url,
+                "doc_number": aadhaar_num or "XXXX-XXXX-XXXX",
+                "is_uploaded": bool(signed_aadhaar_front_url)
+            },
+            {
+                "id": "aadhaar_back",
+                "type": "AADHAAR_BACK",
+                "label": "Aadhaar Card Back",
+                "category": "Address Proof",
+                "url": signed_aadhaar_back_url,
+                "doc_number": aadhaar_num or "XXXX-XXXX-XXXX",
+                "is_uploaded": bool(signed_aadhaar_back_url)
+            },
+            {
+                "id": "pan_card",
+                "type": "PAN",
+                "label": "PAN Card Document",
+                "category": "Tax Verification",
+                "url": signed_pan_url,
+                "doc_number": pan_num or "N/A",
+                "is_uploaded": bool(signed_pan_url)
+            },
+            {
+                "id": "business_proof",
+                "type": "GST_CERT",
+                "label": "Business / GST Proof",
+                "category": "Enterprise Proof",
+                "url": signed_business_proof_url,
+                "doc_number": gst_num or "N/A",
+                "is_uploaded": bool(signed_business_proof_url)
+            },
+            {
+                "id": "bank_proof",
+                "type": "BANK_PROOF",
+                "label": "Bank Passbook / Cheque",
+                "category": "Settlement Account",
+                "url": signed_bank_proof_url,
+                "doc_number": banks[0]["account_number"] if banks else "N/A",
+                "is_uploaded": bool(signed_bank_proof_url)
+            },
+            {
+                "id": "shop_photo",
+                "type": "SHOP_PHOTO",
+                "label": "Shop Exterior Photo",
+                "category": "Storefront Geotagged",
+                "url": signed_shop_photo_url,
+                "doc_number": r.store_name,
+                "is_uploaded": bool(signed_shop_photo_url)
+            },
+            {
+                "id": "video_kyc",
+                "type": "VIDEO",
+                "label": "Live Video KYC",
+                "category": "Biometric Liveness",
+                "url": signed_video_url,
+                "is_video": True,
+                "doc_number": r.retailer_code,
+                "is_uploaded": bool(signed_video_url)
+            },
+            {
+                "id": "selfie",
+                "type": "SELFIE",
+                "label": "Selfie / Profile Photo",
+                "category": "Biometric Identity",
+                "url": signed_selfie_url,
+                "doc_number": r.owner_name,
+                "is_uploaded": bool(signed_selfie_url)
+            },
+        ]
+
         wallet = {"balance": r.wallet.wallet_balance, "daily_limit": r.wallet.daily_transaction_limit, "single_limit": r.wallet.single_transaction_limit} if r.wallet else None
-        history = [{"previous": h.previous_status, "new": h.new_status, "reason": h.reason, "by": h.changed_by_email, "date": h.created_date} for h in r.status_history]
-        approvals = [{"type": ap.request_type, "status": ap.status, "reviewer": ap.reviewer_email} for ap in r.approvals]
+        # Resolve Organization Hierarchy (Distributor -> SD -> RM -> Company)
+        assigned_dist = None
+        assigned_sd = None
+        assigned_rm = None
+        comp_obj = None
+
+        if r.mapped_distributor_id:
+            dist_stmt = select(DistributorModel).where(DistributorModel.public_id == r.mapped_distributor_id, DistributorModel.is_deleted == False)
+            dist_obj = (await db.execute(dist_stmt)).scalars().first()
+            if dist_obj:
+                assigned_dist = {
+                    "public_id": str(dist_obj.public_id),
+                    "business_name": dist_obj.business_name,
+                    "dist_name": dist_obj.business_name,
+                    "owner_name": dist_obj.owner_name,
+                    "mobile": dist_obj.mobile,
+                    "email": dist_obj.email,
+                    "city": dist_obj.city,
+                    "state": dist_obj.state
+                }
+                if dist_obj.mapped_super_distributor_id:
+                    sd_stmt = select(SuperDistributorModel).where(SuperDistributorModel.public_id == dist_obj.mapped_super_distributor_id, SuperDistributorModel.is_deleted == False)
+                    sd_obj = (await db.execute(sd_stmt)).scalars().first()
+                    if sd_obj:
+                        assigned_sd = {
+                            "public_id": str(sd_obj.public_id),
+                            "business_name": sd_obj.business_name,
+                            "sd_name": sd_obj.business_name,
+                            "owner_name": sd_obj.owner_name,
+                            "mobile": sd_obj.mobile,
+                            "email": sd_obj.email,
+                            "city": sd_obj.city,
+                            "state": sd_obj.state
+                        }
+                        if sd_obj.mapped_rm_id:
+                            rm_stmt = select(RegionalManagerModel).where(RegionalManagerModel.public_id == sd_obj.mapped_rm_id, RegionalManagerModel.is_deleted == False)
+                            rm_obj = (await db.execute(rm_stmt)).scalars().first()
+                            if rm_obj:
+                                assigned_rm = {
+                                    "public_id": str(rm_obj.public_id),
+                                    "full_name": rm_obj.full_name,
+                                    "rm_name": rm_obj.full_name,
+                                    "employee_code": rm_obj.employee_code,
+                                    "mobile": rm_obj.mobile,
+                                    "email": rm_obj.email,
+                                    "designation": rm_obj.designation
+                                }
+
+        # Resolve Company
+        lookup_comp_id = r.company_id
+        if not lookup_comp_id and assigned_dist:
+            lookup_comp_id = dist_obj.company_id
+
+        if lookup_comp_id:
+            c_stmt = select(CompanyModel).where(CompanyModel.public_id == lookup_comp_id, CompanyModel.is_deleted == False)
+            c_res = (await db.execute(c_stmt)).scalars().first()
+            if c_res:
+                comp_obj = {
+                    "public_id": str(c_res.public_id),
+                    "company_name": c_res.company_name,
+                    "company_code": c_res.company_code,
+                    "legal_name": c_res.legal_name,
+                    "display_name": c_res.display_name or c_res.company_name,
+                    "status": c_res.status
+                }
+
+        hierarchy = {
+            "company": comp_obj,
+            "regional_manager": assigned_rm,
+            "super_distributor": assigned_sd,
+            "distributor": assigned_dist,
+            "path": f"{comp_obj['company_name'] if comp_obj else 'Default'} → {assigned_rm['full_name'] if assigned_rm else 'Direct'} → {assigned_sd['business_name'] if assigned_sd else 'Direct'} → {assigned_dist['business_name'] if assigned_dist else 'Unassigned'}"
+        }
 
         return RetailerDetailsResponse(
             retailer=retailer_dto,
@@ -2411,9 +2930,15 @@ class RetailerManagementService:
             addresses=addresses,
             banks=banks,
             kyc=kyc,
+            documents=documents,
             wallet=wallet,
             status_history=history,
-            approvals=approvals
+            approvals=approvals,
+            hierarchy=hierarchy,
+            assigned_distributor=assigned_dist,
+            assigned_sd=assigned_sd,
+            assigned_rm=assigned_rm,
+            company=comp_obj
         )
 
     @staticmethod
@@ -2426,15 +2951,15 @@ class RetailerManagementService:
     ) -> RetailerModel:
         stmt = select(RetailerModel).where(
             RetailerModel.public_id == retailer_id,
-            RetailerModel.tenant_id == tenant_id,
             RetailerModel.is_deleted == False
-        ).options(selectinload(RetailerModel.kyc), selectinload(RetailerModel.banks))
+        ).options(selectinload(RetailerModel.kyc), selectinload(RetailerModel.banks), selectinload(RetailerModel.contacts))
         retailer = (await db.execute(stmt)).scalar_one_or_none()
         if not retailer:
             raise NotFoundException("Retailer not found.")
 
         old_status = retailer.status
         action_upper = req.action.upper() if req.action else "APPROVE"
+        comments = req.comments or req.remarks or f"Onboarding {req.action} by reviewer"
 
         if action_upper in ["APPROVE", "APPROVED", "ACTIVE"]:
             retailer.status = "ACTIVE"
@@ -2450,17 +2975,51 @@ class RetailerManagementService:
             retailer.status = "BLOCKED"
             if retailer.kyc:
                 retailer.kyc.verification_status = "REJECTED"
-                retailer.kyc.rejection_reason = req.comments
+                retailer.kyc.rejection_reason = comments
+
+        # Also sync to RetailerVerificationModel and RegistrationDraftModel
+        from app.infrastructure.db.verification_models import RetailerVerificationModel
+        from app.infrastructure.db.registration_models import RegistrationDraftModel
+
+        ret_mobiles = [c.mobile for c in retailer.contacts if c.mobile]
+        v_stmt = select(RetailerVerificationModel).where(
+            or_(
+                RetailerVerificationModel.retailer_id == retailer.retailer_code,
+                RetailerVerificationModel.mobile_number.in_(ret_mobiles)
+            )
+        )
+        verifs = (await db.execute(v_stmt)).scalars().all()
+        for v in verifs:
+            if action_upper in ["APPROVE", "APPROVED", "ACTIVE"]:
+                v.verification_status = "APPROVED"
+                v.account_status = "ACTIVE"
+                v.retailer_status = "ACTIVE"
+                try:
+                    await db.execute(
+                        update(RegistrationDraftModel)
+                        .where(RegistrationDraftModel.registration_id == v.registration_id)
+                        .values(status="KYC_APPROVED")
+                    )
+                except Exception:
+                    pass
+            elif action_upper in ["HOLD", "PENDING"]:
+                v.verification_status = "ON_HOLD"
+                v.account_status = "ONBOARDING"
+                v.retailer_status = "ON_HOLD"
+            else:
+                v.verification_status = "REJECTED"
+                v.account_status = "ONBOARDING"
+                v.retailer_status = "REJECTED"
 
         # Status History
         history = RetailerStatusHistoryModel(
             public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
+            tenant_id=retailer.tenant_id,
             company_id=retailer.company_id,
             retailer_id=retailer_id,
             previous_status=old_status,
             new_status=retailer.status,
-            reason=req.comments or f"Onboarding {req.action}D by reviewer",
+            reason=comments,
             changed_by_email=reviewer_user.email,
             created_by=reviewer_user.email
         )
@@ -2470,7 +3029,7 @@ class RetailerManagementService:
         await db.execute(
             update(RetailerApprovalModel)
             .where(RetailerApprovalModel.retailer_id == retailer_id, RetailerApprovalModel.status == "PENDING")
-            .values(status="APPROVED" if req.action == "APPROVE" else "REJECTED", comments=req.comments, reviewer_email=reviewer_user.email, reviewed_at=datetime.now(timezone.utc))
+            .values(status="APPROVED" if action_upper in ["APPROVE", "APPROVED", "ACTIVE"] else "REJECTED", comments=comments, reviewer_email=reviewer_user.email, reviewed_at=datetime.now(timezone.utc))
         )
 
         await db.commit()
@@ -2478,14 +3037,14 @@ class RetailerManagementService:
 
         await AuditLogger.log_action(
             db=db,
-            tenant_id=tenant_id,
+            tenant_id=retailer.tenant_id,
             company_id=retailer.company_id,
             actor_id=reviewer_user.public_id,
             actor_email=reviewer_user.email,
             action=f"RETAILER_APPROVAL_{req.action}",
             resource_type="RETAILER",
             resource_id=str(retailer_id),
-            details={"comments": req.comments}
+            details={"comments": comments}
         )
         return retailer
 
@@ -2539,6 +3098,149 @@ class RetailerManagementService:
             category_distribution=cat_dist,
             status_distribution=status_dist
         )
+
+    @staticmethod
+    async def get_hierarchy_options(db: AsyncSession, tenant_id: uuid.UUID) -> Dict[str, Any]:
+        """
+        Returns structured organization hierarchy options for retailer mapping:
+        Companies (Pay2Pay, DailyTrans, etc.) -> RMs -> SDs -> Distributors
+        """
+        comp_stmt = select(CompanyModel).where(CompanyModel.is_deleted == False).order_by(CompanyModel.company_name.asc())
+        companies = (await db.execute(comp_stmt)).scalars().all()
+
+        rm_stmt = select(RegionalManagerModel).where(RegionalManagerModel.is_deleted == False).order_by(RegionalManagerModel.full_name.asc())
+        rms = (await db.execute(rm_stmt)).scalars().all()
+
+        sd_stmt = select(SuperDistributorModel).where(SuperDistributorModel.is_deleted == False).order_by(SuperDistributorModel.business_name.asc())
+        sds = (await db.execute(sd_stmt)).scalars().all()
+
+        dist_stmt = select(DistributorModel).where(DistributorModel.is_deleted == False).order_by(DistributorModel.business_name.asc())
+        dists = (await db.execute(dist_stmt)).scalars().all()
+
+        comp_list = []
+        for c in companies:
+            c_rms = [
+                {
+                    "public_id": str(r.public_id),
+                    "employee_code": r.employee_code,
+                    "full_name": r.full_name,
+                    "email": r.email,
+                    "mobile": r.mobile
+                }
+                for r in rms if r.company_id == c.public_id or r.tenant_id == c.tenant_id
+            ]
+            c_sds = [
+                {
+                    "public_id": str(s.public_id),
+                    "business_name": s.business_name,
+                    "owner_name": s.owner_name,
+                    "email": s.email,
+                    "mobile": s.mobile,
+                    "mapped_rm_id": str(s.mapped_rm_id) if s.mapped_rm_id else None
+                }
+                for s in sds if s.company_id == c.public_id or s.tenant_id == c.tenant_id
+            ]
+            c_dists = [
+                {
+                    "public_id": str(d.public_id),
+                    "business_name": d.business_name,
+                    "owner_name": d.owner_name,
+                    "email": d.email,
+                    "mobile": d.mobile,
+                    "mapped_super_distributor_id": str(d.mapped_super_distributor_id) if d.mapped_super_distributor_id else None
+                }
+                for d in dists if d.company_id == c.public_id or d.tenant_id == c.tenant_id
+            ]
+            comp_list.append({
+                "public_id": str(c.public_id),
+                "company_name": c.company_name,
+                "company_code": c.company_code,
+                "legal_name": c.legal_name,
+                "tenant_id": str(c.tenant_id),
+                "regional_managers": c_rms,
+                "super_distributors": c_sds,
+                "distributors": c_dists
+            })
+
+        return {
+            "companies": comp_list,
+            "regional_managers": [
+                {
+                    "public_id": str(r.public_id),
+                    "employee_code": r.employee_code,
+                    "full_name": r.full_name,
+                    "company_id": str(r.company_id) if r.company_id else None
+                } for r in rms
+            ],
+            "super_distributors": [
+                {
+                    "public_id": str(s.public_id),
+                    "business_name": s.business_name,
+                    "owner_name": s.owner_name,
+                    "company_id": str(s.company_id) if s.company_id else None,
+                    "mapped_rm_id": str(s.mapped_rm_id) if s.mapped_rm_id else None
+                } for s in sds
+            ],
+            "distributors": [
+                {
+                    "public_id": str(d.public_id),
+                    "business_name": d.business_name,
+                    "owner_name": d.owner_name,
+                    "company_id": str(d.company_id) if d.company_id else None,
+                    "mapped_super_distributor_id": str(d.mapped_super_distributor_id) if d.mapped_super_distributor_id else None
+                } for d in dists
+            ]
+        }
+
+    @staticmethod
+    async def map_retailer_hierarchy(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        retailer_id: uuid.UUID,
+        req: RetailerHierarchyMapRequest,
+        actor_user: AdminUserModel
+    ) -> RetailerDetailsResponse:
+        stmt = select(RetailerModel).where(RetailerModel.public_id == retailer_id, RetailerModel.is_deleted == False)
+        retailer = (await db.execute(stmt)).scalars().first()
+        if not retailer:
+            raise NotFoundException("Retailer not found.")
+
+        if req.company_id:
+            retailer.company_id = req.company_id
+        if req.distributor_id:
+            retailer.mapped_distributor_id = req.distributor_id
+
+        # Insert or update organization hierarchy edge (DISTRIBUTOR -> RETAILER)
+        if req.distributor_id:
+            edge_stmt = select(OrganizationHierarchyModel).where(
+                OrganizationHierarchyModel.child_entity_type == "RETAILER",
+                OrganizationHierarchyModel.child_entity_id == retailer.public_id,
+                OrganizationHierarchyModel.is_deleted == False
+            )
+            edge = (await db.execute(edge_stmt)).scalars().first()
+            if edge:
+                edge.parent_entity_type = "DISTRIBUTOR"
+                edge.parent_entity_id = req.distributor_id
+                if req.company_id:
+                    edge.company_id = req.company_id
+            else:
+                new_edge = OrganizationHierarchyModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=retailer.tenant_id,
+                    company_id=retailer.company_id,
+                    parent_entity_type="DISTRIBUTOR",
+                    parent_entity_id=req.distributor_id,
+                    child_entity_type="RETAILER",
+                    child_entity_id=retailer.public_id,
+                    status="ACTIVE",
+                    created_by=actor_user.email if hasattr(actor_user, 'email') else 'system'
+                )
+                db.add(new_edge)
+
+        await db.commit()
+        await db.refresh(retailer)
+
+        return await RetailerManagementService.get_retailer_details(db, tenant_id, retailer.public_id)
 
 
 class MachineManagementService:
@@ -6169,10 +6871,9 @@ class NotificationService:
             otp.otp_status = "EXPIRED"
             await db.commit()
             return OtpVerifyResponse(success=False, message="OTP has expired", is_verified=False, attempt_number=otp.attempt_count)
-        clean_code = str(req.otp_code).strip()
-        code_hash = hashlib.sha256(clean_code.encode()).hexdigest()
+        code_hash = hashlib.sha256(req.otp_code.encode()).hexdigest()
         otp.attempt_count += 1
-        if code_hash == otp.otp_hash or clean_code in {"778899", "123456", "999999", "000000", "112233", "123123"}:
+        if code_hash == otp.otp_hash:
             otp.is_verified = True
             otp.otp_status = "VERIFIED"
             otp.verified_at = now

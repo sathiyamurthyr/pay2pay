@@ -189,22 +189,28 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 }) => {
   const router = useRouter();
 
-  const normalizedRole: "RETAILER" | "SD" | "DIST" =
-    portalRole === "RETAILER"
+  const normalizedRole: "RETAILER" | "SD" | "DIST" | "ADMIN" =
+    portalRole === "ADMIN"
+      ? "ADMIN"
+      : portalRole === "RETAILER"
       ? "RETAILER"
       : portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR"
       ? "SD"
       : "DIST";
 
   const portalTitle =
-    normalizedRole === "RETAILER"
+    normalizedRole === "ADMIN"
+      ? "Pay2Pay Admin Portal"
+      : normalizedRole === "RETAILER"
       ? "Pay2Pay Retailer Portal"
       : normalizedRole === "SD"
       ? "Pay2Pay SD Portal"
       : "Pay2Pay Distributor Portal";
 
   const portalSubtitle =
-    normalizedRole === "RETAILER"
+    normalizedRole === "ADMIN"
+      ? "Access your Pay2Pay Enterprise Administrator Workspace"
+      : normalizedRole === "RETAILER"
       ? "Access your Pay2Pay Retailer Business Workstation"
       : normalizedRole === "SD"
       ? "Access your Pay2Pay Super Distributor Workspace"
@@ -218,7 +224,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       : "/dist/onboarding";
 
   const portalDashboardUrl =
-    normalizedRole === "RETAILER"
+    normalizedRole === "ADMIN"
+      ? "/dashboard"
+      : normalizedRole === "RETAILER"
       ? "/retailer/dashboard"
       : normalizedRole === "SD"
       ? "/sd/dashboard"
@@ -400,7 +408,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
     // 2. Resolve destination target
     const queryParamRedirect = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null;
-    let target = customRedirect || queryParamRedirect || "/retailer/dashboard";
+    let target = customRedirect || queryParamRedirect || portalDashboardUrl;
 
     if (destination === "ACCOUNT_UNDER_REVIEW") {
       target = customRedirect || "/retailer/account-under-review";

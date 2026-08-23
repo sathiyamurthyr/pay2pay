@@ -150,11 +150,15 @@ class BackblazeStorageService:
             return clean_path
 
         # If it's a B2 URL without token, extract the key
-        if "backblazeb2.com" in clean_path:
+        if "/file/" in clean_path:
             try:
-                parts = clean_path.split(f"/file/{B2_BUCKET_NAME}/")
+                parts = clean_path.split("/file/")
                 if len(parts) > 1:
-                    clean_path = parts[1].split("?")[0].lstrip("/")
+                    bucket_and_key = parts[1].split("?")[0].lstrip("/")
+                    if bucket_and_key.startswith(f"{B2_BUCKET_NAME}/"):
+                        clean_path = bucket_and_key[len(f"{B2_BUCKET_NAME}/"):]
+                    elif "/" in bucket_and_key:
+                        clean_path = "/".join(bucket_and_key.split("/")[1:])
             except Exception:
                 pass
 

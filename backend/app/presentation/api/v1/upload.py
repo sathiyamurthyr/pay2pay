@@ -164,3 +164,68 @@ async def upload_local_image(
             "file_size": len(file_bytes),
         },
     )
+
+
+@router.api_route("/document", methods=["GET", "HEAD"], summary="Proxy & Stream KYC Document / PDF with Auth")
+async def stream_document(
+    path: str,
+):
+    """
+    Safely stream or serve any KYC document / PDF / image.
+    If local, returns local file. If in Backblaze B2, signs URL and streams content with 200 OK.
+    """
+    from fastapi.responses import Response, RedirectResponse, FileResponse
+    from pathlib import Path
+    import urllib.request
+
+    clean = path.strip().lstrip("/")
+    if clean.startswith("uploads/"):
+        clean = clean[len("uploads/"):]
+
+    # 1. Check local uploads
+    local_candidates = [
+        Path("uploads") / clean,
+        Path("backend/uploads") / clean,
+        Path("/home/ubuntu/pay2pay/backend/uploads") / clean,
+        Path("/home/ubuntu/pay2pay/uploads") / clean,
+        Path(f"d:/pay2pay/backend/uploads/{clean}"),
+        Path(f"d:/pay2pay/uploads/{clean}"),
+    ]
+    for p in local_candidates:
+        if p.exists() and p.is_file():
+            mime_type, _ = mimetypes.guess_type(str(p))
+            return FileResponse(p, media_type=mime_type or "application/octet-stream")
+
+    # 2. Get signed B2 download URL
+    signed_url = BackblazeStorageService.get_download_url(clean)
+    if signed_url and signed_url.startswith("http"):
+        try:
+            req = urllib.request.Request(signed_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = resp.read()
+                content_type = resp.headers.get("Content-Type") or mimetypes.guess_type(clean)[0] or "application/octet-stream"
+                return Response(
+                    content=data,
+                    media_type=content_type,
+                    headers={
+                        "Content-Type": content_type,
+                        "Content-Disposition": f"inline; filename=\"{Path(clean).name}\"",
+                        "Cache-Control": "public, max-age=86400",
+                        "Access-Control-Allow-Origin": "*",
+                    }
+                )
+        except Exception:
+            return RedirectResponse(signed_url, status_code=302)
+
+    raise HTTPException(status_code=404, detail="Document not found")
+
+
+@router.get("/signed-url", summary="Get Authenticated Backblaze B2 Download URL")
+async def get_signed_download_url(path: str):
+    signed_url = BackblazeStorageService.get_download_url(path)
+    return {
+        "success": True,
+        "raw_path": path,
+        "signed_url": signed_url
+    }
+

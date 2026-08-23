@@ -44,7 +44,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     const link = document.createElement("a");
     link.href = documentUrl;
     const safeTitle = (documentTitle || "document").split(" ").join("_");
-    link.download = `${safeTitle}_admin_copy.jpg`;
+    const ext = documentUrl.toLowerCase().includes(".pdf") || documentType === "PDF" ? "pdf" : "jpg";
+    link.download = `${safeTitle}_admin_copy.${ext}`;
     link.click();
   };
 
@@ -120,7 +121,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
       {/* Main Preview Area */}
       <div className="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center p-6">
-        {documentUrl.toLowerCase().endsWith(".pdf") || documentType === "PDF" ? (
+        {documentUrl.toLowerCase().includes(".pdf") || documentType === "PDF" ? (
           <div className="w-full h-full max-h-[75vh] max-w-4xl flex items-center justify-center">
             <iframe
               src={documentUrl}
@@ -128,7 +129,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               className="w-full h-full rounded-2xl bg-white border border-slate-800 shadow-2xl"
             />
           </div>
-        ) : documentUrl.toLowerCase().endsWith(".mp4") || documentUrl.toLowerCase().endsWith(".webm") || documentType === "VIDEO" ? (
+        ) : documentUrl.toLowerCase().includes(".mp4") || documentUrl.toLowerCase().includes(".webm") || documentType === "VIDEO" ? (
           <div className="max-h-[75vh] max-w-full flex items-center justify-center">
             <video
               src={documentUrl}

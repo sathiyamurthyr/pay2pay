@@ -151,7 +151,6 @@ export const RetailerDashboardView: React.FC = () => {
   const { openContactSupportModal } = useContactSupportModal();
   const { kpiTheme, wallet, outlet, syncBalance, isSyncing } = useRetailerStore();
   const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["classic-blue"];
-  const [dashboardLockedModal, setDashboardLockedModal] = useState<{ label: string } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
 
@@ -914,70 +913,6 @@ export const RetailerDashboardView: React.FC = () => {
           </Grid>
         ))}
       </Grid>
-      {/* ── Dashboard Locked Feature Modal ────────────────────────────────────── */}
-      <Dialog
-        open={Boolean(dashboardLockedModal)}
-        onClose={() => setDashboardLockedModal(null)}
-        slotProps={{
-          paper: {
-            sx: {
-              borderRadius: "24px",
-              bgcolor: "#0F172A",
-              color: "#FFFFFF",
-              p: 3.5,
-              maxWidth: 440,
-              width: "100%",
-              border: "1px solid rgba(245, 158, 11, 0.4)",
-              boxShadow: "0 24px 48px rgba(0,0,0,0.6)",
-            },
-          },
-        }}
-      >
-        <Box sx={{ textCenter: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <Box sx={{ w: 14, h: 14, p: 1.5, borderRadius: "50%", bgcolor: "rgba(245, 158, 11, 0.15)", border: "2px solid rgba(245, 158, 11, 0.4)", color: "#FBBF24", mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <LockIcon sx={{ fontSize: 32 }} />
-          </Box>
-          <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", textAlign: "center" }}>
-            {dashboardLockedModal?.label || "Action"} Restricted
-          </Typography>
-          <Typography variant="body2" sx={{ color: "#CBD5E1", mt: 1.5, textAlign: "center", fontSize: "13px", lineHeight: 1.5 }}>
-            Your retailer account is currently <strong>PENDING ADMIN APPROVAL</strong>. Financial services, wallet top-ups, and transaction actions are restricted until Admin approves your application.
-          </Typography>
-
-          <Stack spacing={1.5} sx={{ mt: 3, width: "100%" }}>
-            <Button
-              component={Link}
-              href="/register/submitted"
-              onClick={() => setDashboardLockedModal(null)}
-              variant="contained"
-              fullWidth
-              sx={{ bgcolor: "#2563EB", color: "#FFF", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px" }}
-            >
-              View Application Status
-            </Button>
-            <Button
-              onClick={() => {
-                setDashboardLockedModal(null);
-                openContactSupportModal();
-              }}
-              variant="outlined"
-              fullWidth
-              sx={{ borderColor: "#3B82F6", color: "#60A5FA", fontWeight: 800, borderRadius: "12px", height: 44, textTransform: "none", fontSize: "13px", "&:hover": { bgcolor: "rgba(59, 130, 246, 0.1)" } }}
-            >
-              Contact Admin Support
-            </Button>
-            <Button
-              onClick={() => setDashboardLockedModal(null)}
-              variant="text"
-              fullWidth
-              sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "none", fontSize: "13px" }}
-            >
-              Dismiss
-            </Button>
-          </Stack>
-        </Box>
-      </Dialog>
-
       {/* Dynamic Database & Backblaze B2 Driven Announcement Modal */}
       <DashboardAnnouncementModal audience="RETAILER" />
     </Box>

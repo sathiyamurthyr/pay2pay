@@ -126,9 +126,7 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
             ? "ONBOARDING"
             : d.destination === "ACCOUNT_RESTRICTED" || rawStatus === "SUSPENDED" || rawStatus === "BLOCKED" || rawStatus === "HOLD"
             ? "ACCOUNT_RESTRICTED"
-            : isAppr
-            ? "DASHBOARD"
-            : "ACCOUNT_UNDER_REVIEW";
+            : "DASHBOARD";
 
         const defaultRedirectUrl =
           normalizedDest === "APPLICATION_REJECTED"
@@ -137,8 +135,6 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
             ? "/register"
             : normalizedDest === "ACCOUNT_RESTRICTED"
             ? "/retailer/account-restricted"
-            : normalizedDest === "ACCOUNT_UNDER_REVIEW"
-            ? "/retailer/account-under-review"
             : "/retailer/dashboard";
 
         const resolved: AuthoritativeAccountStatus = {
@@ -284,34 +280,30 @@ export async function verifyAndRoutePostLogin(
         return { success: true, destination: "ACCOUNT_RESTRICTED" };
       }
 
-      if (status.destination === "ACCOUNT_UNDER_REVIEW" || !isApproved) {
-        const dest = status.redirect_url || "/retailer/account-under-review";
-        if (typeof window !== "undefined") window.location.href = dest;
-        else router.replace(dest);
-        return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
+      // Route directly to dashboard without lock screen
+      if (typeof window !== "undefined") {
+        window.location.href = targetDashboard;
+      } else {
+        router.replace(targetDashboard);
       }
+      return { success: true, destination: "DASHBOARD" };
     }
 
-    // Default for unapproved fallback check
+    // Default: Route directly to dashboard
     if (typeof window !== "undefined") {
-      const storedStatus = localStorage.getItem("p2p_retailer_approval_status");
-      if (storedStatus === "UNDER_REVIEW" || storedStatus === "PENDING") {
-        window.location.href = "/retailer/account-under-review";
-        return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
-      }
       window.location.href = targetDashboard;
     } else {
       router.replace(targetDashboard);
     }
     return { success: true, destination: "DASHBOARD" };
   } catch (err) {
-    const targetDashboard = "/retailer/account-under-review";
+    const targetDashboard = "/retailer/dashboard";
     if (typeof window !== "undefined") {
       window.location.href = targetDashboard;
     } else {
       router.replace(targetDashboard);
     }
-    return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
+    return { success: true, destination: "DASHBOARD" };
   }
 }
 
@@ -326,34 +318,22 @@ export function enforceAuthoritativeRouting(
 ): boolean {
   if (isRedirecting) return false;
 
-  const isApproved = status.is_approved === true || status.approval_status === "APPROVED" || status.account_status === "ACTIVE";
-
-  if (!isApproved) {
-    if (status.destination === "APPLICATION_REJECTED" || status.approval_status === "REJECTED") {
-      if (currentPathname !== "/application-rejected") {
-        isRedirecting = true;
-        router.replace("/application-rejected");
-        setTimeout(() => { isRedirecting = false; }, 500);
-        return true;
-      }
-    } else if (status.destination === "ACCOUNT_RESTRICTED") {
-      if (currentPathname !== "/retailer/account-restricted" && currentPathname !== "/account-restricted") {
-        isRedirecting = true;
-        router.replace("/retailer/account-restricted");
-        setTimeout(() => { isRedirecting = false; }, 500);
-        return true;
-      }
-    } else {
-      // Pending Admin Approval / Under Review
-      if (currentPathname !== "/retailer/account-under-review" && currentPathname !== "/account-under-review") {
-        isRedirecting = true;
-        router.replace("/retailer/account-under-review");
-        setTimeout(() => { isRedirecting = false; }, 500);
-        return true;
-      }
+  if (status.destination === "APPLICATION_REJECTED" || status.approval_status === "REJECTED") {
+    if (currentPathname !== "/application-rejected") {
+      isRedirecting = true;
+      router.replace("/application-rejected");
+      setTimeout(() => { isRedirecting = false; }, 500);
+      return true;
+    }
+  } else if (status.destination === "ACCOUNT_RESTRICTED") {
+    if (currentPathname !== "/retailer/account-restricted" && currentPathname !== "/account-restricted") {
+      isRedirecting = true;
+      router.replace("/retailer/account-restricted");
+      setTimeout(() => { isRedirecting = false; }, 500);
+      return true;
     }
   } else {
-    // Approved retailer on under-review page should be routed to dashboard
+    // If user is on an under-review lock screen URL, automatically redirect to dashboard
     if (currentPathname === "/retailer/account-under-review" || currentPathname === "/account-under-review") {
       isRedirecting = true;
       router.replace("/retailer/dashboard");

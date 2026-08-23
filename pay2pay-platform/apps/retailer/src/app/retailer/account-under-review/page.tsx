@@ -55,29 +55,8 @@ export default function RetailerAccountUnderReviewPage() {
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const u = JSON.parse(localStorage.getItem("pay2pay_user_data") || localStorage.getItem("user_info") || "{}");
-        const mob = localStorage.getItem("pay2pay_reg_mobile") || u.mobile_number || u.mobile || "";
-        const regRef = localStorage.getItem("pay2pay_reg_id") || u.retailer_code || "P2P-REG-2026";
-        const name = u.full_name || u.name || u.store_name || "Retailer Partner";
-        setRetailerInfo({
-          name,
-          mobile: mob,
-          ref: regRef,
-          status: "PENDING",
-        });
-      } catch {}
-    }
-
-    checkStatus(false);
-
-    const interval = setInterval(() => {
-      checkStatus(false);
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
+    router.replace("/retailer/dashboard");
+  }, [router]);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {

@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import api from "@/lib/api";
@@ -201,15 +199,21 @@ function ManualTopupContent() {
 
   const [frozenWalletsMap, setFrozenWalletsMap] = useState<any>({});
 
+  // Fetch recent ledger transactions directly from live database
+  const fetchTopupLedger = async () => {
+    try {
+      const res = await api.get("/api/v1/wallet-ledger/wallets/manual-topup?page_size=50");
+      if (res?.data?.items && Array.isArray(res.data.items)) {
+        setTopupLedger(res.data.items);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch topup ledger:", err);
+    }
+  };
+
   // Dedicated function to fetch live entities and balances directly from PostgreSQL DB
   const fetchLiveDatabaseEntities = async () => {
     try {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("pay2pay_entity_balances_map");
-        localStorage.removeItem("pay2pay_entity_wallets");
-        localStorage.removeItem("p2p_active_retailer_wallet_balance");
-      }
-
       const [retRes, distRes, sdRes] = await Promise.allSettled([
         api.get("/api/v1/retailers?page_size=100"),
         api.get("/api/v1/organization/distributors?page_size=100"),
@@ -276,36 +280,10 @@ function ManualTopupContent() {
     }
   };
 
-  // Load real database balances on mount
+  // Load real database balances and topup history on mount
   useEffect(() => {
     fetchLiveDatabaseEntities();
-
-    if (typeof window !== "undefined") {
-      const storedLedger = localStorage.getItem("pay2pay_topup_ledger");
-      if (storedLedger) {
-        try { setTopupLedger(JSON.parse(storedLedger)); } catch (e) {}
-      }
-      const storedPerType = localStorage.getItem("pay2pay_frozen_wallets_per_type");
-      const storedGlobal = localStorage.getItem("pay2pay_frozen_wallets");
-      let combined: any = {};
-      if (storedGlobal) {
-        try {
-          const parsedG = JSON.parse(storedGlobal);
-          Object.keys(parsedG).forEach((code) => {
-            if (parsedG[code]?.isFrozen) {
-              combined[code] = { ALL: { frozen: true, reason: parsedG[code].reason } };
-            }
-          });
-        } catch (e) {}
-      }
-      if (storedPerType) {
-        try {
-          const parsedP = JSON.parse(storedPerType);
-          combined = { ...combined, ...parsedP };
-        } catch (e) {}
-      }
-      setFrozenWalletsMap(combined);
-    }
+    fetchTopupLedger();
   }, []);
 
   const searchParams = useSearchParams();
@@ -396,19 +374,18 @@ function ManualTopupContent() {
       console.error("Manual topup backend error:", err);
     }
 
-    // 2. Re-fetch live database records
-    await fetchLiveDatabaseEntities();
+    // 2. Re-fetch live database records & ledger
+    await Promise.allSettled([
+      fetchLiveDatabaseEntities(),
+      fetchTopupLedger(),
+    ]);
 
     // 3. Update Recent Topup Ledger in UI
     const newLedgerItem = {
       public_id: `top-${Date.now()}`,
       ...payload,
     };
-    const newLedger = [newLedgerItem, ...topupLedger];
-    setTopupLedger(newLedger);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("pay2pay_topup_ledger", JSON.stringify(newLedger));
-    }
+    setTopupLedger((prev) => [newLedgerItem, ...prev]);
 
     // 5. Open Detailed Receipt Modal with Share Options
     setReceiptData(newLedgerItem);

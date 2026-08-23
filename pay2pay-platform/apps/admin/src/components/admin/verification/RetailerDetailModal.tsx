@@ -229,8 +229,8 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                 { title: "GSTIN Certificate", url: media.gst_proof_url, type: "GST_CERT", category: "Tax Certificate" },
                 { title: "Live Video KYC", url: media.video_url, type: "VIDEO", isVideo: true, category: "100% Liveness Match" },
               ].filter(doc => !!doc.url).map((doc, idx) => {
-                const isPdf = doc.url.toLowerCase().endsWith(".pdf");
-                const isVid = doc.isVideo || doc.url.toLowerCase().endsWith(".mp4") || doc.url.toLowerCase().endsWith(".webm");
+                const isPdf = doc.url.toLowerCase().includes(".pdf");
+                const isVid = doc.isVideo || doc.url.toLowerCase().includes(".mp4") || doc.url.toLowerCase().includes(".webm");
 
                 return (
                   <div

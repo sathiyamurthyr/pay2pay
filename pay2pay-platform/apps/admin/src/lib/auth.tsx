@@ -85,21 +85,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             parsed.roles = [parsed.role || "RETAILER"];
           }
           setUser(parsed);
-          const isRet = parsed.roles.includes("RETAILER") || parsed.role === "RETAILER";
+          const isRet = parsed.roles.includes("RETAILER") && !parsed.roles.includes("PLATFORM_ADMIN") && !parsed.roles.includes("ADMIN");
           setActiveRole(isRet ? "RETAILER" : "PLATFORM_ADMIN");
         } else {
           // Construct minimal profile from active session
           setUser({
             public_id: "authenticated_session",
-            email: "merchant@pay2pay.in",
-            full_name: "Retailer Partner",
+            email: "admin@pay2pay.in",
+            full_name: "Platform Administrator",
             tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8",
-            roles: ["RETAILER"],
+            roles: ["PLATFORM_ADMIN", "ADMIN"],
             approval_status: "APPROVED",
             status: "ACTIVE",
             is_approved: true,
           });
-          setActiveRole("RETAILER");
+          setActiveRole("PLATFORM_ADMIN");
         }
       } catch {
         setUser(null);
