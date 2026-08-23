@@ -11,46 +11,46 @@ export interface PortalConfig {
 }
 
 export const PORTAL_CONFIGS: Record<UserPortalRole, PortalConfig> = {
-  RETAILER: {
-    portal: "RETAILER",
-    prefix: "/retailer",
-    dashboard: "/retailer/dashboard",
-    login: "/retailer/login",
-  },
-  DIST: {
-    portal: "DIST",
-    prefix: "/dist",
-    dashboard: "/dist/dashboard",
-    login: "/dist/login",
-  },
-  SD: {
-    portal: "SD",
-    prefix: "/sd",
-    dashboard: "/sd/dashboard",
-    login: "/sd/login",
+  SUPER_ADMIN: {
+    portal: "SUPER_ADMIN",
+    prefix: "/super-admin",
+    dashboard: "/dashboard",
+    login: "/login",
   },
   ADMIN: {
     portal: "ADMIN",
     prefix: "/admin",
-    dashboard: "/admin/dashboard",
-    login: "/admin/login",
+    dashboard: "/dashboard",
+    login: "/login",
   },
-  SUPER_ADMIN: {
-    portal: "SUPER_ADMIN",
-    prefix: "/super-admin",
-    dashboard: "/super-admin/dashboard",
-    login: "/super-admin/login",
+  SD: {
+    portal: "SD",
+    prefix: "/sd",
+    dashboard: "/dashboard",
+    login: "/login",
+  },
+  DIST: {
+    portal: "DIST",
+    prefix: "/dist",
+    dashboard: "/dashboard",
+    login: "/login",
+  },
+  RETAILER: {
+    portal: "RETAILER",
+    prefix: "/retailer",
+    dashboard: "/dashboard",
+    login: "/login",
   },
 };
 
 export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
-  if (!rawRole) return "RETAILER";
+  if (!rawRole) return "ADMIN";
   const upper = rawRole.trim().toUpperCase();
 
   if (upper === "SUPER_ADMIN" || upper === "SUPERADMIN" || upper === "SUPER-ADMIN") {
     return "SUPER_ADMIN";
   }
-  if (upper === "ADMIN") {
+  if (upper === "ADMIN" || upper === "PLATFORM_ADMIN" || upper === "OPERATIONS_ADMIN") {
     return "ADMIN";
   }
   if (upper === "SD" || upper === "SUPER_DISTRIBUTOR" || upper === "SUPER DISTRIBUTOR") {
@@ -59,12 +59,7 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
   if (upper === "DIST" || upper === "DISTRIBUTOR") {
     return "DIST";
   }
-  return "RETAILER";
-}
-
-export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
-  const role = normalizeUserRole(rawRole);
-  return PORTAL_CONFIGS[role];
+  return "ADMIN";
 }
 
 export function middleware(request: NextRequest) {
@@ -73,10 +68,10 @@ export function middleware(request: NextRequest) {
   const rawRole =
     request.cookies.get("p2p_user_role")?.value ||
     request.cookies.get("pay2pay_user_role")?.value ||
-    "RETAILER";
+    "ADMIN";
 
   const userRole = normalizeUserRole(rawRole);
-  const portalConfig = resolvePortalRoute(userRole);
+  const portalConfig = PORTAL_CONFIGS[userRole] || PORTAL_CONFIGS.ADMIN;
 
   const token =
     request.cookies.get("p2p_access_token")?.value ||
@@ -96,14 +91,23 @@ export function middleware(request: NextRequest) {
     return res;
   };
 
-  // 1. Explicit Public Routes (Always accessible without authentication)
-  const isLoginRoute =
+  // Redirect legacy login aliases to /login
+  if (
     pathname === "/retailer/login" ||
-    pathname === "/login" ||
     pathname === "/dist/login" ||
     pathname === "/sd/login" ||
     pathname === "/admin/login" ||
-    pathname === "/super-admin/login";
+    pathname === "/super-admin/login"
+  ) {
+    const canonicalLogin = new URL("/login", request.url);
+    const redirectParam = request.nextUrl.searchParams.get("redirect");
+    if (redirectParam) {
+      canonicalLogin.searchParams.set("redirect", redirectParam);
+    }
+    return applySecurityHeaders(NextResponse.redirect(canonicalLogin));
+  }
+
+  const isLoginRoute = pathname === "/login";
 
   const isPublicRoute =
     isLoginRoute ||
@@ -113,9 +117,15 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/design-system") ||
     pathname === "/403";
 
-  // If user is already authenticated and visits a login page, redirect to active dashboard
+  // If user is already authenticated and visits the login page, redirect to active dashboard
   if (isLoginRoute) {
     if (isAuthenticated) {
+      const redirectParam = request.nextUrl.searchParams.get("redirect");
+      if (redirectParam && redirectParam.startsWith("/") && redirectParam !== "/login") {
+        return applySecurityHeaders(
+          NextResponse.redirect(new URL(redirectParam, request.url))
+        );
+      }
       return applySecurityHeaders(
         NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
       );
@@ -128,34 +138,17 @@ export function middleware(request: NextRequest) {
     return applySecurityHeaders(NextResponse.next());
   }
 
-  // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to login
+  // Unauthenticated user accessing ANY protected route -> Fail-closed redirect to /login
   if (!isAuthenticated) {
-    const loginUrl = new URL(portalConfig.login, request.url);
+    const loginUrl = new URL("/login", request.url);
     if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
       loginUrl.searchParams.set("redirect", pathname);
     }
     return applySecurityHeaders(NextResponse.redirect(loginUrl));
   }
 
-  // 3. Authenticated Root/Dashboard aliases -> redirect to canonical portal dashboard
-  if (pathname === "/" || pathname === "/dashboard" || pathname === "/retailer-dashboard") {
-    return applySecurityHeaders(
-      NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
-    );
-  }
-
-  if (pathname === "/admin-dashboard") {
-    return applySecurityHeaders(
-      NextResponse.redirect(new URL(PORTAL_CONFIGS.ADMIN.dashboard, request.url))
-    );
-  }
-
-  // 4. Role-based prefix boundary checks
-  const allPrefixes = Object.values(PORTAL_CONFIGS).map((c) => c.prefix);
-  const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
-
-  if (targetPrefix && targetPrefix !== portalConfig.prefix) {
-    // If accessing another portal's prefixed routes (e.g. Retailer trying /admin/*), redirect to own dashboard
+  // Authenticated Root/Dashboard aliases -> redirect to canonical portal dashboard
+  if (pathname === "/" || pathname === "/retailer-dashboard" || pathname === "/admin-dashboard") {
     return applySecurityHeaders(
       NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
     );
