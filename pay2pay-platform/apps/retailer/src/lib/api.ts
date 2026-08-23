@@ -46,6 +46,30 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
+      const url = error.config?.url || "";
+      const errorDetail = (
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        ""
+      ).toLowerCase();
+
+      // IMPORTANT: Do NOT log out the user if the 401 error is from a wrong PIN / MPIN / password or screen unlock!
+      const isPinOrCredentialError =
+        url.includes("/mpin") ||
+        url.includes("/unlock") ||
+        url.includes("/security") ||
+        url.includes("/pin") ||
+        url.includes("/payout") ||
+        url.includes("/transfer") ||
+        url.includes("/dmt") ||
+        errorDetail.includes("pin") ||
+        errorDetail.includes("mpin") ||
+        errorDetail.includes("password");
+
+      if (isPinOrCredentialError) {
+        return Promise.reject(error);
+      }
+
       if (typeof document !== "undefined") {
         const cookieNames = [
           "p2p_access_token",

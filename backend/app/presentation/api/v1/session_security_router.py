@@ -192,7 +192,7 @@ async def unlock_screen_session(
 
     if not verified:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect Security PIN. Please enter your valid 4-digit PIN configured in database."
         )
 

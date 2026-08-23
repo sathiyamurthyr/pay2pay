@@ -390,6 +390,26 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     }
 
     if (!finResult.success) {
+      const isPinError =
+        (finResult.errorMessage || "").toLowerCase().includes("pin") ||
+        (finResult.errorMessage || "").toLowerCase().includes("mpin") ||
+        (finResult.errorMessage || "").toLowerCase().includes("attempt");
+
+      if (isPinError) {
+        bankingSounds.playError();
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 600);
+        setPinDigits(Array(pinLength).fill(""));
+        const remaining = Math.max(0, attemptsLeft - 1);
+        setAttemptsLeft(remaining);
+        setErrorMessage(sanitizeCustomerErrorMessage(finResult.errorMessage));
+        setViewState("PIN_ENTRY");
+        setTimeout(() => {
+          inputRefs.current[0]?.focus();
+        }, 100);
+        return;
+      }
+
       stepsCopy[11].status = "FAILED";
       stepsCopy[11].subTitle = "Bank transaction failed";
       setTimelineSteps([...stepsCopy]);

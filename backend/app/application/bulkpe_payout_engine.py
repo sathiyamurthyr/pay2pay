@@ -162,7 +162,7 @@ class BulkPePayoutEngine:
 
         if not mpin_verified:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail=mpin_error_detail or "Invalid Security MPIN. Please enter the valid PIN configured in the database."
             )
 
