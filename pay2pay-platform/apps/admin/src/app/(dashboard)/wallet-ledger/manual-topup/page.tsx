@@ -192,6 +192,14 @@ function ManualTopupContent() {
   const [amount, setAmount] = useState<number | "">("");
   const [comments, setComments] = useState<string>("");
 
+  const numericAmount = typeof amount === "number" ? amount : 0;
+  const isTxnIdDuplicate = topupLedger.some((t: any) => t.transaction_id === txnId);
+  const estimatedBalance = selectedEntity
+    ? txnType === "CREDIT"
+      ? selectedEntity.currentBal + numericAmount
+      : selectedEntity.currentBal - numericAmount
+    : 0;
+
   // Generate initial Txn ID on client mount
   useEffect(() => {
     setTxnId(`TOPUP-${new Date().toISOString().split("T")[0].replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`);
