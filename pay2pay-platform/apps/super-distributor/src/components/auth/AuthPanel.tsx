@@ -31,6 +31,8 @@ import {
   shakeErrorVariants,
   buttonMotionVariants
 } from "./motion/animationVariants";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 type LanguageKey = "English" | "Hindi" | "Tamil" | "Telugu";
 
