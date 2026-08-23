@@ -34,6 +34,8 @@ import {
   ShieldAlert,
   Lock,
   Unlock,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 // ─── Scope & Entity Options ──────────────────────────────────────────────────
@@ -73,11 +75,15 @@ function SearchableEntitySelect({
   value,
   onChange,
   placeholder,
+  isLoading = false,
+  onRefresh,
 }: {
   options: { id: string; name: string; code: string; currentBal: number }[];
   value: { id: string; name: string; code: string; currentBal: number } | null;
   onChange: (opt: { id: string; name: string; code: string; currentBal: number } | null) => void;
   placeholder: string;
+  isLoading?: boolean;
+  onRefresh?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -114,13 +120,16 @@ function SearchableEntitySelect({
         <span className={value ? "text-[#0F172A]" : "text-[#94A3B8]"}>
           {value ? `${value.name} (${value.code})` : placeholder}
         </span>
-        <ChevronDown className={`w-4 h-4 text-[#64748B] flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {isLoading && <Loader2 className="w-3.5 h-3.5 text-[#2563EB] animate-spin" />}
+          <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${open ? "rotate-180" : ""}`} />
+        </div>
       </button>
 
       {open && (
         <div className="absolute z-50 mt-1 w-full rounded-xl border border-[#CBD5E1] bg-white shadow-xl overflow-hidden py-1">
-          <div className="p-2 border-b border-[#F1F5F9]">
-            <div className="flex items-center gap-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-2.5 py-1.5">
+          <div className="p-2 border-b border-[#F1F5F9] flex items-center gap-1.5">
+            <div className="flex flex-1 items-center gap-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-2.5 py-1.5">
               <Search className="w-3.5 h-3.5 text-[#94A3B8]" />
               <input
                 autoFocus
@@ -136,11 +145,43 @@ function SearchableEntitySelect({
                 </button>
               )}
             </div>
+            {onRefresh && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRefresh();
+                }}
+                disabled={isLoading}
+                title="Reload from database"
+                className="p-2 rounded-lg border border-[#E2E8F0] text-[#64748B] hover:text-[#2563EB] hover:border-[#2563EB] bg-[#F8FAFC] hover:bg-[#EFF6FF] transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-[#2563EB]" : ""}`} />
+              </button>
+            )}
           </div>
 
           <ul className="max-h-52 overflow-y-auto py-1">
-            {filtered.length === 0 ? (
-              <li className="px-4 py-3 text-xs text-[#94A3B8] text-center font-medium">No entities matched</li>
+            {isLoading && options.length === 0 ? (
+              <li className="px-4 py-4 text-xs text-[#2563EB] text-center font-bold flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading live database entities...
+              </li>
+            ) : filtered.length === 0 ? (
+              <li className="px-4 py-4 text-xs text-[#94A3B8] text-center font-medium space-y-1.5">
+                <div>{query ? `No entities matching "${query}"` : "No active entities found in database."}</div>
+                {onRefresh && !query && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRefresh();
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] text-[#2563EB] font-bold hover:underline cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Retry Loading
+                  </button>
+                )}
+              </li>
             ) : (
               filtered.map((opt) => (
                 <li
@@ -159,7 +200,7 @@ function SearchableEntitySelect({
                     <p className="font-mono text-[10px] text-[#64748B]">{opt.code}</p>
                   </div>
                   <span className="font-mono text-[11px] font-extrabold text-[#15803D]">
-                    ₹{opt.currentBal.toLocaleString("en-IN")}
+                    ₹{opt.currentBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </span>
                 </li>
               ))
@@ -173,6 +214,7 @@ function SearchableEntitySelect({
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 function ManualTopupContent() {
+  const [mounted, setMounted] = useState(false);
   const [mockEntities, setMockEntities] = useState<Record<string, { id: string; name: string; code: string; currentBal: number }[]>>(INITIAL_ENTITIES);
   const [topupLedger, setTopupLedger] = useState<any[]>(INITIAL_TOPUPS);
   const [loading, setLoading] = useState(false);
@@ -200,8 +242,9 @@ function ManualTopupContent() {
       : selectedEntity.currentBal - numericAmount
     : 0;
 
-  // Generate initial Txn ID on client mount
+  // Set mounted and generate initial Txn ID on client mount
   useEffect(() => {
+    setMounted(true);
     setTxnId(`TOPUP-${new Date().toISOString().split("T")[0].replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`);
   }, []);
 
@@ -219,80 +262,141 @@ function ManualTopupContent() {
     }
   };
 
+  const [entitiesLoading, setEntitiesLoading] = useState(false);
+
   // Dedicated function to fetch live entities and balances directly from PostgreSQL DB
   const fetchLiveDatabaseEntities = async () => {
+    setEntitiesLoading(true);
     try {
-      const [retRes, distRes, sdRes] = await Promise.allSettled([
-        api.get("/api/v1/retailers?page_size=100"),
-        api.get("/api/v1/organization/distributors?page_size=100"),
-        api.get("/api/v1/organization/super-distributors?page_size=100"),
-      ]);
-
-      const liveMap: Record<string, { id: string; name: string; code: string; currentBal: number }[]> = {
-        SUPER_DISTRIBUTOR: [],
-        DISTRIBUTOR: [],
-        RETAILER: [],
+      const getAuthHeader = () => {
+        if (typeof window === "undefined") return {};
+        const cookies = document.cookie ? document.cookie.split("; ") : [];
+        const tokenCookie = cookies.find((row) =>
+          row.startsWith("p2p_access_token=") ||
+          row.startsWith("pay2pay_access_token=") ||
+          row.startsWith("pay2pay_auth_token=")
+        );
+        const token =
+          (tokenCookie ? tokenCookie.split("=")[1] : null) ||
+          localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("pay2pay_access_token") ||
+          localStorage.getItem("pay2pay_auth_token") ||
+          localStorage.getItem("access_token") ||
+          "";
+        return token ? { Authorization: `Bearer ${token.trim()}` } : {};
       };
 
-      if (retRes.status === "fulfilled") {
-        const d = retRes.value.data;
-        const items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
-        if (Array.isArray(items) && items.length > 0) {
-          liveMap.RETAILER = items
-            .filter((r: any) => !r.is_deleted && r.status !== "DEACTIVATED_MERGED")
-            .map((r: any) => ({
-              id: String(r.public_id || r.id),
-              name: r.store_name || r.owner_name || r.legal_name || "Retailer Store",
-              code: r.retailer_code || "RET-UNKNOWN",
-              currentBal: typeof r.wallet_balance === "number" ? Number(r.wallet_balance) : 0.0,
+      const loadRetailers = async () => {
+        try {
+          let items: any[] = [];
+          try {
+            const retRes = await api.get("/api/v1/retailers?page_size=100");
+            const d = retRes.data;
+            items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
+          } catch {
+            const raw = await fetch("/api/v1/retailers?page_size=100", { headers: getAuthHeader() });
+            if (raw.ok) {
+              const d = await raw.json();
+              items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
+            }
+          }
+
+          if (Array.isArray(items) && items.length > 0) {
+            const retList = items
+              .filter((r: any) => !r.is_deleted && r.status !== "DEACTIVATED_MERGED")
+              .map((r: any) => ({
+                id: String(r.public_id || r.id),
+                name: r.store_name || r.owner_name || r.legal_name || "Retailer Outlet",
+                code: r.retailer_code || "RET-UNKNOWN",
+                currentBal: typeof r.wallet_balance === "number" ? Number(r.wallet_balance) : (r.wallet?.wallet_balance ? Number(r.wallet.wallet_balance) : 0.0),
+              }));
+            setMockEntities((prev) => ({
+              ...prev,
+              RETAILER: retList,
             }));
+          }
+        } catch (err) {
+          console.warn("Failed to fetch retailers:", err);
         }
-      }
+      };
 
-      if (distRes.status === "fulfilled") {
-        const d = distRes.value.data;
-        const items = Array.isArray(d) ? d : (d?.items || d?.distributors || d?.data || []);
-        if (Array.isArray(items) && items.length > 0) {
-          liveMap.DISTRIBUTOR = items.map((dist: any) => ({
-            id: String(dist.public_id || dist.id),
-            name: dist.company_name || dist.distributor_name || dist.name || "Distributor",
-            code: dist.distributor_code || dist.code || "DIST-UNKNOWN",
-            currentBal: typeof dist.wallet_balance === "number" ? Number(dist.wallet_balance) : 0.0,
-          }));
+      const loadDistributors = async () => {
+        try {
+          let items: any[] = [];
+          try {
+            const distRes = await api.get("/api/v1/organization/distributors?page_size=100");
+            const d = distRes.data;
+            items = Array.isArray(d) ? d : (d?.items || d?.distributors || d?.data || []);
+          } catch {
+            const raw = await fetch("/api/v1/organization/distributors?page_size=100", { headers: getAuthHeader() });
+            if (raw.ok) {
+              const d = await raw.json();
+              items = Array.isArray(d) ? d : (d?.items || d?.distributors || d?.data || []);
+            }
+          }
+
+          if (Array.isArray(items) && items.length > 0) {
+            const distList = items.map((dist: any) => ({
+              id: String(dist.public_id || dist.id),
+              name: dist.company_name || dist.distributor_name || dist.name || "Distributor",
+              code: dist.distributor_code || dist.code || "DIST-UNKNOWN",
+              currentBal: typeof dist.wallet_balance === "number" ? Number(dist.wallet_balance) : 0.0,
+            }));
+            setMockEntities((prev) => ({
+              ...prev,
+              DISTRIBUTOR: distList,
+            }));
+          }
+        } catch (err) {
+          console.warn("Failed to fetch distributors:", err);
         }
-      }
+      };
 
-      if (sdRes.status === "fulfilled") {
-        const d = sdRes.value.data;
-        const items = Array.isArray(d) ? d : (d?.items || d?.super_distributors || d?.data || []);
-        if (Array.isArray(items) && items.length > 0) {
-          liveMap.SUPER_DISTRIBUTOR = items.map((sd: any) => ({
-            id: String(sd.public_id || sd.id),
-            name: sd.company_name || sd.super_distributor_name || sd.name || "Super Distributor",
-            code: sd.super_distributor_code || sd.code || "SD-UNKNOWN",
-            currentBal: typeof sd.wallet_balance === "number" ? Number(sd.wallet_balance) : 0.0,
-          }));
+      const loadSDs = async () => {
+        try {
+          let items: any[] = [];
+          try {
+            const sdRes = await api.get("/api/v1/organization/super-distributors?page_size=100");
+            const d = sdRes.data;
+            items = Array.isArray(d) ? d : (d?.items || d?.super_distributors || d?.data || []);
+          } catch {
+            const raw = await fetch("/api/v1/organization/super-distributors?page_size=100", { headers: getAuthHeader() });
+            if (raw.ok) {
+              const d = await raw.json();
+              items = Array.isArray(d) ? d : (d?.items || d?.super_distributors || d?.data || []);
+            }
+          }
+
+          if (Array.isArray(items) && items.length > 0) {
+            const sdList = items.map((sd: any) => ({
+              id: String(sd.public_id || sd.id),
+              name: sd.company_name || sd.super_distributor_name || sd.name || "Super Distributor",
+              code: sd.super_distributor_code || sd.code || "SD-UNKNOWN",
+              currentBal: typeof sd.wallet_balance === "number" ? Number(sd.wallet_balance) : 0.0,
+            }));
+            setMockEntities((prev) => ({
+              ...prev,
+              SUPER_DISTRIBUTOR: sdList,
+            }));
+          }
+        } catch (err) {
+          console.warn("Failed to fetch super distributors:", err);
         }
-      }
+      };
 
-      setMockEntities(liveMap);
-
-      setSelectedEntity((prev) => {
-        if (!prev) return null;
-        const currentList = liveMap[scope] || [];
-        const matched = currentList.find((e) => e.code === prev.code || e.id === prev.id);
-        return matched || prev;
-      });
+      await Promise.allSettled([loadRetailers(), loadDistributors(), loadSDs()]);
     } catch (err) {
       console.warn("Failed to fetch live database entities:", err);
+    } finally {
+      setEntitiesLoading(false);
     }
   };
 
-  // Load real database balances and topup history on mount
+  // Load real database balances and topup history on mount & when scope changes
   useEffect(() => {
     fetchLiveDatabaseEntities();
     fetchTopupLedger();
-  }, []);
+  }, [scope]);
 
   const searchParams = useSearchParams();
 
@@ -785,6 +889,17 @@ Thank you for using Pay2Pay Enterprise Portal!`;
     },
   ];
 
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center gap-2 text-sm font-bold text-[#64748B]">
+          <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
+          <span>Loading Manual Wallet Top-up Engine...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -864,6 +979,8 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 value={selectedEntity}
                 onChange={setSelectedEntity}
                 placeholder="Click to select target entity user..."
+                isLoading={entitiesLoading}
+                onRefresh={fetchLiveDatabaseEntities}
               />
             </div>
 

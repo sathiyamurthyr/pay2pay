@@ -50,11 +50,16 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
       let localName = "";
       let localCode = "";
       let activeRetailerId = "";
+      let isPlatformAdmin = false;
       if (typeof window !== "undefined") {
         try {
-          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user") || localStorage.getItem("p2p_admin_session");
           if (userStr) {
             const u = JSON.parse(userStr);
+            const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
+            if (["SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN"].includes(role)) {
+              isPlatformAdmin = true;
+            }
             localName = u.full_name || u.name || u.owner_name || u.retailer_name || "";
             localCode = u.retailer_code || u.code || "";
             activeRetailerId = u.retailer_id || u.id || "";
@@ -69,6 +74,33 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
         if (!activeRetailerId) {
           activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
         }
+      }
+
+      if (isPlatformAdmin) {
+        setWalletData({
+          greeting: "Good day",
+          short_name: "Admin",
+          retailer_name: localName || "Admin Workspace",
+          owner_name: localName || "Platform Administrator",
+          company_name: "Pay2Pay Enterprise",
+          retailer_code: "ADM-CORE",
+          retailer_id: "ADM-001",
+          current_time_iso: new Date().toISOString(),
+          wallet_balance: 0,
+          available_balance: 0,
+          blocked_balance: 0,
+          todays_debit: 0,
+          todays_credit: 0,
+          todays_commission: 0,
+          todays_gst: 0,
+          todays_tds: 0,
+          settlement_pending_amount: 0,
+          unread_notifications_count: 0,
+          status: "ACTIVE",
+          is_approved: true,
+        });
+        setIsLoading(false);
+        return;
       }
 
       const params: any = {};

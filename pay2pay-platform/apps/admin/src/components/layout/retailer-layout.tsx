@@ -97,7 +97,11 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
             localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
-            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
+            const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
+            if (["SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN"].includes(role)) {
+              return;
+            }
+            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || "";
           }
         } catch {}
         if (!activeRetailerId) {

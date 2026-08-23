@@ -45,37 +45,11 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      if (typeof document !== "undefined") {
-        const cookieNames = [
-          "p2p_access_token",
-          "pay2pay_access_token",
-          "pay2pay_auth_token",
-          "p2p_user_role",
-          "pay2pay_user_role",
-          "p2p_session_locked",
-          "p2p_session_id",
-          "p2p_destination",
-          "token",
-          "access_token",
-        ];
-        cookieNames.forEach((name) => {
-          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-        });
-      }
+    // Only perform full session reset if explicit auth verification failed
+    const url = String(error.config?.url || "");
+    const isAuthEndpoint = url.includes("/auth/me") || url.includes("/auth/verify-session") || url.includes("/auth/validate");
 
-      if (typeof localStorage !== "undefined") {
-        try {
-          localStorage.clear();
-        } catch {}
-      }
-
-      if (typeof sessionStorage !== "undefined") {
-        try {
-          sessionStorage.clear();
-        } catch {}
-      }
-
+    if (error.response?.status === 401 && isAuthEndpoint) {
       if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
         window.location.replace(`/login?reason=session_expired&redirect=${encodeURIComponent(window.location.pathname)}`);
       }

@@ -254,7 +254,12 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
             if (userStr) {
               const u = JSON.parse(userStr);
-              activeRetailerId = u.retailer_id || u.id || "";
+              const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
+              if (["SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN"].includes(role)) {
+                set({ isSyncing: false });
+                return;
+              }
+              activeRetailerId = u.retailer_id || "";
               activeTenantId = u.tenant_id || "";
             }
           } catch {}

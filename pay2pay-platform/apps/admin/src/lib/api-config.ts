@@ -1,8 +1,5 @@
 export const getApiBaseUrl = (): string => {
   if (typeof window !== "undefined") {
-    if (window.location.hostname.includes("pay2pay.in")) {
-      return "https://api.pay2pay.in/api/v1";
-    }
     return "/api/v1";
   }
   if (process.env.NEXT_PUBLIC_API_URL) {

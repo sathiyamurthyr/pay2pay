@@ -135,30 +135,6 @@ export default function RetailerDetailsPage() {
     }
   };
 
-  if (loading || !data) {
-    return (
-      <div className="flex h-96 items-center justify-center py-20 gap-3 text-sm font-semibold text-[#64748B]">
-        <RefreshCw className="w-5 h-5 animate-spin text-[#2563EB]" /> Loading Retailer Profile…
-      </div>
-    );
-  }
-
-  const {
-    retailer,
-    contacts,
-    addresses,
-    banks,
-    kyc,
-    documents,
-    wallet,
-    status_history,
-    hierarchy,
-    assigned_distributor,
-    assigned_sd,
-    assigned_rm,
-    company,
-  } = data;
-
   const availableDistributors = React.useMemo(() => {
     if (!hierarchyOptions) return [];
     if (selectedCompanyId) {
@@ -179,6 +155,50 @@ export default function RetailerDetailsPage() {
     if (!hierarchyOptions || !selectedDistributorId) return null;
     return hierarchyOptions.distributors?.find((d: any) => d.public_id === selectedDistributorId);
   }, [hierarchyOptions, selectedDistributorId]);
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center py-20 gap-3 text-sm font-semibold text-[#64748B]">
+        <RefreshCw className="w-5 h-5 animate-spin text-[#2563EB]" /> Loading Retailer Profile…
+      </div>
+    );
+  }
+
+  if (!data || !data.retailer) {
+    return (
+      <div className="flex flex-col h-96 items-center justify-center py-20 gap-4 text-center">
+        <div className="p-3 rounded-2xl bg-red-50 text-red-600 border border-red-200">
+          <XCircle className="w-8 h-8" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-[#0F172A]">Retailer Profile Not Found</h3>
+          <p className="text-xs text-[#64748B] mt-1">Unable to load details for ID: {retailerId}</p>
+        </div>
+        <button
+          onClick={() => fetchDetails()}
+          className="px-4 py-2 rounded-xl bg-[#2563EB] text-white text-xs font-bold hover:bg-[#1D4ED8] transition-all cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const {
+    retailer = {},
+    contacts = [],
+    addresses = [],
+    banks = [],
+    kyc = {},
+    documents = [],
+    wallet = {},
+    status_history = [],
+    hierarchy = {},
+    assigned_distributor = null,
+    assigned_sd = null,
+    assigned_rm = null,
+    company = null,
+  } = data;
 
   const primaryContact = contacts && contacts.length > 0 ? contacts[0] : null;
   const primaryAddress = addresses && addresses.length > 0 ? addresses[0] : null;
