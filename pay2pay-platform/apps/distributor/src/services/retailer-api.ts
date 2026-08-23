@@ -10,22 +10,63 @@ export const apiClient = axios.create({
   },
 });
 
-const DEFAULT_ACTIVE_SESSION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4YzU2MzY3MS0wMzdlLTQ3NjQtOGVkYi1kNzZmNGI4YWZkMjQiLCJ0ZW5hbnRfaWQiOiI0YzUwYWFhNi1jNjFlLTRmNDMtYmE2OC1lMGFhMjc5MGQ3NzAiLCJjb21wYW55X2lkIjpudWxsLCJyb2xlcyI6W10sImV4cCI6MjA1MTIwMjYwMCwiaWF0IjoxNzg1OTQ2NzY3LCJqdGkiOiJjNDZhNzExMC0zMjI1LTQ1NjYtOTA4ZC05MzIxZjhkZjY3NzEiLCJ0eXBlIjoiYWNjZXNzIn0.-6NhdTHsdgeZnO658LR0Zvpv4AYMFDvhpXRTOD-WD7M";
-
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    let token = localStorage.getItem("token") || localStorage.getItem("retailer_token") || localStorage.getItem("access_token");
-    // If token is missing or contains the old expired token, replace with fresh active token
-    if (!token || token.includes("MTc4NTkwMDg4M")) {
-      token = DEFAULT_ACTIVE_SESSION_TOKEN;
-      localStorage.setItem("retailer_token", token);
-      localStorage.setItem("token", token);
-      localStorage.setItem("access_token", token);
+    const token =
+      localStorage.getItem("p2p_access_token") ||
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("pay2pay_access_token") ||
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("retailer_token") ||
+      localStorage.getItem("token");
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      if (typeof window !== "undefined") {
+        const isAuthPage =
+          window.location.pathname.includes("/login") ||
+          window.location.pathname.includes("/register");
+
+        if (!isAuthPage) {
+          const cookieNames = [
+            "p2p_access_token",
+            "pay2pay_access_token",
+            "pay2pay_auth_token",
+            "p2p_user_role",
+            "pay2pay_user_role",
+            "p2p_session_locked",
+            "p2p_session_id",
+            "token",
+            "access_token",
+          ];
+          cookieNames.forEach((name) => {
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+            try {
+              document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+            } catch {}
+          });
+          try {
+            localStorage.clear();
+            sessionStorage.clear();
+          } catch {}
+
+          const currentPath = window.location.pathname;
+          window.location.replace(`/retailer/login?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 const dynamicBeneficiaryStore: Record<string, any[]> = {};
 

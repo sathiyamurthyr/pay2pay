@@ -162,6 +162,42 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const { openContactSupportModal } = useContactSupportModal();
   const { lockSession } = useSessionSecurity();
 
+  // ── P0 Session Security Check ──────────────────────────────
+  const [isAuthenticatedSession, setIsAuthenticatedSession] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const token =
+      localStorage.getItem("p2p_access_token") ||
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("pay2pay_access_token") ||
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("retailer_token");
+    return Boolean(token);
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const token =
+      localStorage.getItem("p2p_access_token") ||
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("pay2pay_access_token") ||
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("retailer_token");
+
+    if (!token) {
+      setIsAuthenticatedSession(false);
+      const isAuthPage =
+        pathname.includes("/login") ||
+        pathname.includes("/register") ||
+        pathname.includes("/reset-password");
+      if (!isAuthPage) {
+        window.location.replace(`/retailer/login?redirect=${encodeURIComponent(pathname)}`);
+      }
+      return;
+    }
+    setIsAuthenticatedSession(true);
+  }, [pathname]);
+
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
@@ -191,6 +227,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const hasInitializedRef = useRef(false);
 
   const fetchProfileDetails = useCallback(async (force = false) => {
+    if (typeof window !== "undefined") {
+      const token =
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("pay2pay_auth_token") ||
+        localStorage.getItem("retailer_token");
+      if (!token) return;
+    }
+
     setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
     try {
       const data = await getCachedHeaderWalletData(force);
@@ -220,6 +266,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setApprovalStatus]);
 
   useEffect(() => {
+    if (!isAuthenticatedSession) return;
     fetchProfileDetails(true);
     syncBalance();
 
@@ -245,7 +292,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => {
       window.removeEventListener("p2p_wallet_update", handleWalletUpdate);
     };
-  }, [fetchProfileDetails, syncBalance]);
+  }, [isAuthenticatedSession, fetchProfileDetails, syncBalance]);
 
   const formatLastLogin = (isoString?: string | null) => {
     if (!isoString) return "Not available";
@@ -787,6 +834,48 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 
   const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["classic-blue"];
+
+  if (!isAuthenticatedSession && typeof window !== "undefined") {
+    const isAuthPage =
+      pathname.includes("/login") ||
+      pathname.includes("/register") ||
+      pathname.includes("/reset-password");
+    if (!isAuthPage) {
+      return (
+        <Box
+          sx={{
+            width: "100vw",
+            height: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "#0B0F19",
+            color: "#FFFFFF",
+            gap: 2,
+          }}
+        >
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              border: "3px solid rgba(59, 130, 246, 0.2)",
+              borderTopColor: "#3B82F6",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+              "@keyframes spin": {
+                "0%": { transform: "rotate(0deg)" },
+                "100%": { transform: "rotate(360deg)" },
+              },
+            }}
+          />
+          <Typography variant="body2" sx={{ fontWeight: 600, color: "#94A3B8" }}>
+            Verifying secure session...
+          </Typography>
+        </Box>
+      );
+    }
+  }
 
   return (
     <Box

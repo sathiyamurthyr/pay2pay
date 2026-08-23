@@ -201,6 +201,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      const authChannel = new BroadcastChannel("p2p_session_auth_channel");
+      authChannel.onmessage = (event) => {
+        if (event.data?.type === "GLOBAL_LOGOUT") {
+          setUser(null);
+          if (!window.location.pathname.includes("/login")) {
+            window.location.replace("/retailer/login?reason=logged_out_other_tab");
+          }
+        }
+      };
+      return () => {
+        authChannel.close();
+      };
+    }
+  }, []);
+
   const logout = () => {
     try {
       fetch("/api/v1/auth/enterprise/logout", {
@@ -210,6 +227,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }).catch(() => {});
     } catch {}
 
+    // 1. Broadcast cross-tab logout to instantly close all open tabs
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        const authChannel = new BroadcastChannel("p2p_session_auth_channel");
+        authChannel.postMessage({ type: "GLOBAL_LOGOUT", timestamp: Date.now() });
+      } catch {}
+    }
+
+    // 2. Clear all authentication and session cookies across paths and domains
     if (typeof document !== "undefined") {
       const cookieNames = [
         "pay2pay_access_token",
@@ -218,30 +244,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         "p2p_user_role",
         "pay2pay_user_role",
         "p2p_session_locked",
+        "p2p_session_id",
+        "p2p_destination",
+        "token",
+        "access_token",
       ];
       cookieNames.forEach((name) => {
         document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
-        document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+        try {
+          document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+        } catch {}
+        try {
+          const parts = window.location.hostname.split(".");
+          if (parts.length >= 2) {
+            const rootDomain = parts.slice(-2).join(".");
+            document.cookie = `${name}=; path=/; domain=.${rootDomain}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+          }
+        } catch {}
       });
     }
+
+    // 3. Clear all localStorage keys
     if (typeof localStorage !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("pay2pay_access_token");
-      localStorage.removeItem("pay2pay_auth_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user_info");
-      localStorage.removeItem("p2p_user_role");
-      localStorage.removeItem("pay2pay_user_role");
-      localStorage.removeItem("p2p_active_retailer_wallet_balance");
+      try {
+        localStorage.clear();
+      } catch {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("pay2pay_access_token");
+        localStorage.removeItem("p2p_access_token");
+        localStorage.removeItem("pay2pay_auth_token");
+        localStorage.removeItem("retailer_token");
+        localStorage.removeItem("token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user_info");
+        localStorage.removeItem("pay2pay_user_data");
+        localStorage.removeItem("p2p_user_role");
+        localStorage.removeItem("pay2pay_user_role");
+        localStorage.removeItem("p2p_active_retailer_wallet_balance");
+        localStorage.removeItem("p2p_active_retailer_id");
+        localStorage.removeItem("pay2pay_transaction_memory");
+        localStorage.removeItem("pay2pay_registered_customers");
+      }
     }
+
+    // 4. Clear sessionStorage
     if (typeof sessionStorage !== "undefined") {
-      sessionStorage.clear();
+      try {
+        sessionStorage.clear();
+      } catch {}
     }
+
     setUser(null);
+
+    // 5. Force redirect to retailer login page
     if (typeof window !== "undefined") {
-      window.location.href = "/login";
+      window.location.replace("/retailer/login");
     } else {
-      router.push("/login");
+      router.replace("/retailer/login");
     }
   };
 
