@@ -19,6 +19,7 @@ export interface EnterpriseWorkstationProps {
   onSelectCustomer: (cust: CustomerData) => void;
   onSelectBeneficiary: (b: BeneficiaryData) => void;
   onSearchCustomer: (q: string) => void;
+  onResetCustomer?: () => void;
   isSearching?: boolean;
   hasSearched?: boolean;
   pricingResult?: PricingEvaluationResult;
@@ -35,22 +36,21 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
   onSelectCustomer,
   onSelectBeneficiary,
   onSearchCustomer,
+  onResetCustomer,
   isSearching = false,
   hasSearched = false,
   pricingResult: propsPricingResult,
 }) => {
-  const [currentStep, setCurrentStep] = useState<number>(() => (customer ? 2 : 1));
+  const [currentStep, setCurrentStep] = useState<number>(1);
   const [selectedMode, setSelectedMode] = useState<"IMPS" | "NEFT" | "RTGS" | "UPI">("IMPS");
   const retailerWallet = useRetailerStore((state) => state.wallet);
 
-  // Automatically advance to Step 2 if customer is loaded / selected
+  // Safely fallback to Step 1 only if customer is completely reset while on later steps
   useEffect(() => {
-    if (customer && currentStep === 1) {
-      setCurrentStep(2);
-    } else if (!customer && currentStep > 1) {
+    if (!customer && currentStep > 1) {
       setCurrentStep(1);
     }
-  }, [customer]);
+  }, [customer, currentStep]);
 
   // Dynamic Rule Engine Evaluation with Transaction Mode
   const pricingResult =
@@ -111,6 +111,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
               setCurrentStep(2);
             }}
             onContinue={() => setCurrentStep(2)}
+            onResetCustomer={onResetCustomer}
             isSearching={isSearching}
             hasSearched={hasSearched}
           />

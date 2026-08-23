@@ -27,6 +27,7 @@ export interface WorkstationStep1Props {
   onSearchCustomer: (query: string) => void;
   onSelectCustomer: (cust: CustomerData) => void;
   onContinue: () => void;
+  onResetCustomer?: () => void;
   isSearching?: boolean;
   hasSearched?: boolean;
   error?: string | null;
@@ -39,6 +40,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   onSearchCustomer,
   onSelectCustomer,
   onContinue,
+  onResetCustomer,
   isSearching = false,
   hasSearched = false,
   error = null,
@@ -366,7 +368,31 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             </Box>
           </Box>
 
-          <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: "flex-end" }}>
+          <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: "flex-end", flexWrap: "wrap", gap: 1.5 }}>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setSearchInput("");
+                setLocalHasSearched(false);
+                if (onResetCustomer) onResetCustomer();
+              }}
+              sx={{
+                py: 1.5,
+                px: 3,
+                borderRadius: "12px",
+                fontWeight: 800,
+                fontSize: "14px",
+                color: "#94A3B8",
+                borderColor: "rgba(255, 255, 255, 0.2)",
+                "&:hover": {
+                  borderColor: "#FFFFFF",
+                  color: "#FFFFFF",
+                  bgcolor: "rgba(255, 255, 255, 0.05)",
+                },
+              }}
+            >
+              Search Another Customer
+            </Button>
             {customer.mpin_enabled === false ? (
               <Button
                 variant="contained"
