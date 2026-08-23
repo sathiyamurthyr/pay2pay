@@ -4,8 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { RetailerLayout } from "@/components/layout/retailer-layout";
-
-const DEV_BYPASS = process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+import { Box, CircularProgress } from "@mui/material";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
@@ -16,9 +15,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMounted(true);
   }, []);
 
+  // Back-button bfcache handler & session verification
+  useEffect(() => {
+    const checkSessionOnShow = () => {
+      const cookies = document.cookie.split("; ");
+      const tokenCookie = cookies.find((row) =>
+        row.startsWith("p2p_access_token=") ||
+        row.startsWith("pay2pay_access_token=") ||
+        row.startsWith("pay2pay_auth_token=")
+      );
+      if (!tokenCookie || tokenCookie.split("=")[1]?.trim().length < 10) {
+        if (!window.location.pathname.includes("/login")) {
+          window.location.replace(`/retailer/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+        }
+      }
+    };
+
+    window.addEventListener("pageshow", checkSessionOnShow);
+    window.addEventListener("focus", checkSessionOnShow);
+    return () => {
+      window.removeEventListener("pageshow", checkSessionOnShow);
+      window.removeEventListener("focus", checkSessionOnShow);
+    };
+  }, []);
+
   // Authentication & Approval check
   useEffect(() => {
-    if (DEV_BYPASS || !mounted || authLoading) return;
+    if (!mounted || authLoading) return;
     if (!user) {
       router.replace("/retailer/login");
       return;
@@ -31,21 +54,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       user.roles?.includes("OPERATIONS_ADMIN");
     if (isStaffOrAdmin) return;
 
-    // Check Retailer Approval Status
-    let isApproved = false;
-    let statusStr = "";
-    if (user?.approval_status === "APPROVED" || (user as any)?.status === "ACTIVE" || (user as any)?.is_approved) {
-      isApproved = true;
-    }
-    if (typeof window !== "undefined") {
-      const storedStatus = localStorage.getItem("p2p_retailer_approval_status") || localStorage.getItem("pay2pay_onboarding_status") || "";
-      const accountAccess = localStorage.getItem("p2p_account_access") || "";
-      statusStr = storedStatus.toUpperCase();
+    // Check Retailer Approval Status from server-authoritative user object
+    const isApproved =
+      user?.approval_status === "APPROVED" ||
+      user?.status === "ACTIVE" ||
+      user?.is_approved === true;
 
-      if (storedStatus === "APPROVED" || storedStatus === "ACTIVE" || accountAccess === "ALLOWED") {
-        isApproved = true;
-      }
-    }
+    const statusStr = (user?.status || user?.approval_status || "").toUpperCase();
 
     // If not approved, enforce fail-closed redirect
     if (!isApproved) {
@@ -58,6 +73,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
     }
   }, [user, authLoading, router, mounted]);
+
+  if (!mounted || authLoading || !user) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          backgroundColor: "#0B0E14",
+        }}
+      >
+        <CircularProgress sx={{ color: "#3B82F6" }} />
+      </Box>
+    );
+  }
 
   return <RetailerLayout>{children}</RetailerLayout>;
 }

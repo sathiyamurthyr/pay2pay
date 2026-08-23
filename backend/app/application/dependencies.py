@@ -9,30 +9,63 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.core.exceptions import UnauthorizedException, ForbiddenException
-from app.infrastructure.db.models import AdminUserModel, UserSessionModel, UserRoleModel, RoleModel, RolePermissionModel, PermissionModel
+from app.infrastructure.db.models import (
+    AdminUserModel, UserSessionModel, UserRoleModel, RoleModel,
+    RolePermissionModel, PermissionModel, RetailerModel
+)
 
 security_scheme = HTTPBearer(auto_error=False)
 
+REVOKED_TOKENS_CACHE: set = set()
+
+
+def blacklist_jti(jti: str):
+    if jti:
+        REVOKED_TOKENS_CACHE.add(str(jti))
+
 
 async def get_current_token_payload(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme)
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
+    db: AsyncSession = Depends(get_db)
 ) -> dict:
-    if not credentials or not credentials.credentials:
-        # Fallback payload for guest / unauthenticated customer onboarding checks
-        return {
-            "sub": "00000000-0000-0000-0000-000000000000",
-            "tenant_id": "547aa7bb-a790-4fe2-bd5b-27214ed176c8",
-            "is_guest": True
-        }
-    token = credentials.credentials
+    token = None
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+    elif request:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1].strip()
+        else:
+            token = (
+                request.cookies.get("p2p_access_token")
+                or request.cookies.get("pay2pay_access_token")
+                or request.cookies.get("pay2pay_auth_token")
+                or request.cookies.get("access_token")
+            )
+
+    if not token:
+        raise UnauthorizedException("Authentication credentials were not provided")
+
     payload = decode_access_token(token)
     if not payload:
-        # Fallback to guest payload if token invalid/expired during customer lookup
-        return {
-            "sub": "00000000-0000-0000-0000-000000000000",
-            "tenant_id": "547aa7bb-a790-4fe2-bd5b-27214ed176c8",
-            "is_guest": True
-        }
+        raise UnauthorizedException("Invalid or expired authentication token")
+
+    # Check if session JTI has been revoked on server (In-memory + Database)
+    jti = payload.get("jti")
+    if jti:
+        if str(jti) in REVOKED_TOKENS_CACHE:
+            raise UnauthorizedException("Session has been revoked or logged out")
+
+        stmt = select(UserSessionModel).where(
+            UserSessionModel.token_jti == str(jti),
+            UserSessionModel.is_revoked == True
+        )
+        revoked_session = (await db.execute(stmt)).scalars().first()
+        if revoked_session:
+            REVOKED_TOKENS_CACHE.add(str(jti))
+            raise UnauthorizedException("Session has been revoked or logged out")
+
     return payload
 
 
@@ -56,48 +89,13 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db)
 ) -> AdminUserModel:
     user_id_str = payload.get("sub")
-    jti = payload.get("jti")
-    
-    if payload.get("is_guest") or user_id_str == "00000000-0000-0000-0000-000000000000":
-        # Resolve default active system admin user for guest/onboarding workflows
-        stmt = select(AdminUserModel).where(AdminUserModel.status == "ACTIVE").limit(1)
-        res = await db.execute(stmt)
-        guest_user = res.scalars().first()
-        if guest_user:
-            return guest_user
-        return AdminUserModel(
-            id=1,
-            public_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-            username="system_guest",
-            email="guest@pay2pay.internal",
-            full_name="Guest User",
-            status="ACTIVE",
-            user_roles=[]
-        )
+    if not user_id_str:
+        raise UnauthorizedException("Authentication token missing subject identifier")
 
-    user_uuid = None
-    if user_id_str:
-        try:
-            user_uuid = uuid.UUID(user_id_str)
-        except ValueError:
-            pass
-
-    if not user_uuid:
-        # Fallback to default system admin user if user ID is missing or non-UUID format
-        stmt_fallback = select(AdminUserModel).where(AdminUserModel.status == "ACTIVE").limit(1)
-        res_fallback = await db.execute(stmt_fallback)
-        fallback_user = res_fallback.scalars().first()
-        if fallback_user:
-            return fallback_user
-        return AdminUserModel(
-            id=1,
-            public_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-            username="system_guest",
-            email="guest@pay2pay.internal",
-            full_name="Guest User",
-            status="ACTIVE",
-            user_roles=[]
-        )
+    try:
+        user_uuid = uuid.UUID(user_id_str)
+    except (ValueError, TypeError):
+        raise UnauthorizedException("Invalid user identifier in token")
 
     stmt = (
         select(AdminUserModel)
@@ -115,46 +113,31 @@ async def get_current_user(
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if not user or user.status != "ACTIVE":
-        # Fallback to default system admin user if user not found in DB (e.g. mock token or initial state)
-        stmt_fallback = select(AdminUserModel).where(AdminUserModel.status == "ACTIVE").limit(1)
-        res_fallback = await db.execute(stmt_fallback)
-        fallback_user = res_fallback.scalars().first()
-        if fallback_user:
-            return fallback_user
-        return AdminUserModel(
-            id=1,
-            public_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-            username="system_guest",
-            email="guest@pay2pay.internal",
-            full_name="Guest User",
-            status="ACTIVE",
-            user_roles=[]
+    if not user:
+        # Check if user is an authenticated Retailer
+        ret_stmt = select(RetailerModel).where(
+            RetailerModel.public_id == user_uuid,
+            RetailerModel.is_deleted == False
         )
-
-    # Enforce Single Active Machine Session Policy:
-    # Verify session token JTI is active and not revoked for this user
-    if payload.get("is_guest"):
-        return user
-
-    if jti:
-        session_stmt = select(UserSessionModel).where(
-            UserSessionModel.token_jti == jti,
-            UserSessionModel.user_id == user.id,
-            UserSessionModel.is_revoked == False
-        )
-        session_res = await db.execute(session_stmt)
-        session_obj = session_res.scalar_one_or_none()
-        if not session_obj:
-            # Check if user has any active non-revoked session as fallback
-            active_sess_stmt = select(UserSessionModel).where(
-                UserSessionModel.user_id == user.id,
-                UserSessionModel.is_revoked == False
+        retailer = (await db.execute(ret_stmt)).scalar_one_or_none()
+        if retailer:
+            ret_status = (retailer.status or "ACTIVE").upper()
+            if ret_status in ("BLOCKED", "SUSPENDED", "DEACTIVATED"):
+                raise UnauthorizedException("Retailer account has been blocked or suspended")
+            return AdminUserModel(
+                id=retailer.id,
+                public_id=retailer.public_id,
+                tenant_id=retailer.tenant_id,
+                username=retailer.retailer_code or str(retailer.mobile_number),
+                email=retailer.email or f"{retailer.mobile_number}@pay2pay.in",
+                full_name=retailer.owner_name or "Retailer Partner",
+                status=ret_status,
+                user_roles=[]
             )
-            active_sess = (await db.execute(active_sess_stmt)).scalars().first()
-            if not active_sess:
-                # Log warning and return user object to prevent workflow block
-                pass
+        raise UnauthorizedException("User not found or account is inactive")
+
+    if user.status != "ACTIVE":
+        raise UnauthorizedException("User account is inactive or disabled")
 
     return user
 
@@ -170,11 +153,11 @@ class PermissionChecker:
     ) -> bool:
         # Platform Admin bypass check
         for ur in current_user.user_roles:
-            if ur.role.code == "PLATFORM_ADMIN":
+            if ur.role and ur.role.code == "PLATFORM_ADMIN":
                 return True
 
         # Check explicit role permissions
-        user_role_ids = [ur.role_id for ur in current_user.user_roles]
+        user_role_ids = [ur.role_id for ur in current_user.user_roles if ur.role]
         if not user_role_ids:
             raise ForbiddenException(f"Missing required permission: {self.required_permission}")
 

@@ -32,14 +32,14 @@ export const PORTAL_CONFIGS: Record<UserPortalRole, PortalConfig> = {
   ADMIN: {
     portal: "ADMIN",
     prefix: "/admin",
-    dashboard: "/dashboard",
-    login: "/login",
+    dashboard: "/admin/dashboard",
+    login: "/admin/login",
   },
   SUPER_ADMIN: {
     portal: "SUPER_ADMIN",
     prefix: "/super-admin",
-    dashboard: "/dashboard",
-    login: "/login",
+    dashboard: "/super-admin/dashboard",
+    login: "/super-admin/login",
   },
 };
 
@@ -67,35 +67,13 @@ export function resolvePortalRoute(rawRole?: string | null): PortalConfig {
   return PORTAL_CONFIGS[role];
 }
 
-export function isPathAllowedForRole(pathname: string, rawRole?: string | null): boolean {
-  const role = normalizeUserRole(rawRole);
-  const config = PORTAL_CONFIGS[role];
-
-  if (pathname === "/retailer-dashboard") {
-    return role === "RETAILER";
-  }
-
-  const allPrefixes = Object.values(PORTAL_CONFIGS).map((c) => c.prefix);
-  const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
-
-  if (!targetPrefix) {
-    return true;
-  }
-
-  return targetPrefix === config.prefix;
-}
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  const devBypass =
-    process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" &&
-    process.env.NODE_ENV === "development";
 
   const rawRole =
     request.cookies.get("p2p_user_role")?.value ||
     request.cookies.get("pay2pay_user_role")?.value ||
-    "ADMIN";
+    "RETAILER";
 
   const userRole = normalizeUserRole(rawRole);
   const portalConfig = resolvePortalRoute(userRole);
@@ -106,81 +84,91 @@ export function middleware(request: NextRequest) {
     request.cookies.get("pay2pay_auth_token")?.value ||
     request.headers.get("authorization");
 
-  const isAuthenticated = Boolean(token);
+  const isAuthenticated = Boolean(token && token.trim().length > 10);
 
-  const destinationCookie = request.cookies.get("p2p_destination")?.value;
-  const isPendingRetailer = userRole === "RETAILER" && destinationCookie === "ACCOUNT_UNDER_REVIEW";
+  // Helper to add security & no-cache headers to responses
+  const applySecurityHeaders = (res: NextResponse) => {
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+    res.headers.set("X-Content-Type-Options", "nosniff");
+    res.headers.set("X-Frame-Options", "DENY");
+    return res;
+  };
 
-  // 1. Legacy /retailer-dashboard -> /retailer/dashboard redirect
-  if (pathname === "/retailer-dashboard") {
-    return NextResponse.redirect(new URL("/retailer/dashboard", request.url));
-  }
+  // 1. Explicit Public Routes (Always accessible without authentication)
+  const isLoginRoute =
+    pathname === "/retailer/login" ||
+    pathname === "/login" ||
+    pathname === "/dist/login" ||
+    pathname === "/sd/login" ||
+    pathname === "/admin/login" ||
+    pathname === "/super-admin/login";
 
-  // 2. Legacy /admin-dashboard -> /admin/dashboard redirect
-  if (pathname === "/admin-dashboard") {
-    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
-  }
+  const isPublicRoute =
+    isLoginRoute ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/design-system") ||
+    pathname === "/403";
 
-  // 3. Login routes
-  if (pathname === "/login" || pathname === "/admin/login" || pathname === "/retailer/login" || pathname === "/dist/login" || pathname === "/sd/login" || pathname === "/super-admin/login") {
+  // If user is already authenticated and visits a login page, redirect to active dashboard
+  if (isLoginRoute) {
     if (isAuthenticated) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return applySecurityHeaders(
+        NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
+      );
     }
-    if (pathname !== "/login") {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
-  // 4. Root or legacy dashboard -> /dashboard
-  if (pathname === "/" || pathname === "/admin/dashboard") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  // If visiting another public route (like /register), allow
+  if (isPublicRoute) {
+    return applySecurityHeaders(NextResponse.next());
   }
 
-  const isStatusOrReviewRoute =
-    pathname.includes("/account-under-review") ||
-    pathname.includes("/account-restricted") ||
-    pathname.includes("/application-rejected");
-
-  if (isStatusOrReviewRoute) {
-    return NextResponse.next();
-  }
-
-  // 5. Protected Portal Paths (/retailer/*, /sd/*, /dist/*, /admin/*, /super-admin/*)
-  const isPortalPath =
-    pathname.startsWith("/retailer") ||
-    pathname.startsWith("/dist") ||
-    pathname.startsWith("/sd") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/super-admin");
-
-  if (isPortalPath) {
-    if (!isAuthenticated) {
-      const targetLogin = portalConfig.login;
-      const loginUrl = new URL(targetLogin, request.url);
+  // 2. Unauthenticated user accessing ANY protected route -> Fail-closed redirect to login
+  if (!isAuthenticated) {
+    const loginUrl = new URL(portalConfig.login, request.url);
+    if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
       loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
     }
-
-    if (!isPathAllowedForRole(pathname, userRole)) {
-      return NextResponse.redirect(new URL(portalConfig.dashboard, request.url));
-    }
+    return applySecurityHeaders(NextResponse.redirect(loginUrl));
   }
 
-  return NextResponse.next();
+  // 3. Authenticated Root/Dashboard aliases -> redirect to canonical portal dashboard
+  if (pathname === "/" || pathname === "/dashboard" || pathname === "/retailer-dashboard") {
+    return applySecurityHeaders(
+      NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
+    );
+  }
+
+  if (pathname === "/admin-dashboard") {
+    return applySecurityHeaders(
+      NextResponse.redirect(new URL(PORTAL_CONFIGS.ADMIN.dashboard, request.url))
+    );
+  }
+
+  // 4. Role-based prefix boundary checks
+  const allPrefixes = Object.values(PORTAL_CONFIGS).map((c) => c.prefix);
+  const targetPrefix = allPrefixes.find((prefix) => pathname.startsWith(prefix));
+
+  if (targetPrefix && targetPrefix !== portalConfig.prefix) {
+    // If accessing another portal's prefixed routes (e.g. Retailer trying /admin/*), redirect to own dashboard
+    return applySecurityHeaders(
+      NextResponse.redirect(new URL(portalConfig.dashboard, request.url))
+    );
+  }
+
+  return applySecurityHeaders(NextResponse.next());
 }
 
 export const config = {
   matcher: [
-    "/",
-    "/login",
-    "/dashboard",
-    "/retailer-dashboard",
-    "/admin-dashboard",
-    "/retailer/:path*",
-    "/sd/:path*",
-    "/dist/:path*",
-    "/admin/:path*",
-    "/super-admin/:path*",
+    /*
+     * Universal Matcher: Protect ALL routes except static files, images, icons, and API routes.
+     */
+    "/((?!api|_next/static|_next/image|favicon\\.ico|favicon\\.png|apple-touch-icon\\.png|icon\\.png|uploads).*)",
   ],
 };

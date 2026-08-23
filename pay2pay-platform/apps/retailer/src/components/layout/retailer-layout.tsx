@@ -163,28 +163,36 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const { lockSession } = useSessionSecurity();
 
   // ── P0 Session Security Check ──────────────────────────────
+  const checkSessionToken = useCallback(() => {
+    if (typeof document === "undefined") return false;
+    const cookies = document.cookie.split("; ");
+    const tokenCookie = cookies.find((row) =>
+      row.startsWith("p2p_access_token=") ||
+      row.startsWith("pay2pay_access_token=") ||
+      row.startsWith("pay2pay_auth_token=")
+    );
+    if (tokenCookie && tokenCookie.split("=")[1]?.trim().length > 10) {
+      return true;
+    }
+    if (typeof localStorage !== "undefined") {
+      const lsToken =
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("access_token");
+      if (lsToken && lsToken.trim().length > 10) return true;
+    }
+    return false;
+  }, []);
+
   const [isAuthenticatedSession, setIsAuthenticatedSession] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
-    const token =
-      localStorage.getItem("p2p_access_token") ||
-      localStorage.getItem("access_token") ||
-      localStorage.getItem("pay2pay_access_token") ||
-      localStorage.getItem("pay2pay_auth_token") ||
-      localStorage.getItem("retailer_token");
-    return Boolean(token);
+    return checkSessionToken();
   });
 
-  useEffect(() => {
+  const verifyAndEnforceSession = useCallback(() => {
     if (typeof window === "undefined") return;
-
-    const token =
-      localStorage.getItem("p2p_access_token") ||
-      localStorage.getItem("access_token") ||
-      localStorage.getItem("pay2pay_access_token") ||
-      localStorage.getItem("pay2pay_auth_token") ||
-      localStorage.getItem("retailer_token");
-
-    if (!token) {
+    const isValid = checkSessionToken();
+    if (!isValid) {
       setIsAuthenticatedSession(false);
       const isAuthPage =
         pathname.includes("/login") ||
@@ -193,10 +201,25 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       if (!isAuthPage) {
         window.location.replace(`/retailer/login?redirect=${encodeURIComponent(pathname)}`);
       }
-      return;
+    } else {
+      setIsAuthenticatedSession(true);
     }
-    setIsAuthenticatedSession(true);
-  }, [pathname]);
+  }, [pathname, checkSessionToken]);
+
+  useEffect(() => {
+    verifyAndEnforceSession();
+
+    const handlePageShow = () => {
+      verifyAndEnforceSession();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("focus", handlePageShow);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("focus", handlePageShow);
+    };
+  }, [verifyAndEnforceSession]);
 
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);

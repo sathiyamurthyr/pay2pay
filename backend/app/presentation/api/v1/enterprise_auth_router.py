@@ -109,6 +109,7 @@ async def check_login_risk(payload: RiskCheckPayload, db: AsyncSession = Depends
 
 
 @router.post("/login-password")
+@router.post("/password-login")
 async def login_with_password(payload: PasswordLoginPayload, request: Request, db: AsyncSession = Depends(get_db)):
     """Authenticates admin or retailer with mobile number and password."""
     if not payload.accepted_terms:
@@ -1456,5 +1457,78 @@ async def confirm_password_reset(payload: PasswordResetConfirmPayload, db: Async
         "message": "Password updated successfully. Please sign in using your new password.",
         "redirect": "/retailer/login"
     }
+
+
+@router.post("/logout")
+async def enterprise_logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    """
+    Terminates the authenticated session, revokes server tokens, and flushes all security cookies.
+    """
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1].strip()
+    if not token:
+        token = (
+            request.cookies.get("p2p_access_token")
+            or request.cookies.get("pay2pay_access_token")
+            or request.cookies.get("pay2pay_auth_token")
+            or request.cookies.get("access_token")
+        )
+
+    if token:
+        try:
+            from app.core.security import decode_access_token
+            from app.infrastructure.db.models import UserSessionModel
+            from app.application.dependencies import blacklist_jti
+            from sqlalchemy import select, update
+            payload = decode_access_token(token)
+            if payload:
+                jti = payload.get("jti")
+                sub = payload.get("sub")
+                if jti:
+                    blacklist_jti(str(jti))
+                    stmt = select(UserSessionModel).where(UserSessionModel.token_jti == str(jti))
+                    sess = (await db.execute(stmt)).scalars().first()
+                    if sess:
+                        sess.is_revoked = True
+                    else:
+                        db.add(UserSessionModel(
+                            public_id=uuid.uuid4(),
+                            tenant_id=uuid.UUID(payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8")),
+                            token_jti=str(jti),
+                            is_revoked=True,
+                            expires_at=datetime.now(timezone.utc) + timedelta(days=7)
+                        ))
+                if sub:
+                    try:
+                        user_uuid = uuid.UUID(sub)
+                        await db.execute(
+                            update(UserSessionModel)
+                            .where(UserSessionModel.public_id == user_uuid)
+                            .values(is_revoked=True)
+                        )
+                    except Exception:
+                        pass
+                await db.commit()
+        except Exception as e:
+            logger.warning(f"Error revoking session on logout: {str(e)}")
+
+    # Clear authentication cookies across paths and domains
+    cookie_names = [
+        "p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token",
+        "p2p_user_role", "pay2pay_user_role", "p2p_session_locked",
+        "p2p_session_id", "p2p_destination", "access_token", "token"
+    ]
+    for c_name in cookie_names:
+        response.delete_cookie(key=c_name, path="/")
+        response.delete_cookie(key=c_name, path="/", domain="pay2pay.in")
+        response.delete_cookie(key=c_name, path="/", domain=".pay2pay.in")
+
+    return {
+        "status": "SUCCESS",
+        "message": "Session invalidated and logged out successfully"
+    }
+
 
 

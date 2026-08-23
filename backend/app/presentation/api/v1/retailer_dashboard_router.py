@@ -45,59 +45,50 @@ async def resolve_retailer_context(
     db: Optional[AsyncSession] = None
 ) -> Dict[str, Any]:
     """
-    Authoritative Resolver: Identifies the active retailer context directly from:
-    1. Authenticated Session / JWT header
-    2. Explicit retailer_id (UUID, Code RET-*, Registration ID REG-*, or Mobile)
+    Authoritative Resolver: Identifies the active retailer context strictly from validated session JWT.
     """
-    clean_mobile = ""
     cookies = request.cookies if request else {}
     auth_header = request.headers.get("authorization", "") if request else ""
-    if not auth_header and request:
-        cookie_token = cookies.get("p2p_session") or cookies.get("access_token") or cookies.get("pay2pay_session") or cookies.get("token")
-        if cookie_token:
-            auth_header = f"Bearer {cookie_token}"
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "").strip()
+    if not token:
+        token = cookies.get("p2p_access_token") or cookies.get("pay2pay_access_token") or cookies.get("pay2pay_auth_token") or cookies.get("access_token")
 
-    target_ident = retailer_id or cookies.get("p2p_active_retailer_id") or cookies.get("p2p_retailer_id")
+    if not token or len(token) < 10:
+        raise HTTPException(status_code=401, detail="Authentication credentials were not provided")
+
+    from app.core.security import decode_access_token
+    from app.infrastructure.db.models import UserSessionModel
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired authentication token")
+
+    if db:
+        jti = payload.get("jti")
+        if jti:
+            stmt = select(UserSessionModel).where(
+                UserSessionModel.token_jti == jti,
+                UserSessionModel.is_revoked == True
+            )
+            revoked_session = (await db.execute(stmt)).scalars().first()
+            if revoked_session:
+                raise HTTPException(status_code=401, detail="Session has been revoked or logged out")
+
+    clean_mobile = ""
+    target_ident = payload.get("retailer_id") or payload.get("registration_id")
     ret_model = None
     verif = None
 
-    if not clean_mobile:
-        mob_cookie = cookies.get("pay2pay_reg_mobile") or cookies.get("p2p_mobile")
-        if mob_cookie:
-            raw_digits = re.sub(r"\D", "", str(mob_cookie))
-            if len(raw_digits) >= 10:
-                clean_mobile = raw_digits[-10:]
+    if payload.get("mobile"):
+        clean_mobile = str(payload.get("mobile"))[-10:]
 
-    # 1. If auth header present, extract session details / JWT claims
-    if db and auth_header and not target_ident:
-        token = auth_header.replace("Bearer ", "").strip()
-        try:
-            import jwt
-            payload = jwt.decode(token, options={"verify_signature": False})
-            if payload.get("retailer_id"):
-                target_ident = payload.get("retailer_id")
-            elif payload.get("registration_id"):
-                target_ident = payload.get("registration_id")
-            elif payload.get("mobile"):
-                target_ident = payload.get("mobile")
-            elif payload.get("sub"):
-                sub_val = str(payload.get("sub"))
-                sub_uuid = parse_uuid_or_none(sub_val)
-                if sub_uuid:
-                    ret_chk = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid))).scalars().first()
-                    if ret_chk:
-                        ret_model = ret_chk
-        except Exception:
-            pass
-
-        if not target_ident and not ret_model:
-            parts = token.split(".")
-            if len(parts) >= 2:
-                sess_id = parts[1]
-                stmt = select(LoginHistoryModel).where(LoginHistoryModel.session_id == sess_id)
-                hist = (await db.execute(stmt)).scalars().first()
-                if hist and hist.details and isinstance(hist.details, dict):
-                    target_ident = hist.details.get("mobile") or hist.details.get("retailer_id")
+    if payload.get("sub") and not ret_model and db:
+        sub_uuid = parse_uuid_or_none(str(payload.get("sub")))
+        if sub_uuid:
+            ret_chk = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid))).scalars().first()
+            if ret_chk:
+                ret_model = ret_chk
 
     if target_ident:
         raw_digits = re.sub(r"\D", "", str(target_ident))
