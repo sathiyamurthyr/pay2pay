@@ -62,8 +62,8 @@ apiClient.interceptors.response.use(
       } catch (refreshErr) {
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
-        if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-          window.location.href = "/retailer/login";
+        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+          window.location.href = "/login";
         }
       }
     }

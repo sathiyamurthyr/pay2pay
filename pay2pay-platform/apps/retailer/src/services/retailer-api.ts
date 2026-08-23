@@ -683,28 +683,7 @@ export const retailerApi = {
       }
     } catch (err: any) {}
 
-    // 3. Dynamic customer fallback for searched 10-digit mobile number
-    if (normalizedQuery.length === 10) {
-      const dynamicCustomer = {
-        public_id: `c-${normalizedQuery}`,
-        customer_number: `CUST-${normalizedQuery.slice(-5)}`,
-        full_name: `Verified Payout Customer (${normalizedQuery})`,
-        mobile_number: normalizedQuery,
-        kyc_status: "VERIFIED",
-        kyc_level: "FULL_KYC",
-        risk_score: 10,
-        monthly_limit: 200000.0,
-        monthly_used: 0.0,
-        monthly_remaining: 200000.0,
-        aadhaar_status: "VERIFIED",
-        pan_status: "VERIFIED",
-        pin_status: "SET",
-        last_transaction: "Today",
-        onboarding_complete: true,
-      };
-      return { status: "SUCCESS", data: [dynamicCustomer] };
-    }
-
+        
     return { status: "SUCCESS", data: [] };
   },
 
@@ -1151,22 +1130,46 @@ export const retailerApi = {
 
   verifyCustomerPin: async (customer_id: string, pin: string) => {
     try {
-      const res = await apiClient.post("/payout-workflow/pin/verify", { customer_id, pin });
+      const res = await apiClient.post(`/customers/${encodeURIComponent(customer_id)}/mpin/verify`, {
+        customer_id,
+        mpin: pin,
+      });
       return res.data;
-    } catch {
-      if (pin === "1234" || pin === "5678" || pin.length >= 4) {
-        return { status: "SUCCESS", data: { verified: true, message: "Customer PIN verified successfully" } };
+    } catch (err: any) {
+      // Fallback to payout-workflow if available
+      try {
+        const res2 = await apiClient.post("/payout-workflow/pin/verify", { customer_id, pin });
+        return res2.data;
+      } catch (err2: any) {
+        const msg =
+          err?.response?.data?.detail ||
+          err2?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          "Invalid Security MPIN. Please enter your valid 4-digit PIN.";
+        throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
       }
-      throw new Error("Invalid PIN");
     }
   },
 
   setCustomerPin: async (customer_id: string, pin: string) => {
     try {
-      const res = await apiClient.post("/payout-workflow/pin/set", { customer_id, pin });
+      const res = await apiClient.post(`/customers/${encodeURIComponent(customer_id)}/mpin/create`, {
+        customer_id,
+        mpin: pin,
+        confirm_mpin: pin,
+      });
       return res.data;
-    } catch {
-      return { status: "SUCCESS", data: { customer_id, message: "Transaction PIN created and hashed securely" } };
+    } catch (err: any) {
+      try {
+        const res2 = await apiClient.post("/payout-workflow/pin/set", { customer_id, pin });
+        return res2.data;
+      } catch (err2: any) {
+        const msg =
+          err?.response?.data?.detail ||
+          err2?.response?.data?.detail ||
+          "Failed to set customer MPIN.";
+        throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+      }
     }
   },
 
@@ -1319,7 +1322,18 @@ export const retailerApi = {
                 monthlyRemaining: 200000,
               };
               const existing = JSON.parse(localStorage.getItem(lsKey) || "[]");
-              const deduped = existing.filter((b: any) => b.accountNumber !== payload.account_number);
+              const cleanNewDigits = (payload.account_number || "").replace(/\D/g, "");
+              const cleanNewIfsc = (payload.ifsc_code || "").trim().toUpperCase();
+              const deduped = existing.filter((b: any) => {
+                const bDigits = (b.accountNumber || "").replace(/\D/g, "");
+                const bIfsc = (b.ifsc || "").trim().toUpperCase();
+                if (bIfsc && cleanNewIfsc && bIfsc === cleanNewIfsc) {
+                  if (bDigits === cleanNewDigits || (bDigits.length >= 4 && cleanNewDigits.length >= 4 && bDigits.slice(-4) === cleanNewDigits.slice(-4))) {
+                    return false;
+                  }
+                }
+                return b.accountNumber !== payload.account_number;
+              });
               localStorage.setItem(lsKey, JSON.stringify([formatted, ...deduped]));
             } catch {}
           }
@@ -1477,4 +1491,3 @@ export const retailerApi = {
 function round2(val: number) {
   return Math.round(val * 100) / 100;
 }
-

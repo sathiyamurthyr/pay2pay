@@ -152,7 +152,7 @@ export const OperationsPanel: React.FC<{ width?: number | string }> = ({ width =
         </Typography>
       </Stack>
       <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "13px" }}>
-        • Cashfree Penny Drop Verified (2m ago)
+        • Bank Penny Drop Verified (2m ago)
       </Typography>
       <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "13px", mt: 0.75 }}>
         • IMPS Settlement Completed (12m ago)

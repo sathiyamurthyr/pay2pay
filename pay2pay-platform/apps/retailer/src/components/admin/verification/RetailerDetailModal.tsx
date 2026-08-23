@@ -18,6 +18,8 @@ import {
   Loader2,
   MessageSquare
 } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 import { DocumentViewer } from "./DocumentViewer";
 
 interface RetailerDetailModalProps {
@@ -258,10 +260,12 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                           <span className="text-[10px] font-bold text-slate-300">PDF Document</span>
                         </div>
                       ) : (
-                        <img
+                        <BlurImage
                           src={doc.url}
+                          blurhash={KNOWN_BLURHASHES.DOCUMENT_DEFAULT}
                           alt={doc.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full"
+                          imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       )}
                       <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-extrabold text-[10px] backdrop-blur-[1px] transition-opacity">

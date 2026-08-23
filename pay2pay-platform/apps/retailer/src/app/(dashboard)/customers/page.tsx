@@ -21,6 +21,8 @@ import { MobileNumberInput } from "@/components/ui/mobile-number-input";
 import { CustomerDetailsDrawer } from "@/components/customers/customer-details-drawer";
 import { CustomerMasterSlideOver } from "@/components/master/customer-master-slide-over";
 import { isNormalizedMatch, normalizePhoneNumber } from "@/lib/utils";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & DATA STRUCTURES
@@ -991,10 +993,12 @@ export default function EnterpriseCustomerDirectoryPage() {
                           {/* Avatar: Render verified photo if available, fallback to initials */}
                           <div className="relative shrink-0">
                             {cust.photoUrl ? (
-                              <img
+                              <BlurImage
                                 src={cust.photoUrl}
+                                blurhash={KNOWN_BLURHASHES.AVATAR_USER}
                                 alt={cust.fullName}
-                                className="w-12 h-12 rounded-2xl object-cover border-2 border-emerald-400 shadow-md ring-2 ring-emerald-400/20"
+                                className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-emerald-400 shadow-md ring-2 ring-emerald-400/20"
+                                imageClassName="w-12 h-12 rounded-2xl object-cover"
                               />
                             ) : (
                               <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">

@@ -84,11 +84,11 @@ export function isNormalizedMatch(query: string, ...targets: (string | null | un
  * - "CUST-1001" -> "CUST-1001"
  */
 export function formatShortCustomerId(id?: string | null): string {
-  if (!id) return "CUST-527811";
+  if (!id) return "CUST-VERIFIED";
   let str = id.toString().trim();
   // Strip duplicate CUST- prefixes
   str = str.replace(/^(CUST\-?)+/i, "");
-  if (!str || str.toLowerCase().includes("rep")) return "CUST-527811";
+  if (!str) return "CUST-VERIFIED";
   if (str.length > 8 && str.includes("-")) {
     str = str.split("-")[0];
   }

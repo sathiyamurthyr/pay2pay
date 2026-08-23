@@ -3,6 +3,8 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck, CheckCircle2, Lock, FileText, QrCode, Building, MapPin, Receipt, UserCheck } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 export interface DigitalAadhaarCardProps {
   aadhaarData: {
@@ -41,14 +43,14 @@ export interface DigitalAadhaarCardProps {
 export const DigitalAadhaarCard: React.FC<DigitalAadhaarCardProps> = ({ aadhaarData, className = "" }) => {
   if (!aadhaarData) return null;
 
-  const fullName = aadhaarData.full_name || aadhaarData.fullName || aadhaarData.name || "SATHIYA MURTHY";
-  const dob = aadhaarData.dob || "1992-05-15";
-  const gender = (aadhaarData.gender || "M") === "M" || (aadhaarData.gender || "").toLowerCase() === "male" ? "Male / पुरुष" : "Female / महिला";
-  const careOf = aadhaarData.care_of || aadhaarData.careOf || "S/O RAMASAMY";
-  const maskedAadhaar = aadhaarData.masked_aadhaar || aadhaarData.maskedAadhaar || "XXXX XXXX 4748";
-  const fullAddress = aadhaarData.full_address || aadhaarData.fullAddress || "No. 42/B, GST Main Road, Chromepet, Chennai, Tamil Nadu - 600044";
-  const photo = aadhaarData.photo_base64 || aadhaarData.photoBase64 || aadhaarData.photo_url || aadhaarData.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200";
-  const aadhaarHash = aadhaarData.aadhaar_hash || aadhaarData.aadhaarHash || "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+  const fullName = aadhaarData.full_name || aadhaarData.fullName || aadhaarData.name || "—";
+  const dob = aadhaarData.dob || "—";
+  const gender = (aadhaarData.gender || "").toUpperCase().startsWith("M") ? "Male / पुरुष" : (aadhaarData.gender ? "Female / महिला" : "—");
+  const careOf = aadhaarData.care_of || aadhaarData.careOf || "—";
+  const maskedAadhaar = aadhaarData.masked_aadhaar || aadhaarData.maskedAadhaar || "XXXXXXXXXXXX";
+  const fullAddress = aadhaarData.full_address || aadhaarData.fullAddress || "—";
+  const photo = aadhaarData.photo_base64 || aadhaarData.photoBase64 || aadhaarData.photo_url || aadhaarData.photoUrl || "";
+  const aadhaarHash = aadhaarData.aadhaar_hash || aadhaarData.aadhaarHash || "";
   const totalBilled = aadhaarData.billing?.total_debited || 11.80;
 
   return (
@@ -86,7 +88,7 @@ export const DigitalAadhaarCard: React.FC<DigitalAadhaarCardProps> = ({ aadhaarD
               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
               <span>OFFICIAL eKYC VERIFIED</span>
             </span>
-            <span className="text-[10px] font-mono text-slate-400 mt-1">Cashfree Offline API</span>
+            <span className="text-[10px] font-mono text-slate-400 mt-1">UIDAI eKYC Verified</span>
           </div>
         </div>
 
@@ -95,12 +97,14 @@ export const DigitalAadhaarCard: React.FC<DigitalAadhaarCardProps> = ({ aadhaarD
           {/* Left Column: Photo & QR Code Badge */}
           <div className="md:col-span-4 flex flex-col items-center justify-center space-y-3 p-3 rounded-xl bg-slate-800/40 border border-slate-800">
             <div className="relative">
-              <img
+              <BlurImage
                 src={photo}
+                blurhash={KNOWN_BLURHASHES.AADHAAR}
                 alt={fullName}
-                className="w-28 h-32 object-cover rounded-xl border-2 border-amber-500/40 shadow-md"
+                className="w-28 h-32 rounded-xl border-2 border-amber-500/40 shadow-md"
+                imageClassName="w-full h-full object-cover rounded-xl"
               />
-              <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1 rounded-full border border-slate-900 shadow-xs">
+              <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1 rounded-full border border-slate-900 shadow-xs z-20">
                 <UserCheck className="w-4 h-4" />
               </div>
             </div>

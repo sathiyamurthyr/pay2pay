@@ -46,22 +46,9 @@ const ENTITY_SCOPES = [
 ];
 
 const INITIAL_ENTITIES: Record<string, { id: string; name: string; code: string; currentBal: number }[]> = {
-  SUPER_DISTRIBUTOR: [
-    { id: "sd-1002", name: "South India Super Network (sathus-SD)", code: "SD-1002", currentBal: 1250000.0 },
-    { id: "sd-1003", name: "North Apex Network", code: "SD-1003", currentBal: 600000.0 },
-  ],
-  DISTRIBUTOR: [
-    { id: "dist-5012", name: "Metro Apex Distributors", code: "DIST-5012", currentBal: 780000.0 },
-    { id: "dist-5013", name: "City Digital Services", code: "DIST-5013", currentBal: 460000.0 },
-    { id: "dist-5014", name: "Northern Telecoms", code: "DIST-5014", currentBal: 320000.0 },
-  ],
-  RETAILER: [
-    { id: "ret-10928", name: "Sathus Pay Store", code: "RET-10928", currentBal: 245800.0 },
-    { id: "ret-10929", name: "Apex Communications", code: "RET-10929", currentBal: 192400.0 },
-    { id: "ret-10930", name: "Om Sai Mobile", code: "RET-10930", currentBal: 168000.0 },
-    { id: "ret-10931", name: "Karthik General Store", code: "RET-10931", currentBal: 284300.0 },
-    { id: "RET-10829", name: "Sri Venkateswara Telecom & FinTech", code: "RET-0CFE2B", currentBal: 48250.75 },
-  ],
+  SUPER_DISTRIBUTOR: [],
+  DISTRIBUTOR: [],
+  RETAILER: [],
 };
 
 const SERVICE_OPTIONS = [
@@ -214,59 +201,84 @@ function ManualTopupContent() {
 
   const [frozenWalletsMap, setFrozenWalletsMap] = useState<any>({});
 
-  // Load balances, ledger & freeze locks from localStorage + Live Backend API
-  useEffect(() => {
-    const initData = async () => {
-      let currentMap = { ...INITIAL_ENTITIES };
+  // Dedicated function to fetch live entities and balances directly from PostgreSQL DB
+  const fetchLiveDatabaseEntities = async () => {
+    try {
       if (typeof window !== "undefined") {
-        const storedBal = localStorage.getItem("pay2pay_entity_balances_map");
-        if (storedBal) {
-          try {
-            const parsed = JSON.parse(storedBal);
-            if (parsed && (parsed.SUPER_DISTRIBUTOR?.length || parsed.DISTRIBUTOR?.length || parsed.RETAILER?.length)) {
-              currentMap = {
-                SUPER_DISTRIBUTOR: parsed.SUPER_DISTRIBUTOR?.length ? parsed.SUPER_DISTRIBUTOR : INITIAL_ENTITIES.SUPER_DISTRIBUTOR,
-                DISTRIBUTOR: parsed.DISTRIBUTOR?.length ? parsed.DISTRIBUTOR : INITIAL_ENTITIES.DISTRIBUTOR,
-                RETAILER: parsed.RETAILER?.length ? parsed.RETAILER : INITIAL_ENTITIES.RETAILER,
-              };
-            }
-          } catch (e) {}
-        }
+        localStorage.removeItem("pay2pay_entity_balances_map");
+        localStorage.removeItem("pay2pay_entity_wallets");
+        localStorage.removeItem("p2p_active_retailer_wallet_balance");
       }
 
-      // Fetch live retailers from backend API
-      try {
-        const res = await api.get("/api/v1/retailers");
-        const items = res.data?.items || res.data || [];
+      const [retRes, distRes, sdRes] = await Promise.allSettled([
+        api.get("/api/v1/retailers?page_size=100"),
+        api.get("/api/v1/organization/distributors?page_size=100"),
+        api.get("/api/v1/organization/super-distributors?page_size=100"),
+      ]);
+
+      const liveMap: Record<string, { id: string; name: string; code: string; currentBal: number }[]> = {
+        SUPER_DISTRIBUTOR: [],
+        DISTRIBUTOR: [],
+        RETAILER: [],
+      };
+
+      if (retRes.status === "fulfilled") {
+        const d = retRes.value.data;
+        const items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
         if (Array.isArray(items) && items.length > 0) {
-          const liveRetailers = items.map((r: any) => ({
-            id: String(r.public_id || r.id || r.retailer_code),
-            name: r.store_name || r.owner_name || r.legal_name || "Retailer Store",
-            code: r.retailer_code || String(r.public_id || r.id || "").substring(0, 10),
-            currentBal: typeof r.wallet_balance === "number" ? r.wallet_balance : 75000.0,
-          }));
-
-          const existingCodes = new Set(currentMap.RETAILER.map((e) => e.code));
-          const merged = [...currentMap.RETAILER];
-          liveRetailers.forEach((lr: any) => {
-            if (!existingCodes.has(lr.code)) {
-              merged.push(lr);
-              existingCodes.add(lr.code);
-            }
-          });
-          currentMap.RETAILER = merged;
+          liveMap.RETAILER = items
+            .filter((r: any) => !r.is_deleted && r.status !== "DEACTIVATED_MERGED")
+            .map((r: any) => ({
+              id: String(r.public_id || r.id),
+              name: r.store_name || r.owner_name || r.legal_name || "Retailer Store",
+              code: r.retailer_code || "RET-UNKNOWN",
+              currentBal: typeof r.wallet_balance === "number" ? Number(r.wallet_balance) : 0.0,
+            }));
         }
-      } catch (err) {
-        console.warn("Failed to fetch live retailers for manual topup:", err);
       }
 
-      setMockEntities(currentMap);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("pay2pay_entity_balances_map", JSON.stringify(currentMap));
+      if (distRes.status === "fulfilled") {
+        const d = distRes.value.data;
+        const items = Array.isArray(d) ? d : (d?.items || d?.distributors || d?.data || []);
+        if (Array.isArray(items) && items.length > 0) {
+          liveMap.DISTRIBUTOR = items.map((dist: any) => ({
+            id: String(dist.public_id || dist.id),
+            name: dist.company_name || dist.distributor_name || dist.name || "Distributor",
+            code: dist.distributor_code || dist.code || "DIST-UNKNOWN",
+            currentBal: typeof dist.wallet_balance === "number" ? Number(dist.wallet_balance) : 0.0,
+          }));
+        }
       }
-    };
 
-    initData();
+      if (sdRes.status === "fulfilled") {
+        const d = sdRes.value.data;
+        const items = Array.isArray(d) ? d : (d?.items || d?.super_distributors || d?.data || []);
+        if (Array.isArray(items) && items.length > 0) {
+          liveMap.SUPER_DISTRIBUTOR = items.map((sd: any) => ({
+            id: String(sd.public_id || sd.id),
+            name: sd.company_name || sd.super_distributor_name || sd.name || "Super Distributor",
+            code: sd.super_distributor_code || sd.code || "SD-UNKNOWN",
+            currentBal: typeof sd.wallet_balance === "number" ? Number(sd.wallet_balance) : 0.0,
+          }));
+        }
+      }
+
+      setMockEntities(liveMap);
+
+      setSelectedEntity((prev) => {
+        if (!prev) return null;
+        const currentList = liveMap[scope] || [];
+        const matched = currentList.find((e) => e.code === prev.code || e.id === prev.id);
+        return matched || prev;
+      });
+    } catch (err) {
+      console.warn("Failed to fetch live database entities:", err);
+    }
+  };
+
+  // Load real database balances on mount
+  useEffect(() => {
+    fetchLiveDatabaseEntities();
 
     if (typeof window !== "undefined") {
       const storedLedger = localStorage.getItem("pay2pay_topup_ledger");
@@ -333,58 +345,34 @@ function ManualTopupContent() {
     return { isFrozen: false, reason: "", scope: "" };
   }, [selectedEntity, walletType, frozenWalletsMap]);
 
-  // Estimated balance calculation
-  const numericAmount = typeof amount === "number" ? amount : 0;
-  const estimatedBalance = useMemo(() => {
-    if (!selectedEntity) return 0;
-    const current = selectedEntity.currentBal || 0;
-    return txnType === "CREDIT" ? current + numericAmount : Math.max(0, current - numericAmount);
-  }, [selectedEntity, txnType, numericAmount]);
-
-  const isTxnIdDuplicate = useMemo(() => {
-    if (!txnId) return false;
-    return topupLedger.some(
-      (item) => (item.transaction_id || "").toUpperCase().trim() === txnId.toUpperCase().trim()
-    );
-  }, [txnId, topupLedger]);
-
+  // Handle Form Submission with Live Database Persistence
   const handleTopupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return; // Prevent double clicks
+    if (!selectedEntity || !amount || typeof amount !== "number" || amount <= 0) return;
 
-    if (!selectedEntity) {
-      alert("Please select a target user / entity before submitting topup.");
-      return;
-    }
-    if (!numericAmount || numericAmount <= 0) {
-      alert("Please enter a valid top-up amount greater than 0.");
-      return;
-    }
-
-    // ── WALLET FREEZE / COMPLIANCE LOCK PROTECTION ─────────────────────────
-    if (frozenDetails.isFrozen) {
-      alert(
-        `TOP-UP BLOCKED: TARGET WALLET IS FROZEN / LOCKED!\n\nTarget Entity "${selectedEntity.name}" (${selectedEntity.code}) has an active ${frozenDetails.scope} LOCK in place.\n\nReason: ${frozenDetails.reason}\n\nPlease unfreeze/unlock the wallet on the Entity Type Wallet page before attempting top-up or debit adjustments.`
-      );
-      return;
-    }
-
-    // ── DUPLICATE ENTRY PROTECTION ──────────────────────────────────────────
-    if (isTxnIdDuplicate) {
-      alert(
-        `DUPLICATE TRANSACTION ENTRY BLOCKED!\n\nReference ID "${txnId}" has already been processed in the system ledger.\n\nPlease enter a unique Transaction Reference ID or click "Regenerate ID".`
-      );
+    // Check if target wallet is frozen
+    const entityLocks = frozenWalletsMap[selectedEntity.code] || {};
+    const isWalletLocked = entityLocks["ALL"]?.frozen || entityLocks[walletType]?.frozen;
+    if (isWalletLocked) {
+      alert(`Transaction Rejected: The ${walletType} wallet for ${selectedEntity.name} is currently LOCKED / FROZEN by administrator.`);
       return;
     }
 
     setLoading(true);
+    setSuccessMsg("");
 
-    const openingBal = selectedEntity.currentBal || 0;
+    const numericAmount = Number(amount);
+    const openingBal = selectedEntity.currentBal;
+    const estimatedBalance =
+      txnType === "CREDIT"
+        ? Math.round((openingBal + numericAmount) * 100) / 100
+        : Math.max(0, Math.round((openingBal - numericAmount) * 100) / 100);
+
     const serviceLabel = SERVICE_OPTIONS.find((s) => s.value === serviceName)?.label || serviceName;
     const createdDateStr = new Date().toISOString();
 
     const payload = {
-      transaction_id: txnId || `TOPUP-${Date.now()}`,
+      transaction_id: txnId,
       entity_scope: scope,
       entity_id: selectedEntity.id,
       entity_name: selectedEntity.name,
@@ -401,59 +389,17 @@ function ManualTopupContent() {
       performed_by: "Platform Admin",
     };
 
-    // 1. Try Backend API
-    let confirmedBalance = estimatedBalance;
+    // 1. Post to live database backend API
     try {
-      const res = await api.post("/api/v1/wallet-ledger/wallets/manual-topup", payload);
-      if (res.data?.new_balance !== undefined) {
-        confirmedBalance = res.data.new_balance;
-      }
+      await api.post("/api/v1/wallet-ledger/wallets/manual-topup", payload);
     } catch (err) {
-      console.log("Backend API route offline or mock mode, updating wallet balance locally & in localStorage");
+      console.error("Manual topup backend error:", err);
     }
 
-    // 2. Update Master Balance in mockEntities
-    const updatedEntities = {
-      ...mockEntities,
-      [scope]: mockEntities[scope].map((item) =>
-        item.id === selectedEntity.id ? { ...item, currentBal: confirmedBalance } : item
-      ),
-    };
-    setMockEntities(updatedEntities);
+    // 2. Re-fetch live database records
+    await fetchLiveDatabaseEntities();
 
-    // 3. Persist in localStorage for cross-page sync
-    if (typeof window !== "undefined") {
-      localStorage.setItem("pay2pay_entity_balances_map", JSON.stringify(updatedEntities));
-
-      // If updating retailer, sync active retailer wallet cache for Retailer Portal
-      if (scope === "RETAILER") {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", confirmedBalance.toString());
-        localStorage.setItem("p2p_active_retailer_id", selectedEntity.code);
-      }
-
-      const masterWalletsStored = localStorage.getItem("pay2pay_entity_wallets");
-      let masterWallets = masterWalletsStored ? JSON.parse(masterWalletsStored) : [];
-      if (masterWallets.length === 0) {
-        masterWallets = [
-          { public_id: "w-ret-301", entity_code: "RET-10928", entity_name: "Sathus Pay Store", entity_type: "RETAILER", wallet_type: "MAIN", balance: 245800.0, hold_balance: 15000.0, pending_settlement: 32400.0, status: "ACTIVE" },
-          { public_id: "w-sd-101",  entity_code: "SD-1002",  entity_name: "South India Super Network (sathus-SD)", entity_type: "SUPER_DISTRIBUTOR", wallet_type: "MAIN", balance: 1250000.0, hold_balance: 50000.0, pending_settlement: 75000.0, status: "ACTIVE" },
-          { public_id: "w-dist-201", entity_code: "DIST-5012", entity_name: "Metro Apex Distributors", entity_type: "DISTRIBUTOR", wallet_type: "MAIN", balance: 780000.0, hold_balance: 25000.0, pending_settlement: 42000.0, status: "ACTIVE" },
-        ];
-      }
-
-      const delta = txnType === "CREDIT" ? numericAmount : -numericAmount;
-      masterWallets = masterWallets.map((w: any) => {
-        if (w.entity_code === selectedEntity.code && (w.wallet_type === walletType || w.wallet_type === "MAIN")) {
-          return { ...w, balance: confirmedBalance };
-        }
-        return w;
-      });
-      localStorage.setItem("pay2pay_entity_wallets", JSON.stringify(masterWallets));
-      window.dispatchEvent(new CustomEvent("p2p_wallets_updated", { detail: { entityCode: selectedEntity.code, newBalance: confirmedBalance } }));
-      window.dispatchEvent(new CustomEvent("p2p_wallet_updated", { detail: { newBalance: confirmedBalance } }));
-    }
-
-    // 4. Update Recent Topup Ledger
+    // 3. Update Recent Topup Ledger in UI
     const newLedgerItem = {
       public_id: `top-${Date.now()}`,
       ...payload,

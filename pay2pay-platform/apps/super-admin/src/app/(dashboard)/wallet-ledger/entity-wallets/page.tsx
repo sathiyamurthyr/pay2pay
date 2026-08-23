@@ -45,158 +45,9 @@ const ENTITY_SCOPES = [
 
 // ─── Default Master Entities Dataset ───────────────────────────────────────
 const MASTER_ENTITIES_DEFAULTS: Record<string, any[]> = {
-  SUPER_DISTRIBUTOR: [
-    {
-      id: "sd-1002",
-      name: "South India Super Network (sathus-SD)",
-      code: "SD-1002",
-      phone: "+91 98401 23456",
-      email: "sd.south@pay2pay.in",
-      location: "Chennai, Tamil Nadu",
-      kyc_status: "VERIFIED",
-      main_balance: 1250000.0,
-      hold_balance: 50000.0,
-      pending_settlement: 75000.0,
-      comm_balance: 185000.0,
-      escrow_deposit: 100000.0,
-      total_tds_deducted: 9250.0,
-    },
-    {
-      id: "sd-1003",
-      name: "North Apex Network",
-      code: "SD-1003",
-      phone: "+91 98110 88221",
-      email: "sd.north@pay2pay.in",
-      location: "New Delhi, Delhi",
-      kyc_status: "VERIFIED",
-      main_balance: 600000.0,
-      hold_balance: 20000.0,
-      pending_settlement: 35000.0,
-      comm_balance: 92000.0,
-      escrow_deposit: 50000.0,
-      total_tds_deducted: 4600.0,
-    },
-  ],
-  DISTRIBUTOR: [
-    {
-      id: "dist-5012",
-      name: "Metro Apex Distributors",
-      code: "DIST-5012",
-      parent_sd: "South India Super Network (SD-1002)",
-      phone: "+91 94440 55112",
-      email: "metro.dist@pay2pay.in",
-      location: "Coimbatore, Tamil Nadu",
-      kyc_status: "VERIFIED",
-      main_balance: 780000.0,
-      hold_balance: 25000.0,
-      pending_settlement: 42000.0,
-      comm_balance: 95000.0,
-      escrow_deposit: 30000.0,
-      total_tds_deducted: 4750.0,
-    },
-    {
-      id: "dist-5013",
-      name: "City Digital Services",
-      code: "DIST-5013",
-      parent_sd: "South India Super Network (SD-1002)",
-      phone: "+91 98412 99334",
-      email: "city.digital@pay2pay.in",
-      location: "Madurai, Tamil Nadu",
-      kyc_status: "VERIFIED",
-      main_balance: 460000.0,
-      hold_balance: 15000.0,
-      pending_settlement: 28000.0,
-      comm_balance: 54000.0,
-      escrow_deposit: 20000.0,
-      total_tds_deducted: 2700.0,
-    },
-    {
-      id: "dist-5014",
-      name: "Northern Telecoms",
-      code: "DIST-5014",
-      parent_sd: "North Apex Network (SD-1003)",
-      phone: "+91 98100 44112",
-      email: "north.telecom@pay2pay.in",
-      location: "Noida, Uttar Pradesh",
-      kyc_status: "VERIFIED",
-      main_balance: 320000.0,
-      hold_balance: 10000.0,
-      pending_settlement: 18000.0,
-      comm_balance: 38000.0,
-      escrow_deposit: 15000.0,
-      total_tds_deducted: 1900.0,
-    },
-  ],
-  RETAILER: [
-    {
-      id: "ret-10928",
-      name: "Sathus Pay Store",
-      code: "RET-10928",
-      parent_dist: "Metro Apex Distributors (DIST-5012)",
-      parent_sd: "South India Super Network (SD-1002)",
-      phone: "+91 91766 69426",
-      email: "sathus.store@pay2pay.in",
-      location: "T-Nagar, Chennai",
-      kyc_status: "VERIFIED",
-      main_balance: 49680.53,
-      hold_balance: 0.0,
-      pending_settlement: 0.0,
-      comm_balance: 28500.0,
-      escrow_deposit: 10000.0,
-      total_tds_deducted: 1425.0,
-    },
-    {
-      id: "ret-10929",
-      name: "Apex Communications",
-      code: "RET-10929",
-      parent_dist: "Metro Apex Distributors (DIST-5012)",
-      parent_sd: "South India Super Network (SD-1002)",
-      phone: "+91 98400 11223",
-      email: "apex.comm@pay2pay.in",
-      location: "Velachery, Chennai",
-      kyc_status: "VERIFIED",
-      main_balance: 192400.0,
-      hold_balance: 10000.0,
-      pending_settlement: 18500.0,
-      comm_balance: 19200.0,
-      escrow_deposit: 5000.0,
-      total_tds_deducted: 960.0,
-    },
-    {
-      id: "ret-10930",
-      name: "Om Sai Mobile",
-      code: "RET-10930",
-      parent_dist: "City Digital Services (DIST-5013)",
-      parent_sd: "South India Super Network (SD-1002)",
-      phone: "+91 94430 88776",
-      email: "omsai.mob@pay2pay.in",
-      location: "KK Nagar, Madurai",
-      kyc_status: "VERIFIED",
-      main_balance: 168000.0,
-      hold_balance: 5000.0,
-      pending_settlement: 12000.0,
-      comm_balance: 14800.0,
-      escrow_deposit: 5000.0,
-      total_tds_deducted: 740.0,
-    },
-    {
-      id: "ret-10931",
-      name: "Karthik General Store",
-      code: "RET-10931",
-      parent_dist: "Northern Telecoms (DIST-5014)",
-      parent_sd: "North Apex Network (SD-1003)",
-      phone: "+91 98111 66554",
-      email: "karthik.store@pay2pay.in",
-      location: "Sector 18, Noida",
-      kyc_status: "VERIFIED",
-      main_balance: 284300.0,
-      hold_balance: 20000.0,
-      pending_settlement: 25000.0,
-      comm_balance: 31200.0,
-      escrow_deposit: 10000.0,
-      total_tds_deducted: 1560.0,
-    },
-  ],
+  SUPER_DISTRIBUTOR: [],
+  DISTRIBUTOR: [],
+  RETAILER: [],
 };
 
 // ─── Searchable Entity Select Dropdown ──────────────────────────────────────
@@ -320,100 +171,114 @@ export default function EntityWalletsPage() {
   const [targetWalletToFreeze, setTargetWalletToFreeze] = useState<string>("ALL"); // "ALL" | "MAIN" | "COMMISSION" | "HOLD"
   const [freezeReason, setFreezeReason] = useState("Compliance Audit Lock");
 
-  // Load live balances & per-wallet freeze states from localStorage
-  const refreshWalletsFromStorage = () => {
-    let masterWallets: any[] = [];
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("pay2pay_entity_wallets");
-      if (stored) {
-        try { masterWallets = JSON.parse(stored); } catch (e) {}
+  // Load live balances & per-wallet freeze states directly from PostgreSQL DB
+  const loadLiveWallets = async () => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("pay2pay_entity_wallets");
+        localStorage.removeItem("pay2pay_entity_balances_map");
       }
-      const storedFrozen = localStorage.getItem("pay2pay_frozen_wallets_per_type");
-      if (storedFrozen) {
-        try { setFrozenWalletsMap(JSON.parse(storedFrozen)); } catch (e) {}
-      }
-    }
 
-    const merged = { ...MASTER_ENTITIES_DEFAULTS };
+      const [retRes, distRes, sdRes] = await Promise.allSettled([
+        api.get("/api/v1/retailers?page_size=100"),
+        api.get("/api/v1/organization/distributors?page_size=100"),
+        api.get("/api/v1/organization/super-distributors?page_size=100"),
+      ]);
 
-    // Update balances dynamically for each scope
-    Object.keys(merged).forEach((sc) => {
-      merged[sc] = merged[sc].map((item) => {
-        const storedWallet = masterWallets.find((w: any) => w.entity_code === item.code);
-        if (storedWallet && typeof storedWallet.balance === "number") {
-          return {
-            ...item,
-            main_balance: storedWallet.balance,
-            hold_balance: typeof storedWallet.hold_balance === "number" ? storedWallet.hold_balance : item.hold_balance,
-            pending_settlement: typeof storedWallet.pending_settlement === "number" ? storedWallet.pending_settlement : item.pending_settlement,
-          };
+      const merged: Record<string, any[]> = {
+        SUPER_DISTRIBUTOR: [],
+        DISTRIBUTOR: [],
+        RETAILER: [],
+      };
+
+      if (retRes.status === "fulfilled") {
+        const d = retRes.value.data;
+        const items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
+        if (Array.isArray(items) && items.length > 0) {
+          merged.RETAILER = items
+            .filter((r: any) => !r.is_deleted && r.status !== "DEACTIVATED_MERGED")
+            .map((r: any) => ({
+              id: String(r.public_id || r.id),
+              name: r.store_name || r.owner_name || r.legal_name || "Retailer Store",
+              code: r.retailer_code || "RET-UNKNOWN",
+              parent_dist: r.mapped_distributor_id ? `Distributor (${String(r.mapped_distributor_id).substring(0, 8)})` : "Direct Network",
+              parent_sd: "South India Super Network",
+              phone: r.mobile_number || r.mobile || "+91 98765 43210",
+              email: r.email || `${(r.retailer_code || "retailer").toLowerCase()}@pay2pay.in`,
+              location: r.city && r.state ? `${r.city}, ${r.state}` : "Chennai, Tamil Nadu",
+              kyc_status: r.status === "ACTIVE" ? "VERIFIED" : (r.status || "PENDING"),
+              main_balance: typeof r.wallet_balance === "number" ? Number(r.wallet_balance) : 0.0,
+              hold_balance: 0.0,
+              pending_settlement: 0.0,
+              comm_balance: 0.0,
+              escrow_deposit: 0.0,
+              total_tds_deducted: 0.0,
+            }));
         }
-        return item;
-      });
-    });
+      }
 
-    setEntitiesMap(merged);
+      if (distRes.status === "fulfilled") {
+        const d = distRes.value.data;
+        const items = Array.isArray(d) ? d : (d?.items || d?.distributors || d?.data || []);
+        if (Array.isArray(items) && items.length > 0) {
+          merged.DISTRIBUTOR = items.map((dist: any) => ({
+            id: String(dist.public_id || dist.id),
+            name: dist.company_name || dist.distributor_name || dist.name || "Distributor",
+            code: dist.distributor_code || dist.code || "DIST-UNKNOWN",
+            parent_sd: "South India Super Network (SD-1002)",
+            phone: dist.phone || "+91 94440 55112",
+            email: dist.email || "distributor@pay2pay.in",
+            location: dist.city || "Coimbatore, Tamil Nadu",
+            kyc_status: "VERIFIED",
+            main_balance: typeof dist.wallet_balance === "number" ? Number(dist.wallet_balance) : 0.0,
+            hold_balance: 0.0,
+            pending_settlement: 0.0,
+            comm_balance: 0.0,
+            escrow_deposit: 0.0,
+            total_tds_deducted: 0.0,
+          }));
+        }
+      }
+
+      if (sdRes.status === "fulfilled") {
+        const d = sdRes.value.data;
+        const items = Array.isArray(d) ? d : (d?.items || d?.super_distributors || d?.data || []);
+        if (Array.isArray(items) && items.length > 0) {
+          merged.SUPER_DISTRIBUTOR = items.map((sd: any) => ({
+            id: String(sd.public_id || sd.id),
+            name: sd.company_name || sd.super_distributor_name || sd.name || "Super Distributor",
+            code: sd.super_distributor_code || sd.code || "SD-UNKNOWN",
+            phone: sd.phone || "+91 98401 23456",
+            email: sd.email || "sd@pay2pay.in",
+            location: sd.city || "Chennai, Tamil Nadu",
+            kyc_status: "VERIFIED",
+            main_balance: typeof sd.wallet_balance === "number" ? Number(sd.wallet_balance) : 0.0,
+            hold_balance: 0.0,
+            pending_settlement: 0.0,
+            comm_balance: 0.0,
+            escrow_deposit: 0.0,
+            total_tds_deducted: 0.0,
+          }));
+        }
+      }
+
+      setEntitiesMap(merged);
+
+      if (typeof window !== "undefined") {
+        const storedFrozen = localStorage.getItem("pay2pay_frozen_wallets_per_type");
+        if (storedFrozen) {
+          try { setFrozenWalletsMap(JSON.parse(storedFrozen)); } catch (e) {}
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to load live entities:", err);
+    }
   };
 
   useEffect(() => {
-    refreshWalletsFromStorage();
-    const handleUpdate = () => refreshWalletsFromStorage();
-    window.addEventListener("pay2pay_wallets_updated", handleUpdate);
-
-    async function loadLiveWallets() {
-      try {
-        const [retRes, distRes, sdRes, walRes] = await Promise.allSettled([
-          api.get("/api/v1/retailers"),
-          api.get("/api/v1/organization/distributors"),
-          api.get("/api/v1/organization/super-distributors"),
-          api.get("/api/v1/wallet-ledger/wallets"),
-        ]);
-
-        const walletMap: Record<string, number> = {};
-        if (walRes.status === "fulfilled" && Array.isArray(walRes.value.data)) {
-          walRes.value.data.forEach((w: any) => {
-            if (w.wallet_number) walletMap[w.wallet_number] = w.current_balance;
-            if (w.owner_id) walletMap[w.owner_id] = w.current_balance;
-          });
-        }
-
-        if (retRes.status === "fulfilled") {
-          const d = retRes.value.data;
-          const items = Array.isArray(d) ? d : (d?.items || d?.retailers || d?.data || []);
-          if (items.length > 0) {
-            const liveRetailers = items
-              .filter((r: any) => !r.is_deleted && r.status !== "DEACTIVATED_MERGED")
-              .map((r: any) => ({
-                id: r.public_id || r.id,
-                name: r.store_name || r.owner_name || "Retailer",
-                code: r.retailer_code || "RET-UNKNOWN",
-                parent_dist: "Metro Apex Distributors (DIST-5012)",
-                parent_sd: "South India Super Network (SD-1002)",
-                phone: r.phone || r.mobile || "+91 91766 69426",
-                email: r.email || "retailer@pay2pay.in",
-                location: r.location || "Chennai, Tamil Nadu",
-                kyc_status: r.kyc_status || "VERIFIED",
-                main_balance: typeof r.wallet_balance === "number" ? r.wallet_balance : (walletMap[r.retailer_code] ?? walletMap[r.public_id] ?? 49680.53),
-                hold_balance: 0.0,
-                pending_settlement: 0.0,
-                comm_balance: 28500.0,
-                escrow_deposit: 10000.0,
-                total_tds_deducted: 1425.0,
-              }));
-
-            setEntitiesMap((prev) => ({
-              ...prev,
-              RETAILER: liveRetailers,
-            }));
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load live entity wallets:", err);
-      }
-    }
-
     loadLiveWallets();
-
+    const handleUpdate = () => loadLiveWallets();
+    window.addEventListener("pay2pay_wallets_updated", handleUpdate);
     return () => window.removeEventListener("pay2pay_wallets_updated", handleUpdate);
   }, []);
 
@@ -424,7 +289,7 @@ export default function EntityWalletsPage() {
       if (!selectedEntity || !list.some((e) => e.id === selectedEntity.id)) {
         setSelectedEntity(list[0]);
       } else {
-        const updatedSelected = list.find((e) => e.id === selectedEntity.id);
+        const updatedSelected = list.find((e) => e.id === selectedEntity.id || e.code === selectedEntity.code);
         if (updatedSelected) setSelectedEntity(updatedSelected);
       }
     } else {
@@ -445,24 +310,14 @@ export default function EntityWalletsPage() {
   const isCommFrozen = isGlobalFrozen || entityFrozenObj["COMMISSION"]?.frozen;
   const isHoldFrozen = isGlobalFrozen || entityFrozenObj["HOLD"]?.frozen;
 
-  // Calculated non-zero totals for selected entity
+  // Calculated non-zero totals for selected entity directly from DB values
   const walletSummary = useMemo(() => {
     if (!selectedEntity) return null;
-    const main = typeof selectedEntity.main_balance === "number" && selectedEntity.main_balance > 0
-      ? selectedEntity.main_balance
-      : 245800.0;
-    const hold = typeof selectedEntity.hold_balance === "number" && selectedEntity.hold_balance > 0
-      ? selectedEntity.hold_balance
-      : 15000.0;
-    const pending = typeof selectedEntity.pending_settlement === "number" && selectedEntity.pending_settlement > 0
-      ? selectedEntity.pending_settlement
-      : 32400.0;
-    const comm = typeof selectedEntity.comm_balance === "number" && selectedEntity.comm_balance > 0
-      ? selectedEntity.comm_balance
-      : 28500.0;
-    const escrow = typeof selectedEntity.escrow_deposit === "number" && selectedEntity.escrow_deposit > 0
-      ? selectedEntity.escrow_deposit
-      : 10000.0;
+    const main = typeof selectedEntity.main_balance === "number" ? selectedEntity.main_balance : 0.0;
+    const hold = typeof selectedEntity.hold_balance === "number" ? selectedEntity.hold_balance : 0.0;
+    const pending = typeof selectedEntity.pending_settlement === "number" ? selectedEntity.pending_settlement : 0.0;
+    const comm = typeof selectedEntity.comm_balance === "number" ? selectedEntity.comm_balance : 0.0;
+    const escrow = typeof selectedEntity.escrow_deposit === "number" ? selectedEntity.escrow_deposit : 0.0;
     const netTotal = main + comm + pending;
 
     return { main, hold, pending, comm, escrow, netTotal };

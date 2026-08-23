@@ -39,6 +39,10 @@ check_real_db.py
 convert_ppk.py
 sync_backend_to_server.py
 nginx_pay2pay.conf
+*.sh
+print_*.py
+verify_*.py
+sync_*.py
 
 # IDE / System
 .vscode/

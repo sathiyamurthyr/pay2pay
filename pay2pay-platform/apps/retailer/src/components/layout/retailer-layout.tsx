@@ -22,6 +22,8 @@ import ShieldIcon from "@mui/icons-material/Shield";
 import SearchIcon from "@mui/icons-material/Search";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import AddCardIcon from "@mui/icons-material/AddCard";
 import SendIcon from "@mui/icons-material/Send";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import QrCodeIcon from "@mui/icons-material/QrCode";
@@ -196,18 +198,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       if (rInfo.approval_status && typeof setApprovalStatus === "function") {
         setApprovalStatus(rInfo.approval_status as any);
       }
-      const activeCode = rInfo.retailer_code || rInfo.retailer_id || rInfo.registration_id || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "9176669426" : "9176669426");
+      const activeCode = rInfo.retailer_code || rInfo.retailer_id || rInfo.registration_id || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "" : "");
       setProfileDetails((prev) => ({
         ...prev,
-        owner_name: rInfo.owner_name || "Sathiya Murthy",
-        retailer_name: rInfo.retailer_name || rInfo.company_name || rInfo.store_name || "Sathus Pay Store",
-        retailer_code: rInfo.retailer_code || activeCode || "RET-10928",
+        owner_name: rInfo.owner_name || "",
+        retailer_name: rInfo.retailer_name || rInfo.company_name || rInfo.store_name || "Retailer Store",
+        retailer_code: rInfo.retailer_code || activeCode || "",
         photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || (activeCode ? `/api/v1/retailer/profile/photo-image?retailer_id=${encodeURIComponent(activeCode)}` : undefined),
         approval_status: rInfo.approval_status || "ACTIVE",
         kyc_status: rInfo.kyc_status || "VERIFIED",
-        location: rInfo.location || "Chennai, TN",
+        location: rInfo.location || "",
         last_login_at: data.quick_stats?.last_login_at || data.last_login_at || null,
-        plan_name: rInfo.plan_name || "Enterprise Workstation",
+        plan_name: rInfo.plan_name || "Merchant Portal",
         loading: false,
         error: false,
       }));
@@ -343,7 +345,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       title: "WALLET",
       items: [
         { label: "Wallet", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
-        { label: "Wallet Top-up", path: "/retailer/wallet-topup", icon: AccountBalanceWalletIcon },
+        { label: "Topup Request", path: "/retailer/topup-request", icon: CloudUploadIcon },
+        { label: "Wallet Top-up", path: "/retailer/wallet-topup", icon: AddCardIcon },
         { label: "Wallet Ledger", path: "/retailer/wallet-ledger", icon: ReceiptLongIcon },
       ],
     },

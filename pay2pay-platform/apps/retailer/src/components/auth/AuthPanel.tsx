@@ -31,6 +31,8 @@ import {
   shakeErrorVariants,
   buttonMotionVariants
 } from "./motion/animationVariants";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 type LanguageKey = "English" | "Hindi" | "Tamil" | "Telugu";
 
@@ -604,9 +606,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           darkMode ? "border-slate-800" : "border-slate-200"
         }`}>
           <div className="flex items-center gap-3">
-            <img
+            <BlurImage
               src="/branding/pay2pay-logo.png"
               alt="Pay2Pay"
+              blurhash={KNOWN_BLURHASHES.PAY2PAY_LOGO}
               className="w-10 h-10 rounded-xl object-contain border border-amber-500/30 shadow-md"
             />
             <div>

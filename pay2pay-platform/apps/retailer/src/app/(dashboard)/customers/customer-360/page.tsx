@@ -11,6 +11,8 @@ import {
 import Link from "next/link";
 import apiClient from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 function Customer360Content() {
   const { isRetailer, isAdmin, activeRole } = useAuth();
@@ -118,10 +120,12 @@ function Customer360Content() {
       <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/90 backdrop-blur-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6 shadow-xl">
         <div className="flex items-center gap-4">
           {customer?.photo_url || customer?.photo_base64 ? (
-            <img 
+            <BlurImage 
               src={customer.photo_url || customer.photo_base64} 
+              blurhash={KNOWN_BLURHASHES.AVATAR}
               alt={customer.full_name} 
-              className="w-16 h-16 rounded-2xl object-cover border-2 border-blue-400/40 shadow-lg shadow-blue-500/30 bg-slate-800"
+              className="w-16 h-16 rounded-2xl border-2 border-blue-400/40 shadow-lg shadow-blue-500/30 bg-slate-800"
+              imageClassName="w-full h-full object-cover rounded-2xl"
             />
           ) : (
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-blue-500/30 border border-blue-400/30">
@@ -288,10 +292,12 @@ function Customer360Content() {
                 <div key={doc.public_id} className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     {doc.file_url ? (
-                      <img 
+                      <BlurImage 
                         src={doc.file_url} 
+                        blurhash={KNOWN_BLURHASHES.DOCUMENT_DEFAULT}
                         alt={doc.document_name} 
-                        className="w-12 h-12 rounded-lg object-cover border border-slate-600 bg-slate-900"
+                        className="w-12 h-12 rounded-lg border border-slate-600 bg-slate-900 shrink-0"
+                        imageClassName="w-full h-full object-cover rounded-lg"
                       />
                     ) : (
                       <div className="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400">

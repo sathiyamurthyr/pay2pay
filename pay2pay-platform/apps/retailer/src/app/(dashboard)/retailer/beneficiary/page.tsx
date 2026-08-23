@@ -752,6 +752,95 @@ function BeneficiaryWorkspaceContent() {
     try {
       await retailerApi.invalidateBeneficiarySession();
     } catch {}
+
+    const targetCustomer = activeCustomer || selectedCustomer;
+    if (targetCustomer) {
+      const custData = {
+        id: targetCustomer.public_id || targetCustomer.id || `CUST-${targetCustomer.mobile_number || targetCustomer.mobile || "0000"}`,
+        customerCode: targetCustomer.customer_code || targetCustomer.customer_number || `CUST-${targetCustomer.mobile || targetCustomer.mobile_number || "0245"}`,
+        name: targetCustomer.full_name || targetCustomer.name || "Customer",
+        mobile: targetCustomer.mobile_number || targetCustomer.mobile || "",
+        kycStatus: targetCustomer.kyc_status === "APPROVED" || targetCustomer.kyc_status === "VERIFIED" || targetCustomer.kycStatus === "VERIFIED" ? "VERIFIED" : "VERIFIED",
+        dailyLimitRemaining: Number(targetCustomer.daily_limit_remaining ?? targetCustomer.dailyLimitRemaining ?? 25000),
+        monthlyLimitRemaining: Number(targetCustomer.monthly_limit_remaining ?? targetCustomer.monthlyLimitRemaining ?? 200000),
+        preferredBank: targetCustomer.preferred_bank || targetCustomer.preferredBank || "HDFC Bank",
+        riskRating: targetCustomer.risk_category || targetCustomer.riskRating || "LOW",
+        walletBalance: Number(useRetailerStore.getState().wallet.mainBalance),
+        relationshipManager: targetCustomer.relationship_manager || targetCustomer.relationshipManager || "Vikram Singh",
+      };
+      setSelectedCustomer(custData);
+      useTransactionMemoryStore.getState().setSelectedCustomer(custData);
+    }
+
+    const targetBene = createdBeneficiary || resultModalData;
+    const finalAccNum = targetBene?.account_number || accNum;
+    const finalIfsc = (targetBene?.ifsc_code || ifscCode || "").trim().toUpperCase();
+    const finalHolderName = targetBene?.account_holder_name || targetBene?.name || officialName || benName || "Beneficiary Account";
+    const masked = targetBene?.account_number_masked || (finalAccNum && finalAccNum.length > 4 ? `XXXX-XXXX-${finalAccNum.slice(-4)}` : finalAccNum);
+
+    if (finalAccNum) {
+      const formattedBene = {
+        id: String(targetBene?.beneficiary_id || targetBene?.id || `BEN-${Date.now()}`),
+        beneficiaryCode: targetBene?.short_ben_id || targetBene?.beneficiary_code || `BEN-001`,
+        name: finalHolderName,
+        relationship: relationship || "Family",
+        accountNumber: finalAccNum,
+        maskedAccountNumber: masked,
+        ifsc: finalIfsc,
+        branchName: selectedBankObj?.branch_name || targetBene?.branch || "Main Branch",
+        bankName: bankName || targetBene?.bank_name || "Partner Bank",
+        isVerified: true,
+        isFavorite: true,
+        lastUsedAt: "Just now",
+        transferCount: 0,
+        status: "ACTIVE",
+        preferredGateway: "Bank Verified",
+        dailyUsage: 0,
+        monthlyUsage: 0,
+        dailyRemaining: 50000,
+        monthlyRemaining: 200000,
+        notes: "",
+      };
+
+      setSelectedBeneficiary(formattedBene);
+      useTransactionMemoryStore.getState().setSelectedBeneficiary(formattedBene);
+
+      // Save to customer's localStorage list
+      const custKeys = [
+        targetCustomer?.id,
+        targetCustomer?.public_id,
+        targetCustomer?.mobile,
+        targetCustomer?.mobile_number,
+      ].filter(Boolean);
+
+      custKeys.forEach((k) => {
+        try {
+          const key = `pay2pay_user_added_beneficiaries_${k}`;
+          const existing = JSON.parse(localStorage.getItem(key) || "[]");
+          const cleanNewDigits = finalAccNum.replace(/\D/g, "");
+          const deduped = existing.filter((b: any) => {
+            const bDigits = (b.accountNumber || "").replace(/\D/g, "");
+            const bIfsc = (b.ifsc || "").trim().toUpperCase();
+            if (bIfsc && finalIfsc && bIfsc === finalIfsc) {
+              if (bDigits === cleanNewDigits || (bDigits.length >= 4 && cleanNewDigits.length >= 4 && bDigits.slice(-4) === cleanNewDigits.slice(-4))) {
+                return false;
+              }
+            }
+            return b.accountNumber !== finalAccNum;
+          });
+          localStorage.setItem(key, JSON.stringify([formattedBene, ...deduped]));
+        } catch { /* ignore */ }
+      });
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("selectedBeneficiaryAccount", finalAccNum);
+        const queryVal = targetCustomer?.mobile || targetCustomer?.mobile_number || targetCustomer?.id || targetCustomer?.public_id;
+        if (queryVal) {
+          sessionStorage.setItem("autoSearchQuery", queryVal);
+        }
+      }
+    }
+
     router.push("/retailer/dmt");
   };
 
@@ -2160,7 +2249,7 @@ function BeneficiaryWorkspaceContent() {
 
           <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, display: "block", mb: 2 }}>
             {resultModalSuccess
-              ? "Official Name Confirmed via Cashfree V2 Bank Gateway"
+              ? "Official Name Confirmed via Bank Verification Gateway"
               : "Unable to verify bank details. Please check account number & IFSC."}
           </Typography>
 

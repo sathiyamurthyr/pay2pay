@@ -246,9 +246,9 @@ export function CustomerOnboardingStepper({
         setAadhaarOtpSent(true);
         setAadhaarRefNum(res.data.ref_id || res.data.ref_number);
         setMaskedAadhaar(res.data.masked_aadhaar);
-        notificationEngine.notify("OTP_RECEIVED", `Cashfree OTP sent for ${res.data.masked_aadhaar}. Fee Billed: ₹10.00 (+ ₹1.80 GST)`);
+        notificationEngine.notify("OTP_RECEIVED", `Aadhaar OTP sent for ${res.data.masked_aadhaar}. Fee Billed: ₹10.00 (+ ₹1.80 GST)`);
       } else {
-        setAadhaarError(res.detail || res.message || "Failed to generate Cashfree Aadhaar OTP.");
+        setAadhaarError(res.detail || res.message || "Failed to generate Aadhaar OTP.");
       }
     } catch (err: any) {
       setStep3Loading(false);
@@ -282,7 +282,7 @@ export function CustomerOnboardingStepper({
       if (res.status === "SUCCESS" && res.data) {
         setAadhaarVerified(true);
         setVerifiedAadhaarData(res.data);
-        notificationEngine.notify("AADHAAR_EKYC_COMPLETED", `Aadhaar eKYC Verified via Cashfree API! Fee Billed: ₹${res.data.billing?.total_debited || 11.80}`);
+        notificationEngine.notify("AADHAAR_EKYC_COMPLETED", `Aadhaar eKYC Verified via Government Gateway! Fee Billed: ₹${res.data.billing?.total_debited || 11.80}`);
       }
     } catch (err: any) {
       setStep3Loading(false);
@@ -710,12 +710,12 @@ export function CustomerOnboardingStepper({
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0F172A" }}>
-                  Step 3: Cashfree Aadhaar eKYC Verification
+                  Step 3: Aadhaar eKYC Verification
                 </Typography>
                 <Chip label="Fee: ₹10.00 + GST (Auto-Refund on Fail)" size="small" sx={{ bgcolor: "#E0F2FE", color: "#0284C7", fontWeight: 800, fontSize: "0.7rem" }} />
               </Box>
               <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 2.5 }}>
-                Enter 12-digit Aadhaar number to trigger Cashfree verification API. PII encrypted AES-256.
+                Enter 12-digit Aadhaar number to trigger UIDAI verification. PII encrypted AES-256.
               </Typography>
 
               {aadhaarError && (
@@ -744,7 +744,7 @@ export function CustomerOnboardingStepper({
                       onClick={handleGenerateAadhaarOtp}
                       sx={{ py: 1.5, borderRadius: 3, bgcolor: "#0F172A" }}
                     >
-                      {step3Loading ? "Connecting Cashfree..." : "Generate Aadhaar eKYC OTP →"}
+                      {step3Loading ? "Connecting Gateway..." : "Generate Aadhaar eKYC OTP →"}
                     </M3Button>
                   </Stack>
                 ) : (
@@ -787,7 +787,7 @@ export function CustomerOnboardingStepper({
               ) : (
                 <Stack spacing={2.5}>
                   <Alert severity="success" icon={<CheckCircleIcon fontSize="inherit" />} sx={{ borderRadius: 3, fontWeight: 800 }}>
-                    Aadhaar eKYC Verified via Cashfree! Digital Aadhaar Card Created.
+                    Aadhaar eKYC Verified Successfully! Digital Aadhaar Card Created.
                   </Alert>
 
                   {/* Render Digital Aadhaar Card */}

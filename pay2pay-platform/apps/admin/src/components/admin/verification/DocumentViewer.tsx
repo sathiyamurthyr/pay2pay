@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Eye
 } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 interface DocumentViewerProps {
   documentUrl: string;
@@ -41,7 +43,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const handleDownload = () => {
     const link = document.createElement("a");
     link.href = documentUrl;
-    link.download = `${documentTitle.replace(/\s+/g, "_")}_admin_copy.jpg`;
+    const safeTitle = (documentTitle || "document").split(" ").join("_");
+    link.download = `${safeTitle}_admin_copy.jpg`;
     link.click();
   };
 
@@ -117,18 +120,43 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
       {/* Main Preview Area */}
       <div className="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center p-6">
-        <div
-          className="transition-transform duration-200 ease-out max-w-full max-h-full flex items-center justify-center"
-          style={{
-            transform: `scale(${zoomLevel}) rotate(${rotation}deg)`
-          }}
-        >
-          <img
-            src={documentUrl}
-            alt={documentTitle}
-            className="max-h-[75vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
-          />
-        </div>
+        {documentUrl.toLowerCase().endsWith(".pdf") || documentType === "PDF" ? (
+          <div className="w-full h-full max-h-[75vh] max-w-4xl flex items-center justify-center">
+            <iframe
+              src={documentUrl}
+              title={documentTitle}
+              className="w-full h-full rounded-2xl bg-white border border-slate-800 shadow-2xl"
+            />
+          </div>
+        ) : documentUrl.toLowerCase().endsWith(".mp4") || documentUrl.toLowerCase().endsWith(".webm") || documentType === "VIDEO" ? (
+          <div className="max-h-[75vh] max-w-full flex items-center justify-center">
+            <video
+              src={documentUrl}
+              controls
+              autoPlay
+              playsInline
+              className="max-h-[75vh] max-w-full object-contain rounded-2xl shadow-2xl border border-slate-800 bg-black"
+            >
+              Your browser does not support HTML5 video playback.
+            </video>
+          </div>
+        ) : (
+          <div
+            className="transition-transform duration-200 ease-out max-w-full max-h-full flex items-center justify-center"
+            style={{
+              transform: `scale(${zoomLevel}) rotate(${rotation}deg)`
+            }}
+          >
+            <BlurImage
+              src={documentUrl}
+              blurhash={KNOWN_BLURHASHES.DOCUMENT_DEFAULT}
+              alt={documentTitle}
+              className="max-h-[75vh] rounded-2xl shadow-2xl border border-slate-800"
+              imageClassName="max-h-[75vh] object-contain rounded-2xl"
+            />
+          </div>
+        )}
+      </div>
 
         {/* OCR Text Side Drawer */}
         {showOcrDrawer && (
@@ -159,6 +187,5 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           </div>
         )}
       </div>
-    </div>
   );
 };

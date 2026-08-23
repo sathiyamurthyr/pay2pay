@@ -52,7 +52,9 @@ class PayoutWorkflowService:
         stmt = select(CustomerModel).where(
             and_(
                 CustomerModel.tenant_id == tenant_id,
-                CustomerModel.customer_status != "CLOSED"
+                CustomerModel.is_active == True,
+                CustomerModel.customer_status == "ACTIVE",
+                CustomerModel.kyc_status.in_(["VERIFIED", "APPROVED"])
             )
         )
         

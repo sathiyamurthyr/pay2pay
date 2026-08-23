@@ -304,7 +304,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     } catch (e) {}
   };
 
-  // ── Database-Backed Backend PIN Verification with Fallback ──
+  // ── Database-Backed Backend PIN Verification ──
   const unlockSession = async (pin?: string) => {
     const inputPin = pin?.trim() || "";
 
@@ -314,17 +314,26 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       return { success: false, message: "PIN must be exactly 4 numeric digits." };
     }
 
-    // Default universal dev/standard bypass PINs
-    const VALID_PINS = new Set(["8529", "2116", "2468", "8520", "1357", "1122", "4827", "1234", "0000", "9999", "1111", "2222", "3333", "5555", "7777"]);
-
     try {
-      const token =
-        typeof document !== "undefined"
-          ? document.cookie
-              .split("; ")
-              .find((row) => row.startsWith("p2p_access_token=") || row.startsWith("pay2pay_auth_token="))
-              ?.split("=")[1]
-          : null;
+      let token: string | null = null;
+      if (typeof window !== "undefined") {
+        token =
+          localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("pay2pay_token") ||
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("pay2pay_access_token") ||
+          localStorage.getItem("pay2pay_auth_token") ||
+          document.cookie
+            .split("; ")
+            .find((row) =>
+              row.startsWith("p2p_access_token=") ||
+              row.startsWith("pay2pay_auth_token=") ||
+              row.startsWith("pay2pay_access_token=") ||
+              row.startsWith("auth_token=")
+            )
+            ?.split("=")[1] ||
+          null;
+      }
 
       const baseUrl = getApiBaseUrl();
       const response = await axios.post(
@@ -337,7 +346,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         {
           headers: {
             "Content-Type": "application/json",
-            Authorization: token ? `Bearer ${token}` : "Bearer dev-test-token",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           timeout: 8000,
         }
@@ -362,38 +371,16 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         return { success: true };
       }
 
-      if (VALID_PINS.has(inputPin)) {
-        setSessionState("ACTIVE");
-        setLockedAt(null);
-        soundSystem.playUnlockChime();
-        try {
-          localStorage.removeItem("p2p_session_locked");
-          localStorage.removeItem("p2p_session_locked_at");
-        } catch (e) {}
-        return { success: true };
-      }
-
       soundSystem.playLoginFailure();
       return {
         success: false,
-        message: response.data?.message || "Invalid security PIN",
+        message: response.data?.message || response.data?.detail || "Invalid Security PIN. Please verify against your database registered PIN.",
       };
     } catch (err: any) {
-      if (VALID_PINS.has(inputPin)) {
-        setSessionState("ACTIVE");
-        setLockedAt(null);
-        soundSystem.playUnlockChime();
-        try {
-          localStorage.removeItem("p2p_session_locked");
-          localStorage.removeItem("p2p_session_locked_at");
-        } catch (e) {}
-        return { success: true };
-      }
-
       soundSystem.playLoginFailure();
-      if (err.response?.status === 401) {
+      if (err.response?.status === 401 || err.response?.status === 400 || err.response?.status === 403) {
         const serverMsg = err.response?.data?.detail || err.response?.data?.message;
-        return { success: false, message: serverMsg || "Incorrect MPIN. Please try again." };
+        return { success: false, message: serverMsg || "Incorrect Security PIN. Please enter your valid 4-digit PIN registered with your account." };
       }
 
       if (err.response?.status === 429) {
@@ -406,7 +393,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
 
       return {
         success: false,
-        message: "Unable to reach security service. Please try again.",
+        message: err.response?.data?.detail || "Unable to reach database security service. Please try again.",
       };
     }
   };

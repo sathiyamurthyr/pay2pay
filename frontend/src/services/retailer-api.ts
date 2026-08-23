@@ -664,28 +664,7 @@ export const retailerApi = {
       }
     } catch (err: any) {}
 
-    // 3. Dynamic customer fallback for searched 10-digit mobile number
-    if (normalizedQuery.length === 10) {
-      const dynamicCustomer = {
-        public_id: `c-${normalizedQuery}`,
-        customer_number: `CUST-${normalizedQuery.slice(-5)}`,
-        full_name: `Verified Payout Customer (${normalizedQuery})`,
-        mobile_number: normalizedQuery,
-        kyc_status: "VERIFIED",
-        kyc_level: "FULL_KYC",
-        risk_score: 10,
-        monthly_limit: 200000.0,
-        monthly_used: 0.0,
-        monthly_remaining: 200000.0,
-        aadhaar_status: "VERIFIED",
-        pan_status: "VERIFIED",
-        pin_status: "SET",
-        last_transaction: "Today",
-        onboarding_complete: true,
-      };
-      return { status: "SUCCESS", data: [dynamicCustomer] };
-    }
-
+        
     return { status: "SUCCESS", data: [] };
   },
 
@@ -1460,4 +1439,3 @@ export const retailerApi = {
 function round2(val: number) {
   return Math.round(val * 100) / 100;
 }
-

@@ -89,7 +89,9 @@ export default function RetailerTopupRequestPage() {
   const fetchMyTopups = useCallback(async () => {
     try {
       setLoadingRequests(true);
-      const res = await api.get("/api/v1/topup/my-requests");
+      const activeCode = typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "" : "";
+      const query = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
+      const res = await api.get(`/api/v1/topup/my-requests${query}`);
       setMyRequests(res.data.items || []);
       if (res.data?.retailer) {
         setRetailerInfo({
@@ -186,6 +188,10 @@ export default function RetailerTopupRequestPage() {
         payment_method: paymentMethod,
         payment_date: paymentDate ? new Date(paymentDate).toISOString() : undefined,
         slip_id: uploadedSlipData?.slip_id,
+        slip_url: uploadedSlipData?.slip_url,
+        slip_original_filename: uploadedSlipData?.original_filename,
+        slip_file_size_bytes: uploadedSlipData?.file_size,
+        slip_checksum: uploadedSlipData?.checksum,
         retailer_remarks: retailerRemarks.trim() || undefined
       };
 

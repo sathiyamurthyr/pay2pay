@@ -41,6 +41,8 @@ import {
   Image as ImageIcon,
   Sparkles,
 } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { resolveBlurHash } from "@/lib/blurhash";
 
 const API_BASE_URL = typeof window !== "undefined" ? "/api/v1" : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1");
 
@@ -1008,9 +1010,10 @@ export default function AdminApprovalsPage() {
                           </div>
                         ) : hasUrl && !hasFailed ? (
                           <>
-                            <img
+                            <BlurImage
                               src={doc.url}
                               alt={doc.label}
+                              blurhash={resolveBlurHash(doc.label || doc.id)}
                               onError={() => setFailedImages((prev) => ({ ...prev, [doc.id]: true }))}
                               className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                             />

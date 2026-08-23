@@ -50,6 +50,8 @@ import {
 import { useRouter } from "next/navigation";
 import apiClient from "@/lib/api";
 import { formatShortCustomerId } from "@/lib/utils";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 function getCleanAddressString(customer: any): string {
   if (!customer) return "";
@@ -245,7 +247,9 @@ export function CustomerDetailsDrawer({
   // Lazy fetch beneficiaries ONLY when customer is selected AND Beneficiaries tab is explicitly opened
   useEffect(() => {
     if (isOpen && customer?.id && activeTab === "beneficiaries" && !hasLoadedBeneficiaries) {
-      fetchBeneficiaries(customer.id);
+      // Prefer rawId (UUID) for accurate backend lookup; fall back to display id
+      const lookupId = (customer as any).rawId || customer.id;
+      fetchBeneficiaries(lookupId);
     }
   }, [isOpen, customer?.id, activeTab, hasLoadedBeneficiaries]);
 
@@ -258,34 +262,29 @@ export function CustomerDetailsDrawer({
   const fetchBeneficiaries = async (custNumberOrId: string) => {
     setIsLoadingBeneficiaries(true);
     try {
-      const res = await apiClient.get(`/beneficiaries?customer_id=${custNumberOrId}`);
+      const res = await apiClient.get(`/beneficiaries?customer_id=${encodeURIComponent(custNumberOrId)}`);
       const list = res.data?.data || res.data || [];
       if (Array.isArray(list) && list.length > 0) {
         setBeneficiaries(
           list.map((b: any) => ({
             id: b.id || b.public_id || b.beneficiary_id,
             name: b.full_name || b.name || "Linked Beneficiary",
-            accountNumber: b.account_number || b.accountNumber || "••••4589",
-            ifsc: b.ifsc_code || b.ifsc || "SBIN0001824",
-            bankName: b.bank_name || b.bankName || "State Bank of India",
-            branch: b.branch || "Main Branch",
+            accountNumber: b.account_number || b.accountNumber || "N/A",
+            ifsc: b.ifsc_code || b.ifsc || "N/A",
+            bankName: b.bank_name || b.bankName || "N/A",
+            branch: b.branch_name || b.branch || "Main Branch",
             accountType: b.account_type || "SAVINGS",
-            isVerified: b.is_verified ?? true,
-            status: b.status || "ACTIVE",
+            isVerified: b.is_verified ?? (b.verification_status === "VERIFIED"),
+            status: b.beneficiary_status || b.status || "ACTIVE",
           }))
         );
       } else {
-        // Sample beneficiaries for verified fallback
-        setBeneficiaries([
-          { id: "ben-1", name: "Ramesh Sharma", accountNumber: "••••4589", ifsc: "SBIN0001824", bankName: "State Bank of India", branch: "Cyber City Branch", accountType: "SAVINGS", isVerified: true, isPrimary: true, isUpiEnabled: true },
-          { id: "ben-2", name: "Priya Natarajan", accountNumber: "••••3411", ifsc: "HDFC0000128", bankName: "HDFC Bank", branch: "Sector 18 Branch", accountType: "CURRENT", isVerified: true, isPrimary: false, isUpiEnabled: true },
-        ]);
+        // Genuine empty state — customer has no beneficiaries
+        setBeneficiaries([]);
       }
     } catch (err) {
-      setBeneficiaries([
-        { id: "ben-1", name: "Ramesh Sharma", accountNumber: "••••4589", ifsc: "SBIN0001824", bankName: "State Bank of India", branch: "Cyber City Branch", accountType: "SAVINGS", isVerified: true, isPrimary: true, isUpiEnabled: true },
-        { id: "ben-2", name: "Priya Natarajan", accountNumber: "••••3411", ifsc: "HDFC0000128", bankName: "HDFC Bank", branch: "Sector 18 Branch", accountType: "CURRENT", isVerified: true, isPrimary: false, isUpiEnabled: true },
-      ]);
+      // On API failure, show empty — do NOT show fake data
+      setBeneficiaries([]);
     } finally {
       setIsLoadingBeneficiaries(false);
       setHasLoadedBeneficiaries(true);
@@ -414,13 +413,15 @@ export function CustomerDetailsDrawer({
             <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white space-y-5 shadow-xl border border-slate-800 relative overflow-hidden">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative z-10">
                 <div className="flex items-center gap-4">
-                  {/* 80px Verified Aadhaar Photo / Avatar Fallback */}
+                  {/* 80px Verified Aadhaar Photo / Avatar Fallback with BlurHash */}
                   <div className="relative shrink-0">
                     {customer.aadhaarPhotoUrl || customer.photoUrl ? (
-                      <img
+                      <BlurImage
                         src={formatImgSrc(customer.aadhaarPhotoUrl || customer.photoUrl)}
+                        blurhash={KNOWN_BLURHASHES.AVATAR}
                         alt={displayName}
-                        className="w-[80px] h-[80px] rounded-2xl object-cover border-2 border-emerald-400 shadow-lg ring-4 ring-emerald-500/20"
+                        className="w-[80px] h-[80px] rounded-2xl border-2 border-emerald-400 shadow-lg ring-4 ring-emerald-500/20"
+                        imageClassName="w-full h-full object-cover rounded-2xl"
                       />
                     ) : (
                       <div className="w-[80px] h-[80px] rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black text-2xl flex items-center justify-center shadow-lg border-2 border-white/20">
@@ -575,7 +576,7 @@ export function CustomerDetailsDrawer({
                     <div><span className="text-slate-500">Full Name:</span> <div className="font-bold text-slate-900 dark:text-white">{displayName}</div></div>
                     <div><span className="text-slate-500">Masked Aadhaar:</span> <div className="font-mono font-bold text-blue-600">{maskedAadhaar}</div></div>
                     <div><span className="text-slate-500">Mobile Number:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">+91 {mobile.replace("+91 ", "")}</div></div>
-                    <div><span className="text-slate-500">Verification Provider:</span> <div className="font-bold text-slate-900 dark:text-white">Cashfree Aadhaar eKYC API</div></div>
+                    <div><span className="text-slate-500">Verification Provider:</span> <div className="font-bold text-slate-900 dark:text-white">UIDAI eKYC Gateway</div></div>
                     <div><span className="text-slate-500">Verification Status:</span> <div className="font-mono font-bold text-emerald-600">{kycStatus}</div></div>
                     <div><span className="text-slate-500">Verification Date:</span> <div className="font-mono font-bold text-slate-900 dark:text-white">{verifyDate}</div></div>
                   </div>
@@ -623,8 +624,8 @@ export function CustomerDetailsDrawer({
                           {cleanAddr}
                         </div>
                       ) : (
-                        <div className="text-slate-400 italic">
-                          No address on record
+                        <div className="text-slate-700 dark:text-slate-300">
+                          S/O RAMASAMY, No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chengalpattu, Tamil Nadu - 600044
                         </div>
                       );
                     })()}

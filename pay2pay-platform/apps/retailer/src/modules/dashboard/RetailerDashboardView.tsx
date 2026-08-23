@@ -31,6 +31,7 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import { DashboardAnnouncementModal } from "@/components/common/DashboardAnnouncementModal";
 import WarningIcon from "@mui/icons-material/Warning";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import HistoryIcon from "@mui/icons-material/History";
 import LockIcon from "@mui/icons-material/Lock";
 import { useWalletSync } from "@/context/WalletSyncProvider";
@@ -404,8 +405,8 @@ export const RetailerDashboardView: React.FC = () => {
             <Button
               variant="contained"
               size="small"
-              startIcon={<AddCircleIcon sx={{ fontSize: 16 }} />}
-              onClick={() => router.push("/retailer/wallet")}
+              startIcon={<CloudUploadIcon sx={{ fontSize: 16 }} />}
+              onClick={() => router.push("/retailer/topup-request")}
               sx={{
                 py: 0.8,
                 px: 2,
@@ -418,7 +419,27 @@ export const RetailerDashboardView: React.FC = () => {
                 textTransform: "none",
               }}
             >
-              ＋ Top Up
+              Topup Request
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<AddCircleIcon sx={{ fontSize: 16 }} />}
+              onClick={() => router.push("/retailer/wallet-topup")}
+              sx={{
+                py: 0.8,
+                px: 2,
+                fontSize: "13px",
+                fontWeight: 600,
+                borderRadius: "8px",
+                borderColor: "rgba(245, 158, 11, 0.4)",
+                color: "#FBBF24",
+                bgcolor: "rgba(245, 158, 11, 0.1)",
+                "&:hover": { borderColor: "rgba(245, 158, 11, 0.7)", bgcolor: "rgba(245, 158, 11, 0.2)" },
+                textTransform: "none",
+              }}
+            >
+              ＋ Wallet Top-up
             </Button>
             <Button
               variant="outlined"

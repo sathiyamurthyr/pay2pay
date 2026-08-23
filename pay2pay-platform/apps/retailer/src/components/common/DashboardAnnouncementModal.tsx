@@ -12,6 +12,9 @@ import {
   MessageCircle,
 } from "lucide-react";
 
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
+
 interface AnnouncementLink {
   label: string;
   url: string;
@@ -47,12 +50,12 @@ function AnnouncementBannerImage({
 
   return (
     <div className="relative w-full bg-slate-950/70 flex items-center justify-center border-b border-white/10 overflow-hidden">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <BlurImage
         src={resolvedUrl}
+        blurhash={KNOWN_BLURHASHES.BRAND_BANNER}
         alt={title}
-        className="w-full h-auto max-h-[55vh] object-contain block select-none"
-        loading="eager"
+        className="w-full h-auto max-h-[55vh]"
+        imageClassName="w-full h-auto max-h-[55vh] object-contain block select-none"
         onError={() => setImgError(true)}
       />
     </div>

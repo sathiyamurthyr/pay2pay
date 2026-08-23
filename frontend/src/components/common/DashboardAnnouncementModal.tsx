@@ -1,14 +1,19 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import { getApiBaseUrl } from "@/lib/api-config";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  X,
+  ExternalLink,
+  ChevronRight,
+  ChevronLeft,
+  AlertTriangle,
+  Flame,
+  Info,
+  MessageCircle,
+} from "lucide-react";
 
-interface AnnouncementImage {
-  id: string;
-  image_url: string;
-  original_filename: string;
-  display_order: number;
-}
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 interface AnnouncementLink {
   label: string;
@@ -16,654 +21,297 @@ interface AnnouncementLink {
   icon?: string;
 }
 
-interface AnnouncementItem {
+interface Announcement {
   id: string;
-  announcement_code: string;
-  title: string;
-  message: string;
-  links: AnnouncementLink[];
-  display_type: string;
-  priority: number;
+  header: string;
+  body: string;
+  image_url?: string | null;
+  images?: string[];
+  links?: AnnouncementLink[];
   audience: string;
-  status: string;
-  is_active: boolean;
-  images: AnnouncementImage[];
+  priority: string;
+  created_at: string;
 }
 
-interface Props {
-  audience?: string;
-}
+function AnnouncementBannerImage({
+  imageUrl,
+  title,
+}: {
+  imageUrl?: string | null;
+  title: string;
+}) {
+  const [imgError, setImgError] = useState(false);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Eager fetch — starts the moment this module is imported (before React mounts)
-// so the modal appears with zero perceptible delay.
-// ─────────────────────────────────────────────────────────────────────────────
-let _eagerPromise: Promise<AnnouncementItem[]> | null = null;
+  if (!imageUrl || imgError) {
+    return null;
+  }
 
-function startEagerFetch(audience: string): Promise<AnnouncementItem[]> {
-  if (_eagerPromise) return _eagerPromise;
-  _eagerPromise = (async () => {
-    try {
-      const base = getApiBaseUrl();
-      const res = await fetch(
-        base + "/announcements/active?audience=" + audience,
-        { cache: "no-store" }
-      );
-      if (!res.ok) return [];
-      const json = await res.json();
-      return (json.data as AnnouncementItem[]) || [];
-    } catch {
-      return [];
-    }
-  })();
-  return _eagerPromise;
-}
+  const resolvedUrl = imageUrl.startsWith("/uploads/") ? imageUrl : imageUrl;
 
-// Kick off immediately at import time
-if (typeof window !== "undefined") {
-  startEagerFetch("RETAILER");
+  return (
+    <div className="relative w-full bg-slate-950/70 flex items-center justify-center border-b border-white/10 overflow-hidden">
+      <BlurImage
+        src={resolvedUrl}
+        blurhash={KNOWN_BLURHASHES.BRAND_BANNER}
+        alt={title}
+        className="w-full h-auto max-h-[55vh]"
+        imageClassName="w-full h-auto max-h-[55vh] object-contain block select-none"
+        onError={() => setImgError(true)}
+      />
+    </div>
+  );
 }
 
 /**
- * DashboardAnnouncementModal
- *
- * Network request starts at module import time (before React renders) so the
- * modal appears immediately — no useEffect delay. Shows on every dashboard visit.
+ * DashboardAnnouncementModal:
+ * Fetches active announcements on dashboard mount and displays them every time
+ * the dashboard page is loaded or refreshed.
  */
-export const DashboardAnnouncementModal: React.FC<Props> = ({
+export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
   audience = "RETAILER",
 }) => {
-  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [imgIndex, setImgIndex] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const resolvedRef = useRef(false);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [current, setCurrent] = useState(0);
+  const [visible, setVisible] = useState(false);
+
+  const dismissCurrent = useCallback(() => {
+    if (current + 1 < announcements.length) {
+      setCurrent((c) => c + 1);
+    } else {
+      setVisible(false);
+    }
+  }, [announcements, current]);
+
+  const goToPrev = () => {
+    if (current > 0) setCurrent((c) => c - 1);
+  };
+
+  const goToNext = () => {
+    if (current + 1 < announcements.length) setCurrent((c) => c + 1);
+  };
 
   useEffect(() => {
-    if (resolvedRef.current) return;
-    resolvedRef.current = true;
+    let cancelled = false;
+    const fetchData = async () => {
+      try {
+        let items: any[] = [];
 
-    // Reset the eager promise so next page visit re-fetches fresh data
-    const promise = _eagerPromise ?? startEagerFetch(audience);
-    _eagerPromise = null; // reset for next mount
+        // 1. Try active announcements endpoint
+        try {
+          const res1 = await fetch(`/api/v1/announcements/active?audience=${audience}`);
+          if (res1.ok) {
+            const json1 = await res1.json();
+            items = json1.data || (Array.isArray(json1) ? json1 : []);
+          }
+        } catch {}
 
-    promise.then((all) => {
-      if (all.length > 0) {
-        setAnnouncements(all);
-        setCurrentIndex(0);
-        setImgIndex(0);
-        setOpen(true);
+        // 2. Fallback to notifications/announcements
+        if (items.length === 0) {
+          try {
+            const res2 = await fetch(
+              `/api/v1/notifications/announcements?audience=${audience}&active=true&limit=5`
+            );
+            if (res2.ok) {
+              const json2 = await res2.json();
+              items = json2.data || (Array.isArray(json2) ? json2 : []);
+            }
+          } catch {}
+        }
+
+        if (!Array.isArray(items) || items.length === 0) return;
+
+        // Map items to normalized schema
+        const normalized: Announcement[] = items.map((raw: any) => {
+          const allImgs: string[] = [];
+          if (raw.image_url) allImgs.push(raw.image_url);
+          if (Array.isArray(raw.images)) {
+            raw.images.forEach((imgObj: any) => {
+              const u = typeof imgObj === "string" ? imgObj : imgObj?.image_url;
+              if (u && !allImgs.includes(u)) allImgs.push(u);
+            });
+          }
+
+          const topImg = allImgs.length > 0 ? allImgs[0] : null;
+
+          return {
+            id: String(raw.id || raw.public_id || raw.announcement_code || Math.random()),
+            header: raw.header || raw.title || "Important Update",
+            body: raw.body || raw.message || raw.content || "",
+            image_url: topImg,
+            images: allImgs,
+            links: Array.isArray(raw.links) ? raw.links : [],
+            audience: raw.audience || audience,
+            priority:
+              typeof raw.priority === "number"
+                ? raw.priority >= 20
+                  ? "CRITICAL"
+                  : raw.priority >= 10
+                  ? "HIGH"
+                  : "NORMAL"
+                : raw.priority || "NORMAL",
+            created_at: raw.created_at || raw.created_date || new Date().toISOString(),
+          };
+        });
+
+        if (cancelled || normalized.length === 0) return;
+
+        setAnnouncements(normalized);
+        setCurrent(0);
+        setTimeout(() => {
+          if (!cancelled) setVisible(true);
+        }, 500);
+      } catch {
+        // Non-critical UI
       }
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const current = announcements[currentIndex] ?? null;
-
-  const handleClose = useCallback(() => {
-    if (!current) return;
-    setClosing(true);
-    setTimeout(() => {
-      const next = currentIndex + 1;
-      if (next < announcements.length) {
-        setCurrentIndex(next);
-        setImgIndex(0);
-        setClosing(false);
-      } else {
-        setOpen(false);
-        setClosing(false);
-      }
-    }, 260);
-  }, [current, currentIndex, announcements]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, handleClose]);
 
-  if (!open || !current) return null;
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [audience]);
 
-  const images = current.images ?? [];
-  const hasImages = images.length > 0;
-  const hasMultipleImages = images.length > 1;
-  const hasLinks = (current.links ?? []).length > 0;
-  const hasMore = currentIndex + 1 < announcements.length;
-
-  const prevImg = () =>
-    setImgIndex((i) => (i > 0 ? i - 1 : images.length - 1));
-  const nextImg = () =>
-    setImgIndex((i) => (i < images.length - 1 ? i + 1 : 0));
+  if (!visible || announcements.length === 0) return null;
+  const item = announcements[current];
+  if (!item) return null;
 
   return (
-    <>
-      {/* ── Backdrop ──────────────────────────────────────────────────────── */}
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4"
+      style={{ backgroundColor: "rgba(15, 23, 42, 0.78)", backdropFilter: "blur(8px)" }}
+    >
       <div
-        onClick={handleClose}
+        className="relative w-full max-w-lg max-h-[92vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl border border-white/15 animate-in fade-in zoom-in-95 duration-200"
         style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 9998,
-          background: "rgba(0,0,0,0.72)",
-          backdropFilter: "blur(6px)",
-          WebkitBackdropFilter: "blur(6px)",
-          animation: closing
-            ? "p2p-fadeOut 0.26s ease forwards"
-            : "p2p-fadeIn 0.28s ease",
-        }}
-      />
-
-      {/* ── Modal wrapper ─────────────────────────────────────────────────── */}
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 9999,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "16px",
-          pointerEvents: "none",
+          background: "linear-gradient(145deg, #0b1120 0%, #111827 50%, #1e1b4b 100%)",
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={current.title}
-          style={{
-            pointerEvents: "auto",
-            width: "100%",
-            maxWidth: 520,
-            borderRadius: 20,
-            overflow: "hidden",
-            background:
-              "linear-gradient(145deg,#0f172a 0%,#1e293b 60%,#0f1f3d 100%)",
-            border: "1px solid rgba(99,179,237,0.18)",
-            boxShadow: [
-              "0 32px 80px rgba(0,0,0,0.7)",
-              "0 0 0 1px rgba(99,179,237,0.08)",
-              "inset 0 1px 0 rgba(255,255,255,0.06)",
-            ].join(","),
-            animation: closing
-              ? "p2p-slideDown 0.26s cubic-bezier(0.4,0,1,1) forwards"
-              : "p2p-slideUp 0.34s cubic-bezier(0.22,1,0.36,1)",
-            position: "relative",
-          }}
+        {/* Top Dismiss Button */}
+        <button
+          onClick={dismissCurrent}
+          className="absolute top-3.5 right-3.5 z-30 w-8 h-8 flex items-center justify-center rounded-full bg-black/60 hover:bg-black/85 text-white/90 hover:text-white border border-white/20 transition-all cursor-pointer shadow-lg backdrop-blur-sm"
+          aria-label="Dismiss Announcement"
         >
-          {/* Top accent bar */}
-          <div
-            style={{
-              height: 3,
-              background:
-                "linear-gradient(90deg,#3b82f6 0%,#60a5fa 40%,#a78bfa 100%)",
-            }}
-          />
+          <X className="w-4 h-4" />
+        </button>
 
-          {/* ── Branded header ──────────────────────────────────────────── */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "12px 16px 12px 16px",
-              background:
-                "linear-gradient(90deg,rgba(15,23,42,0.95) 0%,rgba(30,41,59,0.9) 100%)",
-              borderBottom: "1px solid rgba(99,179,237,0.1)",
-            }}
-          >
-            {/* Logo + brand name */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logo.png"
-                alt="Pay2Pay Logo"
-                style={{
-                  width: 36,
-                  height: 36,
-                  objectFit: "contain",
-                  borderRadius: 8,
-                  background: "rgba(255,255,255,0.06)",
-                  padding: 2,
-                }}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
+        {/* Scrollable Container */}
+        <div className="overflow-y-auto max-h-[92vh] flex flex-col">
+          {/* Full Banner / Flyer Image */}
+          <AnnouncementBannerImage imageUrl={item.image_url} title={item.header} />
+
+          {/* Modal Content */}
+          <div className="p-5 sm:p-6 space-y-4 flex-1">
+            {/* Header Row: Priority Badge & Pagination */}
+            <div className="flex items-center justify-between gap-2">
               <div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 800,
-                    color: "#e2e8f0",
-                    letterSpacing: "0.06em",
-                    lineHeight: 1.2,
-                  }}
-                >
-                  PAY2PAY
-                </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "#60a5fa",
-                    fontWeight: 500,
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  Official Announcement
-                </div>
+                {item.priority === "CRITICAL" ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm shadow-rose-500/10">
+                    <Flame className="w-3.5 h-3.5 text-rose-400" />
+                    <span>CRITICAL ALERT</span>
+                  </span>
+                ) : item.priority === "HIGH" ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                    <span>IMPORTANT NOTICE</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                    <Info className="w-3.5 h-3.5 text-violet-400" />
+                    <span>UPDATE NOTICE</span>
+                  </span>
+                )}
               </div>
-            </div>
 
-            {/* Close button */}
-            <button
-              onClick={handleClose}
-              aria-label="Close announcement"
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: "50%",
-                border: "1px solid rgba(148,163,184,0.25)",
-                background: "rgba(15,23,42,0.8)",
-                color: "#94a3b8",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 16,
-                transition: "all 0.18s ease",
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                const b = e.currentTarget;
-                b.style.background = "rgba(239,68,68,0.2)";
-                b.style.borderColor = "rgba(239,68,68,0.5)";
-                b.style.color = "#f87171";
-              }}
-              onMouseLeave={(e) => {
-                const b = e.currentTarget;
-                b.style.background = "rgba(15,23,42,0.8)";
-                b.style.borderColor = "rgba(148,163,184,0.25)";
-                b.style.color = "#94a3b8";
-              }}
-            >
-              &times;
-            </button>
-          </div>
-
-          {/* Image area */}
-          {hasImages && (
-            <div
-              style={{
-                position: "relative",
-                width: "100%",
-                height: 240,
-                overflow: "hidden",
-                background: "#0a1628",
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                key={images[imgIndex]?.id}
-                src={images[imgIndex]?.image_url}
-                alt={
-                  images[imgIndex]?.original_filename || "Announcement image"
-                }
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                  animation: "p2p-imgFade 0.3s ease",
-                }}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
-              {/* Bottom gradient overlay */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: 72,
-                  background:
-                    "linear-gradient(to top,rgba(15,23,42,1) 0%,transparent 100%)",
-                  pointerEvents: "none",
-                }}
-              />
-
-              {/* Carousel controls */}
-              {hasMultipleImages && (
-                <>
-                  <button
-                    onClick={prevImg}
-                    aria-label="Previous image"
-                    style={{
-                      position: "absolute",
-                      left: 10,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      background: "rgba(0,0,0,0.5)",
-                      color: "#fff",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 18,
-                    }}
-                  >
-                    &lsaquo;
-                  </button>
-                  <button
-                    onClick={nextImg}
-                    aria-label="Next image"
-                    style={{
-                      position: "absolute",
-                      right: 10,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      background: "rgba(0,0,0,0.5)",
-                      color: "#fff",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 18,
-                    }}
-                  >
-                    &rsaquo;
-                  </button>
-                  {/* Dot indicators */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: 8,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      display: "flex",
-                      gap: 5,
-                    }}
-                  >
-                    {images.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setImgIndex(i)}
-                        aria-label={"Image " + (i + 1)}
-                        style={{
-                          width: i === imgIndex ? 18 : 7,
-                          height: 7,
-                          borderRadius: 4,
-                          border: "none",
-                          padding: 0,
-                          cursor: "pointer",
-                          background:
-                            i === imgIndex
-                              ? "#60a5fa"
-                              : "rgba(255,255,255,0.3)",
-                          transition: "all 0.2s ease",
-                        }}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Content body */}
-          <div style={{ padding: "20px 24px 24px" }}>
-            {/* Badge row */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 12,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "0.12em",
-                  color: "#60a5fa",
-                  background: "rgba(59,130,246,0.12)",
-                  border: "1px solid rgba(59,130,246,0.2)",
-                  borderRadius: 4,
-                  padding: "3px 8px",
-                  textTransform: "uppercase" as const,
-                }}
-              >
-                Announcement
-              </span>
-              <span
-                style={{
-                  fontSize: 10,
-                  color: "#475569",
-                  fontFamily: "monospace",
-                }}
-              >
-                {current.announcement_code}
-              </span>
               {announcements.length > 1 && (
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    fontSize: 10,
-                    color: "#475569",
-                  }}
-                >
-                  {currentIndex + 1} / {announcements.length}
+                <span className="text-xs font-bold text-slate-400 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-lg">
+                  {current + 1} of {announcements.length}
                 </span>
               )}
             </div>
 
-            {/* Title */}
-            <h2
-              style={{
-                margin: "0 0 10px",
-                fontSize: 18,
-                fontWeight: 700,
-                color: "#f1f5f9",
-                lineHeight: 1.35,
-              }}
-            >
-              {current.title}
-            </h2>
+            {/* Title & Body */}
+            {(item.header !== "Announcement" || item.body) && (
+              <div>
+                {item.header && (
+                  <h2 className="text-xl font-black text-white tracking-tight leading-snug">
+                    {item.header}
+                  </h2>
+                )}
+                {item.body && (
+                  <p className="text-sm text-slate-300 leading-relaxed mt-1.5 font-normal whitespace-pre-line">
+                    {item.body}
+                  </p>
+                )}
+              </div>
+            )}
 
-            {/* Message */}
-            <p
-              style={{
-                margin: "0 0 18px",
-                fontSize: 14,
-                color: "#94a3b8",
-                lineHeight: 1.65,
-              }}
-            >
-              {current.message}
-            </p>
-
-            {/* Links */}
-            {hasLinks && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                  marginBottom: 18,
-                }}
-              >
-                {current.links.map((link, i) => (
+            {/* Action Links (e.g. WhatsApp channel, Play Store, etc.) */}
+            {item.links && item.links.length > 0 && (
+              <div className="pt-1 space-y-2">
+                {item.links.map((link, lIdx) => (
                   <a
-                    key={i}
+                    key={lIdx}
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "10px 14px",
-                      borderRadius: 10,
-                      background: "rgba(59,130,246,0.07)",
-                      border: "1px solid rgba(59,130,246,0.15)",
-                      color: "#60a5fa",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      textDecoration: "none",
-                      transition: "all 0.18s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(59,130,246,0.15)";
-                      e.currentTarget.style.borderColor =
-                        "rgba(59,130,246,0.35)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        "rgba(59,130,246,0.07)";
-                      e.currentTarget.style.borderColor =
-                        "rgba(59,130,246,0.15)";
-                    }}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/40 transition-all text-xs font-bold text-white group"
                   >
-                    <span style={{ fontSize: 15 }}>
-                      {link.icon === "whatsapp" ? "💬" : "🔗"}
-                    </span>
-                    <span
-                      style={{
-                        flex: 1,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {link.label}
-                    </span>
-                    <span style={{ fontSize: 12, opacity: 0.6 }}>&#8599;</span>
+                    <div className="flex items-center gap-2.5">
+                      {link.icon === "whatsapp" || link.url.includes("whatsapp") ? (
+                        <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                      ) : (
+                        <ExternalLink className="w-4 h-4 text-violet-400 shrink-0" />
+                      )}
+                      <span>{link.label || link.url}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-transform group-hover:translate-x-0.5" />
                   </a>
                 ))}
               </div>
             )}
 
-            {/* Action buttons */}
-            <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-              {hasMore ? (
-                <>
-                  <button
-                    onClick={handleClose}
-                    style={{
-                      flex: 1,
-                      height: 40,
-                      borderRadius: 10,
-                      border: "1px solid rgba(148,163,184,0.2)",
-                      background: "transparent",
-                      color: "#64748b",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      transition: "all 0.18s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor =
-                        "rgba(148,163,184,0.4)";
-                      e.currentTarget.style.color = "#94a3b8";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor =
-                        "rgba(148,163,184,0.2)";
-                      e.currentTarget.style.color = "#64748b";
-                    }}
-                  >
-                    Dismiss
-                  </button>
-                  <button
-                    onClick={handleClose}
-                    style={{
-                      flex: 2,
-                      height: 40,
-                      borderRadius: 10,
-                      border: "none",
-                      background:
-                        "linear-gradient(135deg,#3b82f6 0%,#6366f1 100%)",
-                      color: "#fff",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      transition: "opacity 0.18s ease",
-                      boxShadow: "0 4px 14px rgba(59,130,246,0.35)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.opacity = "0.88";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.opacity = "1";
-                    }}
-                  >
-                    Next ({currentIndex + 2}/{announcements.length}) &rarr;
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleClose}
-                  style={{
-                    width: "100%",
-                    height: 42,
-                    borderRadius: 10,
-                    border: "none",
-                    background:
-                      "linear-gradient(135deg,#3b82f6 0%,#6366f1 100%)",
-                    color: "#fff",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "opacity 0.18s ease",
-                    boxShadow: "0 4px 14px rgba(59,130,246,0.35)",
-                    letterSpacing: "0.02em",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = "0.88";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "1";
-                  }}
-                >
-                  Got it &mdash; Close
-                </button>
+            {/* Pagination Indicators & Main Action Button */}
+            <div className="pt-2 space-y-3">
+              {announcements.length > 1 && (
+                <div className="flex items-center justify-center gap-1.5 py-1">
+                  {announcements.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrent(i)}
+                      className="h-1.5 rounded-full transition-all cursor-pointer"
+                      style={{
+                        background: i === current ? "#8b5cf6" : "rgba(255,255,255,0.2)",
+                        width: i === current ? 24 : 6,
+                      }}
+                      aria-label={`Go to announcement ${i + 1}`}
+                    />
+                  ))}
+                </div>
               )}
+
+              <div className="flex items-center gap-2">
+                {announcements.length > 1 && current > 0 && (
+                  <button
+                    onClick={goToPrev}
+                    className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm border border-white/10 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Back</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={dismissCurrent}
+                  className="flex-1 py-3 px-5 rounded-2xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 hover:from-violet-700 hover:via-indigo-700 hover:to-blue-700 shadow-lg shadow-violet-600/25 border border-white/10 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>{current + 1 < announcements.length ? "Next Announcement →" : "Got it, Thanks!"}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Keyframe CSS */}
-      <style>{`
-        @keyframes p2p-fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes p2p-fadeOut { from { opacity: 1; } to { opacity: 0; } }
-        @keyframes p2p-slideUp {
-          from { opacity: 0; transform: translateY(24px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes p2p-slideDown {
-          from { opacity: 1; transform: translateY(0) scale(1); }
-          to   { opacity: 0; transform: translateY(16px) scale(0.97); }
-        }
-        @keyframes p2p-imgFade { from { opacity: 0.5; } to { opacity: 1; } }
-      `}</style>
-    </>
+    </div>
   );
 };
-
-export default DashboardAnnouncementModal;

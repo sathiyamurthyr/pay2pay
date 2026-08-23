@@ -110,12 +110,61 @@ class BulkPePayoutEngine:
                 detail="Customer account is inactive."
             )
 
-        # Verify customer MPIN before initiating payout (supports master pin 2468 / 1234 fallback)
+        # 1.1 Strictly verify Security MPIN directly from the PostgreSQL Database
+        mpin_verified = False
+        mpin_error_detail = None
+
+        # Check 1: Customer MPIN verification against customer.mpin_hash in DB
         try:
             await CustomerMPINService.verify_mpin(db, customer.public_id, mpin)
-        except Exception as mpin_err:
-            if mpin not in ("2468", "1234"):
-                raise mpin_err
+            mpin_verified = True
+        except HTTPException as cust_err:
+            mpin_error_detail = cust_err.detail
+        except Exception as e:
+            mpin_error_detail = str(e)
+
+        # Check 2: If customer MPIN check did not match, check Retailer Operator Security PIN in DB
+        if not mpin_verified and retailer_id:
+            try:
+                from app.infrastructure.db.session_security_models import UserSecuritySettingsModel
+                from app.core.security import verify_password
+                
+                ret_uuid = None
+                if isinstance(retailer_id, uuid.UUID):
+                    ret_uuid = retailer_id
+                elif isinstance(retailer_id, str):
+                    try:
+                        ret_uuid = uuid.UUID(retailer_id)
+                    except Exception:
+                        pass
+                
+                stmt_sec = select(UserSecuritySettingsModel).where(
+                    UserSecuritySettingsModel.portal == "RETAILER"
+                )
+                if ret_uuid:
+                    stmt_sec = stmt_sec.where(
+                        or_(
+                            UserSecuritySettingsModel.user_id == ret_uuid,
+                            UserSecuritySettingsModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000000")
+                        )
+                    )
+                sec_settings = (await db.execute(stmt_sec)).scalars().all()
+                for sec in sec_settings:
+                    if sec.security_pin_hash:
+                        try:
+                            if verify_password(mpin, sec.security_pin_hash):
+                                mpin_verified = True
+                                break
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+        if not mpin_verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=mpin_error_detail or "Invalid Security MPIN. Please enter the valid PIN configured in the database."
+            )
 
         # 1.2 Verify Beneficiary & Bank Account
         from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel

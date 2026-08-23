@@ -22,6 +22,8 @@ import ShieldIcon from "@mui/icons-material/Shield";
 import SearchIcon from "@mui/icons-material/Search";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import AddCardIcon from "@mui/icons-material/AddCard";
 import SendIcon from "@mui/icons-material/Send";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import QrCodeIcon from "@mui/icons-material/QrCode";
@@ -49,6 +51,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { retailerApi } from "@/services/retailer-api";
 
 import { useRetailerApprovalGuard } from "@/hooks/useRetailerApprovalGuard";
+import { useSessionSecurity } from "@/context/SessionSecurityProvider";
 
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MobileQuickActionsFAB } from "./mobile-quick-actions-fab";
@@ -86,7 +89,24 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
     try {
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
-        activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        try {
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId =
+            localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("pay2pay_reg_mobile") ||
+            localStorage.getItem("pay2pay_reg_id") ||
+            "";
+        }
       }
       const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
       const res = await fetch(
@@ -96,6 +116,33 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
       const data = await res.json();
       cachedHeaderWalletData = data;
       lastHeaderWalletFetchTime = Date.now();
+
+      // Automatically sync into useRetailerStore so entire layout and pages are live
+      if (typeof window !== "undefined") {
+        const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
+        const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
+        const rInfo = data.retailer_info || data;
+        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
+        if (rInfo.retailer_code || data.retailer_code) {
+          localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code);
+        }
+        useRetailerStore.getState().updateWallet({
+          mainBalance: bal,
+          availableBalance: avail,
+          commissionBalance: data.todays_commission || 0.0,
+          todayMargin: data.todays_commission || 0.0,
+          todaySettlement: data.settlement_pending_amount || 0.0,
+        });
+        useRetailerStore.getState().updateOutlet({
+          code: rInfo.retailer_code || data.retailer_code || "",
+          name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || "Retailer Store",
+          ownerName: rInfo.owner_name || data.owner_name || "Retailer Partner",
+          status: "ACTIVE",
+          kycStatus: "VERIFIED",
+          approvalStatus: "APPROVED",
+        });
+      }
+
       return data;
     } finally {
       inFlightHeaderWalletPromise = null;
@@ -113,6 +160,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const { outlet, wallet, isSyncing, syncBalance, soundboxEnabled, toggleSoundbox, unreadNotifications, setUnreadNotifications, kpiTheme, setKpiTheme } = useRetailerStore();
   const { isApproved, approvalStatus, isPathLocked, setApprovalStatus } = useRetailerApprovalGuard();
   const { openContactSupportModal } = useContactSupportModal();
+  const { lockSession } = useSessionSecurity();
 
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -150,17 +198,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       if (rInfo.approval_status && typeof setApprovalStatus === "function") {
         setApprovalStatus(rInfo.approval_status as any);
       }
+      const activeCode = rInfo.retailer_code || rInfo.retailer_id || rInfo.registration_id || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "" : "");
       setProfileDetails((prev) => ({
         ...prev,
-        owner_name: rInfo.owner_name || null,
-        retailer_name: rInfo.retailer_name || rInfo.store_name || null,
-        retailer_code: rInfo.retailer_code || null,
-        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || prev.photo_url || "/api/v1/retailer/profile/photo-image",
-        approval_status: rInfo.approval_status || null,
-        kyc_status: rInfo.kyc_status || null,
-        location: rInfo.location || null,
+        owner_name: rInfo.owner_name || "",
+        retailer_name: rInfo.retailer_name || rInfo.company_name || rInfo.store_name || "Retailer Store",
+        retailer_code: rInfo.retailer_code || activeCode || "",
+        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || (activeCode ? `/api/v1/retailer/profile/photo-image?retailer_id=${encodeURIComponent(activeCode)}` : undefined),
+        approval_status: rInfo.approval_status || "ACTIVE",
+        kyc_status: rInfo.kyc_status || "VERIFIED",
+        location: rInfo.location || "",
         last_login_at: data.quick_stats?.last_login_at || data.last_login_at || null,
-        plan_name: rInfo.plan_name || null,
+        plan_name: rInfo.plan_name || "Merchant Portal",
         loading: false,
         error: false,
       }));
@@ -171,7 +220,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setApprovalStatus]);
 
   useEffect(() => {
-    fetchProfileDetails();
+    fetchProfileDetails(true);
+    syncBalance();
+
+    const handleWalletUpdate = () => {
+      syncBalance();
+    };
+    window.addEventListener("p2p_wallet_update", handleWalletUpdate);
+
     // Also load verified profile photo directly from profile endpoint
     const loadVerifiedPhoto = async () => {
       try {
@@ -185,7 +241,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
     loadVerifiedPhoto();
-  }, [fetchProfileDetails]);
+
+    return () => {
+      window.removeEventListener("p2p_wallet_update", handleWalletUpdate);
+    };
+  }, [fetchProfileDetails, syncBalance]);
 
   const formatLastLogin = (isoString?: string | null) => {
     if (!isoString) return "Not available";
@@ -220,6 +280,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
     }
   }, []);
+
+  // Global Lock Screen Keyboard Shortcut (Ctrl+L / Cmd+L)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        lockSession();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lockSession]);
 
   const toggleFavorite = (path: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -267,14 +339,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       title: "CUSTOMERS",
       items: [
         { label: "Customers", path: "/retailer/customers", icon: PersonIcon },
-        { label: "Beneficiaries", path: "/retailer/beneficiaries", icon: ContactsIcon },
       ],
     },
     {
       title: "WALLET",
       items: [
         { label: "Wallet", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
-        { label: "Wallet Top-up", path: "/retailer/wallet-topup", icon: AccountBalanceWalletIcon },
+        { label: "Topup Request", path: "/retailer/topup-request", icon: CloudUploadIcon },
+        { label: "Wallet Top-up", path: "/retailer/wallet-topup", icon: AddCardIcon },
         { label: "Wallet Ledger", path: "/retailer/wallet-ledger", icon: ReceiptLongIcon },
       ],
     },
@@ -886,6 +958,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     </Typography>
                     <Typography
                       variant="subtitle1"
+                      suppressHydrationWarning
                       sx={{
                         fontWeight: 900,
                         color: "#FFD700",
@@ -1020,6 +1093,24 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             {/* Dynamic DB-Backed Notification Center */}
             <NotificationCenter />
 
+            {/* Quick Lock Terminal Icon */}
+            <Tooltip title="Lock Terminal (Ctrl+L)">
+              <IconButton
+                onClick={lockSession}
+                size="small"
+                sx={{
+                  color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
+                  p: 0.75,
+                  "&:hover": {
+                    color: "#F59E0B",
+                    backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
+                  },
+                }}
+              >
+                <LockIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+
             {/* User Profile Avatar Icon (Clicking this opens the full Retailer Profile Card!) */}
             <Tooltip title="View Retailer Profile Info">
               <IconButton onClick={(e) => setProfileAnchor(e.currentTarget)} size="small" sx={{ p: 0.25 }}>
@@ -1124,7 +1215,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   WALLET BALANCE
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Typography variant="h5" sx={{ fontSize: "22px", fontWeight: 800, color: effectiveTheme === "dark" ? "#FFFFFF" : "#0F172A", fontFamily: "monospace", lineHeight: 1.1 }}>
+                  <Typography variant="h5" suppressHydrationWarning sx={{ fontSize: "22px", fontWeight: 800, color: effectiveTheme === "dark" ? "#FFFFFF" : "#0F172A", fontFamily: "monospace", lineHeight: 1.1 }}>
                     ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Typography>
                   <IconButton size="small" onClick={syncBalance} disabled={isSyncing} sx={{ p: 0.25 }}>
@@ -1244,6 +1335,32 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   }}
                 >
                   View Full Profile
+                </Button>
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  startIcon={<LockIcon sx={{ fontSize: 18, color: "#F59E0B" }} />}
+                  onClick={() => {
+                    setProfileAnchor(null);
+                    lockSession();
+                  }}
+                  sx={{
+                    borderRadius: "10px",
+                    height: 36,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    fontSize: "12px",
+                    borderColor: "rgba(245, 158, 11, 0.4)",
+                    color: "#F59E0B",
+                    backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.08)" : "rgba(245, 158, 11, 0.05)",
+                    "&:hover": {
+                      borderColor: "#F59E0B",
+                      backgroundColor: "rgba(245, 158, 11, 0.16)",
+                    },
+                  }}
+                >
+                  Lock Terminal (Ctrl+L)
                 </Button>
                 <Button
                   fullWidth

@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Eye
 } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 interface DocumentViewerProps {
   documentUrl: string;
@@ -145,10 +147,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               transform: `scale(${zoomLevel}) rotate(${rotation}deg)`
             }}
           >
-            <img
+            <BlurImage
               src={documentUrl}
+              blurhash={KNOWN_BLURHASHES.DOCUMENT_DEFAULT}
               alt={documentTitle}
-              className="max-h-[75vh] object-contain rounded-2xl shadow-2xl border border-slate-800"
+              className="max-h-[75vh] rounded-2xl shadow-2xl border border-slate-800"
+              imageClassName="max-h-[75vh] object-contain rounded-2xl"
             />
           </div>
         )}

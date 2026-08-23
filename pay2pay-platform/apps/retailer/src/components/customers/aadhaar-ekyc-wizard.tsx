@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import apiClient from "@/lib/api";
 import { DigitalAadhaarCard } from "@/components/ui/digital-aadhaar-card";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & INTERFACES
@@ -1081,12 +1083,24 @@ export function AadhaarEkycWizard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="p-4 rounded-2xl bg-slate-50 border space-y-3 text-center">
               <div className="text-xs font-bold text-slate-600">Aadhaar Photo</div>
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150" alt="Document" className="w-28 h-28 mx-auto rounded-2xl object-cover border" />
+              <BlurImage
+                src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150"
+                blurhash={KNOWN_BLURHASHES.AADHAAR}
+                alt="Document"
+                className="w-28 h-28 mx-auto rounded-2xl border"
+                imageClassName="w-full h-full object-cover rounded-2xl"
+              />
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border space-y-3 text-center">
               <div className="text-xs font-bold text-slate-600">Live Selfie Capture</div>
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150" alt="Selfie" className="w-28 h-28 mx-auto rounded-2xl object-cover border ring-4 ring-emerald-500/20" />
+              <BlurImage
+                src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150"
+                blurhash={KNOWN_BLURHASHES.AVATAR}
+                alt="Selfie"
+                className="w-28 h-28 mx-auto rounded-2xl border ring-4 ring-emerald-500/20"
+                imageClassName="w-full h-full object-cover rounded-2xl"
+              />
             </div>
           </div>
 

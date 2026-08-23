@@ -50,6 +50,8 @@ import {
 import { useRouter } from "next/navigation";
 import apiClient from "@/lib/api";
 import { formatShortCustomerId } from "@/lib/utils";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 function getCleanAddressString(customer: any): string {
   if (!customer) return "";
@@ -411,13 +413,15 @@ export function CustomerDetailsDrawer({
             <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white space-y-5 shadow-xl border border-slate-800 relative overflow-hidden">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative z-10">
                 <div className="flex items-center gap-4">
-                  {/* 80px Verified Aadhaar Photo / Avatar Fallback */}
+                  {/* 80px Verified Aadhaar Photo / Avatar Fallback with BlurHash */}
                   <div className="relative shrink-0">
                     {customer.aadhaarPhotoUrl || customer.photoUrl ? (
-                      <img
+                      <BlurImage
                         src={formatImgSrc(customer.aadhaarPhotoUrl || customer.photoUrl)}
+                        blurhash={KNOWN_BLURHASHES.AVATAR}
                         alt={displayName}
-                        className="w-[80px] h-[80px] rounded-2xl object-cover border-2 border-emerald-400 shadow-lg ring-4 ring-emerald-500/20"
+                        className="w-[80px] h-[80px] rounded-2xl border-2 border-emerald-400 shadow-lg ring-4 ring-emerald-500/20"
+                        imageClassName="w-full h-full object-cover rounded-2xl"
                       />
                     ) : (
                       <div className="w-[80px] h-[80px] rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black text-2xl flex items-center justify-center shadow-lg border-2 border-white/20">

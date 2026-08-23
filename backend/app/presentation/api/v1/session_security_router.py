@@ -128,12 +128,39 @@ async def unlock_screen_session(
 
     verified = False
 
-    # 1. Check fallback accepted PIN set (includes active customer & test PINs: 8529, 2116, 2468, 8520, 1357, 1122, 4827, 1234)
-    VALID_PINS = {"8529", "2116", "2468", "8520", "1357", "1122", "4827", "1234", "9999", "1111", "2222", "3333", "5555", "7777"}
-    if clean_pin in VALID_PINS:
-        verified = True
+    # 1. Check against User Security Settings table in DB (Argon2 / PBKDF2 hash)
+    try:
+        user_sub = payload.get("sub")
+        sec_conds = [UserSecuritySettingsModel.portal == "RETAILER"]
+        if user_sub and user_sub != "default":
+            try:
+                uid = uuid.UUID(user_sub)
+                sec_conds.append(
+                    or_(
+                        UserSecuritySettingsModel.user_id == uid,
+                        UserSecuritySettingsModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000000")
+                    )
+                )
+            except Exception:
+                pass
+        
+        stmt_sec = select(UserSecuritySettingsModel).where(and_(*sec_conds))
+        sec_rows = (await db.execute(stmt_sec)).scalars().all()
+        for sec in sec_rows:
+            if sec.security_pin_hash:
+                try:
+                    if verify_password(clean_pin, sec.security_pin_hash):
+                        verified = True
+                        sec.failed_attempt_count = 0
+                        sec.last_pin_verified_at = datetime.now(timezone.utc)
+                        await db.commit()
+                        break
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.debug(f"User security settings verify notice: {e}")
 
-    # 2. Check against Database customer MPINs dynamically
+    # 2. Check against Database Customer MPINs dynamically
     if not verified:
         try:
             res = await db.execute(text("SELECT public_id, mpin_hash FROM customer WHERE mpin_hash IS NOT NULL LIMIT 100"))
@@ -145,12 +172,28 @@ async def unlock_screen_session(
                     verified = True
                     break
         except Exception as e:
-            pass
+            logger.debug(f"Customer MPIN DB lookup notice: {e}")
+
+    # 3. Check against Registration Draft retailer MPIN
+    if not verified:
+        try:
+            stmt_draft = select(RegistrationDraftModel).order_by(desc(RegistrationDraftModel.last_activity_at)).limit(10)
+            drafts = (await db.execute(stmt_draft)).scalars().all()
+            for d in drafts:
+                ddata = d.draft_data or {}
+                dhash = ddata.get("mpin_hash")
+                if dhash:
+                    ident_str = str(d.registration_id or "RETAILER_MPIN")
+                    if _hash_mpin(clean_pin, ident_str) == dhash or _hash_mpin(clean_pin, str(d.public_id)) == dhash:
+                        verified = True
+                        break
+        except Exception as e:
+            logger.debug(f"Draft MPIN DB lookup notice: {e}")
 
     if not verified:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect MPIN. Unable to verify security PIN. Please try again."
+            detail="Incorrect Security PIN. Please enter your valid 4-digit PIN configured in database."
         )
 
     return {

@@ -14,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.infrastructure.db.models import BaseEntity, EnterpriseBaseMixin, Base
+from app.domain.entities.base import BaseEntity, EnterpriseBaseMixin, Base
 
 
 class TopupRequestModel(BaseEntity, EnterpriseBaseMixin):

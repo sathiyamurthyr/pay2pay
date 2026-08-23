@@ -44,7 +44,7 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
 import { CustomerData } from "../../hooks/useCustomer";
-import { BeneficiaryData } from "../../hooks/useBeneficiary";
+import { BeneficiaryData, deduplicateBeneficiaries } from "../../hooks/useBeneficiary";
 import { AmountInWords } from "../Amount/AmountInWords";
 import { TransferAmountInput } from "../Amount/TransferAmountInput";
 import { EnterpriseStatusStrip } from "../Amount/EnterpriseStatusStrip";
@@ -247,27 +247,33 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const hasLimitBreach = amount > 0 && (amount > (pricingResult?.dailyLimitRemaining ?? 0) || amount > (pricingResult?.monthlyLimitRemaining ?? 0));
   const hasInsufficientWallet = amount > 0 && totalDebit > (pricingResult?.walletBalance ?? 0);
 
+  const cleanBeneficiaries = useMemo(() => deduplicateBeneficiaries(beneficiaries), [beneficiaries]);
+
   // Filter and Sort Beneficiaries
-  const filteredBeneficiaries = beneficiaries.filter((b) => {
-    const matchesSearch =
-      b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.accountNumber.includes(searchTerm) ||
-      b.bankName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.ifsc.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredBeneficiaries = useMemo(() => {
+    return cleanBeneficiaries.filter((b) => {
+      const matchesSearch =
+        (b.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (b.accountNumber || "").includes(searchTerm) ||
+        (b.bankName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (b.ifsc || "").toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesFilter = filterType === "favorite" ? b.isFavorite : true;
-    return matchesSearch && matchesFilter;
-  });
+      const matchesFilter = filterType === "favorite" ? b.isFavorite : true;
+      return matchesSearch && matchesFilter;
+    });
+  }, [cleanBeneficiaries, searchTerm, filterType]);
 
-  const sortedBeneficiaries = [...filteredBeneficiaries].sort((a, b) => {
-    if (sortBy === "used") {
-      return (b.transferCount || 0) - (a.transferCount || 0);
-    }
-    if (sortBy === "alphabetical") {
-      return a.name.localeCompare(b.name);
-    }
-    return 0;
-  });
+  const sortedBeneficiaries = useMemo(() => {
+    return [...filteredBeneficiaries].sort((a, b) => {
+      if (sortBy === "used") {
+        return (b.transferCount || 0) - (a.transferCount || 0);
+      }
+      if (sortBy === "alphabetical") {
+        return a.name.localeCompare(b.name);
+      }
+      return 0;
+    });
+  }, [filteredBeneficiaries, sortBy]);
 
   const displayedBeneficiaries = sortedBeneficiaries.slice(0, visibleCount);
 
@@ -328,7 +334,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               Beneficiary Selection
             </Typography>
             <Chip
-              label={`${filteredBeneficiaries.length}${filteredBeneficiaries.length !== beneficiaries.length ? ` / ${beneficiaries.length}` : ""}`}
+              label={`${filteredBeneficiaries.length}${filteredBeneficiaries.length !== cleanBeneficiaries.length ? ` / ${cleanBeneficiaries.length}` : ""}`}
               size="small"
               sx={{
                 height: 22,
@@ -539,11 +545,11 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
                 <TableBody>
                   {displayedBeneficiaries.map((b) => {
-                    const isSelected = selectedBeneficiary?.id === b.id;
+                    const isSelected = selectedBeneficiary?.id === b.id || (selectedBeneficiary?.accountNumber && b.accountNumber && selectedBeneficiary.accountNumber === b.accountNumber);
                     const isExpanded = expandedBeneficiaryId === b.id;
                     const isAccountRevealed = true;
-                    const rawAccount = b.accountNumber || b.maskedAccountNumber || "0630104000156974";
-                    const maskedAcc = rawAccount;
+                    const rawAccount = b.accountNumber || b.maskedAccountNumber || "";
+                    const maskedAcc = b.maskedAccountNumber || rawAccount;
                     const bAny = b as any;
 
                     return (

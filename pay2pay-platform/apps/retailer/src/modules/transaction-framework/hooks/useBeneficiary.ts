@@ -47,6 +47,51 @@ export interface BeneficiaryData {
   notes?: string;
 }
 
+export function deduplicateBeneficiaries(list: BeneficiaryData[]): BeneficiaryData[] {
+  if (!Array.isArray(list) || list.length === 0) return [];
+  const seenFull = new Set<string>();
+  const seenMask = new Set<string>();
+  const result: BeneficiaryData[] = [];
+
+  // Pass 1: Prioritize full / unmasked accounts
+  for (const b of list) {
+    if (!b) continue;
+    const cleanDigits = (b.accountNumber || "").replace(/\D/g, "");
+    const ifsc = (b.ifsc || "").trim().toUpperCase();
+    if (cleanDigits.length >= 8) {
+      const fullKey = `${cleanDigits}_${ifsc}`;
+      const maskKey = `${cleanDigits.slice(-4)}_${ifsc}`;
+      if (!seenFull.has(fullKey)) {
+        seenFull.add(fullKey);
+        seenMask.add(maskKey);
+        result.push(b);
+      }
+    }
+  }
+
+  // Pass 2: Add masked accounts only if not already covered by full account
+  for (const b of list) {
+    if (!b) continue;
+    const cleanDigits = (b.accountNumber || "").replace(/\D/g, "");
+    const ifsc = (b.ifsc || "").trim().toUpperCase();
+    if (cleanDigits.length < 8 && cleanDigits.length >= 4) {
+      const maskKey = `${cleanDigits.slice(-4)}_${ifsc}`;
+      if (!seenMask.has(maskKey)) {
+        seenMask.add(maskKey);
+        result.push(b);
+      }
+    } else if (cleanDigits.length < 4 && b.accountNumber) {
+      const rawKey = `${b.accountNumber.trim()}_${ifsc}`;
+      if (!seenFull.has(rawKey)) {
+        seenFull.add(rawKey);
+        result.push(b);
+      }
+    }
+  }
+
+  return result;
+}
+
 export function useBeneficiary(selectedCustomer: CustomerData | null) {
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryData[]>([]);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState<BeneficiaryData | null>(null);
@@ -97,30 +142,37 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
         const resData = response.data?.data || response.data;
 
         if (isMounted) {
-          const custId = customerLookupId || "cust-default";
+          const custMobile = selectedCustomer.mobile || (selectedCustomer as any).mobile_number;
+          const custId = (selectedCustomer as any).public_id || selectedCustomer.id;
+
           let userAddedList: BeneficiaryData[] = [];
           try {
             const storedStr =
-              localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`) ||
-              localStorage.getItem(`pay2pay_user_added_beneficiaries_${selectedCustomer.id}`) ||
-              localStorage.getItem(`pay2pay_user_added_beneficiaries_${selectedCustomer.mobile}`);
-            if (storedStr) userAddedList = JSON.parse(storedStr);
+              (custId ? localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`) : null) ||
+              (custMobile ? localStorage.getItem(`pay2pay_user_added_beneficiaries_${custMobile}`) : null);
+            if (storedStr) {
+              const parsed = JSON.parse(storedStr);
+              if (Array.isArray(parsed)) {
+                userAddedList = parsed;
+              }
+            }
           } catch {
             // Ignore
           }
 
+          let mapped: BeneficiaryData[] = [];
           if (Array.isArray(resData) && resData.length > 0) {
-            const mapped: BeneficiaryData[] = resData.map((b: any, index: number) => {
-              const acc = b.account_number || b.accountNumber || "0630104000156974";
-              const masked = acc;
+            mapped = resData.map((b: any, index: number) => {
+              const acc = b.account_number || b.accountNumber || b.account_number_masked || b.masked_account_number || "";
+              const masked = b.account_number_masked || b.masked_account_number || b.maskedAccountNumber || (acc.length > 4 ? `XXXX-XXXX-${acc.slice(-4)}` : acc);
               return {
-                id: b.public_id || b.id || `BEN-${index + 1}`,
+                id: String(b.public_id || b.id || `BEN-${index + 1}`),
                 beneficiaryCode: b.beneficiary_number || b.beneficiary_code || `BEN-00${index + 1}`,
                 name: b.full_name || b.name || b.beneficiary_name || b.account_holder_name || "Beneficiary Account",
-                relationship: b.relationship || (index % 2 === 0 ? "Family" : "Business"),
+                relationship: b.relationship || "Family",
                 accountNumber: acc,
                 maskedAccountNumber: masked,
-                ifsc: b.ifsc || b.ifsc_code || "",
+                ifsc: (b.ifsc || b.ifsc_code || "").trim().toUpperCase(),
                 branchName: b.branch_name || b.branch || "Main Branch",
                 bankName: (b.bank_name && b.bank_name !== "Bank Account") ? b.bank_name : (b.bankName && b.bankName !== "Bank Account") ? b.bankName : "Partner Bank",
                 isVerified: b.verification_status === "VERIFIED" || b.is_verified === true || b.status === "VERIFIED",
@@ -136,66 +188,118 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
                 notes: b.notes || "",
               };
             });
+          }
 
-            // Sort Favourite DESC, Recent DESC, Transfer Count DESC
-            mapped.sort((a, b) => {
-              if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
-              return (b.transferCount || 0) - (a.transferCount || 0);
-            });
+          // Combine and strictly deduplicate beneficiaries
+          const combinedRaw = [...userAddedList, ...mapped];
+          const dedupedList = deduplicateBeneficiaries(combinedRaw);
 
-            const existingAccs = new Set(userAddedList.map((b) => b.accountNumber));
-            const filteredMapped = mapped.filter((b) => !existingAccs.has(b.accountNumber));
-            const combinedList = [...userAddedList, ...filteredMapped];
+          // Sort Favourite DESC, Transfer Count DESC
+          dedupedList.sort((a, b) => {
+            if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
+            return (b.transferCount || 0) - (a.transferCount || 0);
+          });
 
-            setBeneficiaries(combinedList);
+          setBeneficiaries(dedupedList);
 
-            const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
-            if (memorySelected) {
-              setSelectedBeneficiary(memorySelected);
-            } else if (combinedList.length > 0) {
-              setSelectedBeneficiary(combinedList[0]);
-            }
+          const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
+          const sessionSelectedAcc = typeof window !== "undefined" ? sessionStorage.getItem("selectedBeneficiaryAccount") : null;
+
+          let matchedBene: BeneficiaryData | null = null;
+
+          if (sessionSelectedAcc) {
+            const cleanSessionDigits = sessionSelectedAcc.replace(/\D/g, "");
+            matchedBene = dedupedList.find((b) => {
+              const bDigits = (b.accountNumber || "").replace(/\D/g, "");
+              return (
+                b.accountNumber === sessionSelectedAcc ||
+                (cleanSessionDigits && bDigits === cleanSessionDigits) ||
+                (cleanSessionDigits.length >= 4 && bDigits.slice(-4) === cleanSessionDigits.slice(-4))
+              );
+            }) || null;
+          }
+
+          if (!matchedBene && memorySelected) {
+            const cleanMemDigits = (memorySelected.accountNumber || "").replace(/\D/g, "");
+            matchedBene = dedupedList.find((b) => {
+              const bDigits = (b.accountNumber || "").replace(/\D/g, "");
+              return (
+                b.id === memorySelected.id ||
+                b.accountNumber === memorySelected.accountNumber ||
+                (cleanMemDigits && bDigits === cleanMemDigits) ||
+                (cleanMemDigits.length >= 4 && bDigits.slice(-4) === cleanMemDigits.slice(-4))
+              );
+            }) || null;
+          }
+
+          if (matchedBene) {
+            setSelectedBeneficiary(matchedBene);
+            useTransactionMemoryStore.getState().setSelectedBeneficiary(matchedBene);
+          } else if (dedupedList.length > 0) {
+            setSelectedBeneficiary(dedupedList[0]);
           } else {
-            setBeneficiaries(userAddedList);
-            const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
-            if (memorySelected) {
-              setSelectedBeneficiary(memorySelected);
-            } else if (userAddedList.length > 0) {
-              setSelectedBeneficiary(userAddedList[0]);
-            } else {
-              setSelectedBeneficiary(null);
-            }
+            setSelectedBeneficiary(null);
           }
         }
       } catch (err: any) {
         console.warn("Multi-tenant Beneficiary API fetch warning:", err);
         if (isMounted) {
-          const custId =
-            (selectedCustomer as any).public_id ||
-            selectedCustomer.id ||
-            (selectedCustomer as any).mobile_number ||
-            selectedCustomer.mobile ||
-            "cust-default";
+          const custMobile = selectedCustomer.mobile || (selectedCustomer as any).mobile_number;
+          const custId = (selectedCustomer as any).public_id || selectedCustomer.id;
+
           let userAddedList: BeneficiaryData[] = [];
           try {
             const storedStr =
-              localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`) ||
-              localStorage.getItem(`pay2pay_user_added_beneficiaries_${selectedCustomer.id}`) ||
-              localStorage.getItem(`pay2pay_user_added_beneficiaries_${selectedCustomer.mobile}`);
+              (custId ? localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`) : null) ||
+              (custMobile ? localStorage.getItem(`pay2pay_user_added_beneficiaries_${custMobile}`) : null);
             if (storedStr) {
-              userAddedList = JSON.parse(storedStr);
+              const parsed = JSON.parse(storedStr);
+              if (Array.isArray(parsed)) {
+                userAddedList = parsed;
+              }
             }
           } catch {
             // Ignore
           }
 
-          setBeneficiaries(userAddedList);
+          const dedupedList = deduplicateBeneficiaries(userAddedList);
+          setBeneficiaries(dedupedList);
 
           const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
-          if (memorySelected) {
-            setSelectedBeneficiary(memorySelected);
-          } else if (userAddedList.length > 0) {
-            setSelectedBeneficiary(userAddedList[0]);
+          const sessionSelectedAcc = typeof window !== "undefined" ? sessionStorage.getItem("selectedBeneficiaryAccount") : null;
+
+          let matchedBene: BeneficiaryData | null = null;
+
+          if (sessionSelectedAcc) {
+            const cleanSessionDigits = sessionSelectedAcc.replace(/\D/g, "");
+            matchedBene = dedupedList.find((b) => {
+              const bDigits = (b.accountNumber || "").replace(/\D/g, "");
+              return (
+                b.accountNumber === sessionSelectedAcc ||
+                (cleanSessionDigits && bDigits === cleanSessionDigits) ||
+                (cleanSessionDigits.length >= 4 && bDigits.slice(-4) === cleanSessionDigits.slice(-4))
+              );
+            }) || null;
+          }
+
+          if (!matchedBene && memorySelected) {
+            const cleanMemDigits = (memorySelected.accountNumber || "").replace(/\D/g, "");
+            matchedBene = dedupedList.find((b) => {
+              const bDigits = (b.accountNumber || "").replace(/\D/g, "");
+              return (
+                b.id === memorySelected.id ||
+                b.accountNumber === memorySelected.accountNumber ||
+                (cleanMemDigits && bDigits === cleanMemDigits) ||
+                (cleanMemDigits.length >= 4 && bDigits.slice(-4) === cleanMemDigits.slice(-4))
+              );
+            }) || null;
+          }
+
+          if (matchedBene) {
+            setSelectedBeneficiary(matchedBene);
+            useTransactionMemoryStore.getState().setSelectedBeneficiary(matchedBene);
+          } else if (dedupedList.length > 0) {
+            setSelectedBeneficiary(dedupedList[0]);
           } else {
             setSelectedBeneficiary(null);
           }

@@ -195,10 +195,14 @@ class CustomerService:
             stmt = stmt.where(CustomerModel.mobile_number == req.mobile_number)
         if req.customer_status:
             stmt = stmt.where(CustomerModel.customer_status == req.customer_status)
+        else:
+            stmt = stmt.where(CustomerModel.customer_status == "ACTIVE")
         if req.customer_category:
             stmt = stmt.where(CustomerModel.customer_category == req.customer_category)
         if req.kyc_status:
             stmt = stmt.where(CustomerModel.kyc_status == req.kyc_status)
+        else:
+            stmt = stmt.where(CustomerModel.kyc_status.in_(["VERIFIED", "APPROVED"]))
         if req.kyc_level:
             stmt = stmt.where(CustomerModel.kyc_level == req.kyc_level)
         if req.risk_category:

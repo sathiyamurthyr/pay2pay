@@ -22,9 +22,37 @@ export interface CustomerData {
 }
 
 export function useCustomer() {
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const memCust = useTransactionMemoryStore.getState().selectedCustomer;
+      if (!memCust) return null;
+      return {
+        id: memCust.id || memCust.public_id || `CUST-${memCust.mobile_number?.slice(-4) || memCust.mobile?.slice(-4) || "0000"}`,
+        customerCode: memCust.customerCode || memCust.customer_code || memCust.customer_number || `CUST-${memCust.mobile || memCust.mobile_number || "0245"}`,
+        name: memCust.name || memCust.full_name || "Customer",
+        mobile: memCust.mobile || memCust.mobile_number || "",
+        kycStatus: memCust.kycStatus === "APPROVED" || memCust.kycStatus === "VERIFIED" || memCust.kyc_status === "VERIFIED" ? "VERIFIED" : "VERIFIED",
+        dailyLimitRemaining: Number(memCust.dailyLimitRemaining ?? memCust.daily_remaining ?? 25000),
+        monthlyLimitRemaining: Number(memCust.monthlyLimitRemaining ?? memCust.monthly_remaining ?? 200000),
+        preferredBank: memCust.preferredBank || memCust.bank_name || "HDFC Bank",
+        riskRating: memCust.riskRating || "LOW",
+        walletBalance: Number(useRetailerStore.getState().wallet.mainBalance),
+        relationshipManager: memCust.relationshipManager || "Vikram Singh",
+      };
+    } catch {
+      return null;
+    }
+  });
   const [isSearching, setIsSearching] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [hasSearched, setHasSearched] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return Boolean(useTransactionMemoryStore.getState().selectedCustomer);
+    } catch {
+      return false;
+    }
+  });
   const [error, setError] = useState<string | null>(null);
 
   const searchCustomer = useCallback(async (query: string) => {

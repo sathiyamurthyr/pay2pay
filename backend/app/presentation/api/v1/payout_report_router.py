@@ -41,7 +41,7 @@ async def get_retailer_payout_summary(
 ):
     now_utc = datetime.now(timezone.utc)
     
-    if from_date:
+    if from_date and isinstance(from_date, str):
         try:
             start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, tzinfo=timezone.utc)
         except ValueError:
@@ -49,7 +49,7 @@ async def get_retailer_payout_summary(
     else:
         start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
 
-    if to_date:
+    if to_date and isinstance(to_date, str):
         try:
             end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
         except ValueError:
@@ -57,7 +57,7 @@ async def get_retailer_payout_summary(
     else:
         end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
 
-    # 1. Query Central Transactions
+    # 1. Query Central Transactions (STRICTLY PAYOUT & DMT ONLY)
     tx_sql = """
     SELECT 
         COUNT(id) AS total_count,
@@ -66,15 +66,21 @@ async def get_retailer_payout_summary(
         COALESCE(SUM(commission), 0) AS total_commission,
         COALESCE(SUM(gst_amount), 0) AS total_gst,
         COALESCE(SUM(tds_amount), 0) AS total_tds,
-        COUNT(CASE WHEN UPPER(status) = 'SUCCESS' THEN 1 END) AS success_count,
-        COALESCE(SUM(CASE WHEN UPPER(status) = 'SUCCESS' THEN amount ELSE 0 END), 0) AS success_amount,
+        COUNT(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN 1 END) AS success_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS success_amount,
         COUNT(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 END) AS pending_count,
         COALESCE(SUM(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN amount ELSE 0 END), 0) AS pending_amount,
         COUNT(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN 1 END) AS failed_count,
         COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN amount ELSE 0 END), 0) AS failed_amount,
         COUNT(CASE WHEN UPPER(status) = 'REVERSED' THEN 1 END) AS reversed_count
     FROM transactions
-    WHERE created_at >= :start_dt AND created_at <= :end_dt;
+    WHERE (
+        UPPER(COALESCE(service_type, '')) IN ('PAYOUT', 'DMT', 'MOVE_TO_BANK', 'BANK_TRANSFER', 'VENDOR_PAYOUT', 'BENEFICIARY_PAYOUT')
+        OR UPPER(COALESCE(transaction_type, '')) IN ('PAYOUT', 'DMT', 'IMPS', 'NEFT', 'RTGS', 'UPI_PAYOUT', 'BANK_TRANSFER')
+    )
+    AND UPPER(COALESCE(service_type, '')) NOT IN ('TOPUP', 'RECHARGE', 'BBPS', 'BILL_PAYMENT', 'AEPS', 'POS', 'CARD_TO_CASH')
+    AND UPPER(COALESCE(transaction_type, '')) NOT IN ('WALLET_TOPUP', 'MANUAL_TOPUP', 'MANUAL_DEBIT', 'TOPUP', 'QR_COLLECT')
+    AND created_at >= :start_dt AND created_at <= :end_dt;
     """
     res = await db.execute(text(tx_sql), {"start_dt": start_dt, "end_dt": end_dt})
     row = res.fetchone()
@@ -89,8 +95,8 @@ async def get_retailer_payout_summary(
         COALESCE(SUM(commission), 0) AS total_commission,
         COALESCE(SUM(gst_amount), 0) AS total_gst,
         COALESCE(SUM(tds_amount), 0) AS total_tds,
-        COUNT(CASE WHEN UPPER(status::text) = 'SUCCESS' THEN 1 END) AS success_count,
-        COALESCE(SUM(CASE WHEN UPPER(status::text) = 'SUCCESS' THEN amount ELSE 0 END), 0) AS success_amount,
+        COUNT(CASE WHEN UPPER(status::text) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN 1 END) AS success_count,
+        COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS success_amount,
         COUNT(CASE WHEN UPPER(status::text) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 END) AS pending_count,
         COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN amount ELSE 0 END), 0) AS pending_amount,
         COUNT(CASE WHEN UPPER(status::text) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN 1 END) AS failed_count,
@@ -110,8 +116,8 @@ async def get_retailer_payout_summary(
         COALESCE(SUM(amount), 0) AS total_amount,
         COALESCE(SUM(net_debit), 0) AS total_debit,
         COALESCE(SUM(commission), 0) AS total_commission,
-        COUNT(CASE WHEN UPPER(status) = 'SUCCESS' THEN 1 END) AS success_count,
-        COALESCE(SUM(CASE WHEN UPPER(status) = 'SUCCESS' THEN amount ELSE 0 END), 0) AS success_amount,
+        COUNT(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN 1 END) AS success_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS success_amount,
         COUNT(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 END) AS pending_count,
         COALESCE(SUM(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN amount ELSE 0 END), 0) AS pending_amount,
         COUNT(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN 1 END) AS failed_count,
@@ -181,18 +187,18 @@ async def fetch_payout_report_dataset(
     
     start_dt = None
     end_dt = None
-    if from_date:
+    if from_date and isinstance(from_date, str):
         try:
             start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, tzinfo=timezone.utc)
         except ValueError:
             pass
-    if to_date:
+    if to_date and isinstance(to_date, str):
         try:
             end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
         except ValueError:
             pass
 
-    # 1. Query Central Transactions joined with Double-Entry Ledger Entries
+    # 1. Query Central Transactions joined with Double-Entry Ledger Entries (PAYOUT & DMT ONLY)
     central_sql = """
     SELECT 
         t.public_id::text AS transaction_id,
@@ -209,7 +215,7 @@ async def fetch_payout_report_dataset(
         COALESCE(b.account_number, 'XXXX') AS account_number,
         COALESCE(b.ifsc_code, 'UTIB0000000') AS ifsc_code,
         COALESCE(t.service_type, t.transaction_type, 'MOVE_TO_BANK') AS payment_mode,
-        COALESCE(t.transaction_type, 'SERVICES') AS service_category,
+        'PAYOUT' AS service_category,
         t.amount::float AS transfer_amount,
         t.charges::float AS convenience_fee,
         t.gst_amount::float AS gst_amount,
@@ -233,9 +239,14 @@ async def fetch_payout_report_dataset(
     LEFT JOIN transaction_ledger_entries l 
         ON (t.public_id = l.transaction_id OR t.transaction_reference = l.transaction_reference)
         AND l.account_type = 'RETAILER_WALLET'
-    WHERE 1=1
+    WHERE (
+        UPPER(COALESCE(t.service_type, '')) IN ('PAYOUT', 'DMT', 'MOVE_TO_BANK', 'BANK_TRANSFER', 'VENDOR_PAYOUT', 'BENEFICIARY_PAYOUT')
+        OR UPPER(COALESCE(t.transaction_type, '')) IN ('PAYOUT', 'DMT', 'IMPS', 'NEFT', 'RTGS', 'UPI_PAYOUT', 'BANK_TRANSFER')
+    )
+    AND UPPER(COALESCE(t.service_type, '')) NOT IN ('TOPUP', 'RECHARGE', 'BBPS', 'BILL_PAYMENT', 'AEPS', 'POS', 'CARD_TO_CASH')
+    AND UPPER(COALESCE(t.transaction_type, '')) NOT IN ('WALLET_TOPUP', 'MANUAL_TOPUP', 'MANUAL_DEBIT', 'TOPUP', 'QR_COLLECT')
     """
-    params = {}
+    params: Dict[str, Any] = {}
     if start_dt:
         central_sql += " AND t.created_at >= :start_dt"
         params["start_dt"] = start_dt
@@ -315,13 +326,43 @@ async def fetch_payout_report_dataset(
     LEFT JOIN beneficiary_master b ON e.beneficiary_id = b.public_id
     WHERE 1=1
     """
-    ep_params = {}
+    ep_params: Dict[str, Any] = {}
     if start_dt:
         ep_sql += " AND e.created_date >= :start_dt"
         ep_params["start_dt"] = start_dt
     if end_dt:
         ep_sql += " AND e.created_date <= :end_dt"
         ep_params["end_dt"] = end_dt
+
+    if search and search.strip():
+        s_val = f"%{search.strip()}%"
+        ep_sql += """ AND (
+            e.transaction_number ILIKE :s_val OR 
+            c.full_name ILIKE :s_val OR 
+            c.mobile_number ILIKE :s_val OR 
+            b.account_holder_name ILIKE :s_val OR 
+            b.account_number ILIKE :s_val OR 
+            e.utr_number ILIKE :s_val
+        )"""
+        ep_params["s_val"] = s_val
+
+    if status_filter and status_filter.upper() != "ALL":
+        st_upper = status_filter.upper()
+        if st_upper == "FAILED":
+            ep_sql += " AND UPPER(e.status::text) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED')"
+        elif st_upper == "PENDING":
+            ep_sql += " AND UPPER(e.status::text) IN ('PENDING', 'PROCESSING', 'INITIATED')"
+        else:
+            ep_sql += " AND UPPER(e.status::text) = :status_filter"
+            ep_params["status_filter"] = st_upper
+
+    if amount_from is not None:
+        ep_sql += " AND e.amount >= :amount_from"
+        ep_params["amount_from"] = amount_from
+    if amount_to is not None:
+        ep_sql += " AND e.amount <= :amount_to"
+        ep_params["amount_to"] = amount_to
+
     ep_sql += " ORDER BY e.created_date DESC"
     ep_rows = (await db.execute(text(ep_sql), ep_params)).fetchall()
 
@@ -365,13 +406,43 @@ async def fetch_payout_report_dataset(
     LEFT JOIN beneficiary_master b ON p.beneficiary_id = b.public_id
     WHERE 1=1
     """
-    pw_params = {}
+    pw_params: Dict[str, Any] = {}
     if start_dt:
         pw_sql += " AND p.initiated_at >= :start_dt"
         pw_params["start_dt"] = start_dt
     if end_dt:
         pw_sql += " AND p.initiated_at <= :end_dt"
         pw_params["end_dt"] = end_dt
+
+    if search and search.strip():
+        s_val = f"%{search.strip()}%"
+        pw_sql += """ AND (
+            p.transaction_number ILIKE :s_val OR 
+            c.full_name ILIKE :s_val OR 
+            c.mobile_number ILIKE :s_val OR 
+            b.account_holder_name ILIKE :s_val OR 
+            b.account_number ILIKE :s_val OR 
+            p.utr_number ILIKE :s_val
+        )"""
+        pw_params["s_val"] = s_val
+
+    if status_filter and status_filter.upper() != "ALL":
+        st_upper = status_filter.upper()
+        if st_upper == "FAILED":
+            pw_sql += " AND UPPER(p.status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED')"
+        elif st_upper == "PENDING":
+            pw_sql += " AND UPPER(p.status) IN ('PENDING', 'PROCESSING', 'INITIATED')"
+        else:
+            pw_sql += " AND UPPER(p.status) = :status_filter"
+            pw_params["status_filter"] = st_upper
+
+    if amount_from is not None:
+        pw_sql += " AND p.amount >= :amount_from"
+        pw_params["amount_from"] = amount_from
+    if amount_to is not None:
+        pw_sql += " AND p.amount <= :amount_to"
+        pw_params["amount_to"] = amount_to
+
     pw_sql += " ORDER BY p.initiated_at DESC"
     pw_rows = (await db.execute(text(pw_sql), pw_params)).fetchall()
 
@@ -380,7 +451,7 @@ async def fetch_payout_report_dataset(
 
     for r in list(rows) + list(ep_rows) + list(pw_rows):
         d = dict(r._mapping)
-        ref = d.get("transaction_number") or d.get("reference_id")
+        ref = d.get("transaction_number") or d.get("reference_id") or d.get("transaction_id")
         if ref and ref not in seen_refs:
             seen_refs.add(ref)
             if d.get("initiated_at") and isinstance(d["initiated_at"], datetime):
@@ -390,6 +461,7 @@ async def fetch_payout_report_dataset(
             d["masked_account_number"] = mask_account_number(d.get("account_number"))
             all_items.append(d)
 
+    # Sort all merged items by initiated_at or created timestamp descending
     for idx, it in enumerate(all_items, start=1):
         it["s_no"] = idx
 

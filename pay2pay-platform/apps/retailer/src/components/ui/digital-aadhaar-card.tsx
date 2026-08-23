@@ -3,6 +3,8 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck, CheckCircle2, Lock, FileText, QrCode, Building, MapPin, Receipt, UserCheck } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 export interface DigitalAadhaarCardProps {
   aadhaarData: {
@@ -95,12 +97,14 @@ export const DigitalAadhaarCard: React.FC<DigitalAadhaarCardProps> = ({ aadhaarD
           {/* Left Column: Photo & QR Code Badge */}
           <div className="md:col-span-4 flex flex-col items-center justify-center space-y-3 p-3 rounded-xl bg-slate-800/40 border border-slate-800">
             <div className="relative">
-              <img
+              <BlurImage
                 src={photo}
+                blurhash={KNOWN_BLURHASHES.AADHAAR}
                 alt={fullName}
-                className="w-28 h-32 object-cover rounded-xl border-2 border-amber-500/40 shadow-md"
+                className="w-28 h-32 rounded-xl border-2 border-amber-500/40 shadow-md"
+                imageClassName="w-full h-full object-cover rounded-xl"
               />
-              <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1 rounded-full border border-slate-900 shadow-xs">
+              <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1 rounded-full border border-slate-900 shadow-xs z-20">
                 <UserCheck className="w-4 h-4" />
               </div>
             </div>

@@ -2,6 +2,7 @@
 import uuid
 import random
 import string
+import re
 from datetime import datetime, timezone, timedelta, date
 from typing import Any, Dict, List, Optional
 from difflib import SequenceMatcher
@@ -352,6 +353,17 @@ class BeneficiaryService:
         legacy_bens = result.scalars().all()
 
         results: List[BeneficiaryResponse] = []
+        seen_account_keys = set()
+
+        def _get_acc_key(acc_str: Optional[str], ifsc_str: Optional[str]) -> str:
+            if not acc_str:
+                return ""
+            digits = re.sub(r"\D", "", acc_str)
+            clean_ifsc = (ifsc_str or "").strip().upper()
+            if len(digits) >= 9:
+                return f"FULL_{digits}_{clean_ifsc}"
+            return f"MASK_{digits[-4:]}_{clean_ifsc}" if len(digits) >= 4 else f"RAW_{acc_str.strip()}_{clean_ifsc}"
+
         for b in legacy_bens:
             stmt_bank = select(BeneficiaryBankAccountModel).where(
                 BeneficiaryBankAccountModel.beneficiary_id == b.public_id
@@ -367,6 +379,14 @@ class BeneficiaryService:
                 b_resp.ifsc_code = bank_acc.ifsc_code
                 b_resp.bank_name = bank_acc.bank_name
                 b_resp.branch_name = bank_acc.branch_name or "Main Branch"
+
+                acc_key = _get_acc_key(bank_acc.account_number, bank_acc.ifsc_code)
+                if acc_key:
+                    seen_account_keys.add(acc_key)
+                    digits = re.sub(r"\D", "", bank_acc.account_number or "")
+                    if len(digits) >= 4:
+                        seen_account_keys.add(f"MASK_{digits[-4:]}_{(bank_acc.ifsc_code or '').strip().upper()}")
+
             results.append(b_resp)
 
         # 2. Fetch EPIC-014 Beneficiary Customer Mappings & Master records
@@ -394,8 +414,17 @@ class BeneficiaryService:
             )
             master = (await db.execute(stmt_master)).scalars().first()
             if master:
-                # Avoid duplicates by account number
-                if not any(getattr(r, "account_number", None) == master.account_number for r in results):
+                m_key = _get_acc_key(master.account_number, master.ifsc_code)
+                m_digits = re.sub(r"\D", "", master.account_number or "")
+                m_mask_key = f"MASK_{m_digits[-4:]}_{(master.ifsc_code or '').strip().upper()}" if len(m_digits) >= 4 else ""
+
+                # Avoid duplicates by account number / IFSC
+                if m_key not in seen_account_keys and (not m_mask_key or m_mask_key not in seen_account_keys):
+                    if m_key:
+                        seen_account_keys.add(m_key)
+                    if m_mask_key:
+                        seen_account_keys.add(m_mask_key)
+
                     results.append(BeneficiaryResponse(
                         public_id=master.public_id,
                         beneficiary_number=f"BEN-{str(master.public_id)[:6].upper()}",

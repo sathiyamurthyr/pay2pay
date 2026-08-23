@@ -182,6 +182,9 @@ export function sanitizeCustomerErrorMessage(rawError: any): string {
 
   // 5. Authentication / PIN errors
   if (lower.includes("mpin") || lower.includes("pin") || lower.includes("invalid operator transaction pin")) {
+    if (lower.includes("attempt") || lower.includes("locked") || lower.includes("incorrect")) {
+      return rawMessage;
+    }
     return "Authentication Error: Invalid Security PIN.";
   }
 

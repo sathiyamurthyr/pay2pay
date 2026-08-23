@@ -18,6 +18,8 @@ import {
   Loader2,
   MessageSquare
 } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 import { DocumentViewer } from "./DocumentViewer";
 
 interface RetailerDetailModalProps {
@@ -208,30 +210,71 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
 
           {/* Grid 3: Media & Document Previews */}
           <div className="space-y-3">
-            <h3 className="font-black text-white uppercase text-[11px] text-slate-400 flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-blue-400" /> Compliance Media & Document Previews
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-white uppercase text-[11px] text-slate-400 flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-blue-400" /> Compliance Media & Document Previews
+              </h3>
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase">
+                Verified Storage Stream
+              </span>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { title: "PAN Card", url: "https://cdn.pay2pay.in/docs/pan.jpg", type: "PAN" },
-                { title: "Aadhaar Card", url: "https://cdn.pay2pay.in/docs/aadhaar.jpg", type: "AADHAAR" },
-                { title: "Shop Exterior Photo", url: addr.shop_photo_url, type: "SHOP_PHOTO" },
-                { title: "Bank Passbook", url: "https://cdn.pay2pay.in/docs/bank.jpg", type: "BANK_PROOF" }
-              ].map((doc, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setViewingDoc(doc)}
-                  className="p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-blue-500/50 cursor-pointer group transition-all"
-                >
-                  <p className="font-bold text-white mb-1 group-hover:text-blue-400">{doc.title}</p>
-                  <div className="aspect-video rounded-xl bg-slate-900 flex items-center justify-center text-slate-500 overflow-hidden relative">
-                    <img src={doc.url} alt={doc.title} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-extrabold text-[10px]">
-                      Click to View
+                { title: "PAN Card Document", url: media.pan_card_url, type: "PAN", category: "Income Tax Proof" },
+                { title: "Aadhaar Front Side", url: media.aadhaar_front_url, type: "AADHAAR_FRONT", category: "UIDAI eKYC" },
+                { title: "Aadhaar Back Side", url: media.aadhaar_back_url, type: "AADHAAR_BACK", category: "Address Proof" },
+                { title: "Selfie / Profile Photo", url: media.selfie_url, type: "SELFIE", category: "Biometric Identity" },
+                { title: "Shop Exterior Photo", url: media.shop_photo_url || addr.shop_photo_url, type: "SHOP_PHOTO", category: "Storefront Geotagged" },
+                { title: "Bank Passbook / Cheque", url: media.bank_proof_url, type: "BANK_PROOF", category: "Settlement Account" },
+                { title: "GSTIN Certificate", url: media.gst_proof_url, type: "GST_CERT", category: "Tax Certificate" },
+                { title: "Live Video KYC", url: media.video_url, type: "VIDEO", isVideo: true, category: "100% Liveness Match" },
+              ].filter(doc => !!doc.url).map((doc, idx) => {
+                const isPdf = doc.url.toLowerCase().endsWith(".pdf");
+                const isVid = doc.isVideo || doc.url.toLowerCase().endsWith(".mp4") || doc.url.toLowerCase().endsWith(".webm");
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => setViewingDoc(doc)}
+                    className="p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-blue-500/50 cursor-pointer group transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-bold text-white text-[11px] truncate group-hover:text-blue-400">{doc.title}</p>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-slate-400">
+                        {isPdf ? "PDF" : isVid ? "MP4" : "IMG"}
+                      </span>
+                    </div>
+                    <div className="aspect-video rounded-xl bg-slate-900 flex items-center justify-center text-slate-500 overflow-hidden relative border border-slate-800/80">
+                      {isVid ? (
+                        <div className="relative w-full h-full flex items-center justify-center bg-slate-950">
+                          <video src={doc.url} muted preload="metadata" className="w-full h-full object-cover opacity-70" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <Video className="w-4 h-4" />
+                            </div>
+                          </div>
+                        </div>
+                      ) : isPdf ? (
+                        <div className="flex flex-col items-center justify-center gap-1 text-slate-400">
+                          <FileText className="w-6 h-6 text-red-400" />
+                          <span className="text-[10px] font-bold text-slate-300">PDF Document</span>
+                        </div>
+                      ) : (
+                        <BlurImage
+                          src={doc.url}
+                          blurhash={KNOWN_BLURHASHES.DOCUMENT_DEFAULT}
+                          alt={doc.title}
+                          className="w-full h-full"
+                          imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-extrabold text-[10px] backdrop-blur-[1px] transition-opacity">
+                        Click to Inspect
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

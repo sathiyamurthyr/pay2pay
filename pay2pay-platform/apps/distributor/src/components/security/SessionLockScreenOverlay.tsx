@@ -1,65 +1,131 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Box,
-  Typography,
-  Paper,
-  Stack,
-  TextField,
-  Button,
-  Avatar,
-  IconButton,
-  Alert,
-  CircularProgress,
-  Divider,
-} from "@mui/material";
-import LockIcon from "@mui/icons-material/Lock";
-import FingerprintIcon from "@mui/icons-material/Fingerprint";
-import VpnKeyIcon from "@mui/icons-material/VpnKey";
-import LogoutIcon from "@mui/icons-material/Logout";
-import PeopleIcon from "@mui/icons-material/People";
-import HelpIcon from "@mui/icons-material/Help";
-import SecurityIcon from "@mui/icons-material/Security";
+import { ShieldAlert, LogOut, RefreshCw, Image as ImageIcon, Sparkles } from "lucide-react";
 import { useSessionSecurity } from "@/context/SessionSecurityProvider";
+import { useWalletSync } from "@/context/WalletSyncProvider";
+import { useTheme } from "@/context/ThemeContext";
+import { resolvePortalRoute } from "@/lib/portal-resolver";
+
+import { BlurHashCanvas } from "@/components/ui/blurhash-canvas";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
+
+// Curated Collection of 4K FinTech, Architectural & Deep Abstract Wallpapers with BlurHashes
+const CURATED_4K_WALLPAPERS = [
+  {
+    url: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=3840&q=85",
+    title: "Quantum Circuit Core",
+    location: "Global Data Center",
+    blurhash: "L69tAee-ROs:0ya|oga|jtfQWBfQ",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=3840&q=85",
+    title: "Interconnected Satellite Network",
+    location: "Orbital Space",
+    blurhash: "L33bm@fQRiayWAayayfQ9Dayj]fQ",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=3840&q=85",
+    title: "Metropolitan Financial District",
+    location: "Tokyo, Japan",
+    blurhash: "LuFsDPWBRjkC.9j[Rjj[fkj]ayWB",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=3840&q=85",
+    title: "Enterprise Capital Tower",
+    location: "Frankfurt, Germany",
+    blurhash: "LDBzObWB.Sj[j[fPadax-;WBjsfQ",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=3840&q=85",
+    title: "Midnight Obsidian Fluidity",
+    location: "Abstract Geometry",
+    blurhash: "LfH1ytylR}e:[qwca_a{JQf9jta|",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=3840&q=85",
+    title: "Cybernetic Data Matrix",
+    location: "Secure Node",
+    blurhash: "L12izgp=gJfQkTfQayayVvafayfQ",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=3840&q=85",
+    title: "High-Throughput Node Hub",
+    location: "FinTech Exchange",
+    blurhash: "LO9j7}NuRKo1WTf6fRfRM@jtfmWV",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=3840&q=85",
+    title: "Prismatic Aurora Horizon",
+    location: "Reykjavik, Iceland",
+    blurhash: "L~NvP_rYeCja|pazWWfQafWpa|a{",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=3840&q=85",
+    title: "Alpine Starfield Starlight",
+    location: "Zermatt, Switzerland",
+    blurhash: "LWAmobxGfPfRj^fQayay4,Naazay",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=3840&q=85",
+    title: "Obsidian Twilight Cityscape",
+    location: "Chicago, USA",
+    blurhash: "LvCuA6fRayfQk]fQayfQNbayayay",
+  },
+];
 
 export const SessionLockScreenOverlay: React.FC = () => {
-  const { sessionState, unlockSession, securitySettings, isProcessingTx } = useSessionSecurity();
+  const { sessionState, unlockSession, lockedAt } = useSessionSecurity();
+  const { walletData } = useWalletSync();
+  const { effectiveTheme } = useTheme();
 
-  const [mpin, setMpin] = useState<string>("");
+  const [pin, setPin] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<string>("");
-  const [currentDate, setCurrentDate] = useState<string>("");
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  
+  // 4K Dynamic Wallpaper State
+  const [currentWallpaperIndex, setCurrentWallpaperIndex] = useState<number>(0);
+  const [wallpaperLoaded, setWallpaperLoaded] = useState<boolean>(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
-
   const isLocked = sessionState === "LOCKED";
 
-  // Focus input automatically when locked
+  // Pick a random 4K wallpaper every time screen locks
   useEffect(() => {
     if (isLocked) {
-      setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * CURATED_4K_WALLPAPERS.length);
+      setCurrentWallpaperIndex(randomIndex);
+      setWallpaperLoaded(false);
+    }
+  }, [isLocked]);
+
+  // Live clock timer (updates every 1s)
+  useEffect(() => {
+    if (!isLocked) return;
+    const clockInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(clockInterval);
+  }, [isLocked]);
+
+  // Auto-focus PIN input when screen locks & clear previous errors
+  useEffect(() => {
+    if (isLocked) {
+      setPin("");
+      setErrorMsg("");
+      const timer = setTimeout(() => {
         inputRef.current?.focus();
-      }, 100);
+      }, 150);
+      return () => clearTimeout(timer);
     } else {
-      setMpin("");
+      setPin("");
       setErrorMsg("");
     }
   }, [isLocked]);
 
-  // Live Date & Time Clock
-  useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-      setCurrentDate(now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }));
-    };
-
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Screen Security & Copy Protection while locked
+  // Keyboard & Copy Protection while screen is locked
   useEffect(() => {
     if (!isLocked) return;
 
@@ -87,305 +153,296 @@ export const SessionLockScreenOverlay: React.FC = () => {
 
   if (!isLocked) return null;
 
-  const handleMpinChange = (val: string) => {
-    const digitsOnly = val.replace(/\D/g, "").slice(0, 4);
-    setMpin(digitsOnly);
-    setErrorMsg("");
-
-    // Auto submit on 4th digit
-    if (digitsOnly.length === 4) {
-      triggerUnlock(digitsOnly);
-    }
+  // Cycle to next wallpaper on demand
+  const handleNextWallpaper = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentWallpaperIndex((prev) => (prev + 1) % CURATED_4K_WALLPAPERS.length);
   };
 
-  const triggerUnlock = async (pinToSubmit?: string) => {
-    const pin = pinToSubmit || mpin;
-    if (!pin || pin.length < 4) {
-      setErrorMsg("Please enter your 4-digit MPIN.");
+  // Format Elapsed Lock Duration (e.g. 00:42)
+  const formatLockDuration = () => {
+    if (!lockedAt) return "00:00";
+    const elapsedSeconds = Math.max(0, Math.floor((currentTime.getTime() - lockedAt) / 1000));
+    const mins = Math.floor(elapsedSeconds / 60);
+    const secs = elapsedSeconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  // Format Date & Time
+  const formattedDate = currentTime.toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  const formattedTime = currentTime.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+
+  // Dynamic Company & Retailer Metadata from authenticated session
+  const companyName = walletData?.company_name || "Pay2Pay Enterprise Platform";
+  const retailerName = walletData?.owner_name || walletData?.retailer_name || "Retailer Partner";
+  const retailerCode = walletData?.retailer_code || (walletData as any)?.user_code || "RET-9182";
+  const currentWallpaper = CURATED_4K_WALLPAPERS[currentWallpaperIndex];
+
+  // Handle PIN Unlock Submission
+  const handleUnlockSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    const cleanPin = pin.replace(/\D/g, "");
+
+    if (cleanPin.length !== 4) {
+      setErrorMsg("PIN must be exactly 4 numeric digits.");
+      inputRef.current?.focus();
       return;
     }
 
     setIsLoading(true);
     setErrorMsg("");
 
-    const result = await unlockSession(pin);
+    const result = await unlockSession(cleanPin);
     setIsLoading(false);
 
     if (!result.success) {
-      setErrorMsg(result.message || "Incorrect MPIN. Please try again.");
-      setMpin("");
-      inputRef.current?.focus();
+      // Show exact database API error message on verification failure
+      setErrorMsg(result.message || "Incorrect Security PIN. Please enter your valid 4-digit PIN.");
+      setPin("");
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     }
   };
 
-  const triggerBiometricUnlock = async () => {
-    setIsLoading(true);
-    setErrorMsg("");
-    const result = await unlockSession(undefined, "WEBAUTHN_BIOMETRIC_OK");
-    setIsLoading(false);
-
-    if (!result.success) {
-      setErrorMsg(result.message || "Biometric authentication failed.");
+  // Redirect to Login Page
+  const handleGoToLogin = () => {
+    try {
+      const rawRole = localStorage.getItem("p2p_user_role") || "RETAILER";
+      const portalConfig = resolvePortalRoute(rawRole);
+      window.location.href = portalConfig.login;
+    } catch (e) {
+      window.location.href = "/auth/login";
     }
   };
+
+  const isLight = effectiveTheme === "light";
 
   return (
-    <Box
-      sx={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 99999,
-        bgcolor: "rgba(8, 17, 31, 0.95)",
-        backdropFilter: "blur(24px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        p: 3,
-        userSelect: "none",
-        fontFamily: "'Inter', 'Source Sans 3', 'IBM Plex Sans', sans-serif",
-      }}
-    >
-      <Paper
-        elevation={0}
-        sx={{
-          width: "100%",
-          maxWidth: 500,
-          p: { xs: 3.5, md: 4.5 },
-          borderRadius: 4.5,
-          bgcolor: "rgba(15, 23, 42, 0.96)",
-          border: "1.5px solid rgba(59, 130, 246, 0.40)",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.8)",
-          textAlign: "center",
-          position: "relative",
-          overflow: "hidden",
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 select-none overflow-hidden animate-fade-in">
+      {/* ── 1. DYNAMIC 4K WALLPAPER BACKGROUND WITH BLURHASH PLACEHOLDER ── */}
+      <div className="absolute inset-0 z-0 bg-slate-950 overflow-hidden">
+        {/* Instant 0ms BlurHash Canvas Placeholder */}
+        <div className="absolute inset-0 z-0 transform scale-110 filter blur-[8px] opacity-90 transition-opacity duration-1000">
+          <BlurHashCanvas
+            blurhash={currentWallpaper.blurhash || KNOWN_BLURHASHES.DARK_GRADIENT}
+            width={32}
+            height={32}
+          />
+        </div>
+
+        {/* 4K High-Res Progressive Image */}
+        <img
+          key={currentWallpaper.url}
+          src={currentWallpaper.url}
+          alt={currentWallpaper.title}
+          onLoad={() => setWallpaperLoaded(true)}
+          className={`relative z-10 w-full h-full object-cover transition-all duration-1000 ease-out transform scale-105 ${
+            wallpaperLoaded ? "opacity-100 blur-0" : "opacity-0 blur-lg"
+          }`}
+        />
+        {/* Dark Vignette & Glassmorphism Blur Filter Overlay */}
+        <div className="absolute inset-0 z-20 bg-gradient-to-b from-slate-950/80 via-slate-950/65 to-slate-950/90 backdrop-blur-[6px]" />
+      </div>
+
+      {/* ── 2. WALLPAPER INFO & SWITCHER BADGE (TOP-RIGHT) ── */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/60 border border-white/10 text-white/80 text-[11px] backdrop-blur-md">
+          <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
+          <span className="font-medium">{currentWallpaper.title}</span>
+          <span className="text-white/40">·</span>
+          <span className="text-white/60">{currentWallpaper.location}</span>
+        </div>
+        <button
+          type="button"
+          onClick={handleNextWallpaper}
+          title="Change 4K Wallpaper"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600/80 hover:bg-blue-600 border border-blue-400/30 text-white text-xs font-semibold backdrop-blur-md transition-all shadow-lg shadow-blue-500/20 active:scale-95 cursor-pointer"
+        >
+          <RefreshCw className="w-3 h-3" />
+          <span className="hidden sm:inline">New Wallpaper</span>
+        </button>
+      </div>
+
+      {/* ── 3. PREMIUM DYNAMIC GLASSMORPHISM SECURITY CARD ── */}
+      <div
+        className="w-full max-w-[430px] text-center p-6 sm:p-7 relative z-10 overflow-hidden transition-all duration-300 shadow-2xl"
+        style={{
+          backgroundColor: isLight ? "rgba(255, 255, 255, 0.90)" : "rgba(15, 23, 42, 0.82)",
+          backdropFilter: "blur(30px) saturate(150%)",
+          WebkitBackdropFilter: "blur(30px) saturate(150%)",
+          border: isLight ? "1px solid rgba(203, 213, 225, 0.8)" : "1px solid rgba(255, 255, 255, 0.15)",
+          borderRadius: "26px",
+          boxShadow: isLight
+            ? "0 25px 70px rgba(0, 0, 0, 0.20), 0 4px 12px rgba(0, 0, 0, 0.05)"
+            : "0 30px 80px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.20)",
         }}
       >
-        {/* Brand Header */}
-        <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center", alignItems: "center", mb: 3 }}>
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#FFFFFF",
-              fontWeight: 900,
-              fontSize: "18px",
-            }}
-          >
-            P2P
-          </Box>
-          <Box sx={{ textAlign: "left" }}>
-            <Typography variant="h6" sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "18px", lineHeight: 1.1 }}>
-              Pay2Pay FinTech Solutions
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#60A5FA", fontWeight: 700, fontSize: "12px" }}>
-              ENTERPRISE BANKING WORKSPACE
-            </Typography>
-          </Box>
-        </Stack>
+        {/* Specular Top Sheen Highlight Line */}
+        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500/60 to-transparent pointer-events-none" />
 
-        {/* Retailer Profile Card */}
-        <Box
-          sx={{
-            p: 2.5,
-            mb: 3,
-            borderRadius: 3.5,
-            bgcolor: "rgba(30, 41, 59, 0.8)",
-            border: "1px solid rgba(255, 255, 255, 0.12)",
-            display: "flex",
-            alignItems: "center",
-            gap: 2.5,
-            textAlign: "left",
+        {/* ── 4. OFFICIAL PAY2PAY LOGO BADGE WITH BLURHASH ── */}
+        <div className="flex flex-col items-center justify-center mb-3">
+          <div className="w-16 h-16 rounded-2xl p-2 bg-gradient-to-br from-slate-900/90 to-slate-950/90 border border-amber-500/40 flex items-center justify-center mb-2.5 shadow-xl shadow-amber-500/10 backdrop-blur-md group relative overflow-hidden">
+            <BlurImage
+              src="/branding/pay2pay-logo.png"
+              blurhash={KNOWN_BLURHASHES.LOGO}
+              alt="Pay2Pay Logo"
+              className="w-full h-full flex items-center justify-center"
+              imageClassName="object-contain drop-shadow-md group-hover:scale-105 transition-transform"
+              fallbackSrc="/icon.png"
+            />
+          </div>
+          <h1 className={`text-base font-extrabold tracking-tight flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
+            {companyName}
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          </h1>
+        </div>
+
+        {/* ── 5. RETAILER INFORMATION ── */}
+        <div
+          className="rounded-xl py-2 px-3 mb-3.5 max-w-[340px] mx-auto text-center"
+          style={{
+            backgroundColor: isLight ? "#F1F5F9" : "rgba(0, 0, 0, 0.35)",
+            border: isLight ? "1px solid #E2E8F0" : "1px solid rgba(255, 255, 255, 0.10)",
           }}
         >
-          <Avatar
-            sx={{
-              width: 56,
-              height: 56,
-              bgcolor: "#2563EB",
-              fontSize: "20px",
-              fontWeight: 800,
-              boxShadow: "0 0 16px rgba(37, 99, 235, 0.5)",
-            }}
-          >
-            {typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name") || "Partner").split(" ").map(n => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase()}
-          </Avatar>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px", lineHeight: 1.2 }}>
-              {typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name") || "Retailer Partner")}
-            </Typography>
-            <Typography variant="body1" sx={{ color: "#94A3B8", fontSize: "14px", mt: 0.2 }}>
-              {typeof window !== "undefined" && (localStorage.getItem("pay2pay_reg_shop") || "Verified Business")}
-            </Typography>
-          </Box>
-        </Box>
+          <p className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+            Retailer: <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{retailerName}</span>
+          </p>
+          <p className={`text-[11px] font-mono mt-0.5 tracking-wider ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+            {retailerCode}
+          </p>
+        </div>
 
-        {/* Live Date & Clock */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h2" sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "36px", letterSpacing: "-0.02em" }}>
-            {currentTime}
-          </Typography>
-          <Typography variant="body1" sx={{ color: "#60A5FA", fontSize: "15px", fontWeight: 600, mt: 0.3 }}>
-            {currentDate}
-          </Typography>
-        </Box>
+        {/* ── 6. LIVE DATE & TIME ── */}
+        <div className="mb-3.5">
+          <p className={`text-xs font-medium ${isLight ? "text-slate-600" : "text-slate-300"}`}>{formattedDate}</p>
+          <p className={`text-xl font-black font-mono tracking-widest mt-0.5 drop-shadow-sm ${isLight ? "text-slate-900" : "text-white"}`}>
+            {formattedTime}
+          </p>
+        </div>
 
-        <Alert
-          icon={<SecurityIcon sx={{ color: "#60A5FA" }} />}
-          severity="info"
-          sx={{
-            mb: 3,
-            bgcolor: "rgba(59, 130, 246, 0.12)",
-            border: "1px solid rgba(59, 130, 246, 0.3)",
-            color: "#F8FAFC",
-            fontSize: "15px",
-            textAlign: "left",
-            borderRadius: 3,
+        {/* Glass Divider Line */}
+        <div className={`w-full h-px my-3.5 ${isLight ? "bg-slate-200" : "bg-white/10"}`} />
+
+        {/* ── 7. LOCK SECTION ── */}
+        <div className="flex items-center justify-center gap-2 mb-1 text-amber-500">
+          <span className="text-base">🔒</span>
+          <h2 className={`text-base font-extrabold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
+            Screen Locked
+          </h2>
+        </div>
+        <p className={`text-xs mb-2 ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+          Your session has been locked for your security.
+        </p>
+
+        {/* ── 8. LOCK TIMER ── */}
+        <div
+          className="inline-block px-3 py-1 rounded-full text-[11px] font-mono mb-4"
+          style={{
+            backgroundColor: isLight ? "#FEF3C7" : "rgba(0, 0, 0, 0.40)",
+            border: isLight ? "1px solid #FCD34D" : "1px solid rgba(255, 255, 255, 0.12)",
+            color: isLight ? "#92400E" : "#E2E8F0",
           }}
         >
-          <strong>Session Locked:</strong> For your security, this workspace was locked due to inactivity. Enter your 4-digit MPIN to resume.
-        </Alert>
+          Locked for <span className="font-bold text-amber-500">{formatLockDuration()}</span>
+        </div>
 
-        {/* Background Transaction Alert */}
-        {isProcessingTx && (
-          <Alert
-            severity="warning"
-            sx={{
-              mb: 3,
-              bgcolor: "rgba(245, 158, 11, 0.15)",
-              border: "1px solid #F59E0B",
-              color: "#FBBF24",
-              fontSize: "15px",
-              textAlign: "left",
-              borderRadius: 3,
-            }}
-          >
-            ⚙️ <strong>Payout Processing:</strong> Your money transfer is executing securely in the background. Unlock to view status.
-          </Alert>
-        )}
+        {/* ── 9. MASKED PIN INPUT FORM ── */}
+        <form onSubmit={handleUnlockSubmit} className="space-y-4 text-left">
+          <div>
+            <label className={`text-xs font-semibold block mb-2 text-center ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+              Unlock with Security PIN
+            </label>
+            <input
+              ref={inputRef}
+              id="screen-lock-pin-input"
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="off"
+              maxLength={4}
+              value={pin}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                setPin(val);
+                setErrorMsg("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleUnlockSubmit();
+                }
+              }}
+              placeholder="• • • •"
+              style={{
+                backgroundColor: isLight ? "#F8FAFC" : "rgba(0, 0, 0, 0.35)",
+                border: isLight ? "1px solid #CBD5E1" : "1px solid rgba(255, 255, 255, 0.15)",
+                color: isLight ? "#0F172A" : "#FFFFFF",
+              }}
+              className="w-full h-11 px-4 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40 rounded-xl text-center text-xl font-mono tracking-[0.5em] outline-none transition-all placeholder:tracking-normal placeholder:text-slate-400 placeholder:text-sm shadow-inner"
+            />
+          </div>
 
-        {/* Error Message */}
-        {errorMsg && (
-          <Alert severity="error" sx={{ mb: 3, borderRadius: 3, fontSize: "15px", fontWeight: 600 }}>
-            {errorMsg}
-          </Alert>
-        )}
-
-        {/* MPIN Input */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="body1" sx={{ color: "#E2E8F0", fontSize: "16px", fontWeight: 700, mb: 1, textAlign: "left" }}>
-            Enter 4-Digit Security MPIN
-          </Typography>
-          <TextField
-            inputRef={inputRef}
-            type="password"
-            fullWidth
-            value={mpin}
-            onChange={(e) => handleMpinChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") triggerUnlock();
-            }}
-            placeholder="••••"
-            disabled={isLoading}
-            slotProps={{
-              htmlInput: { maxLength: 4, style: { textAlign: "center", fontSize: "28px", letterSpacing: "14px", fontWeight: 900 } },
-              input: {
-                startAdornment: <VpnKeyIcon sx={{ color: "#60A5FA", mr: 1, fontSize: 24 }} />,
-                sx: {
-                  height: 58,
-                  borderRadius: "12px",
-                  bgcolor: "rgba(255, 255, 255, 0.08)",
-                  color: "#FFFFFF",
-                  "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                  "&:hover fieldset": { borderColor: "#3B82F6" },
-                  "&.Mui-focused fieldset": { borderColor: "#2563EB", borderWidth: "2px" },
-                },
-              },
-            }}
-          />
-        </Box>
-
-        {/* Action Buttons */}
-        <Stack spacing={2}>
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={() => triggerUnlock()}
-            disabled={isLoading || mpin.length < 4}
-            startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <LockIcon />}
-            sx={{
-              height: 52,
-              borderRadius: "12px",
-              fontWeight: 800,
-              fontSize: "17px",
-              bgcolor: "#2563EB",
-              boxShadow: "0 10px 24px rgba(37, 99, 235, 0.4)",
-              "&:hover": { bgcolor: "#1D4ED8" },
-            }}
-          >
-            {isLoading ? "Verifying MPIN..." : "Unlock Workspace"}
-          </Button>
-
-          {securitySettings.biometric_enabled && (
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={triggerBiometricUnlock}
-              disabled={isLoading}
-              startIcon={<FingerprintIcon sx={{ fontSize: 24 }} />}
-              sx={{
-                height: 52,
-                borderRadius: "12px",
-                fontWeight: 700,
-                fontSize: "17px",
-                color: "#60A5FA",
-                borderColor: "rgba(59, 130, 246, 0.5)",
-                bgcolor: "rgba(59, 130, 246, 0.08)",
-                "&:hover": { borderColor: "#3B82F6", bgcolor: "rgba(59, 130, 246, 0.16)" },
+          {/* ── 10. ERROR MESSAGE (FROM DATABASE API) ── */}
+          {errorMsg && (
+            <div
+              className="p-2.5 rounded-xl text-rose-600 dark:text-rose-300 text-xs font-semibold text-center flex items-center justify-center gap-2 backdrop-blur-md animate-shake"
+              style={{
+                backgroundColor: isLight ? "#FEE2E2" : "rgba(225, 29, 72, 0.20)",
+                border: isLight ? "1px solid #FECACA" : "1px solid rgba(244, 63, 94, 0.35)",
               }}
             >
-              Unlock with Touch ID / Windows Hello
-            </Button>
+              <ShieldAlert className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{errorMsg}</span>
+            </div>
           )}
-        </Stack>
 
-        <Divider sx={{ my: 3, borderColor: "rgba(255,255,255,0.14)" }} />
+          {/* ── 11. UNLOCK BUTTON ── */}
+          <button
+            type="submit"
+            disabled={isLoading || pin.length < 4}
+            style={{
+              boxShadow: "0 4px 20px rgba(37, 99, 235, 0.40)",
+            }}
+            className="w-full h-11 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.99] text-white text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed border border-white/10"
+          >
+            {isLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Verifying Database Security PIN...</span>
+              </>
+            ) : (
+              "Unlock Session"
+            )}
+          </button>
+        </form>
 
-        {/* Bottom Utility Links */}
-        <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between" }}>
-          <Button
-            size="small"
-            startIcon={<LogoutIcon />}
-            onClick={() => (window.location.href = "/login")}
-            sx={{ color: "#94A3B8", fontSize: "14px", fontWeight: 600 }}
+        {/* ── 12. LOGIN PAGE REDIRECT LINK ── */}
+        <div className={`mt-4 pt-3 border-t flex items-center justify-between text-[11px] ${isLight ? "border-slate-200 text-slate-500" : "border-white/10 text-slate-400"}`}>
+          <span>Database Protected</span>
+          <button
+            type="button"
+            onClick={handleGoToLogin}
+            className="text-blue-500 hover:text-blue-400 font-medium flex items-center gap-1 transition-colors cursor-pointer"
           >
-            Full Logout
-          </Button>
-          <Button
-            size="small"
-            startIcon={<PeopleIcon />}
-            onClick={() => (window.location.href = "/login")}
-            sx={{ color: "#94A3B8", fontSize: "14px", fontWeight: 600 }}
-          >
-            Switch User
-          </Button>
-          <Button
-            size="small"
-            startIcon={<HelpIcon />}
-            onClick={() => alert("Please contact your Company Admin or Call Support to reset your MPIN.")}
-            sx={{ color: "#94A3B8", fontSize: "14px", fontWeight: 600 }}
-          >
-            Forgot MPIN?
-          </Button>
-        </Stack>
-      </Paper>
-    </Box>
+            <LogOut className="w-3 h-3" />
+            <span>Sign In / Switch Account</span>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };

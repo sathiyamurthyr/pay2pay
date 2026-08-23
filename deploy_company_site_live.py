@@ -86,92 +86,312 @@ sudo systemctl restart pay2pay-company-site
 sleep 3
 sudo systemctl status pay2pay-company-site --no-pager
 
-echo '=== Updating Nginx for pay2pay.in ==='
+echo '=== Updating Nginx for Multi-Domain SSL (pay2pay.in, retailer.pay2pay.in, admin.pay2pay.in, api.pay2pay.in, receipt.pay2pay.in) ==='
 sudo tee /etc/nginx/sites-available/pay2pay > /dev/null << 'EOF'
-server {
-    server_name pay2pay.in www.pay2pay.in;
-
-    # 1. Backend REST APIs
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # 2. Retailer Platform & Partner Workspaces (Port 3000)
-    location ~ ^/(retailer|dist|sd|super-admin) {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # 3. Pay2Pay Company Landing Page (Port 3005)
-    location / {
-        proxy_pass http://127.0.0.1:3005;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    listen [::]:443 ssl;
-    listen 443 ssl;
-    ssl_certificate /etc/letsencrypt/live/pay2pay.in/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/pay2pay.in/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+upstream pay2pay_frontend {
+    server 127.0.0.1:3000 max_fails=3 fail_timeout=10s;
+    keepalive 32;
 }
 
-server {
-    server_name admin.pay2pay.in;
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location / {
-        proxy_pass http://127.0.0.1:3003;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-
-    listen [::]:443 ssl;
-    listen 443 ssl;
-    ssl_certificate /etc/letsencrypt/live/admin.pay2pay.in/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/admin.pay2pay.in/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+upstream pay2pay_admin {
+    server 127.0.0.1:3003 max_fails=3 fail_timeout=10s;
+    keepalive 32;
 }
 
+upstream pay2pay_company_site {
+    server 127.0.0.1:3005 max_fails=3 fail_timeout=10s;
+    keepalive 32;
+}
+
+upstream pay2pay_api {
+    server 127.0.0.1:8000 max_fails=3 fail_timeout=10s;
+    keepalive 32;
+}
+
+# HTTP to HTTPS Global Redirect
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
+    server_name pay2pay.in www.pay2pay.in retailer.pay2pay.in admin.pay2pay.in api.pay2pay.in receipt.pay2pay.in _;
 
-    server_name pay2pay.in www.pay2pay.in admin.pay2pay.in _;
-    return 301 https://$host$request_uri;
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# 1. Retailer Portal (https://retailer.pay2pay.in)
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name retailer.pay2pay.in;
+
+    ssl_certificate /etc/letsencrypt/live/retailer.pay2pay.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/retailer.pay2pay.in/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 50M;
+    client_body_buffer_size 10M;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    access_log /var/log/nginx/retailer_access.log;
+    error_log /var/log/nginx/retailer_error.log warn;
+
+    location /api/ {
+        proxy_pass http://pay2pay_api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+
+    location /uploads/ {
+        alias /home/ubuntu/pay2pay/backend/uploads/;
+        expires 30d;
+        access_log off;
+    }
+
+    location /_next/static/ {
+        proxy_pass http://pay2pay_frontend/_next/static/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        expires 365d;
+        access_log off;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location / {
+        proxy_pass http://pay2pay_frontend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+}
+
+# 2. Company Admin Portal (https://admin.pay2pay.in)
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name admin.pay2pay.in;
+
+    ssl_certificate /etc/letsencrypt/live/admin.pay2pay.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/admin.pay2pay.in/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 50M;
+    client_body_buffer_size 10M;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    access_log /var/log/nginx/admin_access.log;
+    error_log /var/log/nginx/admin_error.log warn;
+
+    location /api/ {
+        proxy_pass http://pay2pay_api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /uploads/ {
+        alias /home/ubuntu/pay2pay/backend/uploads/;
+        expires 30d;
+        access_log off;
+    }
+
+    location /_next/static/ {
+        proxy_pass http://pay2pay_admin/_next/static/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        expires 365d;
+        access_log off;
+    }
+
+    location / {
+        proxy_pass http://pay2pay_admin;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# 2. Main Platform & Company Landing Page (https://pay2pay.in)
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name pay2pay.in www.pay2pay.in;
+
+    ssl_certificate /etc/letsencrypt/live/pay2pay.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/pay2pay.in/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 50M;
+    client_body_buffer_size 10M;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    access_log /var/log/nginx/pay2pay_access.log;
+    error_log /var/log/nginx/pay2pay_error.log warn;
+
+    location /api/ {
+        proxy_pass http://pay2pay_api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /uploads/ {
+        alias /home/ubuntu/pay2pay/backend/uploads/;
+        expires 30d;
+        access_log off;
+    }
+
+    location ~ ^/(retailer|dist|sd|super-admin|dmt|aeps|recharge|settlement|customers|beneficiaries|wallet) {
+        proxy_pass http://pay2pay_frontend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /_next/static/ {
+        proxy_pass http://pay2pay_frontend/_next/static/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        expires 365d;
+        access_log off;
+    }
+
+    location / {
+        proxy_pass http://pay2pay_company_site;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# 3. Direct API Gateway (https://api.pay2pay.in)
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name api.pay2pay.in;
+
+    ssl_certificate /etc/letsencrypt/live/api.pay2pay.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.pay2pay.in/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 50M;
+
+    access_log /var/log/nginx/api_access.log;
+    error_log /var/log/nginx/api_error.log warn;
+
+    location /uploads/ {
+        alias /home/ubuntu/pay2pay/backend/uploads/;
+        expires 30d;
+        access_log off;
+    }
+
+    location / {
+        proxy_pass http://pay2pay_api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# 4. Public Receipt Verification Portal (https://receipt.pay2pay.in)
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name receipt.pay2pay.in;
+
+    ssl_certificate /etc/letsencrypt/live/receipt.pay2pay.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/receipt.pay2pay.in/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    access_log /var/log/nginx/receipt_access.log;
+    error_log /var/log/nginx/receipt_error.log warn;
+
+    location /_next/static/ {
+        proxy_pass http://pay2pay_frontend/_next/static/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        expires 365d;
+        access_log off;
+    }
+
+    location / {
+        proxy_pass http://pay2pay_frontend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 EOF
 

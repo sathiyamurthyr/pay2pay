@@ -12,6 +12,9 @@ import {
   MessageCircle,
 } from "lucide-react";
 
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
+
 interface AnnouncementLink {
   label: string;
   url: string;
@@ -47,20 +50,25 @@ function AnnouncementBannerImage({
 
   return (
     <div className="relative w-full bg-slate-950/70 flex items-center justify-center border-b border-white/10 overflow-hidden">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <BlurImage
         src={resolvedUrl}
+        blurhash={KNOWN_BLURHASHES.BRAND_BANNER}
         alt={title}
-        className="w-full h-auto max-h-[55vh] object-contain block select-none"
-        loading="eager"
+        className="w-full h-auto max-h-[55vh]"
+        imageClassName="w-full h-auto max-h-[55vh] object-contain block select-none"
         onError={() => setImgError(true)}
       />
     </div>
   );
 }
 
+/**
+ * DashboardAnnouncementModal:
+ * Fetches active announcements on dashboard mount and displays them every time
+ * the dashboard page is loaded or refreshed.
+ */
 export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
-  audience = "DISTRIBUTOR",
+  audience = "RETAILER",
 }) => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [current, setCurrent] = useState(0);
@@ -88,6 +96,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
       try {
         let items: any[] = [];
 
+        // 1. Try active announcements endpoint
         try {
           const res1 = await fetch(`/api/v1/announcements/active?audience=${audience}`);
           if (res1.ok) {
@@ -96,6 +105,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
           }
         } catch {}
 
+        // 2. Fallback to notifications/announcements
         if (items.length === 0) {
           try {
             const res2 = await fetch(
@@ -110,6 +120,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
 
         if (!Array.isArray(items) || items.length === 0) return;
 
+        // Map items to normalized schema
         const normalized: Announcement[] = items.map((raw: any) => {
           const allImgs: string[] = [];
           if (raw.image_url) allImgs.push(raw.image_url);
@@ -149,7 +160,9 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
         setTimeout(() => {
           if (!cancelled) setVisible(true);
         }, 500);
-      } catch {}
+      } catch {
+        // Non-critical UI
+      }
     };
 
     fetchData();
@@ -173,6 +186,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
           background: "linear-gradient(145deg, #0b1120 0%, #111827 50%, #1e1b4b 100%)",
         }}
       >
+        {/* Top Dismiss Button */}
         <button
           onClick={dismissCurrent}
           className="absolute top-3.5 right-3.5 z-30 w-8 h-8 flex items-center justify-center rounded-full bg-black/60 hover:bg-black/85 text-white/90 hover:text-white border border-white/20 transition-all cursor-pointer shadow-lg backdrop-blur-sm"
@@ -181,10 +195,14 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
           <X className="w-4 h-4" />
         </button>
 
+        {/* Scrollable Container */}
         <div className="overflow-y-auto max-h-[92vh] flex flex-col">
+          {/* Full Banner / Flyer Image */}
           <AnnouncementBannerImage imageUrl={item.image_url} title={item.header} />
 
+          {/* Modal Content */}
           <div className="p-5 sm:p-6 space-y-4 flex-1">
+            {/* Header Row: Priority Badge & Pagination */}
             <div className="flex items-center justify-between gap-2">
               <div>
                 {item.priority === "CRITICAL" ? (
@@ -212,6 +230,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
               )}
             </div>
 
+            {/* Title & Body */}
             {(item.header !== "Announcement" || item.body) && (
               <div>
                 {item.header && (
@@ -227,6 +246,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
               </div>
             )}
 
+            {/* Action Links (e.g. WhatsApp channel, Play Store, etc.) */}
             {item.links && item.links.length > 0 && (
               <div className="pt-1 space-y-2">
                 {item.links.map((link, lIdx) => (
@@ -251,6 +271,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
               </div>
             )}
 
+            {/* Pagination Indicators & Main Action Button */}
             <div className="pt-2 space-y-3">
               {announcements.length > 1 && (
                 <div className="flex items-center justify-center gap-1.5 py-1">

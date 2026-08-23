@@ -216,7 +216,7 @@ export const RightContextPanel: React.FC<{
           </Typography>
         </Stack>
         <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "12px" }}>
-          • Cashfree Penny Drop Verified (2m ago)
+          • Bank Penny Drop Verified (2m ago)
         </Typography>
         <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.70)", display: "block", fontSize: "12px", mt: 0.5 }}>
           • IMPS Settlement Completed (12m ago)

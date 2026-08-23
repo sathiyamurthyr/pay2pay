@@ -42,11 +42,11 @@ export function CashfreePanVerifier({ pan, name, onVerified }: CashfreePanVerifi
       >
         {loading ? (
           <>
-            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying via Cashfree v2…
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying PAN…
           </>
         ) : (
           <>
-            <ShieldCheck className="w-3.5 h-3.5" /> Verify PAN (Cashfree API)
+            <ShieldCheck className="w-3.5 h-3.5" /> Verify PAN (Instant Verification)
           </>
         )}
       </button>

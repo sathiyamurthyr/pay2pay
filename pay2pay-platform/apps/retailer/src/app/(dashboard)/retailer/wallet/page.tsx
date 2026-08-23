@@ -24,6 +24,7 @@ import SendIcon from "@mui/icons-material/Send";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import HistoryIcon from "@mui/icons-material/History";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import { M3StatusChip } from "@/components/ui/m3-components";
 import ScannableQrCode from "@/components/ui/scannable-qr-code";
@@ -280,6 +281,34 @@ export default function WalletPage() {
             </Box>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#111827", textAlign: "center" }}>
               Add Money
+            </Typography>
+          </Paper>
+
+          <Paper
+            component={Link}
+            href="/retailer/topup-request"
+            elevation={0}
+            sx={{
+              p: "16px",
+              borderRadius: "16px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E5E7EB",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 1,
+              textDecoration: "none",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              "&:hover": { borderColor: "#F59E0B", backgroundColor: "#FEF3C7", transform: "translateY(-2px)" },
+            }}
+          >
+            <Box sx={{ p: 1.25, borderRadius: 2.5, backgroundColor: "#FEF3C7", color: "#D97706" }}>
+              <CloudUploadIcon sx={{ fontSize: 22 }} />
+            </Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "13px", color: "#111827", textAlign: "center" }}>
+              Topup Request
             </Typography>
           </Paper>
 
