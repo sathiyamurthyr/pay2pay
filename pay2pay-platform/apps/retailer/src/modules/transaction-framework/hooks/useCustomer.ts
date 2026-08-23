@@ -27,6 +27,25 @@ export function useCustomer() {
     try {
       const memCust = useTransactionMemoryStore.getState().selectedCustomer;
       if (!memCust) return null;
+      if (
+        memCust.name?.includes("Verified Payout Customer") ||
+        memCust.full_name?.includes("Verified Payout Customer") ||
+        memCust.customerCode === "CUST-65374" ||
+        memCust.customerCode === "CUST-7374" ||
+        memCust.customer_number === "CUST-65374" ||
+        memCust.customer_number === "CUST-7374" ||
+        memCust.mobile === "9884465374" ||
+        memCust.mobile === "9884467374" ||
+        memCust.mobile_number === "9884465374" ||
+        memCust.mobile_number === "9884467374"
+      ) {
+        useTransactionMemoryStore.getState().setSelectedCustomer(null);
+        try {
+          localStorage.removeItem("pay2pay_transaction_memory");
+          localStorage.removeItem("pay2pay_registered_customers");
+        } catch {}
+        return null;
+      }
       return {
         id: memCust.id || memCust.public_id || `CUST-${memCust.mobile_number?.slice(-4) || memCust.mobile?.slice(-4) || "0000"}`,
         customerCode: memCust.customerCode || memCust.customer_code || memCust.customer_number || `CUST-${memCust.mobile || memCust.mobile_number || "0245"}`,

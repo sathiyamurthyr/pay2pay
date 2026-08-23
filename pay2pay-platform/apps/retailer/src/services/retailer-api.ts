@@ -591,52 +591,23 @@ export const retailerApi = {
   },
 
   searchPayoutCustomer: async (query: string): Promise<{ status: string; data: any[]; message?: string }> => {
-    // Read local storage registered customers for this retailer session
-    let registeredLocal: any[] = [];
+    // Purge any stale mock data in browser storage
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("pay2pay_registered_customers");
-        if (stored) registeredLocal = JSON.parse(stored);
+        if (stored && (stored.includes("Verified Payout Customer") || stored.includes("CUST-65374") || stored.includes("CUST-7374") || stored.includes("9884465374") || stored.includes("9884467374"))) {
+          localStorage.removeItem("pay2pay_registered_customers");
+        }
+        const memStored = localStorage.getItem("pay2pay_transaction_memory");
+        if (memStored && (memStored.includes("Verified Payout Customer") || memStored.includes("CUST-65374") || memStored.includes("CUST-7374") || memStored.includes("9884465374") || memStored.includes("9884467374"))) {
+          localStorage.removeItem("pay2pay_transaction_memory");
+        }
       } catch {}
     }
 
     const trimmedQuery = (query || "").trim();
 
-    // On fresh login / initial load with no search query:
-    if (!trimmedQuery) {
-      if (registeredLocal.length > 0) {
-        return { status: "SUCCESS", data: registeredLocal };
-      }
-
-      // If backend API returns registered customers, use them
-      try {
-        const res = await apiClient.get("/customers/?query=");
-        if (res.status === 200 && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
-          const mapped = res.data.data.map((c: any) => ({
-            public_id: c.public_id || c.id || `c-${Date.now()}`,
-            customer_number: c.customer_number || `CUST${Math.floor(10000 + Math.random() * 90000)}`,
-            full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
-            mobile_number: c.mobile_number || "",
-            kyc_status: c.kyc_status || "VERIFIED",
-            kyc_level: c.kyc_level || "FULL_KYC",
-            risk_score: c.risk_score || 10,
-            monthly_limit: c.monthly_limit || 200000.0,
-            monthly_used: c.monthly_used || 0.0,
-            monthly_remaining: c.monthly_remaining || 200000.0,
-            aadhaar_status: "VERIFIED",
-            pan_status: "VERIFIED",
-            pin_status: "SET",
-            last_transaction: c.last_transaction || "Today",
-            onboarding_complete: true,
-          }));
-          return { status: "SUCCESS", data: mapped };
-        }
-      } catch {}
-
-      return { status: "SUCCESS", data: [] };
-    }
-
-    // Search Mode: Normalize query if phone digits/formatting detected
+    // Normalize query if phone digits/formatting detected
     const cleanDigits = trimmedQuery.replace(/[\s\-\(\)\.\+]/g, "").replace(/\D/g, "");
     let normalizedQuery = trimmedQuery;
     if (cleanDigits.length >= 10) {
@@ -645,26 +616,14 @@ export const retailerApi = {
         : (cleanDigits.length === 11 && cleanDigits.startsWith("0") ? cleanDigits.slice(1) : cleanDigits.slice(-10));
     }
 
-    // 1. First check locally registered customers
-    const localMatch = registeredLocal.filter(
-      (c) =>
-        c.mobile_number === normalizedQuery ||
-        c.mobile_number?.includes(normalizedQuery) ||
-        (c.full_name && c.full_name.toLowerCase().includes(trimmedQuery.toLowerCase()))
-    );
-
-    if (localMatch.length > 0) {
-      return { status: "SUCCESS", data: localMatch };
-    }
-
-    // 2. Try primary backend API endpoint GET /customers/?query=
+    // Always fetch directly from PostgreSQL backend API:
     try {
       const res = await apiClient.get(`/customers/?query=${encodeURIComponent(normalizedQuery)}`);
-      if (res.status === 200 && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+      if (res.status === 200 && res.data && Array.isArray(res.data.data)) {
         const rawList = res.data.data;
         const mapped = rawList.map((c: any) => ({
           public_id: c.public_id || c.id || `c-${Date.now()}`,
-          customer_number: c.customer_number || `CUST${query.slice(-6)}`,
+          customer_number: c.customer_number || `CUST${c.mobile_number?.slice(-4) || '0000'}`,
           full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
           mobile_number: c.mobile_number || query,
           kyc_status: c.kyc_status || "VERIFIED",
@@ -683,7 +642,6 @@ export const retailerApi = {
       }
     } catch (err: any) {}
 
-        
     return { status: "SUCCESS", data: [] };
   },
 
