@@ -104,11 +104,40 @@ export interface GridItem {
   is_reversed: boolean;
 }
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-const DEFAULT_COMPANY_ID = "8899aabb-1122-3344-5566-77889900aabb";
+interface RetailerOption {
+  id: string;
+  store_name: string;
+  mobile_number?: string;
+  merchant_code?: string;
+  status?: string;
+}
 
 const API_BASE_URL = getApiBaseUrl();
+
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (typeof window !== "undefined") {
+    const cookies = document.cookie.split("; ");
+    const tokenCookie = cookies.find((row) =>
+      row.startsWith("p2p_access_token=") ||
+      row.startsWith("pay2pay_access_token=") ||
+      row.startsWith("pay2pay_auth_token=")
+    );
+    const cookieToken = tokenCookie ? tokenCookie.split("=")[1] : null;
+    const token =
+      cookieToken ||
+      localStorage.getItem("p2p_access_token") ||
+      localStorage.getItem("pay2pay_access_token") ||
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("access_token");
+    if (token && token.trim().length > 10) {
+      headers["Authorization"] = `Bearer ${token.trim()}`;
+    }
+  }
+  return headers;
+};
 
 const REPORT_TABS = [
   { key: "payout", label: "Payout", icon: "💸" },
@@ -185,6 +214,10 @@ export const EnterpriseReportCenter: React.FC = () => {
   // Navigation State
   const [activeTab, setActiveTab] = useState<string>("payout");
 
+  // Retailers State
+  const [retailersList, setRetailersList] = useState<RetailerOption[]>([]);
+  const [selectedRetailer, setSelectedRetailer] = useState<string>("ALL");
+
   // Data State
   const [summaryMetrics, setSummaryMetrics] = useState<SummaryMetric[]>([]);
   const [items, setItems] = useState<GridItem[]>([]);
@@ -198,10 +231,10 @@ export const EnterpriseReportCenter: React.FC = () => {
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(15);
 
-  // Filters State
-  const [fromDate, setFromDate] = useState<string>(getTodayIso());
-  const [toDate, setToDate] = useState<string>(getTodayIso());
-  const [activePreset, setActivePreset] = useState<string>("TODAY");
+  // Filters State (Default ALL_TIME to ensure historical transactions immediately appear)
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+  const [activePreset, setActivePreset] = useState<string>("ALL_TIME");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [debouncedQuery, setDebouncedQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -225,6 +258,26 @@ export const EnterpriseReportCenter: React.FC = () => {
   // Track initial auto-fallback trigger
   const hasFallbackTriggered = useRef<boolean>(false);
 
+  // Load Retailers on Mount
+  useEffect(() => {
+    const loadRetailers = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/report-center/retailers-list`, {
+          headers: getAuthHeaders(),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.retailers && Array.isArray(data.retailers)) {
+            setRetailersList(data.retailers);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load retailers list", err);
+      }
+    };
+    loadRetailers();
+  }, []);
+
   // 300ms Debounce Search Handler
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -234,17 +287,22 @@ export const EnterpriseReportCenter: React.FC = () => {
   }, [searchQuery]);
 
   // Fetch Summary Metrics
-  const fetchSummary = useCallback(async (repType: string, fDate: string, tDate: string) => {
+  const fetchSummary = useCallback(async (repType: string, fDate?: string, tDate?: string, retId?: string) => {
     try {
+      const activeRet = retId !== undefined ? retId : selectedRetailer;
+      const activeFDate = fDate !== undefined ? fDate : fromDate;
+      const activeTDate = tDate !== undefined ? tDate : toDate;
+
       const q = new URLSearchParams({
         report_type: repType === "tax_audit" ? "gst" : repType,
-        retailer_id: DEFAULT_RETAILER_ID,
-        tenant_id: DEFAULT_TENANT_ID,
       });
-      if (fDate) q.append("from_date", fDate);
-      if (tDate) q.append("to_date", tDate);
+      if (activeRet && activeRet !== "ALL") q.append("retailer_id", activeRet);
+      if (activeFDate) q.append("from_date", activeFDate);
+      if (activeTDate) q.append("to_date", activeTDate);
 
-      const res = await fetch(`${API_BASE_URL}/report-center/summary?${q.toString()}`);
+      const res = await fetch(`${API_BASE_URL}/report-center/summary?${q.toString()}`, {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         const rawMetrics: SummaryMetric[] = data.metrics || [];
@@ -276,33 +334,35 @@ export const EnterpriseReportCenter: React.FC = () => {
     } catch (e) {
       console.error("Failed to fetch report summary", e);
     }
-  }, []);
+  }, [selectedRetailer, fromDate, toDate]);
 
   // Fetch Data Grid Records
-  const fetchGridData = useCallback(async (overrideFromDate?: string, overrideToDate?: string) => {
+  const fetchGridData = useCallback(async (overrideFromDate?: string, overrideToDate?: string, overrideRet?: string) => {
     setIsLoading(true);
     try {
       const activeFDate = overrideFromDate !== undefined ? overrideFromDate : fromDate;
       const activeTDate = overrideToDate !== undefined ? overrideToDate : toDate;
+      const activeRet = overrideRet !== undefined ? overrideRet : selectedRetailer;
 
       const q = new URLSearchParams({
         report_type: activeTab === "tax_audit" ? "gst" : activeTab,
-        retailer_id: DEFAULT_RETAILER_ID,
-        tenant_id: DEFAULT_TENANT_ID,
         page: (page + 1).toString(),
         limit: rowsPerPage.toString(),
-        from_date: activeFDate,
-        to_date: activeTDate,
         sort_by: "initiated_at",
         sort_dir: "desc"
       });
 
+      if (activeRet && activeRet !== "ALL") q.append("retailer_id", activeRet);
+      if (activeFDate) q.append("from_date", activeFDate);
+      if (activeTDate) q.append("to_date", activeTDate);
       if (debouncedQuery) q.append("query", debouncedQuery);
       if (statusFilter !== "ALL") q.append("status", statusFilter);
       if (minimumAmount) q.append("amount_from", minimumAmount);
       if (maximumAmount) q.append("amount_to", maximumAmount);
 
-      const res = await fetch(`${API_BASE_URL}/report-center/grid?${q.toString()}`);
+      const res = await fetch(`${API_BASE_URL}/report-center/grid?${q.toString()}`, {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         const recItems = data.items || [];
@@ -313,14 +373,12 @@ export const EnterpriseReportCenter: React.FC = () => {
 
         if (total === 0 && activePreset === "TODAY" && !hasFallbackTriggered.current) {
           hasFallbackTriggered.current = true;
-          const sevenDaysAgo = getDateOffsetIso(-6);
-          const todayIso = getTodayIso();
-          setFromDate(sevenDaysAgo);
-          setToDate(todayIso);
-          setActivePreset("LAST_7_DAYS");
-          setToastMessage("Today's transactions are empty. Automatically showing Last 7 Days.");
-          fetchSummary(activeTab, sevenDaysAgo, todayIso);
-          fetchGridData(sevenDaysAgo, todayIso);
+          setActivePreset("ALL_TIME");
+          setFromDate("");
+          setToDate("");
+          setToastMessage("Today's transactions are empty. Showing all historical records.");
+          fetchSummary(activeTab, "", "", activeRet);
+          fetchGridData("", "", activeRet);
         }
       }
     } catch (e) {
@@ -328,12 +386,11 @@ export const EnterpriseReportCenter: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, page, rowsPerPage, fromDate, toDate, debouncedQuery, statusFilter, minimumAmount, maximumAmount, activePreset, fetchSummary]);
+  }, [activeTab, page, rowsPerPage, fromDate, toDate, selectedRetailer, debouncedQuery, statusFilter, minimumAmount, maximumAmount, activePreset, fetchSummary]);
 
   useEffect(() => {
-    hasFallbackTriggered.current = false;
-    fetchSummary(activeTab, fromDate, toDate);
-    fetchGridData();
+    fetchSummary(activeTab, fromDate, toDate, selectedRetailer);
+    fetchGridData(fromDate, toDate, selectedRetailer);
   }, [activeTab, page, rowsPerPage, debouncedQuery]);
 
   const applyDatePreset = (key: string) => {
@@ -355,6 +412,9 @@ export const EnterpriseReportCenter: React.FC = () => {
       d.setDate(1);
       f = d.toISOString().split("T")[0];
       t = today;
+    } else if (key === "ALL_TIME") {
+      f = "";
+      t = "";
     }
 
     setFromDate(f);
@@ -362,15 +422,15 @@ export const EnterpriseReportCenter: React.FC = () => {
     setActivePreset(key);
     setPage(0);
     hasFallbackTriggered.current = true;
-    fetchSummary(activeTab, f, t);
-    fetchGridData(f, t);
+    fetchSummary(activeTab, f, t, selectedRetailer);
+    fetchGridData(f, t, selectedRetailer);
   };
 
   const handleResetFilters = () => {
-    const today = getTodayIso();
-    setFromDate(today);
-    setToDate(today);
-    setActivePreset("TODAY");
+    setFromDate("");
+    setToDate("");
+    setActivePreset("ALL_TIME");
+    setSelectedRetailer("ALL");
     setSearchQuery("");
     setDebouncedQuery("");
     setStatusFilter("ALL");
@@ -379,8 +439,8 @@ export const EnterpriseReportCenter: React.FC = () => {
     setPage(0);
     hasFallbackTriggered.current = false;
 
-    fetchSummary(activeTab, today, today);
-    setTimeout(fetchGridData, 50);
+    fetchSummary(activeTab, "", "", "ALL");
+    fetchGridData("", "", "ALL");
   };
 
   // Copy Cell Text
@@ -393,7 +453,9 @@ export const EnterpriseReportCenter: React.FC = () => {
   const handleViewDetails = async (row: GridItem) => {
     try {
       const repType = activeTab === "tax_audit" ? "gst" : activeTab;
-      const res = await fetch(`${API_BASE_URL}/report-center/details/${repType}/${row.id}?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`);
+      const res = await fetch(`${API_BASE_URL}/report-center/details/${repType}/${row.id}`, {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         setSelectedItem(await res.json());
       } else {
@@ -411,7 +473,10 @@ export const EnterpriseReportCenter: React.FC = () => {
     if (!selectedItem) return;
     const txId = selectedItem.transaction_details?.transaction_id || selectedItem.id;
     try {
-      const res = await fetch(`${API_BASE_URL}/report-center/check-status/${txId}?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`, { method: "POST" });
+      const res = await fetch(`${API_BASE_URL}/report-center/check-status/${txId}`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         setToastMessage(data.friendly_message || "Live bank status re-check completed!");
@@ -419,6 +484,42 @@ export const EnterpriseReportCenter: React.FC = () => {
       }
     } catch (e) {
       setToastMessage("Status check triggered. Bank confirmation is pending.");
+    }
+  };
+
+  // Export CSV / Excel Function
+  const handleExport = async (format: string) => {
+    try {
+      setToastMessage(`Preparing ${format.toUpperCase()} export...`);
+      const q = new URLSearchParams({
+        export_format: format.toLowerCase(),
+        report_type: activeTab === "tax_audit" ? "gst" : activeTab,
+      });
+      if (selectedRetailer && selectedRetailer !== "ALL") q.append("retailer_id", selectedRetailer);
+      if (fromDate) q.append("from_date", fromDate);
+      if (toDate) q.append("to_date", toDate);
+
+      const res = await fetch(`${API_BASE_URL}/report-center/export?${q.toString()}`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${activeTab}_report_${getTodayIso()}.${format.toLowerCase() === "csv" ? "csv" : "xlsx"}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        setToastMessage(`${format.toUpperCase()} export downloaded successfully!`);
+      } else {
+        setToastMessage("Failed to export report data.");
+      }
+    } catch (err) {
+      console.error("Export error", err);
+      setToastMessage("Failed to export report data.");
     }
   };
 
@@ -430,13 +531,12 @@ export const EnterpriseReportCenter: React.FC = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/report-center/complaint`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           transaction_id: txId,
           reason: complaintReason,
           description: complaintDesc,
-          retailer_id: DEFAULT_RETAILER_ID,
-          tenant_id: DEFAULT_TENANT_ID,
+          retailer_id: selectedRetailer !== "ALL" ? selectedRetailer : undefined,
         }),
       });
       if (res.ok) {
@@ -523,8 +623,8 @@ export const EnterpriseReportCenter: React.FC = () => {
             size="small"
             startIcon={<SyncIcon fontSize="small" />}
             onClick={() => {
-              fetchSummary(activeTab, fromDate, toDate);
-              fetchGridData();
+              fetchSummary(activeTab, fromDate, toDate, selectedRetailer);
+              fetchGridData(fromDate, toDate, selectedRetailer);
             }}
             sx={{ py: 0.6, px: 1.5, fontSize: "13px", fontWeight: 700, borderRadius: "10px", borderColor: "#2E3C57", color: "#FFFFFF", bgcolor: "#161F2F", "&:hover": { bgcolor: "#1E293B" } }}
           >
@@ -546,10 +646,10 @@ export const EnterpriseReportCenter: React.FC = () => {
             <MenuItem onClick={() => { setExportAnchorEl(null); window.print(); }}>
               <PictureAsPdfIcon sx={{ mr: 1, color: "#F87171", fontSize: 18 }} /> Export PDF
             </MenuItem>
-            <MenuItem onClick={() => { setExportAnchorEl(null); setToastMessage("CSV Export Started..."); }}>
+            <MenuItem onClick={() => { setExportAnchorEl(null); handleExport("csv"); }}>
               <InsertDriveFileIcon sx={{ mr: 1, color: "#4ADE80", fontSize: 18 }} /> Export CSV
             </MenuItem>
-            <MenuItem onClick={() => { setExportAnchorEl(null); setToastMessage("Excel Export Started..."); }}>
+            <MenuItem onClick={() => { setExportAnchorEl(null); handleExport("excel"); }}>
               <TableChartIcon sx={{ mr: 1, color: "#C084FC", fontSize: 18 }} /> Export Excel
             </MenuItem>
           </Menu>
@@ -724,7 +824,7 @@ export const EnterpriseReportCenter: React.FC = () => {
       >
         <Grid container spacing={1.5} sx={{ alignItems: "center" }}>
           {/* Smart Search Textbox (Auto-Focus Enabled, 300ms Debounce Auto-Search, Enter Key & Paste Supported) */}
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3.5 }}>
             <TextField
               fullWidth
               autoFocus
@@ -734,8 +834,8 @@ export const EnterpriseReportCenter: React.FC = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  fetchSummary(activeTab, fromDate, toDate);
-                  fetchGridData();
+                  fetchSummary(activeTab, fromDate, toDate, selectedRetailer);
+                  fetchGridData(fromDate, toDate, selectedRetailer);
                 }
               }}
               slotProps={{
@@ -747,13 +847,84 @@ export const EnterpriseReportCenter: React.FC = () => {
             />
           </Grid>
 
+          {/* Retailer Selector Dropdown */}
+          <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
+            <FormControl fullWidth size="small">
+              <Select
+                value={selectedRetailer}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedRetailer(val);
+                  setPage(0);
+                  fetchSummary(activeTab, fromDate, toDate, val);
+                  fetchGridData(fromDate, toDate, val);
+                }}
+                displayEmpty
+                renderValue={(val) => {
+                  if (!val || val === "ALL") return "All Retailers (Enterprise)";
+                  const found = retailersList.find((r) => r.id === val);
+                  return found ? `${found.store_name}` : "Retailer Selected";
+                }}
+                MenuProps={{
+                  slotProps: {
+                    paper: {
+                      sx: {
+                        bgcolor: "#0F172A",
+                        color: "#FFFFFF",
+                        border: "1px solid #2E3C57",
+                        borderRadius: "12px",
+                        maxHeight: 300,
+                        mt: 0.5,
+                        "& .MuiMenuItem-root": {
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "#FFFFFF",
+                          "&:hover": {
+                            bgcolor: "#1E293B",
+                          },
+                          "&.Mui-selected": {
+                            bgcolor: "#2563EB",
+                            color: "#FFFFFF",
+                            "&:hover": {
+                              bgcolor: "#1D4ED8",
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
+                sx={{
+                  ...darkSearchInputSx,
+                  bgcolor: "#161F2F !important",
+                  color: "#FFFFFF !important",
+                  "& .MuiSelect-select": {
+                    bgcolor: "#161F2F !important",
+                    color: "#FFFFFF !important",
+                  },
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "#161F2F !important",
+                  },
+                }}
+              >
+                <MenuItem value="ALL">All Retailers (Enterprise)</MenuItem>
+                {retailersList.map((ret) => (
+                  <MenuItem key={ret.id} value={ret.id}>
+                    {ret.store_name} {ret.mobile_number ? `(${ret.mobile_number})` : ""}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
           {/* Quick Date Presets */}
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Stack direction="row" spacing={0.8} sx={{ width: "100%" }}>
+          <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
+            <Stack direction="row" spacing={0.5} sx={{ width: "100%" }}>
               {[
                 { key: "TODAY", label: "Today" },
                 { key: "LAST_7_DAYS", label: "7D" },
                 { key: "THIS_MONTH", label: "Month" },
+                { key: "ALL_TIME", label: "All" },
               ].map((p) => (
                 <Chip
                   key={p.key}
@@ -766,7 +937,7 @@ export const EnterpriseReportCenter: React.FC = () => {
                     bgcolor: activePreset === p.key ? "#2563EB" : "#161F2F",
                     color: "#FFFFFF",
                     fontWeight: 700,
-                    fontSize: "13px",
+                    fontSize: "12px",
                     cursor: "pointer",
                     borderRadius: "12px",
                     border: activePreset === p.key ? "1px solid #3B82F6" : "1px solid #2E3C57",
@@ -840,12 +1011,12 @@ export const EnterpriseReportCenter: React.FC = () => {
           </Grid>
 
           {/* Action Buttons */}
-          <Grid size={{ xs: 6, sm: 3, md: 3 }} sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
+          <Grid size={{ xs: 6, sm: 3, md: 1.5 }} sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
             <Button
               variant="outlined"
               size="small"
               onClick={handleResetFilters}
-              sx={{ height: 44, px: 2, fontSize: "13px", fontWeight: 700, borderRadius: "12px", borderColor: "#2E3C57", color: "#FFFFFF", bgcolor: "#161F2F", "&:hover": { bgcolor: "#1E293B" } }}
+              sx={{ height: 44, px: 1.5, fontSize: "13px", fontWeight: 700, borderRadius: "12px", borderColor: "#2E3C57", color: "#FFFFFF", bgcolor: "#161F2F", "&:hover": { bgcolor: "#1E293B" } }}
             >
               Reset
             </Button>
