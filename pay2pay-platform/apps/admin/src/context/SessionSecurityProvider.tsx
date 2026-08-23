@@ -48,11 +48,11 @@ const SessionSecurityContext = createContext<SessionSecurityContextType | undefi
 
 // Portal-specific login routes for redirect on token expiry
 const PORTAL_LOGIN_MAP: Record<string, string> = {
-  RETAILER: "/retailer/login",
-  DIST: "/dist/login",
-  SD: "/sd/login",
-  ADMIN: "/admin/login",
-  SUPER_ADMIN: "/super-admin/login",
+  RETAILER: "/login",
+  DIST: "/login",
+  SD: "/login",
+  ADMIN: "/login",
+  SUPER_ADMIN: "/login",
 };
 
 export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -96,8 +96,8 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     soundSystem.playWarningSound();
     logAuditEvent("SESSION_TERMINATED", { reason });
 
-    const role = (typeof window !== "undefined" ? localStorage.getItem("pay2pay_user_role") : null) || "RETAILER";
-    const loginPath = PORTAL_LOGIN_MAP[role.toUpperCase()] || "/retailer/login";
+    const role = (typeof window !== "undefined" ? localStorage.getItem("pay2pay_user_role") : null) || "ADMIN";
+    const loginPath = PORTAL_LOGIN_MAP[role.toUpperCase()] || "/login";
     window.location.replace(`${loginPath}?reason=${reason}`);
   };
 

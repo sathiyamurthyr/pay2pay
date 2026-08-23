@@ -77,7 +77,7 @@ apiClient.interceptors.response.use(
       }
 
       if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-        window.location.replace(`/retailer/login?reason=session_expired&redirect=${encodeURIComponent(window.location.pathname)}`);
+        window.location.replace(`/login?reason=session_expired&redirect=${encodeURIComponent(window.location.pathname)}`);
       }
     }
     return Promise.reject(error);

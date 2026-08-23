@@ -65,6 +65,19 @@ export function normalizeUserRole(rawRole?: string | null): UserPortalRole {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Immediately bypass all static files, assets, manifests, icons, images, and API routes
+  if (
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/uploads") ||
+    pathname.startsWith("/branding") ||
+    pathname.startsWith("/images") ||
+    pathname === "/site.webmanifest" ||
+    pathname.includes(".")
+  ) {
+    return NextResponse.next();
+  }
+
   const rawRole =
     request.cookies.get("p2p_user_role")?.value ||
     request.cookies.get("pay2pay_user_role")?.value ||

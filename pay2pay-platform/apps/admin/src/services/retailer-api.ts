@@ -60,7 +60,7 @@ apiClient.interceptors.response.use(
           } catch {}
 
           const currentPath = window.location.pathname;
-          window.location.replace(`/retailer/login?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
+          window.location.replace(`/login?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
         }
       }
     }

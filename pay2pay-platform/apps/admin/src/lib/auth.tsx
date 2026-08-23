@@ -123,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             useTransactionMemoryStore.getState().setSelectedCustomer(null);
           } catch {}
           if (!window.location.pathname.includes("/login")) {
-            window.location.replace("/retailer/login?reason=session_terminated");
+            window.location.replace("/login?reason=session_terminated");
           }
         }
       };
@@ -262,9 +262,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // F. Direct fail-closed redirect to login
     if (typeof window !== "undefined") {
-      window.location.replace("/retailer/login");
+      window.location.replace("/login");
     } else {
-      router.replace("/retailer/login");
+      router.replace("/login");
     }
   };
 
