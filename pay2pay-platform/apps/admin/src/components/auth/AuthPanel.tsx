@@ -599,22 +599,23 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       : "";
 
   return (
-    <div className={`relative w-full h-screen max-h-screen overflow-hidden flex flex-col justify-between select-none transition-colors duration-300 ${
+    <div className={`relative w-full min-h-screen flex flex-col justify-between select-none transition-colors duration-300 ${
       darkMode ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"
     }`}>
       {showConfetti && <ConfettiBurst />}
 
       {/* ── Outer Padding Wrapper ── */}
-      <div className="flex flex-col flex-1 justify-between px-4 py-2 sm:px-6 sm:py-3 lg:px-7 lg:py-3 max-w-md mx-auto w-full h-full overflow-hidden relative z-10">
+      <div className="flex flex-col flex-1 justify-between px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-6 max-w-lg mx-auto w-full relative z-10">
 
         {/* ─── Mobile Top Header ─── */}
-        <div className={`lg:hidden flex items-center justify-between mb-5 pb-4 border-b ${
+        <div className={`lg:hidden flex items-center justify-between mb-4 pb-3 border-b ${
           darkMode ? "border-slate-800" : "border-slate-200"
         }`}>
           <div className="flex items-center gap-3">
-            <img
+            <BlurImage
               src="/branding/pay2pay-logo.png"
               alt="Pay2Pay"
+              blurhash={KNOWN_BLURHASHES.PAY2PAY_LOGO}
               className="w-10 h-10 rounded-xl object-contain border border-amber-500/30 shadow-md"
             />
             <div>
@@ -654,7 +655,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         </div>
 
         {/* ─── Desktop Top Bar ─── */}
-        <div className="hidden lg:flex items-center justify-between mb-6 2xl:mb-8">
+        <div className="hidden lg:flex items-center justify-between mb-4 2xl:mb-6">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/20 border border-blue-500/30">
               <Shield className="w-4 h-4 text-blue-500" />
@@ -699,12 +700,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           variants={glassPanelVariants}
           initial="hidden"
           animate="visible"
-          className={`my-auto w-full rounded-3xl transition-all duration-300 relative overflow-y-auto max-h-[85vh] scrollbar-none backdrop-blur-2xl ${
+          className={`my-auto w-full rounded-[28px] transition-all duration-300 relative backdrop-blur-2xl ${
             darkMode
               ? "bg-slate-900/90 border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] text-white"
-              : "bg-white/90 border border-slate-200/90 shadow-[0_20px_50px_rgba(0,0,0,0.08)] text-slate-900"
+              : "bg-white/95 border border-slate-200/90 shadow-[0_20px_50px_rgba(0,0,0,0.08)] text-slate-900"
           }`}
-          style={{ padding: "clamp(1.25rem, 3vw, 1.75rem)" }}
+          style={{ padding: "clamp(1.25rem, 3vw, 2rem)" }}
         >
           {/* Top Specular Reflection Sheen */}
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/30 to-transparent pointer-events-none" />

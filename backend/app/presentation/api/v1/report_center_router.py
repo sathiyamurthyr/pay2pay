@@ -750,18 +750,17 @@ async def export_report(
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow([
-            "S.No", "Date & Time", "Transaction ID", "Reference ID", "Customer",
-            "Beneficiary", "Bank", "Account", "IFSC", "Mode", "Amount", "Charges",
-            "GST", "Wallet Debit", "Commission", "TDS", "UTR", "Status", "Retailer"
+            "S.No", "Date & Time", "Transaction ID", "Reference ID", "Retailer",
+            "API Vendor", "Amount", "GST", "Charges", "Wallet Debit",
+            "Commission", "TDS", "UTR", "Status"
         ])
         for it in items:
             writer.writerow([
                 it.get("s_no"), it.get("initiated_at"), it.get("transaction_number"), it.get("reference_id"),
-                it.get("customer_name"), it.get("beneficiary_name"), it.get("bank_name"),
-                it.get("masked_account_number"), it.get("ifsc_code"), it.get("payment_mode"),
-                it.get("transfer_amount"), it.get("charges"), it.get("gst_amount"),
+                it.get("retailer_name"), it.get("vendor_name"),
+                it.get("transfer_amount"), it.get("gst_amount"), it.get("charges"),
                 it.get("wallet_debit"), it.get("commission"), it.get("tds_amount"),
-                it.get("utr_number"), it.get("status"), it.get("retailer_name")
+                it.get("utr_number"), it.get("status")
             ])
         output.seek(0)
         return StreamingResponse(

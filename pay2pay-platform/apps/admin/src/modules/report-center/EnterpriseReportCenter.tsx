@@ -84,14 +84,14 @@ export interface GridItem {
   reference_id: string;
   initiated_at: string | null;
   completed_at: string | null;
-  customer_name: string;
-  customer_mobile: string;
-  beneficiary_name: string;
-  beneficiary_mobile: string;
-  bank_name: string;
-  masked_account_number: string;
-  ifsc_code: string;
-  payment_mode: string;
+  customer_name?: string;
+  customer_mobile?: string;
+  beneficiary_name?: string;
+  beneficiary_mobile?: string;
+  bank_name?: string;
+  masked_account_number?: string;
+  ifsc_code?: string;
+  payment_mode?: string;
   transfer_amount: number;
   charges: number;
   gst_amount: number;
@@ -99,7 +99,9 @@ export interface GridItem {
   commission: number;
   tds_amount: number;
   utr_number: string;
-  vendor_reference: string;
+  vendor_reference?: string;
+  vendor_name?: string;
+  retailer_name?: string;
   status: string;
   is_reversed: boolean;
 }
@@ -829,7 +831,7 @@ export const EnterpriseReportCenter: React.FC = () => {
               fullWidth
               autoFocus
               size="small"
-              placeholder="Search ID, Ref, UTR, Customer, Mobile, Account..."
+              placeholder="Search ID, Ref, UTR, Retailer, Vendor, Mobile..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -1106,9 +1108,10 @@ export const EnterpriseReportCenter: React.FC = () => {
                 <TableCell style={{ position: "sticky", left: 0, zIndex: 5, backgroundColor: "#1E293B", width: 50 }}>S.No</TableCell>
                 <TableCell style={{ position: "sticky", left: 50, zIndex: 5, backgroundColor: "#1E293B", minWidth: 150 }}>Date & Time</TableCell>
                 <TableCell style={{ position: "sticky", left: 200, zIndex: 5, backgroundColor: "#1E293B", minWidth: 160 }}>Transaction ID</TableCell>
-                <TableCell sx={{ minWidth: 160 }}>Customer</TableCell>
-                <TableCell sx={{ minWidth: 160 }}>Beneficiary</TableCell>
-                <TableCell sx={{ minWidth: 140, textAlign: "right" }}>Amount</TableCell>
+                <TableCell sx={{ minWidth: 160 }}>Retailer</TableCell>
+                <TableCell sx={{ minWidth: 140 }}>API Vendor</TableCell>
+                <TableCell sx={{ minWidth: 130, textAlign: "right" }}>Amount</TableCell>
+                <TableCell sx={{ minWidth: 110, textAlign: "right" }}>GST</TableCell>
                 <TableCell sx={{ minWidth: 110 }}>Status</TableCell>
                 <TableCell sx={{ minWidth: 140 }}>UTR</TableCell>
                 <TableCell sx={{ minWidth: 80, textAlign: "center" }}>Actions</TableCell>
@@ -1121,14 +1124,14 @@ export const EnterpriseReportCenter: React.FC = () => {
                     <TableCell style={{ position: "sticky", left: 0, backgroundColor: "#0F172A" }}><Skeleton variant="text" width={25} height={20} /></TableCell>
                     <TableCell style={{ position: "sticky", left: 50, backgroundColor: "#0F172A" }}><Skeleton variant="text" width={110} height={20} /></TableCell>
                     <TableCell style={{ position: "sticky", left: 200, backgroundColor: "#0F172A" }}><Skeleton variant="text" width={120} height={20} /></TableCell>
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 7 }).map((_, j) => (
                       <TableCell key={j}><Skeleton variant="text" height={20} /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} sx={{ textAlign: "center", py: 8 }}>
+                  <TableCell colSpan={10} sx={{ textAlign: "center", py: 8 }}>
                     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                       <SearchIcon sx={{ fontSize: 40, color: "#64748B" }} />
                       <Typography variant="h3" sx={{ fontWeight: 800, color: "#94A3B8", fontSize: "18px" }}>
@@ -1170,19 +1173,44 @@ export const EnterpriseReportCenter: React.FC = () => {
                       </Stack>
                     </TableCell>
 
+                    {/* RETAILER */}
                     <TableCell sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "14px" }}>
-                      {row.customer_name}
-                      <Typography variant="caption" sx={{ display: "block", color: "#94A3B8", fontSize: "12px" }}>{row.customer_mobile}</Typography>
+                      {row.retailer_name || "--"}
                     </TableCell>
-                    <TableCell sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "14px" }}>
-                      {row.beneficiary_name}
-                      <Typography variant="caption" sx={{ display: "block", color: "#60A5FA", fontSize: "12px" }}>{row.masked_account_number}</Typography>
+
+                    {/* API VENDOR */}
+                    <TableCell sx={{ color: "#C084FC", fontWeight: 700, fontSize: "13px" }}>
+                      <Chip
+                        label={row.vendor_name || "PAY2PAY"}
+                        size="small"
+                        sx={{
+                          bgcolor: "rgba(147, 51, 234, 0.15)",
+                          color: "#C084FC",
+                          border: "1px solid rgba(192, 132, 252, 0.3)",
+                          fontWeight: 700,
+                          fontSize: "12px",
+                          height: 24,
+                        }}
+                      />
                     </TableCell>
+
+                    {/* AMOUNT */}
                     <TableCell sx={{ textAlign: "right", color: "#4ADE80", fontWeight: 800, fontSize: "15px" }}>
                       ₹{row.transfer_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </TableCell>
+
+                    {/* GST */}
+                    <TableCell sx={{ textAlign: "right", color: "#FCD34D", fontWeight: 700, fontSize: "14px" }}>
+                      ₹{(row.gst_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </TableCell>
+
+                    {/* STATUS */}
                     <TableCell>{renderStatusBadge(row.status)}</TableCell>
+
+                    {/* UTR */}
                     <TableCell sx={{ color: "#CBD5E1", fontSize: "13px" }}>{row.utr_number}</TableCell>
+
+                    {/* ACTIONS */}
                     <TableCell sx={{ textAlign: "center" }}>
                       <Tooltip title="View Full Details, Share & Support">
                         <IconButton
@@ -1301,9 +1329,27 @@ export const EnterpriseReportCenter: React.FC = () => {
 
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 6 }}>
+                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Retailer Name</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
+                      {selectedItem.transaction_details?.retailer_name || selectedItem.retailer_name || "--"}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>API Vendor</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 800, color: "#C084FC" }}>
+                      {selectedItem.transaction_details?.vendor_name || selectedItem.vendor_name || "PAY2PAY"}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" sx={{ color: "#94A3B8" }}>Transfer Amount</Typography>
                     <Typography variant="h6" sx={{ fontWeight: 800, color: "#4ADE80" }}>
                       ₹{(selectedItem.amount_details?.transfer_amount || selectedItem.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>GST Amount (18%)</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#FCD34D" }}>
+                      ₹{(selectedItem.amount_details?.gst_amount || selectedItem.gst_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </Typography>
                   </Grid>
                   <Grid size={{ xs: 6 }}>
@@ -1322,6 +1368,12 @@ export const EnterpriseReportCenter: React.FC = () => {
                     <Typography variant="caption" sx={{ color: "#94A3B8" }}>UTR Number</Typography>
                     <Typography variant="body1" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
                       {selectedItem.transaction_details?.utr_number || selectedItem.utr_number || "--"}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="caption" sx={{ color: "#94A3B8" }}>Reference ID</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 700, color: "#CBD5E1", fontSize: "13px" }}>
+                      {selectedItem.transaction_details?.reference_id || selectedItem.reference_id || "--"}
                     </Typography>
                   </Grid>
                 </Grid>

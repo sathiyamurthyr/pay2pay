@@ -84,14 +84,14 @@ export interface GridItem {
   reference_id: string;
   initiated_at: string | null;
   completed_at: string | null;
-  customer_name: string;
-  customer_mobile: string;
-  beneficiary_name: string;
-  beneficiary_mobile: string;
-  bank_name: string;
-  masked_account_number: string;
-  ifsc_code: string;
-  payment_mode: string;
+  customer_name?: string;
+  customer_mobile?: string;
+  beneficiary_name?: string;
+  beneficiary_mobile?: string;
+  bank_name?: string;
+  masked_account_number?: string;
+  ifsc_code?: string;
+  payment_mode?: string;
   transfer_amount: number;
   charges: number;
   gst_amount: number;
@@ -99,9 +99,13 @@ export interface GridItem {
   commission: number;
   tds_amount: number;
   utr_number: string;
-  vendor_reference: string;
+  vendor_reference?: string;
+  vendor_name?: string;
+  retailer_name?: string;
   status: string;
   is_reversed: boolean;
+}
+
 const getActiveRetailerId = () => {
   if (typeof window !== "undefined") {
     return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
