@@ -632,21 +632,18 @@ export const retailerApi = {
   },
 
   searchPayoutCustomer: async (query: string): Promise<{ status: string; data: any[]; message?: string }> => {
-    // Purge any stale mock data in browser storage
+    // Purge any legacy cached data
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("pay2pay_registered_customers");
-        if (stored && (stored.includes("Verified Payout Customer") || stored.includes("CUST-65374") || stored.includes("CUST-7374") || stored.includes("9884465374") || stored.includes("9884467374"))) {
-          localStorage.removeItem("pay2pay_registered_customers");
-        }
-        const memStored = localStorage.getItem("pay2pay_transaction_memory");
-        if (memStored && (memStored.includes("Verified Payout Customer") || memStored.includes("CUST-65374") || memStored.includes("CUST-7374") || memStored.includes("9884465374") || memStored.includes("9884467374"))) {
-          localStorage.removeItem("pay2pay_transaction_memory");
-        }
+        localStorage.removeItem("pay2pay_registered_customers");
+        localStorage.removeItem("pay2pay_transaction_memory");
       } catch {}
     }
 
     const trimmedQuery = (query || "").trim();
+    if (!trimmedQuery) {
+      return { status: "SUCCESS", data: [] };
+    }
 
     // Normalize query if phone digits/formatting detected
     const cleanDigits = trimmedQuery.replace(/[\s\-\(\)\.\+]/g, "").replace(/\D/g, "");
@@ -687,42 +684,15 @@ export const retailerApi = {
   },
 
   registerPayoutCustomer: async (payload: { first_name: string; last_name: string; mobile_number: string; email?: string; gender?: string }) => {
-    let customerData: any = null;
     try {
       const res = await apiClient.post("/payout-workflow/customers/register", payload);
-      customerData = res.data?.data || res.data;
-    } catch {
-      customerData = {
-        public_id: `cust-${Date.now()}`,
-        customer_number: `CUST${Math.floor(100000 + Math.random() * 900000)}`,
-        full_name: `${payload.first_name} ${payload.last_name}`.trim(),
-        first_name: payload.first_name,
-        last_name: payload.last_name,
-        mobile_number: payload.mobile_number,
-        kyc_status: "APPROVED",
-        kyc_level: "FULL_KYC",
-        risk_score: 10,
-        monthly_limit: 200000.0,
-        monthly_used: 0.0,
-        monthly_remaining: 200000.0,
-        aadhaar_status: "VERIFIED",
-        pan_status: "VERIFIED",
-        pin_status: "SET",
-        onboarding_complete: true,
-        message: "Customer registered successfully"
-      };
+      const customerData = res.data?.data || res.data;
+      return { status: "SUCCESS", data: customerData };
+    } catch (err: any) {
+      console.error("registerPayoutCustomer API error:", err);
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || "Failed to register customer";
+      return { status: "FAILED", message: msg, error: msg };
     }
-
-    if (typeof window !== "undefined" && customerData && payload.mobile_number) {
-      try {
-        const key = "pay2pay_registered_customers";
-        const existing = JSON.parse(localStorage.getItem(key) || "[]");
-        const deduped = existing.filter((c: any) => c.mobile_number !== payload.mobile_number);
-        localStorage.setItem(key, JSON.stringify([customerData, ...deduped]));
-      } catch { /* ignore */ }
-    }
-
-    return { status: "SUCCESS", data: customerData };
   },
 
   generateMobileOtp: async (mobile_number: string, channel: string = "SMS") => {

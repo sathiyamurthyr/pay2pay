@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 export interface TransactionMemoryContext {
   activeModule: "dmt" | "card_to_cash" | "aeps" | "upi" | "wallet";
@@ -31,30 +30,24 @@ const initialContext: TransactionMemoryContext = {
   referrerUrl: "/retailer/dmt",
 };
 
-export const useTransactionMemoryStore = create<TransactionMemoryState>()(
-  persist(
-    (set) => ({
-      ...initialContext,
+// Pure in-memory Zustand store: ZERO localStorage, ZERO cookies, ZERO sessionStorage persistence
+export const useTransactionMemoryStore = create<TransactionMemoryState>((set) => ({
+  ...initialContext,
 
-      setTransactionContext: (context) =>
-        set((state) => ({ ...state, ...context })),
+  setTransactionContext: (context) =>
+    set((state) => ({ ...state, ...context })),
 
-      setReferrerUrl: (url) => set(() => ({ referrerUrl: url })),
+  setReferrerUrl: (url) => set(() => ({ referrerUrl: url })),
 
-      setSelectedCustomer: (customer) =>
-        set(() => ({ selectedCustomer: customer, selectedBeneficiary: null })),
+  setSelectedCustomer: (customer) =>
+    set(() => ({ selectedCustomer: customer, selectedBeneficiary: null })),
 
-      setSelectedBeneficiary: (beneficiary) =>
-        set(() => ({ selectedBeneficiary: beneficiary })),
+  setSelectedBeneficiary: (beneficiary) =>
+    set(() => ({ selectedBeneficiary: beneficiary })),
 
-      setAmount: (amount) => set(() => ({ amount })),
+  setAmount: (amount) => set(() => ({ amount })),
 
-      setTransferMode: (mode) => set(() => ({ transferMode: mode })),
+  setTransferMode: (mode) => set(() => ({ transferMode: mode })),
 
-      clearTransactionContext: () => set(() => ({ ...initialContext })),
-    }),
-    {
-      name: "pay2pay_transaction_memory",
-    }
-  )
-);
+  clearTransactionContext: () => set(() => ({ ...initialContext })),
+}));

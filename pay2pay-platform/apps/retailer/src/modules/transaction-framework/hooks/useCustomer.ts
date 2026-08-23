@@ -22,75 +22,42 @@ export interface CustomerData {
 }
 
 export function useCustomer() {
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const memCust = useTransactionMemoryStore.getState().selectedCustomer;
-      if (!memCust) return null;
-      if (
-        memCust.name?.includes("Verified Payout Customer") ||
-        memCust.full_name?.includes("Verified Payout Customer") ||
-        memCust.customerCode === "CUST-65374" ||
-        memCust.customerCode === "CUST-7374" ||
-        memCust.customer_number === "CUST-65374" ||
-        memCust.customer_number === "CUST-7374" ||
-        memCust.mobile === "9884465374" ||
-        memCust.mobile === "9884467374" ||
-        memCust.mobile_number === "9884465374" ||
-        memCust.mobile_number === "9884467374"
-      ) {
-        useTransactionMemoryStore.getState().setSelectedCustomer(null);
-        try {
-          localStorage.removeItem("pay2pay_transaction_memory");
-          localStorage.removeItem("pay2pay_registered_customers");
-        } catch {}
-        return null;
-      }
-      return {
-        id: memCust.id || memCust.public_id || `CUST-${memCust.mobile_number?.slice(-4) || memCust.mobile?.slice(-4) || "0000"}`,
-        customerCode: memCust.customerCode || memCust.customer_code || memCust.customer_number || `CUST-${memCust.mobile || memCust.mobile_number || "0245"}`,
-        name: memCust.name || memCust.full_name || "Customer",
-        mobile: memCust.mobile || memCust.mobile_number || "",
-        kycStatus: memCust.kycStatus === "APPROVED" || memCust.kycStatus === "VERIFIED" || memCust.kyc_status === "VERIFIED" ? "VERIFIED" : "VERIFIED",
-        dailyLimitRemaining: Number(memCust.dailyLimitRemaining ?? memCust.daily_remaining ?? 25000),
-        monthlyLimitRemaining: Number(memCust.monthlyLimitRemaining ?? memCust.monthly_remaining ?? 200000),
-        preferredBank: memCust.preferredBank || memCust.bank_name || "HDFC Bank",
-        riskRating: memCust.riskRating || "LOW",
-        walletBalance: Number(useRetailerStore.getState().wallet.mainBalance),
-        relationshipManager: memCust.relationshipManager || "Vikram Singh",
-      };
-    } catch {
-      return null;
-    }
-  });
+  // Pure in-memory state: always start with null customer on load
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [hasSearched, setHasSearched] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return Boolean(useTransactionMemoryStore.getState().selectedCustomer);
-    } catch {
-      return false;
-    }
-  });
+  const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Clear any legacy storage artifacts on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("pay2pay_transaction_memory");
+        localStorage.removeItem("pay2pay_registered_customers");
+        sessionStorage.removeItem("pay2pay_transaction_memory");
+        sessionStorage.removeItem("pay2pay_registered_customers");
+      } catch {}
+    }
+  }, []);
 
   const searchCustomer = useCallback(async (query: string) => {
     const trimmedQuery = query ? query.trim() : "";
-    if (!trimmedQuery) return;
+    if (!trimmedQuery) {
+      setSelectedCustomer(null);
+      setHasSearched(false);
+      setError(null);
+      return;
+    }
 
     setIsSearching(true);
     setHasSearched(true);
     setError(null);
 
     try {
-      // 1. Execute API search call to retailerApi.searchPayoutCustomer
+      // Execute live API search directly against PostgreSQL backend
       const searchRes = await retailerApi.searchPayoutCustomer(trimmedQuery);
-      
       const customers = searchRes && Array.isArray(searchRes.data) ? searchRes.data : [];
 
-      console.log("customers match count:", customers.length);
-
-      // Explicit array length checks only
       if (customers.length > 0) {
         const c = customers[0];
         const custData: CustomerData = {
@@ -109,8 +76,8 @@ export function useCustomer() {
         setSelectedCustomer(custData);
         useTransactionMemoryStore.getState().setSelectedCustomer(custData);
         setError(null);
-      } else if (customers.length === 0) {
-        // Hide customer details card & trigger Customer NotFound empty state card
+      } else {
+        // Customer not found in database: show empty state card
         setSelectedCustomer(null);
         useTransactionMemoryStore.getState().setSelectedCustomer(null);
         setError("Customer Not Found");
@@ -127,20 +94,10 @@ export function useCustomer() {
 
   const resetCustomer = useCallback(() => {
     setSelectedCustomer(null);
+    useTransactionMemoryStore.getState().setSelectedCustomer(null);
     setHasSearched(false);
     setError(null);
   }, []);
-
-  // Auto-search customer query set by registration flow without exposing PII in URL
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const autoQuery = sessionStorage.getItem("autoSearchQuery");
-      if (autoQuery) {
-        sessionStorage.removeItem("autoSearchQuery"); // Clear temporary PII immediately
-        searchCustomer(autoQuery);
-      }
-    }
-  }, [searchCustomer]);
 
   return { selectedCustomer, isSearching, hasSearched, error, searchCustomer, resetCustomer, setSelectedCustomer };
 }
