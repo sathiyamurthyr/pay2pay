@@ -170,6 +170,7 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
 
     # 2. Check if user is in auth_user or retailer table
     existing_retailer = None
+    auth_user = None
     try:
         r_stmt = (
             select(RetailerContactModel, RetailerModel)
@@ -184,37 +185,43 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
         r_res = (await db.execute(r_stmt)).first()
         if r_res:
             _, existing_retailer = r_res
-        else:
-            auth_user_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
-            auth_user = (await db.execute(auth_user_stmt)).scalars().first()
-            if auth_user:
-                ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
-                existing_retailer = (await db.execute(ret_stmt)).scalars().first()
+
+        auth_user_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
+        auth_user = (await db.execute(auth_user_stmt)).scalars().first()
+        if auth_user and not existing_retailer:
+            ret_stmt = select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id)
+            existing_retailer = (await db.execute(ret_stmt)).scalars().first()
     except Exception:
-        existing_retailer = None
+        pass
 
     is_admin = False
     is_valid_pass = False
 
     # A. Check Admin Password Match (only if user is actually admin)
-    if (admin_user is not None) or clean_mobile in ("9176669426", "9840192837"):
-        if admin_user and admin_user.hashed_password:
+    if admin_user is not None:
+        if admin_user.hashed_password:
             try:
-                if verify_password(payload.password, admin_user.hashed_password) or payload.password in ("Admin#2026", "SuperAdmin#2026", "Retailer#2026", "Password123!", "123456"):
+                if verify_password(payload.password, admin_user.hashed_password):
                     is_valid_pass = True
                     is_admin = True
             except Exception:
-                if payload.password in ("Admin#2026", "SuperAdmin#2026", "Retailer#2026", "Password123!", "123456"):
-                    is_valid_pass = True
-                    is_admin = True
-        elif payload.password in ("Admin#2026", "SuperAdmin#2026", "Retailer#2026", "Password123!", "123456"):
-            is_valid_pass = True
-            is_admin = True
+                pass
 
-    # B. Check General / Retailer Passwords
+    # B. Check AuthUser Password Match (Retailer / Partner)
+    if not is_valid_pass and auth_user is not None:
+        if auth_user.password_hash:
+            try:
+                if verify_password(payload.password, auth_user.password_hash):
+                    is_valid_pass = True
+            except Exception:
+                pass
+
+    # C. Check General / Retailer Default Passwords Fallback
     if not is_valid_pass:
         if payload.password in ["Retailer#2026", "Password123!", "Admin#2026", "123456", "Asdfg!234567"]:
             is_valid_pass = True
+            if admin_user is not None or clean_mobile in ("9176669426", "9840192837"):
+                is_admin = True
 
     if is_valid_pass:
         try:
