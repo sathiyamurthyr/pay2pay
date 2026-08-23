@@ -16,10 +16,6 @@ from app.infrastructure.db.session_security_models import (
 
 router = APIRouter(prefix="", tags=["Security & Screen Lock Authentication"])
 
-# Default Dev/Seed PIN for testing: "4827"
-DEFAULT_DEV_PIN = "4827"
-DEFAULT_DEV_PIN_HASH = hash_password(DEFAULT_DEV_PIN)
-
 SETTINGS_STORE: Dict[str, Dict[str, Any]] = {}
 
 # ------------------------------------------------------------------------------
@@ -87,8 +83,8 @@ async def get_or_create_user_security_settings(
             tenant_id=tenant_id,
             company_id=company_id,
             portal=portal,
-            security_pin_hash=DEFAULT_DEV_PIN_HASH,
-            pin_enabled=True,
+            security_pin_hash=None,
+            pin_enabled=False,
             failed_attempt_count=0
         )
         db.add(sec)

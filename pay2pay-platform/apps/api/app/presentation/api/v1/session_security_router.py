@@ -16,16 +16,17 @@ from app.infrastructure.db.session_security_models import (
 
 router = APIRouter(prefix="", tags=["Security & Screen Lock Authentication"])
 
-# Default Dev/Seed PIN for testing: "4827"
-DEFAULT_DEV_PIN = "4827"
-DEFAULT_DEV_PIN_HASH = hash_password(DEFAULT_DEV_PIN)
+SETTINGS_STORE: Dict[str, Dict[str, Any]] = {}
 
 # ------------------------------------------------------------------------------
 # Pydantic Schemas
 # ------------------------------------------------------------------------------
 
 class UnlockPinRequest(BaseModel):
-    pin: str = Field(..., min_length=4, max_length=4, description="Exactly 4-digit security PIN")
+    pin: Optional[str] = None
+    mpin: Optional[str] = None
+    retailer_id: Optional[str] = None
+    tenant_id: Optional[str] = None
     device_info: Optional[str] = None
     browser: Optional[str] = None
     os_name: Optional[str] = None
@@ -36,13 +37,21 @@ class PinSetupRequest(BaseModel):
     confirm_pin: str = Field(..., min_length=4, max_length=4, description="Confirm 4-digit security PIN")
 
 class SecuritySettingsUpdateRequest(BaseModel):
+    retailer_id: Optional[str] = None
+    tenant_id: Optional[str] = None
+    theme_mode: Optional[str] = Field("AUTO", description="AUTO | LIGHT | DARK")
+    timezone: Optional[str] = Field("Asia/Kolkata", description="Configured Retailer Timezone")
     auto_lock_enabled: bool = True
     idle_timeout_minutes: int = Field(1, ge=0, le=60)
     warning_seconds: int = Field(30, ge=10, le=60)
     lock_on_minimize: bool = True
     lock_on_sleep: bool = True
+    biometric_enabled: Optional[bool] = None
+
 
 class SessionAuditRequest(BaseModel):
+    retailer_id: Optional[str] = None
+    tenant_id: Optional[str] = None
     event_type: str = Field(..., description="SESSION_LOCKED | TIMEOUT_WARNING | UNLOCK_SUCCESS | UNLOCK_FAILED | LOGOUT")
     device_info: Optional[str] = None
     browser: Optional[str] = None
@@ -74,8 +83,8 @@ async def get_or_create_user_security_settings(
             tenant_id=tenant_id,
             company_id=company_id,
             portal=portal,
-            security_pin_hash=DEFAULT_DEV_PIN_HASH,
-            pin_enabled=True,
+            security_pin_hash=None,
+            pin_enabled=False,
             failed_attempt_count=0
         )
         db.add(sec)
