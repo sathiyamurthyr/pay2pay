@@ -216,6 +216,11 @@ export const Step8Bank: React.FC<Step8Props> = ({
           </label>
           <input
             type="text"
+            id="bank_account_number"
+            name="bank_account_number"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
             value={accountNumber}
             onChange={(e) => { setAccountNumber(e.target.value.replace(/\D/g, "")); setErrorMsg(""); }}
             placeholder="Enter 9-18 digit account number"
@@ -231,6 +236,13 @@ export const Step8Bank: React.FC<Step8Props> = ({
           </label>
           <input
             type="text"
+            id="ifsc_code"
+            name="ifsc_code"
+            inputMode="text"
+            autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             value={ifsc}
             onChange={(e) => { setIfsc(e.target.value.toUpperCase().slice(0, 11)); setErrorMsg(""); }}
             placeholder="e.g. SBIN0001234"
@@ -246,6 +258,13 @@ export const Step8Bank: React.FC<Step8Props> = ({
           </label>
           <input
             type="text"
+            id="account_holder_name"
+            name="account_holder_name"
+            inputMode="text"
+            autoComplete="name"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
             value={name}
             onChange={(e) => { setName(e.target.value.toUpperCase()); setErrorMsg(""); }}
             placeholder="Enter account holder name as per bank records"

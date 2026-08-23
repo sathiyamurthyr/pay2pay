@@ -1029,6 +1029,12 @@ export function BeneficiaryMasterSlideOver({
                     value={accHolder}
                     onChange={(e) => setAccHolder(e.target.value.toUpperCase())}
                     placeholder="e.g. SATHIYA MURTHY (Verified automatically via Penny Drop)"
+                    inputProps={{
+                      inputMode: "text",
+                      autoCapitalize: "characters",
+                      autoComplete: "name",
+                      spellCheck: false,
+                    }}
                   />
 
                   {/* DUPLICATE BENEFICIARY DETECTED STATUS ALERT */}

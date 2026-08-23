@@ -1083,6 +1083,10 @@ export function CustomerDetailsDrawer({
                       <label className="text-slate-500 block mb-1">Account Holder Name</label>
                       <input
                         type="text"
+                        inputMode="text"
+                        autoCapitalize="characters"
+                        autoComplete="name"
+                        spellCheck={false}
                         placeholder="e.g. Ramesh Sharma"
                         value={newBeneName}
                         onChange={(e) => setNewBeneName(e.target.value)}
