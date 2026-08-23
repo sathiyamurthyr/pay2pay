@@ -690,10 +690,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         </div>
 
         {/* ─── Main Auth Card ─── */}
-        <motion.div
-          variants={glassPanelVariants}
-          initial="hidden"
-          animate="visible"
+        <div
           className={`my-auto w-full rounded-[28px] transition-all duration-300 relative backdrop-blur-2xl ${
             darkMode
               ? "bg-slate-900/90 border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] text-white"
@@ -1170,7 +1167,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               {t.registerAccount}
             </Link>
           </div>
-        </motion.div>
+        </div>
 
         {/* ── Footer Links ── */}
         <div className={`mt-5 text-center space-y-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>

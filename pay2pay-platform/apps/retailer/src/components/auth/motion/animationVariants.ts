@@ -3,90 +3,90 @@ import { Variants } from "framer-motion";
 /**
  * Enterprise Framer Motion Variants
  * 60 FPS GPU-Accelerated Variants (Transforms & Opacity)
+ * Resilient for SSR, Fast Hydration & Reduced Motion
  */
 
 // 1. Page Load Background Fade
 export const pageLoadBackgroundVariants: Variants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 1 },
   visible: {
     opacity: 1,
-    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
+    transition: { duration: 0.5, ease: "easeOut" }
   }
 };
 
 // 2. Logo Scale & Spring
 export const logoSpringVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.8 },
+  hidden: { opacity: 1, scale: 1 },
   visible: {
     opacity: 1,
     scale: 1,
     transition: {
       type: "spring",
       stiffness: 260,
-      damping: 20,
-      delay: 0.1
+      damping: 20
     }
   }
 };
 
 // 3. Word Reveal Container
 export const wordContainerVariants: Variants = {
-  hidden: {},
+  hidden: { opacity: 1 },
   visible: {
+    opacity: 1,
     transition: {
-      staggerChildren: 0.12,
-      delayChildren: 0.2
+      staggerChildren: 0.08,
+      delayChildren: 0.1
     }
   }
 };
 
 // 4. Individual Word Reveal
 export const wordChildVariants: Variants = {
-  hidden: { opacity: 0, y: 20, filter: "blur(4px)" },
+  hidden: { opacity: 1, y: 0 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
-    transition: { duration: 0.5, ease: [0.25, 1, 0.5, 1] }
+    transition: { duration: 0.4, ease: "easeOut" }
   }
 };
 
 // 5. Fade Up Subtitle
 export const fadeUpVariants: Variants = {
-  hidden: { opacity: 0, y: 15 },
+  hidden: { opacity: 1, y: 0 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6, ease: "easeOut", delay: 0.45 }
+    transition: { duration: 0.4, ease: "easeOut" }
   }
 };
 
 // 6. Stagger Container for Cards & Benefits
 export const staggerContainerVariants: Variants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 1 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.5
+      staggerChildren: 0.05,
+      delayChildren: 0.1
     }
   }
 };
 
 // 7. Stagger Card Item
 export const staggerCardVariants: Variants = {
-  hidden: { opacity: 0, y: 24, scale: 0.96 },
+  hidden: { opacity: 1, y: 0, scale: 1 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] }
+    transition: { duration: 0.4, ease: "easeOut" }
   }
 };
 
 // 8. Infinite Vertical Floating Card Effect (-8px to +8px)
 export const floatingCardAnimation = (delay: number = 0) => ({
-  y: [-8, 8, -8],
+  y: [-4, 4, -4],
   transition: {
     duration: 5,
     repeat: Infinity,
@@ -130,15 +130,13 @@ export const shimmerVariants: Variants = {
 
 // 11. Glass Auth Panel Slide In (Right -> Left)
 export const glassPanelVariants: Variants = {
-  hidden: { opacity: 0, x: 50 },
+  hidden: { opacity: 1, x: 0 },
   visible: {
     opacity: 1,
     x: 0,
     transition: {
-      type: "spring",
-      stiffness: 180,
-      damping: 22,
-      delay: 0.2
+      duration: 0.4,
+      ease: "easeOut"
     }
   }
 };
