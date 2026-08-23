@@ -96,10 +96,6 @@ export const AppShellContent: React.FC<AppShellProps> = ({
           </Box>
         )}
       </Box>
-
-      {/* SESSION SECURITY MODALS */}
-      <SessionWarningDialog />
-      <SessionLockScreenOverlay />
     </>
   );
 };

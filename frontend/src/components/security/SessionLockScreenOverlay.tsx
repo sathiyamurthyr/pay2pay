@@ -235,14 +235,42 @@ export const SessionLockScreenOverlay: React.FC = () => {
     setPin(clean);
     setErrorMsg("");
     if (clean.length === 4) {
+      // Auto submit on 4th digit
       setTimeout(() => {
         handleUnlockSubmit();
       }, 80);
     }
   };
 
-  // Redirect to Login Page
+  // Redirect to Login Page / Switch Account
   const handleGoToLogin = () => {
+    try {
+      const cookiesToClear = [
+        "p2p_access_token",
+        "pay2pay_access_token",
+        "pay2pay_auth_token",
+        "p2p_user_role",
+        "pay2pay_user_role",
+      ];
+      cookiesToClear.forEach((cookieName) => {
+        document.cookie = `${cookieName}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      });
+      localStorage.removeItem("pay2pay_access_token");
+      localStorage.removeItem("pay2pay_auth_token");
+      localStorage.removeItem("p2p_session_locked");
+      localStorage.removeItem("p2p_session_locked_at");
+      localStorage.removeItem("p2p_session_last_active");
+      localStorage.removeItem("p2p_session_start_time");
+      localStorage.removeItem("pay2pay_user_data");
+      localStorage.removeItem("user_info");
+
+      if ("BroadcastChannel" in window) {
+        const channel = new BroadcastChannel("p2p_session_lock_channel");
+        channel.postMessage({ type: "BROADCAST_UNLOCK" });
+        channel.close();
+      }
+    } catch (e) {}
+
     try {
       const rawRole = localStorage.getItem("p2p_user_role") || "RETAILER";
       const portalConfig = resolvePortalRoute(rawRole);
@@ -253,6 +281,24 @@ export const SessionLockScreenOverlay: React.FC = () => {
   };
 
   const isLight = effectiveTheme === "light";
+
+  if (!isLocked) return null;
+
+  if (typeof window !== "undefined") {
+    const path = (window.location.pathname || "").toLowerCase();
+    const isAuthPage =
+      path.includes("/login") ||
+      path.includes("/register") ||
+      path.includes("/forgot") ||
+      path.includes("/reset-password") ||
+      path === "/";
+    const token =
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("pay2pay_access_token");
+    if (isAuthPage || !token) {
+      return null;
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 select-none overflow-y-auto animate-fade-in">

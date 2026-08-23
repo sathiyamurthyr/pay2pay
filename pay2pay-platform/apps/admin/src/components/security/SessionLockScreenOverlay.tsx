@@ -196,10 +196,10 @@ export const SessionLockScreenOverlay: React.FC = () => {
     hour12: true,
   });
 
-  // Dynamic Company & Admin/User Metadata from authenticated session
+  // Dynamic Company & Retailer Metadata from authenticated session
   const companyName = walletData?.company_name || "Pay2Pay Enterprise";
-  const userName = walletData?.owner_name || walletData?.retailer_name || "Admin Partner";
-  const userCode = walletData?.retailer_code || (walletData as any)?.user_code || "ADM-001";
+  const retailerName = walletData?.owner_name || walletData?.retailer_name || "Retailer Partner";
+  const retailerCode = walletData?.retailer_code || (walletData as any)?.user_code || "RET-9182";
   const currentWallpaper = CURATED_4K_WALLPAPERS[currentWallpaperIndex];
 
   // Handle PIN Unlock Submission
@@ -235,24 +235,70 @@ export const SessionLockScreenOverlay: React.FC = () => {
     setPin(clean);
     setErrorMsg("");
     if (clean.length === 4) {
+      // Auto submit on 4th digit
       setTimeout(() => {
         handleUnlockSubmit();
       }, 80);
     }
   };
 
-  // Redirect to Login Page
+  // Redirect to Login Page / Switch Account
   const handleGoToLogin = () => {
     try {
-      const rawRole = localStorage.getItem("p2p_user_role") || "ADMIN";
+      const cookiesToClear = [
+        "p2p_access_token",
+        "pay2pay_access_token",
+        "pay2pay_auth_token",
+        "p2p_user_role",
+        "pay2pay_user_role",
+      ];
+      cookiesToClear.forEach((cookieName) => {
+        document.cookie = `${cookieName}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      });
+      localStorage.removeItem("pay2pay_access_token");
+      localStorage.removeItem("pay2pay_auth_token");
+      localStorage.removeItem("p2p_session_locked");
+      localStorage.removeItem("p2p_session_locked_at");
+      localStorage.removeItem("p2p_session_last_active");
+      localStorage.removeItem("p2p_session_start_time");
+      localStorage.removeItem("pay2pay_user_data");
+      localStorage.removeItem("user_info");
+
+      if ("BroadcastChannel" in window) {
+        const channel = new BroadcastChannel("p2p_session_lock_channel");
+        channel.postMessage({ type: "BROADCAST_UNLOCK" });
+        channel.close();
+      }
+    } catch (e) {}
+
+    try {
+      const rawRole = localStorage.getItem("p2p_user_role") || "RETAILER";
       const portalConfig = resolvePortalRoute(rawRole);
       window.location.href = portalConfig.login;
     } catch (e) {
-      window.location.href = "/admin/login";
+      window.location.href = "/retailer/login";
     }
   };
 
   const isLight = effectiveTheme === "light";
+
+  if (!isLocked) return null;
+
+  if (typeof window !== "undefined") {
+    const path = (window.location.pathname || "").toLowerCase();
+    const isAuthPage =
+      path.includes("/login") ||
+      path.includes("/register") ||
+      path.includes("/forgot") ||
+      path.includes("/reset-password") ||
+      path === "/";
+    const token =
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("pay2pay_access_token");
+    if (isAuthPage || !token) {
+      return null;
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 select-none overflow-y-auto animate-fade-in">
@@ -330,11 +376,11 @@ export const SessionLockScreenOverlay: React.FC = () => {
             <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
           </h1>
           <p className={`text-[11px] font-semibold tracking-wide uppercase mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-            Enterprise Administration
+            Retailer Business Portal
           </p>
         </div>
 
-        {/* ── 5. USER INFORMATION BADGE ── */}
+        {/* ── 5. RETAILER INFORMATION BADGE ── */}
         <div
           className="rounded-2xl py-2.5 px-4 mb-4 max-w-[340px] mx-auto text-center flex items-center justify-center gap-3 transition-colors"
           style={{
@@ -343,14 +389,14 @@ export const SessionLockScreenOverlay: React.FC = () => {
           }}
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm">
-            {userName.charAt(0).toUpperCase()}
+            {retailerName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 text-left">
             <p className={`text-xs font-extrabold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
-              {userName}
+              {retailerName}
             </p>
             <p className={`text-[11px] font-mono font-bold tracking-wider ${isLight ? "text-blue-600" : "text-blue-400"}`}>
-              {userCode}
+              {retailerCode}
             </p>
           </div>
         </div>

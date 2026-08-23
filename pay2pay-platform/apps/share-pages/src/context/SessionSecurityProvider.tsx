@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import axios from "axios";
 import { SessionLockScreenOverlay } from "@/components/security/SessionLockScreenOverlay";
@@ -42,6 +44,36 @@ const DEFAULT_SETTINGS: SecuritySettings = {
   lock_on_minimize: false,
   lock_on_sleep: true,
   biometric_enabled: false,
+};
+
+export const hasAuthToken = (): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    const token =
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("pay2pay_access_token") ||
+      (document.cookie.includes("pay2pay_auth_token") ? "cookie_token" : "") ||
+      (document.cookie.includes("p2p_access_token") ? "cookie_token" : "");
+    return Boolean(token && token.trim() !== "");
+  } catch (e) {
+    return false;
+  }
+};
+
+export const isPublicAuthRoute = (): boolean => {
+  if (typeof window === "undefined") return true;
+  try {
+    const path = (window.location.pathname || "").toLowerCase();
+    return (
+      path.includes("/login") ||
+      path.includes("/register") ||
+      path.includes("/forgot") ||
+      path.includes("/reset-password") ||
+      path === "/"
+    );
+  } catch (e) {
+    return true;
+  }
 };
 
 const SessionSecurityContext = createContext<SessionSecurityContextType | undefined>(undefined);
@@ -104,6 +136,17 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
   // Initialize & Check Lock Persistence on Mount (Prevents Bypass via Refresh / URL Navigate)
   useEffect(() => {
     if (typeof window !== "undefined") {
+      // On public login/auth pages or if user has no token, NEVER lock
+      if (isPublicAuthRoute() || !hasAuthToken()) {
+        try {
+          localStorage.removeItem("p2p_session_locked");
+          localStorage.removeItem("p2p_session_locked_at");
+        } catch (e) {}
+        setSessionState("ACTIVE");
+        setLockedAt(null);
+        return;
+      }
+
       const now = Date.now();
       const sessionStart = Number(localStorage.getItem("p2p_session_start_time") || now);
 
@@ -143,8 +186,10 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
 
       channel.onmessage = (event) => {
         if (event.data?.type === "BROADCAST_LOCK") {
-          setSessionState("LOCKED");
-          setLockedAt(event.data?.lockedAt || Date.now());
+          if (!isPublicAuthRoute() && hasAuthToken()) {
+            setSessionState("LOCKED");
+            setLockedAt(event.data?.lockedAt || Date.now());
+          }
         } else if (event.data?.type === "BROADCAST_UNLOCK") {
           setSessionState("ACTIVE");
           setLockedAt(null);
@@ -197,226 +242,216 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
   // Tab Blur / Window Focus Timestamp Idle Check
   useEffect(() => {
     const checkIdleOnFocusOrVisibility = () => {
+      if (isPublicAuthRoute() || !hasAuthToken()) return;
       const now = Date.now();
-      const sessionStart = Number(localStorage.getItem("p2p_session_start_time") || now);
+      const savedLastActive = Number(localStorage.getItem("p2p_session_last_active") || lastActivityRef.current);
+      const elapsed = now - savedLastActive;
 
+      // Absolute 24h lifetime expiry
+      const sessionStart = Number(localStorage.getItem("p2p_session_start_time") || now);
       if (now - sessionStart >= MAX_SESSION_LIFETIME_MS) {
         terminateSessionAndRedirect("session_expired_24h");
         return;
       }
 
-      const savedLastActive = Number(localStorage.getItem("p2p_session_last_active") || lastActivityRef.current);
-      const elapsedMs = now - savedLastActive;
-
-      if (elapsedMs >= MAX_INACTIVITY_LOGOUT_MS) {
+      // Inactivity 15m logout
+      if (elapsed >= MAX_INACTIVITY_LOGOUT_MS) {
         terminateSessionAndRedirect("inactivity_timeout");
         return;
       }
 
+      // Auto-lock idle check
       const lockTimeoutMs = (securitySettings.idle_timeout_minutes || 5) * 60 * 1000;
-      if (localStorage.getItem("p2p_session_locked") === "true" || elapsedMs >= lockTimeoutMs) {
-        if (sessionState !== "LOCKED") {
-          lockSession();
-        }
+      if (elapsed >= lockTimeoutMs && sessionState !== "LOCKED") {
+        lockSession();
       }
     };
 
-    document.addEventListener("visibilitychange", checkIdleOnFocusOrVisibility);
     window.addEventListener("focus", checkIdleOnFocusOrVisibility);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        checkIdleOnFocusOrVisibility();
+      }
+    });
+
     return () => {
-      document.removeEventListener("visibilitychange", checkIdleOnFocusOrVisibility);
       window.removeEventListener("focus", checkIdleOnFocusOrVisibility);
     };
-  }, [sessionState, securitySettings]);
+  }, [securitySettings, sessionState]);
 
-  // Main Idle & Session Lifetime Poller
+  // Active Timer Tick for Idle Detection & 60s Warning Countdown
   useEffect(() => {
-    const checkInterval = setInterval(() => {
-      if (isProcessingTx) return;
+    if (isPublicAuthRoute() || !hasAuthToken()) return;
 
+    const interval = setInterval(() => {
       const now = Date.now();
-      const startTime = Number(localStorage.getItem("p2p_session_start_time") || now);
-      const totalSessionMs = now - startTime;
+      const sessionStart = Number(localStorage.getItem("p2p_session_start_time") || now);
 
-      // 1. Hard 24-Hour Session Lifetime Expiration
-      if (totalSessionMs >= MAX_SESSION_LIFETIME_MS) {
+      // Check 24 Hour Lifetime
+      if (now - sessionStart >= MAX_SESSION_LIFETIME_MS) {
         terminateSessionAndRedirect("session_expired_24h");
         return;
       }
 
-      // 2. 15-Minute Inactivity Auto-Logout
-      const savedLastActive = Number(localStorage.getItem("p2p_session_last_active") || lastActivityRef.current);
-      const idleMs = now - savedLastActive;
+      const elapsedMs = now - lastActivityRef.current;
+      const lockTimeoutMs = (securitySettings.idle_timeout_minutes || 5) * 60 * 1000;
 
-      if (idleMs >= MAX_INACTIVITY_LOGOUT_MS) {
-        terminateSessionAndRedirect("inactivity_timeout");
+      // Don't auto-lock if currently processing an active financial transaction
+      if (isProcessingTx) {
+        lastActivityRef.current = now;
         return;
       }
 
-      // 3. Screen Lock Trigger (Default 5 Minutes)
-      const lockTimeoutMs = (securitySettings.idle_timeout_minutes || 5) * 60 * 1000;
-      if (securitySettings.auto_lock_enabled && idleMs >= lockTimeoutMs && sessionState !== "LOCKED") {
-        lockSession();
-      }
-
-      // 4. Inactivity Warning Window (60s before 15-minute logout)
-      const warningStartMs = MAX_INACTIVITY_LOGOUT_MS - WARNING_LEAD_MS;
-      if (idleMs >= warningStartMs && sessionState !== "LOCKED") {
-        if (sessionState !== "WARNING") {
+      if (sessionState === "ACTIVE") {
+        // Check if within 60s warning window before auto-lock
+        if (securitySettings.auto_lock_enabled && elapsedMs >= lockTimeoutMs - WARNING_LEAD_MS) {
+          const remaining = Math.max(0, Math.ceil((lockTimeoutMs - elapsedMs) / 1000));
+          setRemainingWarningSeconds(remaining);
           setSessionState("WARNING");
           soundSystem.playWarningSound();
         }
-        const remaining = Math.max(0, Math.ceil((MAX_INACTIVITY_LOGOUT_MS - idleMs) / 1000));
+      } else if (sessionState === "WARNING") {
+        const remaining = Math.max(0, Math.ceil((lockTimeoutMs - elapsedMs) / 1000));
         setRemainingWarningSeconds(remaining);
+
+        if (elapsedMs >= lockTimeoutMs) {
+          lockSession();
+        }
       }
     }, 1000);
 
-    return () => clearInterval(checkInterval);
+    return () => clearInterval(interval);
   }, [sessionState, securitySettings, isProcessingTx]);
 
-  // Lock Session Action
+  // Explicit Lock Session Action
   const lockSession = () => {
-    const lockTime = Date.now();
+    if (isPublicAuthRoute() || !hasAuthToken()) return;
+
+    const now = Date.now();
     setSessionState("LOCKED");
-    setLockedAt(lockTime);
+    setLockedAt(now);
+
     try {
       localStorage.setItem("p2p_session_locked", "true");
-      localStorage.setItem("p2p_session_locked_at", String(lockTime));
+      localStorage.setItem("p2p_session_locked_at", String(now));
     } catch (e) {}
 
-    soundSystem.playLockChime();
-    logAuditEvent("SESSION_LOCKED");
+    soundSystem.playLockSound();
+    logAuditEvent("SESSION_LOCKED", { timestamp: now });
 
+    // Broadcast lock to other tabs
     if (broadcastChannelRef.current) {
-      broadcastChannelRef.current.postMessage({ type: "BROADCAST_LOCK", lockedAt: lockTime });
+      broadcastChannelRef.current.postMessage({ type: "BROADCAST_LOCK", lockedAt: now });
     }
   };
 
-  // Stay Active Action
+  // Stay Active / Dismiss Inactivity Warning
   const stayActive = () => {
+    handleUserActivity();
     setSessionState("ACTIVE");
-    setLockedAt(null);
-    const now = Date.now();
-    lastActivityRef.current = now;
-    try {
-      localStorage.removeItem("p2p_session_locked");
-      localStorage.setItem("p2p_session_last_active", String(now));
-    } catch (e) {}
+    soundSystem.playSuccessSound();
   };
 
-  // ── Database-Backed Backend PIN Verification ──
-  const unlockSession = async (pin?: string) => {
-    const inputPin = pin?.trim() || "";
-
-    // 1. Strict 4-digit format check
-    if (!/^\d{4}$/.test(inputPin)) {
-      soundSystem.playLoginFailure();
-      return { success: false, message: "PIN must be exactly 4 numeric digits." };
+  // Unlock Session using 4-digit PIN
+  const unlockSession = async (pin?: string): Promise<{ success: boolean; message?: string }> => {
+    if (!pin || pin.length < 4) {
+      return { success: false, message: "Please enter your valid 4-digit PIN." };
     }
 
     try {
-      let token: string | null = null;
-      if (typeof window !== "undefined") {
-        token =
-          localStorage.getItem("p2p_access_token") ||
-          localStorage.getItem("pay2pay_token") ||
-          localStorage.getItem("access_token") ||
-          localStorage.getItem("pay2pay_access_token") ||
-          localStorage.getItem("pay2pay_auth_token") ||
-          document.cookie
-            .split("; ")
-            .find((row) =>
-              row.startsWith("p2p_access_token=") ||
-              row.startsWith("pay2pay_auth_token=") ||
-              row.startsWith("pay2pay_access_token=") ||
-              row.startsWith("auth_token=")
-            )
-            ?.split("=")[1] ||
-          null;
-      }
-
       const baseUrl = getApiBaseUrl();
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("pay2pay_auth_token") || localStorage.getItem("pay2pay_access_token")
+          : null;
+
       const response = await axios.post(
-        `${baseUrl}/auth/security/unlock`,
-        {
-          pin: inputPin,
-          mpin: inputPin,
-          device_info: typeof navigator !== "undefined" ? `${navigator.platform} - ${navigator.userAgent}` : "Web Device",
-        },
+        `${baseUrl}/api/v1/auth/verify-pin`,
+        { pin },
         {
           headers: {
+            Authorization: token ? `Bearer ${token}` : "",
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           timeout: 8000,
         }
       );
 
-      if (response.data && (response.data.success === true || response.data.unlocked === true || response.data.status === "UNLOCKED")) {
+      if (response.data?.success || response.data?.valid || response.status === 200) {
         setSessionState("ACTIVE");
         setLockedAt(null);
-        soundSystem.playUnlockChime();
-        const now = Date.now();
-        lastActivityRef.current = now;
+        lastActivityRef.current = Date.now();
+
         try {
           localStorage.removeItem("p2p_session_locked");
           localStorage.removeItem("p2p_session_locked_at");
-          localStorage.setItem("p2p_session_last_active", String(now));
+          localStorage.setItem("p2p_session_last_active", String(Date.now()));
         } catch (e) {}
 
+        soundSystem.playUnlockSound();
+        logAuditEvent("SESSION_UNLOCKED", { method: "PIN" });
+
+        // Broadcast unlock to other tabs
         if (broadcastChannelRef.current) {
           broadcastChannelRef.current.postMessage({ type: "BROADCAST_UNLOCK" });
         }
 
         return { success: true };
-      }
-
-      soundSystem.playLoginFailure();
-      return {
-        success: false,
-        message: response.data?.message || response.data?.detail || "Invalid Security PIN. Please verify against your database registered PIN.",
-      };
-    } catch (err: any) {
-      soundSystem.playLoginFailure();
-      if (err.response?.status === 401 || err.response?.status === 400 || err.response?.status === 403) {
-        const serverMsg = err.response?.data?.detail || err.response?.data?.message;
-        return { success: false, message: serverMsg || "Incorrect Security PIN. Please enter your valid 4-digit PIN registered with your account." };
-      }
-
-      if (err.response?.status === 429) {
-        const serverMsg = err.response?.data?.detail || err.response?.data?.message;
+      } else {
+        soundSystem.playErrorSound();
         return {
           success: false,
-          message: serverMsg || "Too many unsuccessful attempts. Please try again later.",
+          message: response.data?.message || response.data?.detail || "Invalid security PIN. Please try again.",
         };
       }
-
-      return {
-        success: false,
-        message: err.response?.data?.detail || "Unable to reach database security service. Please try again.",
-      };
+    } catch (err: any) {
+      soundSystem.playErrorSound();
+      const errorMsg =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        "Incorrect security PIN. Access denied.";
+      return { success: false, message: errorMsg };
     }
   };
 
-  // Update Security Settings Action
+  // Update Security Settings
   const updateSettings = async (newSettings: Partial<SecuritySettings>) => {
     const updated = { ...securitySettings, ...newSettings };
     setSecuritySettings(updated);
-  };
 
-  // Log Audit Event Helper
-  const logAuditEvent = async (eventType: string, details?: any) => {
+    try {
+      localStorage.setItem("p2p_security_settings", JSON.stringify(updated));
+    } catch (e) {}
+
     try {
       const baseUrl = getApiBaseUrl();
-      await axios.post(`${baseUrl}/session/audit`, {
-        event_type: eventType,
-        device_info: `${navigator.platform} - ${navigator.userAgent}`,
-        details,
-      });
-    } catch (e) {
-      // Non-blocking audit log
-    }
+      const token = localStorage.getItem("pay2pay_auth_token");
+      if (token) {
+        await axios.put(`${baseUrl}/api/v1/users/me/security-settings`, updated, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch (e) {}
   };
+
+  // Audit Logging Helper
+  const logAuditEvent = (event_type: string, metadata: Record<string, any>) => {
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("pay2pay_auth_token") : null;
+      if (token) {
+        axios.post(
+          `${baseUrl}/api/v1/compliance/audit-logs`,
+          { event_type, metadata, timestamp: new Date().toISOString() },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => {});
+      }
+    } catch (e) {}
+  };
+
+  const isProtectedSessionLocked = sessionState === "LOCKED" && !isPublicAuthRoute() && hasAuthToken();
+  const isProtectedWarning = sessionState === "WARNING" && !isPublicAuthRoute() && hasAuthToken();
 
   return (
     <SessionSecurityContext.Provider
@@ -433,10 +468,10 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         setProcessingTx,
       }}
     >
-      {/* Background Page Layer — Blurred & Disabled when Locked */}
+      {/* Background Page Layer — Blurred & Disabled ONLY when Locked on protected authenticated route */}
       <div
         className={
-          sessionState === "LOCKED"
+          isProtectedSessionLocked
             ? "filter blur-xl pointer-events-none select-none transition-all duration-500"
             : "transition-all duration-300"
         }
@@ -444,11 +479,11 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         {children}
       </div>
 
-      {/* Security Lock Overlay — Rendered outside blur layer at z-index: 99999 */}
-      <SessionLockScreenOverlay />
+      {/* Security Lock Overlay — Rendered only on protected routes for authenticated sessions */}
+      {isProtectedSessionLocked && <SessionLockScreenOverlay />}
 
-      {/* Inactivity Security Warning Dialog — Rendered when 60s remain before 15m auto-logout */}
-      <SessionWarningDialog />
+      {/* Inactivity Security Warning Dialog — Rendered when 60s remain before auto-lock */}
+      {isProtectedWarning && <SessionWarningDialog />}
     </SessionSecurityContext.Provider>
   );
 };
