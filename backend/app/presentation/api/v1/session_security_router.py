@@ -3,20 +3,26 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select, and_, desc
+from sqlalchemy import select, and_, or_, desc, text
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password
 from app.application.dependencies import get_current_token_payload
 from app.infrastructure.db.models import AdminUserModel
+from app.infrastructure.db.customer_models import CustomerModel
+from app.infrastructure.db.auth_models import AuthUserModel
 from app.infrastructure.db.session_security_models import (
     SessionAuditLogModel, RetailerSecuritySettingsModel, UserSecuritySettingsModel
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="", tags=["Security & Screen Lock Authentication"])
 
 SETTINGS_STORE: Dict[str, Dict[str, Any]] = {}
+DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 # ------------------------------------------------------------------------------
 # Pydantic Schemas
@@ -64,14 +70,14 @@ class SessionAuditRequest(BaseModel):
 async def get_or_create_user_security_settings(
     db: AsyncSession,
     user_id: uuid.UUID,
-    tenant_id: uuid.UUID,
+    tenant_id: uuid.UUID = DEFAULT_TENANT_ID,
     company_id: Optional[uuid.UUID] = None,
     portal: str = "RETAILER"
 ) -> UserSecuritySettingsModel:
     stmt = select(UserSecuritySettingsModel).where(
         and_(
             UserSecuritySettingsModel.user_id == user_id,
-            UserSecuritySettingsModel.tenant_id == tenant_id
+            UserSecuritySettingsModel.portal == portal
         )
     )
     sec = (await db.execute(stmt)).scalars().first()
@@ -96,7 +102,6 @@ async def get_or_create_user_security_settings(
 
 import hmac
 import hashlib
-from sqlalchemy import text
 
 MPIN_SECRET_SALT = "PAY2PAY_ENTERPRISE_MPIN_SALT_KEY_v1_2026"
 
@@ -122,83 +127,99 @@ async def unlock_screen_session(
             detail="Security PIN must be exactly 4 numeric digits."
         )
 
-    verified = False
+    # 1. Resolve exact authenticated user context from token payload
+    user_sub = payload.get("sub")
+    user_role = payload.get("role", "RETAILER")
+    mobile = payload.get("mobile_number") or payload.get("mobile") or payload.get("phone")
+    clean_mobile = "".join(filter(str.isdigit, str(mobile)))[-10:] if mobile else None
 
-    # 1. Check against User Security Settings table in DB (Argon2 / PBKDF2 hash)
-    try:
-        user_sub = payload.get("sub")
-        sec_conds = [UserSecuritySettingsModel.portal == "RETAILER"]
-        if user_sub and user_sub != "default":
-            try:
-                uid = uuid.UUID(user_sub)
-                sec_conds.append(
-                    or_(
-                        UserSecuritySettingsModel.user_id == uid,
-                        UserSecuritySettingsModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000000")
-                    )
-                )
-            except Exception:
-                pass
-        
-        stmt_sec = select(UserSecuritySettingsModel).where(and_(*sec_conds))
-        sec_rows = (await db.execute(stmt_sec)).scalars().all()
-        for sec in sec_rows:
-            if sec.security_pin_hash:
-                try:
-                    if verify_password(clean_pin, sec.security_pin_hash):
-                        verified = True
-                        sec.failed_attempt_count = 0
-                        sec.last_pin_verified_at = datetime.now(timezone.utc)
-                        await db.commit()
-                        break
-                except Exception:
-                    pass
-    except Exception as e:
-        logger.debug(f"User security settings verify notice: {e}")
-
-    # 2. Check against Database Customer MPINs dynamically
-    if not verified:
+    uid: Optional[uuid.UUID] = None
+    if user_sub and user_sub != "default":
         try:
-            res = await db.execute(text("SELECT public_id, mpin_hash FROM customer WHERE mpin_hash IS NOT NULL LIMIT 100"))
-            customers = res.mappings().all()
-            for c in customers:
-                cid_str = str(c["public_id"])
-                target_hash = c["mpin_hash"]
-                if target_hash and _hash_mpin(clean_pin, cid_str) == target_hash:
-                    verified = True
-                    break
-        except Exception as e:
-            logger.debug(f"Customer MPIN DB lookup notice: {e}")
+            uid = uuid.UUID(str(user_sub))
+        except Exception:
+            uid = None
 
-    # 3. Check against Registration Draft retailer MPIN
-    if not verified:
-        try:
-            stmt_draft = select(RegistrationDraftModel).order_by(desc(RegistrationDraftModel.last_activity_at)).limit(10)
-            drafts = (await db.execute(stmt_draft)).scalars().all()
-            for d in drafts:
-                ddata = d.draft_data or {}
-                dhash = ddata.get("mpin_hash")
-                if dhash:
-                    ident_str = str(d.registration_id or "RETAILER_MPIN")
-                    if _hash_mpin(clean_pin, ident_str) == dhash or _hash_mpin(clean_pin, str(d.public_id)) == dhash:
-                        verified = True
-                        break
-        except Exception as e:
-            logger.debug(f"Draft MPIN DB lookup notice: {e}")
-
-    if not verified:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Incorrect Security PIN. Please enter your valid 4-digit PIN configured in database."
+    # 2. Strict User-Scoped Lookup in user_security_settings
+    user_sec: Optional[UserSecuritySettingsModel] = None
+    if uid:
+        stmt_sec = select(UserSecuritySettingsModel).where(
+            UserSecuritySettingsModel.user_id == uid,
+            UserSecuritySettingsModel.portal == user_role
         )
+        user_sec = (await db.execute(stmt_sec)).scalars().first()
 
-    return {
-        "status": "UNLOCKED",
-        "success": True,
-        "unlocked": True,
-        "message": "Session unlocked successfully.",
-        "verified_at": datetime.now(timezone.utc).isoformat()
-    }
+    if not user_sec and clean_mobile:
+        # Lookup user by mobile in auth_users to find exact user_id
+        auth_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number == clean_mobile)
+        auth_user = (await db.execute(auth_stmt)).scalars().first()
+        if auth_user and auth_user.user_id:
+            uid = auth_user.user_id
+            stmt_sec = select(UserSecuritySettingsModel).where(
+                UserSecuritySettingsModel.user_id == uid
+            )
+            user_sec = (await db.execute(stmt_sec)).scalars().first()
+
+    # Fallback to single active RETAILER security settings if user_id is generic
+    if not user_sec:
+        stmt_sec = select(UserSecuritySettingsModel).where(
+            UserSecuritySettingsModel.portal == "RETAILER"
+        ).order_by(desc(UserSecuritySettingsModel.created_date))
+        user_sec = (await db.execute(stmt_sec)).scalars().first()
+
+    # 3. If User Security Settings record exists with a PIN hash, verify strictly against THAT record
+    if user_sec and user_sec.security_pin_hash:
+        if verify_password(clean_pin, user_sec.security_pin_hash):
+            user_sec.failed_attempt_count = 0
+            user_sec.last_pin_verified_at = datetime.now(timezone.utc)
+            await db.commit()
+            return {
+                "status": "UNLOCKED",
+                "success": True,
+                "unlocked": True,
+                "message": "Session unlocked successfully.",
+                "verified_at": datetime.now(timezone.utc).isoformat()
+            }
+        else:
+            user_sec.failed_attempt_count = (user_sec.failed_attempt_count or 0) + 1
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Incorrect Security PIN. Please enter your valid 4-digit PIN."
+            )
+
+    # 4. If no hash in user_security_settings, check specific customer record for this retailer's mobile
+    if clean_mobile:
+        mobile_variants = [clean_mobile, f"91{clean_mobile}", f"+91{clean_mobile}"]
+        c_stmt = select(CustomerModel).where(CustomerModel.mobile_number.in_(mobile_variants))
+        cust = (await db.execute(c_stmt)).scalars().first()
+        if cust and cust.mpin_hash:
+            if _hash_mpin(clean_pin, str(cust.public_id)) == cust.mpin_hash or verify_password(clean_pin, cust.mpin_hash):
+                # Synchronize to user_security_settings so future unlocks are fast and Argon2-hashed
+                effective_uid = uid or uuid.UUID("1072b5d2-0fd1-4323-a02a-03809d58b005")
+                sec = await get_or_create_user_security_settings(db, effective_uid, DEFAULT_TENANT_ID, portal=user_role)
+                sec.security_pin_hash = hash_password(clean_pin)
+                sec.pin_enabled = True
+                sec.failed_attempt_count = 0
+                sec.last_pin_verified_at = datetime.now(timezone.utc)
+                await db.commit()
+                return {
+                    "status": "UNLOCKED",
+                    "success": True,
+                    "unlocked": True,
+                    "message": "Session unlocked successfully.",
+                    "verified_at": datetime.now(timezone.utc).isoformat()
+                }
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Incorrect Security PIN. Please enter your valid 4-digit PIN."
+                )
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Incorrect Security PIN. Please enter your valid 4-digit PIN."
+    )
 
 
 # ------------------------------------------------------------------------------
@@ -216,13 +237,32 @@ async def setup_security_pin(
     if req.pin != req.confirm_pin:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PIN and Confirm PIN do not match.")
 
-    user_id = uuid.UUID(payload.get("sub", "00000000-0000-0000-0000-000000000000"))
-    tenant_id = uuid.UUID(payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8"))
+    user_sub = payload.get("sub", "00000000-0000-0000-0000-000000000000")
+    try:
+        user_id = uuid.UUID(str(user_sub))
+    except Exception:
+        user_id = uuid.UUID("1072b5d2-0fd1-4323-a02a-03809d58b005")
+
+    tenant_id = uuid.UUID(payload.get("tenant_id", "00000000-0000-0000-0000-000000000001"))
 
     sec = await get_or_create_user_security_settings(db, user_id, tenant_id)
     sec.security_pin_hash = hash_password(req.pin)
+    sec.pin_enabled = True
     sec.failed_attempt_count = 0
     sec.locked_until = None
+    sec.last_pin_verified_at = datetime.now(timezone.utc)
+
+    # Also sync customer record if mobile exists
+    mobile = payload.get("mobile_number") or payload.get("mobile") or payload.get("phone")
+    if mobile:
+        clean_mobile = "".join(filter(str.isdigit, str(mobile)))[-10:]
+        mobile_variants = [clean_mobile, f"91{clean_mobile}", f"+91{clean_mobile}"]
+        c_stmt = select(CustomerModel).where(CustomerModel.mobile_number.in_(mobile_variants))
+        cust = (await db.execute(c_stmt)).scalars().first()
+        if cust:
+            cust.mpin_hash = _hash_mpin(req.pin, str(cust.public_id))
+            cust.mpin_enabled = True
+            cust.mpin_last_changed_at = datetime.now(timezone.utc)
 
     await db.commit()
     return {"success": True, "message": "Security PIN configured successfully."}
@@ -234,8 +274,13 @@ async def log_session_audit(
     payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
-    user_id = uuid.UUID(payload.get("sub", "00000000-0000-0000-0000-000000000000"))
-    tenant_id = uuid.UUID(payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8"))
+    user_sub = payload.get("sub", "00000000-0000-0000-0000-000000000000")
+    try:
+        user_id = uuid.UUID(str(user_sub))
+    except Exception:
+        user_id = uuid.UUID("1072b5d2-0fd1-4323-a02a-03809d58b005")
+
+    tenant_id = uuid.UUID(payload.get("tenant_id", "00000000-0000-0000-0000-000000000001"))
 
     audit = SessionAuditLogModel(
         public_id=uuid.uuid4(),
@@ -250,134 +295,27 @@ async def log_session_audit(
     )
     db.add(audit)
     await db.commit()
-    return {"status": "LOGGED", "event": req.event_type, "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {"success": True}
 
 
-@router.get("/session/settings", summary="Get Security & Theme Preference Settings")
-@router.get("/retailer/preferences", summary="Get Retailer Preferences")
-async def get_security_settings(
-    retailer_id: Optional[str] = Query(None),
-    tenant_id: Optional[str] = Query(None),
+@router.get("/auth/security/settings", summary="Get User Security Settings")
+async def get_user_security_settings(
     payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
-    user_sub = payload.get("sub") or payload.get("retailer_id") or "default"
-    key = retailer_id or user_sub
-
-    # 1. Try DB lookup first
+    user_sub = payload.get("sub", "00000000-0000-0000-0000-000000000000")
     try:
-        if user_sub != "default":
-            rid = uuid.UUID(user_sub)
-            stmt = select(RetailerSecuritySettingsModel).where(RetailerSecuritySettingsModel.retailer_id == rid)
-            sec = (await db.execute(stmt)).scalars().first()
-            if sec:
-                return {
-                    "status": "SUCCESS",
-                    "user_id": str(sec.retailer_id),
-                    "theme_mode": sec.theme_mode or "AUTO",
-                    "timezone": sec.timezone or "Asia/Kolkata",
-                    "auto_lock_enabled": sec.auto_lock_enabled,
-                    "idle_timeout_minutes": sec.idle_timeout_minutes,
-                    "warning_seconds": sec.warning_seconds,
-                    "lock_on_minimize": sec.lock_on_minimize,
-                    "lock_on_sleep": sec.lock_on_sleep,
-                    "biometric_enabled": sec.biometric_enabled,
-                    "pin_configured": True,
-                    "failed_attempt_count": 0
-                }
-    except Exception as e:
-        print(f"DB lookup for security settings exception: {e}")
+        user_id = uuid.UUID(str(user_sub))
+    except Exception:
+        user_id = uuid.UUID("1072b5d2-0fd1-4323-a02a-03809d58b005")
 
-    # 2. Check in-memory SETTINGS_STORE fallback
-    if key in SETTINGS_STORE:
-        return SETTINGS_STORE[key]
+    tenant_id = uuid.UUID(payload.get("tenant_id", "00000000-0000-0000-0000-000000000001"))
 
+    sec = await get_or_create_user_security_settings(db, user_id, tenant_id)
     return {
-        "status": "SUCCESS",
-        "user_id": key,
-        "theme_mode": "AUTO",
-        "timezone": "Asia/Kolkata",
-        "auto_lock_enabled": True,
-        "idle_timeout_minutes": 1,
-        "warning_seconds": 30,
-        "lock_on_minimize": True,
-        "lock_on_sleep": True,
-        "biometric_enabled": True,
-        "pin_configured": True,
-        "failed_attempt_count": 0
+        "pin_enabled": bool(sec.pin_enabled and sec.security_pin_hash),
+        "last_pin_verified_at": sec.last_pin_verified_at.isoformat() if sec.last_pin_verified_at else None,
+        "failed_attempt_count": sec.failed_attempt_count or 0,
+        "locked_until": sec.locked_until.isoformat() if sec.locked_until else None,
+        "portal": sec.portal
     }
-
-
-@router.put("/session/settings", summary="Update Security & Theme Preference Settings")
-@router.patch("/session/settings", summary="Patch Security & Theme Preference Settings")
-@router.put("/retailer/preferences", summary="Update Retailer Preferences")
-@router.patch("/retailer/preferences", summary="Patch Retailer Preferences")
-async def update_security_settings(
-    req: SecuritySettingsUpdateRequest,
-    payload: dict = Depends(get_current_token_payload),
-    db: AsyncSession = Depends(get_db)
-):
-    user_sub = payload.get("sub") or payload.get("retailer_id") or "default"
-    key = req.retailer_id or user_sub
-
-    # Determine theme_mode (AUTO, LIGHT, DARK) with uppercase normalization
-    clean_theme_mode = (req.theme_mode or "AUTO").upper()
-    if clean_theme_mode not in ("AUTO", "LIGHT", "DARK"):
-        clean_theme_mode = "AUTO"
-
-    clean_timezone = req.timezone or "Asia/Kolkata"
-
-    # Persist to DB if valid UUID retailer context
-    try:
-        if user_sub != "default":
-            rid = uuid.UUID(user_sub)
-            stmt = select(RetailerSecuritySettingsModel).where(RetailerSecuritySettingsModel.retailer_id == rid)
-            sec = (await db.execute(stmt)).scalars().first()
-            if not sec:
-                sec = RetailerSecuritySettingsModel(
-                    public_id=uuid.uuid4(),
-                    retailer_id=rid,
-                    tenant_id=uuid.UUID(payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8")),
-                    theme_mode=clean_theme_mode,
-                    timezone=clean_timezone,
-                    auto_lock_enabled=req.auto_lock_enabled,
-                    idle_timeout_minutes=req.idle_timeout_minutes,
-                    warning_seconds=req.warning_seconds,
-                    lock_on_minimize=req.lock_on_minimize,
-                    lock_on_sleep=req.lock_on_sleep,
-                    biometric_enabled=req.biometric_enabled if req.biometric_enabled is not None else True
-                )
-                db.add(sec)
-            else:
-                sec.theme_mode = clean_theme_mode
-                sec.timezone = clean_timezone
-                sec.auto_lock_enabled = req.auto_lock_enabled
-                sec.idle_timeout_minutes = req.idle_timeout_minutes
-                sec.warning_seconds = req.warning_seconds
-                sec.lock_on_minimize = req.lock_on_minimize
-                sec.lock_on_sleep = req.lock_on_sleep
-                if req.biometric_enabled is not None:
-                    sec.biometric_enabled = req.biometric_enabled
-
-            await db.commit()
-            await db.refresh(sec)
-    except Exception as e:
-        print(f"Error persisting security/theme settings to DB: {e}")
-
-    updated = {
-        "status": "UPDATED",
-        "user_id": key,
-        "theme_mode": clean_theme_mode,
-        "timezone": clean_timezone,
-        "auto_lock_enabled": req.auto_lock_enabled,
-        "idle_timeout_minutes": req.idle_timeout_minutes,
-        "warning_seconds": req.warning_seconds,
-        "lock_on_minimize": req.lock_on_minimize,
-        "lock_on_sleep": req.lock_on_sleep,
-        "biometric_enabled": req.biometric_enabled if req.biometric_enabled is not None else True,
-        "pin_configured": True,
-        "failed_attempt_count": 0
-    }
-    SETTINGS_STORE[key] = updated
-    return updated
-
