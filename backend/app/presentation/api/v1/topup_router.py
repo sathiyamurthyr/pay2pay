@@ -155,15 +155,6 @@ async def get_authenticated_retailer(
         except Exception:
             pass
 
-    # Fallback to active retailer in database
-    stmt_fallback = select(RetailerModel).where(
-        RetailerModel.is_deleted == False
-    ).order_by(RetailerModel.created_date.desc()).limit(1)
-    res_fallback = await db.execute(stmt_fallback)
-    retailer_fallback = res_fallback.scalars().first()
-    if retailer_fallback:
-        return retailer_fallback
-
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authenticated retailer session required."
@@ -377,14 +368,6 @@ async def get_my_topup_requests(
 
     res = await db.execute(stmt)
     records = res.scalars().all()
-
-    # If 0 records found for this retailer, also check if any requests match retailer_code or tenant
-    if len(records) == 0 and not retailer_id:
-        stmt_all = select(TopupRequestModel).where(
-            TopupRequestModel.is_deleted == False
-        ).order_by(TopupRequestModel.submitted_at.desc())
-        res_all = await db.execute(stmt_all)
-        records = res_all.scalars().all()
 
     items = []
     for r in records:

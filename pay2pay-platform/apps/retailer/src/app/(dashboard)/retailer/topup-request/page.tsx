@@ -195,7 +195,9 @@ export default function RetailerTopupRequestPage() {
         retailer_remarks: retailerRemarks.trim() || undefined
       };
 
-      const res = await api.post("/api/v1/topup/request", payload);
+      const activeCode = typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "" : "";
+      const query = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
+      const res = await api.post(`/api/v1/topup/request${query}`, payload);
       setSuccessMessage(res.data.message || `Topup request ${res.data.topup_request_id} submitted successfully.`);
 
       // Reset Form
