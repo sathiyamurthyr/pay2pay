@@ -32,12 +32,14 @@ interface VerificationPendingProps {
   verificationStatus: "PENDING" | "UNDER_REVIEW" | "ON_HOLD" | "APPROVED" | "REJECTED";
   applicationRef?: string;
   adminRemarks?: string;
+  statusMessage?: string;
 }
 
 export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = ({
   verificationStatus = "PENDING",
   applicationRef = "P2P-REG-2026-889021",
-  adminRemarks
+  adminRemarks,
+  statusMessage
 }) => {
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const { openContactSupportModal } = useContactSupportModal();
@@ -75,7 +77,7 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
           </div>
           <div>
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              Your retailer verification is currently under review.
+              {statusMessage || "Your retailer verification is currently under review."}
               <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase">
                 {verificationStatus}
               </span>

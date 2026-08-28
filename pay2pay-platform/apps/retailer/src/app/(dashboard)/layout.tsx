@@ -68,19 +68,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       user.roles?.includes("OPERATIONS_ADMIN");
     if (isStaffOrAdmin) return;
 
-    // Check Retailer Approval Status from server-authoritative user object
-    const isApproved =
-      user?.approval_status === "APPROVED" ||
-      user?.status === "ACTIVE" ||
-      user?.is_approved === true;
+    // Check Retailer Authoritative Approval & Active Status
+    const isBothTrue =
+      (user?.approve_status === true && user?.active_status === true) ||
+      (user?.is_approved === true && (user?.status === "ACTIVE" || user?.approval_status === "APPROVED"));
 
     const statusStr = (user?.status || user?.approval_status || "").toUpperCase();
 
-    // If not approved, enforce fail-closed redirect
-    if (!isApproved) {
+    // If not approved and active, enforce fail-closed redirect
+    if (!isBothTrue) {
       if (statusStr === "REJECTED") {
         router.replace("/application-rejected");
-      } else if (statusStr === "RESTRICTED" || statusStr === "HOLD" || statusStr === "BLOCKED") {
+      } else if (statusStr === "RESTRICTED" || statusStr === "HOLD" || statusStr === "BLOCKED" || statusStr === "SUSPENDED") {
         router.replace("/retailer/account-restricted");
       } else {
         router.replace("/retailer/account-under-review");

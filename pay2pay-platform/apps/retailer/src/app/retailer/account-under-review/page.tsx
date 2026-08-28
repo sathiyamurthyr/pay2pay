@@ -11,6 +11,7 @@ export default function RetailerAccountUnderReviewPage() {
   const router = useRouter();
   const { logout } = useAuth();
   const [checking, setChecking] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string>("Your retailer verification is currently under review.");
   const [retailerInfo, setRetailerInfo] = useState<{
     name: string;
     mobile: string;
@@ -35,9 +36,21 @@ export default function RetailerAccountUnderReviewPage() {
           status: data.verification_status || data.approval_status || "PENDING",
         });
 
-        if (data.is_approved === true || data.account_status === "ACTIVE" || data.approval_status === "APPROVED") {
-          localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
-          localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
+        let dynamicMsg = data.status_message || "";
+        if (!dynamicMsg) {
+          if (data.approve_status && data.active_status) {
+            dynamicMsg = "Your account is approved and active.";
+          } else if (!data.approve_status && data.active_status) {
+            dynamicMsg = "Your account approval is currently pending. Please wait for admin approval.";
+          } else if (data.approve_status && !data.active_status) {
+            dynamicMsg = "Your account is approved but currently inactive. Please wait until your account is activated.";
+          } else {
+            dynamicMsg = "Your account approval and activation are currently pending. Please wait for admin approval and activation.";
+          }
+        }
+        setStatusMessage(dynamicMsg);
+
+        if (data.approve_status === true && data.active_status === true) {
           document.cookie = `p2p_destination=DASHBOARD; path=/; max-age=2592000; SameSite=Lax`;
           document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
           router.replace("/retailer/dashboard");
@@ -55,8 +68,8 @@ export default function RetailerAccountUnderReviewPage() {
   };
 
   useEffect(() => {
-    router.replace("/retailer/dashboard");
-  }, [router]);
+    checkStatus(false);
+  }, []);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
@@ -116,6 +129,7 @@ export default function RetailerAccountUnderReviewPage() {
         <VerificationPendingDashboard
           verificationStatus="UNDER_REVIEW"
           applicationRef={retailerInfo.ref}
+          statusMessage={statusMessage}
           adminRemarks="Your merchant onboarding application has been submitted and is currently queued for enterprise admin verification. Once approved, all financial transaction services will immediately unlock."
         />
       </main>

@@ -22,6 +22,9 @@ export interface AuthoritativeAccountStatus {
   verification_status: string;
   approval_status: string;
   account_status: string;
+  approve_status: boolean;
+  active_status: boolean;
+  status_message?: string;
   is_approved: boolean;
   account_access: "ALLOWED" | "RESTRICTED";
   access: "ALLOWED" | "RESTRICTED";
@@ -41,7 +44,7 @@ export interface AuthoritativeAccountStatus {
 
 let cachedStatus: AuthoritativeAccountStatus | null = null;
 let lastFetchTime = 0;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes - prevents excessive status API polling
+const CACHE_TTL_MS = 10 * 1000; // 10 seconds TTL for fast reactive status transitions
 let activeFetchPromise: Promise<AuthoritativeAccountStatus | null> | null = null;
 let isRedirecting = false;
 
@@ -103,21 +106,18 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
       }
 
       const json = await res.json();
-      if (json.status === "SUCCESS" && json.data) {
+      if ((json.status === "SUCCESS" || json.success === true) && json.data) {
         const d = json.data;
         const rawAccess = (d.account_access || d.access || "").toUpperCase();
         const rawStatus = (d.account_status || "").toUpperCase();
         const rawVerif = (d.verification_status || d.approval_status || "").toUpperCase();
 
-        // 1. Authoritative account_access decision: Only true if explicitly approved/active
-        const isAppr =
-          d.is_approved === true ||
-          (rawAccess === "ALLOWED" && rawStatus === "ACTIVE") ||
-          rawStatus === "ACTIVE" ||
-          rawVerif === "ACTIVE" ||
-          rawVerif === "APPROVED";
+        // 1. Authoritative approve_status & active_status evaluation
+        const approveStatus = d.approve_status === true || json.approve_status === true;
+        const activeStatus = d.active_status === true || json.active_status === true;
+        const isBothTrue = approveStatus && activeStatus;
 
-        const accessCat: "ALLOWED" | "RESTRICTED" = isAppr ? "ALLOWED" : "RESTRICTED";
+        const accessCat: "ALLOWED" | "RESTRICTED" = isBothTrue ? "ALLOWED" : "RESTRICTED";
 
         const normalizedDest: RetailerDestination =
           d.destination === "APPLICATION_REJECTED" || rawVerif === "REJECTED" || rawStatus === "REJECTED"
@@ -126,7 +126,9 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
             ? "ONBOARDING"
             : d.destination === "ACCOUNT_RESTRICTED" || rawStatus === "SUSPENDED" || rawStatus === "BLOCKED" || rawStatus === "HOLD"
             ? "ACCOUNT_RESTRICTED"
-            : "DASHBOARD";
+            : isBothTrue
+            ? "DASHBOARD"
+            : "ACCOUNT_UNDER_REVIEW";
 
         const defaultRedirectUrl =
           normalizedDest === "APPLICATION_REJECTED"
@@ -135,7 +137,22 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
             ? "/register"
             : normalizedDest === "ACCOUNT_RESTRICTED"
             ? "/retailer/account-restricted"
-            : "/retailer/dashboard";
+            : isBothTrue
+            ? "/retailer/dashboard"
+            : "/retailer/account-under-review";
+
+        let dynamicMsg = d.status_message || json.message || "";
+        if (!dynamicMsg) {
+          if (approveStatus && activeStatus) {
+            dynamicMsg = "Your account is approved and active.";
+          } else if (!approveStatus && activeStatus) {
+            dynamicMsg = "Your account approval is currently pending. Please wait for admin approval.";
+          } else if (approveStatus && !activeStatus) {
+            dynamicMsg = "Your account is approved but currently inactive. Please wait until your account is activated.";
+          } else {
+            dynamicMsg = "Your account approval and activation are currently pending. Please wait for admin approval and activation.";
+          }
+        }
 
         const resolved: AuthoritativeAccountStatus = {
           retailer_id: d.retailer_id || null,
@@ -146,15 +163,18 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           legal_name: d.legal_name || "Retailer Outlet",
           registered_mobile: d.registered_mobile || (mobile ? `+91 ${mobile}` : "+91 --"),
           application_reference: d.application_reference || "APP-PENDING",
-          verification_status: d.verification_status || (isAppr ? "ACTIVE" : "PENDING"),
-          approval_status: d.approval_status || (isAppr ? "APPROVED" : "PENDING"),
-          account_status: d.account_status || (isAppr ? "ACTIVE" : "UNDER_REVIEW"),
-          is_approved: isAppr,
+          verification_status: d.verification_status || (isBothTrue ? "ACTIVE" : "PENDING"),
+          approval_status: d.approval_status || (approveStatus ? "APPROVED" : "PENDING"),
+          account_status: d.account_status || (activeStatus ? "ACTIVE" : "INACTIVE"),
+          approve_status: approveStatus,
+          active_status: activeStatus,
+          status_message: dynamicMsg,
+          is_approved: approveStatus,
           account_access: accessCat,
           access: accessCat,
           reason: d.reason || null,
           login_enabled: d.login_enabled !== false,
-          payment_permission: d.payment_permission || (isAppr ? "PERMITTED & UNLOCKED" : "PROHIBITED & LOCKED"),
+          payment_permission: d.payment_permission || (isBothTrue ? "PERMITTED & UNLOCKED" : "PROHIBITED & LOCKED"),
           destination: normalizedDest,
           redirect_url: d.redirect_url || defaultRedirectUrl,
           created_at: d.created_at || null,
@@ -183,7 +203,7 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
 
 /**
  * Universal Post-Login Router:
- * Enforces strict routing: approved -> dashboard, pending -> account-under-review, rejected -> application-rejected.
+ * Enforces strict routing: approve_status && active_status -> dashboard, else -> waiting page.
  */
 export async function verifyAndRoutePostLogin(
   firstArg: any,
@@ -249,14 +269,11 @@ export async function verifyAndRoutePostLogin(
     const targetDashboard = redirectTarget || "/retailer/dashboard";
 
     if (status) {
-      const isApproved = status.is_approved === true || status.approval_status === "APPROVED" || status.account_status === "ACTIVE";
+      const isBothTrue = status.approve_status === true && status.active_status === true;
 
       if (typeof window !== "undefined") {
         document.cookie = `p2p_destination=${status.destination}; path=/; max-age=2592000; SameSite=Lax`;
         document.cookie = `p2p_account_access=${status.account_access}; path=/; max-age=2592000; SameSite=Lax`;
-        localStorage.setItem("p2p_account_access", status.account_access);
-        localStorage.setItem("p2p_retailer_approval_status", isApproved ? "APPROVED" : "UNDER_REVIEW");
-        localStorage.setItem("pay2pay_onboarding_status", isApproved ? "APPROVED" : "UNDER_REVIEW");
       }
 
       if (status.destination === "ONBOARDING") {
@@ -280,30 +297,40 @@ export async function verifyAndRoutePostLogin(
         return { success: true, destination: "ACCOUNT_RESTRICTED" };
       }
 
-      // Route directly to dashboard without lock screen
-      if (typeof window !== "undefined") {
-        window.location.href = targetDashboard;
+      if (isBothTrue) {
+        if (typeof window !== "undefined") {
+          window.location.href = targetDashboard;
+        } else {
+          router.replace(targetDashboard);
+        }
+        return { success: true, destination: "DASHBOARD" };
       } else {
-        router.replace(targetDashboard);
+        const waitingUrl = "/retailer/account-under-review";
+        if (typeof window !== "undefined") {
+          window.location.href = waitingUrl;
+        } else {
+          router.replace(waitingUrl);
+        }
+        return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
       }
-      return { success: true, destination: "DASHBOARD" };
     }
 
-    // Default: Route directly to dashboard
+    // Default: Route to waiting page for safety if status unavailable
+    const waitingUrl = "/retailer/account-under-review";
     if (typeof window !== "undefined") {
-      window.location.href = targetDashboard;
+      window.location.href = waitingUrl;
     } else {
-      router.replace(targetDashboard);
+      router.replace(waitingUrl);
     }
-    return { success: true, destination: "DASHBOARD" };
+    return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
   } catch (err) {
-    const targetDashboard = "/retailer/dashboard";
+    const waitingUrl = "/retailer/account-under-review";
     if (typeof window !== "undefined") {
-      window.location.href = targetDashboard;
+      window.location.href = waitingUrl;
     } else {
-      router.replace(targetDashboard);
+      router.replace(waitingUrl);
     }
-    return { success: true, destination: "DASHBOARD" };
+    return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
   }
 }
 
@@ -332,8 +359,15 @@ export function enforceAuthoritativeRouting(
       setTimeout(() => { isRedirecting = false; }, 500);
       return true;
     }
+  } else if (status.approve_status !== true || status.active_status !== true) {
+    if (currentPathname !== "/retailer/account-under-review" && currentPathname !== "/account-under-review") {
+      isRedirecting = true;
+      router.replace("/retailer/account-under-review");
+      setTimeout(() => { isRedirecting = false; }, 500);
+      return true;
+    }
   } else {
-    // If user is on an under-review lock screen URL, automatically redirect to dashboard
+    // If user is on waiting page and is both approved and active, automatically redirect to dashboard
     if (currentPathname === "/retailer/account-under-review" || currentPathname === "/account-under-review") {
       isRedirecting = true;
       router.replace("/retailer/dashboard");

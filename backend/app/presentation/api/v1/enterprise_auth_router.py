@@ -22,7 +22,7 @@ from app.infrastructure.db.auth_models import (
 from app.infrastructure.db.models import RetailerModel, RetailerContactModel, AdminUserModel, RetailerWalletModel
 from app.infrastructure.db.registration_models import RegistrationDraftModel, RegistrationAadhaarModel
 from app.infrastructure.db.verification_models import RetailerVerificationModel
-from app.core.security import verify_password, create_access_token
+from app.core.security import verify_password, create_access_token, decode_access_token
 
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 DEFAULT_COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
@@ -182,7 +182,7 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                 RetailerModel.is_deleted == False,
                 RetailerContactModel.is_deleted == False
             )
-            .order_by(RetailerModel.created_date.asc())
+            .order_by(RetailerModel.is_active.desc(), RetailerModel.status == "ACTIVE", RetailerModel.id.desc())
         )
         r_res = (await db.execute(r_stmt)).first()
         if r_res:
@@ -293,7 +293,18 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
         ret_code = existing_retailer.retailer_code if (existing_retailer and existing_retailer.retailer_code) else "RET-10928"
         ret_public_id = str(existing_retailer.public_id) if existing_retailer else "e238fb8b-beb3-4cd4-862b-319b5d05d24e"
         ret_status = (existing_retailer.status if existing_retailer else "ACTIVE").upper()
-        is_approved = ret_status in ("ACTIVE", "APPROVED")
+
+        # Authoritative Status Calculation
+        if is_admin:
+            approve_status = True
+            active_status = True
+        else:
+            approve_status = bool(existing_retailer and ret_status in ("ACTIVE", "APPROVED"))
+            active_status = bool(
+                existing_retailer
+                and bool(existing_retailer.is_active)
+                and (ret_status not in ("SUSPENDED", "BLOCKED", "INACTIVE", "DEACTIVATED", "FROZEN", "CLOSED"))
+            )
 
         wal_balance = 0.0
         wal_id = None
@@ -321,7 +332,9 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                 expires_delta=timedelta(days=7),
                 retailer_code=ret_code if not is_admin else None,
                 retailer_id=ret_public_id if not is_admin else None,
-                mobile=clean_mobile
+                mobile=clean_mobile,
+                approve_status=approve_status,
+                active_status=active_status
             )
         except Exception:
             access_token = f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token"
@@ -330,7 +343,10 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
             admin_full_name = admin_user.full_name if admin_user and admin_user.full_name else "System Admin User"
             email = admin_user.email if admin_user and admin_user.email else "admin@pay2pay.com"
             return {
+                "success": True,
                 "status": "SUCCESS",
+                "approve_status": True,
+                "active_status": True,
                 "message": "Admin authentication successful",
                 "data": {
                     "session_id": session_id,
@@ -338,6 +354,9 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                     "trace_id": trace_id,
                     "access_token": access_token,
                     "token_type": "Bearer",
+                    "approve_status": True,
+                    "active_status": True,
+                    "destination": "DASHBOARD",
                     "user": {
                         "id": subject_id,
                         "public_id": subject_id,
@@ -348,7 +367,9 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                         "roles": ["SUPER_ADMIN", "PLATFORM_ADMIN"],
                         "user_type": "PLATFORM_ADMIN",
                         "tenant_id": tenant_str,
-                        "company_id": company_str
+                        "company_id": company_str,
+                        "approve_status": True,
+                        "active_status": True
                     },
                     "onboarding": {
                         "completed": True,
@@ -363,27 +384,34 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                 }
             }
 
-        # Retailer User return
-        if is_approved:
+        # Dynamic Status Routing & Messages for Retailer
+        if approve_status and active_status:
+            ret_message = "Authentication successful"
+            destination = "DASHBOARD"
             redirect_url = "/retailer/dashboard"
             onboarding_status = "COMPLETED"
-            destination = "DASHBOARD"
-        elif ret_status == "REJECTED":
-            redirect_url = "/application-rejected"
-            onboarding_status = "REJECTED"
-            destination = "APPLICATION_REJECTED"
-        elif ret_status in ("HOLD", "BLOCKED", "RESTRICTED", "SUSPENDED"):
-            redirect_url = "/retailer/account-restricted"
+        elif not approve_status and active_status:
+            ret_message = "Your account approval is currently pending. Please wait for admin approval."
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
+            onboarding_status = "UNDER_REVIEW"
+        elif approve_status and not active_status:
+            ret_message = "Your account is approved but currently inactive. Please wait until your account is activated."
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
             onboarding_status = "RESTRICTED"
-            destination = "ACCOUNT_RESTRICTED"
-        else:
-            redirect_url = "/retailer/dashboard"
-            onboarding_status = "ACTIVE"
-            destination = "DASHBOARD"
+        else: # not approve_status and not active_status
+            ret_message = "Your account approval and activation are currently pending. Please wait for admin approval and activation."
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
+            onboarding_status = "UNDER_REVIEW"
 
         return {
+            "success": True,
             "status": "SUCCESS",
-            "message": "Authentication successful" if is_approved else "Authentication successful. Your account is pending admin verification.",
+            "approve_status": approve_status,
+            "active_status": active_status,
+            "message": ret_message,
             "data": {
                 "session_id": session_id,
                 "correlation_id": correlation_id,
@@ -391,7 +419,9 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                 "access_token": access_token,
                 "token_type": "Bearer",
                 "destination": destination,
-                "is_approved": is_approved,
+                "approve_status": approve_status,
+                "active_status": active_status,
+                "is_approved": approve_status,
                 "account_status": ret_status,
                 "user": {
                     "id": ret_public_id,
@@ -407,15 +437,17 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                     "role": "RETAILER",
                     "roles": ["RETAILER"],
                     "status": ret_status,
-                    "is_approved": is_approved,
-                    "approval_status": "APPROVED" if is_approved else "PENDING",
+                    "approve_status": approve_status,
+                    "active_status": active_status,
+                    "is_approved": approve_status,
+                    "approval_status": "APPROVED" if approve_status else "PENDING",
                     "wallet_balance": wal_balance,
                     "wallet_id": str(wal_id) if wal_id else None
                 },
                 "onboarding": {
-                    "completed": is_approved,
-                    "current_step": 13 if is_approved else 12,
-                    "progress_percentage": 100 if is_approved else 90,
+                    "completed": (approve_status and active_status),
+                    "current_step": 13 if (approve_status and active_status) else 12,
+                    "progress_percentage": 100 if (approve_status and active_status) else 90,
                     "status": onboarding_status,
                     "redirect_url": redirect_url
                 },
@@ -621,7 +653,15 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     ret_contact_stmt = (
         select(RetailerContactModel, RetailerModel)
         .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
-        .where(RetailerContactModel.mobile.in_(mobile_variants))
+        .where(
+            RetailerContactModel.mobile.in_(mobile_variants),
+            RetailerModel.is_deleted == False
+        )
+        .order_by(
+            RetailerModel.is_active.desc(),
+            RetailerModel.status == "ACTIVE",
+            RetailerModel.id.desc()
+        )
     )
     contact_res = (await db.execute(ret_contact_stmt)).first()
 
@@ -641,7 +681,11 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     # ── CASE A: EXISTING RETAILER -> ROUTE BY STATUS ──
     if retailer_record:
         ret_status = (retailer_record.status or "PENDING").upper()
-        is_approved = ret_status in ("ACTIVE", "APPROVED")
+        approve_status = bool(ret_status in ("ACTIVE", "APPROVED"))
+        active_status = bool(
+            bool(retailer_record.is_active)
+            and (ret_status not in ("SUSPENDED", "BLOCKED", "INACTIVE", "DEACTIVATED", "FROZEN", "CLOSED"))
+        )
 
         try:
             history = LoginHistoryModel(
@@ -675,7 +719,12 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
                 tenant_id=tenant_str,
                 company_id=company_str,
                 roles=["RETAILER"],
-                expires_delta=timedelta(days=7)
+                expires_delta=timedelta(days=7),
+                retailer_code=retailer_record.retailer_code,
+                retailer_id=subject_id,
+                mobile=clean_mobile,
+                approve_status=approve_status,
+                active_status=active_status
             )
         except Exception:
             access_token = f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token"
@@ -683,27 +732,39 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
         retailer_code = retailer_record.retailer_code or f"RET-{str(retailer_record.public_id)[:6].upper()}"
         full_name = retailer_record.owner_name or retailer_record.store_name or "Retailer Partner"
         outlet_name = retailer_record.store_name or retailer_record.owner_name or "Retailer Store"
-        approval_status = "APPROVED" if is_approved else "PENDING"
         retailer_id = str(retailer_record.public_id)
 
-        if is_approved:
+        if approve_status and active_status:
+            ret_message = "Authentication successful"
             destination = "DASHBOARD"
             redirect_url = "/retailer/dashboard"
-            message = "Mobile verified successfully. Signing you in..."
-        else:
+        elif not approve_status and active_status:
+            ret_message = "Your account approval is currently pending. Please wait for admin approval."
             destination = "ACCOUNT_UNDER_REVIEW"
             redirect_url = "/retailer/account-under-review"
-            message = "Mobile verified successfully. Loading your application status..."
+        elif approve_status and not active_status:
+            ret_message = "Your account is approved but currently inactive. Please wait until your account is activated."
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
+        else: # not approve_status and not active_status
+            ret_message = "Your account approval and activation are currently pending. Please wait for admin approval and activation."
+            destination = "ACCOUNT_UNDER_REVIEW"
+            redirect_url = "/retailer/account-under-review"
 
         return {
+            "success": True,
             "status": "SUCCESS",
-            "message": message,
+            "approve_status": approve_status,
+            "active_status": active_status,
+            "message": ret_message,
             "data": {
                 "flow": "RETAILER_LOGIN",
                 "destination": destination,
+                "approve_status": approve_status,
+                "active_status": active_status,
+                "is_approved": approve_status,
                 "account_status": ret_status,
                 "redirect_url": redirect_url,
-                "is_approved": is_approved,
                 "session_id": session_id,
                 "correlation_id": correlation_id,
                 "access_token": access_token,
@@ -715,7 +776,10 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
                     "outlet_name": outlet_name,
                     "retailer_code": retailer_code,
                     "retailer_id": retailer_id,
-                    "approval_status": approval_status,
+                    "approve_status": approve_status,
+                    "active_status": active_status,
+                    "is_approved": approve_status,
+                    "approval_status": "APPROVED" if approve_status else "PENDING",
                     "status": ret_status
                 }
             }
@@ -1048,166 +1112,63 @@ async def get_account_status(
         logger.warning(f"Database lookup notice in get_account_status: {e}")
 
     # Pure DB-driven Authoritative State Resolution
-    is_approved = True
-    approval_status = "PENDING"
-    account_status = "ACTIVE"
-    access = "ALLOWED"
-    reason = None
-    destination = "DASHBOARD"
-    redirect_url = "/retailer/dashboard"
-    login_enabled = True
+    if retailer_record:
+        ret_st = (retailer_record.status or "").upper()
+        approve_status = bool(ret_st in ("ACTIVE", "APPROVED"))
+        active_status = bool(
+            bool(retailer_record.is_active)
+            and (ret_st not in ("SUSPENDED", "BLOCKED", "INACTIVE", "DEACTIVATED", "FROZEN", "CLOSED"))
+        )
+        approval_status = "APPROVED" if approve_status else ret_st
+        account_status = "ACTIVE" if active_status else "INACTIVE"
+    elif verif:
+        v_status = (verif.verification_status or "").upper()
+        r_status = (verif.retailer_status or verif.account_status or "").upper()
+        approve_status = bool(v_status in ("APPROVED", "ACTIVE") or r_status in ("APPROVED", "ACTIVE"))
+        active_status = bool(v_status not in ("SUSPENDED", "BLOCKED", "HOLD", "FROZEN") and r_status not in ("SUSPENDED", "BLOCKED", "HOLD", "FROZEN"))
+        approval_status = "APPROVED" if approve_status else (v_status or "PENDING")
+        account_status = "ACTIVE" if active_status else "INACTIVE"
+    elif draft:
+        dr_st = (draft.status or "DRAFT").upper()
+        approve_status = bool(dr_st in ("KYC_APPROVED", "APPROVED", "ACTIVE"))
+        active_status = bool(dr_st not in ("SUSPENDED", "BLOCKED", "REJECTED"))
+        approval_status = "APPROVED" if approve_status else (dr_st or "PENDING")
+        account_status = "ACTIVE" if active_status else "ONBOARDING"
+    else:
+        approve_status = False
+        active_status = False
+        approval_status = "PENDING"
+        account_status = "PENDING"
 
-    # AUTHORITATIVE PRIORITY: RetailerModel.status is the single source of truth.
-    # If retailer master record is ACTIVE/APPROVED, immediately grant access —
-    # this prevents stale RetailerVerificationModel records from blocking approved retailers.
-    # (Scenario: admin approves retailer → RetailerModel.status = ACTIVE, but
-    #  RetailerVerificationModel.verification_status may still be KYC_SUBMITTED/PENDING)
-    if retailer_record and (retailer_record.status or "").upper() in ("ACTIVE", "APPROVED"):
-        is_approved = True
-        approval_status = "APPROVED"
-        account_status = "ACTIVE"
+    is_approved = approve_status
+    if approve_status and active_status:
         access = "ALLOWED"
         reason = None
         destination = "DASHBOARD"
         redirect_url = "/retailer/dashboard"
         login_enabled = True
-
-    elif retailer_record and (retailer_record.status or "").upper() == "REJECTED":
-        is_approved = False
-        approval_status = "REJECTED"
-        account_status = "REJECTED"
+        dynamic_message = "Your account is approved and active."
+    elif not approve_status and active_status:
         access = "RESTRICTED"
-        reason = "APPLICATION_REJECTED"
-        destination = "APPLICATION_REJECTED"
-        redirect_url = "/application-rejected"
-        login_enabled = False
-
-    elif retailer_record and (retailer_record.status or "").upper() in ("SUSPENDED", "BLOCKED", "FROZEN", "HOLD"):
-        is_approved = False
-        approval_status = "SUSPENDED"
-        account_status = "RESTRICTED"
+        reason = "APPROVAL_PENDING"
+        destination = "ACCOUNT_UNDER_REVIEW"
+        redirect_url = "/retailer/account-under-review"
+        login_enabled = True
+        dynamic_message = "Your account approval is currently pending. Please wait for admin approval."
+    elif approve_status and not active_status:
         access = "RESTRICTED"
-        reason = "ACCOUNT_RESTRICTED"
-        destination = "ACCOUNT_RESTRICTED"
-        redirect_url = "/retailer/account-restricted"
-        login_enabled = False
-
-    # 1. Evaluate from live retailer_verifications (only when retailer_record is not ACTIVE/APPROVED/REJECTED)
-    elif verif:
-        v_status = (verif.verification_status or "").upper()
-        r_status = (verif.retailer_status or verif.account_status or "").upper()
-
-        if v_status in ("APPROVED", "ACTIVE") or r_status in ("APPROVED", "ACTIVE"):
-            is_approved = True
-            approval_status = "APPROVED"
-            account_status = "ACTIVE"
-            access = "ALLOWED"
-            reason = None
-            destination = "DASHBOARD"
-            redirect_url = "/retailer/dashboard"
-            login_enabled = True
-        elif v_status == "REJECTED" or r_status == "REJECTED":
-            is_approved = False
-            approval_status = "REJECTED"
-            account_status = "REJECTED"
-            access = "RESTRICTED"
-            reason = "APPLICATION_REJECTED"
-            destination = "APPLICATION_REJECTED"
-            redirect_url = "/application-rejected"
-            login_enabled = False
-        elif v_status in ("SUSPENDED", "BLOCKED", "FROZEN", "HOLD") or r_status in ("SUSPENDED", "BLOCKED", "FROZEN", "HOLD"):
-            is_approved = False
-            approval_status = "SUSPENDED"
-            account_status = "RESTRICTED"
-            access = "RESTRICTED"
-            reason = "ACCOUNT_RESTRICTED"
-            destination = "ACCOUNT_RESTRICTED"
-            redirect_url = "/retailer/account-restricted"
-            login_enabled = False
-        else:
-            # PENDING / UNDER_REVIEW / ON_HOLD / KYC_SUBMITTED -> Open dashboard directly
-            is_approved = True
-            approval_status = "PENDING"
-            account_status = "ACTIVE"
-            access = "ALLOWED"
-            reason = None
-            destination = "DASHBOARD"
-            redirect_url = "/retailer/dashboard"
-            login_enabled = True
-
-    # 2. Evaluate from existing retailer master record (no verif record found)
-    elif retailer_record:
-        ret_st = (retailer_record.status or "").upper()
-        if ret_st in ("ACTIVE", "APPROVED"):
-            is_approved = True
-            approval_status = "APPROVED"
-            account_status = "ACTIVE"
-            access = "ALLOWED"
-            reason = None
-            destination = "DASHBOARD"
-            redirect_url = "/retailer/dashboard"
-            login_enabled = True
-        elif ret_st == "REJECTED":
-            is_approved = False
-            approval_status = "REJECTED"
-            account_status = "REJECTED"
-            access = "RESTRICTED"
-            reason = "APPLICATION_REJECTED"
-            destination = "APPLICATION_REJECTED"
-            redirect_url = "/application-rejected"
-            login_enabled = False
-        elif ret_st in ("SUSPENDED", "BLOCKED", "FROZEN", "HOLD"):
-            is_approved = False
-            approval_status = "SUSPENDED"
-            account_status = "RESTRICTED"
-            access = "RESTRICTED"
-            reason = "ACCOUNT_RESTRICTED"
-            destination = "ACCOUNT_RESTRICTED"
-            redirect_url = "/retailer/account-restricted"
-            login_enabled = False
-        else:
-            is_approved = True
-            approval_status = "PENDING"
-            account_status = "ACTIVE"
-            access = "ALLOWED"
-            reason = None
-            destination = "DASHBOARD"
-            redirect_url = "/retailer/dashboard"
-            login_enabled = True
-
-    # 3. Evaluate from registration drafts (onboarding)
-    elif draft:
-        dr_st = (draft.status or "DRAFT").upper()
-        dr_step = draft.current_step or 1
-
-        if dr_st in ("KYC_APPROVED", "APPROVED", "ACTIVE"):
-            is_approved = True
-            approval_status = "APPROVED"
-            account_status = "ACTIVE"
-            access = "ALLOWED"
-            reason = None
-            destination = "DASHBOARD"
-            redirect_url = "/retailer/dashboard"
-            login_enabled = True
-        elif dr_st in ("KYC_SUBMITTED", "SUBMITTED", "PENDING_APPROVAL", "UNDER_REVIEW") or dr_step >= 13:
-            is_approved = True
-            approval_status = "PENDING"
-            account_status = "ACTIVE"
-            access = "ALLOWED"
-            reason = None
-            destination = "DASHBOARD"
-            redirect_url = "/retailer/dashboard"
-            login_enabled = True
-        else:
-            # Incomplete Onboarding Draft
-            is_approved = False
-            approval_status = "PENDING"
-            account_status = "ONBOARDING"
-            access = "RESTRICTED"
-            reason = "ONBOARDING_INCOMPLETE"
-            destination = "ONBOARDING"
-            redirect_url = "/register"
-            login_enabled = True
+        reason = "ACCOUNT_INACTIVE"
+        destination = "ACCOUNT_UNDER_REVIEW"
+        redirect_url = "/retailer/account-under-review"
+        login_enabled = True
+        dynamic_message = "Your account is approved but currently inactive. Please wait until your account is activated."
+    else: # not approve_status and not active_status
+        access = "RESTRICTED"
+        reason = "APPROVAL_AND_ACTIVATION_PENDING"
+        destination = "ACCOUNT_UNDER_REVIEW"
+        redirect_url = "/retailer/account-under-review"
+        login_enabled = True
+        dynamic_message = "Your account approval and activation are currently pending. Please wait for admin approval and activation."
 
     retailer_name = (
         (verif.retailer_name if verif and verif.retailer_name else None)
@@ -1232,11 +1193,14 @@ async def get_account_status(
     )
 
     verif_status_display = verif.verification_status if verif else (draft.status if draft else ("ACTIVE" if is_approved else "KYC_SUBMITTED"))
-
-    payment_permission = "PERMITTED & UNLOCKED" if is_approved else "PROHIBITED & LOCKED"
+    payment_permission = "PERMITTED & UNLOCKED" if (approve_status and active_status) else "PROHIBITED & LOCKED"
 
     return {
+        "success": True,
         "status": "SUCCESS",
+        "approve_status": approve_status,
+        "active_status": active_status,
+        "message": dynamic_message,
         "data": {
             "retailer_id": str(retailer_record.public_id) if retailer_record else (str(verif.retailer_id) if verif and verif.retailer_id else None),
             "tenant_id": str(retailer_record.tenant_id if retailer_record else DEFAULT_TENANT_ID),
@@ -1248,6 +1212,9 @@ async def get_account_status(
             "application_reference": app_ref,
             "verification_status": verif_status_display,
             "approval_status": approval_status,
+            "approve_status": approve_status,
+            "active_status": active_status,
+            "status_message": dynamic_message,
             "is_approved": is_approved,
             "account_access": access,
             "access": access,

@@ -207,14 +207,37 @@ async def resolve_retailer_context(
         final_owner = "Retailer Partner"
         final_store = "Retailer Store"
         final_mobile = clean_mobile or ""
-        final_status = "ACTIVE"
-        final_kyc = "APPROVED"
+        final_status = "PENDING"
+        final_kyc = "PENDING"
         final_public_id = r_uuid
         final_tenant_id = t_uuid
         final_company_id = c_uuid
 
+    is_admin = False
+    if payload.get("roles"):
+        roles = payload.get("roles")
+        if isinstance(roles, list) and any(r in ("SUPER_ADMIN", "PLATFORM_ADMIN") for r in roles):
+            is_admin = True
+
+    if is_admin:
+        approve_status = True
+        active_status = True
+    elif ret_model:
+        ret_st = (ret_model.status or "").upper()
+        approve_status = bool(ret_st in ("ACTIVE", "APPROVED"))
+        active_status = bool(bool(ret_model.is_active) and (ret_st not in ("SUSPENDED", "BLOCKED", "INACTIVE", "DEACTIVATED", "FROZEN", "CLOSED")))
+    elif verif:
+        v_status = (verif.verification_status or "").upper()
+        r_status = (verif.retailer_status or verif.account_status or "").upper()
+        approve_status = bool(v_status in ("APPROVED", "ACTIVE") or r_status in ("APPROVED", "ACTIVE"))
+        active_status = bool(v_status not in ("SUSPENDED", "BLOCKED", "HOLD", "FROZEN") and r_status not in ("SUSPENDED", "BLOCKED", "HOLD", "FROZEN"))
+    else:
+        approve_status = False
+        active_status = False
+
     return {
         "retailer_id": final_id,
+        "retailer_code": (ret_model.retailer_code if ret_model else final_id),
         "registration_id": final_reg_id,
         "retailer_name": final_name,
         "owner_name": final_owner,
@@ -225,8 +248,22 @@ async def resolve_retailer_context(
         "public_id": final_public_id,
         "tenant_id": final_tenant_id,
         "company_id": final_company_id,
-        "is_approved": final_status in ("APPROVED", "ACTIVE")
+        "is_approved": approve_status,
+        "approve_status": approve_status,
+        "active_status": active_status,
+        "is_admin": is_admin
     }
+
+
+def enforce_active_approved_retailer(ctx: Dict[str, Any]):
+    """Strictly enforces that non-admin retailers must have approve_status=True AND active_status=True."""
+    if ctx.get("is_admin"):
+        return
+    if not (ctx.get("approve_status") is True and ctx.get("active_status") is True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access Denied: Retailer account approval and active status are required to access protected business resources."
+        )
 
 
 class DashboardAuditRequest(BaseModel):
@@ -396,6 +433,9 @@ async def get_retailer_header_wallet(
         "retailer_code": ctx["retailer_id"],
         "retailer_id": ctx["retailer_id"],
         "current_time_iso": now_utc.isoformat(),
+        "approve_status": ctx.get("approve_status", False),
+        "active_status": ctx.get("active_status", False),
+        "is_approved": ctx.get("approve_status", False),
         "wallet_balance": round(float(wallet_balance), 2),
         "available_balance": round(float(available_balance), 2),
         "blocked_balance": round(float(blocked_balance), 2),
@@ -419,6 +459,8 @@ async def get_retailer_header_wallet(
             "short_name": ctx["owner_name"].split()[0] if ctx["owner_name"] else "Retailer",
             "company_name": ctx["store_name"],
             "approval_status": ctx["status"],
+            "approve_status": ctx.get("approve_status", False),
+            "active_status": ctx.get("active_status", False),
             "kyc_status": ctx["kyc_status"],
             "plan_name": "Enterprise Workstation",
             "role_title": "Enterprise Retailer Workstation",
@@ -456,6 +498,7 @@ async def get_fast_wallet_balance(
     Zero heavy computations — responds in < 3ms for instant refresh button clicks.
     """
     ctx = await resolve_retailer_context(request, retailer_id, tenant_id, db=db)
+    enforce_active_approved_retailer(ctx)
     pub_id = ctx.get("public_id")
 
     wallet_balance = 0.00
@@ -494,6 +537,7 @@ async def get_financial_kpis(
     db: AsyncSession = Depends(get_db)
 ):
     ctx = await resolve_retailer_context(request, retailer_id, tenant_id, company_id, db=db)
+    enforce_active_approved_retailer(ctx)
     pub_id = ctx.get("public_id")
     t_uuid = ctx.get("tenant_id")
     c_uuid = ctx.get("company_id")
