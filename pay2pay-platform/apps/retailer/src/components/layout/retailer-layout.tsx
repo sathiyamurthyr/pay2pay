@@ -305,6 +305,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (!isAuthenticatedSession) return;
+    // Clear stale localStorage wallet cache on mount so header shows 0 while fetching live balance.
+    // This prevents old cached balances (e.g. ₹50,000 from a previous session) from flash-displaying.
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("p2p_active_retailer_wallet_balance");
+      useRetailerStore.getState().updateWallet({ mainBalance: 0 });
+    }
     fetchProfileDetails(true);
     syncBalance();
 
