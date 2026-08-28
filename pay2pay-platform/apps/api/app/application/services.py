@@ -1,5 +1,6 @@
 import uuid
 import random
+import re
 from datetime import datetime, date, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import select, func, or_, update, delete
@@ -144,21 +145,10 @@ class AuthService:
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None
     ) -> TokenResponse:
-        stmt = (
-            select(AdminUserModel)
-            .options(
-                selectinload(AdminUserModel.user_roles)
-                .selectinload(UserRoleModel.role)
-            )
-            .where(
-                (AdminUserModel.email == req.email_or_username) | (AdminUserModel.username == req.email_or_username),
-                AdminUserModel.is_deleted == False
-            )
-        )
-        res = await db.execute(stmt)
-        user = res.scalar_one_or_none()
+        identifier = req.get_identifier() if hasattr(req, "get_identifier") else (req.email_or_username or "")
+        key = identifier.lower().strip()
+        clean_mob = re.sub(r"\D", "", identifier)[-10:] if len(re.sub(r"\D", "", identifier)) >= 10 else identifier
 
-        # Known demo accounts for automatic instant provisioning / fallback authentication
         known_demo_accounts = {
             "crm.chitra@pay2pay.in": {"username": "crm_chitra", "full_name": "Chitra Singh (CRM)", "user_type": "CRM_EXECUTIVE", "role_code": "OPERATIONS_ADMIN"},
             "crm_chitra": {"username": "crm_chitra", "full_name": "Chitra Singh (CRM)", "email": "crm.chitra@pay2pay.in", "user_type": "CRM_EXECUTIVE", "role_code": "OPERATIONS_ADMIN"},
@@ -172,7 +162,72 @@ class AuthService:
             "suresh@pay2pay.in": {"username": "suresh_b", "full_name": "Suresh Babu", "user_type": "OPERATIONS", "role_code": "OPERATIONS_ADMIN"},
         }
 
-        key = req.email_or_username.lower().strip()
+        stmt = (
+            select(AdminUserModel)
+            .options(
+                selectinload(AdminUserModel.user_roles)
+                .selectinload(UserRoleModel.role)
+            )
+            .where(
+                (AdminUserModel.email == identifier)
+                | (AdminUserModel.username == identifier)
+                | (AdminUserModel.phone == clean_mob)
+                | (AdminUserModel.phone == f"+91{clean_mob}")
+                | (AdminUserModel.phone == f"91{clean_mob}"),
+                AdminUserModel.is_deleted == False
+            )
+        )
+        res = await db.execute(stmt)
+        user = res.scalar_one_or_none()
+
+        if not user:
+            # Check AuthUserModel (Retailers / Mobile users)
+            from app.infrastructure.db.auth_models import AuthUserModel
+            from app.infrastructure.db.models import RetailerModel
+            a_stmt = select(AuthUserModel).where(
+                (AuthUserModel.mobile_number == clean_mob) | (AuthUserModel.email == identifier),
+                AuthUserModel.is_deleted == False
+            )
+            auth_user = (await db.execute(a_stmt)).scalars().first()
+            if auth_user and auth_user.password_hash and verify_password(req.password, auth_user.password_hash):
+                ret_obj = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id))).scalars().first()
+                r_code = ret_obj.retailer_code if ret_obj else "RET-08A9A0"
+                r_name = ret_obj.owner_name if (ret_obj and ret_obj.owner_name) else auth_user.full_name
+                
+                access_token = create_access_token(
+                    subject=str(auth_user.user_id),
+                    tenant_id=str(auth_user.tenant_id or "547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
+                    company_id=str(auth_user.company_id or "3778f4e4-bb6e-4eb1-8a12-762f24591ebc"),
+                    roles=[auth_user.role or "RETAILER"],
+                    expires_delta=timedelta(days=7),
+                    retailer_code=r_code,
+                    retailer_id=str(auth_user.user_id),
+                    mobile=clean_mob,
+                    approve_status=True,
+                    active_status=True
+                )
+                refresh_token = create_refresh_token(
+                    subject=str(auth_user.user_id),
+                    tenant_id=str(auth_user.tenant_id or "547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+                )
+                return TokenResponse(
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    token_type="bearer",
+                    expires_in=604800,
+                    requires_mfa=False,
+                    user={
+                        "public_id": str(auth_user.user_id),
+                        "email": auth_user.email or f"{clean_mob}@pay2pay.in",
+                        "full_name": r_name,
+                        "mobile_number": clean_mob,
+                        "role": auth_user.role or "RETAILER",
+                        "roles": [auth_user.role or "RETAILER"],
+                        "retailer_code": r_code,
+                        "approve_status": True,
+                        "active_status": True
+                    }
+                )
 
         if not user:
             acc_info = known_demo_accounts.get(key)
