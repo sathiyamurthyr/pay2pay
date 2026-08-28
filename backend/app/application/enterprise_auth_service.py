@@ -13,6 +13,9 @@ from app.infrastructure.db.auth_models import (
     BrowserRegistryModel, LocationHistoryModel
 )
 
+import logging
+logger = logging.getLogger("enterprise_auth_service")
+
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 class EnterpriseAuthService:

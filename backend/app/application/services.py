@@ -2534,8 +2534,8 @@ class RetailerManagementService:
                     company_id=use_tenant,
                     retailer_id=new_ret_id,
                     wallet_balance=0.0,
-                    daily_transaction_limit=100000.0,
-                    single_transaction_limit=25000.0,
+                    daily_transaction_limit=5000000.0,
+                    single_transaction_limit=500000.0,
                     created_by="Self-Onboarding Registration"
                 )
                 db.add(wallet_obj)

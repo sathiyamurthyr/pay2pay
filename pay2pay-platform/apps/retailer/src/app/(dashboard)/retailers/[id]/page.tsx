@@ -678,14 +678,14 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-1">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Daily Transaction Limit</span>
               <div className="font-mono text-lg font-bold text-[#0F172A]">
-                ₹{wallet?.daily_limit ? wallet.daily_limit.toLocaleString("en-IN") : "500,000"}
+                ₹{wallet?.daily_limit ? wallet.daily_limit.toLocaleString("en-IN") : "50,00,000"}
               </div>
             </div>
 
             <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-1">
               <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Single Transaction Limit</span>
               <div className="font-mono text-lg font-bold text-[#0F172A]">
-                ₹{wallet?.single_limit ? wallet.single_limit.toLocaleString("en-IN") : "50,000"}
+                ₹{wallet?.single_limit ? wallet.single_limit.toLocaleString("en-IN") : "5,00,000"}
               </div>
             </div>
           </div>
