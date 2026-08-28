@@ -33,13 +33,19 @@ interface VerificationPendingProps {
   applicationRef?: string;
   adminRemarks?: string;
   statusMessage?: string;
+  companyName?: string;
+  companyCode?: string;
+  storeName?: string;
 }
 
 export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = ({
   verificationStatus = "PENDING",
   applicationRef = "P2P-REG-2026-889021",
   adminRemarks,
-  statusMessage
+  statusMessage,
+  companyName,
+  companyCode,
+  storeName
 }) => {
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const { openContactSupportModal } = useContactSupportModal();
@@ -136,12 +142,42 @@ export const VerificationPendingDashboard: React.FC<VerificationPendingProps> = 
         </div>
       )}
 
-      {/* 3. Large Premium Verification Status Card */}
+      {/* 3. Large Premium Verification Status Card with Connected Company Info */}
       <div className="p-6 rounded-3xl bg-slate-900/95 border border-slate-700/80 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-6 border-b border-slate-800">
           <div>
             <span className="text-[11px] font-black uppercase tracking-wider text-yellow-400/90 block mb-0.5">Application Reference ID</span>
             <h2 className="text-xl font-black text-white font-mono tracking-wide">{applicationRef}</h2>
+          </div>
+
+          {/* Connected Company & Store Badge */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="px-3.5 py-1.5 rounded-2xl bg-blue-500/10 border border-blue-400/40 flex items-center gap-2.5 shadow-sm">
+              <div className="w-7 h-7 rounded-lg bg-blue-600/30 text-blue-300 flex items-center justify-center font-bold">
+                <Building2 className="w-4 h-4 text-blue-400" />
+              </div>
+              <div>
+                <span className="text-[9.5px] font-extrabold text-blue-300 uppercase block tracking-wider leading-none">Connected Company</span>
+                <span className="text-xs font-black text-white flex items-center gap-1.5 mt-0.5">
+                  {companyName || "Platform HQ Enterprise Ltd"}
+                  <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[9.5px] font-mono">
+                    {companyCode || "HQ_COMP"}
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            <div className="px-3.5 py-1.5 rounded-2xl bg-amber-500/10 border border-amber-400/40 flex items-center gap-2.5 shadow-sm">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-yellow-400 flex items-center justify-center font-bold">
+                <UserCheck className="w-4 h-4 text-yellow-400" />
+              </div>
+              <div>
+                <span className="text-[9.5px] font-extrabold text-yellow-400/90 uppercase block tracking-wider leading-none">Outlet / Store</span>
+                <span className="text-xs font-black text-white mt-0.5 block">
+                  {storeName || "Enterprises"}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-6 text-xs font-bold">

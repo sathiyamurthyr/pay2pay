@@ -27,6 +27,7 @@ from app.infrastructure.db.registration_models import (
     RegistrationDocumentModel,
     RegistrationVideoModel
 )
+from app.infrastructure.db.models import CompanyModel, RetailerModel
 from app.application.storage_service import BackblazeStorageService
 
 
@@ -618,7 +619,25 @@ class VerificationService:
                 VerificationStatusHistoryModel.verification_id == str(verif.id)
             ).order_by(desc(VerificationStatusHistoryModel.timestamp)).limit(1)
         )
-        latest_hist = hist_q.scalar_one_or_none()
+        # Fetch connected company details
+        company_name = "Platform HQ Enterprise Ltd"
+        company_code = "HQ_COMP"
+        shop_name = verif.shop_name or "Enterprises"
+        
+        try:
+            if verif.retailer_id:
+                ret_q = await db.execute(select(RetailerModel).where(or_(RetailerModel.public_id == verif.retailer_id, RetailerModel.retailer_code == verif.retailer_id)))
+                ret_obj = ret_q.scalar_one_or_none()
+                if ret_obj and ret_obj.company_id:
+                    comp_q = await db.execute(select(CompanyModel).where(CompanyModel.public_id == ret_obj.company_id))
+                    comp_obj = comp_q.scalar_one_or_none()
+                    if comp_obj:
+                        company_name = comp_obj.company_name or comp_obj.legal_name or company_name
+                        company_code = comp_obj.company_code or company_code
+                if ret_obj and ret_obj.store_name:
+                    shop_name = ret_obj.store_name
+        except Exception:
+            pass
 
         return {
             "verification_id": str(verif.id),
@@ -626,6 +645,9 @@ class VerificationService:
             "retailer_id": verif.retailer_id,
             "retailer_name": verif.retailer_name,
             "mobile_number": verif.mobile_number,
+            "shop_name": shop_name,
+            "company_name": company_name,
+            "company_code": company_code,
             "verification_status": verif.verification_status,
             "account_status": verif.account_status,
             "retailer_status": verif.retailer_status,

@@ -14,6 +14,8 @@ export interface AuthoritativeAccountStatus {
   retailer_id: string | null;
   tenant_id: string;
   company_id: string;
+  company_name?: string;
+  company_code?: string;
   retailer_name: string;
   store_name: string;
   legal_name: string;
@@ -158,6 +160,8 @@ export async function fetchAuthoritativeRetailerStatus(forceRefresh = false): Pr
           retailer_id: d.retailer_id || null,
           tenant_id: d.tenant_id || "00000000-0000-0000-0000-000000000001",
           company_id: d.company_id || "00000000-0000-0000-0000-000000000002",
+          company_name: d.company_name || "Platform HQ Enterprise Ltd",
+          company_code: d.company_code || "HQ_COMP",
           retailer_name: d.retailer_name || "Retailer Partner",
           store_name: d.store_name || "Retailer Outlet",
           legal_name: d.legal_name || "Retailer Outlet",

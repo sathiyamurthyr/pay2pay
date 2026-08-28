@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAuthoritativeRetailerStatus } from "@/lib/retailer-destination-resolver";
 import { VerificationPendingDashboard } from "@/components/dashboard/VerificationPendingDashboard";
-import { ShieldCheck, RefreshCw, LogOut, PhoneCall, CheckCircle2, Clock } from "lucide-react";
+import { ShieldCheck, RefreshCw, LogOut, PhoneCall, CheckCircle2, Clock, Building2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 export default function AccountUnderReviewPage() {
@@ -17,11 +17,17 @@ export default function AccountUnderReviewPage() {
     mobile: string;
     ref: string;
     status: string;
+    companyName: string;
+    companyCode: string;
+    storeName: string;
   }>({
     name: "Retailer Partner",
     mobile: "",
     ref: "P2P-REG-2026",
     status: "PENDING",
+    companyName: "Platform HQ Enterprise Ltd",
+    companyCode: "HQ_COMP",
+    storeName: "Enterprises",
   });
 
   const checkStatus = async (showLoading = true) => {
@@ -34,6 +40,9 @@ export default function AccountUnderReviewPage() {
           mobile: data.registered_mobile || "",
           ref: data.application_reference || "P2P-REG-2026",
           status: data.verification_status || data.approval_status || "PENDING",
+          companyName: data.company_name || "Platform HQ Enterprise Ltd",
+          companyCode: data.company_code || "HQ_COMP",
+          storeName: data.store_name || "Enterprises",
         });
 
         let dynamicMsg = data.status_message || "";
@@ -97,9 +106,15 @@ export default function AccountUnderReviewPage() {
                 Application Review
               </span>
             </h1>
-            <p className="text-xs text-slate-200 mt-0.5">
-              Merchant: <strong className="text-yellow-300 font-extrabold">{retailerInfo.name}</strong> {retailerInfo.mobile ? <span className="text-slate-100 font-bold">({retailerInfo.mobile})</span> : ""}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-200 mt-1">
+              <span>Merchant: <strong className="text-yellow-300 font-extrabold">{retailerInfo.name}</strong> {retailerInfo.mobile ? <span className="text-slate-100 font-bold">({retailerInfo.mobile})</span> : ""}</span>
+              <span className="text-slate-500 hidden sm:inline">·</span>
+              <span className="flex items-center gap-1.5 text-slate-200">
+                <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                Connected Company: <strong className="text-yellow-300 font-extrabold">{retailerInfo.companyName}</strong>
+                {retailerInfo.companyCode ? <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[10px] font-mono font-bold">{retailerInfo.companyCode}</span> : null}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -130,6 +145,9 @@ export default function AccountUnderReviewPage() {
           verificationStatus="UNDER_REVIEW"
           applicationRef={retailerInfo.ref}
           statusMessage={statusMessage}
+          companyName={retailerInfo.companyName}
+          companyCode={retailerInfo.companyCode}
+          storeName={retailerInfo.storeName}
           adminRemarks="Your merchant onboarding application has been submitted and is currently queued for enterprise admin verification. Once approved, all financial transaction services will immediately unlock."
         />
       </main>
