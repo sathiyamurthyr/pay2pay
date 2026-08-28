@@ -311,6 +311,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
       const res = await fetch(`/api/v1/payout/reports/summary?${q.toString()}`, {
         credentials: "include",
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -360,6 +361,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
       const res = await fetch(`/api/v1/payout/reports/grid?${q.toString()}`, {
         credentials: "include",
+        cache: "no-store",
       });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -398,6 +400,16 @@ export const RetailerPayoutReport: React.FC = () => {
     fetchSummary(fromDate, toDate);
     fetchReportData();
   }, [fetchSummary, fetchReportData]);
+
+  // Auto-refresh every 60 seconds when viewing TODAY to keep data live
+  useEffect(() => {
+    if (activePreset !== "TODAY") return;
+    const interval = setInterval(() => {
+      fetchSummary(fromDate, toDate);
+      fetchReportData();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [activePreset, fromDate, toDate, fetchSummary, fetchReportData]);
 
   // Handle Preset Date Buttons
   const applyDatePreset = (presetKey: string) => {

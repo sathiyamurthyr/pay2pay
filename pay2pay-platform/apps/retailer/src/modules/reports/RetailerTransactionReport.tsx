@@ -339,6 +339,7 @@ export const RetailerTransactionReport: React.FC = () => {
       const res = await fetch(`${baseUrl}/reports/transactions?${params.toString()}`, {
         headers,
         credentials: "include",
+        cache: "no-store",
       });
 
       if (res.ok) {
@@ -389,6 +390,7 @@ export const RetailerTransactionReport: React.FC = () => {
         const sumRes = await fetch(`${baseUrl}/reports/transactions/summary?${params.toString()}`, {
           headers,
           credentials: "include",
+          cache: "no-store",
         });
         if (sumRes.ok) {
           const sumJson = await sumRes.json();
@@ -421,6 +423,15 @@ export const RetailerTransactionReport: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-refresh every 60 seconds when viewing TODAY to keep data live
+  useEffect(() => {
+    if (activePreset !== "TODAY") return;
+    const interval = setInterval(() => {
+      fetchData();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [activePreset, fetchData]);
 
   // Load Deep Details on Drawer Open
   const openDetailsDrawer = async (item: TransactionReportItem) => {
