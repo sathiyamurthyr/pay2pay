@@ -49,13 +49,12 @@ function AnnouncementBannerImage({
   const resolvedUrl = imageUrl.startsWith("/uploads/") ? imageUrl : imageUrl;
 
   return (
-    <div className="relative w-full bg-slate-950/70 flex items-center justify-center border-b border-white/10 overflow-hidden">
-      <BlurImage
+    <div className="relative w-full bg-slate-950/90 flex items-center justify-center border-b border-white/10">
+      <img
         src={resolvedUrl}
-        blurhash={KNOWN_BLURHASHES.BRAND_BANNER}
         alt={title}
-        className="w-full h-auto max-h-[55vh]"
-        imageClassName="w-full h-auto max-h-[55vh] object-contain block select-none"
+        className="w-full h-auto object-contain block select-none"
+        loading="eager"
         onError={() => setImgError(true)}
       />
     </div>
@@ -181,7 +180,7 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
       style={{ backgroundColor: "rgba(15, 23, 42, 0.78)", backdropFilter: "blur(8px)" }}
     >
       <div
-        className="relative w-full max-w-lg max-h-[92vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl border border-white/15 animate-in fade-in zoom-in-95 duration-200"
+        className="relative w-full max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[92vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl border border-white/15 animate-in fade-in zoom-in-95 duration-200"
         style={{
           background: "linear-gradient(145deg, #0b1120 0%, #111827 50%, #1e1b4b 100%)",
         }}
