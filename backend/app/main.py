@@ -257,6 +257,12 @@ app.include_router(retailer_dashboard_router.router, prefix="/api/payout")
 app.include_router(retailer_dashboard_router.router, prefix="/api")
 app.include_router(retailer_dashboard_router.router, prefix="")
 
+from app.presentation.api.v1 import admin_retailer_mpin_router
+app.include_router(admin_retailer_mpin_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_retailer_mpin_router.router, prefix="")
+app.include_router(admin_retailer_mpin_router.verify_router, prefix=settings.API_V1_STR)
+app.include_router(admin_retailer_mpin_router.verify_router, prefix="")
+
 
 
 @app.get("/health", tags=["Health"])

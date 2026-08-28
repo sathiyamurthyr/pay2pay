@@ -198,8 +198,19 @@ export default function RetailerControllerPage() {
   const [walletRef, setWalletRef] = useState("");
   const [impersonationToken, setImpersonationToken] = useState<string | null>(null);
   const [impersonationUrl, setImpersonationUrl] = useState<string | null>(null);
+  const [mpinStatus, setMpinStatus] = useState<any>(null);
+  const [mpinReason, setMpinReason] = useState("");
 
   const showToast = (msg: string, type: "success" | "error") => setToast({ msg, type });
+
+  const fetchMpin = useCallback(async () => {
+    try {
+      const res = await api.get(`/api/v1/admin/retailers/${retailerId}/mpin-status`);
+      setMpinStatus(res.data);
+    } catch (err) {
+      console.error("Failed to load MPIN status", err);
+    }
+  }, [retailerId]);
 
   const loadOverview = useCallback(async () => {
     try {
@@ -208,12 +219,13 @@ export default function RetailerControllerPage() {
       setOverview(res.retailer);
       setServiceToggles(res.retailer.service_toggles);
       setLimits(res.retailer.limits);
+      await fetchMpin();
     } catch {
       showToast("Failed to load retailer overview.", "error");
     } finally {
       setLoading(false);
     }
-  }, [retailerId]);
+  }, [retailerId, fetchMpin]);
 
   useEffect(() => {
     if (retailerId) loadOverview();
@@ -223,6 +235,38 @@ export default function RetailerControllerPage() {
     navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handleUnlockMpin = async () => {
+    setBusy("mpin-unlock");
+    try {
+      await api.post(`/api/v1/admin/retailers/${retailerId}/mpin/unlock`, {
+        reason: mpinReason || "Admin unlocked retailer MPIN from controller panel",
+      });
+      showToast("Retailer MPIN unlocked successfully! Existing MPIN preserved.", "success");
+      setMpinReason("");
+      await fetchMpin();
+    } catch (err: any) {
+      showToast(err.response?.data?.detail || "Failed to unlock MPIN.", "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleLockMpin = async () => {
+    setBusy("mpin-lock");
+    try {
+      await api.post(`/api/v1/admin/retailers/${retailerId}/mpin/lock`, {
+        reason: mpinReason || "Admin manually locked retailer MPIN from controller",
+      });
+      showToast("Retailer MPIN locked successfully.", "success");
+      setMpinReason("");
+      await fetchMpin();
+    } catch (err: any) {
+      showToast(err.response?.data?.detail || "Failed to lock MPIN.", "error");
+    } finally {
+      setBusy(null);
+    }
   };
 
   // ── Action handlers ──
@@ -571,10 +615,97 @@ export default function RetailerControllerPage() {
 
       {/* ─── Security Operations ─── */}
       <Panel title="Security Operations" icon={<KeyRound className="w-5 h-5" />} accent="#DC2626">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* MPIN Lockout & Unlock Control */}
+          <div className="space-y-3">
+            <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">MPIN Lockout Status</p>
+            <div className={`p-4 rounded-xl border space-y-2.5 ${
+              mpinStatus?.mpin_locked
+                ? "bg-red-50/80 border-red-200"
+                : "bg-emerald-50/80 border-emerald-200"
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold">
+                  {mpinStatus?.mpin_locked ? (
+                    <>
+                      <Lock className="w-4 h-4 text-red-600" />
+                      <span className="text-xs font-black text-red-700">LOCKED (5/5 Failed)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-black text-emerald-700">
+                        ACTIVE ({mpinStatus?.mpin_failed_attempts ?? 0}/5)
+                      </span>
+                    </>
+                  )}
+                </div>
+                {mpinStatus?.mpin_locked ? (
+                  <span className="px-2 py-0.5 rounded bg-red-600 text-white font-mono text-[10px] font-black animate-pulse">
+                    BLOCKED
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded bg-emerald-600 text-white font-mono text-[10px] font-black">
+                    OK
+                  </span>
+                )}
+              </div>
+
+              <p className="text-[11px] text-[#475569] leading-tight">
+                {mpinStatus?.mpin_locked
+                  ? "Retailer is locked due to maximum failed MPIN attempts."
+                  : "Retailer can authenticate. Unlocking resets failed attempts without altering existing MPIN."}
+              </p>
+
+              <input
+                id="mpin-reason-input"
+                type="text"
+                value={mpinReason}
+                onChange={(e) => setMpinReason(e.target.value)}
+                placeholder="Reason for unlock / lock"
+                className="w-full px-3 py-1.5 text-[11px] border border-[#CBD5E1] rounded-lg bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-emerald-600"
+              />
+
+              <div className="flex items-center gap-2 pt-1">
+                {mpinStatus?.mpin_locked ? (
+                  <button
+                    id="controller-unlock-mpin-btn"
+                    onClick={handleUnlockMpin}
+                    disabled={busy === "mpin-unlock"}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-[11px] font-black hover:bg-emerald-700 transition-all cursor-pointer shadow-xs"
+                  >
+                    {busy === "mpin-unlock" ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Unlock className="w-3.5 h-3.5" />}
+                    Unlock MPIN
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      id="controller-quick-unlock-btn"
+                      onClick={handleUnlockMpin}
+                      disabled={busy === "mpin-unlock"}
+                      className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-white text-emerald-800 text-[10px] font-bold hover:bg-emerald-100 transition-all cursor-pointer"
+                    >
+                      {busy === "mpin-unlock" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Unlock className="w-3 h-3" />}
+                      Reset Counter
+                    </button>
+                    <button
+                      id="controller-lock-mpin-btn"
+                      onClick={handleLockMpin}
+                      disabled={busy === "mpin-lock"}
+                      className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-300 bg-white text-red-800 text-[10px] font-bold hover:bg-red-50 transition-all cursor-pointer"
+                    >
+                      {busy === "mpin-lock" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Lock className="w-3 h-3" />}
+                      Lock Account
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Credential Reset */}
           <div className="space-y-3">
-            <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Credential Reset</p>
+            <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Full Credential Reset</p>
             <div className="flex flex-col gap-2">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input

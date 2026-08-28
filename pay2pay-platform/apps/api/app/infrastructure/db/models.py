@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON
+    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, func
 )
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB, UUID
 JSONB = JSON
@@ -530,6 +530,15 @@ class RetailerModel(BaseEntity, EnterpriseBaseMixin):
     status: Mapped[str] = mapped_column(String(30), default="PENDING_APPROVAL", nullable=False, index=True)  # DRAFT, PENDING_KYC, PENDING_APPROVAL, ACTIVE, SUSPENDED, BLOCKED, CLOSED
     mapped_distributor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("distributor.public_id", ondelete="SET NULL"), nullable=True, index=True)
 
+    # MPIN Security & Lockout Management
+    mpin_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    mpin_failed_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    mpin_max_attempts: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    mpin_locked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    mpin_locked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    mpin_unlocked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    mpin_unlocked_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
     contacts: Mapped[List["RetailerContactModel"]] = relationship("RetailerContactModel", back_populates="retailer", cascade="all, delete-orphan")
     addresses: Mapped[List["RetailerAddressModel"]] = relationship("RetailerAddressModel", back_populates="retailer", cascade="all, delete-orphan")
     banks: Mapped[List["RetailerBankModel"]] = relationship("RetailerBankModel", back_populates="retailer", cascade="all, delete-orphan")
@@ -541,6 +550,23 @@ class RetailerModel(BaseEntity, EnterpriseBaseMixin):
     __table_args__ = (
         UniqueConstraint("tenant_id", "retailer_code", name="uq_retailer_tenant_code"),
     )
+
+
+class RetailerMpinAuditModel(Base):
+    __tablename__ = "retailer_mpin_audit"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True)
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)  # FAILED_ATTEMPT, LOCKED, UNLOCKED, MANUAL_LOCKED, PIN_INITIALIZED, PIN_CHANGED
+    failed_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    performed_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    admin_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class RetailerContactModel(BaseEntity, EnterpriseBaseMixin):

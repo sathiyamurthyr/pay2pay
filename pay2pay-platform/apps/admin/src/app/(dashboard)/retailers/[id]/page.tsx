@@ -36,6 +36,11 @@ import {
   RotateCw,
   Download,
   X,
+  Lock,
+  Unlock,
+  ShieldAlert,
+  AlertTriangle,
+  Shield,
 } from "lucide-react";
 
 export default function RetailerDetailsPage() {
@@ -97,11 +102,69 @@ export default function RetailerDetailsPage() {
     }
   };
 
+  // MPIN Security & Lockout State
+  const [mpinStatus, setMpinStatus] = useState<any>(null);
+  const [mpinLoading, setMpinLoading] = useState(false);
+  const [unlockModalOpen, setUnlockModalOpen] = useState(false);
+  const [lockModalOpen, setLockModalOpen] = useState(false);
+  const [mpinReason, setMpinReason] = useState("");
+  const [mpinActionLoading, setMpinActionLoading] = useState(false);
+  const [mpinSuccessMsg, setMpinSuccessMsg] = useState<string | null>(null);
+
+  const fetchMpinStatus = async () => {
+    try {
+      setMpinLoading(true);
+      const res = await api.get(`/api/v1/admin/retailers/${retailerId}/mpin-status`);
+      setMpinStatus(res.data);
+    } catch (err) {
+      console.error("Failed to load MPIN status", err);
+    } finally {
+      setMpinLoading(false);
+    }
+  };
+
+  const handleUnlockMpin = async () => {
+    try {
+      setMpinActionLoading(true);
+      const res = await api.post(`/api/v1/admin/retailers/${retailerId}/mpin/unlock`, {
+        reason: mpinReason || "Admin unlocked retailer MPIN after verification",
+      });
+      setMpinSuccessMsg("Retailer MPIN unlocked successfully! Existing MPIN is preserved.");
+      setUnlockModalOpen(false);
+      setMpinReason("");
+      setTimeout(() => setMpinSuccessMsg(null), 4000);
+      await fetchMpinStatus();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Failed to unlock MPIN.");
+    } finally {
+      setMpinActionLoading(false);
+    }
+  };
+
+  const handleLockMpin = async () => {
+    try {
+      setMpinActionLoading(true);
+      await api.post(`/api/v1/admin/retailers/${retailerId}/mpin/lock`, {
+        reason: mpinReason || "Admin manually locked retailer MPIN",
+      });
+      setMpinSuccessMsg("Retailer MPIN locked successfully.");
+      setLockModalOpen(false);
+      setMpinReason("");
+      setTimeout(() => setMpinSuccessMsg(null), 4000);
+      await fetchMpinStatus();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Failed to lock MPIN.");
+    } finally {
+      setMpinActionLoading(false);
+    }
+  };
+
   const fetchDetails = async () => {
     try {
       setLoading(true);
       const res = await api.get(`/api/v1/retailers/${retailerId}`);
       setData(res.data);
+      await fetchMpinStatus();
     } catch (err) {
       console.error("Failed to load retailer details", err);
     } finally {
@@ -375,6 +438,31 @@ export default function RetailerDetailsPage() {
           >
             <KeyRound className="w-4 h-4 text-[#2563EB]" /> Reset Password
           </button>
+
+          {/* MPIN Status & Quick Unlock */}
+          {mpinStatus?.mpin_locked ? (
+            <button
+              onClick={() => {
+                setMpinReason("");
+                setUnlockModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-black text-white shadow-md animate-pulse cursor-pointer"
+              title="Retailer MPIN is locked! Click to unlock."
+            >
+              <Lock className="w-4 h-4" /> Unlock MPIN (Locked)
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setMpinReason("");
+                setLockModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-extrabold text-emerald-800 hover:bg-emerald-100 cursor-pointer shadow-2xs"
+              title="MPIN is active. Click to manually lock if needed."
+            >
+              <Unlock className="w-4 h-4 text-emerald-600" /> MPIN Active
+            </button>
+          )}
 
           <button
             onClick={() => handleApprovalAction("APPROVED")}
@@ -907,7 +995,341 @@ export default function RetailerDetailsPage() {
             )}
           </div>
         </div>
+        {/* ROW 8: MPIN Security & Lockout Management */}
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 space-y-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-[#2563EB]" />
+              <h2 className="text-sm font-extrabold text-[#0F172A] uppercase tracking-wider">
+                8. MPIN Security & Lockout Management
+              </h2>
+            </div>
+            {mpinSuccessMsg && (
+              <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-700 animate-in fade-in">
+                {mpinSuccessMsg}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            {/* Status Card */}
+            <div className={`p-4 rounded-xl border space-y-2 ${
+              mpinStatus?.mpin_locked 
+                ? "bg-red-50/70 border-red-200 text-red-900" 
+                : "bg-emerald-50/70 border-emerald-200 text-emerald-900"
+            }`}>
+              <span className="text-[11px] font-extrabold uppercase tracking-wider block opacity-75">
+                MPIN Authentication Status
+              </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {mpinStatus?.mpin_locked ? (
+                    <>
+                      <Lock className="w-5 h-5 text-red-600" />
+                      <span className="text-base font-black text-red-700 uppercase">LOCKED</span>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="w-5 h-5 text-emerald-600" />
+                      <span className="text-base font-black text-emerald-700 uppercase">UNLOCKED / ACTIVE</span>
+                    </>
+                  )}
+                </div>
+                {mpinStatus?.mpin_locked ? (
+                  <button
+                    onClick={() => {
+                      setMpinReason("");
+                      setUnlockModalOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-xs cursor-pointer"
+                  >
+                    Unlock MPIN
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setMpinReason("");
+                      setLockModalOpen(true);
+                    }}
+                    className="px-2.5 py-1 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-700 text-[11px] font-bold cursor-pointer"
+                  >
+                    Manual Lock
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Failed Attempts Counter */}
+            <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-2">
+              <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">
+                Failed Attempts Counter
+              </span>
+              <div className="flex items-center justify-between">
+                <div className="font-mono text-xl font-black text-[#0F172A]">
+                  {mpinStatus?.mpin_failed_attempts ?? 0} / {mpinStatus?.mpin_max_attempts ?? 5}
+                </div>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  (mpinStatus?.mpin_failed_attempts ?? 0) >= (mpinStatus?.mpin_max_attempts ?? 5)
+                    ? "bg-red-100 text-red-700"
+                    : (mpinStatus?.mpin_failed_attempts ?? 0) > 0
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-emerald-100 text-emerald-700"
+                }`}>
+                  {(mpinStatus?.mpin_failed_attempts ?? 0) >= (mpinStatus?.mpin_max_attempts ?? 5)
+                    ? "Max Reached"
+                    : (mpinStatus?.mpin_failed_attempts ?? 0) > 0
+                    ? "Warning"
+                    : "Normal"}
+                </span>
+              </div>
+            </div>
+
+            {/* Lockout & Unlock Timestamps */}
+            <div className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-1.5">
+              <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">
+                Lockout & Audit Timestamps
+              </span>
+              <div className="text-[11px] text-[#334155] space-y-1 font-medium">
+                <div>
+                  <span className="text-[#64748B]">Locked At: </span>
+                  <span className="font-mono font-bold">
+                    {mpinStatus?.mpin_locked_at ? new Date(mpinStatus.mpin_locked_at).toLocaleString() : "None (Active)"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#64748B]">Last Unlocked: </span>
+                  <span className="font-mono font-bold">
+                    {mpinStatus?.mpin_unlocked_at ? new Date(mpinStatus.mpin_unlocked_at).toLocaleString() : "Never"}
+                  </span>
+                </div>
+                {mpinStatus?.mpin_unlocked_by && (
+                  <div>
+                    <span className="text-[#64748B]">Unlocked By: </span>
+                    <span className="font-mono font-bold text-blue-600 truncate">{mpinStatus.mpin_unlocked_by}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Security & MPIN Rule Note */}
+          <div className="p-3.5 rounded-xl border border-blue-100 bg-blue-50/50 flex items-start gap-2.5 text-xs text-[#1E293B]">
+            <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-blue-900 block mb-0.5">Enterprise MPIN Policy</span>
+              <p className="text-[#475569] leading-relaxed">
+                Unlocking this retailer resets the failed attempts counter to 0 and clears the locked flag. 
+                <strong className="text-[#1E293B]"> The retailer's existing MPIN is strictly preserved and not changed or reset.</strong> All unlock and lock actions are recorded in the immutable audit log.
+              </p>
+            </div>
+          </div>
+
+          {/* MPIN Audit Trail */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-[#334155] uppercase tracking-wider flex items-center gap-1.5">
+                <History className="w-4 h-4 text-[#64748B]" /> Recent MPIN Security Logs
+              </span>
+              <button
+                onClick={fetchMpinStatus}
+                disabled={mpinLoading}
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${mpinLoading ? "animate-spin" : ""}`} /> Refresh
+              </button>
+            </div>
+
+            {mpinStatus?.audit_history && mpinStatus.audit_history.length > 0 ? (
+              <div className="overflow-x-auto rounded-xl border border-[#E2E8F0]">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Action</th>
+                      <th className="py-2.5 px-3">Operator / Source</th>
+                      <th className="py-2.5 px-3">Reason</th>
+                      <th className="py-2.5 px-3">IP Address</th>
+                      <th className="py-2.5 px-3 text-right">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E2E8F0] font-medium text-[#334155]">
+                    {mpinStatus.audit_history.map((log: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-[#F8FAFC] transition-colors">
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                            log.action === "UNLOCKED"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : log.action === "LOCKED" || log.action === "MANUAL_LOCKED"
+                              ? "bg-red-100 text-red-800"
+                              : log.action === "FAILED_ATTEMPT"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-[#475569]">
+                          {log.performed_by_name || log.performed_by || "System"}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#1E293B]">
+                          {log.reason || "—"}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-[#64748B]">
+                          {log.ip_address || "—"}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono text-[11px] text-[#64748B]">
+                          {log.created_at ? new Date(log.created_at).toLocaleString() : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-center text-xs text-[#64748B]">
+                No security lockout logs recorded for this retailer.
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Admin Unlock MPIN Confirmation Modal */}
+      {unlockModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                  <Unlock className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#0F172A]">Unlock Retailer MPIN</h3>
+                  <p className="text-xs text-[#64748B]">{retailer.store_name} ({retailer.retailer_code})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setUnlockModalOpen(false)}
+                className="p-2 text-[#94A3B8] hover:text-[#0F172A] rounded-xl hover:bg-[#F1F5F9] transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-emerald-950 space-y-1">
+                <p className="font-bold flex items-center gap-1.5 text-emerald-900">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Unlock Action Summary
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-emerald-800 text-[11px]">
+                  <li>Failed attempts counter will be reset to <strong>0</strong>.</li>
+                  <li>Account lockout flag will be set to <strong>false</strong>.</li>
+                  <li>Retailer's <strong>existing MPIN remains unchanged</strong>.</li>
+                </ul>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-[#475569] uppercase tracking-wider mb-1.5">
+                  Audit Reason for Unlock *
+                </label>
+                <textarea
+                  rows={2}
+                  value={mpinReason}
+                  onChange={(e) => setMpinReason(e.target.value)}
+                  placeholder="e.g., Retailer verified identity via phone OTP after 5 wrong attempts."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-xs font-medium text-[#0F172A] focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#F1F5F9]">
+              <button
+                type="button"
+                onClick={() => setUnlockModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-xs font-extrabold text-[#475569] hover:bg-[#F8FAFC]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={mpinActionLoading}
+                onClick={handleUnlockMpin}
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-black text-white shadow-md cursor-pointer disabled:opacity-50"
+              >
+                {mpinActionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                <span>Confirm & Unlock MPIN</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Manual Lock MPIN Confirmation Modal */}
+      {lockModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xl max-w-md w-full p-6 space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-red-50 text-red-600 border border-red-100">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#0F172A]">Lock Retailer MPIN</h3>
+                  <p className="text-xs text-[#64748B]">{retailer.store_name} ({retailer.retailer_code})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setLockModalOpen(false)}
+                className="p-2 text-[#94A3B8] hover:text-[#0F172A] rounded-xl hover:bg-[#F1F5F9] transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-red-50/80 border border-red-200 text-red-950 space-y-1">
+                <p className="font-bold flex items-center gap-1.5 text-red-900">
+                  <ShieldAlert className="w-4 h-4 text-red-600" /> Lockout Warning
+                </p>
+                <p className="text-red-800 text-[11px]">
+                  The retailer will be blocked from performing all MPIN-authenticated operations until unlocked by an Administrator.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-[#475569] uppercase tracking-wider mb-1.5">
+                  Audit Reason for Lockout *
+                </label>
+                <textarea
+                  rows={2}
+                  value={mpinReason}
+                  onChange={(e) => setMpinReason(e.target.value)}
+                  placeholder="e.g., Suspicious device transaction flagged by risk monitoring."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-xs font-medium text-[#0F172A] focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/15"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#F1F5F9]">
+              <button
+                type="button"
+                onClick={() => setLockModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-xs font-extrabold text-[#475569] hover:bg-[#F8FAFC]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={mpinActionLoading}
+                onClick={handleLockMpin}
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-black text-white shadow-md cursor-pointer disabled:opacity-50"
+              >
+                {mpinActionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                <span>Lock MPIN Account</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hierarchy Mapping Modal */}
       {hierarchyModalOpen && (
