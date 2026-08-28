@@ -275,7 +275,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     });
   }, [filteredBeneficiaries, sortBy]);
 
-  const displayedBeneficiaries = sortedBeneficiaries.slice(0, visibleCount);
+  const displayedBeneficiaries = sortedBeneficiaries;
 
   const handleRowClick = (b: BeneficiaryData) => {
     onSelectBeneficiary(b);
@@ -449,16 +449,17 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           sx={{
             flex: 1,
             width: "100%",
-            minHeight: "360px",
+            minHeight: "320px",
+            maxHeight: { xs: "500px", sm: "560px", md: "600px", lg: "calc(100vh - 280px)", xl: "calc(100vh - 250px)" },
             overflowY: "auto",
             overflowX: "auto",
-            maxHeight: { xs: "560px", lg: "calc(100vh - 230px)" },
             pr: 0.5,
-            pb: 5,
-            "&::-webkit-scrollbar": { width: "6px", height: "6px" },
-            "&::-webkit-scrollbar-track": { background: "rgba(255, 255, 255, 0.02)", borderRadius: "4px" },
-            "&::-webkit-scrollbar-thumb": { background: "rgba(96, 165, 250, 0.3)", borderRadius: "4px" },
-            "&::-webkit-scrollbar-thumb:hover": { background: "rgba(96, 165, 250, 0.6)" },
+            pb: 1,
+            position: "relative",
+            "&::-webkit-scrollbar": { width: "8px", height: "8px" },
+            "&::-webkit-scrollbar-track": { background: "rgba(255, 255, 255, 0.04)", borderRadius: "6px" },
+            "&::-webkit-scrollbar-thumb": { background: "rgba(96, 165, 250, 0.5)", borderRadius: "6px", border: "2px solid rgba(18, 27, 48, 0.8)" },
+            "&::-webkit-scrollbar-thumb:hover": { background: "rgba(96, 165, 250, 0.85)" },
           }}
         >
           {filteredBeneficiaries.length === 0 ? (
@@ -834,6 +835,39 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             </TableContainer>
           )}
         </Box>
+
+        {/* ── FOOTER SUMMARY STRIP ── */}
+        <Stack
+          direction="row"
+          sx={{
+            mt: 1.5,
+            pt: 1.25,
+            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1,
+          }}
+        >
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "12px", fontWeight: 700 }}>
+            Showing <strong>{displayedBeneficiaries.length}</strong> of <strong>{cleanBeneficiaries.length}</strong> beneficiaries • ↕ Scroll table to view all
+          </Typography>
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<PersonAddIcon sx={{ fontSize: 14 }} />}
+            onClick={handleNavigateToAddBeneficiary}
+            sx={{
+              fontSize: "11.5px",
+              fontWeight: 800,
+              color: "#60A5FA",
+              textTransform: "none",
+              "&:hover": { color: "#93C5FD", bgcolor: "rgba(37, 99, 235, 0.1)" },
+            }}
+          >
+            + Add Beneficiary
+          </Button>
+        </Stack>
       </Paper>
 
       {/* ── RIGHT PANEL (TRANSACTION MODE & TRANSFER AMOUNT) ── */}

@@ -1569,17 +1569,17 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           width: { xs: "100%", lg: `calc(100% - ${activeDrawerWidth}px)` },
           maxWidth: "100vw",
           overflowX: "hidden",
-          overflowY: pathname === "/retailer/dmt" ? "hidden" : "auto",
+          overflowY: "auto",
           mt: "56px",
-          pb: pathname === "/retailer/dmt" ? 0 : { xs: "80px", md: 0 },
+          pb: { xs: "80px", md: 0 },
           minHeight: "calc(100vh - 56px)",
-          maxHeight: pathname === "/retailer/dmt" ? "calc(100vh - 56px)" : "none",
+          maxHeight: "none",
           display: "flex",
           flexDirection: "column",
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflow: pathname === "/retailer/dmt" ? "hidden" : "visible" }}>
+        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflow: "visible" }}>
           {/* Account Verification Warning Banner for Unapproved Retailer */}
           {!isApproved && (
             <Paper
