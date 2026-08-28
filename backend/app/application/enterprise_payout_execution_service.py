@@ -3,7 +3,7 @@ import logging
 import random
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List
-from sqlalchemy import select, update, desc, asc
+from sqlalchemy import select, update, desc, asc, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import DomainException
@@ -196,7 +196,25 @@ class EnterprisePayoutExecutionService:
         if not bene_obj or not bene_obj.is_active or bene_obj.is_deleted or bene_obj.verification_status != "VERIFIED":
             raise DomainException("Beneficiary is unverified or inactive.")
 
-        # Validate Retailer Active & Row-Lock Wallet
+        # ── Advisory lock: serialize concurrent payouts per retailer ────────
+        # pg_try_advisory_xact_lock acquires an exclusive transaction-level
+        # advisory lock keyed on the retailer UUID (cast to two int4 halves).
+        # It is automatically released at COMMIT/ROLLBACK — no manual release.
+        # If another payout for the same retailer is in-flight, this returns
+        # FALSE immediately and we reject early, preventing race conditions.
+        lock_key = retailer_id.int & 0x7FFFFFFFFFFFFFFF  # safe positive int64 from UUID
+        lock_result = await db.execute(
+            text("SELECT pg_try_advisory_xact_lock(:key)"),
+            {"key": lock_key}
+        )
+        if not lock_result.scalar():
+            raise DomainException(
+                "Another payout transaction is currently being processed for this retailer. "
+                "Please retry in a moment."
+            )
+        logger.info(f"STEP 2: Advisory lock acquired for retailer {retailer_id}")
+
+        # Validate Retailer Active & Row-Lock Wallet (secondary guard)
         stmt_w = select(RetailerWalletModel).where(
             RetailerWalletModel.retailer_id == retailer_id
         ).with_for_update()
@@ -212,7 +230,7 @@ class EnterprisePayoutExecutionService:
             )
 
         wallet_before = wallet.wallet_balance
-        wallet_after = wallet_before - net_debit
+        wallet_after = round(wallet_before - net_debit, 2)
 
         logger.info(f"STEP 2 PASSED: All validations passed for retailer {retailer_id}")
 
@@ -749,7 +767,18 @@ class EnterprisePayoutExecutionService:
 
         reversal_uuid = uuid.uuid4()
 
-        # 1. Credit Retailer Wallet Back
+        # 1. Advisory-lock the retailer wallet for reversal (prevents concurrent writes)
+        rev_lock_key = tx.retailer_id.int & 0x7FFFFFFFFFFFFFFF
+        rev_lock_result = await db.execute(
+            text("SELECT pg_try_advisory_xact_lock(:key)"),
+            {"key": rev_lock_key}
+        )
+        if not rev_lock_result.scalar():
+            raise DomainException(
+                "Retailer wallet is locked by a concurrent transaction. Reversal will be retried."
+            )
+
+        # Credit Retailer Wallet Back
         stmt_w = select(RetailerWalletModel).where(
             RetailerWalletModel.retailer_id == tx.retailer_id
         ).with_for_update()

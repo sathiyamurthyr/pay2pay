@@ -587,8 +587,8 @@ export default function RetailerDetailsPage() {
               {primaryAddress
                 ? [primaryAddress.address, primaryAddress.city, primaryAddress.state ? `${primaryAddress.state} - ${primaryAddress.pincode || ""}` : primaryAddress.pincode].filter(Boolean).join(", ")
                 : retailer.address
-                ? [retailer.address, retailer.city, retailer.state ? `${retailer.state} - ${retailer.pincode || ""}` : retailer.pincode].filter(Boolean).join(", ")
-                : "—"}
+                  ? [retailer.address, retailer.city, retailer.state ? `${retailer.state} - ${retailer.pincode || ""}` : retailer.pincode].filter(Boolean).join(", ")
+                  : "—"}
             </div>
           </div>
         </div>
@@ -702,11 +702,10 @@ export default function RetailerDetailsPage() {
                 return (
                   <div
                     key={doc.id || idx}
-                    className={`flex flex-col bg-white rounded-2xl border transition-all duration-200 overflow-hidden group ${
-                      isUploaded
+                    className={`flex flex-col bg-white rounded-2xl border transition-all duration-200 overflow-hidden group ${isUploaded
                         ? "border-[#CBD5E1] hover:border-[#2563EB] shadow-xs hover:shadow-md"
                         : "border-[#E2E8F0] opacity-80"
-                    }`}
+                      }`}
                   >
                     {/* Header */}
                     <div className="p-3 bg-gradient-to-r from-[#F8FAFC] to-[#EFF6FF] border-b border-[#E2E8F0] flex items-center justify-between">
@@ -715,15 +714,14 @@ export default function RetailerDetailsPage() {
                         <p className="text-[10px] font-bold text-[#64748B] truncate">{doc.category}</p>
                       </div>
                       <span
-                        className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold border shrink-0 ${
-                          !isUploaded
+                        className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold border shrink-0 ${!isUploaded
                             ? "bg-[#F1F5F9] text-[#64748B] border-[#CBD5E1]"
                             : isPdf
-                            ? "bg-red-50 text-red-700 border-red-200"
-                            : isVid
-                            ? "bg-purple-50 text-purple-700 border-purple-200"
-                            : "bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]"
-                        }`}
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : isVid
+                                ? "bg-purple-50 text-purple-700 border-purple-200"
+                                : "bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]"
+                          }`}
                       >
                         {!isUploaded ? "NOT UPLOADED" : isPdf ? "PDF" : isVid ? "VIDEO" : "IMAGE"}
                       </span>
@@ -743,9 +741,8 @@ export default function RetailerDetailsPage() {
                         setLightboxZoom(1);
                         setLightboxRotation(0);
                       }}
-                      className={`relative h-36 w-full overflow-hidden flex items-center justify-center select-none ${
-                        isUploaded ? "bg-[#0F172A] cursor-pointer" : "bg-[#F8FAFC]"
-                      }`}
+                      className={`relative h-36 w-full overflow-hidden flex items-center justify-center select-none ${isUploaded ? "bg-[#0F172A] cursor-pointer" : "bg-[#F8FAFC]"
+                        }`}
                     >
                       {!isUploaded ? (
                         <div className="flex flex-col items-center justify-center gap-1.5 p-3 text-[#94A3B8]">

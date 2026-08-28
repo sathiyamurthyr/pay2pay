@@ -40,6 +40,7 @@ import {
   Building,
   Image as ImageIcon,
   Sparkles,
+  Wallet,
 } from "lucide-react";
 
 const API_BASE_URL = typeof window !== "undefined" ? "/api/v1" : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1");
@@ -59,6 +60,11 @@ export default function AdminApprovalsPage() {
   const [actionRemarks, setActionRemarks] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+  
+  // Wallet Float & Operating Limits state
+  const [walletFloat, setWalletFloat] = useState<string>("0.00");
+  const [dailyLimit, setDailyLimit] = useState<string>("50,00,000");
+  const [singleLimit, setSingleLimit] = useState<string>("5,00,000");
   
   // Interactive Lightbox State
   const [previewModalDoc, setPreviewModalDoc] = useState<{ label: string; url: string; category?: string; isVideo?: boolean; docNumber?: string; holderName?: string; type?: string } | null>(null);
@@ -118,7 +124,10 @@ export default function AdminApprovalsPage() {
           action: newStatus,
           admin_id: "ADM-SYSTEM",
           remarks: actionRemarks || `Verification status updated to ${newStatus} by Admin`,
-          admin_role: "COMPLIANCE_OFFICER"
+          admin_role: "COMPLIANCE_OFFICER",
+          wallet_balance: parseFloat(String(walletFloat).replace(/,/g, "")) || 0.0,
+          daily_transaction_limit: parseFloat(String(dailyLimit).replace(/,/g, "")) || 5000000.0,
+          single_transaction_limit: parseFloat(String(singleLimit).replace(/,/g, "")) || 500000.0,
         }),
       });
 
@@ -152,20 +161,25 @@ export default function AdminApprovalsPage() {
         const res = await fetch(`${API_BASE_URL}/admin/verification/requests/${verifId}`);
         if (res.ok) {
           const detail = await res.json();
-          if (detail.status === "SUCCESS" && detail.media) {
+          if (detail.status === "SUCCESS") {
+            const w = detail.wallet || {};
+            setWalletFloat(w.wallet_balance !== undefined ? String(w.wallet_balance) : "0.00");
+            setDailyLimit(w.daily_transaction_limit ? Number(w.daily_transaction_limit).toLocaleString("en-IN") : "50,00,000");
+            setSingleLimit(w.single_transaction_limit ? Number(w.single_transaction_limit).toLocaleString("en-IN") : "5,00,000");
             setSelectedItem((prev: any) => ({
               ...prev,
               ...detail.verification,
               ...detail.media,
-              pan_card_url: detail.media.pan_card_url,
-              aadhaar_front_url: detail.media.aadhaar_front_url,
-              aadhaar_back_url: detail.media.aadhaar_back_url,
-              bank_proof_url: detail.media.bank_proof_url,
-              gst_proof_url: detail.media.gst_proof_url,
-              shop_photo_url: detail.media.shop_photo_url,
-              video_url: detail.media.video_url || detail.media.raw_video_url || "/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4",
-              selfie_url: detail.media.selfie_url,
-              script_text: detail.media.script_text,
+              wallet: detail.wallet,
+              pan_card_url: detail.media?.pan_card_url,
+              aadhaar_front_url: detail.media?.aadhaar_front_url,
+              aadhaar_back_url: detail.media?.aadhaar_back_url,
+              bank_proof_url: detail.media?.bank_proof_url,
+              gst_proof_url: detail.media?.gst_proof_url,
+              shop_photo_url: detail.media?.shop_photo_url,
+              video_url: detail.media?.video_url || detail.media?.raw_video_url || "/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4",
+              selfie_url: detail.media?.selfie_url,
+              script_text: detail.media?.script_text,
             }));
           }
         }
@@ -754,6 +768,81 @@ export default function AdminApprovalsPage() {
                     <CashfreePanVerifier pan={selectedItem.pan_number} name={selectedItem.retailer_name || selectedItem.owner_name} />
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Wallet Balances & Operating Limits Card */}
+            <div className="p-5 rounded-3xl border border-[#BBF7D0] bg-gradient-to-br from-[#F0FDF4] via-[#FFFFFF] to-[#F0FDF4] space-y-4 shadow-xs">
+              <div className="flex items-center justify-between border-b border-[#DCFCE7] pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#DCFCE7] border border-[#BBF7D0] flex items-center justify-center text-[#16A34A] font-extrabold">
+                    <Wallet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-[#166534] uppercase tracking-wider">
+                      Wallet Balances &amp; Operating Limits
+                    </h3>
+                    <p className="text-[10px] text-[#64748B] font-medium">
+                      Configure initial wallet float and transaction thresholds for this retailer
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#15803D] text-[10px] font-black uppercase tracking-wider border border-[#BBF7D0]">
+                  ACTIVE LIMITS
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                {/* Current Wallet Float */}
+                <div className="p-3.5 rounded-2xl bg-white border border-[#BBF7D0] space-y-1.5 shadow-2xs">
+                  <label className="text-[11px] font-extrabold text-[#166534] uppercase tracking-wider block">
+                    Current Wallet Float
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-sm font-extrabold text-[#15803D]">₹</span>
+                    <input
+                      type="text"
+                      value={walletFloat}
+                      onChange={(e) => setWalletFloat(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#F0FDF4]/50 border border-[#86EFAC] font-mono text-base font-extrabold text-[#15803D] focus:outline-none focus:ring-2 focus:ring-[#16A34A]/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Daily Transaction Limit */}
+                <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8F0] space-y-1.5 shadow-2xs">
+                  <label className="text-[11px] font-extrabold text-[#475569] uppercase tracking-wider block">
+                    Daily Transaction Limit
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-sm font-extrabold text-[#0F172A]">₹</span>
+                    <input
+                      type="text"
+                      value={dailyLimit}
+                      onChange={(e) => setDailyLimit(e.target.value)}
+                      placeholder="50,00,000"
+                      className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] font-mono text-base font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Single Transaction Limit */}
+                <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8F0] space-y-1.5 shadow-2xs">
+                  <label className="text-[11px] font-extrabold text-[#475569] uppercase tracking-wider block">
+                    Single Transaction Limit
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-sm font-extrabold text-[#0F172A]">₹</span>
+                    <input
+                      type="text"
+                      value={singleLimit}
+                      onChange={(e) => setSingleLimit(e.target.value)}
+                      placeholder="5,00,000"
+                      className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] font-mono text-base font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

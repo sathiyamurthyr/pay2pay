@@ -1,17 +1,33 @@
 import uuid
 import io
 import csv
+import re
 from datetime import datetime, date, time, timezone
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Response, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import text
+from sqlalchemy import text, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.security import decode_access_token
+from app.infrastructure.db.models import RetailerModel, RetailerContactModel, AdminUserModel
 
 router = APIRouter(prefix="/reports", tags=["Retailer Payout Report"])
+
+def parse_uuid_or_none(val: Any) -> Optional[uuid.UUID]:
+    if not val:
+        return None
+    try:
+        if isinstance(val, uuid.UUID):
+            return val
+        s = str(val).strip()
+        if len(s) == 36 and (s.count("-") == 4):
+            return uuid.UUID(s)
+        return None
+    except Exception:
+        return None
 
 def mask_account_number(acc_no: Optional[str]) -> str:
     if not acc_no:
@@ -30,8 +46,113 @@ class ReportAuditLogRequest(BaseModel):
     ip_address: Optional[str] = "127.0.0.1"
     details: Optional[Dict[str, Any]] = None
 
+
+async def resolve_report_retailer(
+    request: Optional[Request],
+    retailer_id: Optional[str],
+    tenant_id: Optional[str],
+    company_id: Optional[str],
+    db: AsyncSession
+) -> Dict[str, Any]:
+    """
+    Authoritatively resolves the retailer identity for report filtering.
+    """
+    token = None
+    if request:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header.replace("Bearer ", "").strip()
+        if not token:
+            token = (
+                request.cookies.get("p2p_access_token") or
+                request.cookies.get("pay2pay_access_token") or
+                request.cookies.get("pay2pay_auth_token") or
+                request.cookies.get("access_token")
+            )
+
+    token_payload = {}
+    if token and len(token) > 10:
+        token_payload = decode_access_token(token) or {}
+
+    ret_uuid = None
+    ret_code = None
+    t_uuid = parse_uuid_or_none(tenant_id)
+    c_uuid = parse_uuid_or_none(company_id)
+    is_admin = False
+
+    roles = token_payload.get("roles") or []
+    if isinstance(roles, list) and any(r in ("SUPER_ADMIN", "PLATFORM_ADMIN", "ADMIN") for r in roles):
+        is_admin = True
+
+    target_id = retailer_id or token_payload.get("retailer_id") or token_payload.get("registration_id")
+    target_uuid = parse_uuid_or_none(target_id)
+
+    # 1. If target_uuid provided directly
+    if target_uuid:
+        ret_uuid = target_uuid
+        ret_row = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == target_uuid, RetailerModel.is_deleted == False))).scalars().first()
+        if ret_row:
+            ret_code = ret_row.retailer_code
+            if not t_uuid and ret_row.tenant_id:
+                t_uuid = ret_row.tenant_id
+            if not c_uuid and ret_row.company_id:
+                c_uuid = ret_row.company_id
+
+    # 2. If target code provided (e.g. RET-08A9A0)
+    elif target_id and target_id not in ("ALL", "DEFAULT", "RET-PENDING"):
+        ret_row = (await db.execute(select(RetailerModel).where(
+            or_(RetailerModel.retailer_code == target_id, RetailerModel.retailer_code.ilike(f"%{target_id}%")),
+            RetailerModel.is_deleted == False
+        ))).scalars().first()
+        if ret_row:
+            ret_uuid = ret_row.public_id
+            ret_code = ret_row.retailer_code
+            if not t_uuid and ret_row.tenant_id:
+                t_uuid = ret_row.tenant_id
+            if not c_uuid and ret_row.company_id:
+                c_uuid = ret_row.company_id
+        else:
+            ret_code = str(target_id)
+
+    # 3. Fallback to sub from token
+    if not ret_uuid and token_payload.get("sub"):
+        sub_uuid = parse_uuid_or_none(str(token_payload.get("sub")))
+        if sub_uuid:
+            ret_row = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False))).scalars().first()
+            if ret_row:
+                ret_uuid = ret_row.public_id
+                ret_code = ret_row.retailer_code
+                if not t_uuid and ret_row.tenant_id:
+                    t_uuid = ret_row.tenant_id
+                if not c_uuid and ret_row.company_id:
+                    c_uuid = ret_row.company_id
+
+    # 4. Fallback to mobile from token
+    if not ret_uuid and token_payload.get("mobile"):
+        clean_mob = re.sub(r"\D", "", str(token_payload.get("mobile")))[-10:]
+        if len(clean_mob) == 10:
+            mob_vars = [clean_mob, f"+91{clean_mob}", f"91{clean_mob}"]
+            ret_row = (await db.execute(
+                select(RetailerModel)
+                .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                .where(RetailerContactModel.mobile.in_(mob_vars), RetailerModel.is_deleted == False)
+            )).scalars().first()
+            if ret_row:
+                ret_uuid = ret_row.public_id
+                ret_code = ret_row.retailer_code
+
+    return {
+        "retailer_uuid": ret_uuid,
+        "retailer_code": ret_code,
+        "tenant_uuid": t_uuid,
+        "company_uuid": c_uuid,
+        "is_admin": is_admin
+    }
+
+
 @router.get("/summary", summary="Get Retailer Payout Summary KPIs")
 async def get_retailer_payout_summary(
+    request: Request,
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
@@ -39,6 +160,10 @@ async def get_retailer_payout_summary(
     to_date: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
+    ctx = await resolve_report_retailer(request, retailer_id, tenant_id, company_id, db)
+    ret_uuid = ctx["retailer_uuid"]
+    ret_code = ctx["retailer_code"]
+    
     now_utc = datetime.now(timezone.utc)
     
     if from_date and isinstance(from_date, str):
@@ -80,9 +205,22 @@ async def get_retailer_payout_summary(
     )
     AND UPPER(COALESCE(service_type, '')) NOT IN ('TOPUP', 'RECHARGE', 'BBPS', 'BILL_PAYMENT', 'AEPS', 'POS', 'CARD_TO_CASH')
     AND UPPER(COALESCE(transaction_type, '')) NOT IN ('WALLET_TOPUP', 'MANUAL_TOPUP', 'MANUAL_DEBIT', 'TOPUP', 'QR_COLLECT')
-    AND created_at >= :start_dt AND created_at <= :end_dt;
+    AND created_at >= :start_dt AND created_at <= :end_dt
     """
-    res = await db.execute(text(tx_sql), {"start_dt": start_dt, "end_dt": end_dt})
+    tx_params: Dict[str, Any] = {"start_dt": start_dt, "end_dt": end_dt}
+    if ret_uuid:
+        tx_sql += " AND (retailer_id = :ret_uuid OR retailer_id::text = :ret_uuid_str"
+        tx_params["ret_uuid"] = ret_uuid
+        tx_params["ret_uuid_str"] = str(ret_uuid)
+        if ret_code:
+            tx_sql += " OR retailer_id::text = :ret_code"
+            tx_params["ret_code"] = ret_code
+        tx_sql += ")"
+    elif ret_code:
+        tx_sql += " AND retailer_id::text = :ret_code"
+        tx_params["ret_code"] = ret_code
+
+    res = await db.execute(text(tx_sql), tx_params)
     row = res.fetchone()
     rd = dict(row._mapping) if row else {}
 
@@ -103,9 +241,22 @@ async def get_retailer_payout_summary(
         COALESCE(SUM(CASE WHEN UPPER(status::text) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN amount ELSE 0 END), 0) AS failed_amount,
         COUNT(CASE WHEN UPPER(status::text) = 'REVERSED' OR is_reversed = true THEN 1 END) AS reversed_count
     FROM enterprise_payout_transactions
-    WHERE created_date >= :start_dt AND created_date <= :end_dt;
+    WHERE created_date >= :start_dt AND created_date <= :end_dt
     """
-    ep_res = await db.execute(text(ep_summary_sql), {"start_dt": start_dt, "end_dt": end_dt})
+    ep_params: Dict[str, Any] = {"start_dt": start_dt, "end_dt": end_dt}
+    if ret_uuid:
+        ep_summary_sql += " AND (retailer_id = :ret_uuid OR retailer_id::text = :ret_uuid_str"
+        ep_params["ret_uuid"] = ret_uuid
+        ep_params["ret_uuid_str"] = str(ret_uuid)
+        if ret_code:
+            ep_summary_sql += " OR retailer_id::text = :ret_code"
+            ep_params["ret_code"] = ret_code
+        ep_summary_sql += ")"
+    elif ret_code:
+        ep_summary_sql += " AND retailer_id::text = :ret_code"
+        ep_params["ret_code"] = ret_code
+
+    ep_res = await db.execute(text(ep_summary_sql), ep_params)
     ep_row = ep_res.fetchone()
     ep_rd = dict(ep_row._mapping) if ep_row else {}
 
@@ -123,9 +274,22 @@ async def get_retailer_payout_summary(
         COUNT(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN 1 END) AS failed_count,
         COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN amount ELSE 0 END), 0) AS failed_amount
     FROM payout_workflow_transactions
-    WHERE initiated_at >= :start_dt AND initiated_at <= :end_dt;
+    WHERE initiated_at >= :start_dt AND initiated_at <= :end_dt
     """
-    pw_res = await db.execute(text(pw_sql), {"start_dt": start_dt, "end_dt": end_dt})
+    pw_params: Dict[str, Any] = {"start_dt": start_dt, "end_dt": end_dt}
+    if ret_uuid:
+        pw_sql += " AND (retailer_id = :ret_uuid OR retailer_id::text = :ret_uuid_str"
+        pw_params["ret_uuid"] = ret_uuid
+        pw_params["ret_uuid_str"] = str(ret_uuid)
+        if ret_code:
+            pw_sql += " OR retailer_id::text = :ret_code"
+            pw_params["ret_code"] = ret_code
+        pw_sql += ")"
+    elif ret_code:
+        pw_sql += " AND retailer_id::text = :ret_code"
+        pw_params["ret_code"] = ret_code
+
+    pw_res = await db.execute(text(pw_sql), pw_params)
     pw_row = pw_res.fetchone()
     pw_rd = dict(pw_row._mapping) if pw_row else {}
 
@@ -160,8 +324,10 @@ async def get_retailer_payout_summary(
         "failed_amount": round(failed_amt, 2),
     }
 
+
 async def fetch_payout_report_dataset(
     db: AsyncSession,
+    request: Optional[Request] = None,
     retailer_id: Optional[str] = None,
     tenant_id: Optional[str] = None,
     company_id: Optional[str] = None,
@@ -183,8 +349,10 @@ async def fetch_payout_report_dataset(
     sort_by: str = "initiated_at",
     sort_dir: str = "desc"
 ) -> Dict[str, Any]:
-    now_utc = datetime.now(timezone.utc)
-    
+    ctx = await resolve_report_retailer(request, retailer_id, tenant_id, company_id, db)
+    ret_uuid = ctx["retailer_uuid"]
+    ret_code = ctx["retailer_code"]
+
     start_dt = None
     end_dt = None
     if from_date and isinstance(from_date, str):
@@ -228,8 +396,8 @@ async def fetch_payout_report_dataset(
         UPPER(t.status) AS status,
         CASE WHEN UPPER(t.status) = 'FAILED' THEN 'REFUNDED' ELSE '' END AS refund_status,
         COALESCE(t.response_message, t.status_description, '') AS remarks,
-        l.balance_before::float AS wallet_before,
-        l.balance_after::float AS wallet_after,
+        COALESCE(l.balance_before::float, 0.0) AS wallet_before,
+        COALESCE(l.balance_after::float, 0.0) AS wallet_after,
         COALESCE(l.entry_type, 'DEBIT') AS entry_type,
         COALESCE(l.narration, t.status_description, '') AS narration,
         true AS receipt_enabled
@@ -247,6 +415,18 @@ async def fetch_payout_report_dataset(
     AND UPPER(COALESCE(t.transaction_type, '')) NOT IN ('WALLET_TOPUP', 'MANUAL_TOPUP', 'MANUAL_DEBIT', 'TOPUP', 'QR_COLLECT')
     """
     params: Dict[str, Any] = {}
+    if ret_uuid:
+        central_sql += " AND (t.retailer_id = :ret_uuid OR t.retailer_id::text = :ret_uuid_str"
+        params["ret_uuid"] = ret_uuid
+        params["ret_uuid_str"] = str(ret_uuid)
+        if ret_code:
+            central_sql += " OR t.retailer_id::text = :ret_code"
+            params["ret_code"] = ret_code
+        central_sql += ")"
+    elif ret_code:
+        central_sql += " AND t.retailer_id::text = :ret_code"
+        params["ret_code"] = ret_code
+
     if start_dt:
         central_sql += " AND t.created_at >= :start_dt"
         params["start_dt"] = start_dt
@@ -302,7 +482,7 @@ async def fetch_payout_report_dataset(
         COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
         COALESCE(b.account_number, 'XXXX') AS account_number,
         COALESCE(b.ifsc_code, 'SBIN0001234') AS ifsc_code,
-        COALESCE(e.mode, 'IMPS') AS payment_mode,
+        e.mode AS payment_mode,
         'PAYOUT' AS service_category,
         e.amount::float AS transfer_amount,
         e.charges::float AS convenience_fee,
@@ -314,10 +494,10 @@ async def fetch_payout_report_dataset(
         e.commission::float AS retailer_commission,
         COALESCE(e.utr_number, '--') AS utr_number,
         UPPER(e.status::text) AS status,
-        CASE WHEN e.is_reversed THEN 'REFUNDED' ELSE '' END AS refund_status,
+        CASE WHEN UPPER(e.status::text) = 'FAILED' OR e.is_reversed = true THEN 'REFUNDED' ELSE '' END AS refund_status,
         COALESCE(e.reversal_reason, e.status_description, '') AS remarks,
-        e.wallet_before::float AS wallet_before,
-        e.wallet_after::float AS wallet_after,
+        COALESCE(e.wallet_before::float, 0.0) AS wallet_before,
+        COALESCE(e.wallet_after::float, 0.0) AS wallet_after,
         'DEBIT' AS entry_type,
         COALESCE(e.reversal_reason, e.status_description, '') AS narration,
         true AS receipt_enabled
@@ -327,6 +507,18 @@ async def fetch_payout_report_dataset(
     WHERE 1=1
     """
     ep_params: Dict[str, Any] = {}
+    if ret_uuid:
+        ep_sql += " AND (e.retailer_id = :ret_uuid OR e.retailer_id::text = :ret_uuid_str"
+        ep_params["ret_uuid"] = ret_uuid
+        ep_params["ret_uuid_str"] = str(ret_uuid)
+        if ret_code:
+            ep_sql += " OR e.retailer_id::text = :ret_code"
+            ep_params["ret_code"] = ret_code
+        ep_sql += ")"
+    elif ret_code:
+        ep_sql += " AND e.retailer_id::text = :ret_code"
+        ep_params["ret_code"] = ret_code
+
     if start_dt:
         ep_sql += " AND e.created_date >= :start_dt"
         ep_params["start_dt"] = start_dt
@@ -396,8 +588,8 @@ async def fetch_payout_report_dataset(
         UPPER(p.status) AS status,
         CASE WHEN UPPER(p.status) = 'FAILED' THEN 'REFUNDED' ELSE '' END AS refund_status,
         COALESCE(p.failure_reason, '') AS remarks,
-        p.wallet_before::float AS wallet_before,
-        p.wallet_after::float AS wallet_after,
+        COALESCE(p.wallet_before::float, 0.0) AS wallet_before,
+        COALESCE(p.wallet_after::float, 0.0) AS wallet_after,
         'DEBIT' AS entry_type,
         COALESCE(p.failure_reason, '') AS narration,
         true AS receipt_enabled
@@ -407,6 +599,18 @@ async def fetch_payout_report_dataset(
     WHERE 1=1
     """
     pw_params: Dict[str, Any] = {}
+    if ret_uuid:
+        pw_sql += " AND (p.retailer_id = :ret_uuid OR p.retailer_id::text = :ret_uuid_str"
+        pw_params["ret_uuid"] = ret_uuid
+        pw_params["ret_uuid_str"] = str(ret_uuid)
+        if ret_code:
+            pw_sql += " OR p.retailer_id::text = :ret_code"
+            pw_params["ret_code"] = ret_code
+        pw_sql += ")"
+    elif ret_code:
+        pw_sql += " AND p.retailer_id::text = :ret_code"
+        pw_params["ret_code"] = ret_code
+
     if start_dt:
         pw_sql += " AND p.initiated_at >= :start_dt"
         pw_params["start_dt"] = start_dt
@@ -454,16 +658,26 @@ async def fetch_payout_report_dataset(
         ref = d.get("transaction_number") or d.get("reference_id") or d.get("transaction_id")
         if ref and ref not in seen_refs:
             seen_refs.add(ref)
-            if d.get("initiated_at") and isinstance(d["initiated_at"], datetime):
-                d["initiated_at"] = d["initiated_at"].strftime("%d-%b-%Y %H:%M")
-            if d.get("completed_at") and isinstance(d["completed_at"], datetime):
-                d["completed_at"] = d["completed_at"].strftime("%d-%b-%Y %H:%M")
-            d["masked_account_number"] = mask_account_number(d.get("account_number"))
+            init_dt = d.get("initiated_at")
+            comp_dt = d.get("completed_at")
+            if init_dt and isinstance(init_dt, datetime):
+                d["initiated_at"] = init_dt.strftime("%d-%b-%Y %H:%M")
+            if comp_dt and isinstance(comp_dt, datetime):
+                d["completed_at"] = comp_dt.strftime("%d-%b-%Y %H:%M")
             all_items.append(d)
 
-    # Sort all merged items by initiated_at or created timestamp descending
-    for idx, it in enumerate(all_items, start=1):
-        it["s_no"] = idx
+    # Sort all items
+    def get_sort_key(it: Dict[str, Any]):
+        val = it.get(sort_by)
+        if val is None:
+            return ""
+        return str(val)
+
+    all_items.sort(key=get_sort_key, reverse=(sort_dir.lower() == "desc"))
+
+    # Assign sequential s_no
+    for idx, item in enumerate(all_items, start=1):
+        item["s_no"] = idx
 
     total_records = len(all_items)
     offset = (page - 1) * limit
@@ -480,9 +694,11 @@ async def fetch_payout_report_dataset(
         }
     }
 
+
 @router.get("/list", summary="Get Filtered Paginated Retailer Payout Report")
 @router.get("/grid", summary="Get Filtered Paginated Retailer Payout Report Grid")
 async def get_retailer_payout_report_list(
+    request: Request,
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
@@ -507,6 +723,7 @@ async def get_retailer_payout_report_list(
 ):
     dataset = await fetch_payout_report_dataset(
         db=db,
+        request=request,
         retailer_id=retailer_id,
         tenant_id=tenant_id,
         company_id=company_id,
@@ -539,6 +756,7 @@ async def get_retailer_payout_report_list(
         }
     }
 
+
 @router.get("/{transaction_id}/details", summary="Get Sanitized Retailer Transaction Details for Drawer")
 async def get_retailer_transaction_details(
     transaction_id: str,
@@ -570,10 +788,15 @@ async def get_retailer_transaction_details(
         t.commission::float AS commission,
         UPPER(t.status) AS status,
         COALESCE(t.utr, '--') AS utr_number,
-        COALESCE(t.response_message, t.status_description, '') AS remarks
+        COALESCE(t.response_message, t.status_description, '') AS remarks,
+        COALESCE(l.balance_before::float, 0.0) AS wallet_before,
+        COALESCE(l.balance_after::float, 0.0) AS wallet_after
     FROM transactions t
     LEFT JOIN customer c ON t.customer_id = c.public_id
     LEFT JOIN beneficiary_master b ON t.beneficiary_id = b.public_id
+    LEFT JOIN transaction_ledger_entries l 
+        ON (t.public_id = l.transaction_id OR t.transaction_reference = l.transaction_reference)
+        AND l.account_type = 'RETAILER_WALLET'
     WHERE t.public_id::text = :tx_id OR t.transaction_reference = :tx_id
     """
     res = await db.execute(text(tx_sql), {"tx_id": transaction_id})
@@ -582,6 +805,8 @@ async def get_retailer_transaction_details(
     if row:
         d = dict(row._mapping)
         st_str = d.get("status", "FAILED")
+        w_before = float(d.get("wallet_before") or 0.0)
+        w_after = float(d.get("wallet_after") or 0.0)
         return {
             "transaction_details": {
                 "transaction_id": d["transaction_id"],
@@ -613,8 +838,87 @@ async def get_retailer_transaction_details(
                 "wallet_debit": d["net_debit"],
                 "retailer_commission": d["commission"],
                 "tds_amount": d["tds_amount"],
-                "wallet_before": 100000.0,
-                "wallet_after": 100000.0 if st_str == "FAILED" else (100000.0 - d["net_debit"])
+                "wallet_before": w_before,
+                "wallet_after": w_after
+            },
+            "status_timeline": [
+                {"action": "CREATE_TRANSACTION", "previous_status": None, "new_status": "INITIATED", "timestamp": d["initiated_at"].isoformat() if d.get("initiated_at") else None},
+                {"action": "VENDOR_DISPATCH", "previous_status": "INITIATED", "new_status": "PROCESSING", "timestamp": d["initiated_at"].isoformat() if d.get("initiated_at") else None},
+                {"action": "FINALIZE_TRANSACTION", "previous_status": "PROCESSING", "new_status": st_str, "timestamp": d["completed_at"].isoformat() if d.get("completed_at") else None}
+            ],
+            "receipt_available": True
+        }
+
+    # Also check enterprise_payout_transactions
+    ep_sql = """
+    SELECT 
+        e.public_id::text AS transaction_id,
+        e.transaction_number,
+        COALESCE(e.vendor_ref, e.transaction_number) AS reference_id,
+        e.initiated_at,
+        e.completed_at,
+        COALESCE(c.full_name, 'Verified Customer') AS customer_name,
+        COALESCE(c.mobile_number, '9176669426') AS customer_mobile,
+        COALESCE(b.account_holder_name, 'Beneficiary') AS beneficiary_name,
+        COALESCE(b.bank_name, 'Bank') AS bank_name,
+        COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
+        COALESCE(b.account_number, 'XXXX') AS account_number,
+        COALESCE(b.ifsc_code, 'UTIB0000000') AS ifsc_code,
+        e.mode,
+        e.amount::float AS amount,
+        e.charges::float AS charges,
+        e.gst_amount::float AS gst_amount,
+        e.tds_amount::float AS tds_amount,
+        e.net_debit::float AS net_debit,
+        e.commission::float AS commission,
+        UPPER(e.status::text) AS status,
+        COALESCE(e.utr_number, '--') AS utr_number,
+        COALESCE(e.reversal_reason, e.status_description, '') AS remarks,
+        COALESCE(e.wallet_before::float, 0.0) AS wallet_before,
+        COALESCE(e.wallet_after::float, 0.0) AS wallet_after
+    FROM enterprise_payout_transactions e
+    LEFT JOIN customer c ON e.customer_id = c.public_id
+    LEFT JOIN beneficiary_master b ON e.beneficiary_id = b.public_id
+    WHERE e.public_id::text = :tx_id OR e.transaction_number = :tx_id
+    """
+    ep_res = await db.execute(text(ep_sql), {"tx_id": transaction_id})
+    ep_row = ep_res.fetchone()
+    if ep_row:
+        d = dict(ep_row._mapping)
+        st_str = d.get("status", "FAILED")
+        return {
+            "transaction_details": {
+                "transaction_id": d["transaction_id"],
+                "transaction_number": d["transaction_number"],
+                "reference_id": d["reference_id"],
+                "mode": d["mode"],
+                "status": st_str,
+                "utr_number": d["utr_number"],
+                "initiated_at": d["initiated_at"].isoformat() if d.get("initiated_at") else None,
+                "completed_at": d["completed_at"].isoformat() if d.get("completed_at") else None,
+                "is_reversed": st_str in ("FAILED", "REVERSED"),
+                "reversal_reason": d["remarks"] if st_str in ("FAILED", "REVERSED") else None
+            },
+            "customer_details": {
+                "name": d["customer_name"] or "Verified Customer",
+                "mobile": d["customer_mobile"] or "N/A",
+                "kyc_status": "VERIFIED"
+            },
+            "beneficiary_details": {
+                "name": d["beneficiary_name"] or "Beneficiary",
+                "bank_name": d["bank_name"] or "Bank",
+                "masked_account_number": d["masked_account_number"] or mask_account_number(d["account_number"]),
+                "ifsc_code": d["ifsc_code"] or "N/A"
+            },
+            "amount_details": {
+                "transfer_amount": d["amount"],
+                "convenience_fee": d["charges"],
+                "gst_amount": d["gst_amount"],
+                "wallet_debit": d["net_debit"],
+                "retailer_commission": d["commission"],
+                "tds_amount": d["tds_amount"],
+                "wallet_before": d["wallet_before"],
+                "wallet_after": d["wallet_after"]
             },
             "status_timeline": [
                 {"action": "CREATE_TRANSACTION", "previous_status": None, "new_status": "INITIATED", "timestamp": d["initiated_at"].isoformat() if d.get("initiated_at") else None},
@@ -626,9 +930,11 @@ async def get_retailer_transaction_details(
 
     raise HTTPException(status_code=404, detail="Transaction record not found.")
 
+
 @router.get("/export", summary="Export Retailer Payout Report (Excel / CSV / PDF)")
 @router.get("/export/pdf", summary="Export Retailer Payout Report PDF")
 async def export_retailer_payout_report(
+    request: Request,
     export_format: str = Query("csv", description="csv | excel | pdf"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
@@ -644,6 +950,7 @@ async def export_retailer_payout_report(
 ):
     dataset = await fetch_payout_report_dataset(
         db=db,
+        request=request,
         retailer_id=retailer_id,
         tenant_id=tenant_id,
         company_id=company_id,
@@ -695,6 +1002,7 @@ async def export_retailer_payout_report(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{file_base}.csv"'}
     )
+
 
 @router.post("/audit", summary="Log Report View/Export Audit Event")
 async def audit_report_event(

@@ -1,17 +1,33 @@
 import uuid
 import io
 import csv
+import re
 from datetime import datetime, date, time, timezone
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import text
+from sqlalchemy import text, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.security import decode_access_token
+from app.infrastructure.db.models import RetailerModel, RetailerContactModel, RetailerWalletModel
 
 router = APIRouter(prefix="/reports/ledger", tags=["Retailer Ledger Statement Report"])
+
+def parse_uuid_or_none(val: Any) -> Optional[uuid.UUID]:
+    if not val:
+        return None
+    try:
+        if isinstance(val, uuid.UUID):
+            return val
+        s = str(val).strip()
+        if len(s) == 36 and (s.count("-") == 4):
+            return uuid.UUID(s)
+        return None
+    except Exception:
+        return None
 
 class LedgerAuditLogRequest(BaseModel):
     action: str = Field(..., description="LEDGER_VIEWED | LEDGER_EXPORTED | LEDGER_PRINTED")
@@ -21,34 +37,158 @@ class LedgerAuditLogRequest(BaseModel):
     ip_address: Optional[str] = "127.0.0.1"
     details: Optional[Dict[str, Any]] = None
 
+
+async def resolve_ledger_retailer(
+    request: Optional[Request],
+    retailer_id: Optional[str],
+    tenant_id: Optional[str],
+    company_id: Optional[str],
+    db: AsyncSession
+) -> Dict[str, Any]:
+    token = None
+    if request:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header.replace("Bearer ", "").strip()
+        if not token:
+            token = (
+                request.cookies.get("p2p_access_token") or
+                request.cookies.get("pay2pay_access_token") or
+                request.cookies.get("pay2pay_auth_token") or
+                request.cookies.get("access_token")
+            )
+
+    token_payload = {}
+    if token and len(token) > 10:
+        token_payload = decode_access_token(token) or {}
+
+    ret_uuid = None
+    ret_code = None
+    t_uuid = parse_uuid_or_none(tenant_id)
+    c_uuid = parse_uuid_or_none(company_id)
+    is_admin = False
+
+    roles = token_payload.get("roles") or []
+    if isinstance(roles, list) and any(r in ("SUPER_ADMIN", "PLATFORM_ADMIN", "ADMIN") for r in roles):
+        is_admin = True
+
+    target_id = retailer_id or token_payload.get("retailer_id") or token_payload.get("registration_id")
+    target_uuid = parse_uuid_or_none(target_id)
+
+    if target_uuid:
+        ret_uuid = target_uuid
+        ret_row = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == target_uuid, RetailerModel.is_deleted == False))).scalars().first()
+        if ret_row:
+            ret_code = ret_row.retailer_code
+            if not t_uuid and ret_row.tenant_id:
+                t_uuid = ret_row.tenant_id
+            if not c_uuid and ret_row.company_id:
+                c_uuid = ret_row.company_id
+    elif target_id and target_id not in ("ALL", "DEFAULT", "RET-PENDING"):
+        ret_row = (await db.execute(select(RetailerModel).where(
+            or_(RetailerModel.retailer_code == target_id, RetailerModel.retailer_code.ilike(f"%{target_id}%")),
+            RetailerModel.is_deleted == False
+        ))).scalars().first()
+        if ret_row:
+            ret_uuid = ret_row.public_id
+            ret_code = ret_row.retailer_code
+            if not t_uuid and ret_row.tenant_id:
+                t_uuid = ret_row.tenant_id
+            if not c_uuid and ret_row.company_id:
+                c_uuid = ret_row.company_id
+        else:
+            ret_code = str(target_id)
+
+    if not ret_uuid and token_payload.get("sub"):
+        sub_uuid = parse_uuid_or_none(str(token_payload.get("sub")))
+        if sub_uuid:
+            ret_row = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False))).scalars().first()
+            if ret_row:
+                ret_uuid = ret_row.public_id
+                ret_code = ret_row.retailer_code
+
+    if not ret_uuid and token_payload.get("mobile"):
+        clean_mob = re.sub(r"\D", "", str(token_payload.get("mobile")))[-10:]
+        if len(clean_mob) == 10:
+            mob_vars = [clean_mob, f"+91{clean_mob}", f"91{clean_mob}"]
+            ret_row = (await db.execute(
+                select(RetailerModel)
+                .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                .where(RetailerContactModel.mobile.in_(mob_vars), RetailerModel.is_deleted == False)
+            )).scalars().first()
+            if ret_row:
+                ret_uuid = ret_row.public_id
+                ret_code = ret_row.retailer_code
+
+    return {
+        "retailer_uuid": ret_uuid,
+        "retailer_code": ret_code,
+        "tenant_uuid": t_uuid,
+        "company_uuid": c_uuid,
+        "is_admin": is_admin
+    }
+
+
 @router.get("/summary", summary="Get Retailer Ledger Passbook Summary KPIs")
 async def get_retailer_ledger_summary(
+    request: Request,
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
+    ctx = await resolve_ledger_retailer(request, retailer_id, tenant_id, company_id, db)
+    ret_uuid = ctx["retailer_uuid"]
+    ret_code = ctx["retailer_code"]
+
     now_utc = datetime.now(timezone.utc)
     start_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
     end_of_today = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
 
-    # 1. Fetch current available balance from Retailer Wallet
-    wallet_sql = "SELECT wallet_balance FROM retailer_wallet ORDER BY updated_date DESC LIMIT 1;"
-    wallet_res = await db.execute(text(wallet_sql))
-    wallet_row = wallet_res.fetchone()
-    closing_balance = float(wallet_row[0]) if wallet_row and wallet_row[0] is not None else 50000.0
+    # 1. Fetch current available balance specifically for THIS Retailer's Wallet
+    closing_balance = 0.0
+    if ret_uuid:
+        wal_stmt = select(RetailerWalletModel.wallet_balance).where(RetailerWalletModel.retailer_id == ret_uuid)
+        wal_res = await db.execute(wal_stmt)
+        wal_bal = wal_res.scalar()
+        if wal_bal is not None:
+            closing_balance = float(wal_bal)
+    elif ret_code:
+        wal_sql = """
+        SELECT rw.wallet_balance FROM retailer_wallet rw
+        JOIN retailer r ON rw.retailer_id = r.public_id
+        WHERE r.retailer_code = :ret_code
+        """
+        wal_res = await db.execute(text(wal_sql), {"ret_code": ret_code})
+        wal_row = wal_res.fetchone()
+        if wal_row and wal_row[0] is not None:
+            closing_balance = float(wal_row[0])
 
-    # 2. Total Credits and Debits from Transaction Ledger Entries
+    # 2. Total Credits and Debits from Transaction Ledger Entries scoped to retailer
     tot_sql = """
     SELECT 
-        COALESCE(SUM(CASE WHEN UPPER(entry_type) = 'CREDIT' THEN amount ELSE 0 END), 0) AS total_credits,
-        COALESCE(SUM(CASE WHEN UPPER(entry_type) = 'DEBIT' THEN amount ELSE 0 END), 0) AS total_debits,
-        COALESCE(SUM(CASE WHEN UPPER(entry_type) = 'CREDIT' AND created_at >= :start_today THEN amount ELSE 0 END), 0) AS todays_credit,
-        COALESCE(SUM(CASE WHEN UPPER(entry_type) = 'DEBIT' AND created_at >= :start_today THEN amount ELSE 0 END), 0) AS todays_debit
-    FROM transaction_ledger_entries
-    WHERE account_type = 'RETAILER_WALLET';
+        COALESCE(SUM(CASE WHEN UPPER(l.entry_type) = 'CREDIT' THEN l.amount ELSE 0 END), 0) AS total_credits,
+        COALESCE(SUM(CASE WHEN UPPER(l.entry_type) = 'DEBIT' THEN l.amount ELSE 0 END), 0) AS total_debits,
+        COALESCE(SUM(CASE WHEN UPPER(l.entry_type) = 'CREDIT' AND l.created_at >= :start_today THEN l.amount ELSE 0 END), 0) AS todays_credit,
+        COALESCE(SUM(CASE WHEN UPPER(l.entry_type) = 'DEBIT' AND l.created_at >= :start_today THEN l.amount ELSE 0 END), 0) AS todays_debit
+    FROM transaction_ledger_entries l
+    LEFT JOIN transactions t ON (l.transaction_id = t.public_id OR l.transaction_reference = t.transaction_reference)
+    WHERE l.account_type = 'RETAILER_WALLET'
     """
-    tot_res = await db.execute(text(tot_sql), {"start_today": start_of_today})
+    tot_params: Dict[str, Any] = {"start_today": start_of_today}
+    if ret_uuid:
+        tot_sql += " AND (t.retailer_id = :ret_uuid OR t.retailer_id::text = :ret_uuid_str"
+        tot_params["ret_uuid"] = ret_uuid
+        tot_params["ret_uuid_str"] = str(ret_uuid)
+        if ret_code:
+            tot_sql += " OR t.retailer_id::text = :ret_code"
+            tot_params["ret_code"] = ret_code
+        tot_sql += ")"
+    elif ret_code:
+        tot_sql += " AND t.retailer_id::text = :ret_code"
+        tot_params["ret_code"] = ret_code
+
+    tot_res = await db.execute(text(tot_sql), tot_params)
     tot_row = tot_res.fetchone()
     tot_d = dict(tot_row._mapping) if tot_row else {}
 
@@ -68,8 +208,10 @@ async def get_retailer_ledger_summary(
         "todays_debit": todays_debit,
     }
 
+
 @router.get("/list", summary="Get Filtered Paginated Retailer Ledger Movements")
 async def get_retailer_ledger_list(
+    request: Request,
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
@@ -88,6 +230,10 @@ async def get_retailer_ledger_list(
     sort_dir: str = Query("desc"),
     db: AsyncSession = Depends(get_db)
 ):
+    ctx = await resolve_ledger_retailer(request, retailer_id, tenant_id, company_id, db)
+    ret_uuid = ctx["retailer_uuid"]
+    ret_code = ctx["retailer_code"]
+
     start_dt = None
     end_dt = None
     if from_date:
@@ -123,7 +269,19 @@ async def get_retailer_ledger_list(
         ON (l.transaction_id = t.public_id OR l.transaction_reference = t.transaction_reference)
     WHERE l.account_type = 'RETAILER_WALLET'
     """
-    params = {}
+    params: Dict[str, Any] = {}
+    if ret_uuid:
+        ledger_sql += " AND (t.retailer_id = :ret_uuid OR t.retailer_id::text = :ret_uuid_str"
+        params["ret_uuid"] = ret_uuid
+        params["ret_uuid_str"] = str(ret_uuid)
+        if ret_code:
+            ledger_sql += " OR t.retailer_id::text = :ret_code"
+            params["ret_code"] = ret_code
+        ledger_sql += ")"
+    elif ret_code:
+        ledger_sql += " AND t.retailer_id::text = :ret_code"
+        params["ret_code"] = ret_code
+
     if start_dt:
         ledger_sql += " AND l.created_at >= :start_dt"
         params["start_dt"] = start_dt
@@ -166,7 +324,19 @@ async def get_retailer_ledger_list(
     FROM enterprise_payout_transactions e
     WHERE 1=1
     """
-    ep_params = {}
+    ep_params: Dict[str, Any] = {}
+    if ret_uuid:
+        ep_sql += " AND (e.retailer_id = :ret_uuid OR e.retailer_id::text = :ret_uuid_str"
+        ep_params["ret_uuid"] = ret_uuid
+        ep_params["ret_uuid_str"] = str(ret_uuid)
+        if ret_code:
+            ep_sql += " OR e.retailer_id::text = :ret_code"
+            ep_params["ret_code"] = ret_code
+        ep_sql += ")"
+    elif ret_code:
+        ep_sql += " AND e.retailer_id::text = :ret_code"
+        ep_params["ret_code"] = ret_code
+
     if start_dt:
         ep_sql += " AND e.created_date >= :start_dt"
         ep_params["start_dt"] = start_dt
@@ -200,7 +370,6 @@ async def get_retailer_ledger_list(
                 d["transaction_date"] = d["transaction_date"].isoformat()
             all_items.append(d)
 
-    # Sort all entries descending
     all_items.sort(key=lambda x: x.get("transaction_date") or "", reverse=True)
 
     for idx, it in enumerate(all_items, start=1):
@@ -214,10 +383,13 @@ async def get_retailer_ledger_list(
     paginated_items = all_items[offset:offset + limit]
     total_pages = (total_records + limit - 1) // limit if limit > 0 else 1
 
-    wallet_sql = "SELECT wallet_balance FROM retailer_wallet ORDER BY updated_date DESC LIMIT 1;"
-    wallet_res = await db.execute(text(wallet_sql))
-    wallet_row = wallet_res.fetchone()
-    current_wallet_bal = float(wallet_row[0]) if wallet_row and wallet_row[0] is not None else 50000.0
+    current_wallet_bal = 0.0
+    if ret_uuid:
+        wal_stmt = select(RetailerWalletModel.wallet_balance).where(RetailerWalletModel.retailer_id == ret_uuid)
+        wal_res = await db.execute(wal_stmt)
+        wal_bal = wal_res.scalar()
+        if wal_bal is not None:
+            current_wallet_bal = float(wal_bal)
 
     return {
         "items": paginated_items,
@@ -236,8 +408,10 @@ async def get_retailer_ledger_list(
         }
     }
 
+
 @router.get("/grid", summary="Get Filtered Paginated Retailer Ledger Movements Grid")
 async def get_retailer_ledger_grid(
+    request: Request,
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
@@ -257,6 +431,7 @@ async def get_retailer_ledger_grid(
     db: AsyncSession = Depends(get_db)
 ):
     return await get_retailer_ledger_list(
+        request=request,
         retailer_id=retailer_id,
         tenant_id=tenant_id,
         company_id=company_id,
@@ -275,6 +450,7 @@ async def get_retailer_ledger_grid(
         sort_dir=sort_dir,
         db=db
     )
+
 
 @router.get("/{entry_id}/details", summary="Get Sanitized Retailer Ledger Side Drawer Details")
 async def get_retailer_ledger_details(
@@ -339,8 +515,10 @@ async def get_retailer_ledger_details(
         "timeline": []
     }
 
+
 @router.post("/export", summary="Export Retailer Ledger Report (CSV / Excel / PDF)")
 async def export_retailer_ledger_report(
+    request: Request,
     export_format: str = Query(..., description="csv | excel | pdf"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
@@ -351,6 +529,7 @@ async def export_retailer_ledger_report(
     db: AsyncSession = Depends(get_db)
 ):
     res_dict = await get_retailer_ledger_list(
+        request=request,
         retailer_id=retailer_id,
         tenant_id=tenant_id,
         company_id=company_id,
@@ -386,10 +565,10 @@ async def export_retailer_ledger_report(
 
     return {"format": export_format, "total_records": len(items), "data": items}
 
+
 @router.post("/audit", summary="Log Ledger Audit Event")
 async def audit_ledger_event(
     req: LedgerAuditLogRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    print(f"[AUDIT LOG] {req.action} | Retailer: {req.retailer_id} | Tenant: {req.tenant_id} | IP: {req.ip_address}")
     return {"status": "LOGGED", "action": req.action, "timestamp": datetime.now(timezone.utc).isoformat()}

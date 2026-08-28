@@ -2393,7 +2393,8 @@ class RetailerManagementService:
         from app.infrastructure.db.verification_models import RetailerVerificationModel
         from app.infrastructure.db.registration_models import (
             RegistrationDraftModel, RegistrationPanModel, RegistrationGstModel,
-            RegistrationBankModel, RegistrationShopModel, RegistrationAddressModel
+            RegistrationBankModel, RegistrationShopModel, RegistrationAddressModel,
+            RegistrationAadhaarModel, RegistrationDocumentModel
         )
         try:
             verifs = (await db.execute(select(RetailerVerificationModel))).scalars().all()

@@ -25,7 +25,26 @@ interface StatementEntry {
 
 const getActiveRetailerId = () => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+    try {
+      const userStr =
+        localStorage.getItem("user_info") ||
+        localStorage.getItem("user") ||
+        localStorage.getItem("auth_user") ||
+        localStorage.getItem("pay2pay_user_data");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        if (u.retailer_code || u.retailer_id || u.id) {
+          return u.retailer_code || u.retailer_id || u.id;
+        }
+      }
+    } catch {}
+    return (
+      localStorage.getItem("p2p_retailer_code") ||
+      localStorage.getItem("p2p_active_retailer_id") ||
+      localStorage.getItem("pay2pay_reg_code") ||
+      localStorage.getItem("pay2pay_reg_id") ||
+      ""
+    );
   }
   return "";
 };
@@ -48,7 +67,7 @@ export default function WalletStatementPage() {
         if (startDate) q.append("from_date", startDate);
         if (endDate) q.append("to_date", endDate);
 
-        const res = await fetch(`/api/v1/payout/reports/list?${q.toString()}`);
+        const res = await fetch(`/api/v1/payout/reports/grid?${q.toString()}`, { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
           const mapped: StatementEntry[] = (data.items || []).map((it: any) => ({
@@ -57,10 +76,10 @@ export default function WalletStatementPage() {
             particulars: `${it.payment_mode || "PAYOUT"} Transfer (${it.beneficiary_name || it.customer_name || "Merchant"})`,
             txnType: it.payment_mode || "PAYOUT",
             type: "DEBIT",
-            openingBalance: 0,
+            openingBalance: Number(it.wallet_before ?? 0),
             amount: Number(it.transfer_amount || 0),
             commission: Number(it.retailer_commission || 0),
-            closingBalance: 0,
+            closingBalance: Number(it.wallet_after ?? 0),
             utr: it.bank_reference || it.utr_number || "—",
             status: it.status === "SUCCESS" ? "SUCCESS" : (it.status === "PENDING" ? "PENDING" : "FAILED"),
           }));
@@ -91,7 +110,12 @@ export default function WalletStatementPage() {
   const totalCommission = filteredEntries.reduce((acc, e) => acc + e.commission, 0);
 
   const handleExportCSV = () => {
-    alert("Exporting official wallet passbook statement to CSV format...");
+    const activeId = getActiveRetailerId();
+    const q = new URLSearchParams({ export_format: "csv" });
+    if (activeId) q.append("retailer_id", activeId);
+    if (startDate) q.append("from_date", startDate);
+    if (endDate) q.append("to_date", endDate);
+    window.open(`/api/v1/payout/reports/export?${q.toString()}`, "_blank");
   };
 
   return (

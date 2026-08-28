@@ -40,9 +40,8 @@ import {
   Building,
   Image as ImageIcon,
   Sparkles,
+  Wallet,
 } from "lucide-react";
-import { BlurImage } from "@/components/ui/blur-image";
-import { resolveBlurHash } from "@/lib/blurhash";
 
 const API_BASE_URL = typeof window !== "undefined" ? "/api/v1" : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1");
 
@@ -61,6 +60,11 @@ export default function AdminApprovalsPage() {
   const [actionRemarks, setActionRemarks] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+  
+  // Wallet Float & Operating Limits state
+  const [walletFloat, setWalletFloat] = useState<string>("0.00");
+  const [dailyLimit, setDailyLimit] = useState<string>("50,00,000");
+  const [singleLimit, setSingleLimit] = useState<string>("5,00,000");
   
   // Interactive Lightbox State
   const [previewModalDoc, setPreviewModalDoc] = useState<{ label: string; url: string; category?: string; isVideo?: boolean; docNumber?: string; holderName?: string; type?: string } | null>(null);
@@ -120,7 +124,10 @@ export default function AdminApprovalsPage() {
           action: newStatus,
           admin_id: "ADM-SYSTEM",
           remarks: actionRemarks || `Verification status updated to ${newStatus} by Admin`,
-          admin_role: "COMPLIANCE_OFFICER"
+          admin_role: "COMPLIANCE_OFFICER",
+          wallet_balance: parseFloat(String(walletFloat).replace(/,/g, "")) || 0.0,
+          daily_transaction_limit: parseFloat(String(dailyLimit).replace(/,/g, "")) || 5000000.0,
+          single_transaction_limit: parseFloat(String(singleLimit).replace(/,/g, "")) || 500000.0,
         }),
       });
 
@@ -154,20 +161,25 @@ export default function AdminApprovalsPage() {
         const res = await fetch(`${API_BASE_URL}/admin/verification/requests/${verifId}`);
         if (res.ok) {
           const detail = await res.json();
-          if (detail.status === "SUCCESS" && detail.media) {
+          if (detail.status === "SUCCESS") {
+            const w = detail.wallet || {};
+            setWalletFloat(w.wallet_balance !== undefined ? String(w.wallet_balance) : "0.00");
+            setDailyLimit(w.daily_transaction_limit ? Number(w.daily_transaction_limit).toLocaleString("en-IN") : "50,00,000");
+            setSingleLimit(w.single_transaction_limit ? Number(w.single_transaction_limit).toLocaleString("en-IN") : "5,00,000");
             setSelectedItem((prev: any) => ({
               ...prev,
               ...detail.verification,
               ...detail.media,
-              pan_card_url: detail.media.pan_card_url,
-              aadhaar_front_url: detail.media.aadhaar_front_url,
-              aadhaar_back_url: detail.media.aadhaar_back_url,
-              bank_proof_url: detail.media.bank_proof_url,
-              gst_proof_url: detail.media.gst_proof_url,
-              shop_photo_url: detail.media.shop_photo_url,
-              video_url: detail.media.video_url || detail.media.raw_video_url || "/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4",
-              selfie_url: detail.media.selfie_url,
-              script_text: detail.media.script_text,
+              wallet: detail.wallet,
+              pan_card_url: detail.media?.pan_card_url,
+              aadhaar_front_url: detail.media?.aadhaar_front_url,
+              aadhaar_back_url: detail.media?.aadhaar_back_url,
+              bank_proof_url: detail.media?.bank_proof_url,
+              gst_proof_url: detail.media?.gst_proof_url,
+              shop_photo_url: detail.media?.shop_photo_url,
+              video_url: detail.media?.video_url || detail.media?.raw_video_url || "/uploads/cmp/ret/2026/08/09/sathus_Ret_video.mp4",
+              selfie_url: detail.media?.selfie_url,
+              script_text: detail.media?.script_text,
             }));
           }
         }
@@ -759,6 +771,81 @@ export default function AdminApprovalsPage() {
               </div>
             </div>
 
+            {/* Wallet Balances & Operating Limits Card */}
+            <div className="p-5 rounded-3xl border border-[#BBF7D0] bg-gradient-to-br from-[#F0FDF4] via-[#FFFFFF] to-[#F0FDF4] space-y-4 shadow-xs">
+              <div className="flex items-center justify-between border-b border-[#DCFCE7] pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#DCFCE7] border border-[#BBF7D0] flex items-center justify-center text-[#16A34A] font-extrabold">
+                    <Wallet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-[#166534] uppercase tracking-wider">
+                      Wallet Balances &amp; Operating Limits
+                    </h3>
+                    <p className="text-[10px] text-[#64748B] font-medium">
+                      Configure initial wallet float and transaction thresholds for this retailer
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#15803D] text-[10px] font-black uppercase tracking-wider border border-[#BBF7D0]">
+                  ACTIVE LIMITS
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                {/* Current Wallet Float */}
+                <div className="p-3.5 rounded-2xl bg-white border border-[#BBF7D0] space-y-1.5 shadow-2xs">
+                  <label className="text-[11px] font-extrabold text-[#166534] uppercase tracking-wider block">
+                    Current Wallet Float
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-sm font-extrabold text-[#15803D]">₹</span>
+                    <input
+                      type="text"
+                      value={walletFloat}
+                      onChange={(e) => setWalletFloat(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#F0FDF4]/50 border border-[#86EFAC] font-mono text-base font-extrabold text-[#15803D] focus:outline-none focus:ring-2 focus:ring-[#16A34A]/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Daily Transaction Limit */}
+                <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8F0] space-y-1.5 shadow-2xs">
+                  <label className="text-[11px] font-extrabold text-[#475569] uppercase tracking-wider block">
+                    Daily Transaction Limit
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-sm font-extrabold text-[#0F172A]">₹</span>
+                    <input
+                      type="text"
+                      value={dailyLimit}
+                      onChange={(e) => setDailyLimit(e.target.value)}
+                      placeholder="50,00,000"
+                      className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] font-mono text-base font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Single Transaction Limit */}
+                <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8F0] space-y-1.5 shadow-2xs">
+                  <label className="text-[11px] font-extrabold text-[#475569] uppercase tracking-wider block">
+                    Single Transaction Limit
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-sm font-extrabold text-[#0F172A]">₹</span>
+                    <input
+                      type="text"
+                      value={singleLimit}
+                      onChange={(e) => setSingleLimit(e.target.value)}
+                      placeholder="5,00,000"
+                      className="w-full pl-7 pr-3 py-2 rounded-xl bg-[#F8FAFC] border border-[#CBD5E1] font-mono text-base font-bold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Featured Live Video KYC Liveness Audit & Player Section */}
             <div className="p-5 rounded-3xl border-2 border-[#2563EB]/30 bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] text-white space-y-4 shadow-xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
@@ -1009,34 +1096,21 @@ export default function AdminApprovalsPage() {
                             </div>
                           </div>
                         ) : hasUrl && !hasFailed ? (
-                          doc.url.toLowerCase().includes(".pdf") || doc.type?.toUpperCase().includes("PDF") ? (
-                            <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4 bg-gradient-to-b from-[#1E293B] to-[#0F172A] text-white">
-                              <div className="p-3 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 group-hover:scale-110 transition-transform">
-                                <FileText className="w-8 h-8" />
+                          <>
+                            <img
+                              src={doc.url}
+                              alt={doc.label}
+                              onError={() => setFailedImages((prev) => ({ ...prev, [doc.id]: true }))}
+                              className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                            />
+                            {/* Hover overlay */}
+                            <div className="absolute inset-0 bg-[#0F172A]/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 text-white backdrop-blur-[2px]">
+                              <div className="p-2.5 rounded-full bg-[#2563EB] text-white shadow-lg">
+                                <ZoomIn className="w-5 h-5" />
                               </div>
-                              <span className="text-xs font-black text-slate-200">PDF Document</span>
-                              <span className="px-2 py-0.5 rounded-md bg-blue-500/20 border border-blue-400/30 text-[10px] font-bold text-blue-300">
-                                Click to Inspect PDF
-                              </span>
+                              <span className="text-xs font-black tracking-wide">Click to Enlarge</span>
                             </div>
-                          ) : (
-                            <>
-                              <BlurImage
-                                src={doc.url}
-                                alt={doc.label}
-                                blurhash={resolveBlurHash(doc.label || doc.id)}
-                                onError={() => setFailedImages((prev) => ({ ...prev, [doc.id]: true }))}
-                                className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                              />
-                              {/* Hover overlay */}
-                              <div className="absolute inset-0 bg-[#0F172A]/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 text-white backdrop-blur-[2px]">
-                                <div className="p-2.5 rounded-full bg-[#2563EB] text-white shadow-lg">
-                                  <ZoomIn className="w-5 h-5" />
-                                </div>
-                                <span className="text-xs font-black tracking-wide">Click to Enlarge</span>
-                              </div>
-                            </>
-                          )
+                          </>
                         ) : (
                           /* Realistic High-Fidelity SVG ID / Document Card Fallback Graphic */
                           <div className="w-full h-full p-3 flex flex-col justify-between bg-gradient-to-br from-[#1E293B] to-[#0F172A] text-white relative overflow-hidden group-hover:scale-102 transition-transform">
@@ -1234,7 +1308,7 @@ export default function AdminApprovalsPage() {
                 {previewModalDoc.url && (
                   <a
                     href={previewModalDoc.url}
-                    download={`${previewModalDoc.label.replace(/\s+/g, "_")}.${previewModalDoc.url.toLowerCase().includes(".pdf") ? "pdf" : "png"}`}
+                    download={`${previewModalDoc.label.replace(/\s+/g, "_")}.png`}
                     className="px-3 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-xs font-black text-white flex items-center gap-1.5 transition-all shadow-md shadow-emerald-900/30"
                   >
                     <Download className="w-3.5 h-3.5" />
@@ -1276,14 +1350,6 @@ export default function AdminApprovalsPage() {
                   <source src="/sample_video.mp4" type="video/mp4" />
                   Your browser does not support HTML5 video playback.
                 </video>
-              ) : previewModalDoc.url && (previewModalDoc.url.toLowerCase().includes(".pdf") || previewModalDoc.type?.toUpperCase().includes("PDF")) ? (
-                <div className="w-full h-full min-h-[75vh] max-w-5xl flex items-center justify-center p-2">
-                  <iframe
-                    src={previewModalDoc.url}
-                    title={previewModalDoc.label}
-                    className="w-full h-[75vh] rounded-2xl bg-white border border-[#334155] shadow-2xl"
-                  />
-                </div>
               ) : previewModalDoc.url && !failedImages[previewModalDoc.label] ? (
                 <div
                   className="transition-transform duration-200 ease-out max-w-full max-h-full flex items-center justify-center"

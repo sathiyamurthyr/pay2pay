@@ -211,7 +211,7 @@ def build_unified_transactions_query(
             COALESCE(t.gst_amount, 0.0)::float AS gst_amount,
             COALESCE(t.tds_amount, 0.0)::float AS tds_amount,
             COALESCE(t.net_amount, (t.amount + COALESCE(t.charges, 0.0) + COALESCE(t.gst_amount, 0.0)))::float AS net_amount,
-            COALESCE(l.balance_before::float, 50000.0) AS previous_balance,
+            COALESCE(l.balance_before::float, 0.0) AS previous_balance,
             CASE 
                 WHEN UPPER(COALESCE(l.entry_type, '')) = 'CREDIT' THEN COALESCE(l.amount::float, t.net_amount::float) 
                 WHEN UPPER(COALESCE(t.service_type, '')) = 'TOPUP' AND UPPER(COALESCE(t.transaction_type, '')) IN ('WALLET_TOPUP', 'MANUAL_TOPUP', 'TOPUP') THEN COALESCE(t.net_amount::float, t.amount::float)
@@ -224,8 +224,8 @@ def build_unified_transactions_query(
             END AS dr,
             COALESCE(l.balance_after::float, 
                 CASE 
-                    WHEN UPPER(COALESCE(t.service_type, '')) = 'TOPUP' THEN (COALESCE(l.balance_before::float, 50000.0) + COALESCE(t.net_amount::float, 0.0))
-                    ELSE (COALESCE(l.balance_before::float, 50000.0) - COALESCE(t.net_amount::float, 0.0))
+                    WHEN UPPER(COALESCE(t.service_type, '')) = 'TOPUP' THEN COALESCE(l.balance_before::float, 0.0) + COALESCE(t.net_amount::float, 0.0)
+                    ELSE GREATEST(0.0, COALESCE(l.balance_before::float, 0.0) - COALESCE(t.net_amount::float, 0.0))
                 END
             ) AS current_balance,
             t.created_at AS transaction_datetime,
@@ -507,6 +507,7 @@ def build_unified_transactions_query(
         FROM transaction_ledger_entries l4
         LEFT JOIN retailer ret4 ON (l4.account_number = ret4.public_id::text OR l4.account_number = ret4.retailer_code)
         WHERE l4.account_type = 'RETAILER_WALLET'
+          AND UPPER(l4.entry_type) = 'CREDIT'
           AND NOT EXISTS (
               SELECT 1 FROM transactions t4 
               WHERE t4.public_id = l4.transaction_id OR t4.transaction_reference = l4.transaction_reference

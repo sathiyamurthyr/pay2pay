@@ -94,6 +94,7 @@ function OnboardingHubContent() {
       const [retRes, distRes, sdRes] = await Promise.allSettled([
         api.get("/api/v1/retailers", {
           params: {
+            page_size: 100,
             ...(search ? { search } : {}),
             ...(statusFilter ? { status: statusFilter } : {}),
           },

@@ -129,14 +129,48 @@ export interface FooterTotals {
   total_reversed: number;
 }
 
-const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
-const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
-
 const getActiveRetailerId = () => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || DEFAULT_RETAILER_ID;
+    try {
+      const userStr =
+        localStorage.getItem("user_info") ||
+        localStorage.getItem("user") ||
+        localStorage.getItem("auth_user") ||
+        localStorage.getItem("pay2pay_user_data");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        if (u.retailer_code || u.retailer_id || u.id) {
+          return u.retailer_code || u.retailer_id || u.id;
+        }
+      }
+    } catch {}
+    return (
+      localStorage.getItem("p2p_retailer_code") ||
+      localStorage.getItem("p2p_active_retailer_id") ||
+      localStorage.getItem("pay2pay_reg_code") ||
+      localStorage.getItem("pay2pay_reg_id") ||
+      ""
+    );
   }
-  return DEFAULT_RETAILER_ID;
+  return "";
+};
+
+const getActiveTenantId = () => {
+  if (typeof window !== "undefined") {
+    try {
+      const userStr =
+        localStorage.getItem("user_info") ||
+        localStorage.getItem("user") ||
+        localStorage.getItem("auth_user") ||
+        localStorage.getItem("pay2pay_user_data");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        if (u.tenant_id) return u.tenant_id;
+      }
+    } catch {}
+    return localStorage.getItem("p2p_tenant_id") || "";
+  }
+  return "";
 };
 
 const getTodayIso = () => new Date().toISOString().split("T")[0];
@@ -240,14 +274,16 @@ export const RetailerPayoutReport: React.FC = () => {
     setSummaryError(false);
     try {
       const activeRetailer = getActiveRetailerId();
-      const q = new URLSearchParams({
-        retailer_id: activeRetailer,
-        tenant_id: DEFAULT_TENANT_ID,
-      });
+      const activeTenant = getActiveTenantId();
+      const q = new URLSearchParams();
+      if (activeRetailer) q.append("retailer_id", activeRetailer);
+      if (activeTenant) q.append("tenant_id", activeTenant);
       if (fDate) q.append("from_date", fDate);
       if (tDate) q.append("to_date", tDate);
 
-      const res = await fetch(`/api/v1/payout/reports/summary?${q.toString()}`);
+      const res = await fetch(`/api/v1/payout/reports/summary?${q.toString()}`, {
+        credentials: "include",
+      });
       if (res.ok) {
         const data = await res.json();
         setSummary(data);
@@ -262,19 +298,19 @@ export const RetailerPayoutReport: React.FC = () => {
     }
   }, []);
 
-
   // Fetch Grid Records from Backend API
   const fetchReportData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const activeRetailer = getActiveRetailerId();
+      const activeTenant = getActiveTenantId();
       const q = new URLSearchParams({
-        retailer_id: activeRetailer,
-        tenant_id: DEFAULT_TENANT_ID,
         page: (page + 1).toString(),
         limit: rowsPerPage.toString(),
       });
+      if (activeRetailer) q.append("retailer_id", activeRetailer);
+      if (activeTenant) q.append("tenant_id", activeTenant);
 
       if (fromDate) q.append("from_date", fromDate);
       if (toDate) q.append("to_date", toDate);
@@ -294,7 +330,9 @@ export const RetailerPayoutReport: React.FC = () => {
       if (minimumAmount) q.append("amount_from", minimumAmount);
       if (maximumAmount) q.append("amount_to", maximumAmount);
 
-      const res = await fetch(`/api/v1/payout/reports/grid?${q.toString()}`);
+      const res = await fetch(`/api/v1/payout/reports/grid?${q.toString()}`, {
+        credentials: "include",
+      });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }

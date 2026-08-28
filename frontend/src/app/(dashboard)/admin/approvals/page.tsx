@@ -59,7 +59,7 @@ export default function AdminApprovalsPage() {
   const [actionRemarks, setActionRemarks] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
-  
+
   // Interactive Lightbox State
   const [previewModalDoc, setPreviewModalDoc] = useState<{ label: string; url: string; category?: string; isVideo?: boolean; docNumber?: string; holderName?: string; type?: string } | null>(null);
   const [lightboxZoom, setLightboxZoom] = useState<number>(1);
@@ -78,7 +78,7 @@ export default function AdminApprovalsPage() {
   async function fetchData() {
     try {
       setLoading(true);
-      
+
       // Fetch live registrations from backend PostgreSQL database
       const [sdRes, distRes, verifRes] = await Promise.all([
         fetch(`${API_BASE_URL}/organization/super-distributors`).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] })),
@@ -110,7 +110,7 @@ export default function AdminApprovalsPage() {
     setActionLoading(true);
     try {
       const verifId = selectedItem.verification_id || selectedItem.public_id;
-      
+
       const res = await fetch(`${API_BASE_URL}/admin/verification/requests/${verifId}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,14 +127,14 @@ export default function AdminApprovalsPage() {
       }
 
       const targetName = selectedItem.retailer_name || selectedItem.business_name || selectedItem.shop_name || "Partner";
-      
+
       // Close modal, notify, and refresh live DB records
       setSelectedItem(null);
       setActionRemarks("");
       showToast(
         `Successfully updated ${targetName} status to ${newStatus === "APPROVED" ? "Approved & Active" : newStatus === "ON_HOLD" ? "On Hold" : "Rejected"} in live DB!`
       );
-      
+
       fetchData();
     } catch (err: any) {
       showToast(err.message || "Failed to update status in database. Please check backend.");
@@ -373,11 +373,10 @@ export default function AdminApprovalsPage() {
       <div className="flex items-center gap-2 border-b border-[#E2E8F0] pb-1">
         <button
           onClick={() => setActiveTab("ret")}
-          className={`flex items-center gap-2.5 px-6 py-3 rounded-t-xl text-xs font-extrabold transition-all border-b-2 cursor-pointer ${
-            activeTab === "ret"
+          className={`flex items-center gap-2.5 px-6 py-3 rounded-t-xl text-xs font-extrabold transition-all border-b-2 cursor-pointer ${activeTab === "ret"
               ? "border-[#6C63FF] text-[#581C87] bg-[#F5F3FF]"
               : "border-transparent text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]"
-          }`}
+            }`}
         >
           <Store className="w-4 h-4" /> Retailers (Ret)
           <span className="px-2 py-0.5 rounded-full bg-[#DDD6FE] text-[#6D28D9] text-[10px]">
@@ -387,11 +386,10 @@ export default function AdminApprovalsPage() {
 
         <button
           onClick={() => setActiveTab("sd")}
-          className={`flex items-center gap-2.5 px-6 py-3 rounded-t-xl text-xs font-extrabold transition-all border-b-2 cursor-pointer ${
-            activeTab === "sd"
+          className={`flex items-center gap-2.5 px-6 py-3 rounded-t-xl text-xs font-extrabold transition-all border-b-2 cursor-pointer ${activeTab === "sd"
               ? "border-[#F59E0B] text-[#B45309] bg-[#FFFBEB]"
               : "border-transparent text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]"
-          }`}
+            }`}
         >
           <Building2 className="w-4 h-4" /> Super Distributors (SD)
           <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] text-[10px]">
@@ -401,11 +399,10 @@ export default function AdminApprovalsPage() {
 
         <button
           onClick={() => setActiveTab("dist")}
-          className={`flex items-center gap-2.5 px-6 py-3 rounded-t-xl text-xs font-extrabold transition-all border-b-2 cursor-pointer ${
-            activeTab === "dist"
+          className={`flex items-center gap-2.5 px-6 py-3 rounded-t-xl text-xs font-extrabold transition-all border-b-2 cursor-pointer ${activeTab === "dist"
               ? "border-[#3B82F6] text-[#1D4ED8] bg-[#EFF6FF]"
               : "border-transparent text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]"
-          }`}
+            }`}
         >
           <Users className="w-4 h-4" /> Distributors (Dist)
           <span className="px-2 py-0.5 rounded-full bg-[#DBEAFE] text-[#1E40AF] text-[10px]">
@@ -423,9 +420,8 @@ export default function AdminApprovalsPage() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]" />
             <input
               type="text"
-              placeholder={`Search ${
-                activeTab === "sd" ? "super distributors" : activeTab === "dist" ? "distributors" : "retailers"
-              } by name, phone, PAN…`}
+              placeholder={`Search ${activeTab === "sd" ? "super distributors" : activeTab === "dist" ? "distributors" : "retailers"
+                } by name, phone, PAN…`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 pr-3 py-1.5 w-60 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[12px] font-medium text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/15 transition-all"
@@ -460,11 +456,10 @@ export default function AdminApprovalsPage() {
                       setStatusFilter(s);
                       setShowFilterDropdown(false);
                     }}
-                    className={`w-full text-left px-3 py-1.5 text-[11px] font-bold rounded-lg transition cursor-pointer flex items-center justify-between ${
-                      statusFilter === s
+                    className={`w-full text-left px-3 py-1.5 text-[11px] font-bold rounded-lg transition cursor-pointer flex items-center justify-between ${statusFilter === s
                         ? "bg-[#6C63FF]/10 text-[#6C63FF]"
                         : "text-[#374151] hover:bg-[#F8FAFC]"
-                    }`}
+                      }`}
                   >
                     <span>{s === "ALL" ? "All Statuses" : s === "PENDING" ? "Pending Verification" : s === "ACTIVE" ? "Approved / Active" : s === "HOLD" ? "On Hold" : "Rejected"}</span>
                     {statusFilter === s && <Check className="w-3.5 h-3.5 text-[#6C63FF]" />}
@@ -625,7 +620,7 @@ export default function AdminApprovalsPage() {
               {filteredItems.map((item, idx) => {
                 const title = item.retailer_name || item.business_name || item.shop_name || "Merchant Store";
                 const owner = item.owner_name || item.retailer_name || "Partner Owner";
-                const code = item.retailer_id || item.retailer_code || item.registration_id || item.employee_code || `REG-${idx+1}`;
+                const code = item.retailer_id || item.retailer_code || item.registration_id || item.employee_code || `REG-${idx + 1}`;
                 const email = item.email || "N/A";
                 const mobile = item.mobile_number || item.mobile || "N/A";
                 const city = item.district || item.city || "Chennai";
