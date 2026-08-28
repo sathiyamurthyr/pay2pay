@@ -2,6 +2,7 @@
 import uuid
 import random
 import string
+import re
 from datetime import datetime, timezone, timedelta, date
 from typing import Any, Dict, List, Optional
 from difflib import SequenceMatcher
@@ -273,38 +274,62 @@ class BeneficiaryService:
     async def list_beneficiaries(db: AsyncSession, req: BeneficiarySearchRequest) -> List[BeneficiaryResponse]:
         from app.infrastructure.db.customer_models import CustomerModel
         from app.infrastructure.db.epic014_models import BeneficiaryMasterModel, BeneficiaryCustomerMappingModel
+        from app.infrastructure.db.beneficiary_models import BeneficiaryBankAccountModel
         import re
 
         # Resolve customer UUID if customer_id string / mobile / code is provided
         target_cust_uuid: Optional[uuid.UUID] = None
-        if req.customer_id:
+        has_customer_filter = bool(req.customer_id and str(req.customer_id).strip())
+
+        if has_customer_filter:
             raw_cid = str(req.customer_id).strip()
             try:
                 target_cust_uuid = uuid.UUID(raw_cid)
             except Exception:
-                # Extract clean digits for mobile lookup
+                # Strip common display prefixes (e.g. "CUST-9176669426" -> "9176669426")
+                stripped_cid = re.sub(r"^(CUST|C|CUSTOMER)[-_]?", "", raw_cid, flags=re.IGNORECASE).strip()
                 clean_digits = re.sub(r"\D", "", raw_cid)
-                stmt_c = select(CustomerModel).where(
-                    or_(
-                        CustomerModel.customer_number == raw_cid,
-                        CustomerModel.customer_number.ilike(f"%{raw_cid}%"),
-                        CustomerModel.mobile_number == clean_digits if clean_digits else False,
-                        CustomerModel.mobile_number.like(f"%{clean_digits[-10:]}%") if len(clean_digits) >= 10 else False,
-                    )
-                )
+                stripped_digits = re.sub(r"\D", "", stripped_cid)
+
+                lookup_conditions = [
+                    CustomerModel.customer_number == raw_cid,
+                    CustomerModel.customer_number.ilike(f"%{raw_cid}%"),
+                ]
+                # Also try without the display prefix
+                if stripped_cid and stripped_cid != raw_cid:
+                    lookup_conditions.append(CustomerModel.customer_number == stripped_cid)
+                    lookup_conditions.append(CustomerModel.customer_number.ilike(f"%{stripped_cid}%"))
+                # Mobile number fallback (only if digits look like a phone number)
+                if clean_digits and len(clean_digits) >= 10:
+                    lookup_conditions.append(CustomerModel.mobile_number == clean_digits)
+                    lookup_conditions.append(CustomerModel.mobile_number.like(f"%{clean_digits[-10:]}%"))
+                if stripped_digits and len(stripped_digits) >= 6 and stripped_digits != clean_digits:
+                    lookup_conditions.append(CustomerModel.customer_number == stripped_digits)
+
+                stmt_c = select(CustomerModel).where(or_(*lookup_conditions))
                 cust_match = (await db.execute(stmt_c)).scalars().first()
                 if cust_match:
                     target_cust_uuid = cust_match.public_id
+                else:
+                    # Requested customer was not found in CustomerModel -> return empty list
+                    return []
 
         # 1. Fetch legacy BeneficiaryModel records
         stmt = select(BeneficiaryModel).where(
             and_(
                 BeneficiaryModel.is_active == True,
-                BeneficiaryModel.beneficiary_status != "MERGED"
+                BeneficiaryModel.is_deleted == False,
+                BeneficiaryModel.beneficiary_status != "MERGED",
+                BeneficiaryModel.beneficiary_status != "DELETED",
+                BeneficiaryModel.beneficiary_status != "INACTIVE"
             )
         )
-        if target_cust_uuid:
-            stmt = stmt.where(BeneficiaryModel.customer_id == target_cust_uuid)
+        if has_customer_filter:
+            if target_cust_uuid:
+                stmt = stmt.where(BeneficiaryModel.customer_id == target_cust_uuid)
+            else:
+                return []
+
         if req.beneficiary_status:
             stmt = stmt.where(BeneficiaryModel.beneficiary_status == req.beneficiary_status)
         if req.beneficiary_category:
@@ -325,28 +350,81 @@ class BeneficiaryService:
         offset = (req.page - 1) * req.page_size
         stmt = stmt.offset(offset).limit(req.page_size)
         result = await db.execute(stmt)
-        results = [_to_beneficiary_response(b) for b in result.scalars().all()]
+        legacy_bens = result.scalars().all()
+
+        results: List[BeneficiaryResponse] = []
+        seen_account_keys = set()
+
+        def _get_acc_key(acc_str: Optional[str], ifsc_str: Optional[str]) -> str:
+            if not acc_str:
+                return ""
+            digits = re.sub(r"\D", "", acc_str)
+            clean_ifsc = (ifsc_str or "").strip().upper()
+            if len(digits) >= 9:
+                return f"FULL_{digits}_{clean_ifsc}"
+            return f"MASK_{digits[-4:]}_{clean_ifsc}" if len(digits) >= 4 else f"RAW_{acc_str.strip()}_{clean_ifsc}"
+
+        for b in legacy_bens:
+            stmt_bank = select(BeneficiaryBankAccountModel).where(
+                BeneficiaryBankAccountModel.beneficiary_id == b.public_id
+            )
+            bank_acc = (await db.execute(stmt_bank)).scalars().first()
+
+            b_resp = _to_beneficiary_response(b)
+            if bank_acc:
+                b_resp.account_number = bank_acc.account_number
+                b_resp.masked_account_number = bank_acc.account_number_masked or bank_acc.account_number
+                b_resp.account_number_masked = bank_acc.account_number_masked or bank_acc.account_number
+                b_resp.ifsc = bank_acc.ifsc_code
+                b_resp.ifsc_code = bank_acc.ifsc_code
+                b_resp.bank_name = bank_acc.bank_name
+                b_resp.branch_name = bank_acc.branch_name or "Main Branch"
+
+                acc_key = _get_acc_key(bank_acc.account_number, bank_acc.ifsc_code)
+                if acc_key:
+                    seen_account_keys.add(acc_key)
+                    digits = re.sub(r"\D", "", bank_acc.account_number or "")
+                    if len(digits) >= 4:
+                        seen_account_keys.add(f"MASK_{digits[-4:]}_{(bank_acc.ifsc_code or '').strip().upper()}")
+
+            results.append(b_resp)
 
         # 2. Fetch EPIC-014 Beneficiary Customer Mappings & Master records
-        stmt_map = select(BeneficiaryCustomerMappingModel).where(BeneficiaryCustomerMappingModel.is_active == True)
-        if target_cust_uuid:
-            stmt_map = stmt_map.where(BeneficiaryCustomerMappingModel.customer_id == target_cust_uuid)
+        stmt_map = select(BeneficiaryCustomerMappingModel).where(
+            and_(
+                BeneficiaryCustomerMappingModel.is_active == True,
+                BeneficiaryCustomerMappingModel.is_deleted == False
+            )
+        )
+        if has_customer_filter:
+            if target_cust_uuid:
+                stmt_map = stmt_map.where(BeneficiaryCustomerMappingModel.customer_id == target_cust_uuid)
+            else:
+                return results
 
         mappings = (await db.execute(stmt_map)).scalars().all()
-        
-        # If no specific mapping found for target_cust_uuid, fetch all active mappings for general workstation fallback
-        if not mappings and not target_cust_uuid:
-            mappings = (await db.execute(select(BeneficiaryCustomerMappingModel).where(BeneficiaryCustomerMappingModel.is_active == True))).scalars().all()
-        elif not mappings and target_cust_uuid:
-            # Check if any beneficiaries exist in beneficiary_master
-            mappings = (await db.execute(select(BeneficiaryCustomerMappingModel).where(BeneficiaryCustomerMappingModel.is_active == True))).scalars().all()
 
         for mp in mappings:
-            stmt_master = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.public_id == mp.beneficiary_id)
+            stmt_master = select(BeneficiaryMasterModel).where(
+                and_(
+                    BeneficiaryMasterModel.public_id == mp.beneficiary_id,
+                    BeneficiaryMasterModel.is_active == True,
+                    BeneficiaryMasterModel.is_deleted == False
+                )
+            )
             master = (await db.execute(stmt_master)).scalars().first()
             if master:
-                # Avoid duplicates by account number
-                if not any(getattr(r, "account_number", None) == master.account_number for r in results):
+                m_key = _get_acc_key(master.account_number, master.ifsc_code)
+                m_digits = re.sub(r"\D", "", master.account_number or "")
+                m_mask_key = f"MASK_{m_digits[-4:]}_{(master.ifsc_code or '').strip().upper()}" if len(m_digits) >= 4 else ""
+
+                # Avoid duplicates by account number / IFSC
+                if m_key not in seen_account_keys and (not m_mask_key or m_mask_key not in seen_account_keys):
+                    if m_key:
+                        seen_account_keys.add(m_key)
+                    if m_mask_key:
+                        seen_account_keys.add(m_mask_key)
+
                     results.append(BeneficiaryResponse(
                         public_id=master.public_id,
                         beneficiary_number=f"BEN-{str(master.public_id)[:6].upper()}",
@@ -357,7 +435,7 @@ class BeneficiaryService:
                         last_name=master.account_holder_name.split()[-1] if master.account_holder_name and len(master.account_holder_name.split()) > 1 else "",
                         full_name=master.registered_name_in_bank or master.account_holder_name,
                         nickname=mp.nickname or f"{master.bank_name} Account",
-                        mobile_number="7013914767",
+                        mobile_number=getattr(master, "mobile_number", "--") or "--",
                         email=None,
                         relationship="FAMILY",
                         customer_id=mp.customer_id,
@@ -369,8 +447,8 @@ class BeneficiaryService:
                         registration_date=master.created_date or datetime.now(),
                         activation_date=master.created_date or datetime.now(),
                         account_number=master.account_number,
-                        masked_account_number=master.account_number_masked,
-                        account_number_masked=master.account_number_masked,
+                        masked_account_number=master.account_number_masked or master.account_number,
+                        account_number_masked=master.account_number_masked or master.account_number,
                         ifsc=master.ifsc_code,
                         ifsc_code=master.ifsc_code,
                         bank_name=master.bank_name,
@@ -380,6 +458,7 @@ class BeneficiaryService:
                     ))
 
         return results
+
 
     @staticmethod
     async def get_beneficiary(db: AsyncSession, beneficiary_id: uuid.UUID) -> Optional[BeneficiaryResponse]:

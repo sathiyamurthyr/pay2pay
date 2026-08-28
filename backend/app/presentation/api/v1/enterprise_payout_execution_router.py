@@ -17,7 +17,7 @@ class PayoutExecutionRequest(BaseModel):
     beneficiary_id: uuid.UUID = Field(..., description="Beneficiary Public UUID")
     retailer_id: uuid.UUID = Field(..., description="Retailer Public UUID")
     tenant_id: Optional[uuid.UUID] = Field(
-        default=uuid.UUID("93538c98-0b19-493c-a247-4cdb02a46c68"), description="Tenant ID"
+        default=None, description="Tenant ID"
     )
     amount: float = Field(..., gt=0.0, description="Payout Transfer Amount")
     mpin: str = Field(..., min_length=4, max_length=6, description="Retailer / Customer 4-6 digit MPIN")

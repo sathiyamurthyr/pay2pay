@@ -22,7 +22,8 @@ import {
   ExternalLink,
   ChevronRight,
   FileCheck,
-  Lock
+  Lock,
+  Calculator
 } from "lucide-react";
 
 interface TopupRequestItem {
@@ -33,6 +34,7 @@ interface TopupRequestItem {
   currency: string;
   payment_reference: string;
   payment_method: string;
+  payment_mode?: string;
   payment_date?: string;
   slip_id?: string;
   slip_url?: string;
@@ -49,6 +51,18 @@ interface TopupRequestItem {
   rejected_by?: string;
   rejected_at?: string;
   transaction_reference?: string;
+  mdr_charge?: number;
+  gst_amount?: number;
+  charges?: number;
+  received_amount?: number;
+}
+
+interface PaymentModeOption {
+  id?: string;
+  code: string;
+  name: string;
+  display_order?: number;
+  settlement_type?: string;
 }
 
 export default function RetailerTopupRequestPage() {
@@ -60,12 +74,31 @@ export default function RetailerTopupRequestPage() {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [uploadingSlip, setUploadingSlip] = useState<boolean>(false);
 
+  // Allowed Dynamic Payment Modes
+  const [paymentModes, setPaymentModes] = useState<PaymentModeOption[]>([
+    { code: "POS - Instant", name: "POS - Instant", display_order: 1 },
+    { code: "POS+T1", name: "POS+T1", display_order: 2 },
+    { code: "POS+T2", name: "POS+T2", display_order: 3 }
+  ]);
+
   // Form Fields
   const [requestedAmount, setRequestedAmount] = useState<string>("");
   const [paymentReference, setPaymentReference] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split("T")[0]);
-  const [paymentMethod, setPaymentMethod] = useState<string>("UPI");
+  const [paymentMethod, setPaymentMethod] = useState<string>("POS - Instant");
   const [retailerRemarks, setRetailerRemarks] = useState<string>("");
+
+  // Dynamic MDR Breakdown State
+  const [mdrBreakdown, setMdrBreakdown] = useState<{
+    transaction_amount: number;
+    mdr: number;
+    gst: number;
+    charges: number;
+    received_amount: number;
+    payment_mode: string;
+    mdr_config_id?: string;
+  } | null>(null);
+  const [calculatingMdr, setCalculatingMdr] = useState<boolean>(false);
 
   // Uploaded Slip Data
   const [slipFile, setSlipFile] = useState<File | null>(null);
@@ -85,13 +118,86 @@ export default function RetailerTopupRequestPage() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Fetch Dynamic Payment Modes ──────────────────────────────────────────────
+  useEffect(() => {
+    const fetchPaymentModes = async () => {
+      try {
+        const res = await api.get("/api/v1/pos/payment-modes");
+        if (res.data?.items && res.data.items.length > 0) {
+          setPaymentModes(res.data.items);
+          setPaymentMethod((prev) => {
+            const exists = res.data.items.some((m: any) => m.code === prev);
+            return exists ? prev : res.data.items[0].code;
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to load payment modes dynamically:", err);
+      }
+    };
+    fetchPaymentModes();
+  }, []);
+
+  // ── Real-time Dynamic MDR Calculation ─────────────────────────────────────────
+  useEffect(() => {
+    let isMounted = true;
+    const amt = parseFloat(requestedAmount);
+    if (!amt || isNaN(amt) || amt <= 0 || !paymentMethod) {
+      setMdrBreakdown(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setCalculatingMdr(true);
+        const activeCode =
+          retailerInfo?.code ||
+          (typeof window !== "undefined"
+            ? localStorage.getItem("p2p_active_retailer_id") ||
+              localStorage.getItem("retailer_code") ||
+              localStorage.getItem("pay2pay_reg_mobile") ||
+              ""
+            : "");
+        const res = await api.post("/api/v1/pos/calculate-mdr", {
+          payment_mode: paymentMethod,
+          transaction_amount: amt,
+          retailer_id: activeCode || undefined
+        });
+        if (isMounted && res.data) {
+          setMdrBreakdown(res.data);
+          setErrorMessage(null);
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          const detail = err.response?.data?.detail || "MDR configuration is not available for this retailer and payment mode.";
+          console.warn("MDR calculate warning:", detail);
+          setMdrBreakdown(null);
+        }
+      } finally {
+        if (isMounted) setCalculatingMdr(false);
+      }
+    }, 150);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [requestedAmount, paymentMethod, retailerInfo]);
+
   // ── Fetch Profile & My Requests ──────────────────────────────────────────────
   const fetchMyTopups = useCallback(async () => {
     try {
       setLoadingRequests(true);
-      const activeCode = typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "" : "";
+      const activeCode =
+        (typeof window !== "undefined"
+          ? localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("retailer_code") ||
+            localStorage.getItem("pay2pay_reg_mobile") ||
+            ""
+          : "");
       const query = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
-      const res = await api.get(`/api/v1/topup/my-requests${query}`);
+      const res = await api.get(`/api/v1/topup/my-requests${query}`, {
+        headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}
+      });
       setMyRequests(res.data.items || []);
       if (res.data?.retailer) {
         setRetailerInfo({
@@ -186,17 +292,58 @@ export default function RetailerTopupRequestPage() {
         requested_amount: amt,
         payment_reference: paymentReference.trim(),
         payment_method: paymentMethod,
+        payment_mode: paymentMethod,
         payment_date: paymentDate ? new Date(paymentDate).toISOString() : undefined,
         slip_id: uploadedSlipData?.slip_id,
         slip_url: uploadedSlipData?.slip_url,
         slip_original_filename: uploadedSlipData?.original_filename,
         slip_file_size_bytes: uploadedSlipData?.file_size_bytes || uploadedSlipData?.file_size,
         slip_checksum: uploadedSlipData?.checksum,
-        retailer_remarks: retailerRemarks.trim() || undefined
+        retailer_remarks: retailerRemarks.trim() || undefined,
+        // Transaction Pricing Snapshot
+        mdr_charge: mdrBreakdown?.mdr,
+        gst_amount: mdrBreakdown?.gst,
+        charges: mdrBreakdown?.charges,
+        received_amount: mdrBreakdown?.received_amount,
+        mdr_config_id: mdrBreakdown?.mdr_config_id
       };
 
-      const res = await api.post("/api/v1/topup/request", payload);
-      setSuccessMessage(res.data.message || `Topup request ${res.data.topup_request_id} submitted successfully.`);
+      const activeCode =
+        retailerInfo?.code ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("retailer_code") ||
+            localStorage.getItem("pay2pay_reg_mobile") ||
+            ""
+          : "");
+      const queryParam = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
+      const res = await api.post(`/api/v1/topup/request${queryParam}`, payload, {
+        headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}
+      });
+
+      const newReqId = res.data.topup_request_id;
+      setSuccessMessage(res.data.message || `Topup request ${newReqId} submitted successfully and is pending admin verification.`);
+
+      // Optimistically prepend to right-hand table
+      const newClaim: TopupRequestItem = {
+        id: res.data?.id || `req-${Date.now()}`,
+        topup_request_id: newReqId,
+        requested_amount: amt,
+        approved_amount: undefined,
+        payment_reference: paymentReference.trim(),
+        payment_method: paymentMethod,
+        payment_mode: paymentMethod,
+        payment_date: paymentDate ? new Date(paymentDate).toISOString() : new Date().toISOString(),
+        slip_id: uploadedSlipData?.slip_id,
+        slip_url: uploadedSlipData?.slip_url,
+        status: "PENDING",
+        submitted_at: new Date().toISOString(),
+        mdr_charge: mdrBreakdown?.mdr,
+        gst_amount: mdrBreakdown?.gst,
+        charges: mdrBreakdown?.charges,
+        received_amount: mdrBreakdown?.received_amount
+      };
+      setMyRequests((prev) => [newClaim, ...prev.filter(r => r.topup_request_id !== newReqId)]);
 
       // Reset Form
       setRequestedAmount("");
@@ -205,9 +352,10 @@ export default function RetailerTopupRequestPage() {
       setSlipFile(null);
       setSlipPreview(null);
       setUploadedSlipData(null);
+      setMdrBreakdown(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      // Refresh list
+      // Refresh list from server
       fetchMyTopups();
     } catch (err: any) {
       console.error("Submit request error:", err);
@@ -240,11 +388,11 @@ export default function RetailerTopupRequestPage() {
                 <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                   Request Wallet Top-up
                   <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 font-medium">
-                    Proof Verification
+                    POS Settlement
                   </span>
                 </h1>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Transfer funds to company bank account, upload receipt slip, and receive wallet credit upon admin verification.
+                  Transfer funds to company bank account, select your POS settlement type, and receive wallet credit upon admin verification.
                 </p>
               </div>
             </div>
@@ -298,7 +446,7 @@ export default function RetailerTopupRequestPage() {
           <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
               <FileCheck className="h-4 w-4 text-amber-400" />
-              New Topup Request
+              New POS Topup Request
             </h2>
             <span className="text-[11px] text-slate-400">Step 1 of 2</span>
           </div>
@@ -321,7 +469,7 @@ export default function RetailerTopupRequestPage() {
             {/* Amount Field + Quick Presets */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-200 flex justify-between">
-                <span>Requested Top-up Amount (₹) <span className="text-amber-400">*</span></span>
+                <span>Transaction Amount (₹) <span className="text-amber-400">*</span></span>
               </label>
               <input
                 type="number"
@@ -349,6 +497,83 @@ export default function RetailerTopupRequestPage() {
               </div>
             </div>
 
+            {/* Payment Method & Date */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-200">Payment Mode</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-500"
+                >
+                  {paymentModes.map((mode) => (
+                    <option key={mode.code} value={mode.code}>
+                      {mode.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-200">Payment Date</label>
+                <input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            {/* ── Dynamic Live MDR Breakdown Card ── */}
+            {parseFloat(requestedAmount || "0") > 0 && (
+              <div className="rounded-xl border border-slate-700/80 bg-slate-950/80 p-4 space-y-3 shadow-inner">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                    <Calculator className="h-3.5 w-3.5 text-amber-400" />
+                    Live Fee & Received Amount Breakdown
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono font-semibold">
+                    {paymentMethod}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-y-2 text-xs">
+                  <span className="text-slate-400">Payment Mode</span>
+                  <span className="text-right font-medium text-slate-200">{paymentMethod}</span>
+
+                  <span className="text-slate-400">Transaction Amount</span>
+                  <span className="text-right font-semibold text-white">
+                    ₹{parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </span>
+
+                  <span className="text-slate-400">MDR</span>
+                  <span className="text-right font-medium text-amber-400">
+                    {mdrBreakdown ? `₹${mdrBreakdown.mdr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
+                  </span>
+
+                  <span className="text-slate-400">GST</span>
+                  <span className="text-right font-medium text-amber-400/90">
+                    {mdrBreakdown ? `₹${mdrBreakdown.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
+                  </span>
+
+                  <span className="text-slate-400">Charges</span>
+                  <span className="text-right font-medium text-slate-300">
+                    {mdrBreakdown ? `₹${mdrBreakdown.charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
+                  </span>
+
+                  <div className="col-span-2 pt-2.5 mt-0.5 border-t border-slate-800 flex items-center justify-between">
+                    <span className="text-xs font-bold text-white">Received Amount</span>
+                    <span className="text-base font-extrabold text-emerald-400">
+                      {mdrBreakdown
+                        ? `₹${mdrBreakdown.received_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                        : (calculatingMdr ? "..." : `₹${parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}`)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Payment Reference / UTR */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-200">
@@ -362,34 +587,6 @@ export default function RetailerTopupRequestPage() {
                 className="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono font-medium text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
                 required
               />
-            </div>
-
-            {/* Payment Method & Date */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-200">Payment Mode</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-500"
-                >
-                  <option value="UPI">UPI / QR Code</option>
-                  <option value="IMPS">IMPS Instant Transfer</option>
-                  <option value="NEFT">NEFT Transfer</option>
-                  <option value="RTGS">RTGS Transfer</option>
-                  <option value="BANK_DEPOSIT">Direct Cash / Branch Deposit</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-200">Payment Date</label>
-                <input
-                  type="date"
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-500"
-                />
-              </div>
             </div>
 
             {/* Payment Slip / Proof Upload */}
@@ -467,7 +664,7 @@ export default function RetailerTopupRequestPage() {
               <label className="text-xs font-semibold text-slate-200">Remarks / Note (Optional)</label>
               <textarea
                 rows={2}
-                placeholder="e.g. Paid via SBI UPI for daily working capital"
+                placeholder="e.g. Daily POS working capital top-up"
                 value={retailerRemarks}
                 onChange={(e) => setRetailerRemarks(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
@@ -520,25 +717,26 @@ export default function RetailerTopupRequestPage() {
               <thead className="bg-slate-900/80 text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-700/80">
                 <tr>
                   <th className="py-3 px-3">Request ID</th>
-                  <th className="py-3 px-3 text-right">Requested</th>
-                  <th className="py-3 px-3 text-right">Approved</th>
-                  <th className="py-3 px-3">Payment / Ref</th>
+                  <th className="py-3 px-3">Mode</th>
+                  <th className="py-3 px-3 text-right">Amount</th>
+                  <th className="py-3 px-3 text-right">Net Credit</th>
+                  <th className="py-3 px-3">Ref / UTR</th>
                   <th className="py-3 px-3 text-center">Proof</th>
                   <th className="py-3 px-3 text-center">Status</th>
-                  <th className="py-3 px-3">Submitted</th>
+                  <th className="py-3 px-3">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
                 {loadingRequests ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-slate-400">
+                    <td colSpan={8} className="py-10 text-center text-slate-400">
                       <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-amber-400" />
                       Loading history...
                     </td>
                   </tr>
                 ) : myRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-slate-400">
+                    <td colSpan={8} className="py-10 text-center text-slate-400">
                       <Info className="h-6 w-6 text-slate-500 mx-auto mb-2" />
                       No topup requests submitted yet. Use the form on the left to request your first wallet top-up.
                     </td>
@@ -563,19 +761,32 @@ export default function RetailerTopupRequestPage() {
                         </div>
                       </td>
 
+                      {/* Payment Mode */}
+                      <td className="py-3 px-3 font-medium text-slate-300">
+                        <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[11px] font-mono">
+                          {item.payment_mode || item.payment_method}
+                        </span>
+                      </td>
+
                       {/* Requested Amount */}
                       <td className="py-3 px-3 text-right font-semibold text-slate-100">
                         ₹{item.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
 
-                      {/* Approved Amount */}
+                      {/* Net Received / Approved Amount */}
                       <td className="py-3 px-3 text-right font-semibold">
-                        {item.approved_amount !== undefined && item.approved_amount !== null ? (
+                        {item.received_amount !== undefined && item.received_amount !== null ? (
+                          <span className="text-emerald-400">
+                            ₹{item.received_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </span>
+                        ) : item.approved_amount !== undefined && item.approved_amount !== null ? (
                           <span className="text-emerald-400">
                             ₹{item.approved_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </span>
                         ) : (
-                          <span className="text-slate-500">-</span>
+                          <span className="text-slate-400">
+                            ₹{item.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </span>
                         )}
                       </td>
 
@@ -584,7 +795,6 @@ export default function RetailerTopupRequestPage() {
                         <div className="font-mono text-slate-200 truncate max-w-[120px]" title={item.payment_reference}>
                           {item.payment_reference}
                         </div>
-                        <div className="text-[10px] text-slate-400">{item.payment_method}</div>
                       </td>
 
                       {/* Proof */}

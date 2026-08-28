@@ -2,7 +2,7 @@ import uuid
 import io
 import csv
 import re
-from datetime import datetime, date, time, timezone
+from datetime import datetime, date, time, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response, Request
@@ -17,6 +17,8 @@ from app.infrastructure.db.models import RetailerModel, RetailerContactModel, Ad
 
 router = APIRouter(prefix="/reports", tags=["Retailer Payout Report"])
 
+IST = timezone(timedelta(hours=5, minutes=30))
+
 def money(value: Any) -> Decimal:
     if value is None:
         return Decimal("0.00")
@@ -26,7 +28,7 @@ def validate_report_date(value: Optional[str], field_name: str) -> Optional[date
     if not value:
         return None
     try:
-        return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=IST).astimezone(timezone.utc)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Invalid {field_name}. Expected YYYY-MM-DD.")
 
@@ -195,31 +197,27 @@ async def get_retailer_payout_summary(
     to_date: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    if page < 1:
-        raise HTTPException(status_code=400, detail="page must be >= 1.")
-    if limit < 1 or limit > 5000:
-        raise HTTPException(status_code=400, detail="limit must be between 1 and 5000.")
     ctx = await resolve_report_retailer(request, retailer_id, tenant_id, company_id, db)
     ret_uuid = ctx["retailer_uuid"]
     ret_code = ctx["retailer_code"]
     
-    now_utc = datetime.now(timezone.utc)
+    now_ist = datetime.now(IST)
     
-    if from_date and isinstance(from_date, str):
+    if from_date and isinstance(from_date, str) and from_date.strip():
         try:
-            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+            start_dt = datetime.strptime(from_date.strip(), "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=IST).astimezone(timezone.utc)
         except ValueError:
-            start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
+            start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
     else:
-        start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
+        start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
 
-    if to_date and isinstance(to_date, str):
+    if to_date and isinstance(to_date, str) and to_date.strip():
         try:
-            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
+            end_dt = datetime.strptime(to_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
         except ValueError:
-            end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
+            end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
     else:
-        end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
+        end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
 
     # 1. Query Central Transactions (STRICTLY PAYOUT & DMT ONLY)
     tx_sql = """
@@ -248,10 +246,10 @@ async def get_retailer_payout_summary(
     """
     tx_params: Dict[str, Any] = {"start_dt": start_dt, "end_dt": end_dt}
     if t_uuid := ctx.get("tenant_uuid"):
-        tx_sql += " AND t.tenant_id = :tenant_scope"
+        tx_sql += " AND tenant_id = :tenant_scope"
         tx_params["tenant_scope"] = t_uuid
     if c_uuid := ctx.get("company_uuid"):
-        tx_sql += " AND t.company_id = :company_scope"
+        tx_sql += " AND company_id = :company_scope"
         tx_params["company_scope"] = c_uuid
 
     if ret_uuid:
@@ -406,18 +404,22 @@ async def fetch_payout_report_dataset(
     ret_uuid = ctx["retailer_uuid"]
     ret_code = ctx["retailer_code"]
 
-    start_dt = None
-    end_dt = None
-    if from_date and isinstance(from_date, str):
+    now_ist = datetime.now(IST)
+    if from_date and isinstance(from_date, str) and from_date.strip():
         try:
-            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+            start_dt = datetime.strptime(from_date.strip(), "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=IST).astimezone(timezone.utc)
         except ValueError:
-            pass
-    if to_date and isinstance(to_date, str):
+            start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
+    else:
+        start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
+
+    if to_date and isinstance(to_date, str) and to_date.strip():
         try:
-            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
+            end_dt = datetime.strptime(to_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
         except ValueError:
-            pass
+            end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
+    else:
+        end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
 
     # 1. Query Central Transactions joined with Double-Entry Ledger Entries (PAYOUT & DMT ONLY)
     central_sql = """
@@ -430,7 +432,7 @@ async def fetch_payout_report_dataset(
         COALESCE(c.full_name, 'Verified Customer') AS customer_name,
         COALESCE(c.mobile_number, NULL) AS customer_mobile,
         COALESCE(b.account_holder_name, b.registered_name_in_bank, 'Beneficiary') AS beneficiary_name,
-        COALESCE(b.mobile_number, NULL) AS beneficiary_mobile,
+        COALESCE(c.mobile_number, NULL) AS beneficiary_mobile,
         COALESCE(b.bank_name, 'Bank') AS bank_name,
         COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
         COALESCE(b.account_number, 'XXXX') AS account_number,
@@ -540,7 +542,7 @@ async def fetch_payout_report_dataset(
         central_sql += " AND b.account_holder_name ILIKE :beneficiary_name"
         params["beneficiary_name"] = f"%{beneficiary_name.strip()}%"
     if beneficiary_mobile and beneficiary_mobile.strip():
-        central_sql += " AND b.mobile_number ILIKE :beneficiary_mobile"
+        central_sql += " AND c.mobile_number ILIKE :beneficiary_mobile"
         params["beneficiary_mobile"] = f"%{beneficiary_mobile.strip()}%"
     if payment_mode and payment_mode.upper() != "ALL":
         central_sql += " AND (UPPER(COALESCE(t.service_type, '')) = :payment_mode OR UPPER(COALESCE(t.transaction_type, '')) = :payment_mode)"
@@ -560,7 +562,7 @@ async def fetch_payout_report_dataset(
         COALESCE(c.full_name, 'Verified Customer') AS customer_name,
         COALESCE(c.mobile_number, NULL) AS customer_mobile,
         COALESCE(b.account_holder_name, 'Beneficiary') AS beneficiary_name,
-        COALESCE(b.mobile_number, NULL) AS beneficiary_mobile,
+        COALESCE(c.mobile_number, NULL) AS beneficiary_mobile,
         COALESCE(b.bank_name, NULL) AS bank_name,
         COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
         COALESCE(b.account_number, 'XXXX') AS account_number,
@@ -662,7 +664,7 @@ async def fetch_payout_report_dataset(
         ep_sql += " AND b.account_holder_name ILIKE :beneficiary_name"
         ep_params["beneficiary_name"] = f"%{beneficiary_name.strip()}%"
     if beneficiary_mobile and beneficiary_mobile.strip():
-        ep_sql += " AND b.mobile_number ILIKE :beneficiary_mobile"
+        ep_sql += " AND c.mobile_number ILIKE :beneficiary_mobile"
         ep_params["beneficiary_mobile"] = f"%{beneficiary_mobile.strip()}%"
     if payment_mode and payment_mode.upper() != "ALL":
         ep_sql += " AND UPPER(COALESCE(e.mode, '')) = :payment_mode"
@@ -682,7 +684,7 @@ async def fetch_payout_report_dataset(
         COALESCE(c.full_name, 'Verified Customer') AS customer_name,
         COALESCE(c.mobile_number, NULL) AS customer_mobile,
         COALESCE(b.account_holder_name, 'Beneficiary') AS beneficiary_name,
-        COALESCE(b.mobile_number, NULL) AS beneficiary_mobile,
+        COALESCE(c.mobile_number, NULL) AS beneficiary_mobile,
         COALESCE(b.bank_name, NULL) AS bank_name,
         COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
         COALESCE(b.account_number, 'XXXX') AS account_number,
@@ -784,7 +786,7 @@ async def fetch_payout_report_dataset(
         pw_sql += " AND b.account_holder_name ILIKE :beneficiary_name"
         pw_params["beneficiary_name"] = f"%{beneficiary_name.strip()}%"
     if beneficiary_mobile and beneficiary_mobile.strip():
-        pw_sql += " AND b.mobile_number ILIKE :beneficiary_mobile"
+        pw_sql += " AND c.mobile_number ILIKE :beneficiary_mobile"
         pw_params["beneficiary_mobile"] = f"%{beneficiary_mobile.strip()}%"
     if payment_mode and payment_mode.upper() != "ALL":
         pw_sql += " AND UPPER(COALESCE(p.mode, '')) = :payment_mode"
@@ -801,12 +803,6 @@ async def fetch_payout_report_dataset(
         ref = d.get("transaction_number") or d.get("reference_id") or d.get("transaction_id")
         if ref and ref not in seen_refs:
             seen_refs.add(ref)
-            init_dt = d.get("initiated_at")
-            comp_dt = d.get("completed_at")
-            if init_dt and isinstance(init_dt, datetime):
-                d["initiated_at"] = init_dt.strftime("%d-%b-%Y %H:%M")
-            if comp_dt and isinstance(comp_dt, datetime):
-                d["completed_at"] = comp_dt.strftime("%d-%b-%Y %H:%M")
             all_items.append(d)
 
     # Sort all items
@@ -819,13 +815,77 @@ async def fetch_payout_report_dataset(
     safe_sort, safe_dir = validate_sort(sort_by, sort_dir)
     all_items.sort(key=lambda it: (it.get(safe_sort) is None, get_sort_key(it)), reverse=(safe_dir == "desc"))
 
-    # Assign sequential s_no
-    for idx, item in enumerate(all_items, start=1):
-        item["s_no"] = idx
+    # Format items with exact 15-column short response fields
+    formatted_items = []
+    for idx, d in enumerate(all_items, start=1):
+        amt = float(money(d.get("transfer_amount") or d.get("amount") or 0.0))
+        tax = float(money(d.get("tax_amount") or ((d.get("gst_amount") or 0.0) + (d.get("tds_amount") or 0.0))))
+        
+        # Fee is the base configured commission/charge (excluding tax)
+        fee_raw = float(money(d.get("retailer_commission") or d.get("commission") or 0.0))
+        if fee_raw > 0:
+            fee = fee_raw
+        else:
+            charges_val = float(money(d.get("convenience_fee") or d.get("charges") or 0.0))
+            fee = max(0.0, charges_val - tax) if charges_val > tax else charges_val
+            
+        debit = float(money(d.get("wallet_debit") or d.get("net_debit") or (amt + fee + tax)))
+        
+        init_dt = d.get("initiated_at")
+        if isinstance(init_dt, datetime):
+            dt_ist = init_dt.astimezone(IST) if init_dt.tzinfo else init_dt.replace(tzinfo=timezone.utc).astimezone(IST)
+            date_time_str = dt_ist.strftime("%d-%b-%Y %H:%M:%S")
+        elif isinstance(init_dt, str) and init_dt:
+            date_time_str = init_dt
+        else:
+            date_time_str = "--"
 
-    total_records = len(all_items)
+        # Final short format + full attributes for UI & Drawer
+        item_obj = {
+            "s_no": idx,
+            "txn_id": str(d.get("transaction_number") or d.get("transaction_id") or "--"),
+            "customer": str(d.get("customer_name") or "Verified Customer"),
+            "beneficiary": str(d.get("beneficiary_name") or "Beneficiary"),
+            "ac_no": str(d.get("account_number") or d.get("masked_account_number") or "--"),
+            "amt": amt,
+            "fee": fee,
+            "tax": tax,
+            "debit": debit,
+            "mode": str(d.get("payment_mode") or d.get("mode") or "IMPS"),
+            "utr": str(d.get("utr_number") or d.get("utr") or "--"),
+            "wallet": "Main Wallet",
+            "date_time": date_time_str,
+            "status": str(d.get("status") or "SUCCESS").upper(),
+            "actions": ["VIEW"],
+            # Legacy & deep drawer compatibility fields
+            "id": str(d.get("transaction_id") or d.get("transaction_number")),
+            "transaction_id": str(d.get("transaction_id") or d.get("transaction_number")),
+            "transaction_number": str(d.get("transaction_number") or d.get("transaction_id")),
+            "reference_id": str(d.get("reference_id") or d.get("transaction_number")),
+            "transfer_amount": amt,
+            "convenience_fee": fee,
+            "gst_amount": float(money(d.get("gst_amount") or tax)),
+            "tds_amount": float(money(d.get("tds_amount") or 0.0)),
+            "tax_amount": tax,
+            "wallet_debit": debit,
+            "payment_mode": str(d.get("payment_mode") or d.get("mode") or "IMPS"),
+            "customer_name": str(d.get("customer_name") or "Verified Customer"),
+            "customer_mobile": str(d.get("customer_mobile") or ""),
+            "beneficiary_name": str(d.get("beneficiary_name") or "Beneficiary"),
+            "bank_name": str(d.get("bank_name") or "Bank Transfer"),
+            "account_number": str(d.get("account_number") or "--"),
+            "masked_account_number": str(d.get("account_number") or "--"),
+            "ifsc_code": str(d.get("ifsc_code") or "--"),
+            "utr_number": str(d.get("utr_number") or d.get("utr") or "--"),
+            "initiated_at": date_time_str,
+            "wallet_type": "MAIN_WALLET",
+            "receipt_enabled": True,
+        }
+        formatted_items.append(item_obj)
+
+    total_records = len(formatted_items)
     offset = (page - 1) * limit
-    paginated_items = all_items[offset:offset + limit]
+    paginated_items = formatted_items[offset:offset + limit]
     total_pages = (total_records + limit - 1) // limit if limit > 0 else 1
 
     return {
@@ -1124,27 +1184,39 @@ async def export_retailer_payout_report(
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        "S.No", "Txn ID", "Reference No", "Customer", "Beneficiary", "Account", "IFSC", "Amount",
-        "Mode", "UTR", "Tax", "Date & Time", "Fee", "Wallet Debit", "Commission", "Status"
+        "S.No",
+        "Txn ID",
+        "Customer",
+        "Beneficiary",
+        "A/C No",
+        "Amt",
+        "Fee",
+        "Tax",
+        "Debit",
+        "Mode",
+        "UTR",
+        "Wallet",
+        "Date/Time",
+        "Status",
+        "Actions"
     ])
     for it in items:
         writer.writerow([
             it.get("s_no"),
-            it.get("transaction_number") or it.get("transaction_id"),
-            it.get("reference_id"),
-            it.get("customer_name"),
-            it.get("beneficiary_name"),
-            it.get("masked_account_number"),
-            it.get("ifsc_code"),
-            f"Rs. {money(it.get('transfer_amount', 0)):,.2f}",
-            it.get("payment_mode"),
-            it.get("utr_number"),
-            f"Rs. {money(it.get('tax_amount', 0) or (money(it.get('gst_amount', 0)) + money(it.get('tds_amount', 0)))):,.2f}",
-            it.get("initiated_at"),
-            f"Rs. {money(it.get('convenience_fee', 0)):,.2f}",
-            f"Rs. {money(it.get('wallet_debit', 0)):,.2f}",
-            f"Rs. {money(it.get('retailer_commission', 0)):,.2f}",
-            it.get("status")
+            it.get("txn_id") or it.get("transaction_number") or it.get("transaction_id") or "--",
+            it.get("customer") or it.get("customer_name") or "Verified Customer",
+            it.get("beneficiary") or it.get("beneficiary_name") or "Beneficiary",
+            it.get("ac_no") or it.get("account_number") or it.get("masked_account_number") or "--",
+            f"{money(it.get('amt') or it.get('transfer_amount') or 0):.2f}",
+            f"{money(it.get('fee') or it.get('convenience_fee') or 0):.2f}",
+            f"{money(it.get('tax') or it.get('tax_amount') or 0):.2f}",
+            f"{money(it.get('debit') or it.get('wallet_debit') or 0):.2f}",
+            it.get("mode") or it.get("payment_mode") or "IMPS",
+            it.get("utr") or it.get("utr_number") or "--",
+            it.get("wallet") or "Main Wallet",
+            it.get("date_time") or it.get("initiated_at") or "--",
+            it.get("status") or "SUCCESS",
+            "VIEW"
         ])
     output.seek(0)
     return StreamingResponse(

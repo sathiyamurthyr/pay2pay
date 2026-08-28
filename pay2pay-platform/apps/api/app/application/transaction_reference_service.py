@@ -131,11 +131,12 @@ class TransactionReferenceService:
         cls,
         vendor_first_char: str,
         tz_name: str = DEFAULT_TIMEZONE,
-        random_length: int = 5
+        random_length: int = 8
     ) -> str:
         """
         Generates a candidate reference string in format:
-        <VENDOR_FIRST_CHAR><DD><MM><YY><HH><MI><5_DIGIT_UNIQUE_NUMBER>
+        <VENDOR_FIRST_CHAR>PAY<YYYYMMDD><RANDOM_HEX_8>
+        Example: UPAY20260828C73E17F8
         """
         tz = timezone.utc
         if ZoneInfo:
@@ -151,15 +152,11 @@ class TransactionReferenceService:
                 tz = timezone.utc
 
         now = datetime.now(tz)
-        # Format: DD (2 digits), MM (2 digits), YY (2 digits), HH (2 digits 24h), MI (2 digits)
-        timestamp_str = now.strftime("%d%m%y%H%M")
+        date_str = now.strftime("%Y%m%d")
+        hex_suffix = uuid.uuid4().hex[:random_length].upper()
 
-        # Cryptographically secure 5-digit number (10000 to 99999)
-        min_val = 10 ** (random_length - 1)
-        max_val = (10 ** random_length) - 1
-        secure_rand_num = min_val + secrets.randbelow(max_val - min_val + 1)
-
-        return f"{vendor_first_char}{timestamp_str}{secure_rand_num}"
+        v_char = str(vendor_first_char or "U").strip().upper()[0]
+        return f"{v_char}PAY{date_str}{hex_suffix}"
 
     @classmethod
     async def generate_unique_reference(

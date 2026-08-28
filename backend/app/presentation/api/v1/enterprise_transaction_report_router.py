@@ -21,7 +21,8 @@ Features:
 import uuid
 import io
 import csv
-from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any, Tuple
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from fastapi.responses import StreamingResponse
@@ -32,6 +33,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 
 router = APIRouter(prefix="", tags=["Enterprise Transaction Report"])
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def to_dec_2(val: Any) -> Decimal:
+    if val is None:
+        return Decimal("0.00")
+    try:
+        return Decimal(str(val)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except Exception:
+        return Decimal("0.00")
 
 
 def mask_sensitive_account(acc_no: Optional[str]) -> str:
@@ -58,6 +70,8 @@ def mask_sensitive_mobile(mobile: Optional[str]) -> str:
 # ==============================================================================
 
 def build_unified_transactions_query(
+    retailer_id: Optional[str] = None,
+    retailer_code: Optional[str] = None,
     service: Optional[str] = None,
     transaction_type: Optional[str] = None,
     status_filter: Optional[str] = None,
@@ -69,8 +83,6 @@ def build_unified_transactions_query(
     min_amount: Optional[float] = None,
     max_amount: Optional[float] = None,
     search: Optional[str] = None,
-    retailer_id: Optional[str] = None,
-    retailer_code: Optional[str] = None,
     sort_by: str = "transaction_datetime",
     sort_dir: str = "desc",
     limit: Optional[int] = None,
@@ -82,12 +94,14 @@ def build_unified_transactions_query(
     end_dt = None
     if from_date:
         try:
-            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, tzinfo=timezone.utc)
+            dt_local = datetime.strptime(from_date.strip(), "%Y-%m-%d").replace(hour=0, minute=0, second=0, tzinfo=IST)
+            start_dt = dt_local.astimezone(timezone.utc)
         except ValueError:
             pass
     if to_date:
         try:
-            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+            dt_local = datetime.strptime(to_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=IST)
+            end_dt = dt_local.astimezone(timezone.utc)
         except ValueError:
             pass
 
@@ -774,19 +788,19 @@ async def list_enterprise_transactions_report(
 
         raw_svc = str(d.get("service") or "PAYOUT").upper()
         if "PAYOUT" in raw_svc or "BANK" in raw_svc:
-            svc_label = "Payout"
+            svc_name = "PAYOUT"
         elif "DMT" in raw_svc:
-            svc_label = "DMT"
+            svc_name = "DMT"
         elif "RECHARGE" in raw_svc:
-            svc_label = "Recharge"
+            svc_name = "RECHARGE"
         elif "BBPS" in raw_svc or "BILL" in raw_svc:
-            svc_label = "Bill Payment"
+            svc_name = "BBPS"
         elif "TOPUP" in raw_svc or "WALLET" in raw_svc:
-            svc_label = "Topup"
+            svc_name = "TOPUP"
         elif "CARD" in raw_svc or "SWIPE" in raw_svc or "POS" in raw_svc:
-            svc_label = "Card-to-Cash"
+            svc_name = "CARD_TO_CASH"
         else:
-            svc_label = raw_svc.capitalize()
+            svc_name = raw_svc
 
         raw_st = str(d.get("status") or "SUCCESS").upper()
         if raw_st in ("LEDGER_POSTED", "SETTLED", "COMPLETED"):
@@ -795,62 +809,86 @@ async def list_enterprise_transactions_report(
             status_norm = "PENDING"
         elif raw_st in ("REJECTED", "TIMEOUT"):
             status_norm = "FAILED"
+        elif raw_st in ("REVERSED", "REFUND", "REFUNDED"):
+            status_norm = "REVERSED"
         else:
             status_norm = raw_st
 
-        # Determine comments / narration
-        status_desc = str(d.get("status_description") or "")
-        bene_name = str(d.get("beneficiary_name") or d.get("customer_name") or "")
-        bank_name = str(d.get("bank_name") or "")
-        if status_norm in ("REVERSED", "REFUND"):
-            comments = f"Reversal refund for {d.get('txn_id')}"
-        elif status_norm == "FAILED" and status_desc:
-            comments = status_desc
-        elif "PAYOUT" in raw_svc or "DMT" in raw_svc:
-            comments = f"Payout to {bene_name}" + (f" ({bank_name})" if bank_name else "")
-        elif "RECHARGE" in raw_svc:
-            comments = f"Recharge {d.get('customer_mobile') or ''}".strip()
-        elif "TOPUP" in raw_svc or "WALLET" in raw_svc:
-            comments = status_desc if status_desc and status_desc.upper() not in ("SUCCESS", "COMPLETED", "LEDGER_POSTED") else "Wallet Topup / Allocation"
-        elif status_desc:
-            comments = status_desc
-        else:
-            comments = f"{svc_label} transaction"
+        # Extract values using Decimal for exact financial accuracy
+        txn_id = str(d.get("txn_id"))
+        ref_id = str(d.get("provider_ref") or d.get("client_ref_id") or d.get("provider_txn_id") or txn_id)
+        pre_bal = to_dec_2(d.get("previous_balance"))
+        cls_bal = to_dec_2(d.get("current_balance"))
+        txn_amt = to_dec_2(d.get("amount"))
+        tax_amt = to_dec_2((d.get("gst_amount") or 0.0) + (d.get("tds_amount") or 0.0))
+        raw_cr = to_dec_2(d.get("cr"))
+        raw_dr = to_dec_2(d.get("dr"))
+        net_amt = to_dec_2(d.get("net_amount"))
 
+        # Determine Cr/Dr and amounts
+        if status_norm == "REVERSED" or raw_cr > 0 or str(d.get("type")).upper() == "REVERSAL" or str(d.get("source_table")) == "ENTERPRISE_PAYOUT_REVERSAL":
+            cr_dr = "CR"
+            cr_amt = raw_cr if raw_cr > 0 else (net_amt if net_amt > 0 else txn_amt)
+            dr_amt = Decimal("0.00")
+        else:
+            cr_dr = "DR"
+            dr_amt = raw_dr if raw_dr > 0 else (net_amt if net_amt > 0 else (txn_amt + tax_amt))
+            cr_amt = Decimal("0.00")
+
+        # Determine clean human-readable comments
+        if status_norm == "REVERSED":
+            comments = "Amount reversed"
+        elif status_norm == "FAILED":
+            comments = "Payout failed"
+        elif status_norm == "PENDING":
+            comments = "Txn Successfully Initiated"
+        else:
+            comments = "Txn Successfully Initiated"
+
+        # Final 13 Columns matching exact user specification
         items.append({
+            "txn_id": txn_id,
+            "ref_id": ref_id,
+            "service": svc_name,
+            "pre_bal": float(pre_bal),
+            "dr_amt": float(dr_amt),
+            "cr_amt": float(cr_amt),
+            "cls_bal": float(cls_bal),
+            "txn_amt": float(txn_amt),
+            "tax": float(tax_amt),
+            "date_time": iso_dt,
+            "status": status_norm,
+            "comments": comments,
+            "cr_dr": cr_dr,
+            # Backward-compatibility fields
             "id": str(d.get("id")),
-            "txn_id": str(d.get("txn_id")),
-            "client_ref_id": str(d.get("client_ref_id") or d.get("txn_id")),
-            "service": svc_label,
-            "raw_service": raw_svc,
+            "client_ref_id": ref_id,
             "type": str(d.get("type") or "IMPS"),
+            "amount": float(txn_amt),
+            "charges": float(tax_amt),
+            "commission": float(to_dec_2(d.get("commission"))),
+            "gst_amount": float(to_dec_2(d.get("gst_amount"))),
+            "tds_amount": float(to_dec_2(d.get("tds_amount"))),
+            "net_amount": float(dr_amt if cr_dr == "DR" else cr_amt),
+            "previous_balance": float(pre_bal),
+            "cr": float(cr_amt),
+            "dr": float(dr_amt),
+            "current_balance": float(cls_bal),
+            "datetime": iso_dt,
+            "transaction_datetime": iso_dt,
+            "date": date_str,
+            "time": time_str,
+            "raw_status": raw_st,
+            "status_description": comments,
             "customer_name": str(d.get("customer_name") or "Direct Customer"),
             "customer_mobile": str(d.get("customer_mobile") or "N/A"),
             "beneficiary_name": str(d.get("beneficiary_name") or "Self / Beneficiary"),
             "account_number": str(d.get("account_number") or "-"),
             "bank_name": str(d.get("bank_name") or "-"),
             "ifsc_code": str(d.get("ifsc_code") or "-"),
-            "amount": round(float(d.get("amount") or 0.0), 2),
-            "charges": round(float(d.get("charges") or 0.0), 2),
-            "commission": round(float(d.get("commission") or 0.0), 2),
-            "gst_amount": round(float(d.get("gst_amount") or 0.0), 2),
-            "tds_amount": round(float(d.get("tds_amount") or 0.0), 2),
-            "net_amount": round(float(d.get("net_amount") or d.get("amount") or 0.0), 2),
-            "previous_balance": round(float(d.get("previous_balance") or 0.0), 2),
-            "cr": round(float(d.get("cr") or 0.0), 2),
-            "dr": round(float(d.get("dr") or 0.0), 2),
-            "current_balance": round(float(d.get("current_balance") or 0.0), 2),
-            "datetime": iso_dt,
-            "transaction_datetime": iso_dt,
-            "date": date_str,
-            "time": time_str,
-            "status": status_norm,
-            "raw_status": raw_st,
-            "status_description": status_desc,
-            "comments": comments,
             "provider_name": str(d.get("provider_name") or ""),
             "provider_txn_id": str(d.get("provider_txn_id") or ""),
-            "provider_ref": str(d.get("provider_ref") or ""),
+            "provider_ref": ref_id,
             "channel": str(d.get("channel") or "RETAILER_PORTAL"),
         })
 
@@ -1123,17 +1161,18 @@ async def export_enterprise_transactions_csv(
     
     writer.writerow([
         "Txn ID",
+        "Ref ID",
         "Service",
-        "Type",
-        "Previous Balance (INR)",
-        "Credit (CR) (INR)",
-        "Debit (DR) (INR)",
-        "Current Balance (INR)",
-        "Amount (INR)",
-        "Date & Time",
+        "Pre Bal",
+        "Dr Amt",
+        "Cr Amt",
+        "Cls Bal",
+        "Txn Amt",
+        "Tax",
+        "Date/Time",
         "Status",
-        "UTR / Ref",
-        "Channel"
+        "Comments",
+        "Cr/Dr"
     ])
 
     for r in rows:
@@ -1143,19 +1182,19 @@ async def export_enterprise_transactions_csv(
         
         raw_svc = str(d.get("service") or "PAYOUT").upper()
         if "PAYOUT" in raw_svc or "BANK" in raw_svc:
-            svc_label = "Payout"
+            svc_name = "PAYOUT"
         elif "DMT" in raw_svc:
-            svc_label = "DMT"
+            svc_name = "DMT"
         elif "RECHARGE" in raw_svc:
-            svc_label = "Recharge"
+            svc_name = "RECHARGE"
         elif "BBPS" in raw_svc or "BILL" in raw_svc:
-            svc_label = "Bill Payment"
+            svc_name = "BBPS"
         elif "TOPUP" in raw_svc or "WALLET" in raw_svc:
-            svc_label = "Topup"
+            svc_name = "TOPUP"
         elif "CARD" in raw_svc or "SWIPE" in raw_svc or "POS" in raw_svc:
-            svc_label = "Card-to-Cash"
+            svc_name = "CARD_TO_CASH"
         else:
-            svc_label = raw_svc.capitalize()
+            svc_name = raw_svc
 
         raw_st = str(d.get("status") or "SUCCESS").upper()
         if raw_st in ("LEDGER_POSTED", "SETTLED", "COMPLETED"):
@@ -1164,22 +1203,53 @@ async def export_enterprise_transactions_csv(
             status_norm = "PENDING"
         elif raw_st in ("REJECTED", "TIMEOUT"):
             status_norm = "FAILED"
+        elif raw_st in ("REVERSED", "REFUND", "REFUNDED"):
+            status_norm = "REVERSED"
         else:
             status_norm = raw_st
 
+        txn_id = str(d.get("txn_id"))
+        ref_id = str(d.get("provider_ref") or d.get("client_ref_id") or d.get("provider_txn_id") or txn_id)
+        pre_bal = to_dec_2(d.get("previous_balance"))
+        cls_bal = to_dec_2(d.get("current_balance"))
+        txn_amt = to_dec_2(d.get("amount"))
+        tax_amt = to_dec_2((d.get("gst_amount") or 0.0) + (d.get("tds_amount") or 0.0))
+        raw_cr = to_dec_2(d.get("cr"))
+        raw_dr = to_dec_2(d.get("dr"))
+        net_amt = to_dec_2(d.get("net_amount"))
+
+        if status_norm == "REVERSED" or raw_cr > 0 or str(d.get("type")).upper() == "REVERSAL" or str(d.get("source_table")) == "ENTERPRISE_PAYOUT_REVERSAL":
+            cr_dr = "CR"
+            cr_amt = raw_cr if raw_cr > 0 else (net_amt if net_amt > 0 else txn_amt)
+            dr_amt = Decimal("0.00")
+        else:
+            cr_dr = "DR"
+            dr_amt = raw_dr if raw_dr > 0 else (net_amt if net_amt > 0 else (txn_amt + tax_amt))
+            cr_amt = Decimal("0.00")
+
+        if status_norm == "REVERSED":
+            comments = "Amount reversed"
+        elif status_norm == "FAILED":
+            comments = "Payout failed"
+        elif status_norm == "PENDING":
+            comments = "Txn Successfully Initiated"
+        else:
+            comments = "Txn Successfully Initiated"
+
         writer.writerow([
-            d.get("txn_id"),
-            svc_label,
-            d.get("type"),
-            f"{float(d.get('previous_balance') or 0.0):.2f}",
-            f"{float(d.get('cr') or 0.0):.2f}",
-            f"{float(d.get('dr') or 0.0):.2f}",
-            f"{float(d.get('current_balance') or 0.0):.2f}",
-            f"{float(d.get('amount') or 0.0):.2f}",
+            txn_id,
+            ref_id,
+            svc_name,
+            f"{pre_bal:.2f}",
+            f"{dr_amt:.2f}",
+            f"{cr_amt:.2f}",
+            f"{cls_bal:.2f}",
+            f"{txn_amt:.2f}",
+            f"{tax_amt:.2f}",
             dt_str,
             status_norm,
-            d.get("provider_ref") or "--",
-            d.get("channel") or "RETAILER_PORTAL"
+            comments,
+            cr_dr
         ])
 
     output.seek(0)

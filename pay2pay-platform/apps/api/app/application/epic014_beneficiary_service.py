@@ -276,72 +276,80 @@ class Epic014BeneficiaryService:
 
         # ----------------------------------------------------
         # 2. WALLET BALANCE CHECK & PRE-DEBIT (Base ₹3.00 + GST ₹0.54 = Total ₹3.54)
+        # NOTE: Beneficiary verification (penny drop) is allowed even if wallet balance
+        # is insufficient. The fee is debited if balance permits; otherwise it is recorded
+        # as a post-paid / credit obligation. This allows retailers to validate beneficiaries
+        # before loading their wallet, which is a required business flow.
         # ----------------------------------------------------
         charge_amount = 3.0
         gst_pct = 18.0
         gst_amount = round(charge_amount * (gst_pct / 100.0), 2)
         net_amount = round(charge_amount + gst_amount, 2)
 
-        if current_wallet_balance < net_amount:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient Wallet Balance. Required ₹{net_amount:.2f}, available ₹{current_wallet_balance:.2f}."
-            )
+        # Determine if wallet has sufficient balance for fee debit
+        wallet_has_balance = current_wallet_balance >= net_amount
+        # If balance < fee, we allow the verification to proceed but mark fee as post-paid
+        # (Do NOT block — this is pre-transaction validation, not the actual money transfer)
 
         ref_id = f"CFV2-PD-{int(time.time() * 1000)}"
         from app.core.transaction_id_generator import generate_transaction_number
         txn_id = await generate_transaction_number(db, service_prefix="RPD")
 
         opening_balance = current_wallet_balance
-        closing_balance = opening_balance - net_amount
+        closing_balance = opening_balance - net_amount if wallet_has_balance else opening_balance
 
-        # Record Wallet Pre-Debit Transaction
+        # Record Wallet Transaction (debit if balance available, else mark as post-paid obligation)
         w_txn = WalletTransactionRecordModel(
             tenant_id=tenant_id,
             company_id=company_id,
             retailer_id=retailer_id,
             wallet_id=wallet_id,
-            transaction_type="BENEFICIARY_VERIFICATION_DEBIT",
+            transaction_type="BENEFICIARY_VERIFICATION_DEBIT" if wallet_has_balance else "BENEFICIARY_VERIFICATION_POSTPAID",
             amount=net_amount,
             opening_balance=opening_balance,
             closing_balance=closing_balance,
             reference_id=ref_id,
-            remarks=f"Verification charge (Base ₹{charge_amount:.2f} + GST ₹{gst_amount:.2f}) for account {masked_account}",
+            remarks=(
+                f"Verification charge (Base ₹{charge_amount:.2f} + GST ₹{gst_amount:.2f}) for account {masked_account}"
+                if wallet_has_balance
+                else f"Verification charge POST-PAID (wallet balance ₹{current_wallet_balance:.2f} < required ₹{net_amount:.2f}) for account {masked_account}"
+            ),
         )
         db.add(w_txn)
         await db.flush()
 
-        # Double Entry Wallet Ledger (Debit Retailer Wallet net_amount, Credit Revenue & GST)
-        wl_debit = WalletLedgerRecordModel(
-            tenant_id=tenant_id,
-            company_id=company_id,
-            transaction_id=w_txn.public_id,
-            account_code="RETAILER_MAIN_WALLET",
-            entry_type="DEBIT",
-            amount=net_amount,
-            running_balance=closing_balance,
-        )
-        wl_credit_rev = WalletLedgerRecordModel(
-            tenant_id=tenant_id,
-            company_id=company_id,
-            transaction_id=w_txn.public_id,
-            account_code="VERIFICATION_REVENUE_ACCOUNT",
-            entry_type="CREDIT",
-            amount=charge_amount,
-            running_balance=charge_amount,
-        )
-        wl_credit_gst = WalletLedgerRecordModel(
-            tenant_id=tenant_id,
-            company_id=company_id,
-            transaction_id=w_txn.public_id,
-            account_code="GST_PAYABLE_ACCOUNT",
-            entry_type="CREDIT",
-            amount=gst_amount,
-            running_balance=gst_amount,
-        )
-        db.add(wl_debit)
-        db.add(wl_credit_rev)
-        db.add(wl_credit_gst)
+        if wallet_has_balance:
+            # Double Entry Wallet Ledger (Debit Retailer Wallet net_amount, Credit Revenue & GST)
+            wl_debit = WalletLedgerRecordModel(
+                tenant_id=tenant_id,
+                company_id=company_id,
+                transaction_id=w_txn.public_id,
+                account_code="RETAILER_MAIN_WALLET",
+                entry_type="DEBIT",
+                amount=net_amount,
+                running_balance=closing_balance,
+            )
+            wl_credit_rev = WalletLedgerRecordModel(
+                tenant_id=tenant_id,
+                company_id=company_id,
+                transaction_id=w_txn.public_id,
+                account_code="VERIFICATION_REVENUE_ACCOUNT",
+                entry_type="CREDIT",
+                amount=charge_amount,
+                running_balance=charge_amount,
+            )
+            wl_credit_gst = WalletLedgerRecordModel(
+                tenant_id=tenant_id,
+                company_id=company_id,
+                transaction_id=w_txn.public_id,
+                account_code="GST_PAYABLE_ACCOUNT",
+                entry_type="CREDIT",
+                amount=gst_amount,
+                running_balance=gst_amount,
+            )
+            db.add(wl_debit)
+            db.add(wl_credit_rev)
+            db.add(wl_credit_gst)
 
         # Record Financial Transaction (GST & Tax tracking)
         fin_txn = FinancialTransactionRecordModel(
@@ -514,6 +522,7 @@ class Epic014BeneficiaryService:
                 "verification_status": "VERIFIED",
                 "message": "Beneficiary verified and registered successfully via Cashfree V2 Penny Drop",
                 "refund_issued": False,
+                "fee_post_paid": not wallet_has_balance,
                 "wallet_balance_after": closing_balance,
                 "beneficiary": {
                     "beneficiary_id": str(master_id),

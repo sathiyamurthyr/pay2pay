@@ -209,35 +209,20 @@ async def test_gateway_connection(
     Tests live connectivity and credential authorization for the specified gateway.
     """
     code = req.provider_code.strip().upper()
-    if code == "WOWPE":
-        from app.application.wowpe_client import WowPeApiClient
-        bal_res = await WowPeApiClient.check_balance()
-        return {
-            "status": "SUCCESS" if bal_res.get("success") else "FAILED",
-            "provider": "WOWPE",
-            "connected": bal_res.get("success", False),
-            "response": bal_res
-        }
-    elif code == "BULKPE":
-        from app.application.bulkpe_client import BulkPeApiClient
-        bal_res = await BulkPeApiClient.check_balance()
-        return {
-            "status": "SUCCESS" if bal_res.get("success") else "FAILED",
-            "provider": "BULKPE",
-            "connected": bal_res.get("success", False),
-            "response": bal_res
-        }
-    elif code == "UTKALDIGITAL":
-        from app.application.utkaldigital_client import UtkalDigitalApiClient
-        bal_res = await UtkalDigitalApiClient.check_balance()
-        return {
-            "status": "SUCCESS" if bal_res.get("http_status") == 200 or bal_res.get("success") else "FAILED",
-            "provider": "UTKALDIGITAL",
-            "connected": bal_res.get("http_status") == 200 or bal_res.get("success", False),
-            "response": bal_res
-        }
-    else:
+    if code not in ("WOWPE", "BULKPE", "UTKALDIGITAL", "UTKAL"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown provider code: {code}"
         )
+
+    from app.application.payout_vendor_adapter import PayoutVendorAdapterFactory
+    vendor_adapter = PayoutVendorAdapterFactory.get_adapter()
+    bal_res = await vendor_adapter.check_balance(code)
+
+    return {
+        "status": "SUCCESS" if bal_res.get("success") or bal_res.get("http_status") == 200 else "FAILED",
+        "provider": code,
+        "connected": bal_res.get("success", False) or bal_res.get("http_status") == 200,
+        "is_simulated": bal_res.get("is_simulated", False),
+        "response": bal_res
+    }

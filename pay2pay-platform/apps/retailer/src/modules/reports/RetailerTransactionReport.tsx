@@ -67,10 +67,20 @@ export interface TransactionReportSummary {
 export interface TransactionReportItem {
   id: string;
   txn_id: string;
+  ref_id?: string;
   client_ref_id: string;
   service: string;
   raw_service?: string;
   type: string;
+  pre_bal?: number;
+  dr_amt?: number;
+  cr_amt?: number;
+  cls_bal?: number;
+  txn_amt?: number;
+  tax?: number;
+  date_time?: string;
+  comments?: string;
+  cr_dr?: string;
   customer_name: string;
   customer_mobile: string;
   beneficiary_name?: string;
@@ -94,7 +104,6 @@ export interface TransactionReportItem {
   status: string;
   raw_status?: string;
   status_description?: string;
-  comments?: string;
   narration?: string;
   provider_name?: string;
   provider_txn_id?: string;
@@ -246,14 +255,20 @@ export const RetailerTransactionReport: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState<number>(20);
   const [totalRecords, setTotalRecords] = useState<number>(0);
 
-  // Filters
+  // Filters - Default focused on TODAY
   const [globalSearch, setGlobalSearch] = useState<string>("");
   const [serviceFilter, setServiceFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [creditDebitFilter, setCreditDebitFilter] = useState<string>("ALL");
-  const [activePreset, setActivePreset] = useState<string>("ALL");
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
+  const [activePreset, setActivePreset] = useState<string>("TODAY");
+  const [fromDate, setFromDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+  const [toDate, setToDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
 
   // Drawer
   const [selectedTxn, setSelectedTxn] = useState<TransactionReportItem | null>(null);
@@ -442,7 +457,8 @@ export const RetailerTransactionReport: React.FC = () => {
 
   const handleDatePreset = (preset: string) => {
     setActivePreset(preset);
-    const today = new Date().toISOString().split("T")[0];
+    const dNow = new Date();
+    const today = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, "0")}-${String(dNow.getDate()).padStart(2, "0")}`;
     if (preset === "ALL") {
       setFromDate("");
       setToDate("");
@@ -452,23 +468,23 @@ export const RetailerTransactionReport: React.FC = () => {
     } else if (preset === "YESTERDAY") {
       const y = new Date();
       y.setDate(y.getDate() - 1);
-      const yStr = y.toISOString().split("T")[0];
+      const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
       setFromDate(yStr);
       setToDate(yStr);
     } else if (preset === "7_DAYS") {
       const d = new Date();
       d.setDate(d.getDate() - 7);
-      setFromDate(d.toISOString().split("T")[0]);
+      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
       setToDate(today);
     } else if (preset === "30_DAYS") {
       const d = new Date();
       d.setDate(d.getDate() - 30);
-      setFromDate(d.toISOString().split("T")[0]);
+      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
       setToDate(today);
     } else if (preset === "THIS_MONTH") {
       const d = new Date();
       d.setDate(1);
-      setFromDate(d.toISOString().split("T")[0]);
+      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
       setToDate(today);
     }
   };
@@ -476,31 +492,33 @@ export const RetailerTransactionReport: React.FC = () => {
   const handleExportCsv = () => {
     const headers = [
       "Txn ID",
+      "Ref ID",
       "Service",
-      "Comments",
-      "Previous Balance (INR)",
-      "Credit (+CR)",
-      "Debit (-DR)",
-      "Current Balance (INR)",
-      "Amount (INR)",
-      "Date & Time",
+      "Pre Bal",
+      "Dr Amt",
+      "Cr Amt",
+      "Cls Bal",
+      "Txn Amt",
+      "Tax",
+      "Date/Time",
       "Status",
-      "UTR / Reference",
-      "Customer Mobile",
+      "Comments",
+      "Cr/Dr",
     ];
     const rows = items.map((t) => [
       t.txn_id,
+      t.ref_id || t.provider_ref || "--",
       t.service,
-      getTransactionComments(t),
-      t.previous_balance.toFixed(2),
-      t.cr.toFixed(2),
-      t.dr.toFixed(2),
-      t.current_balance.toFixed(2),
-      t.amount.toFixed(2),
-      t.transaction_datetime,
+      (t.pre_bal ?? t.previous_balance ?? 0).toFixed(2),
+      (t.dr_amt ?? t.dr ?? 0).toFixed(2),
+      (t.cr_amt ?? t.cr ?? 0).toFixed(2),
+      (t.cls_bal ?? t.current_balance ?? 0).toFixed(2),
+      (t.txn_amt ?? t.amount ?? 0).toFixed(2),
+      (t.tax ?? t.charges ?? 0).toFixed(2),
+      t.date_time || t.transaction_datetime,
       t.status,
-      t.provider_ref || "--",
-      t.customer_mobile || "--",
+      t.comments || getTransactionComments(t),
+      t.cr_dr || ((t.cr_amt ?? t.cr ?? 0) > 0 ? "CR" : "DR"),
     ]);
 
     const csvContent = [headers.join(","), ...rows.map((e) => e.map((cell) => `"${cell}"`).join(","))].join("\n");
@@ -1017,7 +1035,7 @@ export const RetailerTransactionReport: React.FC = () => {
         </Stack>
       </Paper>
 
-      {/* ── Transaction Data Grid (Exact 10 Columns Contract) ─────────────────── */}
+      {/* ── Transaction Data Grid (Exact 13 Columns Contract) ─────────────────── */}
       <Paper
         elevation={0}
         sx={{
@@ -1028,28 +1046,36 @@ export const RetailerTransactionReport: React.FC = () => {
         }}
       >
         <TableContainer>
-          <Table sx={{ minWidth: 1100 }} size="small">
+          <Table sx={{ minWidth: 1280 }} size="small">
             <TableHead sx={{ bgcolor: "#0F172A" }}>
               <TableRow sx={{ "& th": { color: "#94A3B8", fontWeight: 700, fontSize: "11px", letterSpacing: "0.05em", textTransform: "uppercase", py: 1.8, px: 2, whiteSpace: "nowrap", borderBottom: "1px solid #1E293B" } }}>
                 {/* 1. Txn ID */}
                 <TableCell>Txn ID</TableCell>
-                {/* 2. Service */}
+                {/* 2. Ref ID */}
+                <TableCell>Ref ID</TableCell>
+                {/* 3. Service */}
                 <TableCell>Service</TableCell>
-                {/* 3. Comments */}
-                <TableCell>Comments</TableCell>
-                {/* 4. Previous Balance */}
-                <TableCell align="right">Prev Bal (₹)</TableCell>
-                {/* 5. CR / DR */}
-                <TableCell align="right">CR / DR (₹)</TableCell>
-                {/* 6. Current Balance */}
-                <TableCell align="right">Closing Bal (₹)</TableCell>
-                {/* 7. Amount */}
-                <TableCell align="right">Amount (₹)</TableCell>
-                {/* 8. Date & Time */}
-                <TableCell>Date &amp; Time</TableCell>
-                {/* 9. Status */}
+                {/* 4. Pre Bal */}
+                <TableCell align="right">Pre Bal (₹)</TableCell>
+                {/* 5. Dr Amt */}
+                <TableCell align="right">Dr Amt (₹)</TableCell>
+                {/* 6. Cr Amt */}
+                <TableCell align="right">Cr Amt (₹)</TableCell>
+                {/* 7. Cls Bal */}
+                <TableCell align="right">Cls Bal (₹)</TableCell>
+                {/* 8. Txn Amt */}
+                <TableCell align="right">Txn Amt (₹)</TableCell>
+                {/* 9. Tax */}
+                <TableCell align="right">Tax (₹)</TableCell>
+                {/* 10. Date/Time */}
+                <TableCell>Date/Time</TableCell>
+                {/* 11. Status */}
                 <TableCell align="center">Status</TableCell>
-                {/* 10. Action */}
+                {/* 12. Comments */}
+                <TableCell>Comments</TableCell>
+                {/* 13. Cr/Dr (Must be last column) */}
+                <TableCell align="center">Cr/Dr</TableCell>
+                {/* 14. Action */}
                 <TableCell align="center">Action</TableCell>
               </TableRow>
             </TableHead>
@@ -1057,7 +1083,7 @@ export const RetailerTransactionReport: React.FC = () => {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, idx) => (
                   <TableRow key={idx}>
-                    {Array.from({ length: 10 }).map((_, cIdx) => (
+                    {Array.from({ length: 14 }).map((_, cIdx) => (
                       <TableCell key={cIdx} sx={{ py: 2, px: 2 }}>
                         <Skeleton variant="text" sx={{ bgcolor: "#1E293B" }} />
                       </TableCell>
@@ -1066,7 +1092,7 @@ export const RetailerTransactionReport: React.FC = () => {
                 ))
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={14} align="center" sx={{ py: 8 }}>
                     <Stack alignItems="center" spacing={1.5}>
                       <ReceiptIcon sx={{ fontSize: 48, color: "#334155" }} />
                       <Typography variant="body1" sx={{ color: "#94A3B8", fontWeight: 600 }}>
@@ -1091,6 +1117,16 @@ export const RetailerTransactionReport: React.FC = () => {
               ) : (
                 items.map((row) => {
                   const badge = SERVICE_BADGES[row.service] || { label: row.service, bg: "#1E293B", text: "#94A3B8", border: "#334155" };
+                  const drVal = row.dr_amt ?? row.dr ?? 0;
+                  const crVal = row.cr_amt ?? row.cr ?? 0;
+                  const preBalVal = row.pre_bal ?? row.previous_balance ?? 0;
+                  const clsBalVal = row.cls_bal ?? row.current_balance ?? 0;
+                  const txnAmtVal = row.txn_amt ?? row.amount ?? 0;
+                  const taxVal = row.tax ?? row.charges ?? 0;
+                  const crDrVal = row.cr_dr || (crVal > 0 ? "CR" : "DR");
+                  const commentsVal = row.comments || getTransactionComments(row);
+                  const refIdVal = row.ref_id || row.provider_ref || "—";
+                  const dtVal = row.date_time || row.transaction_datetime;
 
                   return (
                     <TableRow
@@ -1123,17 +1159,19 @@ export const RetailerTransactionReport: React.FC = () => {
                             <ContentCopyIcon sx={{ fontSize: 13 }} />
                           </IconButton>
                         </Stack>
-                        {row.provider_ref && (
-                          <Typography variant="caption" sx={{ color: "#34D399", fontSize: "10px", display: "block", fontFamily: "monospace", whiteSpace: "nowrap" }}>
-                            UTR: {row.provider_ref}
-                          </Typography>
-                        )}
                       </TableCell>
 
-                      {/* 2. Service */}
+                      {/* 2. Ref ID */}
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#34D399", fontSize: "11px", fontWeight: 600, whiteSpace: "nowrap" }}>
+                          {refIdVal}
+                        </Typography>
+                      </TableCell>
+
+                      {/* 3. Service */}
                       <TableCell>
                         <Chip
-                          label={badge.label}
+                          label={badge.label || row.service}
                           size="small"
                           sx={{
                             bgcolor: badge.bg,
@@ -1146,75 +1184,71 @@ export const RetailerTransactionReport: React.FC = () => {
                         />
                       </TableCell>
 
-                      {/* 3. Comments */}
-                      <TableCell sx={{ maxWidth: 280, minWidth: 180 }}>
-                        <Tooltip title={getTransactionComments(row)} arrow placement="top">
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: "#F1F5F9",
-                              fontWeight: 600,
-                              fontSize: "12px",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {getTransactionComments(row)}
-                          </Typography>
-                        </Tooltip>
-                      </TableCell>
-
-                      {/* 4. Previous Balance */}
+                      {/* 4. Pre Bal */}
                       <TableCell align="right">
                         <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#94A3B8", fontSize: "12px", whiteSpace: "nowrap" }}>
-                          ₹{row.previous_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          ₹{preBalVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
 
-                      {/* 5. CR / DR */}
+                      {/* 5. Dr Amt */}
                       <TableCell align="right">
-                        {row.cr > 0 ? (
-                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#34D399", fontSize: "12px", whiteSpace: "nowrap" }}>
-                            +₹{row.cr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        {drVal > 0 ? (
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#F87171", fontSize: "12px", whiteSpace: "nowrap" }}>
+                            ₹{drVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </Typography>
                         ) : (
-                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#F87171", fontSize: "12px", whiteSpace: "nowrap" }}>
-                            -₹{row.dr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#64748B", fontSize: "12px", whiteSpace: "nowrap" }}>
+                            0.00
                           </Typography>
                         )}
                       </TableCell>
 
-                      {/* 6. Current Balance */}
+                      {/* 6. Cr Amt */}
+                      <TableCell align="right">
+                        {crVal > 0 ? (
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#34D399", fontSize: "12px", whiteSpace: "nowrap" }}>
+                            ₹{crVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#64748B", fontSize: "12px", whiteSpace: "nowrap" }}>
+                            0.00
+                          </Typography>
+                        )}
+                      </TableCell>
+
+                      {/* 7. Cls Bal */}
                       <TableCell align="right">
                         <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#CBD5E1", fontSize: "12px", whiteSpace: "nowrap" }}>
-                          ₹{row.current_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          ₹{clsBalVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
 
-                      {/* 7. Amount */}
+                      {/* 8. Txn Amt */}
                       <TableCell align="right">
                         <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#FFFFFF", fontSize: "13px", whiteSpace: "nowrap" }}>
-                          ₹{row.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          ₹{txnAmtVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
-                        {row.charges > 0 && (
-                          <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "10px", display: "block", whiteSpace: "nowrap" }}>
-                            Fee: ₹{row.charges.toFixed(2)}
-                          </Typography>
-                        )}
                       </TableCell>
 
-                      {/* 8. Date & Time */}
+                      {/* 9. Tax */}
+                      <TableCell align="right">
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#94A3B8", fontSize: "12px", whiteSpace: "nowrap" }}>
+                          ₹{taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Typography>
+                      </TableCell>
+
+                      {/* 10. Date/Time */}
                       <TableCell sx={{ whiteSpace: "nowrap" }}>
                         <Typography variant="body2" sx={{ color: "#E2E8F0", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
-                          {new Date(row.transaction_datetime).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                          {new Date(dtVal).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                         </Typography>
                         <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px", whiteSpace: "nowrap", display: "block" }}>
-                          {new Date(row.transaction_datetime).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                          {new Date(dtVal).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
                         </Typography>
                       </TableCell>
 
-                      {/* 9. Status */}
+                      {/* 11. Status */}
                       <TableCell align="center">
                         <Chip
                           label={row.status}
@@ -1224,21 +1258,59 @@ export const RetailerTransactionReport: React.FC = () => {
                               <CheckCircleIcon sx={{ fontSize: "14px !important", color: "#10B981 !important" }} />
                             ) : row.status === "PENDING" ? (
                               <AccessTimeIcon sx={{ fontSize: "14px !important", color: "#F59E0B !important" }} />
+                            ) : row.status === "REVERSED" ? (
+                              <RefreshIcon sx={{ fontSize: "14px !important", color: "#818CF8 !important" }} />
                             ) : (
                               <CancelIcon sx={{ fontSize: "14px !important", color: "#EF4444 !important" }} />
                             )
                           }
                           sx={{
-                            bgcolor: row.status === "SUCCESS" ? "rgba(16, 185, 129, 0.15)" : row.status === "PENDING" ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                            color: row.status === "SUCCESS" ? "#34D399" : row.status === "PENDING" ? "#FBBF24" : "#F87171",
-                            border: `1px solid ${row.status === "SUCCESS" ? "rgba(16, 185, 129, 0.3)" : row.status === "PENDING" ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                            bgcolor: row.status === "SUCCESS" ? "rgba(16, 185, 129, 0.15)" : row.status === "PENDING" ? "rgba(245, 158, 11, 0.15)" : row.status === "REVERSED" ? "rgba(99, 102, 241, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                            color: row.status === "SUCCESS" ? "#34D399" : row.status === "PENDING" ? "#FBBF24" : row.status === "REVERSED" ? "#818CF8" : "#F87171",
+                            border: `1px solid ${row.status === "SUCCESS" ? "rgba(16, 185, 129, 0.3)" : row.status === "PENDING" ? "rgba(245, 158, 11, 0.3)" : row.status === "REVERSED" ? "rgba(99, 102, 241, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
                             fontWeight: 800,
                             fontSize: "11px",
                           }}
                         />
                       </TableCell>
 
-                      {/* 10. Action */}
+                      {/* 12. Comments */}
+                      <TableCell sx={{ maxWidth: 220, minWidth: 150 }}>
+                        <Tooltip title={commentsVal} arrow placement="top">
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: "#F1F5F9",
+                              fontWeight: 500,
+                              fontSize: "12px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {commentsVal}
+                          </Typography>
+                        </Tooltip>
+                      </TableCell>
+
+                      {/* 13. Cr/Dr (Must be last data column) */}
+                      <TableCell align="center">
+                        <Chip
+                          label={crDrVal}
+                          size="small"
+                          sx={{
+                            bgcolor: crDrVal === "CR" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                            color: crDrVal === "CR" ? "#34D399" : "#F87171",
+                            border: `1px solid ${crDrVal === "CR" ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                            fontWeight: 800,
+                            fontSize: "11px",
+                            height: "22px",
+                            fontFamily: "monospace",
+                          }}
+                        />
+                      </TableCell>
+
+                      {/* 14. Action */}
                       <TableCell align="center">
                         <IconButton
                           size="small"

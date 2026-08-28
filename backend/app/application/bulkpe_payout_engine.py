@@ -282,18 +282,51 @@ class BulkPePayoutEngine:
             )
 
         # ----------------------------------------------------
-        # 2. DYNAMIC PRICING ENGINE
+        # 2. DYNAMIC PRICING ENGINE (ADMIN PAYOUT SLAB)
         # ----------------------------------------------------
-        if amount <= 5000:
-            retailer_charge = 10.00
-        elif amount <= 25000:
-            retailer_charge = 15.00
-        else:
-            retailer_charge = 25.00
+        from app.infrastructure.db.payout_slab_model import PayoutSlabModel
+        from decimal import Decimal, ROUND_HALF_UP
 
-        retailer_gst = round(retailer_charge * 0.18, 2)
-        total_debit = round(amount + retailer_charge + retailer_gst, 2)
-        company_commission = round(retailer_charge * 0.40, 2)
+        amount_d = Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        now_dt = datetime.now(timezone.utc)
+        stmt_slab = select(PayoutSlabModel).where(
+            PayoutSlabModel.service_code == "PAYOUT",
+            PayoutSlabModel.min_amount <= amount_d,
+            PayoutSlabModel.max_amount >= amount_d,
+            PayoutSlabModel.is_active == True,
+            PayoutSlabModel.is_deleted == False
+        ).order_by(PayoutSlabModel.effective_from.desc())
+        slab_obj = (await db.execute(stmt_slab)).scalars().first()
+
+        if slab_obj:
+            comm_val = Decimal(str(slab_obj.commission or 0.0))
+            if str(slab_obj.commission_type or "FIXED").upper() == "PERCENTAGE":
+                comm_val = (amount_d * comm_val / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            
+            vc_val = Decimal(str(slab_obj.vendor_charge or 0.0))
+            if str(slab_obj.vendor_charge_type or "FIXED").upper() == "PERCENTAGE":
+                vc_val = (amount_d * vc_val / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+            oth_val = Decimal(str(slab_obj.other_charges or 0.0))
+            if str(slab_obj.other_charges_type or "FIXED").upper() == "PERCENTAGE":
+                oth_val = (amount_d * oth_val / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+            gst_rate = Decimal(str(slab_obj.gst or 0.0))
+            gst_base = comm_val + vc_val + oth_val
+            if str(slab_obj.gst_type or "PERCENTAGE").upper() == "PERCENTAGE":
+                gst_val = (gst_base * gst_rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            else:
+                gst_val = gst_rate
+
+            retailer_charge = float(comm_val + vc_val + oth_val)
+            retailer_gst = float(gst_val)
+            total_debit = float((amount_d + comm_val + vc_val + oth_val + gst_val).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+            company_commission = float(comm_val)
+        else:
+            retailer_charge = 0.0
+            retailer_gst = 0.0
+            total_debit = float(amount_d)
+            company_commission = 0.0
 
         # ----------------------------------------------------
         # 3. ACID WALLET DEBIT & JOURNAL RECORDING
@@ -366,9 +399,17 @@ class BulkPePayoutEngine:
         wallet.wallet_balance = round(wallet.wallet_balance - total_debit, 2)
         balance_after = wallet.wallet_balance
 
-        # Create Payout Workflow Transaction Record
+        # Resolve active vendor provider to determine transaction prefix
+        from app.application.wowpe_client import WowPeApiClient
+        from app.application.payout_routing_service import PayoutRoutingService
+
+        active_provider = await PayoutRoutingService.get_active_primary_provider(db, tenant_id)
+        policy = await PayoutRoutingService.get_routing_policy(db, tenant_id)
+        vendor_char = str(active_provider or "UTKALDIGITAL").strip().upper()[0]
+
+        # Create Payout Workflow Transaction Record (Format: UPAY20260828C73E17F8)
         now_utc = datetime.now(timezone.utc)
-        tx_number = f"PAY-{now_utc.strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        tx_number = f"{vendor_char}PAY{now_utc.strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
         bene_pub_id = getattr(beneficiary, "public_id", None) or getattr(bank_account, "beneficiary_id", None) or (bene_uuid if bene_uuid else uuid.uuid4())
 
         payout_tx = PayoutWorkflowTransactionModel(
@@ -417,12 +458,6 @@ class BulkPePayoutEngine:
         # ----------------------------------------------------
         # 4. EXECUTE DYNAMIC PAYOUT API CALL (WOWPE / BULKPE)
         # ----------------------------------------------------
-        from app.application.wowpe_client import WowPeApiClient
-        from app.application.payout_routing_service import PayoutRoutingService
-
-        active_provider = await PayoutRoutingService.get_active_primary_provider(db, tenant_id)
-        policy = await PayoutRoutingService.get_routing_policy(db, tenant_id)
-
         acc_num = final_acc_num
         ifsc = final_ifsc or "IBKL0000630"
         acc_holder = final_acc_holder or "Beneficiary"
@@ -432,7 +467,24 @@ class BulkPePayoutEngine:
         api_res = None
         executed_vendor = active_provider
 
-        if active_provider in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
+        from app.application.payout_vendor_adapter import PayoutVendorAdapterFactory, SimulatedVendorAdapter
+        vendor_adapter = PayoutVendorAdapterFactory.get_adapter()
+
+        if isinstance(vendor_adapter, SimulatedVendorAdapter) or settings.is_payout_simulation_active:
+            print(f"\n[VENDOR SANDBOX] Executing {active_provider} payout in DEV Simulator Mode for {merchant_ref}\n")
+            api_res = await vendor_adapter.initiate_payout(
+                vendor_name=active_provider,
+                merchant_ref=merchant_ref,
+                account_number=acc_num,
+                ifsc_code=ifsc,
+                account_holder=acc_holder,
+                amount=amount,
+                mode=mode,
+                mobile=cust_mobile,
+                bank_name=target_bank,
+                sender_name=getattr(customer, "full_name", "Customer")
+            )
+        elif active_provider in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
             from app.application.utkaldigital_client import UtkalDigitalApiClient
             api_res = await UtkalDigitalApiClient.initiate_payout(
                 merchant_ref=merchant_ref,

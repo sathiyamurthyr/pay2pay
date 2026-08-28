@@ -3,7 +3,6 @@ KYC Document Upload API — Backblaze B2
 POST /api/v1/upload/kyc  — Upload a single KYC document for an entity
 """
 import uuid
-import mimetypes
 from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
@@ -229,3 +228,4 @@ async def get_signed_download_url(path: str):
         "raw_path": path,
         "signed_url": signed_url
     }
+

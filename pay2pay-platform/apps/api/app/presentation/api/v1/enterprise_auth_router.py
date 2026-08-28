@@ -19,7 +19,7 @@ from app.infrastructure.db.auth_models import (
     AuthUserModel, LoginHistoryModel, TrustedDeviceModel, OtpTransactionModel,
     FailedLoginAttemptModel, PasswordResetTokenModel, PasswordResetAuditModel
 )
-from app.infrastructure.db.models import RetailerModel, RetailerContactModel, AdminUserModel, RetailerWalletModel
+from app.infrastructure.db.models import RetailerModel, RetailerContactModel, AdminUserModel, RetailerWalletModel, CompanyModel
 from app.infrastructure.db.registration_models import RegistrationDraftModel, RegistrationAadhaarModel
 from app.infrastructure.db.verification_models import RetailerVerificationModel
 from app.core.security import verify_password, create_access_token, decode_access_token
@@ -1195,6 +1195,24 @@ async def get_account_status(
     verif_status_display = verif.verification_status if verif else (draft.status if draft else ("ACTIVE" if is_approved else "KYC_SUBMITTED"))
     payment_permission = "PERMITTED & UNLOCKED" if (approve_status and active_status) else "PROHIBITED & LOCKED"
 
+    company_name = "Platform HQ Enterprise Ltd"
+    company_code = "HQ_COMP"
+    comp_id = retailer_record.company_id if retailer_record and retailer_record.company_id else DEFAULT_COMPANY_ID
+    if comp_id:
+        try:
+            comp_res = await db.execute(select(CompanyModel).where(CompanyModel.public_id == comp_id))
+            comp_obj = comp_res.scalar_one_or_none()
+            if comp_obj:
+                company_name = comp_obj.company_name or comp_obj.legal_name or company_name
+                company_code = comp_obj.company_code or company_code
+            else:
+                comp_fallback = (await db.execute(select(CompanyModel).order_by(CompanyModel.id.asc()).limit(1))).scalar_one_or_none()
+                if comp_fallback:
+                    company_name = comp_fallback.company_name or comp_fallback.legal_name or company_name
+                    company_code = comp_fallback.company_code or company_code
+        except Exception as e:
+            logger.warning(f"Error fetching company details for retailer status: {e}")
+
     return {
         "success": True,
         "status": "SUCCESS",
@@ -1205,6 +1223,8 @@ async def get_account_status(
             "retailer_id": str(retailer_record.public_id) if retailer_record else (str(verif.retailer_id) if verif and verif.retailer_id else None),
             "tenant_id": str(retailer_record.tenant_id if retailer_record else DEFAULT_TENANT_ID),
             "company_id": str(retailer_record.company_id if retailer_record else DEFAULT_COMPANY_ID),
+            "company_name": company_name,
+            "company_code": company_code,
             "retailer_name": retailer_name,
             "store_name": store_name,
             "legal_name": legal_name,

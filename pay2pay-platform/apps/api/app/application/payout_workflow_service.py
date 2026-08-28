@@ -52,7 +52,9 @@ class PayoutWorkflowService:
         stmt = select(CustomerModel).where(
             and_(
                 CustomerModel.tenant_id == tenant_id,
-                CustomerModel.customer_status != "CLOSED"
+                CustomerModel.is_active == True,
+                CustomerModel.customer_status == "ACTIVE",
+                CustomerModel.kyc_status.in_(["VERIFIED", "APPROVED"])
             )
         )
         
@@ -381,32 +383,39 @@ class PayoutWorkflowService:
 
         results = []
         target_uuid = None
+        has_customer_filter = customer_id is not None and str(customer_id).strip() != ""
 
         if isinstance(customer_id, uuid.UUID):
             target_uuid = customer_id
-        elif isinstance(customer_id, str):
+        elif isinstance(customer_id, str) and customer_id.strip():
             try:
                 target_uuid = uuid.UUID(customer_id)
             except Exception:
                 pass
 
             if not target_uuid:
-                clean_str = customer_id.replace("CUST-", "").replace("cust-", "")
+                clean_str = customer_id.replace("CUST-", "").replace("cust-", "").strip()
+                import re as _re
+                clean_digits = _re.sub(r"\D", "", clean_str)
                 stmt = select(CustomerModel).where(
                     or_(
-                        CustomerModel.mobile_number.like(f"%{clean_str}%"),
-                        CustomerModel.customer_number.like(f"%{clean_str}%"),
-                        CustomerModel.mobile_number == "7013914767",
+                        CustomerModel.mobile_number == clean_digits if clean_digits else False,
+                        CustomerModel.mobile_number.like(f"%{clean_digits[-10:]}%") if len(clean_digits) >= 10 else False,
+                        CustomerModel.customer_number == clean_str,
+                        CustomerModel.customer_number.ilike(f"%{clean_str}%"),
                     )
                 )
                 found_cust = (await db.execute(stmt)).scalars().first()
                 if found_cust:
                     target_uuid = found_cust.public_id
 
+        # STRICT: if a customer_id was provided but could not be resolved, return empty list
+        if has_customer_filter and not target_uuid:
+            return []
+
+        # If no customer_id at all, also return empty (never show all beneficiaries globally)
         if not target_uuid:
-            stmt_default = select(CustomerModel).where(CustomerModel.mobile_number == "7013914767")
-            default_cust = (await db.execute(stmt_default)).scalars().first()
-            target_uuid = default_cust.public_id if default_cust else uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
+            return []
 
         # 1. Fetch from EPIC-014 Beneficiary Customer Mappings & Master
         stmt_map = select(BeneficiaryCustomerMappingModel).where(

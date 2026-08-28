@@ -267,6 +267,13 @@ from app.presentation.api.v1 import admin_retailer_mapping_router
 app.include_router(admin_retailer_mapping_router.router, prefix=settings.API_V1_STR)
 app.include_router(admin_retailer_mapping_router.router, prefix="")
 
+from app.presentation.api.v1 import pos_mdr_router
+app.include_router(pos_mdr_router.router, prefix=settings.API_V1_STR)
+app.include_router(pos_mdr_router.router, prefix="/v1")
+app.include_router(pos_mdr_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(pos_mdr_router.router, prefix="/api")
+app.include_router(pos_mdr_router.router, prefix="")
+
 
 
 @app.get("/health", tags=["Health"])

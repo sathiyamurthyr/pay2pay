@@ -57,6 +57,8 @@ def get_retailer_display_name(retailer: Optional[RetailerModel]) -> str:
     )
 
 
+from app.application.pos_mdr_service import PosMdrService
+
 # ==============================================================================
 # SCHEMAS
 # ==============================================================================
@@ -64,7 +66,8 @@ def get_retailer_display_name(retailer: Optional[RetailerModel]) -> str:
 class TopupCreateRequest(BaseModel):
     requested_amount: float = Field(..., gt=0, description="Requested topup amount (INR)")
     payment_reference: Optional[str] = Field(None, description="Bank Reference or UTR Number")
-    payment_method: Optional[str] = Field("UPI", description="UPI, IMPS, NEFT, RTGS, CASH_DEPOSIT, BANK_TRANSFER")
+    payment_method: Optional[str] = Field("POS - Instant", description="Payment Mode: POS - Instant, POS+T1, POS+T2, UPI, etc.")
+    payment_mode: Optional[str] = Field(None, description="Alias for payment_method")
     payment_date: Optional[str] = Field(None, description="ISO Date string of payment")
     slip_id: Optional[str] = Field(None, description="Uploaded slip ID")
     slip_url: Optional[str] = Field(None, description="Uploaded slip URL")
@@ -73,6 +76,12 @@ class TopupCreateRequest(BaseModel):
     slip_file_size_bytes: Optional[int] = Field(None)
     slip_checksum: Optional[str] = Field(None)
     retailer_remarks: Optional[str] = Field(None, description="Optional remarks from retailer")
+    # Optional client-side snapshot values (validated & recomputed server-side)
+    mdr_charge: Optional[float] = Field(None)
+    gst_amount: Optional[float] = Field(None)
+    charges: Optional[float] = Field(None)
+    received_amount: Optional[float] = Field(None)
+    mdr_config_id: Optional[str] = Field(None)
 
 
 class TopupApprovalRequest(BaseModel):
@@ -369,7 +378,40 @@ async def create_topup_request(
     # Auto-resolve B2 slip_url from slip_id if not explicitly provided
     resolved_slip_url = _resolve_slip_url(req.slip_url, req.slip_id)
 
-    # 3. Create TopupRequestModel
+    # 2b. Compute POS MDR Snapshot
+    selected_mode = (req.payment_mode or req.payment_method or "POS - Instant").strip()
+    mdr_charge_val = req.mdr_charge
+    gst_amount_val = req.gst_amount
+    charges_val = req.charges
+    received_amount_val = req.received_amount
+    mdr_config_uuid = None
+
+    try:
+        mdr_cfg = await PosMdrService.resolve_mdr_configuration(
+            db=db,
+            payment_mode=selected_mode,
+            retailer_id=retailer.public_id,
+            company_id=retailer.company_id,
+            tenant_id=retailer.tenant_id
+        )
+        calc = PosMdrService.calculate_mdr(
+            amount=req.requested_amount,
+            mdr_config=mdr_cfg
+        )
+        mdr_charge_val = calc["mdr"]
+        gst_amount_val = calc["gst"]
+        charges_val = calc["charges"]
+        received_amount_val = calc["received_amount"]
+        mdr_config_uuid = mdr_cfg.public_id
+    except Exception as mdr_err:
+        # If client provided values, use them, otherwise fallback to amount if not a configured POS mode
+        if received_amount_val is None:
+            received_amount_val = req.requested_amount
+            charges_val = 0.0
+            gst_amount_val = 0.0
+            mdr_charge_val = 0.0
+
+    # 3. Create TopupRequestModel with pricing snapshot
     topup_model = TopupRequestModel(
         public_id=uuid.uuid4(),
         tenant_id=retailer.tenant_id,
@@ -380,8 +422,13 @@ async def create_topup_request(
         requested_amount=req.requested_amount,
         approved_amount=None,
         currency="INR",
+        mdr_charge=mdr_charge_val,
+        gst_amount=gst_amount_val,
+        charges=charges_val,
+        received_amount=received_amount_val,
+        mdr_config_id=mdr_config_uuid,
         payment_reference=req.payment_reference,
-        payment_method=req.payment_method or "UPI",
+        payment_method=selected_mode,
         payment_date=pay_dt or now_utc,
         slip_id=req.slip_id,
         slip_url=resolved_slip_url,
@@ -399,10 +446,14 @@ async def create_topup_request(
         metadata_json={
             "retailer_name": get_retailer_display_name(retailer),
             "retailer_code": retailer.retailer_code,
-            "owner_name": getattr(retailer, "owner_name", "")
+            "owner_name": getattr(retailer, "owner_name", ""),
+            "payment_mode": selected_mode,
+            "mdr": mdr_charge_val,
+            "gst": gst_amount_val,
+            "charges": charges_val,
+            "received_amount": received_amount_val
         }
     )
-
     db.add(topup_model)
     await db.commit()
     await db.refresh(topup_model)
@@ -410,18 +461,75 @@ async def create_topup_request(
     return {
         "success": True,
         "message": f"Topup request {topup_req_id} submitted successfully and is pending admin verification.",
+        "topup_request_id": topup_model.topup_request_id,
+        "id": str(topup_model.public_id),
         "data": {
             "id": str(topup_model.public_id),
             "topup_request_id": topup_model.topup_request_id,
             "requested_amount": float(topup_model.requested_amount),
+            "payment_mode": topup_model.payment_method,
+            "mdr": float(topup_model.mdr_charge or 0.0),
+            "gst": float(topup_model.gst_amount or 0.0),
+            "charges": float(topup_model.charges or 0.0),
+            "received_amount": float(topup_model.received_amount or topup_model.requested_amount),
             "status": topup_model.status,
             "payment_reference": topup_model.payment_reference,
             "payment_method": topup_model.payment_method,
             "slip_url": topup_model.slip_url,
             "submitted_at": topup_model.submitted_at.isoformat(),
-            "retailer_code": retailer.retailer_code,
-            "retailer_name": get_retailer_display_name(retailer)
+            "retailer": {
+                "retailer_code": retailer.retailer_code,
+                "retailer_name": get_retailer_display_name(retailer)
+            }
         }
+    }
+
+
+# ==============================================================================
+# PAYMENT MODES & DYNAMIC MDR ENDPOINTS ON TOPUP ROUTER
+# ==============================================================================
+
+@router.get("/payment-modes")
+async def get_topup_payment_modes(db: AsyncSession = Depends(get_db)):
+    """
+    Returns active POS payment modes in exact display order:
+    1. POS - Instant
+    2. POS+T1
+    3. POS+T2
+    """
+    modes = await PosMdrService.get_active_payment_modes(db)
+    return {"items": modes, "total": len(modes)}
+
+
+@router.post("/calculate-mdr")
+async def calculate_topup_mdr(
+    req: Dict[str, Any],
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Calculates MDR, GST, Charges, and Received Amount dynamically for POS payment modes.
+    """
+    pmode = req.get("payment_mode") or req.get("payment_method") or "POS - Instant"
+    amt = float(req.get("transaction_amount") or req.get("requested_amount") or 0)
+    ret_id = req.get("retailer_id")
+
+    mdr_config = await PosMdrService.resolve_mdr_configuration(
+        db=db,
+        payment_mode=pmode,
+        retailer_id=ret_id
+    )
+    result = PosMdrService.calculate_mdr(
+        amount=amt,
+        mdr_config=mdr_config
+    )
+    return {
+        "payment_mode": result["payment_mode"],
+        "transaction_amount": result["transaction_amount"],
+        "mdr": result["mdr"],
+        "gst": result["gst"],
+        "charges": result["charges"],
+        "received_amount": result["received_amount"],
+        "mdr_config_id": result["mdr_config_id"]
     }
 
 
@@ -454,9 +562,15 @@ async def get_my_topup_requests(
             "topup_request_id": r.topup_request_id,
             "requested_amount": float(r.requested_amount),
             "approved_amount": float(r.approved_amount) if r.approved_amount is not None else None,
+            "mdr_charge": float(r.mdr_charge) if r.mdr_charge is not None else None,
+            "gst_amount": float(r.gst_amount) if r.gst_amount is not None else None,
+            "charges": float(r.charges) if r.charges is not None else None,
+            "received_amount": float(r.received_amount) if r.received_amount is not None else float(r.requested_amount),
             "status": r.status,
             "payment_reference": r.payment_reference,
             "payment_method": r.payment_method,
+            "payment_mode": r.payment_method,
+            "mdr_config_id": str(r.mdr_config_id) if r.mdr_config_id else None,
             "payment_date": r.payment_date.isoformat() if r.payment_date else None,
             "slip_id": r.slip_id,
             "slip_url": _resolve_slip_url(r.slip_url, r.slip_id),

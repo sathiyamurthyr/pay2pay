@@ -88,30 +88,45 @@ export interface PayoutReportSummary {
 
 export interface PayoutReportItem {
   s_no: number;
-  transaction_id: string;
-  transaction_number: string;
-  reference_id: string;
-  initiated_at: string | null;
-  completed_at: string | null;
-  customer_name: string;
-  customer_mobile: string;
-  beneficiary_name: string;
-  beneficiary_mobile: string;
-  bank_name: string;
-  masked_account_number: string;
-  ifsc_code: string;
-  payment_mode: string;
-  transfer_amount: number;
-  convenience_fee: number;
-  gst_amount: number;
-  wallet_debit: number;
-  retailer_commission: number;
-  tds_amount: number;
-  utr_number: string;
+  txn_id?: string;
+  customer?: string;
+  beneficiary?: string;
+  ac_no?: string;
+  amt?: number;
+  fee?: number;
+  tax?: number;
+  debit?: number;
+  mode?: string;
+  utr?: string;
+  wallet?: string;
+  date_time?: string;
   status: string;
-  refund_status: string;
-  remarks: string;
-  receipt_enabled: boolean;
+  actions?: string[];
+  // Legacy and detailed view fields
+  transaction_id?: string;
+  transaction_number?: string;
+  reference_id?: string;
+  initiated_at?: string | null;
+  completed_at?: string | null;
+  customer_name?: string;
+  customer_mobile?: string;
+  beneficiary_name?: string;
+  beneficiary_mobile?: string;
+  bank_name?: string;
+  masked_account_number?: string;
+  account_number?: string;
+  ifsc_code?: string;
+  payment_mode?: string;
+  transfer_amount?: number;
+  convenience_fee?: number;
+  gst_amount?: number;
+  wallet_debit?: number;
+  retailer_commission?: number;
+  tds_amount?: number;
+  utr_number?: string;
+  refund_status?: string;
+  remarks?: string;
+  receipt_enabled?: boolean;
   retailer_name?: string;
 }
 
@@ -173,18 +188,31 @@ const getActiveTenantId = () => {
   return "";
 };
 
-const getTodayIso = () => new Date().toISOString().split("T")[0];
+const getLocalDateIso = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getTodayIso = () => getLocalDateIso();
 
 const getDateOffsetIso = (daysOffset: number) => {
   const d = new Date();
   d.setDate(d.getDate() + daysOffset);
-  return d.toISOString().split("T")[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const getFirstDayOfMonthIso = (monthOffset: number = 0) => {
   const d = new Date();
   d.setMonth(d.getMonth() + monthOffset, 1);
-  return d.toISOString().split("T")[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}-01`;
 };
 
 export const RetailerPayoutReport: React.FC = () => {
@@ -214,12 +242,12 @@ export const RetailerPayoutReport: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState<number>(10);
   const [totalRecords, setTotalRecords] = useState<number>(0);
 
-  // Quick Search & Date Filters (Default to this month to show active transactions immediately)
+  // Quick Search & Date Filters (Default to Today)
   const [globalSearch, setGlobalSearch] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
-  const [fromDate, setFromDate] = useState<string>(getFirstDayOfMonthIso(0));
-  const [toDate, setToDate] = useState<string>(getTodayIso());
-  const [activePreset, setActivePreset] = useState<string>("THIS_MONTH");
+  const [fromDate, setFromDate] = useState<string>(getLocalDateIso());
+  const [toDate, setToDate] = useState<string>(getLocalDateIso());
+  const [activePreset, setActivePreset] = useState<string>("TODAY");
 
   // Filter Bar Controls
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -442,37 +470,35 @@ export const RetailerPayoutReport: React.FC = () => {
   };
 
   // Export handlers
-  // Export handlers
   const handleExportCSV = () => {
     setExportAnchorEl(null);
     logAudit("REPORT_EXPORTED_CSV", { totalRecords, fromDate, toDate });
-    let csvStr = "S.No,Txn ID,Customer,Beneficiary,Account,Amount,Mode,UTR,Tax,Date & Time,Fee,Wallet Type,Debit,Commission\n";
+    let csvStr = "S.No,Txn ID,Customer,Beneficiary,A/C No,Amt,Fee,Tax,Debit,Mode,UTR,Wallet,Date/Time,Status,Actions\n";
     items.forEach((r, idx) => {
-      const sNo = page * rowsPerPage + idx + 1;
-      const txnId = r.transaction_number || r.transaction_id || "";
-      const cust = (r.customer_name || "N/A").replace(/"/g, '""');
-      const bene = (r.beneficiary_name || "N/A").replace(/"/g, '""');
-      const acc = r.masked_account_number || "XXXXXXXX1234";
-      const amt = `₹${Number(r.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
-      const mode = r.payment_mode || "IMPS";
-      const utr = r.utr_number || "--";
-      const taxVal = Number((r as any).tax_amount || ((r.gst_amount || 0) + (r.tds_amount || 0)));
-      const tax = `₹${taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
-      const dateTime = r.initiated_at || "--";
-      const fee = `₹${Number(r.convenience_fee || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
-      const walletType = (r as any).wallet_type || "MAIN_WALLET";
-      const debitVal = Number(r.wallet_debit || (Number(r.transfer_amount || 0) + Number(r.convenience_fee || 0) + taxVal));
-      const debit = `₹${debitVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
-      const comm = `₹${Number(r.retailer_commission || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+      const sNo = r.s_no || (page * rowsPerPage + idx + 1);
+      const txnId = r.txn_id || r.transaction_number || r.transaction_id || "--";
+      const cust = (r.customer || r.customer_name || "Verified Customer").replace(/"/g, '""');
+      const bene = (r.beneficiary || r.beneficiary_name || "Beneficiary").replace(/"/g, '""');
+      const acc = (r.ac_no || (r as any).account_number || r.masked_account_number || "--").replace(/"/g, '""');
+      const amt = Number(r.amt ?? r.transfer_amount ?? 0).toFixed(2);
+      const fee = Number(r.fee ?? r.convenience_fee ?? 0).toFixed(2);
+      const tax = Number(r.tax ?? (r as any).tax_amount ?? ((r.gst_amount || 0) + (r.tds_amount || 0))).toFixed(2);
+      const debit = Number(r.debit ?? r.wallet_debit ?? (Number(amt) + Number(fee) + Number(tax))).toFixed(2);
+      const mode = r.mode || r.payment_mode || "IMPS";
+      const utr = (r.utr || r.utr_number || "--").replace(/"/g, '""');
+      const wallet = r.wallet || (r as any).wallet_type || "Main Wallet";
+      const dateTime = (r.date_time || r.initiated_at || "--").replace(/"/g, '""');
+      const status = (r.status || "SUCCESS").toUpperCase();
+      const actions = "VIEW";
 
-      csvStr += `${sNo},"${txnId}","${cust}","${bene}","${acc}","${amt}","${mode}","${utr}","${tax}","${dateTime}","${fee}","${walletType}","${debit}","${comm}"\n`;
+      csvStr += `${sNo},"${txnId}","${cust}","${bene}","${acc}",${amt},${fee},${tax},${debit},"${mode}","${utr}","${wallet}","${dateTime}","${status}","${actions}"\n`;
     });
 
     const blob = new Blob([csvStr], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Pay2Pay_Payout_Report_${fromDate || "All"}_to_${toDate || "Today"}.csv`;
+    a.download = `Pay2Pay_Payout_Report_${fromDate || "Today"}_to_${toDate || "Today"}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -481,40 +507,50 @@ export const RetailerPayoutReport: React.FC = () => {
 
   const generatePrintHtml = (reportItems: PayoutReportItem[], summaryData: PayoutReportSummary | null, fDate: string, tDate: string) => {
     const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-    const totAmount = summaryData ? summaryData.todays_transfer_amount : reportItems.reduce((s, r) => s + r.transfer_amount, 0);
+    const totAmount = summaryData ? summaryData.todays_transfer_amount : reportItems.reduce((s, r) => s + (r.amt ?? r.transfer_amount ?? 0), 0);
     const totTxns = summaryData ? summaryData.todays_transactions : reportItems.length;
-    const succAmount = summaryData ? (summaryData.successful_amount ?? summaryData.todays_transfer_amount) : reportItems.filter(r => r.status === "SUCCESS").reduce((s, r) => s + r.transfer_amount, 0);
+    const succAmount = summaryData ? (summaryData.successful_amount ?? summaryData.todays_transfer_amount) : reportItems.filter(r => r.status === "SUCCESS").reduce((s, r) => s + (r.amt ?? r.transfer_amount ?? 0), 0);
     const succTxns = summaryData ? summaryData.successful_transactions : reportItems.filter(r => r.status === "SUCCESS").length;
-    const pendAmount = summaryData ? (summaryData.pending_amount ?? 0) : reportItems.filter(r => ["PENDING", "PROCESSING"].includes(r.status)).reduce((s, r) => s + r.transfer_amount, 0);
+    const pendAmount = summaryData ? (summaryData.pending_amount ?? 0) : reportItems.filter(r => ["PENDING", "PROCESSING"].includes(r.status)).reduce((s, r) => s + (r.amt ?? r.transfer_amount ?? 0), 0);
     const pendTxns = summaryData ? summaryData.pending_transactions : reportItems.filter(r => ["PENDING", "PROCESSING"].includes(r.status)).length;
-    const failAmount = summaryData ? (summaryData.failed_amount ?? 0) : reportItems.filter(r => ["FAILED", "REJECTED", "REVERSED"].includes(r.status)).reduce((s, r) => s + r.transfer_amount, 0);
+    const failAmount = summaryData ? (summaryData.failed_amount ?? 0) : reportItems.filter(r => ["FAILED", "REJECTED", "REVERSED"].includes(r.status)).reduce((s, r) => s + (r.amt ?? r.transfer_amount ?? 0), 0);
     const failTxns = summaryData ? (summaryData.failed_transactions + summaryData.reversed_transactions) : reportItems.filter(r => ["FAILED", "REJECTED", "REVERSED"].includes(r.status)).length;
 
     let rowsHtml = "";
     if (reportItems.length > 0) {
       reportItems.forEach((r, idx) => {
-        const taxVal = Number((r as any).tax_amount || ((r.gst_amount || 0) + (r.tds_amount || 0)));
-        const feeVal = Number(r.convenience_fee || 0);
-        const amtVal = Number(r.transfer_amount || 0);
-        const debitVal = Number(r.wallet_debit || (amtVal + feeVal + taxVal));
-        const commVal = Number(r.retailer_commission || 0);
+        const sNo = r.s_no || (idx + 1);
+        const txnDisplay = r.txn_id || r.transaction_number || r.transaction_id || "-";
+        const customerDisplay = r.customer || r.customer_name || "Verified Customer";
+        const beneficiaryDisplay = r.beneficiary || r.beneficiary_name || "Beneficiary";
+        const accDisplay = r.ac_no || (r as any).account_number || r.masked_account_number || "--";
+        const amtVal = Number(r.amt ?? r.transfer_amount ?? 0);
+        const feeVal = Number(r.fee ?? r.convenience_fee ?? 0);
+        const taxVal = Number(r.tax ?? (r as any).tax_amount ?? ((r.gst_amount || 0) + (r.tds_amount || 0)));
+        const debitVal = Number(r.debit ?? r.wallet_debit ?? (amtVal + feeVal + taxVal));
+        const modeDisplay = r.mode || r.payment_mode || "IMPS";
+        const utrDisplay = r.utr || r.utr_number || "-";
+        const walletDisplay = r.wallet || (r as any).wallet_type || "Main Wallet";
+        const dateTimeDisplay = r.date_time || r.initiated_at || "-";
+        const statusDisplay = (r.status || "SUCCESS").toUpperCase();
 
         rowsHtml += `
           <tr style="border-bottom: 1px solid #e2e8f0; font-size: 10px;">
-            <td style="padding: 6px; text-align: center; font-weight: 600;">${idx + 1}</td>
-            <td style="padding: 6px; font-weight: bold; font-family: monospace;">${r.transaction_number || r.transaction_id || "-"}</td>
-            <td style="padding: 6px;">${r.customer_name || "N/A"}</td>
-            <td style="padding: 6px;">${r.beneficiary_name || "N/A"}</td>
-            <td style="padding: 6px; font-family: monospace;">${r.masked_account_number || "XXXXXXXX1234"}</td>
+            <td style="padding: 6px; text-align: center; font-weight: 600;">${sNo}</td>
+            <td style="padding: 6px; font-weight: bold; font-family: monospace;">${txnDisplay}</td>
+            <td style="padding: 6px;">${customerDisplay}</td>
+            <td style="padding: 6px;">${beneficiaryDisplay}</td>
+            <td style="padding: 6px; font-family: monospace;">${accDisplay}</td>
             <td style="padding: 6px; text-align: right; font-weight: bold; color: #16a34a;">₹${amtVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style="padding: 6px; text-align: center; font-weight: bold;">${r.payment_mode || "IMPS"}</td>
-            <td style="padding: 6px; font-family: monospace;">${r.utr_number || "-"}</td>
-            <td style="padding: 6px; text-align: right;">₹${taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style="padding: 6px;">${r.initiated_at || "-"}</td>
             <td style="padding: 6px; text-align: right;">₹${feeVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style="padding: 6px; text-align: center;">${(r as any).wallet_type || "MAIN_WALLET"}</td>
+            <td style="padding: 6px; text-align: right;">₹${taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
             <td style="padding: 6px; text-align: right; font-weight: bold;">₹${debitVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style="padding: 6px; text-align: right; color: #059669; font-weight: bold;">₹${commVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="padding: 6px; text-align: center; font-weight: bold;">${modeDisplay}</td>
+            <td style="padding: 6px; font-family: monospace;">${utrDisplay}</td>
+            <td style="padding: 6px; text-align: center;">${walletDisplay}</td>
+            <td style="padding: 6px;">${dateTimeDisplay}</td>
+            <td style="padding: 6px; text-align: center; font-weight: bold;">${statusDisplay}</td>
+            <td style="padding: 6px; text-align: center;">VIEW</td>
           </tr>
         `;
       });
@@ -1765,16 +1801,16 @@ export const RetailerPayoutReport: React.FC = () => {
                   <TableCell>Txn ID</TableCell>
                   <TableCell>Customer</TableCell>
                   <TableCell>Beneficiary</TableCell>
-                  <TableCell>Account</TableCell>
-                  <TableCell align="right">Amount</TableCell>
+                  <TableCell>A/C No</TableCell>
+                  <TableCell align="right">Amt</TableCell>
+                  <TableCell align="right">Fee</TableCell>
+                  <TableCell align="right">Tax</TableCell>
+                  <TableCell align="right">Debit</TableCell>
                   <TableCell align="center">Mode</TableCell>
                   <TableCell>UTR</TableCell>
-                  <TableCell align="right">Tax</TableCell>
-                  <TableCell>Date & Time</TableCell>
-                  <TableCell align="right">Fee</TableCell>
-                  <TableCell align="center">Wallet Type</TableCell>
-                  <TableCell align="right">Debit</TableCell>
-                  <TableCell align="right">Commission</TableCell>
+                  <TableCell align="center">Wallet</TableCell>
+                  <TableCell>Date/Time</TableCell>
+                  <TableCell align="center">Status</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -1816,7 +1852,7 @@ export const RetailerPayoutReport: React.FC = () => {
                       <Box sx={{ maxWidth: 360, mx: "auto", textAlign: "center" }}>
                         <ReceiptLongIcon sx={{ fontSize: 44, color: "#334155", mb: 1 }} />
                         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "15px" }}>
-                          No payout transactions found.
+                          No payout transactions found for today.
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#64748B", fontSize: "13px", mt: 0.5 }}>
                           Transactions will appear here when payouts are processed.
@@ -1831,21 +1867,24 @@ export const RetailerPayoutReport: React.FC = () => {
                   </TableRow>
                 ) : (
                   items.map((row, idx) => {
-                    const sNo = page * rowsPerPage + idx + 1;
-                    const txnDisplay = row.transaction_number || row.transaction_id || "--";
-                    const utrDisplay = row.utr_number || "--";
-                    const taxVal = Number((row as any).tax_amount || ((row.gst_amount || 0) + (row.tds_amount || 0)));
-                    const feeVal = Number(row.convenience_fee || 0);
-                    const amtVal = Number(row.transfer_amount || 0);
-                    const debitVal = Number(row.wallet_debit || (amtVal + feeVal + taxVal));
-                    const commVal = Number(row.retailer_commission || 0);
-                    const walletTypeDisplay = (row as any).wallet_type || "MAIN_WALLET";
-                    const accDisplay = row.masked_account_number || "XXXXXXXX1234";
-                    const rawAcc = (row as any).account_number || accDisplay;
+                    const sNo = row.s_no || (page * rowsPerPage + idx + 1);
+                    const txnDisplay = row.txn_id || row.transaction_number || row.transaction_id || "--";
+                    const customerDisplay = row.customer || row.customer_name || "Verified Customer";
+                    const beneficiaryDisplay = row.beneficiary || row.beneficiary_name || "Beneficiary";
+                    const accDisplay = row.ac_no || (row as any).account_number || row.masked_account_number || "--";
+                    const amtVal = Number(row.amt ?? row.transfer_amount ?? 0);
+                    const feeVal = Number(row.fee ?? row.convenience_fee ?? 0);
+                    const taxVal = Number(row.tax ?? (row as any).tax_amount ?? ((row.gst_amount || 0) + (row.tds_amount || 0)));
+                    const debitVal = Number(row.debit ?? row.wallet_debit ?? (amtVal + feeVal + taxVal));
+                    const modeDisplay = row.mode || row.payment_mode || "IMPS";
+                    const utrDisplay = row.utr || row.utr_number || "--";
+                    const walletDisplay = row.wallet || (row as any).wallet_type || "Main Wallet";
+                    const dateTimeDisplay = row.date_time || row.initiated_at || "--";
+                    const statusDisplay = (row.status || "SUCCESS").toUpperCase();
 
                     return (
                       <TableRow
-                        key={row.transaction_id || `row-${sNo}`}
+                        key={row.transaction_id || row.txn_id || `row-${sNo}`}
                         hover
                         sx={{
                           "&:hover": { bgcolor: "rgba(255, 255, 255, 0.03)" },
@@ -1859,12 +1898,10 @@ export const RetailerPayoutReport: React.FC = () => {
 
                         {/* 2. Txn ID */}
                         <TableCell>
-                          <Stack direction="row" spacing={0.3} sx={{ display: "inline-flex", alignItems: "center" }}>
-                            <Tooltip title={txnDisplay} arrow placement="top">
-                              <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "12.5px", color: "#F8FAFC", fontFamily: "monospace" }}>
-                                {txnDisplay.length > 16 ? `${txnDisplay.substring(0, 13)}...` : txnDisplay}
-                              </Typography>
-                            </Tooltip>
+                          <Stack direction="row" spacing={0.5} sx={{ display: "inline-flex", alignItems: "center" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "12.5px", color: "#F8FAFC", fontFamily: "monospace" }}>
+                              {txnDisplay}
+                            </Typography>
                             {txnDisplay !== "--" && (
                               <CopyButton value={txnDisplay} tooltipTitle="Copy Txn ID" iconFontSize={13} />
                             )}
@@ -1874,36 +1911,53 @@ export const RetailerPayoutReport: React.FC = () => {
                         {/* 3. Customer */}
                         <TableCell>
                           <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "12.5px", color: "#F8FAFC" }}>
-                            {row.customer_name || "N/A"}
+                            {customerDisplay}
                           </Typography>
                         </TableCell>
 
                         {/* 4. Beneficiary */}
                         <TableCell>
                           <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "12.5px", color: "#F8FAFC" }}>
-                            {row.beneficiary_name || "N/A"}
+                            {beneficiaryDisplay}
                           </Typography>
                         </TableCell>
 
-                        {/* 5. Account */}
+                        {/* 5. A/C No */}
                         <TableCell>
-                          <Stack direction="row" spacing={0.3} sx={{ display: "inline-flex", alignItems: "center" }}>
+                          <Stack direction="row" spacing={0.5} sx={{ display: "inline-flex", alignItems: "center" }}>
                             <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "12px", color: "#CBD5E1", fontFamily: "monospace" }}>
                               {accDisplay}
                             </Typography>
-                            <CopyButton value={rawAcc} tooltipTitle="Copy Account Number" iconFontSize={13} />
+                            {accDisplay !== "--" && (
+                              <CopyButton value={accDisplay} tooltipTitle="Copy A/C No" iconFontSize={13} />
+                            )}
                           </Stack>
                         </TableCell>
 
-                        {/* 6. Amount */}
+                        {/* 6. Amt */}
                         <TableCell align="right" sx={{ fontWeight: 700, color: "#10B981", fontSize: "13px" }}>
                           ₹{amtVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </TableCell>
 
-                        {/* 7. Mode */}
+                        {/* 7. Fee */}
+                        <TableCell align="right" sx={{ color: "#CBD5E1", fontSize: "12px" }}>
+                          ₹{feeVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </TableCell>
+
+                        {/* 8. Tax */}
+                        <TableCell align="right" sx={{ color: "#CBD5E1", fontSize: "12px" }}>
+                          ₹{taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </TableCell>
+
+                        {/* 9. Debit */}
+                        <TableCell align="right" sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "12.5px" }}>
+                          ₹{debitVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </TableCell>
+
+                        {/* 10. Mode */}
                         <TableCell align="center">
                           <Chip
-                            label={row.payment_mode || "IMPS"}
+                            label={modeDisplay}
                             size="small"
                             sx={{
                               bgcolor: "rgba(37, 99, 235, 0.15)",
@@ -1916,46 +1970,29 @@ export const RetailerPayoutReport: React.FC = () => {
                           />
                         </TableCell>
 
-                        {/* 8. UTR */}
+                        {/* 11. UTR */}
                         <TableCell>
-                          <Stack direction="row" spacing={0.3} sx={{ display: "inline-flex", alignItems: "center" }}>
-                            <Tooltip title={utrDisplay} arrow placement="top">
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  fontFamily: "monospace",
-                                  fontSize: "12px",
-                                  color: utrDisplay && utrDisplay !== "--" ? "#4ADE80" : "#64748B",
-                                }}
-                              >
-                                {utrDisplay.length > 14 ? `${utrDisplay.substring(0, 11)}...` : utrDisplay}
-                              </Typography>
-                            </Tooltip>
+                          <Stack direction="row" spacing={0.5} sx={{ display: "inline-flex", alignItems: "center" }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontFamily: "monospace",
+                                fontSize: "12px",
+                                color: utrDisplay && utrDisplay !== "--" ? "#4ADE80" : "#64748B",
+                              }}
+                            >
+                              {utrDisplay}
+                            </Typography>
                             {utrDisplay && utrDisplay !== "--" && (
                               <CopyButton value={utrDisplay} tooltipTitle="Copy UTR" iconFontSize={13} />
                             )}
                           </Stack>
                         </TableCell>
 
-                        {/* 9. Tax */}
-                        <TableCell align="right" sx={{ color: "#CBD5E1", fontSize: "12px" }}>
-                          ₹{taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </TableCell>
-
-                        {/* 10. Date & Time */}
-                        <TableCell sx={{ color: "#94A3B8", fontSize: "12px" }}>
-                          {row.initiated_at || "--"}
-                        </TableCell>
-
-                        {/* 11. Fee */}
-                        <TableCell align="right" sx={{ color: "#CBD5E1", fontSize: "12px" }}>
-                          ₹{feeVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </TableCell>
-
-                        {/* 12. Wallet Type */}
+                        {/* 12. Wallet */}
                         <TableCell align="center">
                           <Chip
-                            label={walletTypeDisplay}
+                            label={walletDisplay}
                             size="small"
                             sx={{
                               bgcolor: "rgba(255, 255, 255, 0.06)",
@@ -1967,17 +2004,17 @@ export const RetailerPayoutReport: React.FC = () => {
                           />
                         </TableCell>
 
-                        {/* 13. Debit */}
-                        <TableCell align="right" sx={{ fontWeight: 700, color: "#F8FAFC", fontSize: "12.5px" }}>
-                          ₹{debitVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        {/* 13. Date/Time */}
+                        <TableCell sx={{ color: "#94A3B8", fontSize: "12px" }}>
+                          {dateTimeDisplay}
                         </TableCell>
 
-                        {/* 14. Commission */}
-                        <TableCell align="right" sx={{ color: "#34D399", fontWeight: 700, fontSize: "12px" }}>
-                          ₹{commVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        {/* 14. Status */}
+                        <TableCell align="center">
+                          {renderStatusBadge(statusDisplay)}
                         </TableCell>
 
-                        {/* Actions */}
+                        {/* 15. Actions */}
                         <TableCell align="center">
                           <Stack direction="row" spacing={0.5} sx={{ justifyContent: "center", alignItems: "center" }}>
                             <Button

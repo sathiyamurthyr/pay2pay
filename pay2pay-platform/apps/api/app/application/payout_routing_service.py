@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Enterprise Payout Gateway Routing & Controller Service.
 Manages persistent provider configurations, admin priority switching,
@@ -199,7 +200,7 @@ class PayoutRoutingService:
         tenant_id: Optional[uuid.UUID] = None
     ) -> str:
         """
-        Determines the active primary payout provider (e.g. 'WOWPE' or 'BULKPE')
+        Determines the active primary payout provider (e.g. 'WOWPE', 'BULKPE', or 'UTKALDIGITAL')
         based on active Admin policy and gateway status.
         """
         policy = await cls.get_routing_policy(db, tenant_id)
@@ -426,3 +427,4 @@ class PayoutRoutingService:
 
         await db.commit()
         return balances
+

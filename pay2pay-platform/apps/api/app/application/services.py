@@ -2396,7 +2396,8 @@ class RetailerManagementService:
         from app.infrastructure.db.verification_models import RetailerVerificationModel
         from app.infrastructure.db.registration_models import (
             RegistrationDraftModel, RegistrationPanModel, RegistrationGstModel,
-            RegistrationBankModel, RegistrationShopModel, RegistrationAddressModel
+            RegistrationBankModel, RegistrationShopModel, RegistrationAddressModel,
+            RegistrationAadhaarModel, RegistrationDocumentModel
         )
         try:
             verifs = (await db.execute(select(RetailerVerificationModel))).scalars().all()
@@ -2536,8 +2537,8 @@ class RetailerManagementService:
                     company_id=use_tenant,
                     retailer_id=new_ret_id,
                     wallet_balance=0.0,
-                    daily_transaction_limit=100000.0,
-                    single_transaction_limit=25000.0,
+                    daily_transaction_limit=5000000.0,
+                    single_transaction_limit=500000.0,
                     created_by="Self-Onboarding Registration"
                 )
                 db.add(wallet_obj)
@@ -2955,6 +2956,21 @@ class RetailerManagementService:
                                     "email": rm_obj.email,
                                     "designation": rm_obj.designation
                                 }
+
+        # Direct RM mapped on retailer
+        if not assigned_rm and r.rm_id:
+            rm_stmt = select(RegionalManagerModel).where(RegionalManagerModel.public_id == r.rm_id, RegionalManagerModel.is_deleted == False)
+            rm_obj = (await db.execute(rm_stmt)).scalars().first()
+            if rm_obj:
+                assigned_rm = {
+                    "public_id": str(rm_obj.public_id),
+                    "full_name": rm_obj.full_name,
+                    "rm_name": rm_obj.full_name,
+                    "employee_code": rm_obj.employee_code,
+                    "mobile": rm_obj.mobile,
+                    "email": rm_obj.email,
+                    "designation": rm_obj.designation
+                }
 
         # Resolve Company
         lookup_comp_id = r.company_id

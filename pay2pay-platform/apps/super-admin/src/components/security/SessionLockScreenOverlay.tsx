@@ -284,22 +284,6 @@ export const SessionLockScreenOverlay: React.FC = () => {
 
   if (!isLocked) return null;
 
-  if (typeof window !== "undefined") {
-    const path = (window.location.pathname || "").toLowerCase();
-    const isAuthPage =
-      path.includes("/login") ||
-      path.includes("/register") ||
-      path.includes("/forgot") ||
-      path.includes("/reset-password") ||
-      path === "/";
-    const token =
-      localStorage.getItem("pay2pay_auth_token") ||
-      localStorage.getItem("pay2pay_access_token");
-    if (isAuthPage || !token) {
-      return null;
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 select-none overflow-y-auto animate-fade-in">
       {/* ── 1. DYNAMIC 4K WALLPAPER BACKGROUND WITH BLURHASH PLACEHOLDER ── */}

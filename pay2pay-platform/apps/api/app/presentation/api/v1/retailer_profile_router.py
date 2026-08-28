@@ -154,82 +154,71 @@ class PinChangeRequest(BaseModel):
 
 async def resolve_retailer_context(request: Request, retailer_id: Optional[str], db: AsyncSession):
     """
-    Authorizes and extracts the verified retailer context from session/token/database.
-    Resolves seamlessly across onboarding tables, auth tables, and session contexts.
+    Authorizes and extracts the verified retailer context strictly from validated session/token.
     """
-    import jwt
     cookies = request.cookies if request else {}
     auth_header = request.headers.get("authorization", "") if request else ""
-    if not auth_header and request:
-        cookie_token = cookies.get("p2p_session") or cookies.get("access_token") or cookies.get("pay2pay_session") or cookies.get("token")
-        if cookie_token:
-            auth_header = f"Bearer {cookie_token}"
-
-    target_ident = retailer_id or cookies.get("p2p_active_retailer_id") or cookies.get("p2p_retailer_id")
-    clean_mobile = ""
-    session_user_id = None
-    session_email = None
-
-    if not clean_mobile:
-        mob_cookie = cookies.get("pay2pay_reg_mobile") or cookies.get("p2p_mobile")
-        if mob_cookie:
-            raw_digits = re.sub(r"\D", "", str(mob_cookie))
-            if len(raw_digits) >= 10:
-                clean_mobile = raw_digits[-10:]
-
-    if target_ident:
-        raw_digits = re.sub(r"\D", "", str(target_ident))
-        if len(raw_digits) >= 10:
-            clean_mobile = raw_digits[-10:]
-
-    if auth_header:
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.replace("Bearer ", "").strip()
-        try:
-            payload = jwt.decode(token, options={"verify_signature": False})
-            sub = payload.get("sub")
-            email = payload.get("email")
-            mobile = payload.get("mobile") or payload.get("phone")
-            session_email = email
+    if not token:
+        token = cookies.get("p2p_access_token") or cookies.get("pay2pay_access_token") or cookies.get("pay2pay_auth_token") or cookies.get("access_token")
 
-            if mobile:
-                clean_mobile = str(mobile)[-10:]
-            if not target_ident:
-                if payload.get("retailer_id"):
-                    target_ident = payload.get("retailer_id")
-                elif payload.get("registration_id"):
-                    target_ident = payload.get("registration_id")
+    if not token or len(token) < 10:
+        raise HTTPException(status_code=401, detail="Authentication credentials were not provided")
 
-            if sub:
-                # 1. Check auth_users table
-                u_res = await db.execute(text("SELECT mobile_number, email, full_name FROM auth_users WHERE user_id::text = :sub OR public_id::text = :sub OR email = :sub"), {"sub": str(sub)})
-                u_row = u_res.mappings().first()
-                if u_row:
-                    if u_row.get("mobile_number"):
-                        clean_mobile = str(u_row["mobile_number"])[-10:]
-                    session_email = u_row.get("email") or session_email
+    from app.core.security import decode_access_token
+    from app.infrastructure.db.models import UserSessionModel
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired authentication token")
 
-                # 2. Check admin_user table
-                a_res = await db.execute(text("SELECT phone, email, full_name FROM admin_user WHERE public_id::text = :sub OR id::text = :sub OR email = :sub"), {"sub": str(sub)})
-                a_row = a_res.mappings().first()
-                if a_row:
-                    if a_row.get("phone"):
-                        clean_mobile = str(a_row["phone"])[-10:]
-                    session_email = a_row.get("email") or session_email
+    # Check if session JTI is revoked
+    jti = payload.get("jti")
+    if jti:
+        stmt = select(UserSessionModel).where(
+            UserSessionModel.token_jti == jti,
+            UserSessionModel.is_revoked == True
+        )
+        revoked_session = (await db.execute(stmt)).scalars().first()
+        if revoked_session:
+            raise HTTPException(status_code=401, detail="Session has been revoked or logged out")
 
-                # 3. Check retailer_verifications
-                v_res = await db.execute(text("SELECT registration_id, mobile_number, email FROM retailer_verifications WHERE public_id::text = :sub OR retailer_id = :sub OR registration_id = :sub"), {"sub": str(sub)})
-                v_row = v_res.mappings().first()
-                if v_row:
-                    target_ident = v_row["registration_id"]
-                    clean_mobile = str(v_row["mobile_number"])[-10:]
-                    session_email = v_row.get("email") or session_email
-        except Exception as e:
-            logger.warning(f"JWT decode notice: {e}")
+    sub = payload.get("sub")
+    email = payload.get("email")
+    mobile = payload.get("mobile") or payload.get("phone")
+    clean_mobile = str(mobile)[-10:] if mobile else ""
+    session_email = email
+    target_ident = payload.get("retailer_id") or payload.get("registration_id")
+    session_user_id = sub
 
-    # Fallback to active retailer RET-10928 if no identifier found
+    if sub:
+        # 1. Check auth_users table
+        u_res = await db.execute(text("SELECT mobile_number, email, full_name FROM auth_users WHERE user_id::text = :sub OR public_id::text = :sub OR email = :sub"), {"sub": str(sub)})
+        u_row = u_res.mappings().first()
+        if u_row:
+            if u_row.get("mobile_number"):
+                clean_mobile = str(u_row["mobile_number"])[-10:]
+            session_email = u_row.get("email") or session_email
+
+        # 2. Check admin_user table
+        a_res = await db.execute(text("SELECT phone, email, full_name FROM admin_user WHERE public_id::text = :sub OR id::text = :sub OR email = :sub"), {"sub": str(sub)})
+        a_row = a_res.mappings().first()
+        if a_row:
+            if a_row.get("phone"):
+                clean_mobile = str(a_row["phone"])[-10:]
+            session_email = a_row.get("email") or session_email
+
+        # 3. Check retailer_verifications
+        v_res = await db.execute(text("SELECT registration_id, mobile_number, email FROM retailer_verifications WHERE public_id::text = :sub OR retailer_id = :sub OR registration_id = :sub"), {"sub": str(sub)})
+        v_row = v_res.mappings().first()
+        if v_row:
+            target_ident = v_row["registration_id"]
+            clean_mobile = str(v_row["mobile_number"])[-10:]
+            session_email = v_row.get("email") or session_email
+
     if not target_ident and not clean_mobile:
-        target_ident = "RET-10928"
-        clean_mobile = "9176669426"
+        target_ident = str(sub)
 
     # Map target_ident or clean_mobile to exact registration_id if not already REG-*
     if target_ident or clean_mobile:
@@ -246,8 +235,6 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
         if target_ident:
             v_conds.append(RetailerVerificationModel.retailer_id == str(target_ident))
             v_conds.append(RetailerVerificationModel.registration_id == str(target_ident))
-            if str(target_ident) == "RET-10928":
-                v_conds.append(RetailerVerificationModel.mobile_number.like("%9176669426%"))
         if clean_mobile and len(clean_mobile) == 10:
             v_conds.append(RetailerVerificationModel.mobile_number == clean_mobile)
             v_conds.append(RetailerVerificationModel.mobile_number == f"+91{clean_mobile}")

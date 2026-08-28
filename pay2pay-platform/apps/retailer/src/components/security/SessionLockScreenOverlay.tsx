@@ -200,7 +200,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
   const companyName = walletData?.company_name || "Pay2Pay Enterprise";
   const retailerName = walletData?.owner_name || walletData?.retailer_name || "Retailer Partner";
   const retailerCode = walletData?.retailer_code || (walletData as any)?.user_code || "RET-9182";
-  const currentWallpaper = CURATED_4K_WALLPAPERS[currentWallpaperIndex];
+  const currentWallpaper = CURATED_4K_WALLPAPERS[currentWallpaperIndex] || CURATED_4K_WALLPAPERS[0];
 
   // Handle PIN Unlock Submission
   const handleUnlockSubmit = async (e?: React.FormEvent) => {
@@ -283,22 +283,6 @@ export const SessionLockScreenOverlay: React.FC = () => {
   const isLight = effectiveTheme === "light";
 
   if (!isLocked) return null;
-
-  if (typeof window !== "undefined") {
-    const path = (window.location.pathname || "").toLowerCase();
-    const isAuthPage =
-      path.includes("/login") ||
-      path.includes("/register") ||
-      path.includes("/forgot") ||
-      path.includes("/reset-password") ||
-      path === "/";
-    const token =
-      localStorage.getItem("pay2pay_auth_token") ||
-      localStorage.getItem("pay2pay_access_token");
-    if (isAuthPage || !token) {
-      return null;
-    }
-  }
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 select-none overflow-y-auto animate-fade-in">
@@ -389,7 +373,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
           }}
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm">
-            {retailerName.charAt(0).toUpperCase()}
+            {retailerName ? String(retailerName).charAt(0).toUpperCase() : "R"}
           </div>
           <div className="min-w-0 text-left">
             <p className={`text-xs font-extrabold truncate ${isLight ? "text-slate-900" : "text-white"}`}>

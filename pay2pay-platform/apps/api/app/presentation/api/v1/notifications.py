@@ -191,19 +191,31 @@ async def mark_all_notifications_read(
     db: AsyncSession = Depends(get_db)
 ):
     u_id_str = user_id or payload.get("sub")
-    if not u_id_str or u_id_str == "00000000-0000-0000-0000-000000000000":
-        u_id_str = "00000000-0000-0000-0000-000000000001"
+    u_uuid = None
+    if u_id_str:
+        if str(u_id_str).startswith("RET-"):
+            from app.infrastructure.db.models import RetailerModel
+            ret_row = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == str(u_id_str)).limit(1))).scalar_one_or_none()
+            if ret_row:
+                u_uuid = ret_row.public_id
+        else:
+            try:
+                u_uuid = uuid.UUID(str(u_id_str))
+            except Exception:
+                pass
 
-    try:
-        u_uuid = uuid.UUID(str(u_id_str))
-    except Exception:
-        u_uuid = uuid.UUID("00000000-0000-0000-0000-000000000001")
+    if not u_uuid or str(u_uuid) == "00000000-0000-0000-0000-000000000000":
+        u_uuid = uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e")
 
     stmt = (
         update(UserNotificationAlertModel)
         .where(
             and_(
-                UserNotificationAlertModel.user_id == u_uuid,
+                or_(
+                    UserNotificationAlertModel.user_id == u_uuid,
+                    UserNotificationAlertModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                    UserNotificationAlertModel.user_id == uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e"),
+                ),
                 UserNotificationAlertModel.is_read == False
             )
         )
@@ -359,4 +371,3 @@ async def get_communication_timeline(
 async def list_notification_events(db: AsyncSession = Depends(get_db)):
     events = await NotificationService.list_events(db)
     return APIResponse(data=[e.model_dump() for e in events])
-

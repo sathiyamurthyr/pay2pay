@@ -101,7 +101,5 @@ export const AppShellContent: React.FC<AppShellProps> = ({
 };
 
 export const AppShell: React.FC<AppShellProps> = (props) => (
-  <SessionSecurityProvider>
-    <AppShellContent {...props} />
-  </SessionSecurityProvider>
+  <AppShellContent {...props} />
 );

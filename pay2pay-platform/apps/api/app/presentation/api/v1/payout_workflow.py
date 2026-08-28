@@ -76,7 +76,7 @@ class CheckDuplicateAccountReq(BaseModel):
 class PrecheckReq(BaseModel):
     customer_id: uuid.UUID
     amount: float
-    wallet_balance: float = 50000.0
+    wallet_balance: float = 0.0
 
 class PinVerifyReq(BaseModel):
     customer_id: uuid.UUID
@@ -87,7 +87,7 @@ class PayoutExecuteReq(BaseModel):
     beneficiary_id: uuid.UUID
     amount: float
     mode: Optional[str] = "IMPS"
-    wallet_balance: float = 50000.0
+    wallet_balance: float = 0.0
 
 
 import logging

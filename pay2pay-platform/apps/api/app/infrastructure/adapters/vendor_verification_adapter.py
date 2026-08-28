@@ -2,7 +2,6 @@
 EPIC — Production Beneficiary Verification Vendor Adapter Pattern
 Supported Vendors:
 - Cashfree (Official Cashfree Payout Bank Account Verification API)
-- WowPe (Official WowPe Account Validation API)
 - Razorpay
 - Paytm
 - InternalSwitch
@@ -59,6 +58,7 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
     if n1 == n2:
         return 100.0
 
+    # Token overlap score calculation
     tokens1 = set(n1.split())
     tokens2 = set(n2.split())
     if not tokens1 or not tokens2:
@@ -157,6 +157,7 @@ class CashfreeVerificationAdapter(BaseVerificationVendorAdapter):
             return self._generate_fallback_response(account_number, ifsc_code, account_holder_name, ref_id, latency_ms)
 
     def _generate_fallback_response(self, account_number: str, ifsc: str, name: str, ref_id: str, latency_ms: float) -> VerificationVendorResult:
+        # Check invalid account pattern (accounts ending with 0000 are treated as non-existent)
         account_valid = not account_number.endswith("0000")
         if account_valid:
             name_returned = name.strip().upper()
@@ -280,3 +281,4 @@ class VendorAdapterRegistry:
     @classmethod
     def get_adapter(cls, vendor_code: str = "CASHFREE") -> BaseVerificationVendorAdapter:
         return cls._adapters.get(vendor_code.upper(), cls._adapters["CASHFREE"])
+

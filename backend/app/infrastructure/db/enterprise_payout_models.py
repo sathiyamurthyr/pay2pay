@@ -1,7 +1,7 @@
 import uuid
 import enum
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from sqlalchemy import (
     String, Boolean, Float, Integer, DateTime, Text, ForeignKey, UniqueConstraint, Enum, JSON
 )
@@ -62,7 +62,12 @@ class EnterprisePayoutTransactionModel(BaseEntity, EnterpriseBaseMixin):
     gst_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     tds_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     vendor_charge: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    company_charges: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    company_gst: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    other_charges: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     company_revenue: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    pricing_slab_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    pricing_snapshot: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     
     wallet_before: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     wallet_after: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)

@@ -178,13 +178,58 @@ class CentralTransactionService:
                 }
 
         # =====================================================================
-        # 2. Financial Breakdown Calculation
+        # 2. Dynamic Financial Breakdown Calculation via Admin Payout Slab
         # =====================================================================
-        charges = round(amount * 0.005 + 5.0, 2)  # 0.5% + Rs 5 fee
-        gst_amount = round(charges * 0.18, 2)     # 18% GST
-        commission = round(amount * 0.002, 2)     # 0.2% Commission
-        tds_amount = round(commission * 0.05, 2)   # 5% TDS
-        net_amount = round(amount + charges + gst_amount, 2)
+        from app.infrastructure.db.payout_slab_model import PayoutSlabModel
+        from decimal import Decimal, ROUND_HALF_UP
+
+        amount_d = Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        stmt_slab = select(PayoutSlabModel).where(
+            PayoutSlabModel.service_code == service_type,
+            PayoutSlabModel.min_amount <= amount_d,
+            PayoutSlabModel.max_amount >= amount_d,
+            PayoutSlabModel.is_active == True,
+            PayoutSlabModel.is_deleted == False
+        ).order_by(PayoutSlabModel.effective_from.desc())
+        slab_obj = (await db.execute(stmt_slab)).scalars().first()
+
+        if slab_obj:
+            comm_val = Decimal(str(slab_obj.commission or 0.0))
+            if str(slab_obj.commission_type or "FIXED").upper() == "PERCENTAGE":
+                comm_val = (amount_d * comm_val / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            
+            vc_val = Decimal(str(slab_obj.vendor_charge or 0.0))
+            if str(slab_obj.vendor_charge_type or "FIXED").upper() == "PERCENTAGE":
+                vc_val = (amount_d * vc_val / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+            oth_val = Decimal(str(slab_obj.other_charges or 0.0))
+            if str(slab_obj.other_charges_type or "FIXED").upper() == "PERCENTAGE":
+                oth_val = (amount_d * oth_val / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+            gst_rate = Decimal(str(slab_obj.gst or 0.0))
+            gst_base = comm_val + vc_val + oth_val
+            if str(slab_obj.gst_type or "PERCENTAGE").upper() == "PERCENTAGE":
+                gst_val = (gst_base * gst_rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            else:
+                gst_val = gst_rate
+
+            tds_rate = Decimal(str(slab_obj.tds or 0.0))
+            if str(slab_obj.tds_type or "PERCENTAGE").upper() == "PERCENTAGE":
+                tds_val = (comm_val * tds_rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            else:
+                tds_val = tds_rate
+
+            charges = float(comm_val + vc_val + oth_val)
+            gst_amount = float(gst_val)
+            commission = float(comm_val)
+            tds_amount = float(tds_val)
+            net_amount = float((amount_d + comm_val + vc_val + oth_val + gst_val).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+        else:
+            charges = 0.0
+            gst_amount = 0.0
+            commission = 0.0
+            tds_amount = 0.0
+            net_amount = float(amount_d)
 
         # =====================================================================
         # 3. Dynamic Reference Generation
@@ -301,44 +346,49 @@ class CentralTransactionService:
                 details={"vendor_code": v_code}
             )
 
-            if v_code == "WOWPE":
-                try:
-                    payout_res = await WowPeApiClient.initiate_payout(
-                        merchant_ref=txn_ref,
-                        account_number=recipient_account,
-                        ifsc_code=recipient_ifsc,
-                        account_holder=recipient_name or "Retailer Beneficiary",
-                        amount=amount,
-                        mode=transfer_mode,
-                        mobile=recipient_mobile or "9876543210"
-                    )
+            from app.application.payout_vendor_adapter import PayoutVendorAdapterFactory, SimulatedVendorAdapter
+            vendor_adapter = PayoutVendorAdapterFactory.get_adapter()
 
-                    res_status = payout_res.get("status")
-                    if res_status in ("SUCCESS", "PENDING") or payout_res.get("success"):
-                        tx.status = res_status if res_status else "SUCCESS"
-                        tx.utr = payout_res.get("utr") or f"WOW{txn_ref}"
-                        tx.vendor_order_id = str(payout_res.get("order_id") or payout_res.get("vendor_tx_id") or "")
-                        tx.response_message = payout_res.get("message", "Payout executed successfully")
-                    else:
-                        tx.status = "FAILED"
-                        tx.response_message = payout_res.get("message", "Vendor execution rejected")
-                        # Auto-reversal ledger entry
-                        await cls.post_ledger_entry(
-                            db=db,
-                            transaction_reference=txn_ref,
-                            entry_type="CREDIT",
-                            account_type="RETAILER_WALLET",
-                            account_number=ret_acc,
-                            amount=net_amount,
-                            balance_before=100000.0 - net_amount,
-                            balance_after=100000.0,
-                            tenant_id=tid,
-                            transaction_id=tx_public_id,
-                            narration=f"Automatic refund for failed transaction {txn_ref}"
-                        )
-                except Exception as ex:
+            try:
+                payout_res = await vendor_adapter.initiate_payout(
+                    vendor_name=v_code,
+                    merchant_ref=txn_ref,
+                    account_number=recipient_account,
+                    ifsc_code=recipient_ifsc,
+                    account_holder=recipient_name or "Retailer Beneficiary",
+                    amount=amount,
+                    mode=transfer_mode,
+                    mobile=recipient_mobile or "9876543210",
+                    bank_name="Commercial Bank",
+                    sender_name="Retailer Beneficiary"
+                )
+
+                res_status = payout_res.get("status")
+                if res_status in ("SUCCESS", "PENDING") or payout_res.get("success"):
+                    tx.status = res_status if res_status else "SUCCESS"
+                    tx.utr = payout_res.get("utr") or f"TEST-UTR{txn_ref}"
+                    tx.vendor_order_id = str(payout_res.get("order_id") or payout_res.get("vendor_tx_id") or "")
+                    tx.response_message = payout_res.get("message", "Payout executed successfully")
+                else:
                     tx.status = "FAILED"
-                    tx.response_message = str(ex)
+                    tx.response_message = payout_res.get("message", "Gateway execution rejected")
+                    # Auto-reversal ledger entry
+                    await cls.post_ledger_entry(
+                        db=db,
+                        transaction_reference=txn_ref,
+                        entry_type="CREDIT",
+                        account_type="RETAILER_WALLET",
+                        account_number=ret_acc,
+                        amount=net_amount,
+                        balance_before=100000.0 - net_amount,
+                        balance_after=100000.0,
+                        tenant_id=tid,
+                        transaction_id=tx_public_id,
+                        narration=f"Automatic refund for failed transaction {txn_ref}"
+                    )
+            except Exception as ex:
+                tx.status = "FAILED"
+                tx.response_message = str(ex)
 
             await cls.log_audit(
                 db=db,

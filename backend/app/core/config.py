@@ -17,9 +17,20 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
-    # Environment
-    ENVIRONMENT: str = Field(default="production")
+    # Environment & Sandbox Settings
+    ENVIRONMENT: str = Field(default="development")
+    APP_ENV: str = Field(default="development")
     DEBUG: bool = Field(default=False)
+    
+    # ── Payout Vendor Sandbox & Simulation Configuration ─────────────────────
+    # Allowed modes: SIMULATED, LIVE
+    # In DEV/STAGING: SIMULATED is allowed and default.
+    # In PROD: LIVE only. Any attempt to enable simulation in PROD is strictly rejected.
+    PAYOUT_VENDOR_MODE: str = Field(default="SIMULATED")
+    PAYOUT_SIMULATION_ENABLED: bool = Field(default=True)
+    PAYOUT_SIMULATION_SUCCESS_PERCENT: int = Field(default=70)
+    PAYOUT_SIMULATION_PENDING_PERCENT: int = Field(default=20)
+    PAYOUT_SIMULATION_FAILED_PERCENT: int = Field(default=10)
     
     # Database
     DATABASE_URL: str = Field(
@@ -96,6 +107,56 @@ class Settings(BaseSettings):
     SUPPORT_HOURS: str = Field(default="Monday - Saturday | 09:00 AM - 07:00 PM IST")
     LIVE_CHAT_ENABLED: bool = Field(default=True)
     SUPPORT_URL: str = Field(default="https://pay2pay.in/support")
+
+    @property
+    def is_production(self) -> bool:
+        """Determines if the application is running in a live production environment."""
+        raw_env = (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or self.APP_ENV or self.ENVIRONMENT).strip().lower()
+        return raw_env in ("production", "prod", "live")
+
+    @property
+    def is_payout_simulation_active(self) -> bool:
+        """
+        STRICT ENVIRONMENT SAFEGUARD:
+        In PROD: Simulation is strictly disabled and rejected.
+        In DEV/STAGING: Simulation is enabled if configured.
+        """
+        # Hard production safeguard: NEVER simulate in production
+        if self.is_production:
+            return False
+
+        mode = (os.getenv("PAYOUT_VENDOR_MODE") or self.PAYOUT_VENDOR_MODE).strip().upper()
+        sim_env = os.getenv("PAYOUT_SIMULATION_ENABLED")
+        if sim_env is not None:
+            sim_enabled = sim_env.strip().lower() in ("true", "1", "yes")
+        else:
+            sim_enabled = self.PAYOUT_SIMULATION_ENABLED
+
+        return sim_enabled or mode == "SIMULATED"
+
+    @property
+    def simulation_probabilities(self) -> dict:
+        """Returns validated percentage weights for simulator outcome distribution."""
+        try:
+            s_pct = int(os.getenv("PAYOUT_SIMULATION_SUCCESS_PERCENT") or self.PAYOUT_SIMULATION_SUCCESS_PERCENT)
+            p_pct = int(os.getenv("PAYOUT_SIMULATION_PENDING_PERCENT") or self.PAYOUT_SIMULATION_PENDING_PERCENT)
+            f_pct = int(os.getenv("PAYOUT_SIMULATION_FAILED_PERCENT") or self.PAYOUT_SIMULATION_FAILED_PERCENT)
+        except (ValueError, TypeError):
+            s_pct, p_pct, f_pct = 70, 20, 10
+
+        total = s_pct + p_pct + f_pct
+        if total <= 0:
+            s_pct, p_pct, f_pct = 70, 20, 10
+            total = 100
+
+        return {
+            "SUCCESS": s_pct,
+            "PENDING": p_pct,
+            "FAILED": f_pct,
+            "SUCCESS_PCT": round((s_pct / total) * 100, 1),
+            "PENDING_PCT": round((p_pct / total) * 100, 1),
+            "FAILED_PCT": round((f_pct / total) * 100, 1),
+        }
 
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"),

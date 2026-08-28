@@ -76,7 +76,7 @@ async def resolve_retailer_context(
                 raise HTTPException(status_code=401, detail="Session has been revoked or logged out")
 
     clean_mobile = ""
-    target_ident = payload.get("retailer_id") or payload.get("registration_id")
+    target_ident = retailer_id or payload.get("retailer_id") or payload.get("registration_id")
     ret_model = None
     verif = None
 
@@ -510,6 +510,24 @@ async def get_fast_wallet_balance(
                 wallet_balance = float(w_res)
         except Exception as e:
             logger.warning(f"Fast wallet lookup notice: {e}")
+    elif ctx.get("retailer_id"):
+        try:
+            target_code = ctx.get("retailer_id")
+            ret_lookup = select(RetailerModel.public_id).where(
+                or_(
+                    RetailerModel.retailer_code == target_code,
+                    RetailerModel.retailer_code.ilike(f"%{target_code}%")
+                ),
+                RetailerModel.is_deleted == False
+            )
+            ret_pid = (await db.execute(ret_lookup)).scalar()
+            if ret_pid:
+                wal_stmt = select(RetailerWalletModel.wallet_balance).where(RetailerWalletModel.retailer_id == ret_pid)
+                w_res = (await db.execute(wal_stmt)).scalar()
+                if w_res is not None:
+                    wallet_balance = float(w_res)
+        except Exception as e:
+            logger.warning(f"Fast wallet fallback lookup notice: {e}")
 
     return {
         "success": True,

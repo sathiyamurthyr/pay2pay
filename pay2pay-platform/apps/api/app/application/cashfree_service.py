@@ -124,7 +124,7 @@ class CashfreeVerificationService:
                 "pan": clean_pan,
                 "type": pan_type,
                 "valid": False,
-                "message": "Unable to verify PAN details at this time. Please try again later.",
+                "message": f"PAN verification error: {err}",
             }
 
 
@@ -165,7 +165,7 @@ class CashfreeVerificationService:
                 "status": "VALID",
                 "aadhaar_number": f"XXXXXXXX{clean_aadhaar[-4:]}",
                 "ref_id": f"CF-{clean_aadhaar[-4:]}",
-                "message": "Aadhaar verification processed.",
+                "message": f"Aadhaar verification response: {err}",
             }
 
     @classmethod
@@ -208,7 +208,7 @@ class CashfreeVerificationService:
                     elif status_code_detail == "ACCOUNT_BLOCKED":
                         rej_msg = "Bank account is blocked or inactive."
                     else:
-                        rej_msg = data.get("message") or "Beneficiary bank account verification failed."
+                        rej_msg = data.get("message") or f"Bank account verification rejected: {account_status}"
 
                     return {
                         "status": "FAILED",
@@ -233,12 +233,12 @@ class CashfreeVerificationService:
                     "name_at_bank": name_at_bank.upper(),
                     "ref_id": ref_id,
                     "utr": utr,
-                    "message": data.get("message") or "Bank Account verified successfully.",
+                    "message": data.get("message") or "Bank Account verified successfully via Cashfree V2 Penny Drop",
                     "raw_response": data,
                     "http_status_code": res.status_code,
                 }
             else:
-                err_msg = data.get("message") or (data.get("error", {}) if isinstance(data.get("error"), dict) else {}).get("message") or "Bank verification service temporarily unavailable."
+                err_msg = data.get("message") or (data.get("error", {}) if isinstance(data.get("error"), dict) else {}).get("message") or f"Cashfree API Error (HTTP {res.status_code})"
                 if data.get("code") == "beneficiary_bank_offline":
                     err_msg = "Beneficiary bank server is currently offline or under maintenance. Please try again later."
                 elif data.get("code") == "ifsc_value_invalid":
@@ -266,7 +266,7 @@ class CashfreeVerificationService:
                 "status": "FAILED",
                 "account_status": "ERROR",
                 "is_valid": False,
-                "message": "Unable to connect to the bank verification service. Please try again later.",
+                "message": f"Cashfree Gateway Connection Error: {str(err)}",
                 "raw_response": {"error": str(err)},
                 "http_status_code": 502,
             }

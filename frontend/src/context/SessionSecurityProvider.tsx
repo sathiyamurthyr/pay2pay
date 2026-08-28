@@ -46,18 +46,35 @@ const DEFAULT_SETTINGS: SecuritySettings = {
   biometric_enabled: false,
 };
 
-export const hasAuthToken = (): boolean => {
-  if (typeof window === "undefined") return false;
+export const getAuthToken = (): string | null => {
+  if (typeof window === "undefined") return null;
   try {
-    const token =
-      localStorage.getItem("pay2pay_auth_token") ||
+    const lsToken =
+      localStorage.getItem("p2p_access_token") ||
       localStorage.getItem("pay2pay_access_token") ||
-      (document.cookie.includes("pay2pay_auth_token") ? "cookie_token" : "") ||
-      (document.cookie.includes("p2p_access_token") ? "cookie_token" : "");
-    return Boolean(token && token.trim() !== "");
+      localStorage.getItem("pay2pay_auth_token") ||
+      localStorage.getItem("access_token");
+    if (lsToken && lsToken.trim() !== "") return lsToken.trim();
+
+    const cookies = document.cookie.split("; ");
+    for (const c of cookies) {
+      if (
+        c.startsWith("p2p_access_token=") ||
+        c.startsWith("pay2pay_access_token=") ||
+        c.startsWith("pay2pay_auth_token=")
+      ) {
+        const val = c.split("=")[1]?.trim();
+        if (val) return val;
+      }
+    }
+    return null;
   } catch (e) {
-    return false;
+    return null;
   }
+};
+
+export const hasAuthToken = (): boolean => {
+  return Boolean(getAuthToken());
 };
 
 export const isPublicAuthRoute = (): boolean => {
@@ -359,11 +376,8 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     }
 
     try {
-      const baseUrl = getApiBaseUrl();
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("pay2pay_auth_token") || localStorage.getItem("pay2pay_access_token")
-          : null;
+      const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
+      const token = getAuthToken();
 
       const response = await axios.post(
         `${baseUrl}/api/v1/auth/verify-pin`,
@@ -424,8 +438,8 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     } catch (e) {}
 
     try {
-      const baseUrl = getApiBaseUrl();
-      const token = localStorage.getItem("pay2pay_auth_token");
+      const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
+      const token = getAuthToken();
       if (token) {
         await axios.put(`${baseUrl}/api/v1/users/me/security-settings`, updated, {
           headers: { Authorization: `Bearer ${token}` },
@@ -437,9 +451,8 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
   // Audit Logging Helper
   const logAuditEvent = (event_type: string, metadata: Record<string, any>) => {
     try {
-      const baseUrl = getApiBaseUrl();
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("pay2pay_auth_token") : null;
+      const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
+      const token = getAuthToken();
       if (token) {
         axios.post(
           `${baseUrl}/api/v1/compliance/audit-logs`,
