@@ -277,13 +277,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         if (lsCode && !isUuid(lsCode)) resolvedCode = lsCode;
       }
       if (!resolvedCode) {
-        resolvedCode = "RET-10928";
+        resolvedCode = "RET-ACTIVE";
       }
+
+      const storedOwner = typeof window !== "undefined" ? (localStorage.getItem("p2p_user_name") || localStorage.getItem("p2p_owner_name") || localStorage.getItem("pay2pay_user_name")) : "";
+      const storedStore = typeof window !== "undefined" ? (localStorage.getItem("p2p_store_name") || localStorage.getItem("pay2pay_store_name")) : "";
 
       setProfileDetails((prev) => ({
         ...prev,
-        owner_name: rInfo.owner_name || "Sathiya Murthy",
-        retailer_name: (rInfo.retailer_name && rInfo.retailer_name !== "Retailer Store") ? rInfo.retailer_name : (rInfo.company_name || rInfo.store_name || "Sathus Pay Store"),
+        owner_name: rInfo.owner_name || storedOwner || "Merchant Owner",
+        retailer_name: (rInfo.retailer_name && rInfo.retailer_name !== "Retailer Store") ? rInfo.retailer_name : (rInfo.company_name || rInfo.store_name || storedStore || "Merchant Store"),
         retailer_code: resolvedCode,
         photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || `/api/v1/retailer/profile/photo-image?retailer_id=${encodeURIComponent(resolvedCode)}`,
         approval_status: rInfo.approval_status || "ACTIVE",

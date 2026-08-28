@@ -295,11 +295,41 @@ export const RetailerTransactionReport: React.FC = () => {
       if (toDate) params.append("to_date", toDate);
       if (globalSearch.trim()) params.append("search", globalSearch.trim());
 
-      const res = await fetch(`${baseUrl}/reports/transactions?${params.toString()}`);
+      const token = typeof window !== "undefined" ? (
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("pay2pay_auth_token") ||
+        localStorage.getItem("access_token") ||
+        document.cookie.split("; ").find(r => r.startsWith("p2p_access_token=") || r.startsWith("pay2pay_access_token="))?.split("=")[1] ||
+        ""
+      ) : "";
+
+      const activeRetailer = typeof window !== "undefined" ? (
+        localStorage.getItem("p2p_active_retailer_id") ||
+        localStorage.getItem("retailer_code") ||
+        localStorage.getItem("p2p_retailer_code") ||
+        ""
+      ) : "";
+
+      const headers: Record<string, string> = {};
+      if (token && token.trim().length > 10) {
+        headers["Authorization"] = `Bearer ${token.trim()}`;
+      }
+      if (activeRetailer) {
+        headers["x-retailer-code"] = activeRetailer;
+        headers["x-retailer-id"] = activeRetailer;
+        params.append("retailer_id", activeRetailer);
+      }
+
+      const res = await fetch(`${baseUrl}/reports/transactions?${params.toString()}`, {
+        headers,
+        credentials: "include",
+      });
+
       if (res.ok) {
         const json = await res.json();
         const rawItems = json.data?.items || json.items || [];
-        const total = json.data?.pagination?.total ?? json.data?.summary?.total_records ?? rawItems.length;
+        const total = json.data?.pagination?.total ?? json.data?.summary?.total_records ?? json.total ?? rawItems.length;
         
         const mappedItems: TransactionReportItem[] = rawItems.map((r: any) => ({
           id: r.id || r.txn_id,
@@ -308,12 +338,12 @@ export const RetailerTransactionReport: React.FC = () => {
           service: (r.service || "Payout").toUpperCase(),
           raw_service: r.raw_service || r.service,
           type: r.type || "IMPS",
-          customer_name: r.customer_name || "Sathiya Murthy R",
-          customer_mobile: r.customer_mobile || "9840192837",
-          beneficiary_name: r.beneficiary_name || "Sathiya Murthy R",
-          account_number: r.account_number || "0630104000156974",
-          bank_name: r.bank_name || "IDBI Bank",
-          ifsc_code: r.ifsc_code || "IBKL0000630",
+          customer_name: r.customer_name || "Direct Customer",
+          customer_mobile: r.customer_mobile || "-",
+          beneficiary_name: r.beneficiary_name || "Self / Beneficiary",
+          account_number: r.account_number || "-",
+          bank_name: r.bank_name || "-",
+          ifsc_code: r.ifsc_code || "-",
           amount: Number(r.amount) || 0,
           charges: Number(r.charges) || 0,
           commission: Number(r.commission) || 0,
@@ -341,7 +371,10 @@ export const RetailerTransactionReport: React.FC = () => {
         setTotalRecords(total);
 
         // Fetch Summary KPIs
-        const sumRes = await fetch(`${baseUrl}/reports/transactions/summary?${params.toString()}`);
+        const sumRes = await fetch(`${baseUrl}/reports/transactions/summary?${params.toString()}`, {
+          headers,
+          credentials: "include",
+        });
         if (sumRes.ok) {
           const sumJson = await sumRes.json();
           const sData = sumJson.data || {};
@@ -381,7 +414,19 @@ export const RetailerTransactionReport: React.FC = () => {
     setDrawerLoading(true);
     try {
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/reports/transactions/${encodeURIComponent(item.txn_id)}/details`);
+      const token = typeof window !== "undefined" ? (
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("access_token") ||
+        ""
+      ) : "";
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token.trim()}`;
+
+      const res = await fetch(`${baseUrl}/reports/transactions/${encodeURIComponent(item.txn_id)}/details`, {
+        headers,
+        credentials: "include",
+      });
       if (res.ok) {
         const json = await res.json();
         setDrawerDetails(json.data || null);

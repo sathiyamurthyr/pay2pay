@@ -70,6 +70,7 @@ def build_unified_transactions_query(
     max_amount: Optional[float] = None,
     search: Optional[str] = None,
     retailer_id: Optional[str] = None,
+    retailer_code: Optional[str] = None,
     sort_by: str = "transaction_datetime",
     sort_dir: str = "desc",
     limit: Optional[int] = None,
@@ -92,10 +93,23 @@ def build_unified_transactions_query(
 
     outer_conditions = ["1=1"]
 
-    if retailer_id and str(retailer_id).upper() != "ALL":
-        outer_conditions.append("(u.retailer_id = :retailer_id OR u.retailer_id ILIKE :retailer_id_like OR u.customer_id = :retailer_id OR u.beneficiary_id = :retailer_id)")
-        params["retailer_id"] = str(retailer_id)
-        params["retailer_id_like"] = f"%{retailer_id}%"
+    if (retailer_id and str(retailer_id).upper() != "ALL") or (retailer_code and str(retailer_code).upper() != "ALL"):
+        ret_conds = []
+        if retailer_id and str(retailer_id).upper() != "ALL":
+            ret_conds.append("u.retailer_id = :retailer_id")
+            ret_conds.append("u.retailer_code = :retailer_id")
+            ret_conds.append("u.retailer_id ILIKE :retailer_id_like")
+            ret_conds.append("u.retailer_code ILIKE :retailer_id_like")
+            ret_conds.append("u.customer_id = :retailer_id")
+            ret_conds.append("u.beneficiary_id = :retailer_id")
+            params["retailer_id"] = str(retailer_id)
+            params["retailer_id_like"] = f"%{retailer_id}%"
+        if retailer_code and str(retailer_code).upper() != "ALL":
+            ret_conds.append("u.retailer_code = :retailer_code")
+            ret_conds.append("u.retailer_id = :retailer_code")
+            params["retailer_code"] = str(retailer_code)
+        if ret_conds:
+            outer_conditions.append(f"({' OR '.join(ret_conds)})")
 
     if service and service.upper() != "ALL":
         outer_conditions.append("UPPER(u.service) = :service")
@@ -222,11 +236,11 @@ def build_unified_transactions_query(
             COALESCE(t.utr, t.request_id, t.transaction_reference) AS provider_ref,
             'RETAILER_PORTAL' AS channel,
             COALESCE(t.customer_id::text, t.retailer_id::text) AS customer_id,
-            COALESCE(c.full_name, ret_t.store_name, ret_t.owner_name, ret_t.legal_name, 'Self / Retailer Wallet') AS customer_name,
-            COALESCE(c.mobile_number, '9840192837') AS customer_mobile,
+            COALESCE(c.full_name, ret_t.store_name, ret_t.owner_name, ret_t.legal_name, 'Direct Customer') AS customer_name,
+            COALESCE(c.mobile_number, 'N/A') AS customer_mobile,
             COALESCE(c.customer_status, 'ACTIVE') AS customer_status,
             COALESCE(t.beneficiary_id::text, t.retailer_id::text) AS beneficiary_id,
-            COALESCE(b.account_holder_name, b.registered_name_in_bank, bene.full_name, ret_t.store_name, ret_t.owner_name, ret_t.legal_name, 'Retailer Main Wallet') AS beneficiary_name,
+            COALESCE(b.account_holder_name, b.registered_name_in_bank, bene.full_name, ret_t.store_name, ret_t.owner_name, 'Self / Main Wallet') AS beneficiary_name,
             COALESCE(b.bank_name, 'Wallet Allocation') AS bank_name,
             COALESCE(b.account_number_masked, b.account_number, 'WALLET-TOPUP') AS account_number,
             COALESCE(b.ifsc_code, 'P2P0000001') AS ifsc_code,
@@ -244,10 +258,11 @@ def build_unified_transactions_query(
             NULL AS reversal_transaction_id,
             NULL AS reversal_datetime,
             'CENTRAL_TXN' AS source_table,
-            COALESCE(t.retailer_id::text, '') AS retailer_id
+            COALESCE(ret_t.public_id::text, t.retailer_id::text, '') AS retailer_id,
+            COALESCE(ret_t.retailer_code, '') AS retailer_code
         FROM transactions t
         LEFT JOIN customer c ON t.customer_id = c.public_id
-        LEFT JOIN retailer ret_t ON t.retailer_id = ret_t.public_id
+        LEFT JOIN retailer ret_t ON (t.retailer_id = ret_t.public_id OR t.retailer_id::text = ret_t.retailer_code)
         LEFT JOIN beneficiary_master b ON t.beneficiary_id = b.public_id
         LEFT JOIN beneficiary bene ON t.beneficiary_id = bene.public_id
         LEFT JOIN transaction_ledger_entries l 
@@ -284,14 +299,14 @@ def build_unified_transactions_query(
             COALESCE(e.utr_number, e.rrn, e.vendor_ref) AS provider_ref,
             'RETAILER_PORTAL' AS channel,
             e.customer_id::text AS customer_id,
-            COALESCE(c2.full_name, 'Sathiya Murthy R') AS customer_name,
-            COALESCE(c2.mobile_number, '9840192837') AS customer_mobile,
+            COALESCE(c2.full_name, ret_e.owner_name, ret_e.store_name, 'Direct Customer') AS customer_name,
+            COALESCE(c2.mobile_number, 'N/A') AS customer_mobile,
             COALESCE(c2.customer_status, 'ACTIVE') AS customer_status,
             e.beneficiary_id::text AS beneficiary_id,
-            COALESCE(b2.account_holder_name, bene2.full_name, 'Sathiya Murthy R') AS beneficiary_name,
-            COALESCE(b2.bank_name, 'IDBI Bank') AS bank_name,
-            COALESCE(b2.account_number_masked, b2.account_number, 'XXXX XXXX 6974') AS account_number,
-            COALESCE(b2.ifsc_code, 'IBKL0000630') AS ifsc_code,
+            COALESCE(b2.account_holder_name, bene2.full_name, 'Direct Beneficiary') AS beneficiary_name,
+            COALESCE(b2.bank_name, 'Bank Transfer') AS bank_name,
+            COALESCE(b2.account_number_masked, b2.account_number, '-') AS account_number,
+            COALESCE(b2.ifsc_code, '-') AS ifsc_code,
             COALESCE(bene2.relationship, 'SELF') AS relationship,
             COALESCE(b2.status, bene2.beneficiary_status, 'ACTIVE') AS beneficiary_status,
             COALESCE(e.created_by, 'SYSTEM') AS created_by,
@@ -306,8 +321,10 @@ def build_unified_transactions_query(
             e.reversal_transaction_id::text AS reversal_transaction_id,
             e.reversal_at AS reversal_datetime,
             'ENTERPRISE_PAYOUT' AS source_table,
-            COALESCE(e.retailer_id::text, '') AS retailer_id
+            COALESCE(ret_e.public_id::text, e.retailer_id::text, '') AS retailer_id,
+            COALESCE(ret_e.retailer_code, '') AS retailer_code
         FROM enterprise_payout_transactions e
+        LEFT JOIN retailer ret_e ON (e.retailer_id = ret_e.public_id OR e.retailer_id::text = ret_e.retailer_code)
         LEFT JOIN customer c2 ON e.customer_id = c2.public_id
         LEFT JOIN beneficiary_master b2 ON e.beneficiary_id = b2.public_id
         LEFT JOIN beneficiary bene2 ON e.beneficiary_id = bene2.public_id
@@ -342,14 +359,14 @@ def build_unified_transactions_query(
             CONCAT('REFUND-', COALESCE(e_rev.utr_number, e_rev.rrn, e_rev.vendor_ref, e_rev.transaction_number)) AS provider_ref,
             'RETAILER_PORTAL' AS channel,
             e_rev.customer_id::text AS customer_id,
-            COALESCE(c2_rev.full_name, 'Sathiya Murthy R') AS customer_name,
-            COALESCE(c2_rev.mobile_number, '9840192837') AS customer_mobile,
+            COALESCE(c2_rev.full_name, ret_erev.owner_name, ret_erev.store_name, 'Direct Customer') AS customer_name,
+            COALESCE(c2_rev.mobile_number, 'N/A') AS customer_mobile,
             COALESCE(c2_rev.customer_status, 'ACTIVE') AS customer_status,
             e_rev.beneficiary_id::text AS beneficiary_id,
-            COALESCE(b2_rev.account_holder_name, bene2_rev.full_name, 'Sathiya Murthy R') AS beneficiary_name,
-            COALESCE(b2_rev.bank_name, 'IDBI Bank') AS bank_name,
-            COALESCE(b2_rev.account_number_masked, b2_rev.account_number, 'XXXX XXXX 6974') AS account_number,
-            COALESCE(b2_rev.ifsc_code, 'IBKL0000630') AS ifsc_code,
+            COALESCE(b2_rev.account_holder_name, bene2_rev.full_name, 'Direct Beneficiary') AS beneficiary_name,
+            COALESCE(b2_rev.bank_name, 'Bank Transfer') AS bank_name,
+            COALESCE(b2_rev.account_number_masked, b2_rev.account_number, '-') AS account_number,
+            COALESCE(b2_rev.ifsc_code, '-') AS ifsc_code,
             COALESCE(bene2_rev.relationship, 'SELF') AS relationship,
             COALESCE(b2_rev.status, bene2_rev.beneficiary_status, 'ACTIVE') AS beneficiary_status,
             COALESCE(e_rev.created_by, 'SYSTEM') AS created_by,
@@ -364,8 +381,10 @@ def build_unified_transactions_query(
             e_rev.reversal_transaction_id::text AS reversal_transaction_id,
             e_rev.reversal_at AS reversal_datetime,
             'ENTERPRISE_PAYOUT_REVERSAL' AS source_table,
-            COALESCE(e_rev.retailer_id::text, '') AS retailer_id
+            COALESCE(ret_erev.public_id::text, e_rev.retailer_id::text, '') AS retailer_id,
+            COALESCE(ret_erev.retailer_code, '') AS retailer_code
         FROM enterprise_payout_transactions e_rev
+        LEFT JOIN retailer ret_erev ON (e_rev.retailer_id = ret_erev.public_id OR e_rev.retailer_id::text = ret_erev.retailer_code)
         LEFT JOIN customer c2_rev ON e_rev.customer_id = c2_rev.public_id
         LEFT JOIN beneficiary_master b2_rev ON e_rev.beneficiary_id = b2_rev.public_id
         LEFT JOIN beneficiary bene2_rev ON e_rev.beneficiary_id = bene2_rev.public_id
@@ -401,14 +420,14 @@ def build_unified_transactions_query(
             p.utr_number AS provider_ref,
             'RETAILER_PORTAL' AS channel,
             p.customer_id::text AS customer_id,
-            COALESCE(c3.full_name, 'Sathiya Murthy R') AS customer_name,
-            COALESCE(c3.mobile_number, '9840192837') AS customer_mobile,
+            COALESCE(c3.full_name, ret_p.owner_name, ret_p.store_name, 'Direct Customer') AS customer_name,
+            COALESCE(c3.mobile_number, 'N/A') AS customer_mobile,
             COALESCE(c3.customer_status, 'ACTIVE') AS customer_status,
             p.beneficiary_id::text AS beneficiary_id,
-            'Sathiya Murthy R' AS beneficiary_name,
-            'IDBI Bank' AS bank_name,
-            'XXXX XXXX 6974' AS account_number,
-            'IBKL0000630' AS ifsc_code,
+            'Direct Beneficiary' AS beneficiary_name,
+            'Bank Transfer' AS bank_name,
+            '-' AS account_number,
+            '-' AS ifsc_code,
             'SELF' AS relationship,
             'ACTIVE' AS beneficiary_status,
             COALESCE(p.created_by, 'SYSTEM') AS created_by,
@@ -423,8 +442,10 @@ def build_unified_transactions_query(
             NULL AS reversal_transaction_id,
             NULL AS reversal_datetime,
             'WORKFLOW_TXN' AS source_table,
-            COALESCE(p.retailer_id::text, '') AS retailer_id
+            COALESCE(ret_p.public_id::text, p.retailer_id::text, '') AS retailer_id,
+            COALESCE(ret_p.retailer_code, '') AS retailer_code
         FROM payout_workflow_transactions p
+        LEFT JOIN retailer ret_p ON (p.retailer_id = ret_p.public_id OR p.retailer_id::text = ret_p.retailer_code)
         LEFT JOIN customer c3 ON p.customer_id = c3.public_id
         WHERE NOT EXISTS (
             SELECT 1 FROM transactions t3 WHERE t3.transaction_reference = p.transaction_number
@@ -460,7 +481,7 @@ def build_unified_transactions_query(
             'ADMIN_PORTAL' AS channel,
             l4.account_number AS customer_id,
             COALESCE(ret4.store_name, ret4.owner_name, ret4.legal_name, 'Retailer Wallet') AS customer_name,
-            '9840192837' AS customer_mobile,
+            'N/A' AS customer_mobile,
             'ACTIVE' AS customer_status,
             l4.account_number AS beneficiary_id,
             COALESCE(ret4.store_name, ret4.owner_name, ret4.legal_name, 'Admin Wallet Allocation') AS beneficiary_name,
@@ -481,7 +502,8 @@ def build_unified_transactions_query(
             NULL AS reversal_transaction_id,
             NULL AS reversal_datetime,
             'STANDALONE_LEDGER' AS source_table,
-            COALESCE(ret4.public_id::text, l4.account_number, '') AS retailer_id
+            COALESCE(ret4.public_id::text, l4.account_number, '') AS retailer_id,
+            COALESCE(ret4.retailer_code, '') AS retailer_code
         FROM transaction_ledger_entries l4
         LEFT JOIN retailer ret4 ON (l4.account_number = ret4.public_id::text OR l4.account_number = ret4.retailer_code)
         WHERE l4.account_type = 'RETAILER_WALLET'
@@ -549,13 +571,45 @@ async def get_enterprise_transactions_summary(
     db: AsyncSession = Depends(get_db)
 ):
     """Returns summary KPIs for the unified enterprise transaction report computed authoritatively in SQL."""
-    effective_retailer_id = retailer_id
+    effective_retailer_id = retailer_id if (retailer_id and retailer_id.upper() != "ALL") else None
+    effective_retailer_code = None
     if request:
         try:
-            from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
-            ctx = await resolve_retailer_context(request, retailer_id, db=db)
-            if ctx.get("public_id"):
-                effective_retailer_id = str(ctx.get("public_id"))
+            auth_header = request.headers.get("authorization", "")
+            cookies = request.cookies
+            is_admin_request = False
+            token = None
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:].strip()
+            elif not token:
+                token = cookies.get("p2p_access_token") or cookies.get("pay2pay_access_token") or cookies.get("pay2pay_auth_token") or cookies.get("access_token")
+
+            if token:
+                from app.core.security import decode_access_token
+                payload = decode_access_token(token)
+                if payload:
+                    roles = payload.get("roles", [])
+                    if isinstance(roles, str):
+                        roles = [roles]
+                    role_str = str(payload.get("role", "")).upper()
+                    admin_role_names = {"SUPER_ADMIN", "PLATFORM_ADMIN", "ADMIN", "OPS_ADMIN", "SUPPORT_ADMIN", "FINANCE_ADMIN", "SUPERADMIN"}
+                    if any(str(r).upper() in admin_role_names for r in roles) or role_str in admin_role_names:
+                        is_admin_request = True
+
+            if not is_admin_request:
+                from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+                ctx = await resolve_retailer_context(request, retailer_id, db=db)
+                if ctx.get("public_id"):
+                    effective_retailer_id = str(ctx.get("public_id"))
+                if ctx.get("retailer_code"):
+                    effective_retailer_code = str(ctx.get("retailer_code"))
+            elif retailer_id and retailer_id.upper() != "ALL":
+                from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+                ctx = await resolve_retailer_context(request, retailer_id, db=db)
+                if ctx.get("public_id"):
+                    effective_retailer_id = str(ctx.get("public_id"))
+                if ctx.get("retailer_code"):
+                    effective_retailer_code = str(ctx.get("retailer_code"))
         except Exception:
             pass
 
@@ -571,7 +625,8 @@ async def get_enterprise_transactions_summary(
         min_amount=min_amount,
         max_amount=max_amount,
         search=search,
-        retailer_id=effective_retailer_id
+        retailer_id=effective_retailer_id,
+        retailer_code=effective_retailer_code
     )
 
     res = await db.execute(text(count_sql), params)
@@ -637,14 +692,21 @@ async def list_enterprise_transactions_report(
     """
     offset = (page - 1) * limit
     effective_retailer_id = retailer_id if (retailer_id and retailer_id.upper() != "ALL") else None
+    effective_retailer_code = None
     if request:
         try:
             auth_header = request.headers.get("authorization", "")
+            cookies = request.cookies
             is_admin_request = False
+            token = None
             if auth_header.startswith("Bearer "):
-                tok = auth_header[7:].strip()
+                token = auth_header[7:].strip()
+            elif not token:
+                token = cookies.get("p2p_access_token") or cookies.get("pay2pay_access_token") or cookies.get("pay2pay_auth_token") or cookies.get("access_token")
+
+            if token:
                 from app.core.security import decode_access_token
-                payload = decode_access_token(tok)
+                payload = decode_access_token(token)
                 if payload:
                     roles = payload.get("roles", [])
                     if isinstance(roles, str):
@@ -659,11 +721,15 @@ async def list_enterprise_transactions_report(
                 ctx = await resolve_retailer_context(request, retailer_id, db=db)
                 if ctx.get("public_id"):
                     effective_retailer_id = str(ctx.get("public_id"))
+                if ctx.get("retailer_code"):
+                    effective_retailer_code = str(ctx.get("retailer_code"))
             elif retailer_id and retailer_id.upper() != "ALL":
                 from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
                 ctx = await resolve_retailer_context(request, retailer_id, db=db)
                 if ctx.get("public_id"):
                     effective_retailer_id = str(ctx.get("public_id"))
+                if ctx.get("retailer_code"):
+                    effective_retailer_code = str(ctx.get("retailer_code"))
         except Exception:
             pass
 
@@ -680,6 +746,7 @@ async def list_enterprise_transactions_report(
         max_amount=max_amount,
         search=search,
         retailer_id=effective_retailer_id,
+        retailer_code=effective_retailer_code,
         sort_by=sort_by,
         sort_dir=sort_dir,
         limit=limit,
@@ -756,12 +823,12 @@ async def list_enterprise_transactions_report(
             "service": svc_label,
             "raw_service": raw_svc,
             "type": str(d.get("type") or "IMPS"),
-            "customer_name": str(d.get("customer_name") or "Sathiya Murthy R"),
-            "customer_mobile": str(d.get("customer_mobile") or "9840192837"),
-            "beneficiary_name": str(d.get("beneficiary_name") or "Sathiya Murthy R"),
-            "account_number": str(d.get("account_number") or "0630104000156974"),
-            "bank_name": str(d.get("bank_name") or "IDBI Bank"),
-            "ifsc_code": str(d.get("ifsc_code") or "IBKL0000630"),
+            "customer_name": str(d.get("customer_name") or "Direct Customer"),
+            "customer_mobile": str(d.get("customer_mobile") or "N/A"),
+            "beneficiary_name": str(d.get("beneficiary_name") or "Self / Beneficiary"),
+            "account_number": str(d.get("account_number") or "-"),
+            "bank_name": str(d.get("bank_name") or "-"),
+            "ifsc_code": str(d.get("ifsc_code") or "-"),
             "amount": round(float(d.get("amount") or 0.0), 2),
             "charges": round(float(d.get("charges") or 0.0), 2),
             "commission": round(float(d.get("commission") or 0.0), 2),
@@ -934,17 +1001,17 @@ async def get_enterprise_transaction_details(
                 "status_description": str(d.get("status_description") or ""),
             },
             "customer_details": {
-                "customer_id": str(d.get("customer_id") or "CUST-DEFAULT"),
-                "customer_name": str(d.get("customer_name") or "Sathiya Murthy R"),
-                "mobile_number": mask_sensitive_mobile(d.get("customer_mobile") or "9840192837"),
+                "customer_id": str(d.get("customer_id") or "CUST-DIRECT"),
+                "customer_name": str(d.get("customer_name") or "Direct Customer"),
+                "mobile_number": mask_sensitive_mobile(d.get("customer_mobile") or ""),
                 "customer_status": str(d.get("customer_status") or "ACTIVE"),
             },
             "beneficiary_details": {
                 "beneficiary_id": str(d.get("beneficiary_id") or f"BENE-{str(d.get('txn_id'))[-6:]}"),
-                "beneficiary_name": str(d.get("beneficiary_name") or "Sathiya Murthy R"),
-                "bank_name": str(d.get("bank_name") or "IDBI Bank"),
-                "masked_account_number": mask_sensitive_account(d.get("account_number") or "0630104000156974"),
-                "ifsc_code": str(d.get("ifsc_code") or "IBKL0000630"),
+                "beneficiary_name": str(d.get("beneficiary_name") or "Self / Beneficiary"),
+                "bank_name": str(d.get("bank_name") or "Bank Transfer"),
+                "masked_account_number": mask_sensitive_account(d.get("account_number") or ""),
+                "ifsc_code": str(d.get("ifsc_code") or "-"),
                 "relationship": str(d.get("relationship") or "SELF"),
                 "beneficiary_status": str(d.get("beneficiary_status") or "ACTIVE"),
             },

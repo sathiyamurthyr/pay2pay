@@ -23,7 +23,7 @@ import io
 import csv
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Tuple
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -58,9 +58,6 @@ def mask_sensitive_mobile(mobile: Optional[str]) -> str:
 # ==============================================================================
 
 def build_unified_transactions_query(
-    retailer_id: Optional[str] = None,
-    tenant_id: Optional[str] = None,
-    company_id: Optional[str] = None,
     service: Optional[str] = None,
     transaction_type: Optional[str] = None,
     status_filter: Optional[str] = None,
@@ -72,6 +69,8 @@ def build_unified_transactions_query(
     min_amount: Optional[float] = None,
     max_amount: Optional[float] = None,
     search: Optional[str] = None,
+    retailer_id: Optional[str] = None,
+    retailer_code: Optional[str] = None,
     sort_by: str = "transaction_datetime",
     sort_dir: str = "desc",
     limit: Optional[int] = None,
@@ -93,6 +92,24 @@ def build_unified_transactions_query(
             pass
 
     outer_conditions = ["1=1"]
+
+    if (retailer_id and str(retailer_id).upper() != "ALL") or (retailer_code and str(retailer_code).upper() != "ALL"):
+        ret_conds = []
+        if retailer_id and str(retailer_id).upper() != "ALL":
+            ret_conds.append("u.retailer_id = :retailer_id")
+            ret_conds.append("u.retailer_code = :retailer_id")
+            ret_conds.append("u.retailer_id ILIKE :retailer_id_like")
+            ret_conds.append("u.retailer_code ILIKE :retailer_id_like")
+            ret_conds.append("u.customer_id = :retailer_id")
+            ret_conds.append("u.beneficiary_id = :retailer_id")
+            params["retailer_id"] = str(retailer_id)
+            params["retailer_id_like"] = f"%{retailer_id}%"
+        if retailer_code and str(retailer_code).upper() != "ALL":
+            ret_conds.append("u.retailer_code = :retailer_code")
+            ret_conds.append("u.retailer_id = :retailer_code")
+            params["retailer_code"] = str(retailer_code)
+        if ret_conds:
+            outer_conditions.append(f"({' OR '.join(ret_conds)})")
 
     if service and service.upper() != "ALL":
         outer_conditions.append("UPPER(u.service) = :service")
@@ -193,27 +210,40 @@ def build_unified_transactions_query(
             COALESCE(t.commission, 0.0)::float AS commission,
             COALESCE(t.gst_amount, 0.0)::float AS gst_amount,
             COALESCE(t.tds_amount, 0.0)::float AS tds_amount,
-            COALESCE(t.net_amount, t.amount)::float AS net_amount,
-            COALESCE(l.balance_before::float, 100000.0) AS previous_balance,
-            CASE WHEN UPPER(t.status) IN ('FAILED', 'REVERSED') THEN t.amount::float ELSE 0.0 END AS cr,
-            CASE WHEN UPPER(t.status) NOT IN ('FAILED', 'REVERSED') THEN COALESCE(t.net_amount::float, t.amount::float) ELSE 0.0 END AS dr,
-            COALESCE(l.balance_after::float, 100000.0 - COALESCE(t.net_amount::float, t.amount::float)) AS current_balance,
+            COALESCE(t.net_amount, (t.amount + COALESCE(t.charges, 0.0) + COALESCE(t.gst_amount, 0.0)))::float AS net_amount,
+            COALESCE(l.balance_before::float, 50000.0) AS previous_balance,
+            CASE 
+                WHEN UPPER(COALESCE(l.entry_type, '')) = 'CREDIT' THEN COALESCE(l.amount::float, t.net_amount::float) 
+                WHEN UPPER(COALESCE(t.service_type, '')) = 'TOPUP' AND UPPER(COALESCE(t.transaction_type, '')) IN ('WALLET_TOPUP', 'MANUAL_TOPUP', 'TOPUP') THEN COALESCE(t.net_amount::float, t.amount::float)
+                ELSE 0.0 
+            END AS cr,
+            CASE 
+                WHEN UPPER(COALESCE(l.entry_type, '')) = 'DEBIT' THEN COALESCE(l.amount::float, t.net_amount::float) 
+                WHEN UPPER(COALESCE(t.service_type, '')) != 'TOPUP' THEN COALESCE(t.net_amount::float, t.amount::float)
+                ELSE 0.0 
+            END AS dr,
+            COALESCE(l.balance_after::float, 
+                CASE 
+                    WHEN UPPER(COALESCE(t.service_type, '')) = 'TOPUP' THEN (COALESCE(l.balance_before::float, 50000.0) + COALESCE(t.net_amount::float, 0.0))
+                    ELSE (COALESCE(l.balance_before::float, 50000.0) - COALESCE(t.net_amount::float, 0.0))
+                END
+            ) AS current_balance,
             t.created_at AS transaction_datetime,
             UPPER(t.status) AS status,
-            t.status_description AS status_description,
+            COALESCE(l.narration, t.status_description, 'Transaction Completed') AS status_description,
             COALESCE(t.vendor_code, 'PAY2PAY') AS provider_name,
-            t.vendor_order_id AS provider_txn_id,
-            COALESCE(t.utr, t.transaction_reference) AS provider_ref,
+            COALESCE(t.vendor_order_id, t.request_id) AS provider_txn_id,
+            COALESCE(t.utr, t.request_id, t.transaction_reference) AS provider_ref,
             'RETAILER_PORTAL' AS channel,
-            t.customer_id::text AS customer_id,
-            COALESCE(c.full_name, 'Sathiya Murthy R') AS customer_name,
-            COALESCE(c.mobile_number, '9840192837') AS customer_mobile,
+            COALESCE(t.customer_id::text, t.retailer_id::text) AS customer_id,
+            COALESCE(c.full_name, ret_t.store_name, ret_t.owner_name, ret_t.legal_name, 'Direct Customer') AS customer_name,
+            COALESCE(c.mobile_number, 'N/A') AS customer_mobile,
             COALESCE(c.customer_status, 'ACTIVE') AS customer_status,
-            t.beneficiary_id::text AS beneficiary_id,
-            COALESCE(b.account_holder_name, b.registered_name_in_bank, bene.full_name, 'Sathiya Murthy R') AS beneficiary_name,
-            COALESCE(b.bank_name, 'IDBI Bank') AS bank_name,
-            COALESCE(b.account_number_masked, b.account_number, 'XXXX XXXX 6974') AS account_number,
-            COALESCE(b.ifsc_code, 'IBKL0000630') AS ifsc_code,
+            COALESCE(t.beneficiary_id::text, t.retailer_id::text) AS beneficiary_id,
+            COALESCE(b.account_holder_name, b.registered_name_in_bank, bene.full_name, ret_t.store_name, ret_t.owner_name, 'Self / Main Wallet') AS beneficiary_name,
+            COALESCE(b.bank_name, 'Wallet Allocation') AS bank_name,
+            COALESCE(b.account_number_masked, b.account_number, 'WALLET-TOPUP') AS account_number,
+            COALESCE(b.ifsc_code, 'P2P0000001') AS ifsc_code,
             COALESCE(bene.relationship, 'SELF') AS relationship,
             COALESCE(b.status, bene.beneficiary_status, 'ACTIVE') AS beneficiary_status,
             COALESCE(t.created_by, 'SYSTEM') AS created_by,
@@ -227,9 +257,12 @@ def build_unified_transactions_query(
             NULL AS reversal_reason,
             NULL AS reversal_transaction_id,
             NULL AS reversal_datetime,
-            'CENTRAL_TXN' AS source_table
+            'CENTRAL_TXN' AS source_table,
+            COALESCE(ret_t.public_id::text, t.retailer_id::text, '') AS retailer_id,
+            COALESCE(ret_t.retailer_code, '') AS retailer_code
         FROM transactions t
         LEFT JOIN customer c ON t.customer_id = c.public_id
+        LEFT JOIN retailer ret_t ON (t.retailer_id = ret_t.public_id OR t.retailer_id::text = ret_t.retailer_code)
         LEFT JOIN beneficiary_master b ON t.beneficiary_id = b.public_id
         LEFT JOIN beneficiary bene ON t.beneficiary_id = bene.public_id
         LEFT JOIN transaction_ledger_entries l 
@@ -238,7 +271,7 @@ def build_unified_transactions_query(
 
         UNION ALL
 
-        -- 2. Enterprise Payout Transactions Table
+        -- 2A. Enterprise Payout Transactions (Original Debit Movements)
         SELECT 
             e.public_id::text AS id,
             e.transaction_number AS txn_id,
@@ -250,27 +283,30 @@ def build_unified_transactions_query(
             COALESCE(e.commission, 0.0)::float AS commission,
             COALESCE(e.gst_amount, 0.0)::float AS gst_amount,
             COALESCE(e.tds_amount, 0.0)::float AS tds_amount,
-            COALESCE(e.net_debit, e.amount)::float AS net_amount,
-            COALESCE(e.wallet_before, 100000.0)::float AS previous_balance,
-            CASE WHEN UPPER(e.status::text) = 'REVERSED' OR e.is_reversed = true THEN e.amount::float ELSE 0.0 END AS cr,
-            CASE WHEN UPPER(e.status::text) != 'REVERSED' AND e.is_reversed != true THEN COALESCE(e.net_debit, e.amount)::float ELSE 0.0 END AS dr,
-            COALESCE(e.wallet_after, 100000.0 - COALESCE(e.net_debit, e.amount))::float AS current_balance,
+            COALESCE(e.net_debit, (e.amount + COALESCE(e.charges, 0.0) + COALESCE(e.gst_amount, 0.0)))::float AS net_amount,
+            COALESCE(e.wallet_before, 50000.0)::float AS previous_balance,
+            0.0 AS cr,
+            COALESCE(e.net_debit, (e.amount + COALESCE(e.charges, 0.0) + COALESCE(e.gst_amount, 0.0)))::float AS dr,
+            COALESCE(e.wallet_after, (COALESCE(e.wallet_before, 50000.0) - COALESCE(e.net_debit, (e.amount + COALESCE(e.charges, 0.0) + COALESCE(e.gst_amount, 0.0)))))::float AS current_balance,
             COALESCE(e.initiated_at, e.created_date) AS transaction_datetime,
-            UPPER(e.status::text) AS status,
+            CASE 
+                WHEN e.is_reversed = true OR UPPER(e.status::text) = 'REVERSED' THEN 'FAILED' 
+                ELSE UPPER(e.status::text) 
+            END AS status,
             e.status_description AS status_description,
             COALESCE(e.vendor_name, 'UTKALDIGITAL') AS provider_name,
             e.vendor_order_id AS provider_txn_id,
             COALESCE(e.utr_number, e.rrn, e.vendor_ref) AS provider_ref,
             'RETAILER_PORTAL' AS channel,
             e.customer_id::text AS customer_id,
-            COALESCE(c2.full_name, 'Sathiya Murthy R') AS customer_name,
-            COALESCE(c2.mobile_number, '9840192837') AS customer_mobile,
+            COALESCE(c2.full_name, ret_e.owner_name, ret_e.store_name, 'Direct Customer') AS customer_name,
+            COALESCE(c2.mobile_number, 'N/A') AS customer_mobile,
             COALESCE(c2.customer_status, 'ACTIVE') AS customer_status,
             e.beneficiary_id::text AS beneficiary_id,
-            COALESCE(b2.account_holder_name, bene2.full_name, 'Sathiya Murthy R') AS beneficiary_name,
-            COALESCE(b2.bank_name, 'IDBI Bank') AS bank_name,
-            COALESCE(b2.account_number_masked, b2.account_number, 'XXXX XXXX 6974') AS account_number,
-            COALESCE(b2.ifsc_code, 'IBKL0000630') AS ifsc_code,
+            COALESCE(b2.account_holder_name, bene2.full_name, 'Direct Beneficiary') AS beneficiary_name,
+            COALESCE(b2.bank_name, 'Bank Transfer') AS bank_name,
+            COALESCE(b2.account_number_masked, b2.account_number, '-') AS account_number,
+            COALESCE(b2.ifsc_code, '-') AS ifsc_code,
             COALESCE(bene2.relationship, 'SELF') AS relationship,
             COALESCE(b2.status, bene2.beneficiary_status, 'ACTIVE') AS beneficiary_status,
             COALESCE(e.created_by, 'SYSTEM') AS created_by,
@@ -284,14 +320,78 @@ def build_unified_transactions_query(
             e.reversal_reason AS reversal_reason,
             e.reversal_transaction_id::text AS reversal_transaction_id,
             e.reversal_at AS reversal_datetime,
-            'ENTERPRISE_PAYOUT' AS source_table
+            'ENTERPRISE_PAYOUT' AS source_table,
+            COALESCE(ret_e.public_id::text, e.retailer_id::text, '') AS retailer_id,
+            COALESCE(ret_e.retailer_code, '') AS retailer_code
         FROM enterprise_payout_transactions e
+        LEFT JOIN retailer ret_e ON (e.retailer_id = ret_e.public_id OR e.retailer_id::text = ret_e.retailer_code)
         LEFT JOIN customer c2 ON e.customer_id = c2.public_id
         LEFT JOIN beneficiary_master b2 ON e.beneficiary_id = b2.public_id
         LEFT JOIN beneficiary bene2 ON e.beneficiary_id = bene2.public_id
         WHERE NOT EXISTS (
             SELECT 1 FROM transactions t2 WHERE t2.transaction_reference = e.transaction_number
         )
+
+        UNION ALL
+
+        -- 2B. Enterprise Payout Dedicated Reversal Entries
+        SELECT 
+            COALESCE(e_rev.reversal_transaction_id::text, CONCAT(e_rev.public_id::text, '-REV')) AS id,
+            CONCAT('REV-', e_rev.transaction_number) AS txn_id,
+            e_rev.transaction_number AS client_ref_id,
+            'PAYOUT' AS service,
+            'REVERSAL' AS type,
+            e_rev.amount::float AS amount,
+            0.0 AS charges,
+            0.0 AS commission,
+            0.0 AS gst_amount,
+            0.0 AS tds_amount,
+            COALESCE(e_rev.net_debit, (e_rev.amount + COALESCE(e_rev.charges, 0.0) + COALESCE(e_rev.gst_amount, 0.0)))::float AS net_amount,
+            COALESCE(e_rev.wallet_after, (COALESCE(e_rev.wallet_before, 50000.0) - COALESCE(e_rev.net_debit, 0.0)))::float AS previous_balance,
+            COALESCE(e_rev.net_debit, (e_rev.amount + COALESCE(e_rev.charges, 0.0) + COALESCE(e_rev.gst_amount, 0.0)))::float AS cr,
+            0.0 AS dr,
+            COALESCE(e_rev.wallet_before, 50000.0)::float AS current_balance,
+            COALESCE(e_rev.reversal_at, e_rev.updated_date, e_rev.created_date + interval '2 seconds') AS transaction_datetime,
+            'REVERSED' AS status,
+            COALESCE(e_rev.reversal_reason, 'Automatic refund for failed transaction') AS status_description,
+            COALESCE(e_rev.vendor_name, 'UTKALDIGITAL') AS provider_name,
+            e_rev.vendor_order_id AS provider_txn_id,
+            CONCAT('REFUND-', COALESCE(e_rev.utr_number, e_rev.rrn, e_rev.vendor_ref, e_rev.transaction_number)) AS provider_ref,
+            'RETAILER_PORTAL' AS channel,
+            e_rev.customer_id::text AS customer_id,
+            COALESCE(c2_rev.full_name, ret_erev.owner_name, ret_erev.store_name, 'Direct Customer') AS customer_name,
+            COALESCE(c2_rev.mobile_number, 'N/A') AS customer_mobile,
+            COALESCE(c2_rev.customer_status, 'ACTIVE') AS customer_status,
+            e_rev.beneficiary_id::text AS beneficiary_id,
+            COALESCE(b2_rev.account_holder_name, bene2_rev.full_name, 'Direct Beneficiary') AS beneficiary_name,
+            COALESCE(b2_rev.bank_name, 'Bank Transfer') AS bank_name,
+            COALESCE(b2_rev.account_number_masked, b2_rev.account_number, '-') AS account_number,
+            COALESCE(b2_rev.ifsc_code, '-') AS ifsc_code,
+            COALESCE(bene2_rev.relationship, 'SELF') AS relationship,
+            COALESCE(b2_rev.status, bene2_rev.beneficiary_status, 'ACTIVE') AS beneficiary_status,
+            COALESCE(e_rev.created_by, 'SYSTEM') AS created_by,
+            COALESCE(e_rev.updated_by, 'SYSTEM') AS updated_by,
+            COALESCE(e_rev.reversal_at, e_rev.created_date) AS created_at,
+            COALESCE(e_rev.reversal_at, e_rev.updated_date) AS updated_at,
+            CONCAT('REV-', e_rev.transaction_number) AS request_id,
+            e_rev.idempotency_key AS correlation_id,
+            'Transaction failed and automatically refunded to wallet' AS provider_response_message,
+            e_rev.reversal_reason AS failure_reason,
+            e_rev.reversal_reason AS reversal_reason,
+            e_rev.reversal_transaction_id::text AS reversal_transaction_id,
+            e_rev.reversal_at AS reversal_datetime,
+            'ENTERPRISE_PAYOUT_REVERSAL' AS source_table,
+            COALESCE(ret_erev.public_id::text, e_rev.retailer_id::text, '') AS retailer_id,
+            COALESCE(ret_erev.retailer_code, '') AS retailer_code
+        FROM enterprise_payout_transactions e_rev
+        LEFT JOIN retailer ret_erev ON (e_rev.retailer_id = ret_erev.public_id OR e_rev.retailer_id::text = ret_erev.retailer_code)
+        LEFT JOIN customer c2_rev ON e_rev.customer_id = c2_rev.public_id
+        LEFT JOIN beneficiary_master b2_rev ON e_rev.beneficiary_id = b2_rev.public_id
+        LEFT JOIN beneficiary bene2_rev ON e_rev.beneficiary_id = bene2_rev.public_id
+        WHERE (e_rev.is_reversed = true OR e_rev.reversal_transaction_id IS NOT NULL OR UPPER(e_rev.status::text) = 'REVERSED')
+          AND NOT EXISTS (
+              SELECT 1 FROM transactions t2_rev WHERE t2_rev.transaction_reference = CONCAT('REV-', e_rev.transaction_number)
+          )
 
         UNION ALL
 
@@ -307,11 +407,11 @@ def build_unified_transactions_query(
             COALESCE(p.commission, 0.0)::float AS commission,
             round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)::float AS gst_amount,
             0.0 AS tds_amount,
-            COALESCE(p.net_debit, p.amount)::float AS net_amount,
-            COALESCE(p.wallet_before, 100000.0)::float AS previous_balance,
+            COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)))::float AS net_amount,
+            COALESCE(p.wallet_before, 50000.0)::float AS previous_balance,
             0.0 AS cr,
-            COALESCE(p.net_debit, p.amount)::float AS dr,
-            COALESCE(p.wallet_after, 100000.0 - COALESCE(p.net_debit, p.amount))::float AS current_balance,
+            COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)))::float AS dr,
+            (COALESCE(p.wallet_before, 50000.0) - COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2))))::float AS current_balance,
             COALESCE(p.initiated_at, p.created_date) AS transaction_datetime,
             UPPER(p.status) AS status,
             p.failure_reason AS status_description,
@@ -320,14 +420,14 @@ def build_unified_transactions_query(
             p.utr_number AS provider_ref,
             'RETAILER_PORTAL' AS channel,
             p.customer_id::text AS customer_id,
-            COALESCE(c3.full_name, 'Sathiya Murthy R') AS customer_name,
-            COALESCE(c3.mobile_number, '9840192837') AS customer_mobile,
+            COALESCE(c3.full_name, ret_p.owner_name, ret_p.store_name, 'Direct Customer') AS customer_name,
+            COALESCE(c3.mobile_number, 'N/A') AS customer_mobile,
             COALESCE(c3.customer_status, 'ACTIVE') AS customer_status,
             p.beneficiary_id::text AS beneficiary_id,
-            'Sathiya Murthy R' AS beneficiary_name,
-            'IDBI Bank' AS bank_name,
-            'XXXX XXXX 6974' AS account_number,
-            'IBKL0000630' AS ifsc_code,
+            'Direct Beneficiary' AS beneficiary_name,
+            'Bank Transfer' AS bank_name,
+            '-' AS account_number,
+            '-' AS ifsc_code,
             'SELF' AS relationship,
             'ACTIVE' AS beneficiary_status,
             COALESCE(p.created_by, 'SYSTEM') AS created_by,
@@ -341,14 +441,80 @@ def build_unified_transactions_query(
             NULL AS reversal_reason,
             NULL AS reversal_transaction_id,
             NULL AS reversal_datetime,
-            'WORKFLOW_TXN' AS source_table
+            'WORKFLOW_TXN' AS source_table,
+            COALESCE(ret_p.public_id::text, p.retailer_id::text, '') AS retailer_id,
+            COALESCE(ret_p.retailer_code, '') AS retailer_code
         FROM payout_workflow_transactions p
+        LEFT JOIN retailer ret_p ON (p.retailer_id = ret_p.public_id OR p.retailer_id::text = ret_p.retailer_code)
         LEFT JOIN customer c3 ON p.customer_id = c3.public_id
         WHERE NOT EXISTS (
             SELECT 1 FROM transactions t3 WHERE t3.transaction_reference = p.transaction_number
         ) AND NOT EXISTS (
             SELECT 1 FROM enterprise_payout_transactions e3 WHERE e3.transaction_number = p.transaction_number
         )
+
+        UNION ALL
+
+        -- 4. Standalone Wallet Ledger Entries (Manual Adjustments, Direct Ledgers)
+        SELECT 
+            l4.public_id::text AS id,
+            COALESCE(l4.transaction_reference, l4.id::text) AS txn_id,
+            COALESCE(l4.transaction_reference, l4.id::text) AS client_ref_id,
+            'TOPUP' AS service,
+            CASE WHEN UPPER(l4.entry_type) = 'CREDIT' THEN 'MANUAL_TOPUP' ELSE 'MANUAL_DEBIT' END AS type,
+            l4.amount::float AS amount,
+            0.0 AS charges,
+            0.0 AS commission,
+            0.0 AS gst_amount,
+            0.0 AS tds_amount,
+            l4.amount::float AS net_amount,
+            COALESCE(l4.balance_before::float, 0.0) AS previous_balance,
+            CASE WHEN UPPER(l4.entry_type) = 'CREDIT' THEN l4.amount::float ELSE 0.0 END AS cr,
+            CASE WHEN UPPER(l4.entry_type) = 'DEBIT' THEN l4.amount::float ELSE 0.0 END AS dr,
+            COALESCE(l4.balance_after::float, 0.0) AS current_balance,
+            l4.created_at AS transaction_datetime,
+            'SUCCESS' AS status,
+            COALESCE(l4.narration, 'Admin Wallet Adjustment') AS status_description,
+            'ADMIN_MANUAL' AS provider_name,
+            l4.transaction_reference AS provider_txn_id,
+            l4.transaction_reference AS provider_ref,
+            'ADMIN_PORTAL' AS channel,
+            l4.account_number AS customer_id,
+            COALESCE(ret4.store_name, ret4.owner_name, ret4.legal_name, 'Retailer Wallet') AS customer_name,
+            'N/A' AS customer_mobile,
+            'ACTIVE' AS customer_status,
+            l4.account_number AS beneficiary_id,
+            COALESCE(ret4.store_name, ret4.owner_name, ret4.legal_name, 'Admin Wallet Allocation') AS beneficiary_name,
+            'Wallet Allocation' AS bank_name,
+            'WALLET-ADJUST' AS account_number,
+            'P2P0000001' AS ifsc_code,
+            'SELF' AS relationship,
+            'ACTIVE' AS beneficiary_status,
+            'ADMIN' AS created_by,
+            'ADMIN' AS updated_by,
+            l4.created_at AS created_at,
+            l4.created_at AS updated_at,
+            l4.transaction_reference AS request_id,
+            l4.transaction_reference AS correlation_id,
+            l4.narration AS provider_response_message,
+            NULL AS failure_reason,
+            NULL AS reversal_reason,
+            NULL AS reversal_transaction_id,
+            NULL AS reversal_datetime,
+            'STANDALONE_LEDGER' AS source_table,
+            COALESCE(ret4.public_id::text, l4.account_number, '') AS retailer_id,
+            COALESCE(ret4.retailer_code, '') AS retailer_code
+        FROM transaction_ledger_entries l4
+        LEFT JOIN retailer ret4 ON (l4.account_number = ret4.public_id::text OR l4.account_number = ret4.retailer_code)
+        WHERE l4.account_type = 'RETAILER_WALLET'
+          AND NOT EXISTS (
+              SELECT 1 FROM transactions t4 
+              WHERE t4.public_id = l4.transaction_id OR t4.transaction_reference = l4.transaction_reference
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM enterprise_payout_transactions e4 
+              WHERE e4.transaction_number = l4.transaction_reference
+          )
     )
     """
 
@@ -370,7 +536,11 @@ def build_unified_transactions_query(
         COUNT(*) AS total_count,
         COALESCE(SUM(amount), 0) AS total_amount,
         COALESCE(SUM(cr), 0) AS total_cr,
-        COALESCE(SUM(dr), 0) AS total_dr
+        COALESCE(SUM(dr), 0) AS total_dr,
+        COALESCE(SUM(CASE WHEN UPPER(status) = 'SUCCESS' THEN 1 ELSE 0 END), 0) AS successful_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED', 'VENDOR_REQUEST_SENT') THEN 1 ELSE 0 END), 0) AS pending_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) = 'FAILED' THEN 1 ELSE 0 END), 0) AS failed_count,
+        COALESCE(SUM(CASE WHEN UPPER(status) = 'REVERSED' THEN 1 ELSE 0 END), 0) AS reversed_count
     FROM unified_txns u
     WHERE {where_clause}
     """
@@ -385,6 +555,8 @@ def build_unified_transactions_query(
 @router.get("/reports/transactions/summary")
 @router.get("/retailer/reports/transactions/summary")
 async def get_enterprise_transactions_summary(
+    request: Request = None,
+    retailer_id: Optional[str] = Query(None),
     service: Optional[str] = Query(None),
     transaction_type: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -398,7 +570,49 @@ async def get_enterprise_transactions_summary(
     search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    """Returns summary KPIs for the unified enterprise transaction report."""
+    """Returns summary KPIs for the unified enterprise transaction report computed authoritatively in SQL."""
+    effective_retailer_id = retailer_id if (retailer_id and retailer_id.upper() != "ALL") else None
+    effective_retailer_code = None
+    if request:
+        try:
+            auth_header = request.headers.get("authorization", "")
+            cookies = request.cookies
+            is_admin_request = False
+            token = None
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:].strip()
+            elif not token:
+                token = cookies.get("p2p_access_token") or cookies.get("pay2pay_access_token") or cookies.get("pay2pay_auth_token") or cookies.get("access_token")
+
+            if token:
+                from app.core.security import decode_access_token
+                payload = decode_access_token(token)
+                if payload:
+                    roles = payload.get("roles", [])
+                    if isinstance(roles, str):
+                        roles = [roles]
+                    role_str = str(payload.get("role", "")).upper()
+                    admin_role_names = {"SUPER_ADMIN", "PLATFORM_ADMIN", "ADMIN", "OPS_ADMIN", "SUPPORT_ADMIN", "FINANCE_ADMIN", "SUPERADMIN"}
+                    if any(str(r).upper() in admin_role_names for r in roles) or role_str in admin_role_names:
+                        is_admin_request = True
+
+            if not is_admin_request:
+                from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+                ctx = await resolve_retailer_context(request, retailer_id, db=db)
+                if ctx.get("public_id"):
+                    effective_retailer_id = str(ctx.get("public_id"))
+                if ctx.get("retailer_code"):
+                    effective_retailer_code = str(ctx.get("retailer_code"))
+            elif retailer_id and retailer_id.upper() != "ALL":
+                from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+                ctx = await resolve_retailer_context(request, retailer_id, db=db)
+                if ctx.get("public_id"):
+                    effective_retailer_id = str(ctx.get("public_id"))
+                if ctx.get("retailer_code"):
+                    effective_retailer_code = str(ctx.get("retailer_code"))
+        except Exception:
+            pass
+
     _, count_sql, params = build_unified_transactions_query(
         service=service,
         transaction_type=transaction_type,
@@ -410,7 +624,9 @@ async def get_enterprise_transactions_summary(
         credit_debit=credit_debit,
         min_amount=min_amount,
         max_amount=max_amount,
-        search=search
+        search=search,
+        retailer_id=effective_retailer_id,
+        retailer_code=effective_retailer_code
     )
 
     res = await db.execute(text(count_sql), params)
@@ -422,14 +638,24 @@ async def get_enterprise_transactions_summary(
         "data": {
             "total_records": int(rd.get("total_count", 0)),
             "total_amount": round(float(rd.get("total_amount", 0)), 2),
+            "total_volume": round(float(rd.get("total_amount", 0)), 2),
             "total_cr": round(float(rd.get("total_cr", 0)), 2),
             "total_dr": round(float(rd.get("total_dr", 0)), 2),
+            "total_credit": round(float(rd.get("total_cr", 0)), 2),
+            "total_debit": round(float(rd.get("total_dr", 0)), 2),
+            "successful_transactions": int(rd.get("successful_count", 0)),
+            "pending_transactions": int(rd.get("pending_count", 0)),
+            "failed_transactions": int(rd.get("failed_count", 0)),
+            "reversed_transactions": int(rd.get("reversed_count", 0)),
         }
     }
 
 
+@router.get("/transactions")
 @router.get("/reports/transactions")
 @router.get("/retailer/reports/transactions")
+@router.get("/report-center/transactions")
+@router.get("/payout/report-center/transactions")
 async def list_enterprise_transactions_report(
     service: Optional[str] = Query(None, description="PAYOUT, DMT, RECHARGE, BBPS, TOPUP, CARD_TO_CASH, ALL"),
     transaction_type: Optional[str] = Query(None),
@@ -442,6 +668,8 @@ async def list_enterprise_transactions_report(
     min_amount: Optional[float] = Query(None),
     max_amount: Optional[float] = Query(None),
     search: Optional[str] = Query(None),
+    retailer_id: Optional[str] = Query(None),
+    request: Request = None,
     sort_by: str = Query("transaction_datetime"),
     sort_dir: str = Query("desc"),
     page: int = Query(1, ge=1),
@@ -463,6 +691,48 @@ async def list_enterprise_transactions_report(
     10. status
     """
     offset = (page - 1) * limit
+    effective_retailer_id = retailer_id if (retailer_id and retailer_id.upper() != "ALL") else None
+    effective_retailer_code = None
+    if request:
+        try:
+            auth_header = request.headers.get("authorization", "")
+            cookies = request.cookies
+            is_admin_request = False
+            token = None
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:].strip()
+            elif not token:
+                token = cookies.get("p2p_access_token") or cookies.get("pay2pay_access_token") or cookies.get("pay2pay_auth_token") or cookies.get("access_token")
+
+            if token:
+                from app.core.security import decode_access_token
+                payload = decode_access_token(token)
+                if payload:
+                    roles = payload.get("roles", [])
+                    if isinstance(roles, str):
+                        roles = [roles]
+                    role_str = str(payload.get("role", "")).upper()
+                    admin_role_names = {"SUPER_ADMIN", "PLATFORM_ADMIN", "ADMIN", "OPS_ADMIN", "SUPPORT_ADMIN", "FINANCE_ADMIN", "SUPERADMIN"}
+                    if any(str(r).upper() in admin_role_names for r in roles) or role_str in admin_role_names:
+                        is_admin_request = True
+
+            if not is_admin_request:
+                from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+                ctx = await resolve_retailer_context(request, retailer_id, db=db)
+                if ctx.get("public_id"):
+                    effective_retailer_id = str(ctx.get("public_id"))
+                if ctx.get("retailer_code"):
+                    effective_retailer_code = str(ctx.get("retailer_code"))
+            elif retailer_id and retailer_id.upper() != "ALL":
+                from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+                ctx = await resolve_retailer_context(request, retailer_id, db=db)
+                if ctx.get("public_id"):
+                    effective_retailer_id = str(ctx.get("public_id"))
+                if ctx.get("retailer_code"):
+                    effective_retailer_code = str(ctx.get("retailer_code"))
+        except Exception:
+            pass
+
     list_sql, count_sql, params = build_unified_transactions_query(
         service=service,
         transaction_type=transaction_type,
@@ -475,6 +745,8 @@ async def list_enterprise_transactions_report(
         min_amount=min_amount,
         max_amount=max_amount,
         search=search,
+        retailer_id=effective_retailer_id,
+        retailer_code=effective_retailer_code,
         sort_by=sort_by,
         sort_dir=sort_dir,
         limit=limit,
@@ -525,6 +797,25 @@ async def list_enterprise_transactions_report(
         else:
             status_norm = raw_st
 
+        # Determine comments / narration
+        status_desc = str(d.get("status_description") or "")
+        bene_name = str(d.get("beneficiary_name") or d.get("customer_name") or "")
+        bank_name = str(d.get("bank_name") or "")
+        if status_norm in ("REVERSED", "REFUND"):
+            comments = f"Reversal refund for {d.get('txn_id')}"
+        elif status_norm == "FAILED" and status_desc:
+            comments = status_desc
+        elif "PAYOUT" in raw_svc or "DMT" in raw_svc:
+            comments = f"Payout to {bene_name}" + (f" ({bank_name})" if bank_name else "")
+        elif "RECHARGE" in raw_svc:
+            comments = f"Recharge {d.get('customer_mobile') or ''}".strip()
+        elif "TOPUP" in raw_svc or "WALLET" in raw_svc:
+            comments = status_desc if status_desc and status_desc.upper() not in ("SUCCESS", "COMPLETED", "LEDGER_POSTED") else "Wallet Topup / Allocation"
+        elif status_desc:
+            comments = status_desc
+        else:
+            comments = f"{svc_label} transaction"
+
         items.append({
             "id": str(d.get("id")),
             "txn_id": str(d.get("txn_id")),
@@ -532,12 +823,12 @@ async def list_enterprise_transactions_report(
             "service": svc_label,
             "raw_service": raw_svc,
             "type": str(d.get("type") or "IMPS"),
-            "customer_name": str(d.get("customer_name") or "Sathiya Murthy R"),
-            "customer_mobile": str(d.get("customer_mobile") or "9840192837"),
-            "beneficiary_name": str(d.get("beneficiary_name") or "Sathiya Murthy R"),
-            "account_number": str(d.get("account_number") or "0630104000156974"),
-            "bank_name": str(d.get("bank_name") or "IDBI Bank"),
-            "ifsc_code": str(d.get("ifsc_code") or "IBKL0000630"),
+            "customer_name": str(d.get("customer_name") or "Direct Customer"),
+            "customer_mobile": str(d.get("customer_mobile") or "N/A"),
+            "beneficiary_name": str(d.get("beneficiary_name") or "Self / Beneficiary"),
+            "account_number": str(d.get("account_number") or "-"),
+            "bank_name": str(d.get("bank_name") or "-"),
+            "ifsc_code": str(d.get("ifsc_code") or "-"),
             "amount": round(float(d.get("amount") or 0.0), 2),
             "charges": round(float(d.get("charges") or 0.0), 2),
             "commission": round(float(d.get("commission") or 0.0), 2),
@@ -554,7 +845,8 @@ async def list_enterprise_transactions_report(
             "time": time_str,
             "status": status_norm,
             "raw_status": raw_st,
-            "status_description": str(d.get("status_description") or ""),
+            "status_description": status_desc,
+            "comments": comments,
             "provider_name": str(d.get("provider_name") or ""),
             "provider_txn_id": str(d.get("provider_txn_id") or ""),
             "provider_ref": str(d.get("provider_ref") or ""),
@@ -563,6 +855,8 @@ async def list_enterprise_transactions_report(
 
     return {
         "status": "SUCCESS",
+        "total": total_count,
+        "items": items,
         "data": {
             "items": items,
             "pagination": {
@@ -707,17 +1001,17 @@ async def get_enterprise_transaction_details(
                 "status_description": str(d.get("status_description") or ""),
             },
             "customer_details": {
-                "customer_id": str(d.get("customer_id") or "CUST-DEFAULT"),
-                "customer_name": str(d.get("customer_name") or "Sathiya Murthy R"),
-                "mobile_number": mask_sensitive_mobile(d.get("customer_mobile") or "9840192837"),
+                "customer_id": str(d.get("customer_id") or "CUST-DIRECT"),
+                "customer_name": str(d.get("customer_name") or "Direct Customer"),
+                "mobile_number": mask_sensitive_mobile(d.get("customer_mobile") or ""),
                 "customer_status": str(d.get("customer_status") or "ACTIVE"),
             },
             "beneficiary_details": {
                 "beneficiary_id": str(d.get("beneficiary_id") or f"BENE-{str(d.get('txn_id'))[-6:]}"),
-                "beneficiary_name": str(d.get("beneficiary_name") or "Sathiya Murthy R"),
-                "bank_name": str(d.get("bank_name") or "IDBI Bank"),
-                "masked_account_number": mask_sensitive_account(d.get("account_number") or "0630104000156974"),
-                "ifsc_code": str(d.get("ifsc_code") or "IBKL0000630"),
+                "beneficiary_name": str(d.get("beneficiary_name") or "Self / Beneficiary"),
+                "bank_name": str(d.get("bank_name") or "Bank Transfer"),
+                "masked_account_number": mask_sensitive_account(d.get("account_number") or ""),
+                "ifsc_code": str(d.get("ifsc_code") or "-"),
                 "relationship": str(d.get("relationship") or "SELF"),
                 "beneficiary_status": str(d.get("beneficiary_status") or "ACTIVE"),
             },
@@ -789,9 +1083,21 @@ async def export_enterprise_transactions_csv(
     min_amount: Optional[float] = Query(None),
     max_amount: Optional[float] = Query(None),
     search: Optional[str] = Query(None),
+    retailer_id: Optional[str] = Query(None),
+    request: Request = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Streams server-side CSV export applying all selected enterprise filters."""
+    effective_retailer_id = retailer_id
+    if request:
+        try:
+            from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+            ctx = await resolve_retailer_context(request, retailer_id, db=db)
+            if ctx.get("public_id"):
+                effective_retailer_id = str(ctx.get("public_id"))
+        except Exception:
+            pass
+
     list_sql, _, params = build_unified_transactions_query(
         service=service,
         transaction_type=transaction_type,
@@ -804,6 +1110,7 @@ async def export_enterprise_transactions_csv(
         min_amount=min_amount,
         max_amount=max_amount,
         search=search,
+        retailer_id=effective_retailer_id,
         limit=10000
     )
 
