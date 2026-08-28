@@ -77,7 +77,18 @@ export default function AccountUnderReviewPage() {
   };
 
   useEffect(() => {
-    checkStatus(false);
+    // Stopped auto-check on mount. Status check is only triggered manually by user clicking 'Check Status'.
+    if (typeof window !== "undefined") {
+      const cachedName = localStorage.getItem("p2p_user_name") || localStorage.getItem("retailer_name");
+      const cachedMobile = localStorage.getItem("p2p_user_mobile") || localStorage.getItem("retailer_mobile");
+      if (cachedName || cachedMobile) {
+        setRetailerInfo((prev) => ({
+          ...prev,
+          name: cachedName || prev.name,
+          mobile: cachedMobile ? `+91 ${cachedMobile}` : prev.mobile,
+        }));
+      }
+    }
   }, []);
 
   const handleLogout = () => {
