@@ -541,12 +541,18 @@ async def get_beneficiary(
 @router.get("/{beneficiary_id}/limits", response_model=APIResponse)
 async def get_beneficiary_limits(
     beneficiary_id: str,
+    service_code: Optional[str] = Query("PAYOUT"),
     db: AsyncSession = Depends(get_db),
     current_user: AdminUserModel = Depends(get_current_user)
 ):
-    """Get real-time limit usage & remaining limits for a beneficiary."""
-    from app.infrastructure.db.beneficiary_models import BeneficiaryModel
-    from sqlalchemy import select
+    """Get real-time limit usage & remaining limits for a beneficiary from beneficiary_limit_configuration."""
+    from app.infrastructure.db.beneficiary_models import (
+        BeneficiaryModel, BeneficiaryLimitConfigurationModel,
+        BeneficiaryLimitOverrideModel, BeneficiaryTransactionCounterModel,
+        BeneficiaryMonthlyCounterModel
+    )
+    from sqlalchemy import select, and_
+    from datetime import date
 
     b = None
     try:
@@ -556,30 +562,122 @@ async def get_beneficiary_limits(
     except Exception:
         pass
 
+    # Default limits configured
+    default_daily_limit = 5000000.0
+    default_monthly_limit = 50000000.0
+    default_single_max = 500000.0
+
+    # 1. Fetch from beneficiary_limit_configuration
+    try:
+        cfg_stmt = select(BeneficiaryLimitConfigurationModel).where(
+            and_(
+                BeneficiaryLimitConfigurationModel.service_code == (service_code or "PAYOUT").upper(),
+                BeneficiaryLimitConfigurationModel.limit_status == "ACTIVE",
+                BeneficiaryLimitConfigurationModel.is_deleted == False
+            )
+        )
+        cfg_res = (await db.execute(cfg_stmt)).scalars().first()
+        if not cfg_res:
+            cfg_stmt_def = select(BeneficiaryLimitConfigurationModel).where(
+                and_(
+                    BeneficiaryLimitConfigurationModel.service_code == "DEFAULT",
+                    BeneficiaryLimitConfigurationModel.limit_status == "ACTIVE",
+                    BeneficiaryLimitConfigurationModel.is_deleted == False
+                )
+            )
+            cfg_res = (await db.execute(cfg_stmt_def)).scalars().first()
+
+        if cfg_res:
+            if cfg_res.daily_amount is not None:
+                default_daily_limit = float(cfg_res.daily_amount)
+            if cfg_res.monthly_amount is not None:
+                default_monthly_limit = float(cfg_res.monthly_amount)
+            if cfg_res.single_txn_max is not None:
+                default_single_max = float(cfg_res.single_txn_max)
+    except Exception as e:
+        logger.warning(f"Error fetching BeneficiaryLimitConfigurationModel: {e}")
+
     if not b:
         # Graceful fallback response for mock/demo client beneficiaries
         return APIResponse(data={
             "beneficiary_id": str(beneficiary_id),
             "beneficiary_number": "BEN-DEFAULT",
             "full_name": "Beneficiary",
-            "daily_limit": 50000.0,
+            "daily_limit": default_daily_limit,
             "daily_used": 0.0,
-            "daily_remaining": 50000.0,
-            "monthly_limit": 200000.0,
+            "daily_remaining": default_daily_limit,
+            "monthly_limit": default_monthly_limit,
             "monthly_used": 0.0,
-            "monthly_remaining": 200000.0,
+            "monthly_remaining": default_monthly_limit,
+            "single_txn_max": default_single_max,
             "is_active": True,
             "is_verified": True,
             "beneficiary_status": "ACTIVE",
         })
 
-    daily_limit = 50000.0
-    daily_used = 0.0
-    daily_remaining = daily_limit - daily_used
+    daily_limit = default_daily_limit
+    monthly_limit = default_monthly_limit
+    single_txn_max = default_single_max
 
-    monthly_limit = 200000.0
+    # 2. Check for custom BeneficiaryLimitOverrideModel
+    try:
+        ovr_stmt = select(BeneficiaryLimitOverrideModel).where(
+            and_(
+                BeneficiaryLimitOverrideModel.beneficiary_id == b.public_id,
+                BeneficiaryLimitOverrideModel.service_code == (service_code or "PAYOUT").upper(),
+                BeneficiaryLimitOverrideModel.override_status == "ACTIVE",
+                BeneficiaryLimitOverrideModel.is_deleted == False
+            )
+        )
+        ovr_res = (await db.execute(ovr_stmt)).scalars().first()
+        if ovr_res:
+            if ovr_res.daily_amount is not None:
+                daily_limit = float(ovr_res.daily_amount)
+            if ovr_res.monthly_amount is not None:
+                monthly_limit = float(ovr_res.monthly_amount)
+            if ovr_res.single_txn_max is not None:
+                single_txn_max = float(ovr_res.single_txn_max)
+    except Exception as e:
+        logger.warning(f"Error checking BeneficiaryLimitOverrideModel: {e}")
+
+    # 3. Check real-time daily usage from BeneficiaryTransactionCounterModel
+    today = date.today()
+    daily_used = 0.0
+    try:
+        cnt_stmt = select(BeneficiaryTransactionCounterModel).where(
+            and_(
+                BeneficiaryTransactionCounterModel.beneficiary_id == b.public_id,
+                BeneficiaryTransactionCounterModel.service_code == (service_code or "PAYOUT").upper(),
+                BeneficiaryTransactionCounterModel.counter_date == today,
+                BeneficiaryTransactionCounterModel.is_deleted == False
+            )
+        )
+        cnt_res = (await db.execute(cnt_stmt)).scalars().first()
+        if cnt_res and cnt_res.total_amount is not None:
+            daily_used = float(cnt_res.total_amount)
+    except Exception as e:
+        logger.warning(f"Error checking BeneficiaryTransactionCounterModel: {e}")
+
+    # 4. Check monthly usage from BeneficiaryMonthlyCounterModel
     monthly_used = 0.0
-    monthly_remaining = monthly_limit - monthly_used
+    try:
+        mcnt_stmt = select(BeneficiaryMonthlyCounterModel).where(
+            and_(
+                BeneficiaryMonthlyCounterModel.beneficiary_id == b.public_id,
+                BeneficiaryMonthlyCounterModel.service_code == (service_code or "PAYOUT").upper(),
+                BeneficiaryMonthlyCounterModel.counter_year == today.year,
+                BeneficiaryMonthlyCounterModel.counter_month == today.month,
+                BeneficiaryMonthlyCounterModel.is_deleted == False
+            )
+        )
+        mcnt_res = (await db.execute(mcnt_stmt)).scalars().first()
+        if mcnt_res and mcnt_res.total_amount is not None:
+            monthly_used = float(mcnt_res.total_amount)
+    except Exception as e:
+        logger.warning(f"Error checking BeneficiaryMonthlyCounterModel: {e}")
+
+    daily_remaining = max(0.0, daily_limit - daily_used)
+    monthly_remaining = max(0.0, monthly_limit - monthly_used)
 
     return APIResponse(data={
         "beneficiary_id": str(b.public_id),
@@ -591,6 +689,7 @@ async def get_beneficiary_limits(
         "monthly_limit": monthly_limit,
         "monthly_used": monthly_used,
         "monthly_remaining": monthly_remaining,
+        "single_txn_max": single_txn_max,
         "is_active": bool(b.is_active and b.beneficiary_status == "ACTIVE"),
         "is_verified": bool(b.verification_status == "VERIFIED"),
         "beneficiary_status": b.beneficiary_status,
