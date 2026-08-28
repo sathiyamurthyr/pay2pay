@@ -23,6 +23,7 @@ export interface EnterpriseWorkstationProps {
   isSearching?: boolean;
   hasSearched?: boolean;
   pricingResult?: PricingEvaluationResult;
+  isLoadingBeneficiaries?: boolean;
 }
 
 export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> = ({
@@ -40,6 +41,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
   isSearching = false,
   hasSearched = false,
   pricingResult: propsPricingResult,
+  isLoadingBeneficiaries = false,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [selectedMode, setSelectedMode] = useState<"IMPS" | "NEFT" | "RTGS" | "UPI">("IMPS");
@@ -130,6 +132,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
             onModeChange={(mode) => setSelectedMode(mode)}
             onBack={() => setCurrentStep(1)}
             onContinue={() => setCurrentStep(3)}
+            isLoading={isLoadingBeneficiaries}
           />
         )}
 

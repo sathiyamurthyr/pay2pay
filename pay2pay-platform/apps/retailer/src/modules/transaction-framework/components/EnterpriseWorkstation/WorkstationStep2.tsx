@@ -24,6 +24,9 @@ import {
   TableHead,
   TableRow,
   Collapse,
+  Skeleton,
+  CircularProgress,
+  LinearProgress,
 } from "@mui/material";
 import { retailerApi } from "@/services/retailer-api";
 
@@ -70,6 +73,7 @@ export interface WorkstationStep2Props {
   selectedMode?: "IMPS" | "NEFT" | "RTGS" | "UPI";
   onModeChange?: (mode: "IMPS" | "NEFT" | "RTGS" | "UPI") => void;
   onAddBeneficiary?: (b: BeneficiaryData) => void;
+  isLoading?: boolean;
 }
 
 export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
@@ -85,6 +89,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   selectedMode: propsSelectedMode,
   onModeChange,
   onAddBeneficiary,
+  isLoading = false,
 }) => {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
@@ -462,7 +467,81 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             "&::-webkit-scrollbar-thumb:hover": { background: "rgba(96, 165, 250, 0.85)" },
           }}
         >
-          {filteredBeneficiaries.length === 0 ? (
+          {isLoading ? (
+            <TableContainer
+              component={Paper}
+              elevation={0}
+              sx={{
+                bgcolor: "transparent",
+                borderRadius: "10px",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                overflow: "hidden",
+              }}
+            >
+              <Box sx={{ p: 2, bgcolor: "rgba(37, 99, 235, 0.08)", borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", justifyContent: "center" }}>
+                  <CircularProgress size={20} sx={{ color: "#60A5FA" }} />
+                  <Typography sx={{ color: "#93C5FD", fontWeight: 800, fontSize: "13px" }}>
+                    Loading verified beneficiaries from core banking...
+                  </Typography>
+                </Stack>
+                <LinearProgress
+                  sx={{
+                    mt: 1.5,
+                    height: 3,
+                    borderRadius: 2,
+                    bgcolor: "rgba(255, 255, 255, 0.06)",
+                    "& .MuiLinearProgress-bar": {
+                      background: "linear-gradient(90deg, #2563EB, #60A5FA, #93C5FD)",
+                    },
+                  }}
+                />
+              </Box>
+              <Table size="small" aria-label="beneficiary loading skeleton" stickyHeader>
+                <TableHead>
+                  <TableRow sx={{ "& th": { bgcolor: "#131E38" } }}>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pl: 2 }}>Beneficiary</TableCell>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>Bank Account</TableCell>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>Monthly Limit</TableCell>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, textAlign: "center" }}>Verified</TableCell>
+                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pr: 2, textAlign: "right" }}>Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {[1, 2, 3, 4, 5, 6].map((idx) => (
+                    <TableRow key={idx} sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                      <TableCell sx={{ py: 1.5, pl: 2 }}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                          <Skeleton variant="circular" width={28} height={28} sx={{ bgcolor: "rgba(255, 255, 255, 0.08)" }} />
+                          <Box>
+                            <Skeleton variant="text" width={110} height={18} sx={{ bgcolor: "rgba(255, 255, 255, 0.08)" }} />
+                            <Skeleton variant="text" width={70} height={14} sx={{ bgcolor: "rgba(255, 255, 255, 0.05)" }} />
+                          </Box>
+                        </Stack>
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Skeleton variant="text" width={100} height={16} sx={{ bgcolor: "rgba(255, 255, 255, 0.08)" }} />
+                        <Skeleton variant="text" width={130} height={14} sx={{ bgcolor: "rgba(255, 255, 255, 0.05)" }} />
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Skeleton variant="text" width={80} height={16} sx={{ bgcolor: "rgba(255, 255, 255, 0.08)" }} />
+                        <Skeleton variant="text" width={60} height={12} sx={{ bgcolor: "rgba(255, 255, 255, 0.05)" }} />
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5, textAlign: "center" }}>
+                        <Skeleton variant="rounded" width={72} height={22} sx={{ mx: "auto", borderRadius: "11px", bgcolor: "rgba(255, 255, 255, 0.08)" }} />
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5, pr: 2, textAlign: "right" }}>
+                        <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
+                          <Skeleton variant="rounded" width={70} height={26} sx={{ borderRadius: "6px", bgcolor: "rgba(255, 255, 255, 0.08)" }} />
+                          <Skeleton variant="rounded" width={55} height={26} sx={{ borderRadius: "6px", bgcolor: "rgba(37, 99, 235, 0.2)" }} />
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : filteredBeneficiaries.length === 0 ? (
             <Paper
               elevation={0}
               onClick={handleNavigateToAddBeneficiary}
