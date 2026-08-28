@@ -3206,6 +3206,7 @@ class RetailerManagementService:
             c_sds = [
                 {
                     "public_id": str(s.public_id),
+                    "super_distributor_code": getattr(s, "super_distributor_code", None) or f"P2P-SD{str(s.public_id)[:6].upper()}",
                     "business_name": s.business_name,
                     "owner_name": s.owner_name,
                     "email": s.email,
@@ -3217,6 +3218,7 @@ class RetailerManagementService:
             c_dists = [
                 {
                     "public_id": str(d.public_id),
+                    "distributor_code": getattr(d, "distributor_code", None) or f"P2P-D{str(d.public_id)[:6].upper()}",
                     "business_name": d.business_name,
                     "owner_name": d.owner_name,
                     "email": d.email,
@@ -3249,6 +3251,7 @@ class RetailerManagementService:
             "super_distributors": [
                 {
                     "public_id": str(s.public_id),
+                    "super_distributor_code": getattr(s, "super_distributor_code", None) or f"P2P-SD{str(s.public_id)[:6].upper()}",
                     "business_name": s.business_name,
                     "owner_name": s.owner_name,
                     "company_id": str(s.company_id) if s.company_id else None,
@@ -3258,6 +3261,7 @@ class RetailerManagementService:
             "distributors": [
                 {
                     "public_id": str(d.public_id),
+                    "distributor_code": getattr(d, "distributor_code", None) or f"P2P-D{str(d.public_id)[:6].upper()}",
                     "business_name": d.business_name,
                     "owner_name": d.owner_name,
                     "company_id": str(d.company_id) if d.company_id else None,
