@@ -113,46 +113,50 @@ class EnterpriseAuthService:
         telemetry: Dict[str, Any]
     ) -> None:
         """Stores client hardware, network, browser & fingerprint telemetry silently."""
-        fp = telemetry.get("fingerprint", {})
-        fp_hash = fp.get("hash") or hashlib.sha256(str(telemetry).encode('utf-8')).hexdigest()
+        try:
+            fp = telemetry.get("fingerprint", {})
+            fp_hash = fp.get("hash") or hashlib.sha256(str(telemetry).encode('utf-8')).hexdigest()
 
-        fp_stmt = select(DeviceFingerprintModel).where(DeviceFingerprintModel.fingerprint_hash == fp_hash)
-        existing_fp = (await db.execute(fp_stmt)).scalars().first()
-        if not existing_fp:
-            new_fp = DeviceFingerprintModel(
-                tenant_id=DEFAULT_TENANT_ID,
-                fingerprint_hash=fp_hash,
-                canvas_hash=fp.get("canvas"),
-                webgl_hash=fp.get("webgl"),
-                audio_hash=fp.get("audio"),
-                fonts_hash=fp.get("fonts"),
-                screen_geometry=telemetry.get("display", {}).get("geometry"),
-                timezone=telemetry.get("location", {}).get("timezone"),
-                language=telemetry.get("browser", {}).get("language")
-            )
-            db.add(new_fp)
+            fp_stmt = select(DeviceFingerprintModel).where(DeviceFingerprintModel.fingerprint_hash == fp_hash)
+            existing_fp = (await db.execute(fp_stmt)).scalars().first()
+            if not existing_fp:
+                new_fp = DeviceFingerprintModel(
+                    tenant_id=DEFAULT_TENANT_ID,
+                    fingerprint_hash=fp_hash,
+                    ip_address=telemetry.get("network", {}).get("ip") or "127.0.0.1",
+                    canvas_hash=fp.get("canvas"),
+                    webgl_hash=fp.get("webgl"),
+                    audio_hash=fp.get("audio"),
+                    fonts_hash=fp.get("fonts"),
+                    screen_geometry=telemetry.get("display", {}).get("geometry"),
+                    timezone=telemetry.get("location", {}).get("timezone"),
+                    language=telemetry.get("browser", {}).get("language")
+                )
+                db.add(new_fp)
 
-        dev_id = telemetry.get("device", {}).get("id") or f"DEV-{fp_hash[:16]}"
-        dev_stmt = select(DeviceRegistryModel).where(DeviceRegistryModel.device_id == dev_id)
-        existing_dev = (await db.execute(dev_stmt)).scalars().first()
-        if not existing_dev:
-            new_dev = DeviceRegistryModel(
-                tenant_id=DEFAULT_TENANT_ID,
-                device_id=dev_id,
-                user_id=user_id,
-                device_type=telemetry.get("device", {}).get("type", "DESKTOP"),
-                manufacturer=telemetry.get("device", {}).get("manufacturer"),
-                model=telemetry.get("device", {}).get("model"),
-                os_name=telemetry.get("device", {}).get("os_name"),
-                os_version=telemetry.get("device", {}).get("os_version"),
-                cpu_cores=telemetry.get("device", {}).get("cpu_cores"),
-                ram_gb=telemetry.get("device", {}).get("ram_gb"),
-                touch_support=telemetry.get("device", {}).get("touch_support", False),
-                webauthn_support=telemetry.get("device", {}).get("webauthn_support", False)
-            )
-            db.add(new_dev)
+            dev_id = telemetry.get("device", {}).get("id") or f"DEV-{fp_hash[:16]}"
+            dev_stmt = select(DeviceRegistryModel).where(DeviceRegistryModel.device_id == dev_id)
+            existing_dev = (await db.execute(dev_stmt)).scalars().first()
+            if not existing_dev:
+                new_dev = DeviceRegistryModel(
+                    tenant_id=DEFAULT_TENANT_ID,
+                    device_id=dev_id,
+                    user_id=user_id,
+                    device_type=telemetry.get("device", {}).get("type", "DESKTOP"),
+                    manufacturer=telemetry.get("device", {}).get("manufacturer"),
+                    model=telemetry.get("device", {}).get("model"),
+                    os_name=telemetry.get("device", {}).get("os_name"),
+                    os_version=telemetry.get("device", {}).get("os_version"),
+                    cpu_cores=telemetry.get("device", {}).get("cpu_cores"),
+                    ram_gb=telemetry.get("device", {}).get("ram_gb"),
+                    touch_support=telemetry.get("device", {}).get("touch_support", False),
+                    webauthn_support=telemetry.get("device", {}).get("webauthn_support", False)
+                )
+                db.add(new_dev)
 
-        await db.commit()
+            await db.commit()
+        except Exception as e:
+            logger.warning(f"Telemetry recording notice: {e}")
 
     @staticmethod
     async def create_audit_entry(
