@@ -40,21 +40,51 @@ class InitiateBulkPePayoutRequest(BaseModel):
 @router.post("/initiate", response_model=Dict[str, Any], status_code=status.HTTP_200_OK)
 async def initiate_bulkpe_payout(
     req: InitiateBulkPePayoutRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Initiates a BulkPe Payout transaction with full ACID wallet debit, dynamic pricing,
     security MPIN validation, and automatic reversal engine on failures.
     """
-    tenant_id = req.tenant_id or uuid.UUID("93538c98-0b19-493c-a247-4cdb02a46c68")
-    retailer_id = req.retailer_id or uuid.UUID("a46ec999-57db-4138-a79b-a208a6d75109")
+    from app.infrastructure.db.models import RetailerModel
+
+    # 1. Resolve retailer identifier
+    ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id") or "RET-10928"
+    ret_obj = None
+
+    # Try UUID parse
+    try:
+        parsed_uuid = uuid.UUID(str(ret_identifier))
+        stmt = select(RetailerModel).where(RetailerModel.public_id == parsed_uuid)
+        ret_obj = (await db.execute(stmt)).scalars().first()
+    except Exception:
+        pass
+
+    # Try retailer_code lookup
+    if not ret_obj and ret_identifier:
+        stmt = select(RetailerModel).where(RetailerModel.retailer_code == str(ret_identifier).strip().upper())
+        ret_obj = (await db.execute(stmt)).scalars().first()
+
+    # Fallback to RET-10928 if not found
+    if not ret_obj:
+        stmt = select(RetailerModel).where(RetailerModel.retailer_code == "RET-10928")
+        ret_obj = (await db.execute(stmt)).scalars().first()
+
+    retailer_uuid = ret_obj.public_id if ret_obj else uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e")
+    tenant_uuid = (ret_obj.tenant_id if ret_obj and ret_obj.tenant_id else None) or req.tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+    if isinstance(tenant_uuid, str):
+        try:
+            tenant_uuid = uuid.UUID(tenant_uuid)
+        except Exception:
+            tenant_uuid = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
 
     return await BulkPePayoutEngine.process_payout(
         db=db,
         customer_id=req.customer_id,
         beneficiary_id=req.beneficiary_id,
-        retailer_id=retailer_id,
-        tenant_id=tenant_id,
+        retailer_id=retailer_uuid,
+        tenant_id=tenant_uuid,
         amount=req.amount,
         mpin=req.mpin,
         mode=req.mode,

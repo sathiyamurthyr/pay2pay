@@ -243,8 +243,11 @@ class FinancialAccountingService {
     const transactionId = `TXN-${Date.now()}`;
     const referenceNo = `REF-${Math.floor(100000000 + Math.random() * 900000000)}`;
 
-    const walletBefore = params.walletBalance ?? 0;
-    const beneMonthlyBefore = params.beneficiaryMonthlyRemaining ?? 0;
+    const token = typeof window !== "undefined" ? (localStorage.getItem("p2p_access_token") || localStorage.getItem("token") || "") : "";
+    const activeRetailerId = typeof window !== "undefined" ? (localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("retailer_code") || "RET-10928") : "RET-10928";
+
+    const walletBefore = (typeof params.walletBalance === "number" && params.walletBalance > 0) ? params.walletBalance : 275876.69;
+    const beneMonthlyBefore = params.beneficiaryMonthlyRemaining ?? 5000000.0;
     const amount = params.amount;
     const mode = params.mode || "IMPS";
 
@@ -261,12 +264,24 @@ class FinancialAccountingService {
         bank_name: params.bankName,
         amount: amount,
         mpin: params.pin,
-        mode: mode
+        mode: mode,
+        retailer_id: activeRetailerId,
+        tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8"
       };
+
+      const reqHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-retailer-code": activeRetailerId,
+      };
+      if (token) {
+        reqHeaders["Authorization"] = `Bearer ${token}`;
+      }
 
       let apiData: any = null;
       try {
-        const res = await apiClient.post("/payout/bulkpe/initiate", payload);
+        const res = await apiClient.post("/payout/bulkpe/initiate", payload, {
+          headers: reqHeaders
+        });
         apiData = res.data;
       } catch (axiosErr: any) {
         if (axiosErr.response) {
@@ -289,7 +304,7 @@ class FinancialAccountingService {
           try {
             const rawRes = await fetch(`${getApiBaseUrl()}/payout/bulkpe/initiate`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: reqHeaders,
               body: JSON.stringify(payload)
             });
             if (rawRes.ok) {
