@@ -14,7 +14,7 @@ import time
 import json
 import logging
 import httpx
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class UtkalDigitalClient:
         auth_code: Optional[str] = None,
         mpin: Optional[str] = None,
         base_url: Optional[str] = None
-    ) -> tuple[str, str, str]:
+    ) -> Tuple[str, str, str]:
         a_code = auth_code or UTKAL_AUTH_CODE
         pin = mpin or UTKAL_MPIN
         b_url = (base_url or UTKAL_BASE_URL).rstrip("/")

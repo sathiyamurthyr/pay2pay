@@ -16,7 +16,7 @@ import uuid
 import base64
 import hashlib
 import httpx
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 WOWPE_BASE_URL = os.getenv("WOWPE_BASE_URL", "https://api.wowpe.in")
 WOWPE_CLIENT_ID = os.getenv("WOWPE_CLIENT_ID", "b206347b-3b5f-4a6c-a18c-efebfef348f8")
@@ -57,7 +57,7 @@ class WowPeApiClient:
         client_id: Optional[str] = None,
         secret_key: Optional[str] = None,
         base_url: Optional[str] = None
-    ) -> tuple[str, str, str]:
+    ) -> Tuple[str, str, str]:
         c_id = client_id or WOWPE_CLIENT_ID
         s_key = secret_key or WOWPE_SECRET_KEY
         b_url = (base_url or WOWPE_BASE_URL).rstrip("/")

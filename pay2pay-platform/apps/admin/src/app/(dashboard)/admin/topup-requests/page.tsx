@@ -734,15 +734,26 @@ export default function AdminTopupRequestsPage() {
                               {item.retailer?.retailer_name || "Unknown Retailer"}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                              <span className="font-mono font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                              <span className="font-mono font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title="Retailer Code">
                                 {item.retailer?.retailer_code || "RET-N/A"}
                               </span>
+                              {item.retailer?.mobile_number && (
+                                <span className="text-slate-300 font-medium flex items-center gap-1">
+                                  <Phone className="h-3 w-3 text-slate-400" />
+                                  {item.retailer.mobile_number}
+                                </span>
+                              )}
                               {item.retailer?.current_wallet_balance !== undefined && (
                                 <span className="text-slate-300 font-semibold">
                                   • Bal: <strong className="text-emerald-400">₹{item.retailer.current_wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
                                 </span>
                               )}
                             </div>
+                            {item.retailer?.retailer_id && (
+                              <div className="text-[10px] font-mono text-slate-500 mt-0.5 truncate max-w-[200px]" title={item.retailer.retailer_id}>
+                                ID: {item.retailer.retailer_id}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -1041,7 +1052,7 @@ export default function AdminTopupRequestsPage() {
                         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                           Retailer Profile
                         </span>
-                        <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20" title="Retailer Code">
                           {selectedRequest.retailer?.retailer_code || "RET-N/A"}
                         </span>
                       </div>
@@ -1050,16 +1061,30 @@ export default function AdminTopupRequestsPage() {
                         <h4 className="text-base font-black text-white">
                           {selectedRequest.retailer?.retailer_name || "Unknown Retailer"}
                         </h4>
+                        {selectedRequest.retailer?.retailer_id && (
+                          <div className="flex items-center gap-1.5 mt-1.5 text-xs">
+                            <span className="text-slate-500 font-medium">Retailer UUID:</span>
+                            <span className="font-mono text-xs font-bold text-slate-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 select-all">
+                              {selectedRequest.retailer.retailer_id}
+                            </span>
+                          </div>
+                        )}
                         {selectedRequest.retailer?.mobile_number && (
-                          <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
-                            <Phone className="h-3 w-3 text-slate-500" />
-                            {selectedRequest.retailer.mobile_number}
+                          <p className="text-xs text-slate-300 flex items-center gap-1.5 mt-1.5 font-medium">
+                            <Phone className="h-3.5 w-3.5 text-slate-400" />
+                            <span className="text-white font-bold">{selectedRequest.retailer.mobile_number}</span>
+                          </p>
+                        )}
+                        {selectedRequest.retailer?.company_name && (
+                          <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-1">
+                            <Store className="h-3.5 w-3.5 text-slate-500" />
+                            <span>{selectedRequest.retailer.company_name}</span>
                           </p>
                         )}
                       </div>
 
                       {/* Current Wallet Balance */}
-                      <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                      <div className="pt-2.5 border-t border-slate-800 flex items-center justify-between">
                         <span className="text-xs text-slate-400 font-medium">Current Wallet Balance</span>
                         <span className="text-sm font-black text-emerald-400">
                           ₹{(selectedRequest.retailer?.current_wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}

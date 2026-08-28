@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Check for valid session cookie
+      // Check for valid session cookie or localStorage token
       const cookies = document.cookie.split("; ");
       const tokenCookie = cookies.find((row) =>
         row.startsWith("p2p_access_token=") ||
@@ -67,13 +67,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         row.startsWith("pay2pay_auth_token=")
       );
 
-      const tokenValue = tokenCookie ? tokenCookie.split("=")[1] : null;
+      const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
+      const lsToken =
+        typeof window !== "undefined"
+          ? localStorage.getItem("p2p_access_token") ||
+            localStorage.getItem("pay2pay_access_token") ||
+            localStorage.getItem("pay2pay_auth_token") ||
+            localStorage.getItem("access_token")
+          : null;
+
+      const tokenValue = cookieToken || (lsToken ? lsToken.trim() : null);
 
       if (!tokenValue || tokenValue.trim().length < 10) {
-        // No valid session cookie found: wipe any stale in-memory & local state
+        // No valid session token found: wipe any stale in-memory & local state
         setUser(null);
         setLoading(false);
         return;
+      }
+
+      // Synchronize cookie if missing to prevent middleware redirects
+      if (!cookieToken && tokenValue) {
+        document.cookie = `p2p_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `pay2pay_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
       }
 
       // Load transient user profile details

@@ -35,6 +35,16 @@ apiClient.interceptors.request.use(
       if (token && token.trim().length > 10) {
         config.headers.Authorization = `Bearer ${token.trim()}`;
       }
+
+      const activeRetailer =
+        localStorage.getItem("p2p_active_retailer_id") ||
+        localStorage.getItem("retailer_code") ||
+        localStorage.getItem("p2p_retailer_code") ||
+        localStorage.getItem("pay2pay_reg_mobile");
+      if (activeRetailer) {
+        config.headers["x-retailer-code"] = activeRetailer;
+        config.headers["x-retailer-id"] = activeRetailer;
+      }
     }
     return config;
   },

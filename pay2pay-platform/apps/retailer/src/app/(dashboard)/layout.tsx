@@ -24,10 +24,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         row.startsWith("pay2pay_access_token=") ||
         row.startsWith("pay2pay_auth_token=")
       );
-      if (!tokenCookie || tokenCookie.split("=")[1]?.trim().length < 10) {
+      const cookieToken = tokenCookie ? tokenCookie.split("=")[1]?.trim() : null;
+      const lsToken =
+        typeof window !== "undefined"
+          ? localStorage.getItem("p2p_access_token") ||
+            localStorage.getItem("pay2pay_access_token") ||
+            localStorage.getItem("pay2pay_auth_token") ||
+            localStorage.getItem("access_token")
+          : null;
+
+      const token = cookieToken || (lsToken ? lsToken.trim() : null);
+
+      if (!token || token.length < 10) {
         if (!window.location.pathname.includes("/login")) {
           window.location.replace(`/retailer/login?redirect=${encodeURIComponent(window.location.pathname)}`);
         }
+      } else if (!cookieToken && token) {
+        document.cookie = `p2p_access_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `pay2pay_access_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
       }
     };
 

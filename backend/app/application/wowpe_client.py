@@ -1,4 +1,3 @@
-from __future__ import annotations
 """
 Official WowPe Payout API Client
 Integrates official WowPe REST API endpoints for:
@@ -7,6 +6,8 @@ Integrates official WowPe REST API endpoints for:
 - Account Verification: POST /api/api/api-module/payout/account-validate
 - Balance Check: POST /api/api/api-module/payout/balance
 - Webhook Verification: AES-256 Checksum
+
+Documentation: https://docs-wowpe.readme.io/reference/payment-transfer
 """
 
 import os
@@ -56,7 +57,7 @@ class WowPeApiClient:
         client_id: Optional[str] = None,
         secret_key: Optional[str] = None,
         base_url: Optional[str] = None
-    ) -> tuple[str, str, str]:
+    ) -> Tuple[str, str, str]:
         c_id = client_id or WOWPE_CLIENT_ID
         s_key = secret_key or WOWPE_SECRET_KEY
         b_url = (base_url or WOWPE_BASE_URL).rstrip("/")

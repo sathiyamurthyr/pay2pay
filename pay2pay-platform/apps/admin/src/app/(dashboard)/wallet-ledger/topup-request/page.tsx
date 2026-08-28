@@ -89,9 +89,7 @@ export default function RetailerTopupRequestPage() {
   const fetchMyTopups = useCallback(async () => {
     try {
       setLoadingRequests(true);
-      const activeCode = typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "" : "";
-      const query = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
-      const res = await api.get(`/api/v1/topup/my-requests${query}`);
+      const res = await api.get("/api/v1/topup/my-requests");
       setMyRequests(res.data.items || []);
       if (res.data?.retailer) {
         setRetailerInfo({

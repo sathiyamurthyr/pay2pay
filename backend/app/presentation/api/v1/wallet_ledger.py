@@ -90,157 +90,6 @@ async def toggle_wallet_freeze(
     )
 
 
-class ManualTopupRequest(BaseModel):
-    transaction_id: str
-    entity_scope: str = "RETAILER"
-    entity_id: str
-    entity_name: str
-    entity_code: str
-    service_name: str = "General Allocation"
-    wallet_type: str = "MAIN"
-    txn_type: str = "CREDIT"
-    amount: float
-    opening_balance: float = 0.0
-    balance_after: float = 0.0
-    comments: str = "Manual wallet allocation"
-    created_date: Optional[str] = None
-    status: str = "COMPLETED"
-    performed_by: str = "Platform Admin"
-
-
-@router.post("/wallets/manual-topup", summary="Create Manual Topup Transaction")
-async def create_manual_topup(
-    req: ManualTopupRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    from sqlalchemy import select
-    from app.infrastructure.db.transaction_engine_models import CentralTransactionModel
-    from app.infrastructure.db.models import RetailerModel
-    import uuid as uuid_mod
-
-    retailer_id = None
-    try:
-        if req.entity_scope == "RETAILER":
-            try:
-                r_uuid = uuid_mod.UUID(req.entity_id)
-                stmt = select(RetailerModel).where(RetailerModel.public_id == r_uuid)
-                res = await db.execute(stmt)
-                retailer = res.scalar_one_or_none()
-                if retailer:
-                    retailer_id = retailer.public_id
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-    try:
-        existing_stmt = select(CentralTransactionModel).where(
-            CentralTransactionModel.transaction_reference == req.transaction_id
-        )
-        existing_res = await db.execute(existing_stmt)
-        existing = existing_res.scalar_one_or_none()
-        if existing:
-            return {
-                "success": True,
-                "message": "Transaction already recorded (idempotent)",
-                "transaction_id": req.transaction_id,
-                "public_id": str(existing.public_id),
-            }
-    except Exception:
-        pass
-
-    DEFAULT_TENANT_ID = uuid_mod.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
-
-    metadata = {
-        "entity_scope": req.entity_scope,
-        "entity_name": req.entity_name,
-        "entity_code": req.entity_code,
-        "service_name": req.service_name,
-        "wallet_type": req.wallet_type,
-        "txn_type": req.txn_type,
-        "previous_balance": req.opening_balance,
-        "current_balance": req.balance_after,
-        "comments": req.comments,
-        "performed_by": req.performed_by,
-    }
-
-    txn = CentralTransactionModel(
-        tenant_id=DEFAULT_TENANT_ID,
-        transaction_reference=req.transaction_id,
-        transaction_type="WALLET_TOPUP",
-        service_type="WALLET_TOPUP",
-        retailer_id=retailer_id,
-        amount=req.amount,
-        net_amount=req.amount,
-        status=req.status,
-        response_message=req.comments,
-        metadata_json=metadata,
-        created_by=req.performed_by,
-        updated_by=req.performed_by,
-        vendor_code="PLATFORM_ADMIN",
-    )
-    db.add(txn)
-    await db.commit()
-    await db.refresh(txn)
-
-    return {
-        "success": True,
-        "message": "Manual topup recorded successfully",
-        "transaction_id": req.transaction_id,
-        "public_id": str(txn.public_id),
-        "amount": req.amount,
-        "entity_code": req.entity_code,
-        "balance_after": req.balance_after,
-    }
-
-
-@router.get("/wallets/manual-topup", summary="Get Recent Manual Topup Ledger Transactions")
-@router.get("/manual-topup", summary="Get Recent Manual Topup Ledger Transactions Alias")
-async def get_manual_topup_ledger(
-    page_size: int = 50,
-    db: AsyncSession = Depends(get_db)
-):
-    from sqlalchemy import select, desc
-    from app.infrastructure.db.transaction_engine_models import CentralTransactionModel
-    from datetime import datetime, timezone
-
-    stmt = select(CentralTransactionModel).where(
-        CentralTransactionModel.service_type == "WALLET_TOPUP"
-    ).order_by(desc(CentralTransactionModel.created_at)).limit(page_size)
-
-    res = await db.execute(stmt)
-    txns = res.scalars().all()
-
-    items = []
-    for t in txns:
-        meta = t.metadata_json or {}
-        created_iso = t.created_at.isoformat() if t.created_at else datetime.now(timezone.utc).isoformat()
-        items.append({
-            "public_id": str(t.public_id),
-            "transaction_id": t.transaction_reference,
-            "entity_scope": meta.get("entity_scope", "RETAILER"),
-            "entity_id": str(t.retailer_id or t.customer_id or ""),
-            "entity_name": meta.get("entity_name") or meta.get("retailer_name") or "Retailer Store",
-            "entity_code": meta.get("entity_code") or meta.get("retailer_code") or "RET-UNKNOWN",
-            "service_name": meta.get("service_name", "General Allocation"),
-            "wallet_type": meta.get("wallet_type", "MAIN"),
-            "txn_type": meta.get("txn_type", "CREDIT"),
-            "amount": float(t.amount or 0.0),
-            "opening_balance": float(meta.get("previous_balance", 0.0)),
-            "balance_after": float(meta.get("current_balance", t.amount or 0.0)),
-            "comments": meta.get("comments") or t.response_message or "Manual wallet allocation",
-            "created_date": created_iso,
-            "status": t.status or "COMPLETED",
-            "performed_by": meta.get("performed_by", "Platform Admin"),
-        })
-
-    return {
-        "success": True,
-        "items": items,
-        "total": len(items)
-    }
-
-
 @router.post("/wallets/{id}/adjust")
 async def adjust_wallet_balance(
     id: uuid.UUID,
@@ -360,15 +209,21 @@ async def execute_manual_topup(
     
     # 1. Search for Retailer in DB by code or public_id
     r_uuid = None
-    try:
-        r_uuid = uuid.UUID(str(target_code))
-    except (ValueError, AttributeError):
-        pass
+    for cand in [req.entity_id, req.entity_code, target_code]:
+        if cand:
+            try:
+                r_uuid = uuid.UUID(str(cand))
+                break
+            except Exception:
+                pass
 
-    where_conds = [
-        RetailerModel.retailer_code == target_code,
-        RetailerModel.retailer_code == (req.entity_id or "")
-    ]
+    where_conds = []
+    if req.entity_code:
+        where_conds.append(RetailerModel.retailer_code == req.entity_code)
+    if target_code and target_code != req.entity_code:
+        where_conds.append(RetailerModel.retailer_code == target_code)
+    if req.entity_id and req.entity_id not in (req.entity_code, target_code):
+        where_conds.append(RetailerModel.retailer_code == req.entity_id)
     if r_uuid:
         where_conds.append(RetailerModel.public_id == r_uuid)
 
@@ -379,115 +234,124 @@ async def execute_manual_topup(
     ret_res = await db.execute(ret_stmt)
     ret_obj = ret_res.scalars().first()
 
-    updated_bal = req.balance_after or 0.0
+    if not ret_obj:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Target entity '{req.entity_code or req.entity_id}' could not be matched to an active retailer in the database."
+        )
+
     now_date_str = now_utc.strftime("%Y%m%d")
-    txn_ref = req.transaction_id or f"TOP-{now_date_str}-{uuid.uuid4().hex[:6].upper()}"
+    txn_ref = req.transaction_id or f"TOPUP-{now_date_str}-{uuid.uuid4().hex[:4].upper()}"
     txn_uuid = uuid.uuid4()
 
-    if ret_obj:
-        # Check / update RetailerWalletModel with row lock
-        wal_stmt = select(RetailerWalletModel).where(
-            RetailerWalletModel.retailer_id == ret_obj.public_id
-        ).with_for_update()
-        wal_res = await db.execute(wal_stmt)
-        wal_obj = wal_res.scalars().first()
+    # 2. Check / update RetailerWalletModel with row lock
+    wal_stmt = select(RetailerWalletModel).where(
+        RetailerWalletModel.retailer_id == ret_obj.public_id
+    ).with_for_update()
+    wal_res = await db.execute(wal_stmt)
+    wal_obj = wal_res.scalars().first()
 
-        opening_bal = float(wal_obj.wallet_balance) if wal_obj else 0.0
-        if wal_obj:
-            updated_bal = max(0.0, opening_bal + delta)
-            wal_obj.wallet_balance = updated_bal
-            wal_obj.updated_date = now_utc
-        else:
-            updated_bal = max(0.0, req.amount if req.txn_type.upper() == "CREDIT" else 0.0)
-            wal_obj = RetailerWalletModel(
-                public_id=uuid.uuid4(),
-                tenant_id=ret_obj.tenant_id,
-                company_id=ret_obj.company_id,
-                retailer_id=ret_obj.public_id,
-                wallet_balance=updated_bal,
-                daily_transaction_limit=500000.0,
-                single_transaction_limit=100000.0,
-                is_frozen=False,
-                is_active=True,
-                record_status="ACTIVE",
-                is_deleted=False,
-                version_no=1,
-                created_date=now_utc,
-                updated_date=now_utc,
-            )
-            db.add(wal_obj)
-
-        # 2. Write to TransactionLedgerEntryModel
-        ledger_entry = TransactionLedgerEntryModel(
-            tenant_id=ret_obj.tenant_id,
-            transaction_id=txn_uuid,
-            transaction_reference=txn_ref,
-            entry_type=req.txn_type.upper(),
-            account_type="RETAILER_WALLET",
-            account_number=str(ret_obj.public_id),
-            amount=req.amount,
-            balance_before=opening_bal,
-            balance_after=updated_bal,
-            currency="INR",
-            narration=req.comments or f"Admin Manual {req.txn_type} Top-up ({req.service_name}) by {req.performed_by}",
-            created_at=now_utc
-        )
-        db.add(ledger_entry)
-
-        # 3. Write to Central Transactions table (transactions)
-        central_txn = CentralTransactionModel(
-            public_id=txn_uuid,
+    opening_bal = float(wal_obj.wallet_balance) if wal_obj else 0.0
+    if wal_obj:
+        updated_bal = round(max(0.0, opening_bal + delta), 2)
+        wal_obj.wallet_balance = updated_bal
+        wal_obj.updated_date = now_utc
+    else:
+        updated_bal = round(max(0.0, req.amount if req.txn_type.upper() == "CREDIT" else 0.0), 2)
+        wal_obj = RetailerWalletModel(
+            public_id=uuid.uuid4(),
             tenant_id=ret_obj.tenant_id,
             company_id=ret_obj.company_id,
-            vendor_code="ADMIN_MANUAL",
-            transaction_reference=txn_ref,
-            transaction_type="MANUAL_TOPUP" if req.txn_type.upper() == "CREDIT" else "MANUAL_DEBIT",
-            service_type="TOPUP",
             retailer_id=ret_obj.public_id,
-            amount=req.amount,
-            currency="INR",
-            charges=0.0,
-            commission=0.0,
-            gst_amount=0.0,
-            tds_amount=0.0,
-            net_amount=req.amount,
-            status="SUCCESS",
-            status_description=req.comments or f"Admin Manual {req.txn_type} Top-up ({req.service_name}) by {req.performed_by}",
-            request_id=req.transaction_id or txn_ref,
-            utr=req.transaction_id or txn_ref,
-            created_at=now_utc,
-            updated_at=now_utc,
-            created_by=req.performed_by or "Platform Admin",
-            updated_by=req.performed_by or "Platform Admin",
-            metadata_json={
-                "service_name": req.service_name,
-                "wallet_type": req.wallet_type,
-                "txn_type": req.txn_type,
-                "entity_code": req.entity_code,
-                "entity_name": req.entity_name,
-                "retailer_code": ret_obj.retailer_code,
-                "retailer_name": ret_obj.store_name,
-                "previous_balance": opening_bal,
-                "current_balance": updated_bal,
-                "performed_by": req.performed_by or "Platform Admin",
-                "comments": req.comments
-            }
+            wallet_balance=updated_bal,
+            daily_transaction_limit=500000.0,
+            single_transaction_limit=100000.0,
+            is_frozen=False,
+            is_active=True,
+            record_status="ACTIVE",
+            is_deleted=False,
+            version_no=1,
+            created_date=now_utc,
+            updated_date=now_utc,
         )
-        db.add(central_txn)
-        
-        await db.commit()
+        db.add(wal_obj)
+
+    # 3. Write to TransactionLedgerEntryModel
+    ledger_entry = TransactionLedgerEntryModel(
+        tenant_id=ret_obj.tenant_id,
+        transaction_id=txn_uuid,
+        transaction_reference=txn_ref,
+        entry_type=req.txn_type.upper(),
+        account_type="RETAILER_WALLET",
+        account_number=str(ret_obj.public_id),
+        amount=req.amount,
+        balance_before=opening_bal,
+        balance_after=updated_bal,
+        currency="INR",
+        narration=req.comments or f"Admin Manual {req.txn_type} Top-up ({req.service_name}) by {req.performed_by}",
+        created_at=now_utc
+    )
+    db.add(ledger_entry)
+
+    # 4. Write to Central Transactions table (transactions)
+    central_txn = CentralTransactionModel(
+        public_id=txn_uuid,
+        tenant_id=ret_obj.tenant_id,
+        company_id=ret_obj.company_id,
+        vendor_code="ADMIN_MANUAL",
+        transaction_reference=txn_ref,
+        transaction_type="MANUAL_TOPUP" if req.txn_type.upper() == "CREDIT" else "MANUAL_DEBIT",
+        service_type="WALLET_TOPUP",
+        retailer_id=ret_obj.public_id,
+        amount=req.amount,
+        currency="INR",
+        charges=0.0,
+        commission=0.0,
+        gst_amount=0.0,
+        tds_amount=0.0,
+        net_amount=req.amount,
+        status="SUCCESS",
+        status_description=req.comments or f"Admin Manual {req.txn_type} Top-up ({req.service_name}) by {req.performed_by}",
+        request_id=req.transaction_id or txn_ref,
+        utr=req.transaction_id or txn_ref,
+        created_at=now_utc,
+        updated_at=now_utc,
+        created_by=req.performed_by or "Platform Admin",
+        updated_by=req.performed_by or "Platform Admin",
+        metadata_json={
+            "service_name": req.service_name,
+            "wallet_type": req.wallet_type,
+            "txn_type": req.txn_type,
+            "entity_scope": req.entity_scope,
+            "entity_code": req.entity_code,
+            "entity_name": req.entity_name,
+            "retailer_code": ret_obj.retailer_code,
+            "retailer_name": ret_obj.store_name,
+            "previous_balance": opening_bal,
+            "current_balance": updated_bal,
+            "performed_by": req.performed_by or "Platform Admin",
+            "comments": req.comments
+        }
+    )
+    db.add(central_txn)
     
+    await db.commit()
+    await db.refresh(wal_obj)
+
     return {
         "success": True,
+        "message": "Manual topup recorded successfully",
         "transaction_id": txn_ref,
-        "entity_code": req.entity_code,
-        "entity_name": req.entity_name,
-        "txn_type": req.txn_type,
+        "public_id": str(central_txn.public_id),
         "amount": req.amount,
+        "entity_code": req.entity_code,
+        "entity_name": req.entity_name or ret_obj.store_name,
+        "txn_type": req.txn_type,
+        "opening_balance": opening_bal,
+        "balance_after": updated_bal,
         "new_balance": updated_bal,
         "status": "COMPLETED",
-        "timestamp": now_utc.isoformat(),
-        "message": f"Successfully {req.txn_type.lower()}ed ₹{req.amount:,.2f} for {req.entity_code}."
+        "timestamp": now_utc.isoformat()
     }
 
 

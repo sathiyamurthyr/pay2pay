@@ -65,7 +65,8 @@ def create_access_token(
     company_id: Optional[str] = None,
     roles: list = [],
     jti: Optional[str] = None,
-    expires_delta: Optional[timedelta] = None
+    expires_delta: Optional[timedelta] = None,
+    **extra_claims
 ) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -75,14 +76,17 @@ def create_access_token(
     token_jti = jti or str(uuid.uuid4())
     payload = {
         "sub": subject,
-        "tenant_id": tenant_id,
-        "company_id": company_id,
+        "tenant_id": str(tenant_id) if tenant_id else "00000000-0000-0000-0000-000000000001",
+        "company_id": str(company_id) if company_id else None,
         "roles": roles,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
         "jti": token_jti,
         "type": "access"
     }
+    for k, v in extra_claims.items():
+        if v is not None:
+            payload[k] = v
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 

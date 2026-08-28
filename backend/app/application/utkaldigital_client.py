@@ -1,4 +1,3 @@
-from __future__ import annotations
 """
 Official Utkal Digital Payout API Client
 Integrates official Utkal Digital REST API endpoints for:
@@ -59,7 +58,7 @@ class UtkalDigitalApiClient:
         cls,
         authcode: Optional[str] = None,
         mpin: Optional[str] = None
-    ) -> tuple[str, str]:
+    ) -> Tuple[str, str]:
         auth = authcode or UTKAL_AUTHCODE
         mp = mpin or UTKAL_MPIN
         return auth, mp
@@ -152,32 +151,6 @@ class UtkalDigitalApiClient:
                     standardized_status = "FAILED"
                     is_success = False
 
-                # Persist Outbound API Log
-                try:
-                    from app.core.outbound_api_logger import log_outbound_api_call
-                    await log_outbound_api_call(
-                        provider_name="UTKALDIGITAL",
-                        service_name="PAYOUT",
-                        endpoint=target_url,
-                        http_method="POST",
-                        api_name="Utkal Digital IMPS Payout API",
-                        request_id=merchant_ref,
-                        correlation_id=f"CORR-{merchant_ref}",
-                        request_headers=headers,
-                        request_body=payload,
-                        response_headers=dict(res.headers) if res else {},
-                        response_body=data,
-                        http_status_code=res.status_code if res else 200,
-                        duration_ms=latency,
-                        response_status=standardized_status,
-                        provider_response_code=str(data.get("Status") or ""),
-                        provider_response_message=desc,
-                        provider_reference_id=trans_id or op_ref_id,
-                        customer_id=clean_mobile,
-                    )
-                except Exception as log_err:
-                    logger.warning(f"Failed to log Utkal payout call: {log_err}")
-
                 return {
                     "success": is_success,
                     "status": standardized_status,
@@ -198,26 +171,6 @@ class UtkalDigitalApiClient:
         except httpx.TimeoutException as te:
             latency = round((time.perf_counter() - start_time) * 1000, 2)
             logger.warning(f"[UTKAL PAYOUT TIMEOUT] Request timed out after {latency}ms: {te}")
-            try:
-                from app.core.outbound_api_logger import log_outbound_api_call
-                await log_outbound_api_call(
-                    provider_name="UTKALDIGITAL",
-                    service_name="PAYOUT",
-                    endpoint=target_url,
-                    http_method="POST",
-                    api_name="Utkal Digital IMPS Payout API",
-                    request_id=merchant_ref,
-                    correlation_id=f"CORR-{merchant_ref}",
-                    request_headers=headers,
-                    request_body=payload,
-                    response_body={"error": "Timeout", "detail": str(te)},
-                    http_status_code=408,
-                    duration_ms=latency,
-                    response_status="TIMEOUT",
-                    error_message=str(te)
-                )
-            except Exception:
-                pass
             return {
                 "success": False,
                 "status": "PENDING",
@@ -233,26 +186,6 @@ class UtkalDigitalApiClient:
         except Exception as ex:
             latency = round((time.perf_counter() - start_time) * 1000, 2)
             logger.error(f"[UTKAL PAYOUT ERROR] Connection exception: {ex}")
-            try:
-                from app.core.outbound_api_logger import log_outbound_api_call
-                await log_outbound_api_call(
-                    provider_name="UTKALDIGITAL",
-                    service_name="PAYOUT",
-                    endpoint=target_url,
-                    http_method="POST",
-                    api_name="Utkal Digital IMPS Payout API",
-                    request_id=merchant_ref,
-                    correlation_id=f"CORR-{merchant_ref}",
-                    request_headers=headers,
-                    request_body=payload,
-                    response_body={"error": str(ex)},
-                    http_status_code=500,
-                    duration_ms=latency,
-                    response_status="FAILED",
-                    error_message=str(ex)
-                )
-            except Exception:
-                pass
             return {
                 "success": False,
                 "status": "FAILED",
@@ -346,31 +279,6 @@ class UtkalDigitalApiClient:
                     standardized_status = "FAILED"
                     is_success = False
 
-                # Persist Outbound API Log for Status Check
-                try:
-                    from app.core.outbound_api_logger import log_outbound_api_call
-                    await log_outbound_api_call(
-                        provider_name="UTKALDIGITAL",
-                        service_name="PAYOUT",
-                        endpoint=target_url,
-                        http_method="POST",
-                        api_name="Utkal Digital Status Verify API",
-                        request_id=request_id,
-                        correlation_id=f"CORR-{request_id}",
-                        request_headers=headers,
-                        request_body=payload,
-                        response_headers=dict(res.headers) if res else {},
-                        response_body=data,
-                        http_status_code=res.status_code if res else 200,
-                        duration_ms=latency,
-                        response_status=standardized_status,
-                        provider_response_code=str(data.get("Status") or ""),
-                        provider_response_message=desc,
-                        provider_reference_id=trans_id or op_ref_id,
-                    )
-                except Exception:
-                    pass
-
                 return {
                     "success": is_success,
                     "status": standardized_status,
@@ -458,29 +366,6 @@ class UtkalDigitalApiClient:
                     numeric_total = numeric_balance
 
                 is_success = raw_status in ("SUCCESS", "SUCCESSFUL") or (numeric_balance > 0) or (res.status_code == 200 and "invalid" not in desc.lower())
-
-                # Persist Outbound API Log for Balance Check
-                try:
-                    from app.core.outbound_api_logger import log_outbound_api_call
-                    await log_outbound_api_call(
-                        provider_name="UTKALDIGITAL",
-                        service_name="WALLET",
-                        endpoint=target_url,
-                        http_method="POST",
-                        api_name="Utkal Digital Live Balance Check",
-                        request_id=f"BAL-{int(time.time()*1000)}",
-                        request_headers=headers,
-                        request_body=payload,
-                        response_headers=dict(res.headers) if res else {},
-                        response_body=data,
-                        http_status_code=res.status_code if res else 200,
-                        duration_ms=latency,
-                        response_status="SUCCESS" if is_success else "FAILED",
-                        provider_response_code=str(data.get("Status") or ""),
-                        provider_response_message=desc,
-                    )
-                except Exception:
-                    pass
 
                 return {
                     "success": is_success,

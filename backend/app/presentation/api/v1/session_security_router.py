@@ -115,6 +115,9 @@ def _hash_mpin(pin: str, customer_id_str: str) -> str:
 
 @router.post("/auth/security/unlock", summary="Authenticate 4-Digit Security PIN to Unlock Screen")
 @router.post("/session/unlock", summary="Re-authenticate Security PIN (Alias)")
+@router.post("/auth/verify-pin", summary="Verify Security PIN (Alias)")
+@router.post("/auth/pin/verify", summary="Verify Security PIN (Alias)")
+@router.post("/verify-pin", summary="Verify Security PIN (Alias)")
 async def unlock_screen_session(
     req: UnlockPinRequest,
     payload: dict = Depends(get_current_token_payload),

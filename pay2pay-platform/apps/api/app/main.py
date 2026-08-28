@@ -84,6 +84,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.core.enterprise_api_logging_middleware import EnterpriseApiLoggingMiddleware
+app.add_middleware(EnterpriseApiLoggingMiddleware)
+
+
+@app.middleware("http")
+async def normalize_api_path(request: Request, call_next):
+    path = request.scope.get("path", "")
+    if path.startswith("/api/v1/api/v1/"):
+        request.scope["path"] = path.replace("/api/v1/api/v1/", "/api/v1/", 1)
+    return await call_next(request)
+
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -124,6 +135,8 @@ app.include_router(financial_config.router, prefix=settings.API_V1_STR)
 app.include_router(settlement_intake.router, prefix=settings.API_V1_STR)
 app.include_router(settlement_processing.router, prefix=settings.API_V1_STR)
 app.include_router(wallet_ledger.router, prefix=settings.API_V1_STR)
+app.include_router(wallet_ledger.router, prefix="/v1")
+app.include_router(wallet_ledger.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(wallet_ledger.router, prefix="/api")
 app.include_router(wallet_ledger.router, prefix="")
 app.include_router(payouts.router, prefix=settings.API_V1_STR)
@@ -192,6 +205,9 @@ app.include_router(announcements_router.router, prefix="/api")
 app.include_router(announcements_router.router, prefix="")
 app.include_router(retailer_dashboard_router.router, prefix=settings.API_V1_STR)
 app.include_router(session_security_router.router, prefix=settings.API_V1_STR)
+app.include_router(session_security_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(session_security_router.router, prefix="/api")
+app.include_router(session_security_router.router, prefix="")
 app.include_router(report_center_router.router, prefix=settings.API_V1_STR)
 app.include_router(progressive_onboarding_router.router, prefix=settings.API_V1_STR)
 app.include_router(admin_verification_router.router, prefix=settings.API_V1_STR)
@@ -213,6 +229,28 @@ app.include_router(enterprise_transaction_report_router.router, prefix="")
 app.include_router(retailer_profile_router.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_profile_router.router, prefix="/api")
 app.include_router(retailer_profile_router.router, prefix="")
+
+from app.presentation.api.v1 import enterprise_api_logs_router
+app.include_router(enterprise_api_logs_router.router, prefix=settings.API_V1_STR)
+app.include_router(enterprise_api_logs_router.router, prefix="/v1")
+app.include_router(enterprise_api_logs_router.router, prefix="/api")
+app.include_router(enterprise_api_logs_router.router, prefix="")
+
+from app.presentation.api.v1 import topup_router
+app.include_router(topup_router.router, prefix=settings.API_V1_STR)
+app.include_router(topup_router.router, prefix="/v1")
+app.include_router(topup_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(topup_router.router, prefix="/api")
+app.include_router(topup_router.router, prefix="")
+
+from app.presentation.api.v1 import retailer_dashboard_router
+app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
+app.include_router(retailer_dashboard_router.router, prefix=settings.API_V1_STR)
+app.include_router(retailer_dashboard_router.router, prefix="/v1/payout")
+app.include_router(retailer_dashboard_router.router, prefix="/v1")
+app.include_router(retailer_dashboard_router.router, prefix="/api/payout")
+app.include_router(retailer_dashboard_router.router, prefix="/api")
+app.include_router(retailer_dashboard_router.router, prefix="")
 
 
 

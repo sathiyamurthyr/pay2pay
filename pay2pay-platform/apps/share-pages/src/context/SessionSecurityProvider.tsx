@@ -359,7 +359,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     }
 
     try {
-      const baseUrl = getApiBaseUrl();
+      const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
       const token =
         typeof window !== "undefined"
           ? localStorage.getItem("pay2pay_auth_token") || localStorage.getItem("pay2pay_access_token")
@@ -424,7 +424,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
     } catch (e) {}
 
     try {
-      const baseUrl = getApiBaseUrl();
+      const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
       const token = localStorage.getItem("pay2pay_auth_token");
       if (token) {
         await axios.put(`${baseUrl}/api/v1/users/me/security-settings`, updated, {
@@ -437,7 +437,7 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
   // Audit Logging Helper
   const logAuditEvent = (event_type: string, metadata: Record<string, any>) => {
     try {
-      const baseUrl = getApiBaseUrl();
+      const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
       const token =
         typeof window !== "undefined" ? localStorage.getItem("pay2pay_auth_token") : null;
       if (token) {

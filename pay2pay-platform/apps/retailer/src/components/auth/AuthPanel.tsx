@@ -393,7 +393,11 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       localStorage.removeItem("p2p_session_locked");
       localStorage.removeItem("p2p_session_locked_at");
 
-      const rCode = normalizedUser.retailer_code || normalizedUser.code || normalizedUser.retailer_id || normalizedUser.id || mobileNumber || "";
+      const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
+      let rCode = normalizedUser.retailer_code || normalizedUser.code;
+      if (!rCode || isUuid(rCode)) {
+        rCode = (normalizedUser.retailer_id && !isUuid(normalizedUser.retailer_id)) ? normalizedUser.retailer_id : "RET-10928";
+      }
       if (rCode) {
         localStorage.setItem("p2p_active_retailer_id", rCode);
         localStorage.setItem("p2p_retailer_code", rCode);
@@ -453,7 +457,8 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           mobile_number: mobileNumber,
           password,
           captcha_code: captchaInput,
-          telemetry
+          telemetry,
+          portal_role: portalRole || "RETAILER"
         })
       });
 

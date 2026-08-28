@@ -11,7 +11,7 @@ import time
 import json
 import logging
 import httpx
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger("utkaldigital_client")
 
@@ -58,7 +58,7 @@ class UtkalDigitalApiClient:
         cls,
         authcode: Optional[str] = None,
         mpin: Optional[str] = None
-    ) -> tuple[str, str]:
+    ) -> Tuple[str, str]:
         auth = authcode or UTKAL_AUTHCODE
         mp = mpin or UTKAL_MPIN
         return auth, mp

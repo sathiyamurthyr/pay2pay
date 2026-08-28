@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Copy,
   Phone,
+  Store,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -61,6 +62,7 @@ interface TopupItem {
     retailer_name: string;
     mobile_number?: string;
     company_name?: string;
+    account_status?: string;
     wallet_id?: string;
     current_wallet_balance: number;
     is_wallet_frozen: boolean;
@@ -707,15 +709,40 @@ export default function AdminTopupRequestsPage() {
                               {item.retailer?.retailer_name || "Unknown Retailer"}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-                              <span className="font-mono font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              <span className="font-mono font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" title="Retailer Code">
                                 {item.retailer?.retailer_code || "RET-N/A"}
                               </span>
+                              {item.retailer?.account_status && item.retailer.account_status !== "ACTIVE" && (
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
+                                    item.retailer.account_status === "HOLD"
+                                      ? "bg-amber-100 text-amber-900 border-amber-300"
+                                      : item.retailer.account_status === "REJECTED"
+                                      ? "bg-rose-100 text-rose-900 border-rose-300"
+                                      : "bg-slate-100 text-slate-800 border-slate-300"
+                                  }`}
+                                  title={`Retailer KYC / Onboarding Status: ${item.retailer.account_status}`}
+                                >
+                                  KYC: {item.retailer.account_status}
+                                </span>
+                              )}
+                              {item.retailer?.mobile_number && (
+                                <span className="text-slate-600 font-medium flex items-center gap-1">
+                                  <Phone className="h-3 w-3 text-slate-400" />
+                                  {item.retailer.mobile_number}
+                                </span>
+                              )}
                               {item.retailer?.current_wallet_balance !== undefined && (
                                 <span className="text-slate-600 font-semibold">
                                   • Bal: <strong className="text-emerald-700">₹{item.retailer.current_wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
                                 </span>
                               )}
                             </div>
+                            {item.retailer?.retailer_id && (
+                              <div className="text-[10px] font-mono text-slate-400 mt-0.5 truncate max-w-[200px]" title={item.retailer.retailer_id}>
+                                ID: {item.retailer.retailer_id}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -1014,25 +1041,53 @@ export default function AdminTopupRequestsPage() {
                         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                           Retailer Profile
                         </span>
-                        <span className="font-mono text-xs font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-200">
-                          {selectedRequest.retailer?.retailer_code || "RET-N/A"}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-200" title="Retailer Code">
+                            {selectedRequest.retailer?.retailer_code || "RET-N/A"}
+                          </span>
+                          {selectedRequest.retailer?.account_status && selectedRequest.retailer.account_status !== "ACTIVE" && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-900 border border-rose-300">
+                              KYC: {selectedRequest.retailer.account_status}
+                            </span>
+                          )}
+                        </div>
                       </div>
+
+                      {selectedRequest.retailer?.account_status && selectedRequest.retailer.account_status !== "ACTIVE" && (
+                        <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 font-semibold flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                          <span>This retailer account is not approved (Status: <strong>{selectedRequest.retailer.account_status}</strong>). The account must be approved before funds can be credited.</span>
+                        </div>
+                      )}
 
                       <div>
                         <h4 className="text-base font-black text-slate-900">
                           {selectedRequest.retailer?.retailer_name || "Unknown Retailer"}
                         </h4>
+                        {selectedRequest.retailer?.retailer_id && (
+                          <div className="flex items-center gap-1.5 mt-1.5 text-xs">
+                            <span className="text-slate-400 font-medium">Retailer UUID:</span>
+                            <span className="font-mono text-xs font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200 select-all">
+                              {selectedRequest.retailer.retailer_id}
+                            </span>
+                          </div>
+                        )}
                         {selectedRequest.retailer?.mobile_number && (
-                          <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5">
-                            <Phone className="h-3 w-3 text-slate-400" />
-                            {selectedRequest.retailer.mobile_number}
+                          <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-1.5 font-medium">
+                            <Phone className="h-3.5 w-3.5 text-slate-400" />
+                            <span className="text-slate-800 font-bold">{selectedRequest.retailer.mobile_number}</span>
+                          </p>
+                        )}
+                        {selectedRequest.retailer?.company_name && (
+                          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
+                            <Store className="h-3.5 w-3.5 text-slate-400" />
+                            <span>{selectedRequest.retailer.company_name}</span>
                           </p>
                         )}
                       </div>
 
                       {/* Current Wallet Balance */}
-                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                      <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between">
                         <span className="text-xs text-slate-600 font-medium">Current Wallet Balance</span>
                         <span className="text-sm font-black text-emerald-700">
                           ₹{(selectedRequest.retailer?.current_wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}

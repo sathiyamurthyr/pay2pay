@@ -86,9 +86,13 @@ async def resolve_retailer_context(
     if payload.get("sub") and not ret_model and db:
         sub_uuid = parse_uuid_or_none(str(payload.get("sub")))
         if sub_uuid:
-            ret_chk = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid))).scalars().first()
+            ret_chk = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False))).scalars().first()
             if ret_chk:
                 ret_model = ret_chk
+            else:
+                adm_chk = (await db.execute(select(AdminUserModel).where(AdminUserModel.public_id == sub_uuid, AdminUserModel.is_deleted == False))).scalars().first()
+                if adm_chk and adm_chk.phone:
+                    clean_mobile = re.sub(r"\D", "", str(adm_chk.phone))[-10:]
 
     if target_ident:
         raw_digits = re.sub(r"\D", "", str(target_ident))
@@ -106,6 +110,10 @@ async def resolve_retailer_context(
         if r_uuid:
             ret_stmt = select(RetailerModel).where(RetailerModel.public_id == r_uuid, RetailerModel.is_deleted == False)
             ret_model = (await db.execute(ret_stmt)).scalars().first()
+            if not ret_model:
+                adm_chk = (await db.execute(select(AdminUserModel).where(AdminUserModel.public_id == r_uuid, AdminUserModel.is_deleted == False))).scalars().first()
+                if adm_chk and adm_chk.phone:
+                    clean_mobile = re.sub(r"\D", "", str(adm_chk.phone))[-10:]
         elif target_ident and target_ident != "RET-PENDING":
             ret_stmt = select(RetailerModel).where(
                 or_(
@@ -157,13 +165,8 @@ async def resolve_retailer_context(
                 except Exception:
                     pass
 
-        # 4. Default fallback to primary active merchant in DB (prioritize retailer with transactions / RET-10928)
-        if not ret_model and not verif and not target_ident:
-            ret_stmt = select(RetailerModel).where(RetailerModel.retailer_code == "RET-10928")
-            ret_model = (await db.execute(ret_stmt)).scalars().first()
-            if not ret_model:
-                ret_stmt = select(RetailerModel).where(RetailerModel.status == "ACTIVE").order_by(RetailerModel.id.asc())
-                ret_model = (await db.execute(ret_stmt)).scalars().first()
+        # 4. If still not resolved and no target identifier, do not silently bind to RET-10928
+        pass
 
     # Determine dynamic identity: Prioritize active RetailerModel
     if ret_model:
@@ -172,7 +175,14 @@ async def resolve_retailer_context(
         final_name = ret_model.store_name or ret_model.owner_name or "Retailer Store"
         final_owner = ret_model.owner_name or "Retailer Partner"
         final_store = ret_model.store_name or "Retailer Store"
-        final_mobile = clean_mobile or "9840192837"
+        if not clean_mobile and db:
+            try:
+                c_stmt = select(RetailerContactModel.mobile).where(RetailerContactModel.retailer_id == ret_model.public_id, RetailerContactModel.is_deleted == False).limit(1)
+                c_res = await db.execute(c_stmt)
+                clean_mobile = c_res.scalar() or ""
+            except Exception:
+                pass
+        final_mobile = clean_mobile or ""
         final_status = (ret_model.status or "ACTIVE").upper()
         final_kyc = "APPROVED"
         final_public_id = ret_model.public_id
@@ -401,8 +411,9 @@ async def get_retailer_header_wallet(
         "avatar_url": resolved_photo,
         # Structured nested objects
         "retailer_info": {
-            "retailer_id": str(pub_id) if pub_id else ctx["retailer_id"],
+            "retailer_id": ctx["retailer_id"],
             "retailer_code": ctx["retailer_id"],
+            "retailer_uuid": str(pub_id) if pub_id else None,
             "retailer_name": ctx["retailer_name"],
             "owner_name": ctx["owner_name"],
             "short_name": ctx["owner_name"].split()[0] if ctx["owner_name"] else "Retailer",

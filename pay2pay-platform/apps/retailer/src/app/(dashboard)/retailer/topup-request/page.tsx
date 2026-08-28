@@ -89,9 +89,17 @@ export default function RetailerTopupRequestPage() {
   const fetchMyTopups = useCallback(async () => {
     try {
       setLoadingRequests(true);
-      const activeCode = typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "" : "";
+      const activeCode =
+        (typeof window !== "undefined"
+          ? localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("retailer_code") ||
+            localStorage.getItem("pay2pay_reg_mobile") ||
+            ""
+          : "");
       const query = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
-      const res = await api.get(`/api/v1/topup/my-requests${query}`);
+      const res = await api.get(`/api/v1/topup/my-requests${query}`, {
+        headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}
+      });
       setMyRequests(res.data.items || []);
       if (res.data?.retailer) {
         setRetailerInfo({
@@ -195,10 +203,37 @@ export default function RetailerTopupRequestPage() {
         retailer_remarks: retailerRemarks.trim() || undefined
       };
 
-      const activeCode = typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "" : "";
-      const query = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
-      const res = await api.post(`/api/v1/topup/request${query}`, payload);
-      setSuccessMessage(res.data.message || `Topup request ${res.data.topup_request_id} submitted successfully.`);
+      const activeCode =
+        retailerInfo?.code ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("p2p_active_retailer_id") ||
+            localStorage.getItem("retailer_code") ||
+            localStorage.getItem("pay2pay_reg_mobile") ||
+            ""
+          : "");
+      const queryParam = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
+      const res = await api.post(`/api/v1/topup/request${queryParam}`, payload, {
+        headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}
+      });
+
+      const newReqId = res.data.topup_request_id;
+      setSuccessMessage(res.data.message || `Topup request ${newReqId} submitted successfully and is pending admin verification.`);
+
+      // Optimistically prepend to right-hand table
+      const newClaim: TopupRequestItem = {
+        id: res.data?.id || `req-${Date.now()}`,
+        topup_request_id: newReqId,
+        requested_amount: amt,
+        approved_amount: undefined,
+        payment_reference: paymentReference.trim(),
+        payment_method: paymentMethod,
+        payment_date: paymentDate ? new Date(paymentDate).toISOString() : new Date().toISOString(),
+        slip_id: uploadedSlipData?.slip_id,
+        slip_url: uploadedSlipData?.slip_url,
+        status: "PENDING",
+        submitted_at: new Date().toISOString()
+      };
+      setMyRequests((prev) => [newClaim, ...prev.filter(r => r.topup_request_id !== newReqId)]);
 
       // Reset Form
       setRequestedAmount("");
@@ -209,7 +244,7 @@ export default function RetailerTopupRequestPage() {
       setUploadedSlipData(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      // Refresh list
+      // Refresh list from server
       fetchMyTopups();
     } catch (err: any) {
       console.error("Submit request error:", err);
