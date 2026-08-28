@@ -529,6 +529,7 @@ class RetailerModel(BaseEntity, EnterpriseBaseMixin):
     website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="PENDING_APPROVAL", nullable=False, index=True)  # DRAFT, PENDING_KYC, PENDING_APPROVAL, ACTIVE, SUSPENDED, BLOCKED, CLOSED
     mapped_distributor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("distributor.public_id", ondelete="SET NULL"), nullable=True, index=True)
+    rm_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("regional_manager.public_id", ondelete="SET NULL"), nullable=True, index=True)
 
     # MPIN Security & Lockout Management
     mpin_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -546,10 +547,34 @@ class RetailerModel(BaseEntity, EnterpriseBaseMixin):
     wallet: Mapped[Optional["RetailerWalletModel"]] = relationship("RetailerWalletModel", back_populates="retailer", uselist=False, cascade="all, delete-orphan")
     status_history: Mapped[List["RetailerStatusHistoryModel"]] = relationship("RetailerStatusHistoryModel", back_populates="retailer", cascade="all, delete-orphan")
     approvals: Mapped[List["RetailerApprovalModel"]] = relationship("RetailerApprovalModel", back_populates="retailer", cascade="all, delete-orphan")
+    assignments: Mapped[List["RetailerAssignmentModel"]] = relationship("RetailerAssignmentModel", back_populates="retailer", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "retailer_code", name="uq_retailer_tenant_code"),
     )
+
+
+class RetailerAssignmentModel(Base):
+    __tablename__ = "retailer_assignment"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    public_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    distributor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("distributor.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    rm_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("regional_manager.public_id", ondelete="SET NULL"), nullable=True, index=True)
+    effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    effective_to: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    retailer: Mapped["RetailerModel"] = relationship("RetailerModel", back_populates="assignments")
 
 
 class RetailerMpinAuditModel(Base):

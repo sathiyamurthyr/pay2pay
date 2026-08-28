@@ -61,22 +61,45 @@ export default function RetailerDetailsPage() {
   const [lightboxRotation, setLightboxRotation] = useState<number>(0);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
-  // Organization Hierarchy Mapping State
+  // Organization Hierarchy Mapping State (Company -> Distributor -> RM)
   const [hierarchyModalOpen, setHierarchyModalOpen] = useState(false);
   const [hierarchyOptions, setHierarchyOptions] = useState<any>(null);
+  const [mappingData, setMappingData] = useState<any>(null);
+  const [mappingLoading, setMappingLoading] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [selectedDistributorId, setSelectedDistributorId] = useState<string>("");
+  const [selectedRmId, setSelectedRmId] = useState<string>("");
+  const [mappingReason, setMappingReason] = useState<string>("");
   const [mappingSaving, setMappingSaving] = useState(false);
+  const [mappingError, setMappingError] = useState<string | null>(null);
   const [mappingSuccessMsg, setMappingSuccessMsg] = useState<string | null>(null);
+
+  const fetchMappingData = async () => {
+    try {
+      setMappingLoading(true);
+      const res = await api.get(`/api/v1/admin/retailers/${retailerId}/mapping`);
+      setMappingData(res.data);
+    } catch (err) {
+      console.error("Failed to load hierarchy mapping data", err);
+    } finally {
+      setMappingLoading(false);
+    }
+  };
 
   const openHierarchyModal = async () => {
     try {
+      setMappingError(null);
       if (!hierarchyOptions) {
-        const res = await api.get("/api/v1/retailers/hierarchy-options");
+        const res = await api.get("/api/v1/admin/retailers/hierarchy-options");
         setHierarchyOptions(res.data);
       }
-      setSelectedCompanyId(data?.company?.public_id || data?.retailer?.company_id || "");
-      setSelectedDistributorId(data?.assigned_distributor?.public_id || data?.retailer?.mapped_distributor_id || "");
+      const currComp = mappingData?.hierarchy_path?.company?.public_id || data?.company?.public_id || data?.retailer?.company_id || "";
+      const currDist = mappingData?.hierarchy_path?.distributor?.public_id || data?.assigned_distributor?.public_id || data?.retailer?.mapped_distributor_id || "";
+      const currRm = mappingData?.hierarchy_path?.rm?.public_id || data?.assigned_rm?.public_id || data?.retailer?.rm_id || "";
+      setSelectedCompanyId(currComp);
+      setSelectedDistributorId(currDist);
+      setSelectedRmId(currRm);
+      setMappingReason("");
       setHierarchyModalOpen(true);
     } catch (err) {
       console.error("Failed to load hierarchy options", err);
@@ -84,19 +107,47 @@ export default function RetailerDetailsPage() {
     }
   };
 
+  const handleCompanyChange = (newCompanyId: string) => {
+    setSelectedCompanyId(newCompanyId);
+    setMappingError(null);
+    if (hierarchyOptions && newCompanyId) {
+      const comp = hierarchyOptions.companies?.find((c: any) => c.public_id === newCompanyId);
+      const dists = comp?.distributors || [];
+      if (!dists.some((d: any) => d.public_id === selectedDistributorId)) {
+        setSelectedDistributorId("");
+      }
+      const rms = comp?.regional_managers || [];
+      if (!rms.some((r: any) => r.public_id === selectedRmId)) {
+        setSelectedRmId("");
+      }
+    }
+  };
+
   const handleSaveHierarchy = async () => {
+    if (!selectedCompanyId) {
+      setMappingError("Please select a target Company.");
+      return;
+    }
+    if (!selectedDistributorId) {
+      setMappingError("Please select a target Distributor.");
+      return;
+    }
     try {
       setMappingSaving(true);
-      await api.put(`/api/v1/retailers/${retailerId}/hierarchy`, {
-        company_id: selectedCompanyId || null,
-        distributor_id: selectedDistributorId || null,
+      setMappingError(null);
+      await api.put(`/api/v1/admin/retailers/${retailerId}/mapping`, {
+        company_id: selectedCompanyId,
+        distributor_id: selectedDistributorId,
+        rm_id: selectedRmId || null,
+        reason: mappingReason || "Admin updated retailer organizational hierarchy mapping",
       });
-      setMappingSuccessMsg("Hierarchy mapped successfully!");
-      setTimeout(() => setMappingSuccessMsg(null), 3000);
+      setMappingSuccessMsg("Retailer hierarchy mapped successfully!");
+      setTimeout(() => setMappingSuccessMsg(null), 4000);
       setHierarchyModalOpen(false);
       await fetchDetails();
+      await fetchMappingData();
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Failed to update hierarchy mapping.");
+      setMappingError(err.response?.data?.detail || "Failed to update hierarchy mapping.");
     } finally {
       setMappingSaving(false);
     }
@@ -165,6 +216,7 @@ export default function RetailerDetailsPage() {
       const res = await api.get(`/api/v1/retailers/${retailerId}`);
       setData(res.data);
       await fetchMpinStatus();
+      await fetchMappingData();
     } catch (err) {
       console.error("Failed to load retailer details", err);
     } finally {
@@ -202,11 +254,24 @@ export default function RetailerDetailsPage() {
     if (!hierarchyOptions) return [];
     if (selectedCompanyId) {
       const matchedCompany = hierarchyOptions.companies?.find((c: any) => c.public_id === selectedCompanyId);
-      if (matchedCompany && matchedCompany.distributors && matchedCompany.distributors.length > 0) {
+      if (matchedCompany && matchedCompany.distributors) {
         return matchedCompany.distributors;
       }
+      return [];
     }
     return hierarchyOptions.distributors || [];
+  }, [hierarchyOptions, selectedCompanyId]);
+
+  const availableRms = React.useMemo(() => {
+    if (!hierarchyOptions) return [];
+    if (selectedCompanyId) {
+      const matchedCompany = hierarchyOptions.companies?.find((c: any) => c.public_id === selectedCompanyId);
+      if (matchedCompany && matchedCompany.regional_managers) {
+        return matchedCompany.regional_managers;
+      }
+      return [];
+    }
+    return hierarchyOptions.regional_managers || [];
   }, [hierarchyOptions, selectedCompanyId]);
 
   const selectedCompanyObj = React.useMemo(() => {
@@ -215,9 +280,14 @@ export default function RetailerDetailsPage() {
   }, [hierarchyOptions, selectedCompanyId]);
 
   const selectedDistObj = React.useMemo(() => {
-    if (!hierarchyOptions || !selectedDistributorId) return null;
-    return hierarchyOptions.distributors?.find((d: any) => d.public_id === selectedDistributorId);
-  }, [hierarchyOptions, selectedDistributorId]);
+    if (!availableDistributors || !selectedDistributorId) return null;
+    return availableDistributors.find((d: any) => d.public_id === selectedDistributorId) || hierarchyOptions?.distributors?.find((d: any) => d.public_id === selectedDistributorId);
+  }, [availableDistributors, hierarchyOptions, selectedDistributorId]);
+
+  const selectedRmObj = React.useMemo(() => {
+    if (!availableRms || !selectedRmId) return null;
+    return availableRms.find((r: any) => r.public_id === selectedRmId) || hierarchyOptions?.regional_managers?.find((r: any) => r.public_id === selectedRmId);
+  }, [availableRms, hierarchyOptions, selectedRmId]);
 
   if (loading) {
     return (
@@ -532,41 +602,44 @@ export default function RetailerDetailsPage() {
           </div>
         </div>
 
-        {/* ROW 2: Organization & Channel Hierarchy Mapping */}
+        {/* ROW 2: Retailer Hierarchy Mapping (Company -> Distributor -> RM) */}
         <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 space-y-4 shadow-sm">
           <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
             <div className="flex items-center gap-2">
               <Network className="w-5 h-5 text-[#4F46E5]" />
               <h2 className="text-sm font-extrabold text-[#0F172A] uppercase tracking-wider">
-                2. Enterprise Organization & Channel Hierarchy Mapping
+                2. Retailer Hierarchy Mapping (Company, Distributor, RM)
               </h2>
             </div>
             <button
               onClick={openHierarchyModal}
               id="map-hierarchy-btn"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] text-xs font-extrabold text-[#2563EB] hover:bg-[#EFF6FF] hover:border-[#BFDBFE] transition-all cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2563EB] text-xs font-extrabold text-white hover:bg-[#1D4ED8] transition-all cursor-pointer shadow-md"
             >
-              <Building2 className="w-3.5 h-3.5" /> Map / Change Hierarchy
+              <Building2 className="w-3.5 h-3.5" /> Edit Hierarchy Mapping
             </button>
           </div>
+
+          {mappingSuccessMsg && (
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              {mappingSuccessMsg}
+            </div>
+          )}
 
           {/* Visual Hierarchy Flow Path */}
           <div className="rounded-xl border border-[#E2E8F0] bg-gradient-to-r from-[#F8FAFC] via-[#EFF6FF] to-[#FAF5FF] p-3.5 flex items-center gap-2 overflow-x-auto text-xs font-extrabold">
             <span className="text-[#64748B] text-[11px] uppercase tracking-wider shrink-0 mr-1">Hierarchy Path:</span>
             <span className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 border border-blue-200 shrink-0 flex items-center gap-1">
-              🏢 {company?.company_name || "Pay2Pay Enterprise"}
-            </span>
-            <span className="text-slate-400">→</span>
-            <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0 flex items-center gap-1">
-              👔 {assigned_rm?.full_name || "Regional Manager"}
-            </span>
-            <span className="text-slate-400">→</span>
-            <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-200 shrink-0 flex items-center gap-1">
-              🏬 {assigned_sd?.business_name || "Super Distributor"}
+              🏢 {mappingData?.hierarchy_path?.company?.company_name || company?.company_name || "Pay2Pay Enterprise"}
             </span>
             <span className="text-slate-400">→</span>
             <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0 flex items-center gap-1">
-              🤝 {assigned_distributor?.business_name || "Distributor"}
+              🏬 {mappingData?.hierarchy_path?.distributor?.business_name || assigned_distributor?.business_name || "Direct Distributor"}
+            </span>
+            <span className="text-slate-400">→</span>
+            <span className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0 flex items-center gap-1">
+              👔 {mappingData?.hierarchy_path?.rm?.full_name || assigned_rm?.full_name || "Direct / Unassigned RM"}
             </span>
             <span className="text-slate-400">→</span>
             <span className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-800 border border-purple-200 shrink-0 flex items-center gap-1">
@@ -581,45 +654,122 @@ export default function RetailerDetailsPage() {
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Parent Company</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold">
-                  {company?.company_code || "PAY2PAY"}
+                  {mappingData?.hierarchy_path?.company?.company_code || company?.company_code || "PAY2PAY"}
                 </span>
               </div>
-              <div className="text-sm font-bold text-[#0F172A]">{company?.company_name || "Pay2Pay"}</div>
-              <div className="text-[11px] text-[#64748B] truncate">{company?.legal_name || "Pay2Pay Technologies Pvt Ltd"}</div>
+              <div className="text-sm font-bold text-[#0F172A]">{mappingData?.hierarchy_path?.company?.company_name || company?.company_name || "Pay2Pay"}</div>
+              <div className="text-[11px] text-[#64748B] truncate">{mappingData?.hierarchy_path?.company?.legal_name || company?.legal_name || "Enterprise Parent"}</div>
+            </div>
+
+            {/* Distributor */}
+            <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Distributor</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Tier 1
+                </span>
+              </div>
+              <div className="text-sm font-bold text-[#0F172A] truncate">{mappingData?.hierarchy_path?.distributor?.business_name || assigned_distributor?.business_name || "Direct Merchant"}</div>
+              <div className="text-[11px] text-[#64748B] truncate">{mappingData?.hierarchy_path?.distributor?.owner_name || assigned_distributor?.owner_name || assigned_distributor?.mobile || "—"}</div>
             </div>
 
             {/* Regional Manager */}
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Regional Manager (RM)</span>
-                {assigned_rm?.employee_code && (
+                {(mappingData?.hierarchy_path?.rm?.employee_code || assigned_rm?.employee_code) && (
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold">
-                    {assigned_rm.employee_code}
+                    {mappingData?.hierarchy_path?.rm?.employee_code || assigned_rm?.employee_code}
                   </span>
                 )}
               </div>
-              <div className="text-sm font-bold text-[#0F172A] truncate">{assigned_rm?.full_name || "Direct / Unassigned"}</div>
-              <div className="text-[11px] text-[#64748B] truncate">{assigned_rm?.mobile || assigned_rm?.email || "—"}</div>
+              <div className="text-sm font-bold text-[#0F172A] truncate">{mappingData?.hierarchy_path?.rm?.full_name || assigned_rm?.full_name || "Direct / Unassigned"}</div>
+              <div className="text-[11px] text-[#64748B] truncate">{mappingData?.hierarchy_path?.rm?.mobile || assigned_rm?.mobile || assigned_rm?.email || "—"}</div>
             </div>
 
-            {/* Super Distributor */}
-            <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
-              <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Super Distributor (SD)</span>
-              <div className="text-sm font-bold text-[#0F172A] truncate">{assigned_sd?.business_name || "Direct / Unassigned"}</div>
-              <div className="text-[11px] text-[#64748B] truncate">{assigned_sd?.owner_name || assigned_sd?.mobile || "—"}</div>
-            </div>
-
-            {/* Distributor */}
+            {/* Retailer Node */}
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Mapped Distributor</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Direct Tier
+                <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Retailer Status</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-bold">
+                  {retailer.retailer_code}
                 </span>
               </div>
-              <div className="text-sm font-bold text-[#0F172A] truncate">{assigned_distributor?.business_name || "Direct Merchant"}</div>
-              <div className="text-[11px] text-[#64748B] truncate">{assigned_distributor?.owner_name || assigned_distributor?.mobile || "—"}</div>
+              <div className="text-sm font-bold text-[#0F172A] truncate">{retailer.store_name}</div>
+              <div className="text-[11px] text-[#64748B] truncate">{retailer.owner_name} • {retailer.status}</div>
             </div>
+          </div>
+
+          {/* Section 2.1: Assignment & Transfer History */}
+          <div className="pt-3 border-t border-[#F1F5F9] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold text-[#475569] uppercase tracking-wider flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5 text-[#2563EB]" /> Hierarchy Assignment & Transfer History
+              </span>
+              <span className="text-[11px] font-semibold text-[#64748B]">
+                {mappingData?.history?.length || 0} Total Recorded Assignment(s)
+              </span>
+            </div>
+
+            {mappingData?.history && mappingData.history.length > 0 ? (
+              <div className="overflow-x-auto rounded-xl border border-[#E2E8F0]">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[11px] font-extrabold text-[#475569] uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Effective Period</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Company</th>
+                      <th className="py-2.5 px-3">Distributor</th>
+                      <th className="py-2.5 px-3">Regional Manager (RM)</th>
+                      <th className="py-2.5 px-3">Changed By</th>
+                      <th className="py-2.5 px-3">Audit Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F1F5F9] bg-white">
+                    {mappingData.history.map((hist: any, idx: number) => (
+                      <tr key={hist.assignment_id || idx} className="hover:bg-[#F8FAFC] transition-colors">
+                        <td className="py-2.5 px-3 whitespace-nowrap font-medium text-[#334155]">
+                          <div>{hist.effective_from ? new Date(hist.effective_from).toLocaleDateString() : "—"}</div>
+                          <span className="text-[10px] text-[#64748B]">
+                            {hist.is_active ? "Current Active" : hist.effective_to ? `until ${new Date(hist.effective_to).toLocaleDateString()}` : "Closed"}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          {hist.is_active ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#15803D] text-[10px] font-extrabold border border-[#BBF7D0]">
+                              <CheckCircle2 className="w-3 h-3" /> ACTIVE
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748B] text-[10px] font-bold border border-[#E2E8F0]">
+                              PREVIOUS
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-[#0F172A] whitespace-nowrap">
+                          🏢 {hist.company_name}
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-[#0F172A] whitespace-nowrap">
+                          🏬 {hist.distributor_name}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#334155] whitespace-nowrap">
+                          👔 {hist.rm_name || "—"}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-[#64748B] whitespace-nowrap">
+                          {hist.created_by || "System"}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#475569] max-w-xs truncate">
+                          {hist.reason || "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-4 text-center text-xs text-[#94A3B8] italic bg-[#F8FAFC] rounded-xl border border-dashed border-[#E2E8F0]">
+                No historical hierarchy transfers recorded yet. Current mapping is active.
+              </div>
+            )}
           </div>
         </div>
 

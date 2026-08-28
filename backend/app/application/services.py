@@ -2954,6 +2954,21 @@ class RetailerManagementService:
                                     "designation": rm_obj.designation
                                 }
 
+        # Direct RM mapped on retailer
+        if not assigned_rm and r.rm_id:
+            rm_stmt = select(RegionalManagerModel).where(RegionalManagerModel.public_id == r.rm_id, RegionalManagerModel.is_deleted == False)
+            rm_obj = (await db.execute(rm_stmt)).scalars().first()
+            if rm_obj:
+                assigned_rm = {
+                    "public_id": str(rm_obj.public_id),
+                    "full_name": rm_obj.full_name,
+                    "rm_name": rm_obj.full_name,
+                    "employee_code": rm_obj.employee_code,
+                    "mobile": rm_obj.mobile,
+                    "email": rm_obj.email,
+                    "designation": rm_obj.designation
+                }
+
         # Resolve Company
         lookup_comp_id = r.company_id
         if not lookup_comp_id and assigned_dist:
