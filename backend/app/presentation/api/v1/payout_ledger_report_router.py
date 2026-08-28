@@ -2,7 +2,7 @@ import uuid
 import io
 import csv
 import re
-from datetime import datetime, date, time, timezone
+from datetime import datetime, date, time, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response, Request
@@ -203,23 +203,28 @@ async def get_retailer_payout_summary(
     ret_uuid = ctx["retailer_uuid"]
     ret_code = ctx["retailer_code"]
     
+    IST = timezone(timedelta(hours=5, minutes=30))
     now_utc = datetime.now(timezone.utc)
     
     if from_date and isinstance(from_date, str):
         try:
-            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=IST
+            ).astimezone(timezone.utc)
         except ValueError:
-            start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
+            start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
     else:
-        start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
+        start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
 
     if to_date and isinstance(to_date, str):
         try:
-            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
+            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST
+            ).astimezone(timezone.utc)
         except ValueError:
-            end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
+            end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=IST).astimezone(timezone.utc)
     else:
-        end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
+        end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=IST).astimezone(timezone.utc)
 
     # 1. Query Central Transactions (STRICTLY PAYOUT & DMT ONLY)
     tx_sql = """
@@ -406,16 +411,23 @@ async def fetch_payout_report_dataset(
     ret_uuid = ctx["retailer_uuid"]
     ret_code = ctx["retailer_code"]
 
+    IST = timezone(timedelta(hours=5, minutes=30))
     start_dt = None
     end_dt = None
     if from_date and isinstance(from_date, str):
         try:
-            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+            # Parse as IST midnight → convert to UTC for DB comparison
+            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=IST
+            ).astimezone(timezone.utc)
         except ValueError:
             pass
     if to_date and isinstance(to_date, str):
         try:
-            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
+            # Parse as IST end-of-day → convert to UTC for DB comparison
+            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST
+            ).astimezone(timezone.utc)
         except ValueError:
             pass
 
