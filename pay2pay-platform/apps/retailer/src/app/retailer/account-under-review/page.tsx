@@ -60,9 +60,24 @@ export default function AccountUnderReviewPage() {
         setStatusMessage(dynamicMsg);
 
         if (data.approve_status === true && data.active_status === true) {
+          try {
+            const raw = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
+            const parsed = raw ? JSON.parse(raw) : {};
+            const updated = {
+              ...parsed,
+              approve_status: true,
+              active_status: true,
+              is_approved: true,
+              approval_status: "APPROVED",
+              status: "ACTIVE",
+            };
+            localStorage.setItem("user_info", JSON.stringify(updated));
+            localStorage.setItem("pay2pay_user_data", JSON.stringify(updated));
+          } catch {}
           document.cookie = `p2p_destination=DASHBOARD; path=/; max-age=2592000; SameSite=Lax`;
           document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
-          router.replace("/retailer/dashboard");
+          window.location.href = "/retailer/dashboard";
+          return;
         } else if (data.destination === "APPLICATION_REJECTED" || data.approval_status === "REJECTED") {
           router.replace("/application-rejected");
         } else if (data.destination === "ACCOUNT_RESTRICTED") {
@@ -77,7 +92,6 @@ export default function AccountUnderReviewPage() {
   };
 
   useEffect(() => {
-    // Stopped auto-check on mount. Status check is only triggered manually by user clicking 'Check Status'.
     if (typeof window !== "undefined") {
       const cachedName = localStorage.getItem("p2p_user_name") || localStorage.getItem("retailer_name");
       const cachedMobile = localStorage.getItem("p2p_user_mobile") || localStorage.getItem("retailer_mobile");
@@ -89,6 +103,8 @@ export default function AccountUnderReviewPage() {
         }));
       }
     }
+    // Silently check if already approved to route to dashboard seamlessly
+    checkStatus(false);
   }, []);
 
   const handleLogout = () => {

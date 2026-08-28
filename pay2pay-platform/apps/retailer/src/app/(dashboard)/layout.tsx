@@ -75,15 +75,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const statusStr = (user?.status || user?.approval_status || "").toUpperCase();
 
-    // If not approved and active, enforce fail-closed redirect
+    // If not approved and active according to local state, check live database before redirecting
     if (!isBothTrue) {
-      if (statusStr === "REJECTED") {
-        router.replace("/application-rejected");
-      } else if (statusStr === "RESTRICTED" || statusStr === "HOLD" || statusStr === "BLOCKED" || statusStr === "SUSPENDED") {
-        router.replace("/retailer/account-restricted");
-      } else {
-        router.replace("/retailer/account-under-review");
-      }
+      import("@/lib/retailer-destination-resolver").then(({ fetchAuthoritativeRetailerStatus }) => {
+        fetchAuthoritativeRetailerStatus(true).then((authStatus) => {
+          if (authStatus && authStatus.approve_status === true && authStatus.active_status === true) {
+            try {
+              const raw = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
+              const parsed = raw ? JSON.parse(raw) : {};
+              const updated = {
+                ...parsed,
+                approve_status: true,
+                active_status: true,
+                is_approved: true,
+                approval_status: "APPROVED",
+                status: "ACTIVE",
+              };
+              localStorage.setItem("user_info", JSON.stringify(updated));
+              localStorage.setItem("pay2pay_user_data", JSON.stringify(updated));
+              document.cookie = `p2p_destination=DASHBOARD; path=/; max-age=2592000; SameSite=Lax`;
+              document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
+            } catch {}
+            return;
+          }
+
+          if (statusStr === "REJECTED" || authStatus?.approval_status === "REJECTED") {
+            router.replace("/application-rejected");
+          } else if (statusStr === "RESTRICTED" || statusStr === "HOLD" || statusStr === "BLOCKED" || statusStr === "SUSPENDED") {
+            router.replace("/retailer/account-restricted");
+          } else {
+            router.replace("/retailer/account-under-review");
+          }
+        });
+      });
     }
   }, [user, authLoading, router, mounted]);
 
