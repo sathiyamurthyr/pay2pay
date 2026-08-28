@@ -95,6 +95,7 @@ class RetailerMappingService:
             if d:
                 distributor_info = {
                     "public_id": str(d.public_id),
+                    "distributor_code": getattr(d, "distributor_code", None) or f"P2P-D{str(d.public_id)[:6].upper()}",
                     "business_name": d.business_name,
                     "owner_name": d.owner_name,
                     "mobile": d.mobile,
@@ -426,6 +427,7 @@ class RetailerMappingService:
         return [
             {
                 "public_id": str(d.public_id),
+                "distributor_code": getattr(d, "distributor_code", None) or f"P2P-D{str(d.public_id)[:6].upper()}",
                 "business_name": d.business_name,
                 "owner_name": d.owner_name,
                 "mobile": d.mobile,

@@ -406,6 +406,7 @@ class RegionalManagerModel(BaseEntity, EnterpriseBaseMixin):
 class SuperDistributorModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "super_distributor"
 
+    super_distributor_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     business_name: Mapped[str] = mapped_column(String(255), nullable=False)
     owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
     mobile: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
@@ -432,6 +433,7 @@ class SuperDistributorModel(BaseEntity, EnterpriseBaseMixin):
 class DistributorModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "distributor"
 
+    distributor_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     business_name: Mapped[str] = mapped_column(String(255), nullable=False)
     owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
     mobile: Mapped[str] = mapped_column(String(20), nullable=False, index=True)

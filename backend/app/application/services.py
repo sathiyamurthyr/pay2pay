@@ -2245,21 +2245,24 @@ class RetailerManagementService:
         if req.gst_number: validate_gst(req.gst_number)
         if req.pan_number: validate_pan(req.pan_number)
 
-        # Uniqueness check across retailer code, mobile, email
+        # Generate / sanitize retailer code to P2P-R<Random number>
+        final_code = req.retailer_code if (req.retailer_code and req.retailer_code.startswith("P2P-R")) else f"P2P-R{random.randint(100000, 999999)}"
+
+        # Uniqueness check across retailer code
         dup_stmt = select(RetailerModel).where(
             RetailerModel.tenant_id == tenant_id,
-            RetailerModel.retailer_code == req.retailer_code,
+            RetailerModel.retailer_code == final_code,
             RetailerModel.is_deleted == False
         )
         if (await db.execute(dup_stmt)).scalar_one_or_none():
-            raise ConflictException(f"Retailer Code '{req.retailer_code}' already exists.")
+            final_code = f"P2P-R{random.randint(100000, 999999)}"
 
         retailer_id = uuid.uuid4()
         retailer = RetailerModel(
             public_id=retailer_id,
             tenant_id=tenant_id,
             company_id=req.company_id,
-            retailer_code=req.retailer_code,
+            retailer_code=final_code,
             store_name=req.store_name,
             legal_name=req.legal_name,
             owner_name=req.owner_name,
@@ -2455,7 +2458,7 @@ class RetailerManagementService:
 
                 new_ret_id = uuid.uuid4()
                 use_tenant = v.tenant_id if (v.tenant_id and str(v.tenant_id) != "00000000-0000-0000-0000-000000000001") else (tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"))
-                ret_code = v.retailer_id or f"RET-{clean_mobile[-6:] if len(clean_mobile)>=6 else clean_mobile}"
+                ret_code = v.retailer_id if (v.retailer_id and v.retailer_id.startswith("P2P-R")) else f"P2P-R{random.randint(100000, 999999)}"
 
                 new_ret = RetailerModel(
                     public_id=new_ret_id,

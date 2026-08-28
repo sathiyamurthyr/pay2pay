@@ -665,9 +665,11 @@ export default function RetailerDetailsPage() {
             <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider block">Distributor</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Tier 1
-                </span>
+                {(mappingData?.hierarchy_path?.distributor?.distributor_code || assigned_distributor?.distributor_code) && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
+                    {mappingData?.hierarchy_path?.distributor?.distributor_code || assigned_distributor?.distributor_code}
+                  </span>
+                )}
               </div>
               <div className="text-sm font-bold text-[#0F172A] truncate">{mappingData?.hierarchy_path?.distributor?.business_name || assigned_distributor?.business_name || "Direct Merchant"}</div>
               <div className="text-[11px] text-[#64748B] truncate">{mappingData?.hierarchy_path?.distributor?.owner_name || assigned_distributor?.owner_name || assigned_distributor?.mobile || "—"}</div>
@@ -1539,7 +1541,7 @@ export default function RetailerDetailsPage() {
                   <option value="">-- Choose Distributor --</option>
                   {availableDistributors.map((d: any) => (
                     <option key={d.public_id} value={d.public_id}>
-                      {d.business_name} ({d.owner_name} - {d.mobile})
+                      {d.distributor_code ? `[${d.distributor_code}] ` : ""}{d.business_name} ({d.owner_name})
                     </option>
                   ))}
                 </select>
