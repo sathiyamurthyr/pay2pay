@@ -83,22 +83,22 @@ export default function AccountUnderReviewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 flex flex-col justify-between p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white flex flex-col justify-between p-4 md:p-8">
       {/* Header */}
-      <header className="max-w-6xl w-full mx-auto flex items-center justify-between py-4 border-b border-slate-800/80 mb-6">
+      <header className="max-w-6xl w-full mx-auto flex items-center justify-between py-4 border-b border-slate-700/80 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-amber-500/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-amber-500/20 border border-amber-400/40">
             P2P
           </div>
           <div>
             <h1 className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
               Pay2Pay Retailer Portal
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              <span className="px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase bg-amber-400/20 text-yellow-300 border border-amber-400/50">
                 Application Review
               </span>
             </h1>
-            <p className="text-xs text-slate-400">
-              Merchant: <strong className="text-slate-200">{retailerInfo.name}</strong> {retailerInfo.mobile ? `(${retailerInfo.mobile})` : ""}
+            <p className="text-xs text-slate-200 mt-0.5">
+              Merchant: <strong className="text-yellow-300 font-extrabold">{retailerInfo.name}</strong> {retailerInfo.mobile ? <span className="text-slate-100 font-bold">({retailerInfo.mobile})</span> : ""}
             </p>
           </div>
         </div>
@@ -108,17 +108,17 @@ export default function AccountUnderReviewPage() {
             type="button"
             onClick={() => checkStatus(true)}
             disabled={checking}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-all cursor-pointer shadow-sm hover:border-amber-500/40"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-amber-400/50 hover:bg-slate-800 text-xs font-extrabold text-yellow-300 transition-all cursor-pointer shadow-md hover:border-amber-400"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${checking ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-yellow-400 ${checking ? "animate-spin" : ""}`} />
             <span>{checking ? "Checking..." : "Check Status"}</span>
           </button>
           <button
             type="button"
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-xs font-bold text-red-300 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-red-500/15 border border-red-500/40 hover:bg-red-500/30 text-xs font-extrabold text-red-300 transition-all cursor-pointer"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-3.5 h-3.5 text-red-400" />
             <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
@@ -135,12 +135,12 @@ export default function AccountUnderReviewPage() {
       </main>
 
       {/* Footer */}
-      <footer className="max-w-6xl w-full mx-auto pt-6 border-t border-slate-800/80 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <p>© 2026 Pay2Pay Financial Technologies Pvt Ltd. All rights reserved.</p>
-        <div className="flex items-center gap-4 text-slate-400">
-          <span>Support: support@pay2pay.in</span>
-          <span>·</span>
-          <span>Helpdesk: 1800-889-021</span>
+      <footer className="max-w-6xl w-full mx-auto pt-6 border-t border-slate-700/80 text-center text-xs text-slate-300 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <p className="text-slate-300 font-medium">© 2026 Pay2Pay Financial Technologies Pvt Ltd. All rights reserved.</p>
+        <div className="flex items-center gap-4 text-yellow-300 font-semibold">
+          <span className="text-slate-200">Support: <strong className="text-yellow-300">support@pay2pay.in</strong></span>
+          <span className="text-slate-500">·</span>
+          <span className="text-slate-200">Helpdesk: <strong className="text-yellow-300">1800-889-021</strong></span>
         </div>
       </footer>
     </div>
