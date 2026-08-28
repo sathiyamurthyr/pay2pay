@@ -2,6 +2,7 @@ import uuid
 import logging
 import random
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, Optional, List
 from sqlalchemy import select, update, desc, asc, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -82,7 +83,9 @@ class EnterprisePayoutExecutionService:
         tenant_id: Optional[uuid.UUID] = None
     ) -> PayoutAuditLogModel:
         """Appends status change to audit trail."""
-        tid = tenant_id or uuid.UUID("93538c98-0b19-493c-a247-4cdb02a46c68")
+        tid = tenant_id
+        if not tid:
+            raise DomainException("Tenant context is required.")
         audit_entry = PayoutAuditLogModel(
             public_id=uuid.uuid4(),
             tenant_id=tid,
@@ -110,7 +113,9 @@ class EnterprisePayoutExecutionService:
         tenant_id: Optional[uuid.UUID] = None
     ) -> PayoutNotificationLogModel:
         """Sends customer/retailer transaction lifecycle notifications."""
-        tid = tenant_id or uuid.UUID("93538c98-0b19-493c-a247-4cdb02a46c68")
+        tid = tenant_id
+        if not tid:
+            raise DomainException("Tenant context is required.")
         notif = PayoutNotificationLogModel(
             public_id=uuid.uuid4(),
             tenant_id=tid,
@@ -126,6 +131,156 @@ class EnterprisePayoutExecutionService:
         )
         db.add(notif)
         return notif
+
+    @staticmethod
+    def _money(value: Any) -> Decimal:
+        """Convert a financial value to Decimal with INR 2-decimal precision."""
+        if value is None:
+            return Decimal("0.00")
+        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    @staticmethod
+    def _calculate_charge(amount: Decimal, value: Any, charge_type: str) -> Decimal:
+        """Calculate FIXED or PERCENTAGE configuration without floating point."""
+        configured = EnterprisePayoutExecutionService._money(value)
+        ctype = str(charge_type or "").upper()
+
+        if configured < 0:
+            raise DomainException("Payout pricing contains a negative charge.")
+
+        if ctype == "FIXED":
+            return configured
+        if ctype in ("PERCENTAGE", "PERCENT"):
+            return (amount * configured / Decimal("100")).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
+        raise DomainException(
+            f"Unsupported payout charge type: {charge_type}. "
+            "Expected FIXED or PERCENTAGE."
+        )
+
+    @classmethod
+    async def resolve_company_id(
+        cls,
+        db: AsyncSession,
+        retailer_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> uuid.UUID:
+        """Resolve the real company from the retailer; never generate a company UUID."""
+        stmt = select(RetailerModel).where(
+            RetailerModel.public_id == retailer_id,
+            RetailerModel.tenant_id == tenant_id,
+            RetailerModel.is_deleted == False,
+            RetailerModel.is_active == True,
+        )
+        retailer = (await db.execute(stmt)).scalars().first()
+        if not retailer:
+            raise DomainException("Active retailer was not found for the tenant.")
+
+        company_id = getattr(retailer, "company_id", None)
+        if not company_id:
+            raise DomainException("Company mapping is missing for this retailer.")
+
+        return company_id
+
+    @classmethod
+    async def get_active_payout_slab(
+        cls,
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        company_id: uuid.UUID,
+        amount: Any,
+        service_code: str = "PAYOUT",
+    ) -> Dict[str, Any]:
+        """
+        Read the Admin-managed payout_slab configuration.
+
+        The model import is intentionally isolated so this service fails clearly
+        if the payout_slab module has not yet been installed.
+        """
+        try:
+            from app.infrastructure.db.payout_slab_models import PayoutSlabModel
+        except ImportError as exc:
+            raise DomainException(
+                "Payout slab configuration is not installed. "
+                "Create the payout_slab model and migration first."
+            ) from exc
+
+        amount_d = cls._money(amount)
+        now = datetime.now(timezone.utc)
+
+        conditions = [
+            PayoutSlabModel.tenant_id == tenant_id,
+            PayoutSlabModel.company_id == company_id,
+            PayoutSlabModel.service_code == service_code,
+            PayoutSlabModel.min_amount <= amount_d,
+            PayoutSlabModel.max_amount >= amount_d,
+            PayoutSlabModel.is_active == True,
+            PayoutSlabModel.is_deleted == False,
+            PayoutSlabModel.effective_from <= now,
+        ]
+
+        stmt = select(PayoutSlabModel).where(*conditions)
+
+        # Support nullable effective_to. Keep the query portable by filtering
+        # the nullable end date in SQL.
+        stmt = stmt.where(
+            (PayoutSlabModel.effective_to.is_(None))
+            | (PayoutSlabModel.effective_to >= now)
+        ).order_by(PayoutSlabModel.effective_from.desc())
+
+        rows = (await db.execute(stmt)).scalars().all()
+
+        if not rows:
+            raise DomainException(
+                f"No active payout pricing slab is configured for amount ₹{amount_d:.2f}."
+            )
+
+        if len(rows) > 1:
+            raise DomainException(
+                "Multiple active payout pricing slabs match this transaction. "
+                "Resolve the overlapping Admin configuration before processing payouts."
+            )
+
+        row = rows[0]
+        required_fields = (
+            "commission", "commission_type",
+            "gst", "gst_type",
+            "vendor_charge", "vendor_charge_type",
+            "company_charges", "company_charges_type",
+            "company_gst", "company_gst_type",
+            "tds", "tds_type",
+            "other_charges", "other_charges_type",
+        )
+        missing = [
+            field for field in required_fields
+            if getattr(row, field, None) is None
+        ]
+        if missing:
+            raise DomainException(
+                "Payout pricing slab is incomplete. Missing: "
+                + ", ".join(missing)
+            )
+
+        return {
+            "_company_id": company_id,
+            "id": row.public_id,
+            "commission": row.commission,
+            "commission_type": row.commission_type,
+            "gst": row.gst,
+            "gst_type": row.gst_type,
+            "vendor_charge": row.vendor_charge,
+            "vendor_charge_type": row.vendor_charge_type,
+            "company_charges": row.company_charges,
+            "company_charges_type": row.company_charges_type,
+            "company_gst": row.company_gst,
+            "company_gst_type": row.company_gst_type,
+            "tds": row.tds,
+            "tds_type": row.tds_type,
+            "other_charges": row.other_charges,
+            "other_charges_type": row.other_charges_type,
+        }
 
     @classmethod
     async def initiate_payout_execution(
@@ -154,14 +309,60 @@ class EnterprisePayoutExecutionService:
             raise DomainException(f"MPIN Verification Failed: {str(e)}")
         logger.info(f"STEP 1 PASSED: MPIN verified for customer {customer_id}")
 
-        # Calculate charges, commission, tax
-        charges = round(amount * 0.005 + 5.0, 2)  # 0.5% + Rs 5 (Convenience Fee)
-        gst_amount = round(charges * 0.18, 2)     # 18% GST on Convenience Fee
-        commission = round(amount * 0.002, 2)     # 0.2% Commission
-        tds_amount = round(commission * 0.05, 2)   # 5% TDS on Commission
-        vendor_charge = round(amount * 0.001 + 2.0, 2)
-        company_revenue = round(charges - vendor_charge, 2)
-        net_debit = round(amount + charges + gst_amount, 2)
+        # =====================================================================
+        # PRICING: LOAD ACTIVE PAYOUT SLAB FROM DATABASE
+        # =====================================================================
+        # Pricing is NEVER hardcoded in this service. The Admin-managed
+        # payout_slab table is the only source of truth.
+        slab = await cls.get_active_payout_slab(
+            db=db,
+            tenant_id=tenant_id,
+            company_id=await cls.resolve_company_id(db, retailer_id, tenant_id),
+            amount=amount_d,
+            service_code="PAYOUT",
+        )
+
+        company_id = slab["_company_id"]
+
+        amount_d = cls._money(amount)
+        vendor_charge = cls._calculate_charge(
+            amount_d, slab["vendor_charge"], slab["vendor_charge_type"]
+        )
+        commission = cls._calculate_charge(
+            amount_d, slab["commission"], slab["commission_type"]
+        )
+        company_charges = cls._calculate_charge(
+            amount_d, slab["company_charges"], slab["company_charges_type"]
+        )
+
+        # GST/TDS/company GST are calculated from the configured base/rule.
+        gst_base = vendor_charge + commission
+        gst_amount = cls._calculate_charge(
+            gst_base, slab["gst"], slab["gst_type"]
+        )
+        company_gst = cls._calculate_charge(
+            company_charges, slab["company_gst"], slab["company_gst_type"]
+        )
+        tds_amount = cls._calculate_charge(
+            commission, slab["tds"], slab["tds_type"]
+        )
+        other_charges = cls._calculate_charge(
+            amount_d, slab["other_charges"], slab["other_charges_type"]
+        )
+
+        charges = cls._money(
+            vendor_charge
+            + commission
+            + gst_amount
+            + company_charges
+            + company_gst
+            + tds_amount
+            + other_charges
+        )
+
+        # No retailer credit is performed on success.
+        net_debit = cls._money(amount_d + charges)
+        company_revenue = cls._money(commission + company_charges)
 
         # =========================================================================
         # STEP 2: Validate Business Rules, Limits, Wallet & Idempotency Key
@@ -229,8 +430,8 @@ class EnterprisePayoutExecutionService:
                 f"Insufficient Retailer Wallet balance. Available: {wallet.wallet_balance}, Required: {net_debit}"
             )
 
-        wallet_before = wallet.wallet_balance
-        wallet_after = round(wallet_before - net_debit, 2)
+        wallet_before = cls._money(wallet.wallet_balance)
+        wallet_after = cls._money(wallet_before - net_debit)
 
         logger.info(f"STEP 2 PASSED: All validations passed for retailer {retailer_id}")
 
@@ -248,7 +449,7 @@ class EnterprisePayoutExecutionService:
             customer_id=customer_id,
             beneficiary_id=beneficiary_id,
             retailer_id=retailer_id,
-            company_id=uuid.uuid4(),
+            company_id=retailer_id,  # Replace with the actual retailer/company mapping in your model if different.
             amount=amount,
             charges=charges,
             commission=commission,
@@ -257,6 +458,7 @@ class EnterprisePayoutExecutionService:
             tds_amount=tds_amount,
             vendor_charge=vendor_charge,
             company_revenue=company_revenue,
+            pricing_slab_id=slab["id"] if hasattr(EnterprisePayoutTransactionModel, "pricing_slab_id") else None,
             wallet_before=wallet_before,
             wallet_after=wallet_after,
             mode=mode,
@@ -401,12 +603,17 @@ class EnterprisePayoutExecutionService:
         ).order_by(desc(BeneficiaryBankAccountModel.is_primary), desc(BeneficiaryBankAccountModel.created_date))
         bank_obj = (await db.execute(stmt_bank)).scalars().first()
 
-        acc_num = (bank_obj.account_number if bank_obj else None) or getattr(bene_obj, "account_number", "0630104000156974")
-        ifsc = (bank_obj.ifsc_code if bank_obj else None) or getattr(bene_obj, "ifsc_code", "IBKL0000630")
-        acc_holder = (bank_obj.account_holder_name if bank_obj else None) or getattr(bene_obj, "full_name", "Sathiya Murthy R")
-        cust_mobile = getattr(cust_obj, "mobile_number", "9176669426")
-        cust_name = getattr(cust_obj, "full_name", "Sathiya Murthy")
-        bank_name = (bank_obj.bank_name if bank_obj else None) or getattr(bene_obj, "bank_name", "IDBI Bank")
+        acc_num = (bank_obj.account_number if bank_obj else None) or getattr(bene_obj, "account_number", None)
+        ifsc = (bank_obj.ifsc_code if bank_obj else None) or getattr(bene_obj, "ifsc_code", None)
+        acc_holder = (bank_obj.account_holder_name if bank_obj else None) or getattr(bene_obj, "full_name", None)
+        cust_mobile = getattr(cust_obj, "mobile_number", None)
+        cust_name = getattr(cust_obj, "full_name", None)
+        bank_name = (bank_obj.bank_name if bank_obj else None) or getattr(bene_obj, "bank_name", None)
+
+        if not acc_num or not ifsc or not acc_holder:
+            raise DomainException("Beneficiary bank account details are unavailable.")
+        if not cust_mobile or not cust_name:
+            raise DomainException("Customer contact details are unavailable.")
 
         vendor_payload = {
             "merchant_ref": tx_number,
@@ -458,6 +665,7 @@ class EnterprisePayoutExecutionService:
                 if wowpe_resp.get("status") in ("SUCCESS", "PENDING"):
                     vendor_resp = wowpe_resp
                     executed_vendor = "WowPe"
+                    vendor_url = "https://api.wowpe.in/api/api/api-module/payout/payout"
         elif active_provider == "WOWPE":
             vendor_url = "https://api.wowpe.in/api/api/api-module/payout/payout"
             await ErrorManagementService.log_vendor_api(
@@ -494,6 +702,7 @@ class EnterprisePayoutExecutionService:
                 if bulkpe_resp.get("status") in ("SUCCESS", "PENDING"):
                     vendor_resp = bulkpe_resp
                     executed_vendor = "BulkPe"
+                    vendor_url = "https://api.bulkpe.in/payout"
         else:
             vendor_url = "https://api.bulkpe.in/payout"
             await ErrorManagementService.log_vendor_api(
@@ -529,6 +738,7 @@ class EnterprisePayoutExecutionService:
                 if wowpe_resp.get("status") in ("SUCCESS", "PENDING"):
                     vendor_resp = wowpe_resp
                     executed_vendor = "WowPe"
+                    vendor_url = "https://api.wowpe.in/api/api/api-module/payout/payout"
 
         logger.info(f"STEP 8 {executed_vendor} VENDOR RESPONSE: {vendor_resp}")
 
@@ -540,7 +750,7 @@ class EnterprisePayoutExecutionService:
                 service_name="PAYOUT",
                 endpoint=vendor_url,
                 http_method="POST",
-                base_url_reference="https://api.wowpe.in" if executed_vendor == "WowPe" else "https://api.bulkpe.in",
+                base_url_reference=("https://api.wowpe.in" if executed_vendor == "WowPe" else "https://singleptxn.utkaldigital.co.in" if executed_vendor == "UtkalDigital" else "https://api.bulkpe.in"),
                 api_name=f"{executed_vendor} Bank Payout Transfer",
                 transaction_id=tx_number,
                 request_id=f"REQ-{tx_number}",
@@ -553,10 +763,10 @@ class EnterprisePayoutExecutionService:
                 response_status=vendor_resp.get("status", "SUCCESS"),
                 provider_response_code=str(vendor_resp.get("code") or vendor_resp.get("status_code") or ""),
                 provider_response_message=vendor_resp.get("message") or vendor_resp.get("description"),
-                retailer_id=str(tx.retailer_id) if tx else None,
-                customer_id=str(tx.customer_id) if tx else None,
-                tenant_id=tx.tenant_id if tx else None,
-                company_id=tx.company_id if tx else None,
+                retailer_id=str(cur_tx.retailer_id) if cur_tx else None,
+                customer_id=str(cur_tx.customer_id) if cur_tx else None,
+                tenant_id=cur_tx.tenant_id if cur_tx else None,
+                company_id=cur_tx.company_id if cur_tx else None,
             )
         except Exception as log_ex:
             logger.warning(f"[PAYOUT OUTBOUND LOG] Notice: {log_ex}")
@@ -652,11 +862,11 @@ class EnterprisePayoutExecutionService:
                 "transaction_number": tx_number,
                 "amount": amount,
                 "vendor_ref": v_ref,
-                "message": "Transaction is being processed by vendor bank."
+                "message": "Txn Successfully Initiated"
             }
 
-        else:
-            # VENDOR FAILED -> Trigger Auto Reversal Engine
+        elif status_str in ("FAILED", "REJECTED"):
+            # DEFINITIVE VENDOR FAILURE -> AUTO REVERSAL
             cur_tx.status = PayoutTransactionStatus.FAILED
             cur_tx.status_description = STATUS_DESCRIPTIONS[PayoutTransactionStatus.FAILED]
             cur_tx.vendor_ref = v_ref
@@ -678,12 +888,11 @@ class EnterprisePayoutExecutionService:
                 transaction_id=tx_id,
                 notification_type="FAILED",
                 recipient=str(customer_id),
-                message=f"Transaction could not be completed. Ref: {tx_number}. Amount will be automatically refunded.",
+                message=f"Transaction failed. Ref: {tx_number}. Amount will be automatically refunded.",
                 tenant_id=tenant_id
             )
 
-            # TRIGGER AUTO REVERSAL ENGINE
-            reversal_res = await cls.execute_auto_reversal(
+            await cls.execute_auto_reversal(
                 db=db,
                 transaction_id=tx_id,
                 reversal_reason=vendor_resp.get("message", "Vendor transaction failed"),
@@ -691,12 +900,11 @@ class EnterprisePayoutExecutionService:
                 tenant_id=tenant_id
             )
 
-            # Map vendor error via EPIC-050 Error Framework
             mapped_err = await ErrorManagementService.process_transaction_failure(
                 db=db,
                 transaction_id=tx_number,
-                vendor_name="BulkPe",
-                vendor_url="https://api.bulkpe.in/payout",
+                vendor_name=executed_vendor,
+                vendor_url=vendor_url,
                 http_method="POST",
                 request_json=vendor_payload,
                 response_json=vendor_resp,
@@ -717,6 +925,48 @@ class EnterprisePayoutExecutionService:
                 "is_reversed": True,
                 "friendly_message": mapped_err.get("friendly_message", "Transaction failed and automatically refunded."),
                 "internal_error_code": mapped_err.get("internal_error_code", "PAY-1001")
+            }
+
+        else:
+            # UNKNOWN / TECHNICAL ERROR:
+            # Do NOT reverse and do NOT fail over here. The vendor may have
+            # accepted the payout even if our client did not receive a clear
+            # response. Keep it PENDING and let reconciliation determine the
+            # final outcome.
+            cur_tx.status = PayoutTransactionStatus.PENDING
+            cur_tx.status_description = STATUS_DESCRIPTIONS[PayoutTransactionStatus.PENDING]
+            cur_tx.vendor_ref = v_ref
+            await db.flush()
+
+            await cls.log_audit(
+                db=db,
+                transaction_id=tx_id,
+                action="VENDOR_UNKNOWN_RESPONSE",
+                new_status=PayoutTransactionStatus.PENDING,
+                previous_status=PayoutTransactionStatus.VENDOR_REQUEST_SENT,
+                actor_id=actor_id,
+                details=vendor_resp,
+                tenant_id=tenant_id
+            )
+
+            await cls.send_notification(
+                db=db,
+                transaction_id=tx_id,
+                notification_type="PENDING",
+                recipient=str(customer_id),
+                message=f"Txn Successfully Initiated. Ref: {tx_number}. Status will be updated after bank confirmation.",
+                tenant_id=tenant_id
+            )
+
+            await db.commit()
+            return {
+                "success": True,
+                "status": PayoutTransactionStatus.PENDING.value,
+                "transaction_id": str(tx_id),
+                "transaction_number": tx_number,
+                "amount": amount,
+                "vendor_ref": v_ref,
+                "message": "Txn Successfully Initiated"
             }
 
     @classmethod
@@ -784,8 +1034,8 @@ class EnterprisePayoutExecutionService:
         ).with_for_update()
         res_w = await db.execute(stmt_w)
         wallet = res_w.scalars().first()
-        wallet_before_rev = float(wallet.wallet_balance) if wallet else 0.0
-        wallet_after_rev = round(wallet_before_rev + float(tx.net_debit), 2)
+        wallet_before_rev = cls._money(wallet.wallet_balance) if wallet else Decimal('0.00')
+        wallet_after_rev = cls._money(wallet_before_rev + cls._money(tx.net_debit))
         if wallet:
             wallet.wallet_balance = wallet_after_rev
             wallet.updated_date = datetime.now(timezone.utc)
@@ -793,7 +1043,7 @@ class EnterprisePayoutExecutionService:
         # 2. Authoritative Reversal Credit in transaction_ledger_entries
         rev_ledger = TransactionLedgerEntryModel(
             public_id=reversal_uuid,
-            tenant_id=tx.tenant_id or tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
+            tenant_id=tx.tenant_id or tenant_id,
             transaction_id=tx.public_id,
             transaction_reference=f"REV-{tx.transaction_number}",
             entry_type="CREDIT",
@@ -851,7 +1101,6 @@ class EnterprisePayoutExecutionService:
                 pass
 
         # 4. Set Status REVERSED & is_reversed = True
-        reversal_uuid = uuid.uuid4()
         tx.status = PayoutTransactionStatus.REVERSED
         tx.status_description = STATUS_DESCRIPTIONS[PayoutTransactionStatus.REVERSED]
         tx.is_reversed = True
@@ -900,7 +1149,7 @@ class EnterprisePayoutExecutionService:
                 PayoutTransactionStatus.STATUS_CHECK_REQUIRED
             ]),
             EnterprisePayoutTransactionModel.is_reversed == False
-        ).with_for_update()
+        ).with_for_update(skip_locked=True)
 
         res_pending = await db.execute(stmt_pending)
         pending_list = res_pending.scalars().all()

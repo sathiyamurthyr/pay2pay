@@ -642,8 +642,8 @@ class RetailerWalletModel(BaseEntity, EnterpriseBaseMixin):
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     wallet_balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    daily_transaction_limit: Mapped[float] = mapped_column(Float, default=100000.0, nullable=False)
-    single_transaction_limit: Mapped[float] = mapped_column(Float, default=25000.0, nullable=False)
+    daily_transaction_limit: Mapped[float] = mapped_column(Float, default=5000000.0, nullable=False)
+    single_transaction_limit: Mapped[float] = mapped_column(Float, default=500000.0, nullable=False)
     is_frozen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     freeze_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
@@ -3834,6 +3834,11 @@ class NotificationAnalyticsModel(BaseEntity, EnterpriseBaseMixin):
     bounce_rate_pct: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     failure_rate_pct: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     provider_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+
+from app.infrastructure.db.enterprise_api_log_model import EnterpriseApiLogModel
+from app.infrastructure.db.topup_request_model import TopupRequestModel
+from app.infrastructure.db.payout_slab_model import PayoutSlabModel, PayoutSlabAuditModel
 
 
 

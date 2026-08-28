@@ -56,6 +56,7 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Configuration",
     items: [
+      { label: "Payout Slabs", href: "/configuration/payout-slabs", icon: Layers, badge: "New" },
       { label: "Payout Switch", href: "/payouts/gateways", icon: ArrowLeftRight, badge: "Live" },
       { label: "Wallet", href: "/wallet-ledger/entity-wallets", icon: Wallet },
       { label: "Chart of Accounts", href: "/wallet-ledger/chart-of-accounts", icon: BookOpen },

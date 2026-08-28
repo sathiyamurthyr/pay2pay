@@ -2205,6 +2205,154 @@ class NotificationDashboardMetricsResponse(BaseModel):
     channel_breakdown: Dict[str, int]
 
 
+# Payout Slab DTOs (EPIC-027)
+class PayoutSlabCreateRequest(BaseModel):
+    service_code: str = Field(default="PAYOUT", min_length=1, max_length=50)
+    slab_name: Optional[str] = Field(default=None, max_length=150)
+    description: Optional[str] = None
+    min_amount: float = Field(..., ge=0.0, description="Minimum Transaction Amount in Slab")
+    max_amount: float = Field(..., ge=0.0, description="Maximum Transaction Amount in Slab")
+
+    commission: float = Field(default=0.0, ge=0.0)
+    commission_type: str = Field(default="FIXED", pattern="^(FIXED|PERCENTAGE)$")
+
+    gst: float = Field(default=0.0, ge=0.0)
+    gst_type: str = Field(default="PERCENTAGE", pattern="^(FIXED|PERCENTAGE)$")
+
+    vendor_charge: float = Field(default=0.0, ge=0.0)
+    vendor_charge_type: str = Field(default="FIXED", pattern="^(FIXED|PERCENTAGE)$")
+
+    company_charges: float = Field(default=0.0, ge=0.0)
+    company_charges_type: str = Field(default="FIXED", pattern="^(FIXED|PERCENTAGE)$")
+
+    company_gst: float = Field(default=0.0, ge=0.0)
+    company_gst_type: str = Field(default="PERCENTAGE", pattern="^(FIXED|PERCENTAGE)$")
+
+    tds: float = Field(default=0.0, ge=0.0)
+    tds_type: str = Field(default="PERCENTAGE", pattern="^(FIXED|PERCENTAGE)$")
+
+    other_charges: float = Field(default=0.0, ge=0.0)
+    other_charges_type: str = Field(default="FIXED", pattern="^(FIXED|PERCENTAGE)$")
+
+    currency: str = Field(default="INR", max_length=10)
+    effective_from: Optional[datetime] = None
+    effective_to: Optional[datetime] = None
+    is_active: bool = True
+    notes: Optional[str] = None
+
+
+class PayoutSlabUpdateRequest(BaseModel):
+    slab_name: Optional[str] = Field(default=None, max_length=150)
+    description: Optional[str] = None
+    min_amount: Optional[float] = Field(default=None, ge=0.0)
+    max_amount: Optional[float] = Field(default=None, ge=0.0)
+
+    commission: Optional[float] = Field(default=None, ge=0.0)
+    commission_type: Optional[str] = Field(default=None, pattern="^(FIXED|PERCENTAGE)$")
+
+    gst: Optional[float] = Field(default=None, ge=0.0)
+    gst_type: Optional[str] = Field(default=None, pattern="^(FIXED|PERCENTAGE)$")
+
+    vendor_charge: Optional[float] = Field(default=None, ge=0.0)
+    vendor_charge_type: Optional[str] = Field(default=None, pattern="^(FIXED|PERCENTAGE)$")
+
+    company_charges: Optional[float] = Field(default=None, ge=0.0)
+    company_charges_type: Optional[str] = Field(default=None, pattern="^(FIXED|PERCENTAGE)$")
+
+    company_gst: Optional[float] = Field(default=None, ge=0.0)
+    company_gst_type: Optional[str] = Field(default=None, pattern="^(FIXED|PERCENTAGE)$")
+
+    tds: Optional[float] = Field(default=None, ge=0.0)
+    tds_type: Optional[str] = Field(default=None, pattern="^(FIXED|PERCENTAGE)$")
+
+    other_charges: Optional[float] = Field(default=None, ge=0.0)
+    other_charges_type: Optional[str] = Field(default=None, pattern="^(FIXED|PERCENTAGE)$")
+
+    currency: Optional[str] = Field(default=None, max_length=10)
+    effective_from: Optional[datetime] = None
+    effective_to: Optional[datetime] = None
+    is_active: Optional[bool] = None
+    notes: Optional[str] = None
+    reason: Optional[str] = Field(default="Configuration update", description="Audit change reason")
+
+
+class PayoutSlabStatusChangeRequest(BaseModel):
+    reason: Optional[str] = Field(default="Administrative status change", description="Reason for activation/deactivation")
+
+
+class PayoutSlabAuditResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    payout_slab_id: uuid.UUID
+    action: str
+    old_value: Optional[Dict[str, Any]] = None
+    new_value: Optional[Dict[str, Any]] = None
+    changed_by: Optional[str] = None
+    changed_at: datetime
+    reason: Optional[str] = None
+
+
+class PayoutSlabResponse(BaseModel):
+    public_id: uuid.UUID
+    tenant_id: uuid.UUID
+    company_id: Optional[uuid.UUID] = None
+    service_code: str
+    slab_name: Optional[str] = None
+    description: Optional[str] = None
+
+    min_amount: float
+    max_amount: float
+
+    commission: float
+    commission_type: str
+
+    gst: float
+    gst_type: str
+
+    vendor_charge: float
+    vendor_charge_type: str
+
+    company_charges: float
+    company_charges_type: str
+
+    company_gst: float
+    company_gst_type: str
+
+    tds: float
+    tds_type: str
+
+    other_charges: float
+    other_charges_type: str
+
+    currency: str
+    effective_from: Optional[datetime] = None
+    effective_to: Optional[datetime] = None
+
+    is_active: bool
+    is_deleted: bool
+    version_no: int
+    notes: Optional[str] = None
+
+    created_date: datetime
+    created_by: Optional[str] = None
+    updated_date: datetime
+    updated_by: Optional[str] = None
+
+    audit_logs: Optional[List[PayoutSlabAuditResponse]] = None
+
+
+class PayoutSlabListResponse(BaseModel):
+    items: List[PayoutSlabResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    active_count: int
+    inactive_count: int
+
+
+
 
 
 

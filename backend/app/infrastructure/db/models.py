@@ -3838,6 +3838,7 @@ class NotificationAnalyticsModel(BaseEntity, EnterpriseBaseMixin):
 
 from app.infrastructure.db.enterprise_api_log_model import EnterpriseApiLogModel
 from app.infrastructure.db.topup_request_model import TopupRequestModel
+from app.infrastructure.db.payout_slab_model import PayoutSlabModel, PayoutSlabAuditModel
 
 
 

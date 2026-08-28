@@ -19,7 +19,7 @@ class ActionPayload(BaseModel):
 @router.get("/requests")
 async def list_requests(
     status_tab: Optional[str] = Query("PENDING", example="PENDING"),
-    search: Optional[str] = Query(None, example="Sathiya"),
+    search: Optional[str] = Query(None, example="pay2pay"),
     state: Optional[str] = Query(None, example="Tamil Nadu"),
     is_business: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
