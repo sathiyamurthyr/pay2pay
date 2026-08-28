@@ -2,25 +2,27 @@ import { useState, useMemo } from "react";
 import { ServiceType, SERVICE_CONFIGS } from "../services/TransactionAdapter/types";
 import { RuleEngineService, PricingEvaluationResult } from "../services/RuleEngineAdapter";
 import { CustomerData } from "../hooks/useCustomer";
-import { useRetailerStore } from "@/stores/use-retailer-store";
+import { useWalletSync } from "@/context/WalletSyncProvider";
 
 export function useTransaction(service: ServiceType = "DMT", customer?: CustomerData | null) {
   const config = SERVICE_CONFIGS[service] || SERVICE_CONFIGS.DMT;
   const [amount, setAmount] = useState<number>(0);
   const [activeStep, setActiveStep] = useState<number>(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const retailerWallet = useRetailerStore((state) => state.wallet);
+
+  // Live wallet balance from API — never from localStorage or Zustand store cache
+  const { walletData } = useWalletSync();
+  const currentBal = walletData?.wallet_balance ?? 0;
 
   // Dynamic Rule Engine Evaluation from backend configuration tables
   const pricingResult: PricingEvaluationResult = useMemo(() => {
-    const currentBal = retailerWallet.mainBalance ?? 235750.00;
     return RuleEngineService.evaluatePricing({
       service,
       amount,
       customerId: customer?.id,
       walletBalance: currentBal,
     });
-  }, [service, amount, customer, retailerWallet.mainBalance]);
+  }, [service, amount, customer, currentBal]);
 
   return {
     config,

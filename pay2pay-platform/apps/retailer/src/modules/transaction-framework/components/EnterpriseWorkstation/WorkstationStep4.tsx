@@ -375,7 +375,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       amount,
       mode: transactionMode,
       pin: pinValue,
-      walletBalance: (typeof walletBalance === "number" && walletBalance > 0) ? walletBalance : ((customer as any)?.walletBalance || 275876.69),
+      walletBalance: (typeof walletBalance === "number" && walletBalance >= 0) ? walletBalance : ((customer as any)?.walletBalance || 0),
       beneficiaryMonthlyRemaining: beneficiary?.monthlyRemaining,
     });
 

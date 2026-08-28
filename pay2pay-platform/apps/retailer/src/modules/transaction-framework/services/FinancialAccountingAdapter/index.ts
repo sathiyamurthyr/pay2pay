@@ -246,7 +246,7 @@ class FinancialAccountingService {
     const token = typeof window !== "undefined" ? (localStorage.getItem("p2p_access_token") || localStorage.getItem("token") || "") : "";
     const activeRetailerId = typeof window !== "undefined" ? (localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("retailer_code") || "RET-10928") : "RET-10928";
 
-    const walletBefore = (typeof params.walletBalance === "number" && params.walletBalance > 0) ? params.walletBalance : 275876.69;
+    const walletBefore = (typeof params.walletBalance === "number" && params.walletBalance >= 0) ? params.walletBalance : 0;
     const beneMonthlyBefore = params.beneficiaryMonthlyRemaining ?? 5000000.0;
     const amount = params.amount;
     const mode = params.mode || "IMPS";

@@ -136,11 +136,10 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
         }
       } catch {}
 
-      // Update localStorage & useRetailerStore
+      // Update useRetailerStore (in-memory cache only, no localStorage)
       if (typeof window !== "undefined") {
         const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (typeof data.available_balance === "number" ? data.available_balance : 0.0);
         const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
-        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
         if (data.retailer_code || data.retailer_id) {
           localStorage.setItem("p2p_active_retailer_id", data.retailer_code || data.retailer_id);
         }
@@ -202,7 +201,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
       const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
+        // Update in-memory store only (no localStorage)
         useRetailerStore.getState().updateWallet({
           mainBalance: bal,
           availableBalance: avail,

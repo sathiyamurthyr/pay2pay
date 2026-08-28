@@ -117,12 +117,11 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
       cachedHeaderWalletData = data;
       lastHeaderWalletFetchTime = Date.now();
 
-      // Automatically sync into useRetailerStore so entire layout and pages are live
+      // Sync into useRetailerStore (in-memory cache only, no localStorage)
       if (typeof window !== "undefined") {
         const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
         const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
         const rInfo = data.retailer_info || data;
-        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
         if (rInfo.retailer_code || data.retailer_code) {
           localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code);
         }
@@ -305,12 +304,6 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (!isAuthenticatedSession) return;
-    // Clear stale localStorage wallet cache on mount so header shows 0 while fetching live balance.
-    // This prevents old cached balances (e.g. ₹50,000 from a previous session) from flash-displaying.
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("p2p_active_retailer_wallet_balance");
-      useRetailerStore.getState().updateWallet({ mainBalance: 0 });
-    }
     fetchProfileDetails(true);
     syncBalance();
 

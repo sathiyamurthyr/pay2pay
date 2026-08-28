@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from "react";
 import apiClient from "@/lib/api";
 import { retailerApi } from "@/services/retailer-api";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
-import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export interface CustomerData {
   id: string;

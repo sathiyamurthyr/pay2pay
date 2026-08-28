@@ -166,16 +166,9 @@ interface RetailerStoreState {
   setApprovalStatus: (status: "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW") => void;
 }
 
-const getInitialMainBalance = (): number => {
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
-    if (saved) {
-      const parsed = parseFloat(saved);
-      if (!isNaN(parsed) && parsed >= 0) return parsed;
-    }
-  }
-  return 0.00;
-};
+// Wallet balance is NOT persisted to localStorage.
+// It is always synced live from the API via syncBalance() or WalletSyncProvider.
+// This prevents stale cached balances from misleading users or transaction logic.
 
 const DEFAULT_RETAILER_ID = "";
 const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
@@ -259,7 +252,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
   return {
     outlet: getInitialOutlet(),
     wallet: {
-      mainBalance: getInitialMainBalance(),
+      mainBalance: 0.00, // Always starts at 0; syncBalance() or WalletSyncProvider populates live value
       commissionBalance: 0.00,
       todayMargin: 0.00,
       todayTxnCount: 0,
@@ -279,9 +272,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     updateWallet: (part) => {
       set((state) => {
         const updatedWallet = { ...state.wallet, ...part };
-        if (part.mainBalance !== undefined && typeof window !== "undefined") {
-          localStorage.setItem("p2p_active_retailer_wallet_balance", part.mainBalance.toString());
-        }
+        // No localStorage write — wallet is always fetched from the live API
         return { wallet: updatedWallet };
       });
     },
@@ -289,9 +280,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     debitWallet: (amount: number) => {
       const current = get().wallet.mainBalance;
       const newBal = Math.max(0, current - amount);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", newBal.toString());
-      }
+      // No localStorage write — balance will be refreshed from API after transaction
       set((state) => ({
         wallet: { ...state.wallet, mainBalance: newBal },
       }));
@@ -346,10 +335,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             ? data.available_balance
             : 0.00;
 
-        if (typeof window !== "undefined") {
-          localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-        }
-
+        // No localStorage write — store is purely in-memory cache
         set((state) => ({
           wallet: {
             ...state.wallet,

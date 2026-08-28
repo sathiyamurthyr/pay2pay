@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import api from "@/lib/api";
+import { useWalletSync, triggerWalletSync } from "@/context/WalletSyncProvider";
 import {
   UploadCloud,
   Clock,
@@ -66,13 +67,29 @@ interface PaymentModeOption {
 }
 
 export default function RetailerTopupRequestPage() {
-  // ── States ───────────────────────────────────────────────────────────────────
-  const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [retailerInfo, setRetailerInfo] = useState<{ code: string; name: string } | null>(null);
+  // ── States & Live Sync ────────────────────────────────────────────────────────
+  const { walletData, refreshWallet } = useWalletSync();
+  const [walletBalance, setWalletBalance] = useState<number>(walletData?.wallet_balance ?? 0);
+  const [retailerInfo, setRetailerInfo] = useState<{ code: string; name: string } | null>(
+    walletData ? { code: walletData.retailer_code, name: walletData.retailer_name || walletData.owner_name } : null
+  );
   const [myRequests, setMyRequests] = useState<TopupRequestItem[]>([]);
   const [loadingRequests, setLoadingRequests] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [uploadingSlip, setUploadingSlip] = useState<boolean>(false);
+
+  // Sync wallet balance whenever walletData updates
+  useEffect(() => {
+    if (walletData && typeof walletData.wallet_balance === "number") {
+      setWalletBalance(walletData.wallet_balance);
+      if (!retailerInfo && walletData.retailer_code) {
+        setRetailerInfo({
+          code: walletData.retailer_code,
+          name: walletData.retailer_name || walletData.owner_name || "Retailer Account"
+        });
+      }
+    }
+  }, [walletData, retailerInfo]);
 
   // Allowed Dynamic Payment Modes
   const [paymentModes, setPaymentModes] = useState<PaymentModeOption[]>([
@@ -149,14 +166,7 @@ export default function RetailerTopupRequestPage() {
     const timer = setTimeout(async () => {
       try {
         setCalculatingMdr(true);
-        const activeCode =
-          retailerInfo?.code ||
-          (typeof window !== "undefined"
-            ? localStorage.getItem("p2p_active_retailer_id") ||
-              localStorage.getItem("retailer_code") ||
-              localStorage.getItem("pay2pay_reg_mobile") ||
-              ""
-            : "");
+        const activeCode = retailerInfo?.code || walletData?.retailer_code || "";
         const res = await api.post("/api/v1/pos/calculate-mdr", {
           payment_mode: paymentMethod,
           transaction_amount: amt,
@@ -181,19 +191,13 @@ export default function RetailerTopupRequestPage() {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [requestedAmount, paymentMethod, retailerInfo]);
+  }, [requestedAmount, paymentMethod, retailerInfo, walletData]);
 
   // ── Fetch Profile & My Requests ──────────────────────────────────────────────
-  const fetchMyTopups = useCallback(async () => {
+  const fetchMyTopups = useCallback(async (isSilent = false) => {
     try {
-      setLoadingRequests(true);
-      const activeCode =
-        (typeof window !== "undefined"
-          ? localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("retailer_code") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            ""
-          : "");
+      if (!isSilent) setLoadingRequests(true);
+      const activeCode = retailerInfo?.code || walletData?.retailer_code || "";
       const query = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
       const res = await api.get(`/api/v1/topup/my-requests${query}`, {
         headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}
@@ -211,13 +215,22 @@ export default function RetailerTopupRequestPage() {
     } catch (err) {
       console.error("Failed to load my topup requests:", err);
     } finally {
-      setLoadingRequests(false);
+      if (!isSilent) setLoadingRequests(false);
     }
-  }, []);
+  }, [retailerInfo, walletData]);
 
   useEffect(() => {
     fetchMyTopups();
   }, [fetchMyTopups]);
+
+  // ── Auto-polling every 15s for live status updates & balance sync ──────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchMyTopups(true);
+      refreshWallet();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [fetchMyTopups, refreshWallet]);
 
   // ── File Selection & Auto Upload ─────────────────────────────────────────────
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -308,14 +321,7 @@ export default function RetailerTopupRequestPage() {
         mdr_config_id: mdrBreakdown?.mdr_config_id
       };
 
-      const activeCode =
-        retailerInfo?.code ||
-        (typeof window !== "undefined"
-          ? localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("retailer_code") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            ""
-          : "");
+      const activeCode = retailerInfo?.code || walletData?.retailer_code || "";
       const queryParam = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
       const res = await api.post(`/api/v1/topup/request${queryParam}`, payload, {
         headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}
@@ -355,8 +361,10 @@ export default function RetailerTopupRequestPage() {
       setMdrBreakdown(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      // Refresh list from server
+      // Refresh list and sync wallet from server
       fetchMyTopups();
+      refreshWallet();
+      triggerWalletSync();
     } catch (err: any) {
       console.error("Submit request error:", err);
       const detail = err.response?.data?.detail || err.message || "Failed to submit topup request.";
@@ -414,7 +422,11 @@ export default function RetailerTopupRequestPage() {
               Primary Settlement Balance
             </div>
             <button
-              onClick={fetchMyTopups}
+              onClick={() => {
+                fetchMyTopups();
+                refreshWallet();
+                triggerWalletSync();
+              }}
               disabled={loadingRequests}
               className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
               title="Refresh Balance"

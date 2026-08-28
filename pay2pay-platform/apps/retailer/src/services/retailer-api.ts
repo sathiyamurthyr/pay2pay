@@ -260,9 +260,7 @@ export const retailerApi = {
           ? data.mainBalance
           : data.available_balance || 0.00;
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-      }
+      // No localStorage write — wallet balance lives in WalletSyncProvider state only
       return {
         success: true,
         mainBalance: bal,
@@ -275,18 +273,12 @@ export const retailerApi = {
         ...data,
       };
     } catch {
-      let savedBalance = 0.00;
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
-        if (saved && !isNaN(parseFloat(saved))) {
-          savedBalance = parseFloat(saved);
-        }
-      }
+      // Return 0 on failure — stale localStorage balance must not be used
       return {
         success: false,
-        mainBalance: savedBalance,
-        wallet_balance: savedBalance,
-        available_balance: savedBalance,
+        mainBalance: 0.00,
+        wallet_balance: 0.00,
+        available_balance: 0.00,
         commissionBalance: 0.00,
         todayMargin: 0.00,
         todayTxnCount: 0,
