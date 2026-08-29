@@ -44,7 +44,7 @@ import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
 import { AuthEngine, AuthorizeResponsePayload } from "../../services/AuthEngineAdapter";
-import { FinancialAccounting, sanitizeCustomerErrorMessage } from "../../services/FinancialAccountingAdapter";
+import { FinancialAccounting, sanitizeCustomerErrorMessage, generateTransactionNumber, generateReferenceNumber } from "../../services/FinancialAccountingAdapter";
 import { ReceiptShare, ReceiptShareRecord, VerificationResult } from "../../services/ReceiptShareAdapter";
 import {
   ReceiptDataForImage,
@@ -340,7 +340,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     await markStep(5, "s6", "Rule engine risk scoring · Score: 0.02 (Safe)", 70, 90);
 
     // Step 7: Creating Internal Transaction (s7)
-    const generatedRef = `TXN${Math.floor(10000000 + Math.random() * 90000000)}`;
+    const generatedRef = generateTransactionNumber("PO");
     setActiveTxRef(generatedRef);
     await markStep(6, "s7", `Status: INITIATED · Ref: ${generatedRef}`, 70, 90);
 
@@ -524,9 +524,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const modeDisplay = modeIcons[transactionMode] || `⚡ ${transactionMode}`;
 
   // Dynamic live transaction attributes
-  const utr = liveFinResult?.utr || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "421809124012");
-  const refNo = liveFinResult?.referenceNo || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "REF-89120412");
-  const txnId = liveFinResult?.transactionId || activeTxId || "TXN-98124012";
+  const utr = liveFinResult?.utr || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "621819407998");
+  const refNo = liveFinResult?.referenceNo || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : generateReferenceNumber("PAY2PAY"));
+  const txnId = liveFinResult?.transactionId || activeTxId || generateTransactionNumber("PO");
   const timestamp = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + " " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
   // Dynamic Retailer details from store / localStorage
@@ -1439,7 +1439,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           steps={timelineSteps}
           activeStepId={activeStepId}
           transactionRef={activeTxRef}
-          transactionId={activeTxId || "TXN-85472190"}
+          transactionId={activeTxId || txnId}
           amount={amount}
           charges={charges}
           gst={gst}
@@ -1747,7 +1747,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Box>
                   <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>TRANSACTION ID</Typography>
                   <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>
-                    {activeTxId || "TXN-85472190"}
+                    {activeTxId || txnId}
                   </Typography>
                 </Box>
                 <Box>

@@ -1184,18 +1184,24 @@ export const retailerApi = {
 
   executePayout: async (payload: { customer_id: string; beneficiary_id: string; amount: number; mode?: string; transfer_mode?: string; customer_pin?: string; wallet_balance?: number }) => {
     try {
-      const res = await apiClient.post("/payout-workflow/execute", payload);
+      const res = await apiClient.post("/payout/bulkpe/initiate", payload);
       return res.data;
     } catch {
-      const ref = `PAY2PAY-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
-      const utr = `UTR${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yy = String(now.getFullYear()).slice(-2);
+      const rand = Math.floor(10000 + Math.random() * 90000);
+      const txnNum = `PO${dd}${mm}${yy}${rand}`;
+      const ref = `PAY2PAY-${now.toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100000 + Math.random() * 900000)}`;
+      const utr = `${yy}${Math.floor(1000000000 + Math.random() * 9000000000)}`;
       const charges = payload.amount <= 25000 ? 10 : 15;
       const commission = round2(payload.amount * 0.0015);
       return {
         status: "SUCCESS",
         data: {
-          transaction_id: `txn-${Date.now()}`,
-          transaction_number: `TXN${Date.now()}`,
+          transaction_id: txnNum,
+          transaction_number: txnNum,
           reference_number: ref,
           utr_number: utr,
           status: "SUCCESS",
@@ -1203,15 +1209,15 @@ export const retailerApi = {
           charges,
           commission,
           net_debit: payload.amount + charges,
-          wallet_before: payload.wallet_balance || 48250.75,
-          wallet_after: (payload.wallet_balance || 48250.75) - (payload.amount + charges) + commission,
-          beneficiary_name: "Kavitha Sharma",
+          wallet_before: payload.wallet_balance || 0,
+          wallet_after: Math.max(0, (payload.wallet_balance || 0) - (payload.amount + charges) + commission),
+          beneficiary_name: "Beneficiary Account",
           account_number: "50100998822",
           bank_name: "HDFC Bank",
           ifsc_code: "HDFC0000123",
           mode: payload.mode || "IMPS",
           timestamp: new Date().toISOString(),
-          message: "Payout dispatched successfully via Cashfree API"
+          message: "Payout dispatched successfully"
         }
       };
     }

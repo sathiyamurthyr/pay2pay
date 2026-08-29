@@ -228,6 +228,30 @@ export function sanitizeCustomerErrorMessage(rawError: any): string {
   return "Transaction could not be completed. If any amount was debited, it will be automatically refunded.";
 }
 
+export function generateTransactionNumber(prefix = "PO"): string {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yy = String(now.getFullYear()).slice(-2);
+  const rand = Math.floor(10000 + Math.random() * 90000);
+  return `${prefix}${dd}${mm}${yy}${rand}`;
+}
+
+export function generateReferenceNumber(prefix = "PAY2PAY"): string {
+  const now = new Date();
+  const yyyymmdd = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = Math.floor(100000 + Math.random() * 900000);
+  return `${prefix}-${yyyymmdd}-${rand}`;
+}
+
+export function generateBankingUtr(): string {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const doy = String(Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24))).padStart(3, "0");
+  const rand = Math.floor(1000000 + Math.random() * 9000000);
+  return `${yy}${doy}${rand}`;
+}
+
 class FinancialAccountingService {
   private masterTransactions: MasterTransactionRecord[] = [];
   private payoutTransactions: PayoutTransactionRecord[] = [];
@@ -240,8 +264,8 @@ class FinancialAccountingService {
 
   public async executeACIDTransaction(params: ProcessTransactionParams): Promise<FinancialProcessResult> {
     const timestamp = new Date().toISOString();
-    const transactionId = `TXN-${Date.now()}`;
-    const referenceNo = `REF-${Math.floor(100000000 + Math.random() * 900000000)}`;
+    const transactionId = generateTransactionNumber("PO");
+    const referenceNo = generateReferenceNumber("PAY2PAY");
 
     const token = typeof window !== "undefined" ? (localStorage.getItem("p2p_access_token") || localStorage.getItem("token") || "") : "";
     const activeRetailerId = typeof window !== "undefined" ? (localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("retailer_code") || "RET-10928") : "RET-10928";
@@ -334,45 +358,45 @@ class FinancialAccountingService {
           const wAfter = apiData.wallet_balance ?? apiData.wallet_balance_after ?? apiData.data?.wallet_balance_after ?? (wBefore - amount);
           return {
             success: true,
-            transactionId: apiData.transaction_number || apiData.data?.transaction_id || transactionId,
-            referenceNo: apiData.reference_number || apiData.data?.reference_no || referenceNo,
-            utr: apiData.utr || apiData.data?.utr || `UTR${Date.now()}`,
-            npciRef: apiData.rrn || apiData.data?.npci_ref || `NPCI${Date.now()}`,
-            bankRef: apiData.vendor_transaction_id || apiData.data?.bank_ref || `BANK${Date.now()}`,
+            transactionId: apiData.transaction_number || apiData.transaction_id || apiData.data?.transaction_number || apiData.data?.transaction_id || transactionId,
+            referenceNo: apiData.reference_number || apiData.reference_no || apiData.data?.reference_number || apiData.data?.reference_no || referenceNo,
+            utr: apiData.utr || apiData.utr_number || apiData.data?.utr || apiData.data?.utr_number || generateBankingUtr(),
+            npciRef: apiData.rrn || apiData.data?.npci_ref || apiData.data?.rrn || `RRN${generateBankingUtr()}`,
+            bankRef: apiData.vendor_transaction_id || apiData.data?.bank_ref || apiData.data?.vendor_transaction_id || `BANK-${generateTransactionNumber("PO")}`,
             status: "SUCCESS",
             walletBalanceBefore: wBefore,
             walletBalanceAfter: wAfter,
             beneficiaryRemainingMonthlyLimit: Math.max(0, beneMonthlyBefore - amount),
             ledgers: {
-              walletLedgerId: `LEDG-WAL-${Date.now()}`,
-              payoutLedgerId: `LEDG-PAY-${Date.now()}`,
-              commissionLedgerId: `LEDG-COM-${Date.now()}`,
-              gstLedgerId: `LEDG-GST-${Date.now()}`,
-              tdsLedgerId: `LEDG-TDS-${Date.now()}`,
-              generalLedgerId: `LEDG-GEN-${Date.now()}`,
-              auditLedgerId: `AUD-${Date.now()}`
+              walletLedgerId: `LEDG-WAL-${generateTransactionNumber("LD")}`,
+              payoutLedgerId: `LEDG-PAY-${generateTransactionNumber("LD")}`,
+              commissionLedgerId: `LEDG-COM-${generateTransactionNumber("LD")}`,
+              gstLedgerId: `LEDG-GST-${generateTransactionNumber("LD")}`,
+              tdsLedgerId: `LEDG-TDS-${generateTransactionNumber("LD")}`,
+              generalLedgerId: `LEDG-GEN-${generateTransactionNumber("LD")}`,
+              auditLedgerId: `AUD-${generateTransactionNumber("AU")}`
             }
           };
         } else if (apiData.status === "PENDING") {
           return {
             success: true,
-            transactionId: apiData.transaction_number || transactionId,
-            referenceNo: apiData.reference_number || referenceNo,
-            utr: apiData.utr || "PENDING_BANK_CONFIRMATION",
-            npciRef: `NPCI${Date.now()}`,
-            bankRef: `BANK${Date.now()}`,
+            transactionId: apiData.transaction_number || apiData.transaction_id || apiData.data?.transaction_number || apiData.data?.transaction_id || transactionId,
+            referenceNo: apiData.reference_number || apiData.reference_no || apiData.data?.reference_number || apiData.data?.reference_no || referenceNo,
+            utr: apiData.utr || apiData.utr_number || "PENDING_BANK_CONFIRMATION",
+            npciRef: apiData.rrn || `RRN${generateBankingUtr()}`,
+            bankRef: apiData.vendor_transaction_id || `BANK-${generateTransactionNumber("PO")}`,
             status: "SUCCESS",
             walletBalanceBefore: walletBefore,
             walletBalanceAfter: walletBefore - amount,
             beneficiaryRemainingMonthlyLimit: Math.max(0, beneMonthlyBefore - amount),
             ledgers: {
-              walletLedgerId: `LEDG-WAL-${Date.now()}`,
-              payoutLedgerId: `LEDG-PAY-${Date.now()}`,
-              commissionLedgerId: `LEDG-COM-${Date.now()}`,
-              gstLedgerId: `LEDG-GST-${Date.now()}`,
-              tdsLedgerId: `LEDG-TDS-${Date.now()}`,
-              generalLedgerId: `LEDG-GEN-${Date.now()}`,
-              auditLedgerId: `AUD-${Date.now()}`
+              walletLedgerId: `LEDG-WAL-${generateTransactionNumber("LD")}`,
+              payoutLedgerId: `LEDG-PAY-${generateTransactionNumber("LD")}`,
+              commissionLedgerId: `LEDG-COM-${generateTransactionNumber("LD")}`,
+              gstLedgerId: `LEDG-GST-${generateTransactionNumber("LD")}`,
+              tdsLedgerId: `LEDG-TDS-${generateTransactionNumber("LD")}`,
+              generalLedgerId: `LEDG-GEN-${generateTransactionNumber("LD")}`,
+              auditLedgerId: `AUD-${generateTransactionNumber("AU")}`
             }
           };
         } else {
@@ -431,7 +455,7 @@ class FinancialAccountingService {
 
     // ── STEP 5: CREATE PAYOUT TRANSACTION ──
     const payoutRecord: PayoutTransactionRecord = {
-      payoutId: `PAY-${Date.now()}`,
+      payoutId: generateTransactionNumber("PO"),
       transactionId,
       referenceNo,
       tenantId: params.tenantId || "TENANT-PAY2PAY",
@@ -459,13 +483,13 @@ class FinancialAccountingService {
     this.payoutTransactions.push(payoutRecord);
 
     // ── STEP 6: POST DOUBLE ENTRY LEDGER ENTRIES ──
-    const walletLedgerId = `LEDG-WAL-${Date.now()}`;
-    const payoutLedgerId = `LEDG-PAY-${Date.now()}`;
-    const commissionLedgerId = `LEDG-COM-${Date.now()}`;
-    const gstLedgerId = `LEDG-GST-${Date.now()}`;
-    const tdsLedgerId = `LEDG-TDS-${Date.now()}`;
-    const generalLedgerId = `LEDG-GEN-${Date.now()}`;
-    const auditLedgerId = `AUD-${Date.now()}`;
+    const walletLedgerId = `LEDG-WAL-${generateTransactionNumber("LD")}`;
+    const payoutLedgerId = `LEDG-PAY-${generateTransactionNumber("LD")}`;
+    const commissionLedgerId = `LEDG-COM-${generateTransactionNumber("LD")}`;
+    const gstLedgerId = `LEDG-GST-${generateTransactionNumber("LD")}`;
+    const tdsLedgerId = `LEDG-TDS-${generateTransactionNumber("LD")}`;
+    const generalLedgerId = `LEDG-GEN-${generateTransactionNumber("LD")}`;
+    const auditLedgerId = `AUD-${generateTransactionNumber("AU")}`;
 
     // Entry 1: Wallet Debit -> Debit Operator Wallet / Credit Settlement Holding
     this.generalLedgers.push({
