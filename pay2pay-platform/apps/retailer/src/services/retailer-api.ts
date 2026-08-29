@@ -1195,8 +1195,8 @@ export const retailerApi = {
       const txnNum = `PO${dd}${mm}${yy}${rand}`;
       const ref = `PAY2PAY-${now.toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100000 + Math.random() * 900000)}`;
       const utr = `${yy}${Math.floor(1000000000 + Math.random() * 9000000000)}`;
-      const charges = payload.amount <= 25000 ? 10 : 15;
-      const commission = round2(payload.amount * 0.0015);
+      const charges = payload.amount > 500000 ? 75 : 20;
+      const commission = 20;
       return {
         status: "SUCCESS",
         data: {
