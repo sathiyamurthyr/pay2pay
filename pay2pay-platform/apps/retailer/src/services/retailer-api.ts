@@ -1196,7 +1196,8 @@ export const retailerApi = {
       const ref = `PAY2PAY-${now.toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100000 + Math.random() * 900000)}`;
       const utr = `${yy}${Math.floor(1000000000 + Math.random() * 9000000000)}`;
       const charges = payload.amount > 500000 ? 75 : 20;
-      const commission = 20;
+      const gst = Math.round(charges * 0.18);
+      const netDebit = payload.amount + charges + gst;
       return {
         status: "SUCCESS",
         data: {
@@ -1207,10 +1208,11 @@ export const retailerApi = {
           status: "SUCCESS",
           amount: payload.amount,
           charges,
-          commission,
-          net_debit: payload.amount + charges,
+          gst,
+          commission: 0,
+          net_debit: netDebit,
           wallet_before: payload.wallet_balance || 0,
-          wallet_after: Math.max(0, (payload.wallet_balance || 0) - (payload.amount + charges) + commission),
+          wallet_after: Math.max(0, (payload.wallet_balance || 0) - netDebit),
           beneficiary_name: "Beneficiary Account",
           account_number: "50100998822",
           bank_name: "HDFC Bank",

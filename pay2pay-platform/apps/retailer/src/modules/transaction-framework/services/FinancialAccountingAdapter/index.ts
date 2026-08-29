@@ -435,8 +435,8 @@ class FinancialAccountingService {
     const convenienceFee = amount > 500000 ? 75 : 20;
     const gstAmount = Math.round(convenienceFee * 0.18);
     const tdsAmount = Math.round(convenienceFee * 0.01);
-    const companyCommission = 20;
-    const vendorCommission = Math.round(amount * 0.001);
+    const companyCommission = 0;
+    const vendorCommission = 0;
     const totalWalletDebit = amount + convenienceFee + gstAmount;
     const walletAfter = walletBefore - totalWalletDebit;
     const beneMonthlyAfter = Math.max(0, beneMonthlyBefore - amount);

@@ -17,15 +17,12 @@ export const TransferDetails: React.FC<TransferDetailsProps> = ({
 }) => {
   const gst = Math.round(charges * 0.18);
   const fee = charges - gst;
-  const commission = Math.round(amount * 0.0035);
   const walletAfter = Math.max(0, walletBalance - totalPayable);
-
   const items = [
     { label: "TRANSFER AMOUNT", value: `₹${amount.toLocaleString()}`, color: "#FFFFFF" },
     { label: "CONVENIENCE FEE", value: `+ ₹${fee.toLocaleString()}`, color: "#60A5FA" },
     { label: "GST (18%)", value: `+ ₹${gst.toLocaleString()}`, color: "#93C5FD" },
-    { label: "RETAILER COMMISSION", value: `+ ₹${commission.toLocaleString()}`, color: "#4ADE80" },
-    { label: "NET WALLET DEBIT", value: `₹${totalPayable.toLocaleString()}`, color: "#3B82F6" },
+    { label: "TOTAL WALLET DEBIT", value: `₹${totalPayable.toLocaleString()}`, color: "#3B82F6" },
     { label: "CURRENT WALLET BAL", value: `₹${walletBalance.toLocaleString()}`, color: "#FBBF24" },
     { label: "BAL AFTER TRANSFER", value: `₹${walletAfter.toLocaleString()}`, color: "#34D399" },
     { label: "TRANSFER TIMESTAMP", value: "Today, 14:20:15 UTC", color: "rgba(255, 255, 255, 0.85)" },
