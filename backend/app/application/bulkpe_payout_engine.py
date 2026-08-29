@@ -22,6 +22,7 @@ from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
 from app.application.bulkpe_client import BulkPeApiClient
 from app.application.mpin_service import CustomerMPINService
 from app.application.error_management_service import ErrorManagementService
+from app.core.config import settings
 
 
 class BulkPePayoutEngine:
