@@ -122,7 +122,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   // Animated Counter States for Wallet & Beneficiary Limit
-  const [animatedWallet, setAnimatedWallet] = useState<number>(walletBalance);
+  const [animatedWallet, setAnimatedWallet] = useState<number>(currentWalletBalance);
   const [animatedLimit, setAnimatedLimit] = useState<number>(beneficiary?.monthlyRemaining ?? 0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -130,8 +130,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
   // Fetch fresh authoritative wallet balance on mount
   useEffect(() => {
-    useRetailerStore.getState().fetchWalletBalance();
+    useRetailerStore.getState().syncBalance?.();
   }, []);
+
+  // Keep animatedWallet updated when balance changes during PIN entry
+  useEffect(() => {
+    if (viewState === "PIN_ENTRY") {
+      setAnimatedWallet(currentWalletBalance);
+    }
+  }, [currentWalletBalance, viewState]);
 
   // Auto-focus first PIN input box when viewState transitions to PIN_ENTRY
   useEffect(() => {
@@ -221,14 +228,11 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   // Smooth Counter Animation Effect upon Transaction Success
   useEffect(() => {
     if (viewState === "SUCCESS_RECEIPT") {
-      try {
-        useRetailerStore.getState().debitWallet(totalPayable);
-      } catch { /* ignore */ }
-      const targetWallet = (customer?.walletBalance ?? 0) - totalPayable;
+      const targetWallet = Math.max(0, (currentWalletBalance ?? 0) - totalPayable);
       const targetLimit = Math.max(0, (beneficiary?.monthlyRemaining ?? 0) - amount);
 
       const duration = 1500;
-      const startWallet = customer?.walletBalance ?? 0;
+      const startWallet = currentWalletBalance ?? 0;
       const startLimit = beneficiary?.monthlyRemaining ?? 0;
       const startTime = Date.now();
 
@@ -243,7 +247,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
       return () => clearInterval(timer);
     }
-  }, [viewState, amount, totalPayable, customer, beneficiary]);
+  }, [viewState, amount, totalPayable, currentWalletBalance, beneficiary]);
 
   const currentPin = pinDigits.join("");
 
@@ -368,7 +372,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     await markStep(2, "s3", `Account: ${beneficiary?.accountNumber || beneficiary?.name || "Verified"}`, 70, 90);
 
     // Step 4: Checking Wallet Balance (s4)
-    const currentLiveBal = useRetailerStore.getState().walletBalance ?? walletBalance ?? 0;
+    const storeWalletState = useRetailerStore.getState().wallet;
+    const currentLiveBal = storeWalletState?.mainBalance ?? storeWalletState?.availableBalance ?? (useRetailerStore.getState() as any).walletBalance ?? walletBalance ?? 0;
     await markStep(3, "s4", `Available Balance: ₹${currentLiveBal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 70, 90);
 
     // Step 5: Checking Transaction Limits (s5)
@@ -408,8 +413,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
     if (finResult.walletBalanceAfter !== undefined && finResult.walletBalanceAfter !== null) {
       useRetailerStore.getState().setWalletBalance(finResult.walletBalanceAfter);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("p2p_wallet_update"));
+      }
     } else if (finResult.walletBalance !== undefined && finResult.walletBalance !== null) {
       useRetailerStore.getState().setWalletBalance(finResult.walletBalance);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("p2p_wallet_update"));
+      }
     }
 
     if (finResult.transactionId) {
@@ -780,14 +791,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet Balance</Typography>
                   <Typography sx={{ fontWeight: 900, color: viewState === "SUCCESS_RECEIPT" ? "#4ADE80" : "#FBBF24", fontSize: "13.5px" }}>
-                    ₹{animatedWallet.toLocaleString()}
+                    ₹{(animatedWallet ?? currentWalletBalance ?? 0).toLocaleString()}
                   </Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Monthly Remaining Limit</Typography>
                   <Typography sx={{ fontWeight: 900, color: viewState === "SUCCESS_RECEIPT" ? "#60A5FA" : "#93C5FD", fontSize: "13.5px" }}>
-                    ₹{animatedLimit.toLocaleString()}
+                    ₹{(animatedLimit ?? beneficiary?.monthlyRemaining ?? 0).toLocaleString()}
                   </Typography>
                 </Stack>
 
@@ -795,7 +806,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "12px" }}>TOTAL AMOUNT PAID</Typography>
-                  <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "16px" }}>₹{totalAmountPaid.toLocaleString()}</Typography>
+                  <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "16px" }}>₹{(totalAmountPaid ?? 0).toLocaleString()}</Typography>
                 </Stack>
               </Stack>
             </Box>

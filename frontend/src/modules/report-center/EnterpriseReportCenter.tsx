@@ -106,12 +106,9 @@ export interface GridItem {
   is_reversed: boolean;
 }
 
-const getActiveRetailerId = () => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
-  }
-  return "";
-};
+const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
+const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
+const DEFAULT_COMPANY_ID = "8899aabb-1122-3344-5566-77889900aabb";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -238,14 +235,35 @@ export const EnterpriseReportCenter: React.FC = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  const getUserRefs = () => {
+    let userRefId: any = null;
+    let userTypeRefId: any = 2;
+    if (typeof window !== "undefined") {
+      try {
+        const userStr =
+          localStorage.getItem("user_info") ||
+          localStorage.getItem("user") ||
+          localStorage.getItem("auth_user") ||
+          localStorage.getItem("pay2pay_user_data");
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+          userTypeRefId = u.user_type_ref_id || 2;
+        }
+      } catch {}
+    }
+    return { userRefId, userTypeRefId };
+  };
+
   // Fetch Summary Metrics
   const fetchSummary = useCallback(async (repType: string, fDate: string, tDate: string) => {
     try {
+      const { userRefId, userTypeRefId } = getUserRefs();
       const q = new URLSearchParams({
         report_type: repType === "tax_audit" ? "gst" : repType,
+        user_type_ref_id: String(userTypeRefId || 2),
       });
-      const activeRetailerId = getActiveRetailerId();
-      if (activeRetailerId) q.append("retailer_id", activeRetailerId);
+      if (userRefId) q.append("user_ref_id", String(userRefId));
       if (fDate) q.append("from_date", fDate);
       if (tDate) q.append("to_date", tDate);
 
@@ -289,9 +307,11 @@ export const EnterpriseReportCenter: React.FC = () => {
     try {
       const activeFDate = overrideFromDate !== undefined ? overrideFromDate : fromDate;
       const activeTDate = overrideToDate !== undefined ? overrideToDate : toDate;
+      const { userRefId, userTypeRefId } = getUserRefs();
 
       const q = new URLSearchParams({
         report_type: activeTab === "tax_audit" ? "gst" : activeTab,
+        user_type_ref_id: String(userTypeRefId || 2),
         page: (page + 1).toString(),
         limit: rowsPerPage.toString(),
         from_date: activeFDate,
@@ -299,9 +319,8 @@ export const EnterpriseReportCenter: React.FC = () => {
         sort_by: "initiated_at",
         sort_dir: "desc"
       });
+      if (userRefId) q.append("user_ref_id", String(userRefId));
 
-      const activeRetailerId = getActiveRetailerId();
-      if (activeRetailerId) q.append("retailer_id", activeRetailerId);
       if (debouncedQuery) q.append("query", debouncedQuery);
       if (statusFilter !== "ALL") q.append("status", statusFilter);
       if (minimumAmount) q.append("amount_from", minimumAmount);
@@ -397,10 +416,13 @@ export const EnterpriseReportCenter: React.FC = () => {
   // View Item Details in 600px 7-Tab Drawer
   const handleViewDetails = async (row: GridItem) => {
     try {
+      const { userRefId, userTypeRefId } = getUserRefs();
       const repType = activeTab === "tax_audit" ? "gst" : activeTab;
-      const activeRetailerId = getActiveRetailerId();
-      const qParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
-      const res = await fetch(`${API_BASE_URL}/report-center/details/${repType}/${row.id}${qParam}`);
+      const q = new URLSearchParams({
+        user_type_ref_id: String(userTypeRefId || 2),
+      });
+      if (userRefId) q.append("user_ref_id", String(userRefId));
+      const res = await fetch(`${API_BASE_URL}/report-center/details/${repType}/${row.id}?${q.toString()}`);
       if (res.ok) {
         setSelectedItem(await res.json());
       } else {
@@ -418,9 +440,12 @@ export const EnterpriseReportCenter: React.FC = () => {
     if (!selectedItem) return;
     const txId = selectedItem.transaction_details?.transaction_id || selectedItem.id;
     try {
-      const activeRetailerId = getActiveRetailerId();
-      const qParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
-      const res = await fetch(`${API_BASE_URL}/report-center/check-status/${txId}${qParam}`, { method: "POST" });
+      const { userRefId, userTypeRefId } = getUserRefs();
+      const q = new URLSearchParams({
+        user_type_ref_id: String(userTypeRefId || 2),
+      });
+      if (userRefId) q.append("user_ref_id", String(userRefId));
+      const res = await fetch(`${API_BASE_URL}/report-center/check-status/${txId}?${q.toString()}`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         setToastMessage(data.friendly_message || "Live bank status re-check completed!");
@@ -437,7 +462,6 @@ export const EnterpriseReportCenter: React.FC = () => {
     setIsSubmittingComplaint(true);
     const txId = selectedItem.transaction_details?.transaction_id || selectedItem.id;
     try {
-      const activeRetailerId = getActiveRetailerId();
       const res = await fetch(`${API_BASE_URL}/report-center/complaint`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -445,7 +469,8 @@ export const EnterpriseReportCenter: React.FC = () => {
           transaction_id: txId,
           reason: complaintReason,
           description: complaintDesc,
-          retailer_id: activeRetailerId || undefined,
+          retailer_id: DEFAULT_RETAILER_ID,
+          tenant_id: DEFAULT_TENANT_ID,
         }),
       });
       if (res.ok) {

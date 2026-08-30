@@ -444,9 +444,9 @@ export function BeneficiaryMasterSlideOver({
       setProcessingSubMessage("Creating Ledger & Pre-Debiting Wallet ₹3.00...");
       await new Promise((r) => setTimeout(r, 450));
 
-      // Step 4: Cashfree Penny Drop V2
+      // Step 4: Bank Penny Drop V2
       setActiveStep(3);
-      setProcessingSubMessage("Connecting to Cashfree V2 Sync Gateway...");
+      setProcessingSubMessage("Connecting to NPCI Bank Verification Gateway...");
       
       const data = await retailerApi.addAndVerifyEpic014Beneficiary({
         customer_id: targetCustomer,
@@ -492,7 +492,7 @@ export function BeneficiaryMasterSlideOver({
         };
 
         setVerificationSuccess(successData);
-        notificationEngine.notify("BENEFICIARY_VERIFIED", `Cashfree V2 Verified: ${verifiedName}`);
+        notificationEngine.notify("BENEFICIARY_VERIFIED", `Bank Verified: ${verifiedName}`);
       } else {
         throw new Error(data.detail || data.message || "Bank Penny Drop failed at gateway");
       }
@@ -500,7 +500,7 @@ export function BeneficiaryMasterSlideOver({
       if (err.message && (err.message.includes("failed") || err.message.includes("Error"))) {
         setVerificationFailure({
           reason: err.message,
-          ref_id: `CFV2-ERR-${Math.floor(100000 + Math.random() * 900000)}`,
+          ref_id: `VERIF-ERR-${Math.floor(100000 + Math.random() * 900000)}`,
           refund_amount: 3.0,
         });
       } else {
@@ -527,7 +527,7 @@ export function BeneficiaryMasterSlideOver({
           is_reused: false,
         };
         setVerificationSuccess(successData);
-        notificationEngine.notify("BENEFICIARY_VERIFIED", `Verified by Cashfree V2: ${verifiedName}`);
+        notificationEngine.notify("BENEFICIARY_VERIFIED", `Bank Verified: ${verifiedName}`);
       }
     } finally {
       setIsProcessing(false);
@@ -624,7 +624,7 @@ export function BeneficiaryMasterSlideOver({
               <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: "-0.3px", fontSize: "1.15rem" }}>
                 Add Verified Bank Account
               </Typography>
-              <Chip label="CASHFREE PENNY DROP V2" size="small" sx={{ bgcolor: "#22C55E", color: "#FFF", fontWeight: 900, fontSize: "0.65rem" }} />
+              <Chip label="INSTANT PENNY DROP" size="small" sx={{ bgcolor: "#22C55E", color: "#FFF", fontWeight: 900, fontSize: "0.65rem" }} />
             </Stack>
             <Typography variant="caption" sx={{ opacity: 0.85, fontWeight: 700 }}>
               Production Banking Grade • Double-Entry Ledger • Instant Verification
@@ -679,7 +679,7 @@ export function BeneficiaryMasterSlideOver({
                 ✅ Bank Verified Successfully
               </Typography>
               <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
-                Verified via Cashfree V2 Penny Drop • Beneficiary Master & Customer Mapping Updated
+                Verified via Automated Bank Penny Drop • Beneficiary Master & Customer Mapping Updated
               </Typography>
 
               <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: "#F8FAFC", border: "1px solid #E2E8F0", textAlign: "left", mb: 3 }}>
@@ -999,10 +999,17 @@ export function BeneficiaryMasterSlideOver({
                       {confirmAccNum.length > 0 && (
                         isAccNumMatched ? (
                           <Chip
-                            icon={<CheckCircleIcon sx={{ fontSize: "14px !important", color: "#22C55E !important" }} />}
+                            icon={<CheckCircleIcon sx={{ fontSize: "14px !important", color: "#FACC15 !important" }} />}
                             label="✓ Account Numbers Match"
                             size="small"
-                            sx={{ bgcolor: "#F0FDF4", color: "#16A34A", fontWeight: 800, fontSize: "0.7rem", height: 22 }}
+                            sx={{
+                              bgcolor: "rgba(245, 158, 11, 0.15)",
+                              color: "#FACC15",
+                              fontWeight: 800,
+                              fontSize: "0.7rem",
+                              height: 22,
+                              border: "1px solid rgba(245, 158, 11, 0.4)",
+                            }}
                           />
                         ) : (
                           <Chip
@@ -1021,7 +1028,7 @@ export function BeneficiaryMasterSlideOver({
                     label="Account Holder Name (Optional Pre-fill)"
                     value={accHolder}
                     onChange={(e) => setAccHolder(e.target.value.toUpperCase())}
-                    placeholder="e.g. SATHIYA MURTHY (Verified by Cashfree after Penny Drop)"
+                    placeholder="e.g. SATHIYA MURTHY (Verified automatically via Penny Drop)"
                     inputProps={{
                       inputMode: "text",
                       autoCapitalize: "characters",
@@ -1040,7 +1047,7 @@ export function BeneficiaryMasterSlideOver({
                         Verified Name: <strong>{duplicateFound.account_holder_name}</strong> • Ref: {duplicateFound.ref_id}
                       </Typography>
                       <Typography variant="caption" sx={{ display: "block", color: "#B45309", mt: 0.5 }}>
-                        ⚡ Clicking verify will instant-bind customer to existing account without calling Cashfree Penny Drop API.
+                        ⚡ Clicking verify will instant-bind customer to existing account without calling Penny Drop API.
                       </Typography>
                     </Alert>
                   )}
@@ -1099,7 +1106,7 @@ export function BeneficiaryMasterSlideOver({
                     "Validate Input",
                     "Duplicate Check",
                     "Wallet Debit ₹3.00",
-                    "Cashfree Penny Drop",
+                    "Instant Penny Drop",
                     "Beneficiary Created",
                   ].map((label, index) => (
                     <Step key={label}>
@@ -1145,7 +1152,7 @@ export function BeneficiaryMasterSlideOver({
                 <Stack spacing={0.8}>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                     <Typography variant="caption" sx={{ color: "#64748B" }}>Provider Gateway</Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F2C59" }}>Cashfree V2 Sync</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 800, color: "#0F2C59" }}>NPCI / IMPS Bank Sync</Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                     <Typography variant="caption" sx={{ color: "#64748B" }}>Estimated Time</Typography>
@@ -1163,7 +1170,7 @@ export function BeneficiaryMasterSlideOver({
                       🔒 256-Bit Encryption • PII Protected
                     </Typography>
                     <Typography variant="caption" sx={{ fontSize: "0.68rem", opacity: 0.8, display: "block" }}>
-                      NPCI Compliant • Cashfree Verified • Banking Grade
+                      NPCI Compliant • Bank Verified • Banking Grade
                     </Typography>
                   </Box>
                 </Stack>
@@ -1190,7 +1197,7 @@ export function BeneficiaryMasterSlideOver({
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <LockIcon sx={{ color: "#16A34A", fontSize: 18 }} />
             <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>
-              256-Bit SSL • NPCI Compliant • Cashfree Verified
+              256-Bit SSL • NPCI Compliant • Bank Verified
             </Typography>
           </Stack>
 

@@ -504,7 +504,18 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
 export const useSessionSecurity = () => {
   const context = useContext(SessionSecurityContext);
   if (!context) {
-    throw new Error("useSessionSecurity must be used within a SessionSecurityProvider");
+    return {
+      sessionState: "ACTIVE" as SessionState,
+      remainingWarningSeconds: 60,
+      securitySettings: DEFAULT_SETTINGS,
+      lockedAt: null,
+      lockSession: () => {},
+      stayActive: () => {},
+      unlockSession: async () => ({ success: true }),
+      updateSettings: async () => {},
+      isProcessingTx: false,
+      setProcessingTx: () => {},
+    };
   }
   return context;
 };

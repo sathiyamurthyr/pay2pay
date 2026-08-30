@@ -65,6 +65,8 @@ import EmailIcon from "@mui/icons-material/Email";
 import ImageIcon from "@mui/icons-material/Image";
 import SendIcon from "@mui/icons-material/Send";
 import { CopyButton } from "@/components/common/CopyButton";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import { DynamicTransactionDetailsModal } from "@/components/transactions/DynamicTransactionDetailsModal";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RotateLeftIcon from "@mui/icons-material/RotateLeft";
@@ -89,8 +91,15 @@ export interface PayoutReportSummary {
 export interface PayoutReportItem {
   s_no: number;
   txn_id?: string;
+  retailer?: string;
   customer?: string;
   beneficiary?: string;
+  // API-returned field names (primary)
+  account?: string;       // API returns 'account'
+  amount?: number;        // API returns 'amount'
+  charge?: number;        // API returns 'charge'
+  gst?: number;           // API returns 'gst'
+  // Legacy / alternate field names (fallbacks)
   ac_no?: string;
   amt?: number;
   fee?: number;
@@ -112,7 +121,9 @@ export interface PayoutReportItem {
   customer_mobile?: string;
   beneficiary_name?: string;
   beneficiary_mobile?: string;
+  bank?: string;
   bank_name?: string;
+  ifsc?: string;
   masked_account_number?: string;
   account_number?: string;
   ifsc_code?: string;
@@ -126,8 +137,11 @@ export interface PayoutReportItem {
   utr_number?: string;
   refund_status?: string;
   remarks?: string;
+  comments?: string;
   receipt_enabled?: boolean;
   retailer_name?: string;
+  customer_kyc_status?: string;
+  payment_method?: string;
 }
 
 export interface FooterTotals {
@@ -144,6 +158,9 @@ export interface FooterTotals {
   total_reversed: number;
 }
 
+const DEFAULT_RETAILER_ID = "f89239b5-4dbb-41a9-9ba7-0f97580c9368";
+const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
+
 const getActiveRetailerId = () => {
   if (typeof window !== "undefined") {
     try {
@@ -154,16 +171,16 @@ const getActiveRetailerId = () => {
         localStorage.getItem("pay2pay_user_data");
       if (userStr) {
         const u = JSON.parse(userStr);
-        if (u.retailer_code || u.retailer_id || u.id) {
-          return u.retailer_code || u.retailer_id || u.id;
-        }
+        if (u.retailer_id) return u.retailer_id;
+        if (u.retailer_code) return u.retailer_code;
+        if (u.id || u.public_id) return u.id || u.public_id;
+        if (u.user_id) return u.user_id;
       }
     } catch {}
     return (
-      localStorage.getItem("p2p_retailer_code") ||
+      localStorage.getItem("p2p_retailer_id") ||
       localStorage.getItem("p2p_active_retailer_id") ||
-      localStorage.getItem("pay2pay_reg_code") ||
-      localStorage.getItem("pay2pay_reg_id") ||
+      localStorage.getItem("retailer_code") ||
       ""
     );
   }
@@ -216,6 +233,9 @@ const getFirstDayOfMonthIso = (monthOffset: number = 0) => {
 };
 
 export const RetailerPayoutReport: React.FC = () => {
+  const branding = useCompanyBranding();
+  const [reportCompany, setReportCompany] = useState<any>(null);
+
   // State for Summary & Report Grid
   const [summary, setSummary] = useState<PayoutReportSummary | null>(null);
   const [summaryError, setSummaryError] = useState<boolean>(false);
@@ -233,6 +253,8 @@ export const RetailerPayoutReport: React.FC = () => {
   // Share Modal & Toast State
   const [shareModalOpen, setShareModalOpen] = useState<boolean>(false);
   const [shareTxn, setShareTxn] = useState<PayoutReportItem | null>(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState<boolean>(false);
+  const [selectedTxnNumber, setSelectedTxnNumber] = useState<string | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
   const [snackbarMsg, setSnackbarMsg] = useState<string>("");
   const [isDownloadingSinglePdf, setIsDownloadingSinglePdf] = useState<boolean>(false);
@@ -309,12 +331,44 @@ export const RetailerPayoutReport: React.FC = () => {
       if (fDate) q.append("from_date", fDate);
       if (tDate) q.append("to_date", tDate);
 
+      const token = typeof window !== "undefined" ? (
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("pay2pay_auth_token") ||
+        localStorage.getItem("access_token") ||
+        document.cookie.split("; ").find(r => r.startsWith("p2p_access_token=") || r.startsWith("pay2pay_access_token="))?.split("=")[1] ||
+        ""
+      ) : "";
+
+      const headers: Record<string, string> = {};
+      if (token && token.trim().length > 10) {
+        headers["Authorization"] = `Bearer ${token.trim()}`;
+      }
+
       const res = await fetch(`/api/v1/payout/reports/summary?${q.toString()}`, {
+        headers,
         credentials: "include",
+        cache: "no-store",
       });
       if (res.ok) {
-        const data = await res.json();
-        setSummary(data);
+        const json = await res.json();
+        const d = json.data || json;
+        const normalizedSummary: PayoutReportSummary = {
+          todays_transactions: Number(d.todays_transactions ?? d.total_transactions ?? 0),
+          todays_transfer_amount: Number(d.todays_transfer_amount ?? d.total_volume ?? 0),
+          todays_wallet_debit: Number(d.todays_wallet_debit ?? d.total_wallet_debit ?? 0),
+          todays_commission: Number(d.todays_commission ?? d.total_charges ?? 0),
+          todays_gst: Number(d.todays_gst ?? d.total_gst ?? 0),
+          todays_tds: Number(d.todays_tds ?? 0),
+          pending_transactions: Number(d.pending_transactions ?? 0),
+          successful_transactions: Number(d.successful_transactions ?? d.success_transactions ?? 0),
+          failed_transactions: Number(d.failed_transactions ?? 0),
+          reversed_transactions: Number(d.reversed_transactions ?? 0),
+          successful_amount: Number(d.successful_amount ?? d.success_amount ?? d.todays_transfer_amount ?? d.total_volume ?? 0),
+          pending_amount: Number(d.pending_amount ?? 0),
+          failed_amount: Number(d.failed_amount ?? 0),
+        };
+        setSummary(normalizedSummary);
       } else {
         setSummaryError(true);
       }
@@ -358,14 +412,30 @@ export const RetailerPayoutReport: React.FC = () => {
       if (minimumAmount) q.append("amount_from", minimumAmount);
       if (maximumAmount) q.append("amount_to", maximumAmount);
 
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("auth_token") ||
+            localStorage.getItem("token") ||
+            localStorage.getItem("access_token")
+          : "";
+      const headers: Record<string, string> = {};
+      if (token && token.trim().length > 10) {
+        headers["Authorization"] = `Bearer ${token.trim()}`;
+      }
+
       const res = await fetch(`/api/v1/payout/reports/grid?${q.toString()}`, {
+        headers,
         credentials: "include",
+        cache: "no-store",
       });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
       const data = await res.json();
       setItems(data.items || []);
+      if (data.company) {
+        setReportCompany(data.company);
+      }
       setTotalRecords(data.pagination?.total_records || 0);
       setFooterTotals(data.footer_totals || null);
     } catch (e: any) {
@@ -398,6 +468,16 @@ export const RetailerPayoutReport: React.FC = () => {
     fetchSummary(fromDate, toDate);
     fetchReportData();
   }, [fetchSummary, fetchReportData]);
+
+  // Auto-refresh every 60 seconds when viewing TODAY to keep data live
+  useEffect(() => {
+    if (activePreset !== "TODAY") return;
+    const interval = setInterval(() => {
+      fetchSummary(fromDate, toDate);
+      fetchReportData();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [activePreset, fromDate, toDate, fetchSummary, fetchReportData]);
 
   // Handle Preset Date Buttons
   const applyDatePreset = (presetKey: string) => {
@@ -506,6 +586,9 @@ export const RetailerPayoutReport: React.FC = () => {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const generatePrintHtml = (reportItems: PayoutReportItem[], summaryData: PayoutReportSummary | null, fDate: string, tDate: string) => {
+    const compName = reportCompany?.company_name || branding.company_name || "Pay2Pay Fintech";
+    const compLegal = reportCompany?.legal_name || branding.legal_name || "Pay2Pay Technologies Private Limited";
+    const compLogo = reportCompany?.logo_url || branding.logo_url || "/branding/logo.png";
     const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
     const totAmount = summaryData ? summaryData.todays_transfer_amount : reportItems.reduce((s, r) => s + (r.amt ?? r.transfer_amount ?? 0), 0);
     const totTxns = summaryData ? summaryData.todays_transactions : reportItems.length;
@@ -568,13 +651,13 @@ export const RetailerPayoutReport: React.FC = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Pay2Pay_Payout_Report_RET-0CFE2B_${new Date().toISOString().split('T')[0]}</title>
+        <title>${compName.replace(/\s+/g, '_')}_Payout_Report_${new Date().toISOString().split('T')[0]}</title>
         <style>
           @page { size: A4 landscape; margin: 10mm; }
           body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; background: #ffffff; margin: 0; padding: 16px; }
           .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 12px; }
           .brand { font-size: 18px; font-weight: 900; color: #1e3a8a; letter-spacing: -0.5px; }
-          .subbrand { font-size: 10px; color: #2563eb; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+          .subbrand { font-size: 11px; color: #2563eb; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
           .meta { text-align: right; font-size: 10px; color: #475569; }
           .meta-grid { display: flex; gap: 12px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 10px; }
           .meta-item { flex: 1; }
@@ -592,9 +675,12 @@ export const RetailerPayoutReport: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <div>
-            <div class="subbrand">Pay2Pay FinTech Retailer Platform</div>
-            <div class="brand">RETAILER PAYOUT REPORT</div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <img src="${compLogo}" style="height: 38px; max-width: 120px; object-fit: contain;" />
+            <div>
+              <div class="subbrand">${compName}</div>
+              <div class="brand">PAYOUT TRANSACTION REPORT</div>
+            </div>
           </div>
           <div class="meta">
             <div><strong>Generated At:</strong> ${today}</div>
@@ -742,6 +828,9 @@ export const RetailerPayoutReport: React.FC = () => {
   };
 
   const generateSingleReceiptPrintHtml = (txn: PayoutReportItem) => {
+    const compName = reportCompany?.company_name || branding.company_name || "Pay2Pay Fintech";
+    const compLegal = reportCompany?.legal_name || branding.legal_name || "Pay2Pay Technologies Private Limited";
+    const compLogo = reportCompany?.logo_url || branding.logo_url || "/branding/logo.png";
     const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
     const stStr = (txn.status || "SUCCESS").toUpperCase();
     let stColor = "#16a34a";
@@ -764,13 +853,13 @@ export const RetailerPayoutReport: React.FC = () => {
     const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
     const feeStr = `₹${Number(txn.convenience_fee || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
     const gstStr = `₹${Number(txn.gst_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
-    const debitStr = `₹${Number(txn.wallet_debit || (txn.transfer_amount + (txn.convenience_fee || 0) + (txn.gst_amount || 0))).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+    const debitStr = `₹${Number(txn.wallet_debit || ((txn.transfer_amount || 0) + (txn.convenience_fee || 0) + (txn.gst_amount || 0))).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
     return `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Pay2Pay_Receipt_${txn.transaction_number || txn.reference_id}</title>
+        <title>${compName.replace(/\s+/g, '_')}_Receipt_${txn.transaction_number || txn.reference_id}</title>
         <style>
           @page { size: A4 portrait; margin: 12mm; }
           body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; background: #ffffff; margin: 0; padding: 20px; }
@@ -793,9 +882,12 @@ export const RetailerPayoutReport: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <div>
-            <div class="subbrand">Pay2Pay FinTech Retailer Platform</div>
-            <div class="brand">OFFICIAL TRANSACTION RECEIPT</div>
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <img src="${compLogo}" style="height: 44px; max-width: 140px; object-fit: contain;" />
+            <div>
+              <div class="subbrand">${compName}</div>
+              <div class="brand">OFFICIAL TRANSACTION RECEIPT</div>
+            </div>
           </div>
           <div class="meta">
             <div><strong>Retailer:</strong> Pay2Pay Verified Merchant (RET-0CFE2B)</div>
@@ -829,7 +921,7 @@ export const RetailerPayoutReport: React.FC = () => {
         <table>
           <tr><td class="lbl">Beneficiary Name</td><td class="val">${txn.beneficiary_name || "N/A"}</td></tr>
           <tr><td class="lbl">Bank Name</td><td class="val">${txn.bank_name || "N/A"}</td></tr>
-          <tr><td class="lbl">Account Number</td><td class="val mono">${txn.masked_account_number || "XXXX XXXX 1234"}</td></tr>
+          <tr><td class="lbl">Account Number</td><td class="val mono">${txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"}</td></tr>
           <tr><td class="lbl">IFSC Code</td><td class="val mono">${txn.ifsc_code || "N/A"}</td></tr>
         </table>
 
@@ -849,7 +941,7 @@ export const RetailerPayoutReport: React.FC = () => {
         ` : ""}
 
         <div class="footer">
-          <div>Pay2Pay FinTech Solutions · System Generated Official Receipt</div>
+          <div>${compLegal} · System Generated Official Receipt</div>
           <div>Confidential — For Authorized Customer Use</div>
         </div>
 
@@ -864,6 +956,8 @@ export const RetailerPayoutReport: React.FC = () => {
   };
 
   const generateReceiptImage = (txn: PayoutReportItem) => {
+    const compName = (reportCompany?.company_name || branding.company_name || "Pay2Pay Fintech").toUpperCase();
+    const compLegal = reportCompany?.legal_name || branding.legal_name || "Pay2Pay Technologies Private Limited";
     const canvas = document.createElement("canvas");
     canvas.width = 1200;
     canvas.height = 1600;
@@ -884,7 +978,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
     ctx.fillStyle = "#2563EB";
     ctx.font = "bold 20px 'Segoe UI', sans-serif";
-    ctx.fillText("PAY2PAY FINTECH RETAILER PLATFORM", 90, 105);
+    ctx.fillText(`${compName} RETAILER PLATFORM`, 90, 105);
 
     ctx.fillStyle = "#0F172A";
     ctx.font = "bold 32px 'Segoe UI', sans-serif";
@@ -928,7 +1022,7 @@ export const RetailerPayoutReport: React.FC = () => {
       ["Customer Mobile", txn.customer_mobile || "N/A"],
       ["Beneficiary Name", txn.beneficiary_name || "N/A"],
       ["Bank Name", txn.bank_name || "N/A"],
-      ["Account Number", txn.masked_account_number || "XXXX XXXX 1234"],
+      ["Account Number", txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"],
       ["IFSC Code", txn.ifsc_code || "N/A"],
       ["Wallet Debit", `₹${Number(txn.wallet_debit || txn.transfer_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
       ["Retailer Name", "Pay2Pay Verified Merchant"],
@@ -946,11 +1040,11 @@ export const RetailerPayoutReport: React.FC = () => {
 
       ctx.fillStyle = "#64748B";
       ctx.font = "bold 18px 'Segoe UI', sans-serif";
-      ctx.fillText(lbl.toUpperCase(), 90, y + 36);
+      ctx.fillText(String(lbl || "").toUpperCase(), 90, y + 36);
 
       ctx.fillStyle = "#0F172A";
       ctx.font = "bold 20px 'Courier New', monospace";
-      ctx.fillText(String(val), 420, y + 36);
+      ctx.fillText(String(val || ""), 420, y + 36);
     });
 
     ctx.fillStyle = "#94A3B8";
@@ -958,13 +1052,13 @@ export const RetailerPayoutReport: React.FC = () => {
 
     ctx.fillStyle = "#64748B";
     ctx.font = "16px 'Segoe UI', sans-serif";
-    ctx.fillText("Pay2Pay FinTech Solutions · System Generated Official Receipt Image", 60, 1540);
+    ctx.fillText(`${compLegal} · System Generated Official Receipt Image`, 60, 1540);
     ctx.fillText("Confidential — For Authorized Customer Use", 760, 1540);
 
     const imgUrl = canvas.toDataURL("image/png");
     const a = document.createElement("a");
     a.href = imgUrl;
-    a.download = `Pay2Pay_Receipt_${txn.transaction_number || txn.reference_id}.png`;
+    a.download = `${compName.replace(/\s+/g, '_')}_Receipt_${txn.transaction_number || txn.reference_id}.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -981,8 +1075,9 @@ export const RetailerPayoutReport: React.FC = () => {
   };
 
   const handleDownloadSinglePdf = async (txn: PayoutReportItem) => {
+    const compName = reportCompany?.company_name || branding.company_name || "Pay2Pay";
     setIsDownloadingSinglePdf(true);
-    const txId = txn.transaction_number || txn.reference_id;
+    const txId = txn.transaction_number || txn.reference_id || "";
     logAudit("RECEIPT_DOWNLOADED", { transaction_id: txId });
 
     try {
@@ -993,7 +1088,7 @@ export const RetailerPayoutReport: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Pay2Pay_Receipt_${txId}.pdf`;
+      a.download = `${compName.replace(/\s+/g, '_')}_Receipt_${txId}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1008,12 +1103,13 @@ export const RetailerPayoutReport: React.FC = () => {
   };
 
   const handleShareWhatsApp = (txn: PayoutReportItem) => {
+    const compName = reportCompany?.company_name || branding.company_name || "Pay2Pay Fintech";
     const txId = txn.transaction_number || txn.reference_id;
     const stStr = (txn.status || "SUCCESS").toUpperCase();
     const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
     const dateStr = txn.initiated_at ? txn.initiated_at.replace("T", " ") : "N/A";
     
-    const msg = `Pay2Pay FinTech Retailer Platform\n\nOfficial Transaction Receipt\n\nTransaction ID:\n${txId}\n\nStatus:\n${stStr}\n\nAmount:\n${amtStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nDate:\n${dateStr}\n\nRetailer:\nPay2Pay Verified Merchant\n\nCustomer:\n${txn.customer_name || "N/A"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"} (${txn.masked_account_number || "XXXX XXXX 1234"})\n\nFor more details, please refer to your official receipt statement.`;
+    const msg = `*${compName} Retailer Platform*\n\nOfficial Transaction Receipt\n\nTransaction ID:\n${txId}\n\nStatus:\n${stStr}\n\nAmount:\n${amtStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nDate:\n${dateStr}\n\nRetailer:\nVerified Merchant\n\nCustomer:\n${txn.customer_name || "N/A"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"} (${txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"})\n\nFor more details, please refer to your official receipt statement.`;
 
     logAudit("RECEIPT_SHARED_WHATSAPP", { transaction_id: txId });
 
@@ -1022,12 +1118,13 @@ export const RetailerPayoutReport: React.FC = () => {
   };
 
   const handleShareEmail = (txn: PayoutReportItem) => {
+    const compName = reportCompany?.company_name || branding.company_name || "Pay2Pay Fintech";
     const txId = txn.transaction_number || txn.reference_id;
     const stStr = (txn.status || "SUCCESS").toUpperCase();
     const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
-    const subject = `Pay2Pay Transaction Receipt - ${txId}`;
-    const body = `Dear Customer,\n\nPlease find the transaction details below.\n\nTransaction ID:\n${txId}\n\nAmount:\n${amtStr}\n\nStatus:\n${stStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"}\n\nRegards,\nPay2Pay FinTech Retailer Platform`;
+    const subject = `${compName} Transaction Receipt - ${txId}`;
+    const body = `Dear Customer,\n\nPlease find the transaction details below.\n\nTransaction ID:\n${txId}\n\nAmount:\n${amtStr}\n\nStatus:\n${stStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"} (${txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"})\n\nRegards,\n${compName} Retailer Platform`;
 
     logAudit("RECEIPT_SHARED_EMAIL", { transaction_id: txId });
 
@@ -1040,7 +1137,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
     const dateStr = txn.initiated_at ? txn.initiated_at.replace("T", " ") : "N/A";
 
-    const text = `Pay2Pay Transaction Receipt\nID: ${txId}\nStatus: ${stStr}\nAmount: ${amtStr}\nRef ID: ${txn.reference_id || "-"}\nUTR: ${txn.utr_number || "--"}\nDate: ${dateStr}\nCustomer: ${txn.customer_name || "N/A"}\nBeneficiary: ${txn.beneficiary_name || "N/A"} (${txn.masked_account_number || "XXXX XXXX 1234"})`;
+    const text = `Pay2Pay Transaction Receipt\nID: ${txId}\nStatus: ${stStr}\nAmount: ${amtStr}\nRef ID: ${txn.reference_id || "-"}\nUTR: ${txn.utr_number || "--"}\nDate: ${dateStr}\nCustomer: ${txn.customer_name || "N/A"}\nBeneficiary: ${txn.beneficiary_name || "N/A"} (${txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"})`;
 
     navigator.clipboard.writeText(text);
     setSnackbarMsg("Transaction receipt details copied to clipboard!");
@@ -1050,8 +1147,10 @@ export const RetailerPayoutReport: React.FC = () => {
 
   const handleViewDetails = (row: PayoutReportItem) => {
     setSelectedTxn(row);
-    setDrawerOpen(true);
-    logAudit("TRANSACTION_DETAILS_VIEWED", { transaction_id: row.transaction_id });
+    const txnNum = row.transaction_number || row.txn_id || row.reference_id || row.transaction_id;
+    setSelectedTxnNumber(txnNum || null);
+    setDetailsModalOpen(true);
+    logAudit("TRANSACTION_DETAILS_VIEWED", { transaction_id: txnNum || "" });
   };
 
   const renderStatusBadge = (stStr: string) => {
@@ -1124,40 +1223,12 @@ export const RetailerPayoutReport: React.FC = () => {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "22% repeat(4, 19.5%)" },
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 25%)" },
             gap: { xs: 2, lg: 0 },
             width: "100%",
             alignItems: "center"
           }}
         >
-          {/* SECTION 1 — PAGE TITLE (Width ~22%) */}
-          <Box sx={{ pr: { lg: 2.5 } }}>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 800,
-                fontSize: "20px",
-                color: "#FFFFFF",
-                letterSpacing: "-0.3px",
-                lineHeight: 1.2
-              }}
-            >
-              Payouts
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: "#94A3B8",
-                fontSize: "11px",
-                fontWeight: 500,
-                display: "block",
-                mt: 0.3,
-                lineHeight: 1.3
-              }}
-            >
-              View and manage retailer payout transactions
-            </Typography>
-          </Box>
 
           {/* SECTION 2 — TOTAL PAYOUTS */}
           <Box
@@ -1201,11 +1272,11 @@ export const RetailerPayoutReport: React.FC = () => {
                   lineHeight: 1.1
                 }}
               >
-                ₹{summary ? summary.todays_transfer_amount.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}
+                ₹{Number(summary?.todays_transfer_amount ?? summary?.successful_amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </Typography>
             )}
             <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px", fontWeight: 500 }}>
-              {summary ? summary.todays_transactions : 0} txns
+              {Number(summary?.todays_transactions ?? 0)} txns
             </Typography>
           </Box>
 
@@ -1242,11 +1313,11 @@ export const RetailerPayoutReport: React.FC = () => {
                   lineHeight: 1.1
                 }}
               >
-                ₹{summary ? (summary.successful_amount ?? summary.todays_transfer_amount).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}
+                ₹{Number(summary?.successful_amount ?? summary?.todays_transfer_amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </Typography>
             )}
             <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>
-              {summary ? summary.successful_transactions : 0} success
+              {Number(summary?.successful_transactions ?? 0)} success
             </Typography>
           </Box>
 
@@ -1283,11 +1354,11 @@ export const RetailerPayoutReport: React.FC = () => {
                   lineHeight: 1.1
                 }}
               >
-                ₹{summary ? (summary.pending_amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}
+                ₹{Number(summary?.pending_amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </Typography>
             )}
             <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>
-              {summary ? summary.pending_transactions : 0} proc.
+              {Number(summary?.pending_transactions ?? 0)} proc.
             </Typography>
           </Box>
 
@@ -1323,11 +1394,11 @@ export const RetailerPayoutReport: React.FC = () => {
                   lineHeight: 1.1
                 }}
               >
-                ₹{summary ? (summary.failed_amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}
+                ₹{Number(summary?.failed_amount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </Typography>
             )}
             <Typography variant="caption" sx={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>
-              {summary ? (summary.failed_transactions + summary.reversed_transactions) : 0} txns
+              {Number(summary?.failed_transactions ?? 0) + Number(summary?.reversed_transactions ?? 0)} txns
             </Typography>
           </Box>
         </Box>
@@ -1871,10 +1942,10 @@ export const RetailerPayoutReport: React.FC = () => {
                     const txnDisplay = row.txn_id || row.transaction_number || row.transaction_id || "--";
                     const customerDisplay = row.customer || row.customer_name || "Verified Customer";
                     const beneficiaryDisplay = row.beneficiary || row.beneficiary_name || "Beneficiary";
-                    const accDisplay = row.ac_no || (row as any).account_number || row.masked_account_number || "--";
-                    const amtVal = Number(row.amt ?? row.transfer_amount ?? 0);
-                    const feeVal = Number(row.fee ?? row.convenience_fee ?? 0);
-                    const taxVal = Number(row.tax ?? (row as any).tax_amount ?? ((row.gst_amount || 0) + (row.tds_amount || 0)));
+                    const accDisplay = row.account || row.ac_no || (row as any).account_number || row.masked_account_number || "--";
+                    const amtVal = Number(row.amount ?? row.amt ?? row.transfer_amount ?? 0);
+                    const feeVal = Number(row.charge ?? row.fee ?? row.convenience_fee ?? 0);
+                    const taxVal = Number(row.gst ?? row.tax ?? (row as any).tax_amount ?? ((row.gst_amount || 0) + (row.tds_amount || 0)));
                     const debitVal = Number(row.debit ?? row.wallet_debit ?? (amtVal + feeVal + taxVal));
                     const modeDisplay = row.mode || row.payment_mode || "IMPS";
                     const utrDisplay = row.utr || row.utr_number || "--";
@@ -1884,7 +1955,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
                     return (
                       <TableRow
-                        key={row.transaction_id || row.txn_id || `row-${sNo}`}
+                        key={`${row.transaction_id || row.txn_id || "payout"}-${sNo}`}
                         hover
                         sx={{
                           "&:hover": { bgcolor: "rgba(255, 255, 255, 0.03)" },
@@ -2247,7 +2318,7 @@ export const RetailerPayoutReport: React.FC = () => {
               </Typography>
               <Paper sx={{ p: 2, bgcolor: "#121B28", border: "1px solid #1E293B", borderRadius: "8px", mb: 2.5 }}>
                 <Stack spacing={1.2}>
-                  <DetailRow label="Transaction #" value={selectedTxn.transaction_number || selectedTxn.reference_id} isMono copyValue={selectedTxn.transaction_number || selectedTxn.reference_id} />
+                  <DetailRow label="Transaction #" value={selectedTxn.transaction_number || selectedTxn.reference_id || ""} isMono copyValue={selectedTxn.transaction_number || selectedTxn.reference_id || ""} />
                   <DetailRow label="Reference ID" value={selectedTxn.reference_id || "-"} isMono copyValue={selectedTxn.reference_id} />
                   <DetailRow label="UTR Number" value={selectedTxn.utr_number || "--"} isMono highlight={Boolean(selectedTxn.utr_number)} copyValue={selectedTxn.utr_number} />
                   <DetailRow label="Payment Mode" value={selectedTxn.payment_mode || "IMPS"} />
@@ -2275,7 +2346,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 <Stack spacing={1.2}>
                   <DetailRow label="Beneficiary Name" value={selectedTxn.beneficiary_name || "N/A"} />
                   <DetailRow label="Bank Name" value={selectedTxn.bank_name || "N/A"} />
-                  <DetailRow label="Account Number" value={selectedTxn.masked_account_number || "XXXX XXXX 1234"} isMono copyValue={(selectedTxn as any).account_number || selectedTxn.masked_account_number} />
+                  <DetailRow label="Account Number" value={selectedTxn.account_number || selectedTxn.masked_account_number || selectedTxn.ac_no || "--"} isMono copyValue={selectedTxn.account_number || selectedTxn.masked_account_number || selectedTxn.ac_no} />
                   <DetailRow label="IFSC Code" value={selectedTxn.ifsc_code || "N/A"} isMono />
                   <DetailRow label="Beneficiary Mobile" value={selectedTxn.beneficiary_mobile || "N/A"} />
                 </Stack>
@@ -2406,6 +2477,21 @@ export const RetailerPayoutReport: React.FC = () => {
           </Box>
         )}
       </Drawer>
+
+      {/* ── DYNAMIC UNIVERSAL TRANSACTION DETAILS MODAL ─────────────────── */}
+      <DynamicTransactionDetailsModal
+        open={detailsModalOpen}
+        onClose={() => {
+          setDetailsModalOpen(false);
+          setSelectedTxnNumber(null);
+        }}
+        txnId={selectedTxnNumber}
+        initialData={selectedTxn}
+        onToast={(msg) => {
+          setSnackbarMsg(msg);
+          setSnackbarOpen(true);
+        }}
+      />
 
       {/* SHARE TRANSACTION MODAL */}
       <Dialog

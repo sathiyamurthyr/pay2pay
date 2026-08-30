@@ -10,6 +10,8 @@ import {
   Building2,
   Verified as VerifiedIcon,
 } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 export interface CustomerCardData {
   id: string;
@@ -95,10 +97,12 @@ export const CustomerCard: React.FC<CustomerCardProps> = ({
             {/* Left: 48x48 Circular Avatar */}
             <div className="shrink-0 pt-0.5">
               {customer.photoUrl ? (
-                <img
+                <BlurImage
                   src={customer.photoUrl}
+                  blurhash={KNOWN_BLURHASHES.AVATAR_USER}
                   alt={customer.name}
-                  className="w-12 h-12 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-xs"
+                  className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shadow-xs"
+                  imageClassName="w-12 h-12 rounded-full object-cover"
                 />
               ) : (
                 <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-600 text-white font-black text-base flex items-center justify-center shadow-md">

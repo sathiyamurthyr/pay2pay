@@ -67,7 +67,6 @@ export const Step4LiveProcessing: React.FC<Step4LiveProcessingProps> = ({
   const utr = "421809124012";
   const rrn = "RRN-89120412";
   const receiptNo = "REC-98124012";
-  const commission = Math.round(amount * 0.0035);
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", py: 2 }}>
@@ -164,8 +163,8 @@ export const Step4LiveProcessing: React.FC<Step4LiveProcessingProps> = ({
                 <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "18px" }}>₹{amount.toLocaleString()}.00</Typography>
               </Box>
               <Box>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>NET COMMISSION</Typography>
-                <Typography sx={{ fontWeight: 900, color: "#38BDF8", fontSize: "18px" }}>+ ₹{commission}.00</Typography>
+                <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>TOTAL WALLET DEBIT</Typography>
+                <Typography sx={{ fontWeight: 900, color: "#38BDF8", fontSize: "18px" }}>₹{totalPayable.toLocaleString()}.00</Typography>
               </Box>
             </Box>
           </Paper>

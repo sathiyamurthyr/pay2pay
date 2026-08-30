@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
@@ -26,6 +27,7 @@ export interface WorkstationStep1Props {
   onSearchCustomer: (query: string) => void;
   onSelectCustomer: (cust: CustomerData) => void;
   onContinue: () => void;
+  onResetCustomer?: () => void;
   isSearching?: boolean;
   hasSearched?: boolean;
   error?: string | null;
@@ -38,6 +40,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   onSearchCustomer,
   onSelectCustomer,
   onContinue,
+  onResetCustomer,
   isSearching = false,
   hasSearched = false,
   error = null,
@@ -47,6 +50,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   const [searchInput, setSearchInput] = useState("");
   const [localHasSearched, setLocalHasSearched] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const wallet = useRetailerStore((state) => state.wallet);
 
@@ -76,7 +80,11 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
       if (typeof window !== "undefined" && mobileParam) {
         sessionStorage.setItem("draftCustomerMobile", mobileParam);
       }
-      window.location.href = "/retailer/customers";
+      try {
+        router.push("/retailer/customers");
+      } catch {
+        window.location.href = "/retailer/customers";
+      }
     }
   };
 
@@ -123,6 +131,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             <TextField
               fullWidth
               autoFocus
+              suppressHydrationWarning
               inputRef={searchInputRef}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -130,6 +139,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               autoComplete="off"
               slotProps={{
                 htmlInput: {
+                  suppressHydrationWarning: true,
                   readOnly: isReadOnly,
                   onFocus: () => setIsReadOnly(false),
                   onBlur: () => setIsReadOnly(true),
@@ -332,7 +342,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 RETAILER WALLET BALANCE
               </Typography>
               <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "24px" }}>
-                ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
             </Box>
           </Stack>
@@ -358,7 +368,31 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             </Box>
           </Box>
 
-          <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: "flex-end" }}>
+          <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: "flex-end", flexWrap: "wrap", gap: 1.5 }}>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setSearchInput("");
+                setLocalHasSearched(false);
+                if (onResetCustomer) onResetCustomer();
+              }}
+              sx={{
+                py: 1.5,
+                px: 3,
+                borderRadius: "12px",
+                fontWeight: 800,
+                fontSize: "14px",
+                color: "#94A3B8",
+                borderColor: "rgba(255, 255, 255, 0.2)",
+                "&:hover": {
+                  borderColor: "#FFFFFF",
+                  color: "#FFFFFF",
+                  bgcolor: "rgba(255, 255, 255, 0.05)",
+                },
+              }}
+            >
+              Search Another Customer
+            </Button>
             {customer.mpin_enabled === false ? (
               <Button
                 variant="contained"

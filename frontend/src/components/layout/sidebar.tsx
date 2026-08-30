@@ -46,6 +46,7 @@ const ADMIN_NAV: NavCategory[] = [
       { label: "Retailer", href: "/retailers", icon: Store },
       { label: "Entity User", href: "/wallet-ledger/wallets", icon: Wallet },
       { label: "Manual Top-up", href: "/wallet-ledger/manual-topup", icon: ArrowLeftRight },
+      { label: "Topup Request", href: "/wallet-ledger/topup-request", icon: UploadCloud, badge: "Proof" },
       { label: "POS Machine", href: "/machines", icon: CreditCard },
       { label: "Users", href: "/users", icon: Users },
       { label: "Roles", href: "/roles", icon: ShieldCheck },
@@ -54,9 +55,9 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Configuration",
     items: [
-      { label: "Payout Switch", href: "/payouts/gateways", icon: ArrowLeftRight, badge: "Live" },
       { label: "Wallet", href: "/wallet-ledger/entity-wallets", icon: Wallet },
       { label: "Chart of Accounts", href: "/wallet-ledger/chart-of-accounts", icon: BookOpen },
+      { label: "Settlement", href: "/payouts/gateways", icon: Receipt },
       { label: "Transactions", href: "/settlements/transactions", icon: TrendingUp },
       { label: "Commission", href: "/financial-config/rules", icon: BookOpen },
       { label: "Charges", href: "/financial-config/approvals", icon: Scale },
@@ -159,7 +160,7 @@ export const Sidebar: React.FC = () => {
       const allowedLabels: Record<string, string[]> = {
         "Main": ["Dashboard"],
         "Administration": ["Entity User", "Manual Top-up"],
-        "Configuration": ["Payout Switch", "Wallet", "Chart of Accounts", "Transactions", "Commission", "Charges"],
+        "Configuration": ["Wallet", "Chart of Accounts", "Settlement", "Transactions", "Commission", "Charges"],
         "Approvals": ["Settlement", "Wallet Adjustments"],
         "Reports": ["Settlement", "Wallet", "Reconciliation"],
       };

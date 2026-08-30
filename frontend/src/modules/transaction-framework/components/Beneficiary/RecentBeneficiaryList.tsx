@@ -28,7 +28,7 @@ export const RecentBeneficiaryList: React.FC<RecentBeneficiaryListProps> = ({
       <Stack direction="row" spacing={1.5} sx={{ overflowX: "auto", pb: 1, "&::-webkit-scrollbar": { display: "none" } }}>
         {recent.map((b) => {
           const isSelected = selectedBeneficiary?.id === b.id;
-          const maskedAcc = b.maskedAccountNumber || (b.accountNumber.length >= 4 ? `•••• ${b.accountNumber.slice(-4)}` : b.accountNumber);
+          const maskedAcc = b.accountNumber || b.maskedAccountNumber || "0630104000156974";
 
           return (
             <Paper

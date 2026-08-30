@@ -390,8 +390,8 @@ class FinancialAccountingService {
         const isSuccess = apiData.status === "SUCCESS" || apiData.success === true;
 
         if (isSuccess) {
-          const wBefore = apiData.wallet_before ?? apiData.wallet_balance_before ?? apiData.data?.wallet_balance_before ?? walletBefore;
-          const wAfter = apiData.wallet_balance ?? apiData.wallet_balance_after ?? apiData.data?.wallet_balance_after ?? (wBefore - amount);
+          const wBefore = apiData.wallet_balance_before ?? apiData.wallet_before ?? apiData.data?.wallet_balance_before ?? apiData.data?.wallet_before ?? walletBefore;
+          const wAfter = apiData.wallet_balance_after ?? apiData.wallet_balance ?? apiData.data?.wallet_balance_after ?? apiData.data?.wallet_balance ?? (wBefore - (apiData.net_debit || amount));
           return {
             success: true,
             transactionId: apiData.transaction_number || apiData.transaction_id || apiData.data?.transaction_number || apiData.data?.transaction_id || transactionId,
@@ -414,6 +414,8 @@ class FinancialAccountingService {
             }
           };
         } else if (apiData.status === "PENDING") {
+          const wBefore = apiData.wallet_balance_before ?? apiData.wallet_before ?? apiData.data?.wallet_balance_before ?? apiData.data?.wallet_before ?? walletBefore;
+          const wAfter = apiData.wallet_balance_after ?? apiData.wallet_balance ?? apiData.data?.wallet_balance_after ?? apiData.data?.wallet_balance ?? (wBefore - (apiData.net_debit || amount));
           return {
             success: true,
             transactionId: apiData.transaction_number || apiData.transaction_id || apiData.data?.transaction_number || apiData.data?.transaction_id || transactionId,
@@ -422,8 +424,8 @@ class FinancialAccountingService {
             npciRef: apiData.rrn || "—",
             bankRef: apiData.vendor_transaction_id || "—",
             status: "SUCCESS",
-            walletBalanceBefore: walletBefore,
-            walletBalanceAfter: walletBefore - amount,
+            walletBalanceBefore: wBefore,
+            walletBalanceAfter: wAfter,
             beneficiaryRemainingMonthlyLimit: Math.max(0, beneMonthlyBefore - amount),
             ledgers: {
               walletLedgerId: `LEDG-WAL-${apiData.transaction_number || Date.now()}`,

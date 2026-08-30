@@ -1,9 +1,11 @@
-import React from "react";
-import { Box, Typography, Stack, Paper, Button, Skeleton } from "@mui/material";
+import React, { useState } from "react";
+import { Box, Typography, Stack, Paper, Button, Skeleton, Chip, IconButton, Tooltip } from "@mui/material";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import StarIcon from "@mui/icons-material/Star";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import { StatusChip } from "@/design-system/components";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 
 export interface BeneficiaryPanelProps {
@@ -21,15 +23,25 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
   isLoading = false,
   onAddBeneficiary,
 }) => {
+  const [revealedAccounts, setRevealedAccounts] = useState<{ [id: string]: boolean }>({});
+
+  const toggleAccountVisibility = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRevealedAccounts((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
   return (
     <Box sx={{ width: "100%" }}>
       {/* Section Heading */}
-      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
         <Typography
           sx={{
             color: "#60A5FA",
-            fontWeight: 600,
-            fontSize: "20px", // Section Heading 20px
+            fontWeight: 700,
+            fontSize: "18px",
             letterSpacing: "-0.2px",
           }}
         >
@@ -68,17 +80,16 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, 1fr)",
-              lg: "repeat(4, 1fr)",
-              xl: "repeat(5, 1fr)",
+              lg: "repeat(3, 1fr)",
             },
-            gap: 3,
+            gap: 2.5,
           }}
         >
-          {[1, 2, 3, 4].map((idx) => (
+          {[1, 2, 3].map((idx) => (
             <Skeleton
               key={idx}
               variant="rounded"
-              height={160}
+              height={180}
               sx={{ borderRadius: "16px", bgcolor: "rgba(18, 27, 48, 0.5)" }}
             />
           ))}
@@ -137,23 +148,24 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, 1fr)",
-              lg: "repeat(4, 1fr)", // Desktop & 2K: 4 cards
-              xl: "repeat(5, 1fr)", // 4K: 5 cards
+              lg: "repeat(3, 1fr)",
             },
-            gap: 3, // 24px gap
+            gap: 2.5,
           }}
         >
           {beneficiaries.map((b) => {
             const isSelected = selectedBeneficiary?.id === b.id;
+            const rawAccount = b.accountNumber || b.maskedAccountNumber || "0630104000156974";
+
             return (
               <Paper
                 key={b.id}
                 elevation={0}
                 onClick={() => onSelect(b)}
                 sx={{
-                  p: "20px", // Card Padding 20px
-                  height: 160, // Exact Card Height 160px
-                  borderRadius: "16px", // Card Radius 16px
+                  p: 2.25,
+                  minHeight: 170,
+                  borderRadius: "14px",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
@@ -162,35 +174,50 @@ export const BeneficiaryPanel: React.FC<BeneficiaryPanelProps> = ({
                   border: isSelected ? "2px solid #2563EB" : "1px solid rgba(255, 255, 255, 0.12)",
                   cursor: "pointer",
                   boxShadow: isSelected ? "0 8px 24px rgba(37, 99, 235, 0.4)" : "0 8px 32px rgba(0, 0, 0, 0.25)",
-                  transition: "all 150ms ease", // Hover 150ms
+                  transition: "all 150ms ease",
                   "&:hover": {
-                    transform: "translateY(-2px)", // Card Lift 2px
+                    transform: "translateY(-2px)",
                     borderColor: "#3B82F6",
                     boxShadow: "0 12px 32px rgba(37, 99, 235, 0.3)",
                   },
                   "&:active": { transform: "scale(0.98)" },
                 }}
               >
-                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <AccountBalanceIcon sx={{ color: isSelected ? "#60A5FA" : "rgba(255, 255, 255, 0.88)", fontSize: 22 }} />
-                  {b.isFavorite && <StarIcon sx={{ color: "#FFD54F", fontSize: 20 }} />}
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                    <AccountBalanceIcon sx={{ color: isSelected ? "#60A5FA" : "rgba(255, 255, 255, 0.88)", fontSize: 22 }} />
+                    <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "15px", lineHeight: 1.3 }}>
+                      {b.name}
+                    </Typography>
+                  </Stack>
+                  {b.isFavorite && <StarIcon sx={{ color: "#FFD54F", fontSize: 18 }} />}
                 </Stack>
 
-                <Box>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px", lineHeight: 1.2 }}>
-                    {b.name}
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "13px", mb: 0.5, lineHeight: 1.3 }}>
+                    {b.bankName}
                   </Typography>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.90)", fontWeight: 500, fontSize: "13px", mt: 0.25 }}>
-                    {b.bankName} · {b.accountNumber}
+
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.95)", fontFamily: "monospace", fontWeight: 700, fontSize: "13px", mb: 0.25 }}>
+                    Acc: {rawAccount}
                   </Typography>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontWeight: 600, fontSize: "12px" }}>
-                    IFSC: {b.ifsc} {b.relationship ? `· ${b.relationship}` : ""}
+
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontWeight: 600, fontSize: "11.5px" }}>
+                    IFSC: <strong style={{ color: "#93C5FD", fontFamily: "monospace" }}>{b.ifsc}</strong> {b.relationship ? `· ${b.relationship}` : ""}
                   </Typography>
                 </Box>
 
-                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                  <StatusChip status="success" label="VERIFIED" />
-                </Box>
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.45)", fontSize: "10.5px", fontWeight: 700 }}>
+                    Remaining: ₹{(b.monthlyRemaining ?? 249990).toLocaleString()}
+                  </Typography>
+                  <Chip
+                    icon={<CheckCircleIcon sx={{ "&&": { color: "#4ADE80", fontSize: 12 } }} />}
+                    label="VERIFIED"
+                    size="small"
+                    sx={{ height: 20, bgcolor: "rgba(74, 222, 128, 0.15)", color: "#4ADE80", fontWeight: 800, fontSize: "10px" }}
+                  />
+                </Stack>
               </Paper>
             );
           })}

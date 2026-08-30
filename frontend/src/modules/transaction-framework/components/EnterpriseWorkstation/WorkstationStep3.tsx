@@ -34,7 +34,6 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
   onAuthorize,
 }) => {
   const gst = Math.round(charges * 0.18);
-  const netCommission = Math.round(amount * 0.0035);
 
   return (
     <Box sx={{ maxWidth: 860, mx: "auto", pt: 2 }}>
@@ -95,18 +94,6 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "14px" }}>TOTAL WALLET DEBIT</Typography>
               <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "20px" }}>₹{totalPayable.toLocaleString()}.00</Typography>
-            </Stack>
-
-            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Retailer Net Commission</Typography>
-              <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "15px" }}>+ ₹{netCommission}.00</Typography>
-            </Stack>
-
-            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>Operator Wallet After Transfer</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "15px" }}>
-                ₹{((useRetailerStore.getState().wallet.mainBalance) - totalPayable).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </Typography>
             </Stack>
           </Stack>
         </Paper>

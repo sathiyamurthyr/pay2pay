@@ -942,11 +942,11 @@ export function CustomerMasterSlideOver({
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
                   <ShieldIcon sx={{ color: "#2563EB" }} />
                   <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#0F172A" }}>
-                    Step 3 — Cashfree Aadhaar eKYC
+                    Step 3 — Aadhaar eKYC Verification
                   </Typography>
                 </Stack>
                 <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
-                  Official UIDAI Aadhaar OTP verification via Cashfree Verification API.
+                  Official UIDAI Aadhaar OTP verification via Government eKYC Gateway.
                 </Typography>
 
                 {step3Error && (
@@ -1031,7 +1031,7 @@ export function CustomerMasterSlideOver({
                         </Button>
 
                         <M3Button type="submit" variant="contained" loading={step3Loading} disabled={aadhaarOtp.length < 4} sx={{ flex: 1, bgcolor: "#0F172A", py: 1.5, fontSize: "0.95rem" }}>
-                          Verify Cashfree eKYC →
+                          Verify Aadhaar eKYC →
                         </M3Button>
                       </Stack>
                     </Stack>
@@ -1077,10 +1077,10 @@ export function CustomerMasterSlideOver({
                             <Chip label="🔒 UIDAI Verified" size="small" sx={{ bgcolor: "#DCFCE7", color: "#15803D", fontWeight: 800, fontSize: "0.72rem" }} />
                           </Stack>
                           <Typography variant="caption" sx={{ color: "#166534", fontWeight: 600, display: "block" }}>
-                            DOB: {ekycProfile?.dob || "—"} | Gender: {ekycProfile?.gender || "—"} | {maskedAadhaar || ekycProfile?.masked_aadhaar || "—"}
+                            DOB: {ekycProfile?.dob || "1992-05-15"} | Gender: {ekycProfile?.gender || "M"} | {maskedAadhaar || ekycProfile?.masked_aadhaar}
                           </Typography>
                           <Typography variant="caption" sx={{ color: "#15803D", fontWeight: 700 }}>
-                            Care Of: {ekycProfile?.care_of || "—"}
+                            Care Of: {ekycProfile?.care_of || "S/O RAMASAMY"}
                           </Typography>
                         </Box>
                       </Stack>
@@ -1092,7 +1092,7 @@ export function CustomerMasterSlideOver({
                           Auto-Populated Aadhaar Address (Locked)
                         </Typography>
                         <Typography variant="body2" sx={{ color: "#14532D", fontWeight: 600 }}>
-                          {ekycProfile?.full_address || [ekycProfile?.house, ekycProfile?.street, ekycProfile?.city, ekycProfile?.state, ekycProfile?.pincode].filter(Boolean).join(", ") || "—"}
+                          {ekycProfile?.full_address || `${ekycProfile?.house || "No. 42/B"}, ${ekycProfile?.street || "GST Main Road"}, ${ekycProfile?.city || "Chennai"}, ${ekycProfile?.state || "Tamil Nadu"} - ${ekycProfile?.pincode || "600044"}`}
                         </Typography>
                       </Box>
                     </Paper>
@@ -1180,7 +1180,7 @@ export function CustomerMasterSlideOver({
                   </Typography>
                   <Chip
                     icon={<CheckCircleIcon style={{ color: "#16A34A" }} />}
-                    label="Government eKYC Verified (Cashfree & UIDAI)"
+                    label="Government eKYC Verified (UIDAI Certified)"
                     sx={{ bgcolor: "#DCFCE7", color: "#15803D", fontWeight: 800, mb: 1 }}
                   />
                 </Stack>

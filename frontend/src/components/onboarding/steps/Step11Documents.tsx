@@ -5,6 +5,8 @@ import {
   UploadCloud, CheckCircle2, ArrowRight, Loader2,
   AlertCircle, ArrowLeft, X, Eye, RefreshCw, FileText
 } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 interface DocEntry { key: string; label: string; }
 
@@ -186,7 +188,12 @@ export const Step11Documents: React.FC<Step11Props> = ({
                 onClick={() => isDone && status.preview ? setPreviewDoc(doc.key) : triggerUpload(doc.key)}
               >
                 {status.preview && status.fileType?.startsWith("image/") ? (
-                  <img src={status.preview} alt="" className="w-full h-full object-cover" />
+                  <BlurImage
+                    src={status.preview}
+                    alt=""
+                    blurhash={KNOWN_BLURHASHES.SHOP_PHOTO_PLACEHOLDER}
+                    className="w-full h-full object-cover"
+                  />
                 ) : isDone ? (
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 ) : isUploading ? (
@@ -296,7 +303,12 @@ export const Step11Documents: React.FC<Step11Props> = ({
               </button>
             </div>
             {previewEntry.preview && previewEntry.fileType?.startsWith("image/") ? (
-              <img src={previewEntry.preview} alt="Preview" className="w-full object-contain max-h-72" />
+              <BlurImage
+                src={previewEntry.preview}
+                alt="Preview"
+                blurhash={KNOWN_BLURHASHES.SHOP_PHOTO_PLACEHOLDER}
+                className="w-full object-contain max-h-72"
+              />
             ) : (
               <div className="flex flex-col items-center justify-center py-10 gap-3 text-slate-400">
                 <FileText className="w-10 h-10" />

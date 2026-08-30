@@ -198,7 +198,7 @@ export const Step8Bank: React.FC<Step8Props> = ({
           Settlement Bank Account Verification
         </h2>
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
-          Instant Cashfree Reverse Penny Drop Sync &amp; Bank Account Audit.
+          Instant Bank Account Audit &amp; Verification.
         </p>
       </div>
 
@@ -281,7 +281,7 @@ export const Step8Bank: React.FC<Step8Props> = ({
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Verifying via Cashfree Reverse Penny Drop...</span>
+              <span>Verifying via Instant Penny Drop...</span>
             </>
           ) : (
             <>

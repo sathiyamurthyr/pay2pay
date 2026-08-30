@@ -2,12 +2,12 @@
 
 import React from "react";
 import { AppShell } from "@/app-shell/AppShell";
-import TaxReportPage from "@/app/(dashboard)/admin/reports/tax/page";
+import { EnterpriseReportCenter } from "@/modules/report-center/EnterpriseReportCenter";
 
 export default function RetailerTaxReportPage() {
   return (
     <AppShell pageTitle="Retailer Portal — Tax & GST Report" activePath="/retailer/reports/tax">
-      <TaxReportPage />
+      <EnterpriseReportCenter />
     </AppShell>
   );
 }

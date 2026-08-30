@@ -78,7 +78,6 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
 
   const gst = Math.round(charges * 0.18);
   const fee = charges - gst;
-  const commission = Math.round(amount * 0.0035);
   const walletBalance = customer?.walletBalance ?? 0;
   const balanceAfter = Math.max(0, walletBalance - totalPayable);
 
@@ -363,11 +362,6 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST (18%)</Typography>
               <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "13px" }}>+ ₹{gst.toLocaleString()}</Typography>
-            </Stack>
-
-            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Retailer Commission</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "13px" }}>+ ₹{commission.toLocaleString()}</Typography>
             </Stack>
 
             <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />

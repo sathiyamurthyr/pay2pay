@@ -1,6 +1,8 @@
 "use client";
 
 import { create } from "zustand";
+import apiClient from "@/lib/api";
+import { retailerApi } from "@/services/retailer-api";
 
 export type KpiTheme = "classic-blue" | "royal-gold" | "emerald-green" | "purple" | "dark" | "corporate-white";
 
@@ -27,12 +29,8 @@ export interface WalletState {
   todaySettlement: number;
 }
 
-export type KpiTheme = string;
-
-
 export interface ThemeConfig {
   id: KpiTheme;
-
   label: string;
   swatch: string;
   headerBg: string;
@@ -159,6 +157,7 @@ interface RetailerStoreState {
   // Actions
   setSyncing: (syncing: boolean) => void;
   updateWallet: (part: Partial<WalletState>) => void;
+  setWalletBalance: (balance: number) => void;
   debitWallet: (amount: number) => number;
   syncBalance: () => Promise<void>;
   toggleSoundbox: () => void;
@@ -168,19 +167,12 @@ interface RetailerStoreState {
   setApprovalStatus: (status: "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW") => void;
 }
 
-const DEFAULT_RETAILER_ID = "ec273b33-d38e-4867-ac3b-f8e55ac46dcd";
-const DEFAULT_TENANT_ID = "547aa7bb-a790-4fe2-bd5b-27214ed176c8";
+// Wallet balance is NOT persisted to localStorage.
+// It is always synced live from the API via syncBalance() or WalletSyncProvider.
+// This prevents stale cached balances from misleading users or transaction logic.
 
-const getInitialMainBalance = (): number => {
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
-    if (saved) {
-      const parsed = parseFloat(saved);
-      if (!isNaN(parsed)) return parsed;
-    }
-  }
-  return 0.00;
-};
+const DEFAULT_RETAILER_ID = "";
+const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
 
 const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW" => {
   if (typeof window !== "undefined") {
@@ -197,48 +189,51 @@ const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDE
 };
 
 const getInitialOutlet = (): RetailerOutlet => {
-  const initApproval = getInitialApprovalStatus();
-  let code = "RET-10928";
-  let name = "Sathus Pay Store";
-  let ownerName = "Sathiya Murthy";
-  let mobile = "7013914767";
-  let email = "retailer@pay2pay.in";
-  let location = "Chennai, TN";
-  let id = "e238fb8b-beb3-4cd4-862b-319b5d05d24e";
+  let id = "";
+  let code = "";
+  let name = "Retailer Store";
+  let ownerName = "Retailer Partner";
+  let mobile = "";
+  let email = "";
 
   if (typeof window !== "undefined") {
     try {
-      const uStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
-      if (uStr) {
-        const u = JSON.parse(uStr);
-        code = u.retailer_code || u.code || code;
-        name = u.retailer_name || u.outlet_name || name;
-        ownerName = u.full_name || u.owner_name || ownerName;
-        mobile = u.mobile || u.mobile_number || mobile;
-        email = u.email || email;
-        location = u.location || location;
-        id = u.id || u.retailer_id || id;
+      const userStr =
+        localStorage.getItem("user_info") ||
+        localStorage.getItem("user") ||
+        localStorage.getItem("auth_user") ||
+        localStorage.getItem("pay2pay_user_data");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        id = u.id || u.public_id || u.retailer_id || "";
+        code = u.retailer_code || u.code || "";
+        name = u.company_name || u.store_name || u.name || name;
+        ownerName = u.owner_name || u.full_name || u.name || ownerName;
+        mobile = u.mobile || u.mobile_number || u.phone || "";
+        email = u.email || "";
       }
     } catch {}
-    code = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("p2p_retailer_code") || localStorage.getItem("pay2pay_user_code") || code;
-    ownerName = localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_user_name") || ownerName;
-    mobile = localStorage.getItem("pay2pay_user_mobile") || localStorage.getItem("pay2pay_reg_mobile") || mobile;
-    email = localStorage.getItem("pay2pay_user_email") || email;
+    if (!code) {
+      code = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("p2p_retailer_code") || "";
+    }
+    if (!name || name === "Retailer Store") {
+      name = localStorage.getItem("p2p_retailer_name") || name;
+    }
   }
 
   return {
-    id: id || code,
+    id,
     code,
     name,
     ownerName,
     mobile,
     email,
-    location,
-    status: (initApproval === "APPROVED" ? "ACTIVE" : "ACTIVE") as "ACTIVE" | "PENDING_KYC" | "SUSPENDED",
-    kycStatus: (initApproval === "APPROVED" ? "VERIFIED" : "VERIFIED") as "VERIFIED" | "PENDING" | "REJECTED",
+    location: "India",
+    status: "ACTIVE",
+    kycStatus: "VERIFIED",
     approvalStatus: "APPROVED",
     soundboxActive: true,
-    soundboxLang: "en" as "en" | "hi" | "ta",
+    soundboxLang: "en",
   };
 };
 
@@ -254,122 +249,107 @@ const getInitialTheme = (): KpiTheme => {
 };
 
 export const useRetailerStore = create<RetailerStoreState>((set, get) => {
+  const initApproval = getInitialApprovalStatus();
   return {
     outlet: getInitialOutlet(),
     wallet: {
-      mainBalance: getInitialMainBalance(),
+      mainBalance: 0.00, // Always starts at 0; syncBalance() or WalletSyncProvider populates live value
       commissionBalance: 0.00,
       todayMargin: 0.00,
       todayTxnCount: 0,
       todaySettlement: 0.00,
-      todaySuccessVol: 0.00,
-      posPendingSettlement: 0.00,
-      reservedBalance: 0.00,
-      todayDebitVol: 0.00,
-      todayReversalVol: 0.00,
-      todayGstPaid: 0.00,
-      todayTdsDeducted: 0.00,
-      todayTransferVol: 0.00,
-      availableBalance: getInitialMainBalance(),
     },
     isSyncing: false,
-    soundboxEnabled: true,
     unreadNotifications: 0,
+    soundboxEnabled: true,
     activeDrawer: null,
     kpiTheme: getInitialTheme(),
 
     setSyncing: (syncing) => set({ isSyncing: syncing }),
-
+    
     updateOutlet: (part: Partial<RetailerOutlet>) =>
       set((state) => ({ outlet: { ...state.outlet, ...part } })),
 
-    updateWallet: (part: Partial<WalletState>) =>
+    updateWallet: (part) => {
       set((state) => {
-        const nextWallet = { ...state.wallet, ...part };
-        if (typeof nextWallet.mainBalance === "number" && typeof window !== "undefined") {
-          localStorage.setItem("p2p_active_retailer_wallet_balance", nextWallet.mainBalance.toString());
-        }
-        return { wallet: nextWallet };
-      }),
+        const updatedWallet = { ...state.wallet, ...part };
+        // No localStorage write — wallet is always fetched from the live API
+        return { wallet: updatedWallet };
+      });
+    },
 
-    debitWallet: (amount: number): number => {
-      const { wallet } = get();
-      if (wallet.mainBalance < amount) {
-        throw new Error("Insufficient wallet balance.");
-      }
-      const newBal = Math.max(0, wallet.mainBalance - amount);
-      get().updateWallet({ mainBalance: newBal, availableBalance: newBal });
+    setWalletBalance: (balance: number) => {
+      set((state) => ({
+        wallet: {
+          ...state.wallet,
+          mainBalance: balance,
+          availableBalance: balance,
+        },
+      }));
+    },
+
+    debitWallet: (amount: number) => {
+      const current = get().wallet.mainBalance;
+      const newBal = Math.max(0, current - amount);
+      set((state) => ({
+        wallet: { ...state.wallet, mainBalance: newBal, availableBalance: newBal },
+      }));
       return newBal;
     },
 
     syncBalance: async () => {
       set({ isSyncing: true });
       try {
-        let activeRetailerId = "";
-        let activeTenantId = "";
+        let activeUserRefId: any = null;
+        let activeUserTypeId: any = 2;
         if (typeof window !== "undefined") {
           try {
-            const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+            const userStr =
+              localStorage.getItem("user_info") ||
+              localStorage.getItem("user") ||
+              localStorage.getItem("auth_user") ||
+              localStorage.getItem("pay2pay_user_data");
             if (userStr) {
               const u = JSON.parse(userStr);
-              activeRetailerId = u.retailer_code || u.retailer_id || u.id || "";
-              activeTenantId = u.tenant_id || "";
+              activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+              activeUserTypeId = u.user_type_ref_id || 2;
             }
           } catch {}
-          if (!activeRetailerId) {
-            activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "RET-10928";
-          }
-          if (!activeTenantId) {
-            activeTenantId = localStorage.getItem("p2p_tenant_id") || "";
-          }
         }
 
-        const params = new URLSearchParams();
-        if (activeRetailerId) params.append("retailer_id", activeRetailerId);
-        if (activeTenantId) params.append("tenant_id", activeTenantId);
-        const queryStr = params.toString() ? `?${params.toString()}` : "";
-
-        const apiUrl = `/api/v1/payout/dashboard/retailer/header-wallet${queryStr}`;
-        const res = await fetch(apiUrl);
-        if (res.ok) {
-          const data = await res.json();
-          const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.00;
-          const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
-          const rInfo = data.retailer_info || data;
-
-          if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-            if (rInfo.retailer_code || data.retailer_code || data.retailer_id) {
-              localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code || data.retailer_id);
-            }
-          }
-
-          set((state) => ({
-            outlet: {
-              ...state.outlet,
-              id: rInfo.retailer_id || data.retailer_id || state.outlet.id,
-              code: rInfo.retailer_code || data.retailer_code || state.outlet.code || "RET-10928",
-              name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || state.outlet.name,
-              ownerName: rInfo.owner_name || data.owner_name || state.outlet.ownerName,
-              status: "ACTIVE",
-              kycStatus: "VERIFIED",
-              approvalStatus: "APPROVED",
-            },
-            wallet: {
-              ...state.wallet,
-              mainBalance: bal,
-              availableBalance: avail,
-              commissionBalance: data.todays_commission || 0.00,
-              todayMargin: data.todays_commission || 0.00,
-              todayTxnCount: 0,
-              todaySettlement: data.settlement_pending_amount || 0.00,
-              todayDebitVol: data.todays_debit || 0.00,
-              todayTransferVol: data.todays_credit || 0.00,
-              todayGstPaid: data.todays_gst || 0.00,
-              todayTdsDeducted: data.todays_tds || 0.00,
-            },
-          }));
+        const params: Record<string, any> = {
+          user_type_ref_id: Number(activeUserTypeId || 2),
+        };
+        if (activeUserRefId) {
+          params.user_ref_id = Number(activeUserRefId);
         }
+
+        // Standardized user wallet API (/api/v1/wallet-ledger/user-wallet)
+        const res = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params });
+        const rawData = res.data;
+        const data = rawData.data || rawData;
+        const bal =
+          typeof data.wallet_balance === "number"
+            ? data.wallet_balance
+            : typeof data.balance === "number"
+            ? data.balance
+            : typeof data.mainBalance === "number"
+            ? data.mainBalance
+            : typeof data.available_balance === "number"
+            ? data.available_balance
+            : 0.00;
+
+        // No localStorage write — store is purely in-memory cache
+        set((state) => ({
+          wallet: {
+            ...state.wallet,
+            mainBalance: bal,
+            availableBalance: bal,
+            commissionBalance: data.commissionBalance ?? state.wallet.commissionBalance,
+            todayMargin: data.todayMargin ?? state.wallet.todayMargin,
+            todaySettlement: data.todaySettlement ?? state.wallet.todaySettlement,
+          },
+        }));
       } catch (err) {
         console.warn("syncBalance fetch error:", err);
       } finally {

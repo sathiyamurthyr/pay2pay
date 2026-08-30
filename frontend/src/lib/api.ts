@@ -17,54 +17,106 @@ apiClient.interceptors.request.use(
       config.url = config.url.replace(/^\/api\/v1/, "");
     }
     if (typeof window !== "undefined") {
-      const token =
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("pay2pay_auth_token") ||
-        document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("p2p_access_token="))
-          ?.split("=")[1] ||
-        document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("pay2pay_auth_token="))
-          ?.split("=")[1];
+      const cookies = document.cookie.split("; ");
+      const tokenCookie = cookies.find((row) =>
+        row.startsWith("p2p_access_token=") ||
+        row.startsWith("pay2pay_access_token=") ||
+        row.startsWith("pay2pay_auth_token=")
+      );
+      const cookieToken = tokenCookie ? tokenCookie.split("=")[1] : null;
 
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      const token =
+        cookieToken ||
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("pay2pay_auth_token") ||
+        localStorage.getItem("access_token");
+
+      if (token && token.trim().length > 10) {
+        config.headers.Authorization = `Bearer ${token.trim()}`;
       }
+
+      try {
+        const userStr =
+          localStorage.getItem("user_info") ||
+          localStorage.getItem("user") ||
+          localStorage.getItem("auth_user") ||
+          localStorage.getItem("pay2pay_user_data");
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          const uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id;
+          const uType = u.user_type_ref_id || 2;
+          if (uRef) config.headers["x-user-ref-id"] = String(uRef);
+          if (uType) config.headers["x-user-type-ref-id"] = String(uType);
+        }
+      } catch {}
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Interceptor for 401 Unauthorized handling & Token Refreshing
+// Interceptor for 401 Unauthorized handling
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        const refreshToken = localStorage.getItem("refresh_token");
-        if (!refreshToken) {
-          throw new Error("No refresh token");
-        }
-        const res = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refresh_token: refreshToken,
-        });
-        const { access_token, refresh_token: newRefresh } = res.data;
-        localStorage.setItem("access_token", access_token);
-        if (newRefresh) localStorage.setItem("refresh_token", newRefresh);
+    if (error.response?.status === 401) {
+      const url = error.config?.url || "";
+      const errorDetail = (
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        ""
+      ).toLowerCase();
 
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
-        return apiClient(originalRequest);
-      } catch (refreshErr) {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-          window.location.href = "/login";
-        }
+      // IMPORTANT: Do NOT log out the user if the 401 error is from a wrong PIN / MPIN / password or screen unlock!
+      const isPinOrCredentialError =
+        url.includes("/mpin") ||
+        url.includes("/unlock") ||
+        url.includes("/security") ||
+        url.includes("/pin") ||
+        url.includes("/payout") ||
+        url.includes("/transfer") ||
+        url.includes("/dmt") ||
+        errorDetail.includes("pin") ||
+        errorDetail.includes("mpin") ||
+        errorDetail.includes("password");
+
+      if (isPinOrCredentialError) {
+        return Promise.reject(error);
+      }
+
+      if (typeof document !== "undefined") {
+        const cookieNames = [
+          "p2p_access_token",
+          "pay2pay_access_token",
+          "pay2pay_auth_token",
+          "p2p_user_role",
+          "pay2pay_user_role",
+          "p2p_session_locked",
+          "p2p_session_id",
+          "p2p_destination",
+          "token",
+          "access_token",
+        ];
+        cookieNames.forEach((name) => {
+          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+        });
+      }
+
+      if (typeof localStorage !== "undefined") {
+        try {
+          localStorage.clear();
+        } catch {}
+      }
+
+      if (typeof sessionStorage !== "undefined") {
+        try {
+          sessionStorage.clear();
+        } catch {}
+      }
+
+      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+        window.location.replace(`/retailer/login?reason=session_expired&redirect=${encodeURIComponent(window.location.pathname)}`);
       }
     }
     return Promise.reject(error);

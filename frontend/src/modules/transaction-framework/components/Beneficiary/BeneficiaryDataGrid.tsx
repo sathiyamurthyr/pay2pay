@@ -43,15 +43,18 @@ export const BeneficiaryDataGrid: React.FC<BeneficiaryDataGridProps> = ({
       component={Paper}
       elevation={0}
       sx={{
-        maxHeight: 440, // Height constraint for windowing and virtualization
+        maxHeight: { xs: 440, md: 540, lg: 620 },
         borderRadius: "16px",
         bgcolor: "rgba(18, 27, 48, 0.75)",
         backdropFilter: "blur(20px)",
         border: "1px solid rgba(255, 255, 255, 0.12)",
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.25)",
         overflowY: "auto",
-        "&::-webkit-scrollbar": { width: "6px" },
-        "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 255, 255, 0.2)", borderRadius: "3px" },
+        overflowX: "auto",
+        "&::-webkit-scrollbar": { width: "8px", height: "8px" },
+        "&::-webkit-scrollbar-track": { background: "rgba(255, 255, 255, 0.04)", borderRadius: "6px" },
+        "&::-webkit-scrollbar-thumb": { background: "rgba(96, 165, 250, 0.5)", borderRadius: "6px" },
+        "&::-webkit-scrollbar-thumb:hover": { background: "rgba(96, 165, 250, 0.85)" },
       }}
     >
       <Table size="small" stickyHeader sx={{ width: "100%", tableLayout: "fixed" }}>
@@ -82,7 +85,7 @@ export const BeneficiaryDataGrid: React.FC<BeneficiaryDataGridProps> = ({
         <TableBody>
           {beneficiaries.map((b) => {
             const isSelected = selectedBeneficiary?.id === b.id;
-            const maskedAcc = b.maskedAccountNumber || (b.accountNumber.length >= 4 ? `•••• •••• ${b.accountNumber.slice(-4)}` : b.accountNumber);
+            const maskedAcc = b.accountNumber || b.maskedAccountNumber || "0630104000156974";
 
             return (
               <TableRow

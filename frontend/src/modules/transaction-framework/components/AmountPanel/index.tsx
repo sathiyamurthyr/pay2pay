@@ -11,8 +11,6 @@ export interface AmountPanelProps {
 
 export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange, charges, totalPayable }) => {
   const gst = Math.round(charges * 0.18);
-  const fee = charges - gst;
-  const commission = Math.round(amount * 0.0035);
 
   return (
     <Paper
@@ -92,7 +90,7 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(5, 1fr)" },
+          gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
           gap: 2,
           pt: 2.5,
           borderTop: "1px dashed rgba(255, 255, 255, 0.15)",
@@ -110,10 +108,10 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
 
         <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
-            CONVENIENCE FEE
+            RETAILER SURCHARGE
           </Typography>
           <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "18px" }}>
-            + ₹{fee.toLocaleString()}
+            + ₹{charges.toLocaleString()}
           </Typography>
         </Box>
 
@@ -126,18 +124,9 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
           </Typography>
         </Box>
 
-        <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(34, 197, 94, 0.1)" }}>
-          <Typography sx={{ color: "#4ADE80", display: "block", fontSize: "12px", fontWeight: 700 }}>
-            EST. COMMISSION
-          </Typography>
-          <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "18px" }}>
-            + ₹{commission.toLocaleString()}
-          </Typography>
-        </Box>
-
         <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(37, 99, 235, 0.2)", border: "1px solid rgba(37, 99, 235, 0.4)" }}>
           <Typography sx={{ color: "#60A5FA", display: "block", fontSize: "12px", fontWeight: 800 }}>
-            NET WALLET DEBIT
+            TOTAL WALLET DEBIT
           </Typography>
           <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "24px" }}>
             ₹{totalPayable.toLocaleString()}

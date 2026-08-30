@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { ShieldCheck, ArrowRight, ArrowLeft, Loader2, AlertCircle, CheckCircle2, User, MapPin, Calendar, RefreshCw, Edit3, Building, Hash } from "lucide-react";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 interface Step7Props {
   registrationId: string;
@@ -294,7 +296,7 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
                   <span>📩 {receivedOtpNotice}</span>
                 )}
               </div>
-              <span className="text-[10px] text-slate-400 font-extrabold">Cashfree Live</span>
+              <span className="text-[10px] text-slate-400 font-extrabold">UIDAI Live</span>
             </div>
           )}
 
@@ -407,9 +409,10 @@ export const Step7Aadhaar: React.FC<Step7Props> = ({ registrationId, initialAadh
           <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-5">
             {/* Header: Photo + Name + DOB + Gender */}
             <div className="flex items-center gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-              <img
+              <BlurImage
                 src={getPhotoSrc(ekycResult)}
                 alt="Profile Photo"
+                blurhash={KNOWN_BLURHASHES.AADHAAR_PLACEHOLDER}
                 className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-md shrink-0 bg-slate-200 dark:bg-slate-800"
               />
               <div className="space-y-1">

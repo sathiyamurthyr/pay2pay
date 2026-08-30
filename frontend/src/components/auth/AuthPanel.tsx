@@ -24,12 +24,15 @@ import {
 } from "lucide-react";
 import { collectSilentTelemetry, TelemetryData } from "@/lib/telemetry";
 import { verifyAndRoutePostLogin } from "@/lib/retailer-destination-resolver";
+import { soundSystem } from "@/lib/audio-engine";
 import { ConfettiBurst } from "./motion/ConfettiBurst";
 import {
   glassPanelVariants,
   shakeErrorVariants,
   buttonMotionVariants
 } from "./motion/animationVariants";
+import { BlurImage } from "@/components/ui/blur-image";
+import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 type LanguageKey = "English" | "Hindi" | "Tamil" | "Telugu";
 
@@ -315,6 +318,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
   const triggerError = (msg: string) => {
     setErrorMsg(msg);
     setIsShakeError(true);
+    soundSystem.playLoginFailure();
     setTimeout(() => setIsShakeError(false), 500);
   };
 
@@ -340,25 +344,97 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     }
   };
 
-  const handleAuthSuccessRedirect = async (token?: string, userData?: any, customRedirect?: string, destination?: string) => {
-    if (customRedirect) {
-      router.replace(customRedirect);
-      return;
+  const handleAuthSuccessRedirect = async (
+    token?: string,
+    userData?: any,
+    customRedirect?: string,
+    destination?: string,
+    approveStatus?: boolean,
+    activeStatus?: boolean,
+    statusMessage?: string
+  ) => {
+    // 1. Authoritative check:
+    const isBothTrue = approveStatus === true && activeStatus === true;
+
+    // 2. Synchronously persist credentials & session in Cookies and LocalStorage
+    if (typeof window !== "undefined") {
+      const role = portalRole || "RETAILER";
+      const validToken =
+        token ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("p2p_access_token") ||
+        `p2p_sess_${Date.now()}`;
+
+      const normalizedUser = userData || {
+        mobile_number: mobileNumber,
+        role: role,
+        roles: [role],
+        approve_status: approveStatus,
+        active_status: activeStatus,
+        approval_status: isBothTrue ? "APPROVED" : "UNDER_REVIEW",
+        status: isBothTrue ? "ACTIVE" : "UNDER_REVIEW"
+      };
+
+      if (!normalizedUser.roles || !Array.isArray(normalizedUser.roles)) {
+        normalizedUser.roles = [normalizedUser.role || role];
+      }
+
+      // Cookies with SameSite=Lax and 30-day expiry
+      document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_destination=${isBothTrue ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW"}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; max-age=2592000; SameSite=Lax`;
+
+      // LocalStorage keys for client session hydration
+      localStorage.setItem("pay2pay_user_role", role);
+      localStorage.setItem("p2p_user_role", role);
+      localStorage.setItem("pay2pay_active_role", role);
+      localStorage.setItem("pay2pay_access_token", validToken);
+      localStorage.setItem("p2p_access_token", validToken);
+      localStorage.setItem("access_token", validToken);
+      localStorage.setItem("pay2pay_auth_token", validToken);
+      localStorage.setItem("pay2pay_user_data", JSON.stringify(normalizedUser));
+      localStorage.setItem("user_info", JSON.stringify(normalizedUser));
+      localStorage.setItem("p2p_session_start_time", String(Date.now()));
+      localStorage.setItem("p2p_session_last_active", String(Date.now()));
+      localStorage.removeItem("p2p_session_locked");
+      localStorage.removeItem("p2p_session_locked_at");
+
+      const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
+      let rCode = normalizedUser.retailer_code || normalizedUser.code;
+      if (!rCode || isUuid(rCode)) {
+        rCode = normalizedUser.retailer_id || normalizedUser.public_id || normalizedUser.id || "";
+      }
+      if (rCode) {
+        localStorage.setItem("p2p_active_retailer_id", rCode);
+        localStorage.setItem("p2p_retailer_code", rCode);
+      }
     }
 
-    setSuccessMsg("Verifying your account access...");
-    const res = await verifyAndRoutePostLogin(
-      token || "",
-      userData,
-      router,
-      {
-        mobile: mobileNumber,
-        onProgress: (msg) => setSuccessMsg(msg),
-      }
-    );
+    // 3. Strict Authoritative Routing Rule:
+    let target = "/retailer/dashboard";
+    if (destination === "APPLICATION_REJECTED") {
+      target = "/application-rejected";
+      setSuccessMsg("✓ Application Rejected.");
+    } else if (destination === "ONBOARDING") {
+      target = customRedirect || "/register";
+      setSuccessMsg("✓ Redirecting to registration...");
+    } else if (isBothTrue) {
+      target = "/retailer/dashboard";
+      setSuccessMsg("✓ Authentication Successful! Redirecting to dashboard...");
+    } else {
+      target = "/retailer/account-under-review";
+      setSuccessMsg(statusMessage || "✓ Authentication successful. Redirecting to verification status...");
+    }
 
-    if (!res.success) {
-      triggerError(res.error || "Unable to verify your account status. Please try again.");
+    // 4. Navigate with window.location.href to guarantee full cookie delivery
+    if (typeof window !== "undefined") {
+      window.location.href = target;
+    } else {
+      router.replace(target);
     }
   };
 
@@ -389,20 +465,33 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           mobile_number: mobileNumber,
           password,
           captcha_code: captchaInput,
-          telemetry
+          telemetry,
+          portal_role: portalRole || "RETAILER"
         })
       });
 
       const data = await res.json();
       setLoading(false);
 
-      if (res.ok && data.status === "SUCCESS") {
+      if (res.ok && (data.status === "SUCCESS" || data.success === true)) {
         setFailedAttempts(0);
         setIsLocked(false);
         setLockTimer(0);
         setShowConfetti(true);
-        setSuccessMsg("✓ Authentication Successful! Redirecting...");
-        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user);
+        soundSystem.playLoginSuccess();
+        const approveStatus = data.approve_status !== undefined ? data.approve_status : data.data?.approve_status;
+        const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
+        const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
+        const redirectUrl = data.data?.redirect_url || (destination === "DASHBOARD" ? "/retailer/dashboard" : "/retailer/account-under-review");
+        await handleAuthSuccessRedirect(
+          data.data?.access_token,
+          data.data?.user,
+          redirectUrl,
+          destination,
+          approveStatus,
+          activeStatus,
+          data.message
+        );
       } else {
         const errText = (data.detail && data.detail !== "Not Found")
           ? data.detail
@@ -432,9 +521,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       });
       const data = await res.json().catch(() => ({}));
       setLoading(false);
-      if (res.ok && data.status === "SUCCESS") {
+      if (res.ok && (data.status === "SUCCESS" || data.success === true)) {
         setOtpSent(true);
         const masked = data.data?.masked_mobile || `******${mobileNumber.slice(-4)}`;
+        soundSystem.playNotificationSound();
         setSuccessMsg(`✓ OTP sent successfully to WhatsApp ${masked}.`);
         setErrorMsg("");
         setTimeout(() => otpInputRefs.current[0]?.focus(), 200);
@@ -473,34 +563,37 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       const data = await res.json().catch(() => ({}));
       setLoading(false);
 
-      if (res.ok && data.status === "SUCCESS") {
+      if (res.ok && (data.status === "SUCCESS" || data.success === true)) {
         setShowConfetti(true);
+        soundSystem.playLoginSuccess();
         const flow = data.data?.flow;
-        const destination = data.data?.destination;
+        const approveStatus = data.approve_status !== undefined ? data.approve_status : data.data?.approve_status;
+        const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
+        const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
         const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";
-        const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? "/register" : "/retailer/dashboard");
+        const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? "/register" : approveStatus && activeStatus ? "/retailer/dashboard" : "/retailer/account-under-review");
 
-        if (destination === "ACCOUNT_UNDER_REVIEW") {
-          setSuccessMsg("✓ Mobile verified successfully. Loading your dashboard...");
-          if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
-            localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
-          }
-        } else if (isNewOnboarding) {
+        if (isNewOnboarding) {
           setSuccessMsg("✓ Mobile verified successfully. Taking you to onboarding...");
           if (data.data?.registration_id) {
             localStorage.setItem("pay2pay_reg_id", data.data.registration_id);
             localStorage.setItem("pay2pay_reg_mobile", mobileNumber);
           }
-        } else {
+        } else if (approveStatus && activeStatus) {
           setSuccessMsg("✓ Mobile verified successfully. Signing you in...");
-          if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
-            localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
-          }
+        } else {
+          setSuccessMsg(`✓ ${data.message || "Your account is under review. Loading status..."}`);
         }
         setErrorMsg("");
-        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user, redirectUrl, destination);
+        await handleAuthSuccessRedirect(
+          data.data?.access_token,
+          data.data?.user,
+          redirectUrl,
+          destination,
+          approveStatus,
+          activeStatus,
+          data.message
+        );
       } else {
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please check the OTP and try again.");
         triggerError(errText);
@@ -623,10 +716,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         </div>
 
         {/* ─── Main Auth Card ─── */}
-        <motion.div
-          variants={glassPanelVariants}
-          initial="hidden"
-          animate="visible"
+        <div
           className={`my-auto w-full rounded-[28px] transition-all duration-300 relative backdrop-blur-2xl ${
             darkMode
               ? "bg-slate-900/90 border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] text-white"
@@ -1103,7 +1193,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               {t.registerAccount}
             </Link>
           </div>
-        </motion.div>
+        </div>
 
         {/* ── Footer Links ── */}
         <div className={`mt-5 text-center space-y-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>

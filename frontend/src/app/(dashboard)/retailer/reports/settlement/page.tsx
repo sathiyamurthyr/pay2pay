@@ -34,9 +34,27 @@ export default function RetailerSettlementReportPage() {
     setLoading(true);
     setError(null);
     try {
-      const activeId = getActiveRetailerId();
-      const q = activeId ? `?retailer_id=${activeId}` : "";
-      const res = await fetch(`${getApiBaseUrl()}/reports/swipe-settlement/list${q}`);
+      let userRefId: any = null;
+      let userTypeRefId: any = 2;
+      if (typeof window !== "undefined") {
+        try {
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+            userTypeRefId = u.user_type_ref_id || 2;
+          }
+        } catch {}
+      }
+      const qParams = new URLSearchParams();
+      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
+      if (userRefId) qParams.set("user_ref_id", String(userRefId));
+
+      const res = await fetch(`${getApiBaseUrl()}/reports/swipe-settlement/list?${qParams.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRows(data.items || []);

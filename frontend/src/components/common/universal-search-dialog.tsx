@@ -23,6 +23,7 @@ import SendIcon from "@mui/icons-material/Send";
 import PersonIcon from "@mui/icons-material/Person";
 import ContactsIcon from "@mui/icons-material/Contacts";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -30,9 +31,12 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 const SEARCH_ITEMS = [
   { label: "Dashboard", category: "Navigation", path: "/retailer-dashboard", icon: DashboardIcon },
   { label: "Money Transfer (DMT)", category: "Navigation", path: "/retailer/dmt", icon: SendIcon },
+  { label: "Topup Request (Proof Upload)", category: "Wallet", path: "/retailer/topup-request", icon: CloudUploadIcon },
+  { label: "Wallet & Balances", category: "Wallet", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
+  { label: "Wallet Top-up", category: "Wallet", path: "/retailer/wallet-topup", icon: AccountBalanceWalletIcon },
+  { label: "Wallet Ledger", category: "Wallet", path: "/retailer/wallet-ledger", icon: ReceiptLongIcon },
   { label: "Add New Customer", category: "Action", path: "/retailer/customers/new", icon: PersonIcon },
   { label: "Add New Beneficiary", category: "Action", path: "/retailer/beneficiary/new", icon: ContactsIcon },
-  { label: "Wallet & Top-Up", category: "Navigation", path: "/retailer/wallet", icon: AccountBalanceWalletIcon },
   { label: "AEPS Cash Out", category: "Navigation", path: "/retailer/aeps", icon: FingerprintIcon },
   { label: "UPI Services", category: "Navigation", path: "/retailer/upi", icon: QrCodeIcon },
   { label: "Transactions Ledger", category: "Navigation", path: "/retailer/transactions", icon: ReceiptLongIcon },
