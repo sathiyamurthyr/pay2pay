@@ -53,7 +53,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import LayersIcon from "@mui/icons-material/Layers";
 import CheckIcon from "@mui/icons-material/Check";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import ErrorOutlinedIcon from "@mui/icons-material/ErrorOutlined";
 import ReplayIcon from "@mui/icons-material/Replay";
 
 import {
@@ -1523,7 +1523,7 @@ export default function AdminTransactionReport() {
           </Box>
         ) : !selectedTxn ? (
           <Box sx={{ p: 4, textAlign: "center" }}>
-            <ErrorOutlineIcon sx={{ fontSize: 48, color: "#EF4444", mb: 1 }} />
+            <ErrorOutlinedIcon sx={{ fontSize: 48, color: "#EF4444", mb: 1 }} />
             <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 700 }}>
               Transaction Not Found
             </Typography>
