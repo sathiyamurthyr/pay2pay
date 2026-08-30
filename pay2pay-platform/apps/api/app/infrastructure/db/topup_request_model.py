@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy import (
-    String, Text, Boolean, Integer, Float, Numeric, DateTime, ForeignKey, Index
+    String, Text, Boolean, Integer, BigInteger, Float, Numeric, DateTime, ForeignKey, Index
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -39,6 +39,14 @@ class TopupRequestModel(BaseEntity, EnterpriseBaseMixin):
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
     wallet_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
+    # Standardized Multi-Tenant User Ownership References
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=2, index=True)
+    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    retailer_wallet_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+
     # Financial Amounts & POS MDR Snapshot
     requested_amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     approved_amount: Mapped[Optional[float]] = mapped_column(Numeric(18, 2), nullable=True)
@@ -50,7 +58,7 @@ class TopupRequestModel(BaseEntity, EnterpriseBaseMixin):
     mdr_config_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
     # Payment Proof & Reference
-    payment_reference: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True) # UTR or Bank Ref #
+    payment_reference: Mapped[Optional[str]] = mapped_column(String(100), unique=True, nullable=True, index=True) # UTR or Bank Ref #
     payment_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default="UPI")   # UPI, IMPS, NEFT, RTGS, CASH_DEPOSIT, BANK_TRANSFER
     payment_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 

@@ -38,6 +38,7 @@ interface TopupItem {
   approved_amount?: number;
   received_amount?: number;
   mdr_charge?: number;
+  mdr_percentage?: number;
   gst_amount?: number;
   charges?: number;
   mdr_config_id?: string;
@@ -333,6 +334,11 @@ export default function AdminTopupRequestsPage() {
       "Retailer Name",
       "Mobile",
       "Requested Amount",
+      "MDR (%)",
+      "MDR Charge",
+      "GST Amount",
+      "Total Deductions",
+      "Received Amount",
       "Approved Amount",
       "Payment Method",
       "Payment Reference (UTR)",
@@ -343,21 +349,40 @@ export default function AdminTopupRequestsPage() {
       "Transaction Reference",
     ];
 
-    const rows = requests.map((r) => [
-      r.topup_request_id,
-      r.retailer?.retailer_code || "",
-      `"${(r.retailer?.retailer_name || "").replace(/"/g, '""')}"`,
-      r.retailer?.mobile_number || "",
-      r.requested_amount,
-      r.approved_amount || "",
-      r.payment_method,
-      `"${(r.payment_reference || "").replace(/"/g, '""')}"`,
-      r.payment_date ? new Date(r.payment_date).toISOString().split("T")[0] : "",
-      r.status,
-      r.submitted_at ? new Date(r.submitted_at).toISOString() : "",
-      r.approved_at ? new Date(r.approved_at).toISOString() : "",
-      r.transaction_reference || "",
-    ]);
+    const rows = requests.map((r) => {
+      const rMdrPct = r.mdr_percentage !== undefined && r.mdr_percentage !== null
+        ? r.mdr_percentage
+        : (r.requested_amount > 0
+            ? (r.mdr_charge !== undefined && r.mdr_charge !== null
+                ? (r.mdr_charge / r.requested_amount) * 100
+                : (r.charges ? ((r.gst_amount ? r.charges - r.gst_amount : r.charges) / r.requested_amount) * 100 : 0))
+            : 0);
+      const deductions = (r.charges || r.mdr_charge || 0) + (r.gst_amount || 0);
+      const received = r.received_amount !== undefined && r.received_amount !== null
+        ? r.received_amount
+        : (r.approved_amount !== undefined && r.approved_amount !== null ? r.approved_amount : r.requested_amount);
+
+      return [
+        r.topup_request_id,
+        r.retailer?.retailer_code || "",
+        `"${(r.retailer?.retailer_name || "").replace(/"/g, '""')}"`,
+        r.retailer?.mobile_number || "",
+        r.requested_amount,
+        rMdrPct > 0 ? `${rMdrPct.toFixed(2)}%` : "0%",
+        r.mdr_charge || (r.charges ? (r.gst_amount ? r.charges - r.gst_amount : r.charges) : 0),
+        r.gst_amount || 0,
+        deductions,
+        received,
+        r.approved_amount || "",
+        r.payment_method,
+        `"${(r.payment_reference || "").replace(/"/g, '""')}"`,
+        r.payment_date ? new Date(r.payment_date).toISOString().split("T")[0] : "",
+        r.status,
+        r.submitted_at ? new Date(r.submitted_at).toISOString() : "",
+        r.approved_at ? new Date(r.approved_at).toISOString() : "",
+        r.transaction_reference || "",
+      ];
+    });
 
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -371,6 +396,16 @@ export default function AdminTopupRequestsPage() {
 
   const simulatedClosingBalance =
     (selectedRequest?.retailer?.current_wallet_balance || 0) + (parseFloat(customApprovedAmount) || 0);
+
+  const selectedMdrPct = selectedRequest
+    ? (selectedRequest.mdr_percentage !== undefined && selectedRequest.mdr_percentage !== null
+        ? selectedRequest.mdr_percentage
+        : (selectedRequest.requested_amount > 0
+            ? (selectedRequest.mdr_charge !== undefined && selectedRequest.mdr_charge !== null
+                ? (selectedRequest.mdr_charge / selectedRequest.requested_amount) * 100
+                : (selectedRequest.charges ? ((selectedRequest.gst_amount ? selectedRequest.charges - selectedRequest.gst_amount : selectedRequest.charges) / selectedRequest.requested_amount) * 100 : 0))
+            : 0))
+    : 0;
 
   return (
     <div className="space-y-6 pb-16 font-sans min-h-screen bg-slate-50 text-slate-900 p-2 sm:p-4">
@@ -652,7 +687,7 @@ export default function AdminTopupRequestsPage() {
                 <th className="py-3.5 px-4 text-right font-black">
                   TRANSACTION AMOUNT (₹) <span className="text-rose-500">*</span>
                 </th>
-                <th className="py-3.5 px-4 text-right font-black">MDR / CHARGES</th>
+                <th className="py-3.5 px-4 text-right font-black">MDR % / CHARGES</th>
                 <th className="py-3.5 px-4 text-right font-black text-emerald-800">
                   RECEIVED AMOUNT (₹)
                 </th>
@@ -689,6 +724,13 @@ export default function AdminTopupRequestsPage() {
                   const displayReceived = item.received_amount !== undefined && item.received_amount !== null
                     ? item.received_amount
                     : (item.approved_amount !== undefined && item.approved_amount !== null ? item.approved_amount : item.requested_amount);
+                  const itemMdrPct = item.mdr_percentage !== undefined && item.mdr_percentage !== null
+                    ? item.mdr_percentage
+                    : (item.requested_amount > 0
+                        ? (item.mdr_charge !== undefined && item.mdr_charge !== null
+                            ? (item.mdr_charge / item.requested_amount) * 100
+                            : (item.charges ? ((item.gst_amount ? item.charges - item.gst_amount : item.charges) / item.requested_amount) * 100 : 0))
+                        : 0);
 
                   return (
                     <tr
@@ -762,11 +804,6 @@ export default function AdminTopupRequestsPage() {
                                 </span>
                               )}
                             </div>
-                            {item.retailer?.retailer_id && (
-                              <div className="text-[10px] font-mono text-slate-400 mt-0.5 truncate max-w-[200px]" title={item.retailer.retailer_id}>
-                                ID: {item.retailer.retailer_id}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -796,19 +833,33 @@ export default function AdminTopupRequestsPage() {
                         ₹{item.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
 
-                      {/* MDR / Deductions */}
+                      {/* MDR % / Deductions */}
                       <td className="py-3.5 px-4 text-right font-medium">
                         {totalDeductions > 0 ? (
-                          <div>
-                            <span className="text-amber-800 font-mono font-bold text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block">
-                              -₹{totalDeductions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-1.5 justify-end">
+                              {itemMdrPct > 0 && (
+                                <span className="text-[10px] font-black font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs" title={`Configured MDR Rate: ${itemMdrPct.toFixed(2)}%`}>
+                                  {itemMdrPct.toFixed(2)}%
+                                </span>
+                              )}
+                              <span className="text-amber-800 font-mono font-bold text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block">
+                                -₹{totalDeductions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 block font-sans">
+                              {item.mdr_charge ? `MDR ₹${item.mdr_charge.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : ""} {item.gst_amount ? `+ GST` : "incl. GST"}
                             </span>
-                            {item.gst_amount ? (
-                              <span className="text-[9px] text-slate-400 block font-sans mt-0.5">incl. GST</span>
-                            ) : null}
                           </div>
                         ) : (
-                          <span className="text-slate-400 text-xs font-mono">₹0.00</span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            {itemMdrPct > 0 && (
+                              <span className="text-[10px] font-black font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                {itemMdrPct.toFixed(2)}%
+                              </span>
+                            )}
+                            <span className="text-slate-400 text-xs font-mono">₹0.00</span>
+                          </div>
                         )}
                       </td>
 
@@ -1106,14 +1157,6 @@ export default function AdminTopupRequestsPage() {
                         <h4 className="text-base font-black text-slate-900">
                           {selectedRequest.retailer?.retailer_name || "Unknown Retailer"}
                         </h4>
-                        {selectedRequest.retailer?.retailer_id && (
-                          <div className="flex items-center gap-1.5 mt-1.5 text-xs">
-                            <span className="text-slate-400 font-medium">Retailer UUID:</span>
-                            <span className="font-mono text-xs font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200 select-all">
-                              {selectedRequest.retailer.retailer_id}
-                            </span>
-                          </div>
-                        )}
                         {selectedRequest.retailer?.mobile_number && (
                           <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-1.5 font-medium">
                             <Phone className="h-3.5 w-3.5 text-slate-400" />
@@ -1176,9 +1219,16 @@ export default function AdminTopupRequestsPage() {
                           {(selectedRequest.charges || selectedRequest.mdr_charge || 0) > 0 && (
                             <>
                               <div className="flex items-center justify-between text-xs text-amber-800">
-                                <span>MDR Charge:</span>
-                                <span className="font-mono">
-                                  -₹{(selectedRequest.charges || selectedRequest.mdr_charge || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                <span className="flex items-center gap-1.5">
+                                  <span>MDR Fee:</span>
+                                  {selectedMdrPct > 0 && (
+                                    <span className="font-mono text-[10px] font-black bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded border border-amber-300">
+                                      {selectedMdrPct.toFixed(2)}%
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="font-mono font-bold">
+                                  -₹{(selectedRequest.mdr_charge || (selectedRequest.gst_amount ? selectedRequest.charges! - selectedRequest.gst_amount : selectedRequest.charges) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                               {selectedRequest.gst_amount ? (
@@ -1189,6 +1239,12 @@ export default function AdminTopupRequestsPage() {
                                   </span>
                                 </div>
                               ) : null}
+                              <div className="flex items-center justify-between text-xs text-amber-900 font-bold pt-1 border-t border-slate-100">
+                                <span>Total Deductions:</span>
+                                <span className="font-mono">
+                                  -₹{((selectedRequest.charges || selectedRequest.mdr_charge || 0) + (selectedRequest.gst_amount || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
                             </>
                           )}
                           <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-xs font-black">
@@ -1218,9 +1274,16 @@ export default function AdminTopupRequestsPage() {
                             <Sparkles className="h-4 w-4 text-emerald-600" />
                             Received Amount Configuration
                           </span>
-                          <span className="text-[10px] text-slate-600 font-medium">
-                            Txn Gross: <strong className="text-slate-900">₹{selectedRequest.requested_amount.toLocaleString("en-IN")}</strong>
-                          </span>
+                          <div className="flex items-center gap-2 text-[10px]">
+                            {selectedMdrPct > 0 && (
+                              <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                MDR: {selectedMdrPct.toFixed(2)}%
+                              </span>
+                            )}
+                            <span className="text-slate-600 font-medium">
+                              Txn Gross: <strong className="text-slate-900">₹{selectedRequest.requested_amount.toLocaleString("en-IN")}</strong>
+                            </span>
+                          </div>
                         </div>
 
                         {/* Editable Received Amount Input */}

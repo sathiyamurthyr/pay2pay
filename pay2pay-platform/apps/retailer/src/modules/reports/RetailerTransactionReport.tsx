@@ -127,6 +127,12 @@ const SERVICE_BADGES: Record<string, { label: string; bg: string; text: string; 
   SETTLEMENT: { label: "Settlement", bg: "rgba(99, 102, 241, 0.15)", text: "#818CF8", border: "rgba(99, 102, 241, 0.3)" },
   TOPUP: { label: "Topup", bg: "rgba(34, 197, 94, 0.15)", text: "#4ADE80", border: "rgba(34, 197, 94, 0.3)" },
   Topup: { label: "Topup", bg: "rgba(34, 197, 94, 0.15)", text: "#4ADE80", border: "rgba(34, 197, 94, 0.3)" },
+  MANUAL_ADJUSTMENT: { label: "Adjustment", bg: "rgba(168, 85, 247, 0.15)", text: "#C084FC", border: "rgba(168, 85, 247, 0.3)" },
+  MANUAL_TOPUP: { label: "Topup", bg: "rgba(34, 197, 94, 0.15)", text: "#4ADE80", border: "rgba(34, 197, 94, 0.3)" },
+  MANUAL_DEBIT: { label: "Debit", bg: "rgba(239, 68, 68, 0.15)", text: "#F87171", border: "rgba(239, 68, 68, 0.3)" },
+  BENE_VERIFY: { label: "Bene Verify", bg: "rgba(14, 165, 233, 0.15)", text: "#38BDF8", border: "rgba(14, 165, 233, 0.3)" },
+  BENEFICIARY_VERIFICATION: { label: "Bene Verify", bg: "rgba(14, 165, 233, 0.15)", text: "#38BDF8", border: "rgba(14, 165, 233, 0.3)" },
+  BENE_VERIFICATION: { label: "Bene Verify", bg: "rgba(14, 165, 233, 0.15)", text: "#38BDF8", border: "rgba(14, 165, 233, 0.3)" },
 };
 
 const BANK_SHORT_NAMES: Record<string, string> = {
@@ -242,6 +248,10 @@ export const getTransactionComments = (row: TransactionReportItem): string => {
   }
   if (row.service === "Bill Payment" || row.service === "BBPS") {
     return `Utility Bill Payment`;
+  }
+  if (row.service === "BENE_VERIFY" || row.service === "BENEFICIARY_VERIFICATION" || row.service === "Bene Verify") {
+    if (row.narration && row.narration.trim()) return row.narration;
+    return "Beneficiary Verification Charge";
   }
   if (row.status_description && row.status_description.trim()) {
     return row.status_description;
@@ -868,6 +878,7 @@ export const RetailerTransactionReport: React.FC = () => {
             >
               <MenuItem value="ALL" sx={{ fontSize: "13px" }}>All Services</MenuItem>
               <MenuItem value="PAYOUT" sx={{ fontSize: "13px" }}>Payout</MenuItem>
+              <MenuItem value="BENE_VERIFY" sx={{ fontSize: "13px" }}>Bene Verification</MenuItem>
               <MenuItem value="DMT" sx={{ fontSize: "13px" }}>DMT Transfer</MenuItem>
               <MenuItem value="AEPS" sx={{ fontSize: "13px" }}>AEPS Cash Out</MenuItem>
               <MenuItem value="UPI" sx={{ fontSize: "13px" }}>UPI Payments</MenuItem>
@@ -875,6 +886,7 @@ export const RetailerTransactionReport: React.FC = () => {
               <MenuItem value="RECHARGE" sx={{ fontSize: "13px" }}>Recharge</MenuItem>
               <MenuItem value="CARD_TO_CASH" sx={{ fontSize: "13px" }}>Card-to-Cash (POS)</MenuItem>
               <MenuItem value="TOPUP" sx={{ fontSize: "13px" }}>Topup / Move to Bank</MenuItem>
+              <MenuItem value="MANUAL_ADJUSTMENT" sx={{ fontSize: "13px" }}>Manual Adjustment</MenuItem>
             </Select>
           </FormControl>
 
@@ -1042,17 +1054,17 @@ export const RetailerTransactionReport: React.FC = () => {
                 {/* 3. Service */}
                 <TableCell>Service</TableCell>
                 {/* 4. Pre Bal */}
-                <TableCell align="right">Pre Bal (₹)</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, fontSize: "12px", color: "#CBD5E1" }}>Pre Bal (₹)</TableCell>
                 {/* 5. Dr Amt */}
-                <TableCell align="right">Dr Amt (₹)</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, fontSize: "12px", color: "#FCA5A5" }}>Dr Amt (₹)</TableCell>
                 {/* 6. Cr Amt */}
-                <TableCell align="right">Cr Amt (₹)</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, fontSize: "12px", color: "#86EFAC" }}>Cr Amt (₹)</TableCell>
                 {/* 7. Cls Bal */}
-                <TableCell align="right">Cls Bal (₹)</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, fontSize: "12px", color: "#CBD5E1" }}>Cls Bal (₹)</TableCell>
                 {/* 8. Txn Amt */}
-                <TableCell align="right">Txn Amt (₹)</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, fontSize: "12px", color: "#93C5FD" }}>Txn Amt (₹)</TableCell>
                 {/* 9. Tax */}
-                <TableCell align="right">Tax (₹)</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, fontSize: "12px", color: "#FDE68A" }}>Tax (₹)</TableCell>
                 {/* 10. Date/Time */}
                 <TableCell>Date/Time</TableCell>
                 {/* 11. Status */}
@@ -1172,7 +1184,7 @@ export const RetailerTransactionReport: React.FC = () => {
 
                       {/* 4. Pre Bal */}
                       <TableCell align="right">
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#94A3B8", fontSize: "12px", whiteSpace: "nowrap" }}>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#E2E8F0", fontSize: "13.5px", whiteSpace: "nowrap" }}>
                           ₹{preBalVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
@@ -1180,11 +1192,11 @@ export const RetailerTransactionReport: React.FC = () => {
                       {/* 5. Dr Amt */}
                       <TableCell align="right">
                         {drVal > 0 ? (
-                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#F87171", fontSize: "12px", whiteSpace: "nowrap" }}>
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 900, color: "#EF4444", fontSize: "14px", whiteSpace: "nowrap" }}>
                             ₹{drVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </Typography>
                         ) : (
-                          <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#64748B", fontSize: "12px", whiteSpace: "nowrap" }}>
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600, color: "#64748B", fontSize: "13px", whiteSpace: "nowrap" }}>
                             0.00
                           </Typography>
                         )}
@@ -1193,11 +1205,11 @@ export const RetailerTransactionReport: React.FC = () => {
                       {/* 6. Cr Amt */}
                       <TableCell align="right">
                         {crVal > 0 ? (
-                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#34D399", fontSize: "12px", whiteSpace: "nowrap" }}>
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 900, color: "#10B981", fontSize: "14px", whiteSpace: "nowrap" }}>
                             ₹{crVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </Typography>
                         ) : (
-                          <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#64748B", fontSize: "12px", whiteSpace: "nowrap" }}>
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600, color: "#64748B", fontSize: "13px", whiteSpace: "nowrap" }}>
                             0.00
                           </Typography>
                         )}
@@ -1205,21 +1217,21 @@ export const RetailerTransactionReport: React.FC = () => {
 
                       {/* 7. Cls Bal */}
                       <TableCell align="right">
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#CBD5E1", fontSize: "12px", whiteSpace: "nowrap" }}>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#F8FAFC", fontSize: "13.5px", whiteSpace: "nowrap" }}>
                           ₹{clsBalVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
 
                       {/* 8. Txn Amt */}
                       <TableCell align="right">
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#FFFFFF", fontSize: "13px", whiteSpace: "nowrap" }}>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 900, color: "#FFFFFF", fontSize: "14.5px", whiteSpace: "nowrap" }}>
                           ₹{txnAmtVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
 
                       {/* 9. Tax */}
                       <TableCell align="right">
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#94A3B8", fontSize: "12px", whiteSpace: "nowrap" }}>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: taxVal > 0 ? "#FBBF24" : "#94A3B8", fontSize: "13.5px", whiteSpace: "nowrap" }}>
                           ₹{taxVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>

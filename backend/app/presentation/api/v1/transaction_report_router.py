@@ -458,7 +458,7 @@ async def get_transaction_report(
         count_params["company_ref_id"] = company_ref_id
 
     if retailer_ref_id is not None:
-        where_clauses.append("t.retailer_ref_id = :retailer_ref_id")
+        where_clauses.append("(t.retailer_ref_id = :retailer_ref_id OR t.user_ref_id = :retailer_ref_id OR ret.retailer_ref_id = :retailer_ref_id)")
         count_params["retailer_ref_id"] = retailer_ref_id
 
     if rm_ref_id is not None:
@@ -510,7 +510,7 @@ async def get_transaction_report(
     count_sql = f"""
     SELECT COUNT(*) 
     FROM public.transactions t
-    LEFT JOIN public.retailer ret ON ret.retailer_ref_id = t.retailer_ref_id
+    LEFT JOIN public.retailer ret ON (ret.public_id = t.retailer_id OR (ret.retailer_ref_id = t.user_ref_id AND t.user_type_ref_id = 2) OR ret.retailer_ref_id = t.retailer_ref_id)
     LEFT JOIN public.company c ON c.company_ref_id = COALESCE(t.company_ref_id, ret.company_ref_id)
     WHERE {" AND ".join(where_clauses)};
     """
@@ -539,8 +539,8 @@ async def get_transaction_report(
         "rm_ref_id": rm_ref_id,
         "user_type_ref_id": effective_user_type_ref_id,
         "user_type": effective_user_type_code,
-        "from_date": start_dt.date(),
-        "to_date": end_dt.date(),
+        "from_date": start_dt.astimezone(IST).date(),
+        "to_date": end_dt.astimezone(IST).date(),
         "service": service.strip().upper() if service and service.strip().upper() != "ALL" else None,
         "wallet": wallet.strip().upper() if wallet and wallet.strip().upper() != "ALL" else None,
         "entry": entry_type.strip().upper() if entry_type and entry_type.strip().upper() != "ALL" else None,

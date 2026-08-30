@@ -552,3 +552,57 @@ html {
   animation: shimmer 1.8s infinite linear;
 }
 
+/* ── Global High-Contrast Alert Styles ────────────────────────────────── */
+.MuiAlert-standardSuccess, .MuiAlert-root[class*="severitySuccess"] {
+  background-color: #DCFCE7 !important;
+  color: #14532D !important;
+  border: 1px solid #86EFAC !important;
+}
+.MuiAlert-standardSuccess .MuiAlert-message, .MuiAlert-root[class*="severitySuccess"] .MuiAlert-message {
+  color: #14532D !important;
+  font-weight: 700 !important;
+}
+.MuiAlert-standardSuccess .MuiAlert-icon, .MuiAlert-root[class*="severitySuccess"] .MuiAlert-icon {
+  color: #16A34A !important;
+}
+
+.MuiAlert-standardError, .MuiAlert-root[class*="severityError"] {
+  background-color: #FEE2E2 !important;
+  color: #991B1B !important;
+  border: 1px solid #FCA5A5 !important;
+}
+.MuiAlert-standardError .MuiAlert-message, .MuiAlert-root[class*="severityError"] .MuiAlert-message {
+  color: #991B1B !important;
+  font-weight: 700 !important;
+}
+.MuiAlert-standardError .MuiAlert-icon, .MuiAlert-root[class*="severityError"] .MuiAlert-icon {
+  color: #DC2626 !important;
+}
+
+.MuiAlert-standardInfo, .MuiAlert-root[class*="severityInfo"] {
+  background-color: #E0F2FE !important;
+  color: #075985 !important;
+  border: 1px solid #7DD3FC !important;
+}
+.MuiAlert-standardInfo .MuiAlert-message, .MuiAlert-root[class*="severityInfo"] .MuiAlert-message {
+  color: #075985 !important;
+  font-weight: 600 !important;
+}
+.MuiAlert-standardInfo .MuiAlert-icon, .MuiAlert-root[class*="severityInfo"] .MuiAlert-icon {
+  color: #0284C7 !important;
+}
+
+.MuiAlert-standardWarning, .MuiAlert-root[class*="severityWarning"] {
+  background-color: #FEF3C7 !important;
+  color: #92400E !important;
+  border: 1px solid #FCD34D !important;
+}
+.MuiAlert-standardWarning .MuiAlert-message, .MuiAlert-root[class*="severityWarning"] .MuiAlert-message {
+  color: #92400E !important;
+  font-weight: 600 !important;
+}
+.MuiAlert-standardWarning .MuiAlert-icon, .MuiAlert-root[class*="severityWarning"] .MuiAlert-icon {
+  color: #D97706 !important;
+}
+
+

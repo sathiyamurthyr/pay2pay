@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, func
+    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, func, Identity, FetchedValue
 )
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB, UUID
 JSONB = JSON
@@ -532,6 +532,12 @@ class OrganizationNoteModel(BaseEntity, EnterpriseBaseMixin):
 # EPIC-004 — Retailer Management Models
 class RetailerModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "retailer"
+
+    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=False), nullable=True, index=True)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    regional_manager_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
 
     retailer_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     store_name: Mapped[str] = mapped_column(String(255), nullable=False)

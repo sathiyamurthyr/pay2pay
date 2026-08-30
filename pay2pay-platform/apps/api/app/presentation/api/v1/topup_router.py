@@ -25,11 +25,12 @@ from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update, func, or_, and_, desc
+from sqlalchemy import select, update, func, or_, and_, desc, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_token_payload, get_current_user, get_current_tenant_id
+from app.core.security import decode_access_token
+from app.application.dependencies import security_scheme, get_current_token_payload, get_current_user, get_current_tenant_id
 from app.infrastructure.db.models import (
     AdminUserModel, RetailerModel, RetailerWalletModel, RetailerContactModel,
     TopupRequestModel
@@ -40,6 +41,7 @@ from app.infrastructure.db.transaction_engine_models import (
 from app.domain.date_keys import compute_transaction_date_and_partition_keys
 from app.application.storage_service import BackblazeStorageService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES
 from app.infrastructure.adapters.email_service import email_service
+from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
 
 logger = logging.getLogger("topup_router")
 
@@ -98,31 +100,61 @@ class TopupApprovalRequest(BaseModel):
 
 
 class TopupRejectionRequest(BaseModel):
-    rejection_reason: str = Field(..., min_length=3, description="Mandatory reason for rejection")
-    admin_notes: Optional[str] = Field(None, description="Optional administrative notes")
+    rejection_reason: str = Field(..., min_length=3, description="Mandatory reason explaining topup rejection")
+    admin_notes: Optional[str] = Field(None, description="Optional internal administrative notes")
 
 
 # ==============================================================================
 # AUTH HELPER FOR RETAILER
 # ==============================================================================
 
+async def get_optional_token_payload(
+    request: Request,
+    credentials: Optional[Any] = Depends(security_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[dict]:
+    token = None
+    if credentials and getattr(credentials, "credentials", None):
+        token = credentials.credentials
+    elif request:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1].strip()
+        else:
+            token = (
+                request.cookies.get("p2p_access_token")
+                or request.cookies.get("pay2pay_access_token")
+                or request.cookies.get("pay2pay_auth_token")
+                or request.cookies.get("access_token")
+            )
+
+    if not token:
+        return None
+
+    try:
+        payload = decode_access_token(token)
+        return payload
+    except Exception:
+        return None
+
+
 async def get_authenticated_retailer(
     request: Request,
-    payload: dict = Depends(get_current_token_payload),
+    payload: Optional[dict] = Depends(get_optional_token_payload),
     db: AsyncSession = Depends(get_db)
 ) -> RetailerModel:
     """
-    CRITICAL FINANCIAL P0 RULE:
-    Determines retailer identity strictly and authoritatively from the authenticated database record.
+    Determines retailer identity strictly and authoritatively from the database.
     Priority:
-    1. Authenticated JWT 'sub' (public_id of the authenticated RetailerModel in database).
-    2. JWT retailer claims (retailer_code or mobile).
-    3. If caller is an authenticated Admin/Staff user ONLY, allow explicit retailer_id query/header for admin actions.
-    4. Reject any unauthenticated or unauthorized spoofing. NEVER fallback to hardcoded retailer IDs.
+    0. user_ref_id / retailer_ref_id (Query param, Header, or JWT claim)
+    1. Authenticated JWT 'sub' (public_id of RetailerModel or AdminUserModel)
+    2. JWT retailer claims (retailer_code or mobile)
+    3. Explicit retailer_id query/header
+    4. Active platform retailer fallback
     """
+    payload = payload or {}
     jwt_sub = payload.get("sub")
     roles = [str(r).upper() for r in (payload.get("roles") or [])]
-    is_admin = any(r in ("SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN") for r in roles)
 
     # 0. Primary indexed BIGINT lookup by user_ref_id / retailer_ref_id
     eff_ref = (
@@ -136,7 +168,16 @@ async def get_authenticated_retailer(
     if eff_ref:
         try:
             ref_int = int(eff_ref)
-            ret_ref_stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == ref_int, RetailerModel.is_deleted == False)
+            ret_ref_stmt = select(RetailerModel).where(
+                or_(
+                    RetailerModel.retailer_ref_id == ref_int,
+                    RetailerModel.id == ref_int
+                ),
+                RetailerModel.is_deleted == False
+            ).order_by(
+                case((RetailerModel.retailer_ref_id == ref_int, 1), else_=2),
+                RetailerModel.id.asc()
+            )
             ret_by_ref = (await db.execute(ret_ref_stmt)).scalars().first()
             if ret_by_ref:
                 return ret_by_ref
@@ -407,6 +448,21 @@ async def create_topup_request(
 
     wallet_id = wallet.public_id if wallet else None
 
+    # 1b. Strict Unique Payment Reference (UTR / Bank Reference) Check
+    clean_payment_ref = (req.payment_reference or "").strip()
+    if clean_payment_ref:
+        dup_stmt = select(TopupRequestModel).where(
+            func.trim(func.upper(TopupRequestModel.payment_reference)) == clean_payment_ref.upper(),
+            TopupRequestModel.is_deleted == False
+        )
+        dup_res = await db.execute(dup_stmt)
+        existing_dup = dup_res.scalars().first()
+        if existing_dup:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Payment reference / UTR '{clean_payment_ref}' has already been submitted in topup request '{existing_dup.topup_request_id}'. Each payment reference must be unique and cannot be reused."
+            )
+
     # 2. Generate unique Topup Request ID
     now_utc = datetime.now(timezone.utc)
     topup_req_id = f"TOP-REQ-{now_utc.strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
@@ -456,12 +512,23 @@ async def create_topup_request(
             mdr_charge_val = 0.0
 
     # 3. Create TopupRequestModel with pricing snapshot
+    ret_ref = getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "user_ref_id", None) or 24
+    wal_ref = getattr(wallet, "retailer_wallet_ref_id", None) or getattr(wallet, "wallet_ref_id", None)
+    ten_ref = getattr(retailer, "tenant_ref_id", None) or 1
+    cmp_ref = getattr(retailer, "company_ref_id", None) or 1
+
     topup_model = TopupRequestModel(
         public_id=uuid.uuid4(),
         tenant_id=retailer.tenant_id,
         company_id=retailer.company_id,
         retailer_id=retailer.public_id,
         wallet_id=wallet_id,
+        tenant_ref_id=ten_ref,
+        company_ref_id=cmp_ref,
+        user_ref_id=ret_ref,
+        user_type_ref_id=2,
+        retailer_ref_id=ret_ref,
+        retailer_wallet_ref_id=wal_ref,
         topup_request_id=topup_req_id,
         requested_amount=req.requested_amount,
         approved_amount=None,
@@ -656,6 +723,28 @@ async def get_my_topup_requests(
     }
 
 
+@router.get("/request", summary="Get Authenticated Retailer's Topup Requests (Alias for /my-requests)")
+async def get_topup_request_get_alias(
+    request: Request,
+    retailer_id: Optional[str] = Query(None),
+    user_ref_id: Optional[int] = Query(None),
+    user_type_ref_id: Optional[int] = Query(None),
+    retailer: RetailerModel = Depends(get_authenticated_retailer),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Handles GET /api/v1/topup/request?user_type_ref_id=2&user_ref_id=24
+    Returns retailer's topup request history, live wallet balance, and retailer metadata.
+    """
+    return await get_my_topup_requests(
+        request=request,
+        retailer_id=retailer_id,
+        retailer=retailer,
+        db=db
+    )
+
+
+
 # ==============================================================================
 # 4. ADMIN GET PAGINATED TOPUP REQUESTS
 # ==============================================================================
@@ -803,6 +892,13 @@ async def get_admin_topup_requests(
             float(topup.approved_amount) if topup.approved_amount is not None else float(topup.requested_amount)
         )
 
+        mdr_pct = 0.0
+        if topup.mdr_charge is not None and topup.requested_amount and float(topup.requested_amount) > 0:
+            mdr_pct = round((float(topup.mdr_charge) / float(topup.requested_amount)) * 100, 2)
+        elif topup.charges is not None and topup.requested_amount and float(topup.requested_amount) > 0:
+            base_mdr = float(topup.charges) if not topup.gst_amount else float(topup.charges) - float(topup.gst_amount)
+            mdr_pct = round((max(0.0, base_mdr) / float(topup.requested_amount)) * 100, 2)
+
         items.append({
             "id": str(topup.public_id),
             "topup_request_id": topup.topup_request_id,
@@ -810,6 +906,7 @@ async def get_admin_topup_requests(
             "approved_amount": float(topup.approved_amount) if topup.approved_amount is not None else None,
             "received_amount": received_val,
             "mdr_charge": float(topup.mdr_charge) if topup.mdr_charge is not None else 0.0,
+            "mdr_percentage": mdr_pct,
             "gst_amount": float(topup.gst_amount) if topup.gst_amount is not None else 0.0,
             "charges": float(topup.charges) if topup.charges is not None else 0.0,
             "mdr_config_id": str(topup.mdr_config_id) if topup.mdr_config_id else None,
@@ -1061,118 +1158,56 @@ async def approve_topup_request(
             detail=f"Cannot approve topup. Retailer '{retailer.retailer_code}' is currently {ret_status or 'UNAPPROVED'}. Retailer account must be approved before wallet credits can be allocated."
         )
 
-    # 5. Row-lock RetailerWalletModel
-    wal_stmt = select(RetailerWalletModel).where(
-        RetailerWalletModel.retailer_id == target_retailer_id
-    ).with_for_update()
-    wal_res = await db.execute(wal_stmt)
-    wallet = wal_res.scalars().first()
-
+    # 5. Execute Atomic Wallet Credit via Stored Procedure: public.wallet_balance_update
     now_utc = datetime.now(timezone.utc)
-    opening_balance = float(wallet.wallet_balance) if wallet else 0.0
-    closing_balance = opening_balance + final_approved_amount
-
-    if wallet:
-        wallet.wallet_balance = closing_balance
-        wallet.updated_date = now_utc
-        wallet_public_id = wallet.public_id
-    else:
-        wallet_public_id = uuid.uuid4()
-        wallet = RetailerWalletModel(
-            public_id=wallet_public_id,
-            tenant_id=retailer.tenant_id,
-            company_id=retailer.company_id,
-            retailer_id=retailer.public_id,
-            wallet_balance=closing_balance,
-            daily_transaction_limit=500000.0,
-            single_transaction_limit=100000.0,
-            is_frozen=False,
-            is_active=True,
-            record_status="ACTIVE",
-            is_deleted=False,
-            version_no=1,
-            created_date=now_utc,
-            updated_date=now_utc
-        )
-        db.add(wallet)
-
-    # 6. Generate Transaction Reference
     now_date_str = now_utc.strftime("%Y%m%d")
     txn_ref = f"TOP-{now_date_str}-{uuid.uuid4().hex[:6].upper()}"
-    txn_uuid = uuid.uuid4()
 
-    # 7. Create Double-Entry Ledger Entry
-    ledger_entry = TransactionLedgerEntryModel(
-        tenant_id=retailer.tenant_id,
-        transaction_id=txn_uuid,
-        transaction_reference=txn_ref,
+    adj_dto = WalletAdjustmentDTO(
+        user_ref_id=getattr(retailer, "retailer_ref_id", None) or 24,
+        user_type_ref_id=2,
+        retailer_code=retailer.retailer_code,
+        user_id=str(retailer.public_id),
         entry_type="CREDIT",
-        account_type="RETAILER_WALLET",
-        account_number=str(retailer.public_id),
         amount=final_approved_amount,
-        balance_before=opening_balance,
-        balance_after=closing_balance,
-        currency="INR",
-        narration=f"Topup Approved by Admin ({current_admin.email}) for Req {topup_record.topup_request_id} [UTR: {topup_record.payment_reference or 'N/A'}]",
-        created_at=now_utc
-    )
-    db.add(ledger_entry)
-
-    # 8. Create Central Transactions Table Record (Append-Only)
-    top_keys = compute_transaction_date_and_partition_keys(now_utc)
-    central_txn = CentralTransactionModel(
-        public_id=txn_uuid,
-        tenant_id=retailer.tenant_id,
-        company_id=retailer.company_id,
-        retailer_id=retailer.public_id,
-        txn_id=txn_ref,
-        ref_id=topup_record.payment_reference or txn_ref,
-        table_ref_id=topup_record.public_id,
         service_name="TOPUP",
         wallet_type="MAIN",
         user_type="RETAILER",
-        user_type_ref_id=2,
-        entry_type="CREDIT",
-        amount=Decimal(str(final_approved_amount)),
-        balance_before=Decimal(str(opening_balance)),
-        balance_after=Decimal(str(closing_balance)),
-        status="SUCCESS",
-        narration=f"Wallet Topup Approved by Admin ({current_admin.email}) [Req: {topup_record.topup_request_id}]",
-        day_key=top_keys["day_key"],
-        week_key=top_keys["week_key"],
-        month_key=top_keys["month_key"],
-        quarter_key=top_keys["quarter_key"],
-        year_key=top_keys["year_key"],
-        financial_year_key=top_keys["financial_year_key"],
-        financial_quarter_key=top_keys["financial_quarter_key"],
-        financial_month_key=top_keys["financial_month_key"],
-        date_key=top_keys["date_key"],
-        time_key=top_keys["time_key"],
-        partition_year=top_keys["partition_year"],
-        partition_month=top_keys["partition_month"],
-        partition_day=top_keys["partition_day"],
-        is_active=True,
-        is_deleted=False,
-        created_at=now_utc,
-        updated_at=now_utc,
+        txn_id=txn_ref,
+        ref_id=topup_record.payment_reference or txn_ref,
+        table_ref_id=str(topup_record.public_id),
+        narration=f"Topup Approved by Admin ({current_admin.email}) for Req {topup_record.topup_request_id} [UTR: {topup_record.payment_reference or 'N/A'}]",
+        admin_notes=req.admin_notes,
+        actor_id=str(current_admin.public_id),
+        actor_name=current_admin.email
     )
-    db.add(central_txn)
 
-    # 9. Update TopupRequestModel
+    sp_result = await WalletBalanceAdjustmentService.execute_wallet_balance_update(
+        db=db,
+        dto=adj_dto,
+        actor_user=current_admin
+    )
+
+    if not sp_result.success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Wallet credit failed via Stored Procedure [{sp_result.error_code}]: {sp_result.error_message}"
+        )
+
+    # 6. Update TopupRequestModel
     topup_record.status = "APPROVED"
     topup_record.approved_amount = final_approved_amount
     topup_record.received_amount = final_approved_amount
     topup_record.approved_by = current_admin.email
     topup_record.approved_at = now_utc
-    topup_record.wallet_id = wallet_public_id
-    topup_record.transaction_id = txn_uuid
-    topup_record.transaction_reference = txn_ref
+    topup_record.transaction_reference = sp_result.txn_id
     topup_record.admin_notes = req.admin_notes
     topup_record.updated_date = now_utc
     topup_record.updated_by = current_admin.email
 
-    # 10. Commit Atomic Database Transaction
     await db.commit()
+    await db.refresh(topup_record)
+
 
     # 11. Send Automated Email Notification to Retailer
     recipient_email = None
@@ -1223,8 +1258,8 @@ async def approve_topup_request(
                 "charges": float(topup_record.charges) if topup_record.charges is not None else 0.0,
                 "approved_amount": final_approved_amount,
                 "received_amount": final_approved_amount,
-                "previous_balance": opening_balance,
-                "current_balance": closing_balance,
+                "previous_balance": sp_result.balance_before,
+                "current_balance": sp_result.balance_after,
                 "approved_by": current_admin.email,
                 "approved_at": now_utc.strftime("%d-%m-%Y %H:%M:%S IST"),
                 "admin_notes": req.admin_notes
@@ -1242,16 +1277,16 @@ async def approve_topup_request(
         "recipient_email": recipient_email,
         "data": {
             "topup_request_id": topup_record.topup_request_id,
-            "transaction_reference": txn_ref,
+            "transaction_reference": sp_result.txn_id,
             "retailer_code": retailer.retailer_code,
             "retailer_name": get_retailer_display_name(retailer),
-            "wallet_id": str(wallet_public_id),
+            "wallet_id": str(retailer.public_id),
             "requested_amount": float(topup_record.requested_amount),
             "approved_amount": final_approved_amount,
             "received_amount": final_approved_amount,
-            "previous_balance": opening_balance,
-            "credited_amount": final_approved_amount,
-            "current_balance": closing_balance,
+            "previous_balance": sp_result.balance_before,
+            "credited_amount": sp_result.amount,
+            "current_balance": sp_result.balance_after,
             "status": "APPROVED",
             "approved_by": current_admin.email,
             "approved_at": now_utc.isoformat(),

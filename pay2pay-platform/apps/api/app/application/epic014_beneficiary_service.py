@@ -20,6 +20,7 @@ from app.infrastructure.db.epic014_models import (
     CashfreeApiLogModel,
 )
 from app.application.cashfree_service import CashfreeVerificationService
+from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
 
 
 class Epic014BeneficiaryService:
@@ -275,176 +276,116 @@ class Epic014BeneficiaryService:
             }
 
         # ----------------------------------------------------
-        # 2. WALLET BALANCE CHECK & PRE-DEBIT (Base ₹3.00 + GST ₹0.54 = Total ₹3.54)
-        # NOTE: Beneficiary verification (penny drop) is allowed even if wallet balance
-        # is insufficient. The fee is debited if balance permits; otherwise it is recorded
-        # as a post-paid / credit obligation. This allows retailers to validate beneficiaries
-        # before loading their wallet, which is a required business flow.
+        # 2. PHASE 1: WALLET PRE-DEBIT (Base ₹3.00 + GST ₹0.54 = Total ₹3.54)
+        # Authoritative Execution via PostgreSQL Stored Procedure: public.wallet_balance_update
+        # Generates exactly 2 line entries in public.transactions:
+        # Line 1: Base Charge ₹3.00 (Service: BENE_VERIFY)
+        # Line 2: GST 18% ₹0.54 (Service: BENE_VERIFY)
         # ----------------------------------------------------
-        charge_amount = 3.0
-        gst_pct = 18.0
-        gst_amount = round(charge_amount * (gst_pct / 100.0), 2)
-        net_amount = round(charge_amount + gst_amount, 2)
-
-        # Determine if wallet has sufficient balance for fee debit
-        wallet_has_balance = current_wallet_balance >= net_amount
-        # If balance < fee, we allow the verification to proceed but mark fee as post-paid
-        # (Do NOT block — this is pre-transaction validation, not the actual money transfer)
+        charge_amount = 3.00
+        gst_amount = 0.54
+        net_amount = 3.54
 
         ref_id = f"CFV2-PD-{int(time.time() * 1000)}"
         from app.core.transaction_id_generator import generate_transaction_number
         txn_id = await generate_transaction_number(db, service_prefix="RPD")
 
-        opening_balance = current_wallet_balance
-        closing_balance = opening_balance - net_amount if wallet_has_balance else opening_balance
-
-        # Record Wallet Transaction (debit if balance available, else mark as post-paid obligation)
-        w_txn = WalletTransactionRecordModel(
-            tenant_id=tenant_id,
-            company_id=company_id,
-            retailer_id=retailer_id,
-            wallet_id=wallet_id,
-            transaction_type="BENEFICIARY_VERIFICATION_DEBIT" if wallet_has_balance else "BENEFICIARY_VERIFICATION_POSTPAID",
+        debit_dto = WalletAdjustmentDTO(
+            retailer_id=str(retailer_id) if retailer_id else None,
+            entry_type="DEBIT",
             amount=net_amount,
-            opening_balance=opening_balance,
-            closing_balance=closing_balance,
-            reference_id=ref_id,
-            remarks=(
-                f"Verification charge (Base ₹{charge_amount:.2f} + GST ₹{gst_amount:.2f}) for account {masked_account}"
-                if wallet_has_balance
-                else f"Verification charge POST-PAID (wallet balance ₹{current_wallet_balance:.2f} < required ₹{net_amount:.2f}) for account {masked_account}"
-            ),
-        )
-        db.add(w_txn)
-        await db.flush()
-
-        if wallet_has_balance:
-            # Double Entry Wallet Ledger (Debit Retailer Wallet net_amount, Credit Revenue & GST)
-            wl_debit = WalletLedgerRecordModel(
-                tenant_id=tenant_id,
-                company_id=company_id,
-                transaction_id=w_txn.public_id,
-                account_code="RETAILER_MAIN_WALLET",
-                entry_type="DEBIT",
-                amount=net_amount,
-                running_balance=closing_balance,
-            )
-            wl_credit_rev = WalletLedgerRecordModel(
-                tenant_id=tenant_id,
-                company_id=company_id,
-                transaction_id=w_txn.public_id,
-                account_code="VERIFICATION_REVENUE_ACCOUNT",
-                entry_type="CREDIT",
-                amount=charge_amount,
-                running_balance=charge_amount,
-            )
-            wl_credit_gst = WalletLedgerRecordModel(
-                tenant_id=tenant_id,
-                company_id=company_id,
-                transaction_id=w_txn.public_id,
-                account_code="GST_PAYABLE_ACCOUNT",
-                entry_type="CREDIT",
-                amount=gst_amount,
-                running_balance=gst_amount,
-            )
-            db.add(wl_debit)
-            db.add(wl_credit_rev)
-            db.add(wl_credit_gst)
-
-        # Record Financial Transaction (GST & Tax tracking)
-        fin_txn = FinancialTransactionRecordModel(
-            tenant_id=tenant_id,
-            company_id=company_id,
-            store_id=store_id,
-            retailer_id=retailer_id,
-            customer_id=customer_id,
-            wallet_id=wallet_id,
-            transaction_id=txn_id,
-            reference_id=ref_id,
-            service_code="BENEFICIARY_VERIFICATION",
-            service_name="Cashfree V2 Penny Drop",
-            amount=charge_amount,
-            gst_pct=gst_pct,
+            payout_amount=0.0,
+            charge_amount=charge_amount,
             gst_amount=gst_amount,
-            cgst=round(gst_amount / 2, 2),
-            sgst=round(gst_amount / 2, 2),
-            igst=0.0,
-            net_amount=net_amount,
-            entry_type="DEBIT",
-            status="PENDING",
-            remarks=f"Penny drop verification for {clean_ifsc}",
+            service_name="BENE_VERIFY",
+            wallet_type="MAIN",
+            user_type="RETAILER",
+            txn_id=txn_id,
+            ref_id=ref_id,
+            narration=f"{clean_account} - {clean_ifsc}"
         )
-        db.add(fin_txn)
-        await db.flush()
+        debit_result = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db, debit_dto)
 
-        fin_ledger = FinancialLedgerRecordModel(
-            tenant_id=tenant_id,
-            company_id=company_id,
-            financial_transaction_id=fin_txn.public_id,
-            account_code="RETAILER_WALLET",
-            entry_type="DEBIT",
-            amount=net_amount,
-        )
-        db.add(fin_ledger)
-        await db.commit()
+        # Strict Pre-Condition: If debit failed / balance insufficient -> STOP, DO NOT CALL VENDOR API
+        if not debit_result.success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "status": "FAILED",
+                    "error_code": debit_result.error_code or "INSUFFICIENT_BALANCE",
+                    "message": debit_result.error_message or f"Insufficient wallet balance. Available: ₹{debit_result.balance_before:.2f}, Required: ₹{net_amount:.2f}",
+                    "wallet_balance": debit_result.balance_before,
+                    "required_amount": net_amount
+                }
+            )
 
         # ----------------------------------------------------
-        # 3. CALL CASHFREE V2 PENNY DROP API
+        # 3. PHASE 2: CALL CASHFREE V2 PENNY DROP VENDOR API
+        # Only reached if Phase 1 debit successfully completed
         # ----------------------------------------------------
         start_time = time.time()
-        cf_res = CashfreeVerificationService.verify_bank_account_penny_drop_v2(
-            bank_account=clean_account,
-            ifsc=clean_ifsc,
-            name=account_holder_name,
-        )
+        try:
+            cf_res = CashfreeVerificationService.verify_bank_account_penny_drop_v2(
+                bank_account=clean_account,
+                ifsc=clean_ifsc,
+                name=account_holder_name,
+            )
+        except Exception as vendor_err:
+            cf_res = {
+                "status": "FAILED",
+                "is_valid": False,
+                "message": f"Bank gateway connection error: {str(vendor_err)}"
+            }
         latency_ms = round((time.time() - start_time) * 1000, 2)
 
-        # Log API Call
-        api_log = ApiTransactionLogModel(
-            tenant_id=tenant_id,
-            company_id=company_id,
-            provider="CASHFREE",
-            service_code="PENNY_DROP_V2",
-            reference_id=ref_id,
-            endpoint="https://api.cashfree.com/verification/bank-account/sync",
-            request_payload_masked=json.dumps({"bank_account": masked_account, "ifsc": clean_ifsc}),
-            response_payload_masked=json.dumps({
-                "status": cf_res.get("status"),
-                "account_status": cf_res.get("account_status"),
-                "name_at_bank": cf_res.get("name_at_bank"),
-                "ref_id": cf_res.get("ref_id"),
-            }),
-            http_status_code=cf_res.get("http_status_code", 200),
-            latency_ms=latency_ms,
-            status=cf_res.get("status", "FAILED"),
-        )
-        db.add(api_log)
+        # Log API Transaction
+        try:
+            api_log = ApiTransactionLogModel(
+                tenant_id=tenant_id,
+                company_id=company_id,
+                provider="CASHFREE",
+                service_code="PENNY_DROP_V2",
+                reference_id=ref_id,
+                endpoint="https://api.cashfree.com/verification/bank-account/sync",
+                request_payload_masked=json.dumps({"bank_account": masked_account, "ifsc": clean_ifsc}),
+                response_payload_masked=json.dumps({
+                    "status": cf_res.get("status"),
+                    "account_status": cf_res.get("account_status"),
+                    "name_at_bank": cf_res.get("name_at_bank"),
+                    "ref_id": cf_res.get("ref_id"),
+                }),
+                http_status_code=cf_res.get("http_status_code", 200),
+                latency_ms=latency_ms,
+                status=cf_res.get("status", "FAILED"),
+            )
+            db.add(api_log)
 
-        cf_ref_str = str(cf_res.get("ref_id")) if cf_res.get("ref_id") is not None else None
-
-        cf_log = CashfreeApiLogModel(
-            tenant_id=tenant_id,
-            company_id=company_id,
-            cashfree_ref_id=cf_ref_str,
-            verification_id=ref_id,
-            bank_account_masked=masked_account,
-            ifsc=clean_ifsc,
-            request_json=json.dumps({"bank_account": masked_account, "ifsc": clean_ifsc}),
-            response_json=json.dumps(cf_res),
-            utr=str(cf_res.get("utr")) if cf_res.get("utr") is not None else None,
-            name_at_bank=cf_res.get("name_at_bank"),
-            account_status=cf_res.get("account_status"),
-        )
-        db.add(cf_log)
+            cf_ref_str = str(cf_res.get("ref_id")) if cf_res.get("ref_id") is not None else None
+            cf_log = CashfreeApiLogModel(
+                tenant_id=tenant_id,
+                company_id=company_id,
+                cashfree_ref_id=cf_ref_str,
+                verification_id=ref_id,
+                bank_account_masked=masked_account,
+                ifsc=clean_ifsc,
+                request_json=json.dumps({"bank_account": masked_account, "ifsc": clean_ifsc}),
+                response_json=json.dumps(cf_res),
+                utr=str(cf_res.get("utr")) if cf_res.get("utr") is not None else None,
+                name_at_bank=cf_res.get("name_at_bank"),
+                account_status=cf_res.get("account_status"),
+            )
+            db.add(cf_log)
+        except Exception:
+            pass
 
         # ----------------------------------------------------
-        # 4. SUCCESS OR FAILURE HANDLING
+        # 4. PHASE 3: SUCCESS PERSISTENCE OR AUTOMATIC REVERSAL
         # ----------------------------------------------------
         if cf_res.get("status") == "SUCCESS" and cf_res.get("is_valid"):
             # SUCCESS PATH
             verified_name = (cf_res.get("name_at_bank") or account_holder_name or "VERIFIED HOLDER").upper()
 
-            # Create or update Master
+            # Create or update Beneficiary Master
             if not existing_master:
                 master = BeneficiaryMasterModel(
                     tenant_id=tenant_id,
@@ -473,7 +414,7 @@ class Epic014BeneficiaryService:
                 existing_master.verification_date = datetime.now()
                 master_id = existing_master.public_id
 
-            # Create Mapping
+            # Create Customer Mapping
             mapping = BeneficiaryCustomerMappingModel(
                 tenant_id=tenant_id,
                 company_id=company_id,
@@ -501,11 +442,6 @@ class Epic014BeneficiaryService:
             )
             db.add(v_record)
 
-            # Update Financial Txn Status
-            fin_txn.status = "SUCCESS"
-            fin_txn.completed_at = datetime.now()
-            fin_txn.beneficiary_id = master_id
-
             await db.commit()
 
             raw_rsp = cf_res.get("raw_response") or {}
@@ -522,8 +458,11 @@ class Epic014BeneficiaryService:
                 "verification_status": "VERIFIED",
                 "message": "Beneficiary verified and registered successfully via Cashfree V2 Penny Drop",
                 "refund_issued": False,
-                "fee_post_paid": not wallet_has_balance,
-                "wallet_balance_after": closing_balance,
+                "wallet_debit": net_amount,
+                "charge_amount": charge_amount,
+                "gst_amount": gst_amount,
+                "wallet_balance_after": debit_result.balance_after,
+                "transaction_id": txn_id,
                 "beneficiary": {
                     "beneficiary_id": str(master_id),
                     "account_holder_name": verified_name,
@@ -547,71 +486,34 @@ class Epic014BeneficiaryService:
             }
 
         else:
-            # FAILURE PATH: IMMEDIATE FULL WALLET REFUND (+₹3.54)
-            refund_opening = closing_balance
-            refund_closing = refund_opening + net_amount
-
-            refund_w_txn = WalletTransactionRecordModel(
-                tenant_id=tenant_id,
-                company_id=company_id,
-                retailer_id=retailer_id,
-                wallet_id=wallet_id,
-                transaction_type="BENEFICIARY_VERIFICATION_REFUND_CREDIT",
-                amount=net_amount,
-                opening_balance=refund_opening,
-                closing_balance=refund_closing,
-                reference_id=f"REFUND-{ref_id}",
-                remarks=f"Full refund (Base ₹{charge_amount:.2f} + GST ₹{gst_amount:.2f}) for failed Cashfree verification ({masked_account})",
-            )
-            db.add(refund_w_txn)
-            await db.flush()
-
-            # Reverse Wallet Ledger Entries
-            wl_ref_rev = WalletLedgerRecordModel(
-                tenant_id=tenant_id,
-                company_id=company_id,
-                transaction_id=refund_w_txn.public_id,
-                account_code="VERIFICATION_REVENUE_ACCOUNT",
-                entry_type="DEBIT",
-                amount=charge_amount,
-                running_balance=0.0,
-            )
-            wl_ref_gst = WalletLedgerRecordModel(
-                tenant_id=tenant_id,
-                company_id=company_id,
-                transaction_id=refund_w_txn.public_id,
-                account_code="GST_PAYABLE_ACCOUNT",
-                entry_type="DEBIT",
-                amount=gst_amount,
-                running_balance=0.0,
-            )
-            wl_ref_credit = WalletLedgerRecordModel(
-                tenant_id=tenant_id,
-                company_id=company_id,
-                transaction_id=refund_w_txn.public_id,
-                account_code="RETAILER_MAIN_WALLET",
+            # FAILURE PATH: IMMEDIATE AUTOMATIC REVERSAL CREDIT (+₹3.54)
+            # Reversal generates 2 double-entry credit lines in public.transactions (Charge ₹3.00 + GST ₹0.54)
+            rev_txn_id = f"REV-{txn_id}"
+            rev_dto = WalletAdjustmentDTO(
+                retailer_id=str(retailer_id) if retailer_id else None,
                 entry_type="CREDIT",
                 amount=net_amount,
-                running_balance=refund_closing,
+                payout_amount=0.0,
+                charge_amount=charge_amount,
+                gst_amount=gst_amount,
+                service_name="BENE_VERIFY",
+                wallet_type="MAIN",
+                user_type="RETAILER",
+                txn_id=rev_txn_id,
+                ref_id=f"REFUND-{ref_id}",
+                narration=f"Reversal: Failed Penny Drop Verification for A/C {clean_account} ({clean_ifsc})"
             )
-            db.add(wl_ref_rev)
-            db.add(wl_ref_gst)
-            db.add(wl_ref_credit)
-
-            fin_txn.status = "REFUNDED"
-            fin_txn.completed_at = datetime.now()
-
-            await db.commit()
+            rev_result = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db, rev_dto)
 
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={
                     "status": "FAILED",
                     "error_code": "PENNY_DROP_FAILED",
-                    "message": cf_res.get("message") or "Penny Drop Verification failed with Cashfree V2",
+                    "message": cf_res.get("message") or "Penny Drop Verification failed with bank gateway. Verification fee ₹3.54 has been fully refunded to your wallet.",
                     "reference_id": ref_id,
                     "wallet_refunded": True,
                     "refund_amount": net_amount,
-                    "wallet_balance_after": refund_closing,
+                    "wallet_balance_after": rev_result.balance_after,
                 }
             )

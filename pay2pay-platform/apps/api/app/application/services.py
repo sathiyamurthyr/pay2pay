@@ -2373,177 +2373,181 @@ class RetailerManagementService:
         except Exception:
             return 0
 
-        synced_count = 0
-        for v in verifs:
-            clean_mobile = v.mobile_number.replace("+91", "").strip()
-            ret_chk_stmt = (
-                select(RetailerModel)
-                .join(RetailerContactModel, RetailerModel.public_id == RetailerContactModel.retailer_id, isouter=True)
-                .where(
-                    or_(
-                        RetailerModel.retailer_code == v.retailer_id,
-                        RetailerModel.retailer_code == f"RET-{clean_mobile}",
-                        RetailerModel.retailer_code == v.registration_id,
-                        RetailerContactModel.mobile == v.mobile_number,
-                        RetailerContactModel.mobile == clean_mobile,
-                        RetailerContactModel.mobile == f"+91{clean_mobile}"
+        try:
+            synced_count = 0
+            for v in verifs:
+                clean_mobile = v.mobile_number.replace("+91", "").strip()
+                ret_chk_stmt = (
+                    select(RetailerModel)
+                    .join(RetailerContactModel, RetailerModel.public_id == RetailerContactModel.retailer_id, isouter=True)
+                    .where(
+                        or_(
+                            RetailerModel.retailer_code == v.retailer_id,
+                            RetailerModel.retailer_code == f"RET-{clean_mobile}",
+                            RetailerModel.retailer_code == v.registration_id,
+                            RetailerContactModel.mobile == v.mobile_number,
+                            RetailerContactModel.mobile == clean_mobile,
+                            RetailerContactModel.mobile == f"+91{clean_mobile}"
+                        )
                     )
                 )
-            )
-            existing_ret = (await db.execute(ret_chk_stmt)).scalars().first()
+                existing_ret = (await db.execute(ret_chk_stmt)).scalars().first()
 
-            v_status = (v.verification_status or "").upper()
-            if v_status in ("APPROVED", "ACTIVE"):
-                ret_status = "ACTIVE"
-            elif v_status in ("REJECTED",):
-                ret_status = "REJECTED"
-            elif v_status in ("ON_HOLD", "HOLD", "NEED_INFO"):
-                ret_status = "HOLD"
-            else:
-                ret_status = "PENDING_APPROVAL"
+                v_status = (v.verification_status or "").upper()
+                if v_status in ("APPROVED", "ACTIVE"):
+                    ret_status = "ACTIVE"
+                elif v_status in ("REJECTED",):
+                    ret_status = "REJECTED"
+                elif v_status in ("ON_HOLD", "HOLD", "NEED_INFO"):
+                    ret_status = "HOLD"
+                else:
+                    ret_status = "PENDING_APPROVAL"
 
-            if not existing_ret:
-                reg_id = v.registration_id
-                pan = (await db.execute(select(RegistrationPanModel).where(RegistrationPanModel.registration_id == reg_id))).scalars().first()
-                gst = (await db.execute(select(RegistrationGstModel).where(RegistrationGstModel.registration_id == reg_id))).scalars().first()
-                bank = (await db.execute(select(RegistrationBankModel).where(RegistrationBankModel.registration_id == reg_id))).scalars().first()
-                shop = (await db.execute(select(RegistrationShopModel).where(RegistrationShopModel.registration_id == reg_id))).scalars().first()
-                addr = (await db.execute(select(RegistrationAddressModel).where(RegistrationAddressModel.registration_id == reg_id))).scalars().first()
-                aadhaar_rec = (await db.execute(select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id).order_by(RegistrationAadhaarModel.created_date.desc()))).scalars().first()
-                draft_rec = (await db.execute(select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id))).scalars().first()
+                if not existing_ret:
+                    reg_id = v.registration_id
+                    pan = (await db.execute(select(RegistrationPanModel).where(RegistrationPanModel.registration_id == reg_id))).scalars().first()
+                    gst = (await db.execute(select(RegistrationGstModel).where(RegistrationGstModel.registration_id == reg_id))).scalars().first()
+                    bank = (await db.execute(select(RegistrationBankModel).where(RegistrationBankModel.registration_id == reg_id))).scalars().first()
+                    shop = (await db.execute(select(RegistrationShopModel).where(RegistrationShopModel.registration_id == reg_id))).scalars().first()
+                    addr = (await db.execute(select(RegistrationAddressModel).where(RegistrationAddressModel.registration_id == reg_id))).scalars().first()
+                    aadhaar_rec = (await db.execute(select(RegistrationAadhaarModel).where(RegistrationAadhaarModel.registration_id == reg_id).order_by(RegistrationAadhaarModel.created_date.desc()))).scalars().first()
+                    draft_rec = (await db.execute(select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id))).scalars().first()
 
-                reg_docs_q = await db.execute(select(RegistrationDocumentModel).where(RegistrationDocumentModel.registration_id == reg_id))
-                sync_docs = {d.doc_type: d.file_url for d in reg_docs_q.scalars().all() if d.doc_type and d.file_url}
-                if draft_rec and draft_rec.draft_data:
-                    dd = draft_rec.draft_data
-                    if "pan_card_url" in dd and "PAN" not in sync_docs:
-                        sync_docs["PAN"] = dd["pan_card_url"]
-                    if "aadhaar_front_url" in dd and "AADHAAR_FRONT" not in sync_docs:
-                        sync_docs["AADHAAR_FRONT"] = dd["aadhaar_front_url"]
-                    if "aadhaar_back_url" in dd and "AADHAAR_BACK" not in sync_docs:
-                        sync_docs["AADHAAR_BACK"] = dd["aadhaar_back_url"]
-                    if "gst_certificate_url" in dd and "GST_CERT" not in sync_docs:
-                        sync_docs["GST_CERT"] = dd["gst_certificate_url"]
+                    reg_docs_q = await db.execute(select(RegistrationDocumentModel).where(RegistrationDocumentModel.registration_id == reg_id))
+                    sync_docs = {d.doc_type: d.file_url for d in reg_docs_q.scalars().all() if d.doc_type and d.file_url}
+                    if draft_rec and draft_rec.draft_data:
+                        dd = draft_rec.draft_data
+                        if "pan_card_url" in dd and "PAN" not in sync_docs:
+                            sync_docs["PAN"] = dd["pan_card_url"]
+                        if "aadhaar_front_url" in dd and "AADHAAR_FRONT" not in sync_docs:
+                            sync_docs["AADHAAR_FRONT"] = dd["aadhaar_front_url"]
+                        if "aadhaar_back_url" in dd and "AADHAAR_BACK" not in sync_docs:
+                            sync_docs["AADHAAR_BACK"] = dd["aadhaar_back_url"]
+                        if "gst_certificate_url" in dd and "GST_CERT" not in sync_docs:
+                            sync_docs["GST_CERT"] = dd["gst_certificate_url"]
 
-                new_ret_id = uuid.uuid4()
-                use_tenant = v.tenant_id if (v.tenant_id and str(v.tenant_id) != "00000000-0000-0000-0000-000000000001") else (tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"))
-                ret_code = v.retailer_id if (v.retailer_id and v.retailer_id.startswith("P2P-R")) else f"P2P-R{random.randint(100000, 999999)}"
+                    new_ret_id = uuid.uuid4()
+                    use_tenant = v.tenant_id if (v.tenant_id and str(v.tenant_id) != "00000000-0000-0000-0000-000000000001") else (tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"))
+                    ret_code = v.retailer_id if (v.retailer_id and v.retailer_id.startswith("P2P-R")) else f"P2P-R{random.randint(100000, 999999)}"
 
-                new_ret = RetailerModel(
-                    public_id=new_ret_id,
-                    tenant_id=use_tenant,
-                    company_id=use_tenant,
-                    retailer_code=ret_code,
-                    store_name=v.shop_name or (shop.shop_name if shop else None) or "Retailer Store",
-                    legal_name=v.retailer_name or (pan.pan_holder_name if pan else "Retailer Partner"),
-                    owner_name=v.retailer_name or (pan.pan_holder_name if pan else "Retailer Partner"),
-                    business_category=shop.category if shop else "Recharge & FinTech",
-                    store_type="PHYSICAL",
-                    status=ret_status,
-                    created_by="Self-Onboarding Registration",
-                    is_deleted=False
-                )
-                db.add(new_ret)
+                    new_ret = RetailerModel(
+                        public_id=new_ret_id,
+                        tenant_id=use_tenant,
+                        company_id=use_tenant,
+                        retailer_code=ret_code,
+                        store_name=v.shop_name or (shop.shop_name if shop else None) or "Retailer Store",
+                        legal_name=v.retailer_name or (pan.pan_holder_name if pan else "Retailer Partner"),
+                        owner_name=v.retailer_name or (pan.pan_holder_name if pan else "Retailer Partner"),
+                        business_category=shop.category if shop else "Recharge & FinTech",
+                        store_type="PHYSICAL",
+                        status=ret_status,
+                        created_by="Self-Onboarding Registration",
+                        is_deleted=False
+                    )
+                    db.add(new_ret)
 
-                contact = RetailerContactModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=use_tenant,
-                    company_id=use_tenant,
-                    retailer_id=new_ret_id,
-                    primary_contact=v.retailer_name,
-                    mobile=clean_mobile,
-                    email=v.email or f"{clean_mobile}@pay2pay.in",
-                    created_by="Self-Onboarding Registration"
-                )
-                db.add(contact)
+                    contact = RetailerContactModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=use_tenant,
+                        company_id=use_tenant,
+                        retailer_id=new_ret_id,
+                        primary_contact=v.retailer_name,
+                        mobile=clean_mobile,
+                        email=v.email or f"{clean_mobile}@pay2pay.in",
+                        created_by="Self-Onboarding Registration"
+                    )
+                    db.add(contact)
 
-                address = RetailerAddressModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=use_tenant,
-                    company_id=use_tenant,
-                    retailer_id=new_ret_id,
-                    state=addr.state if addr else (v.state or "Tamil Nadu"),
-                    city=addr.city if addr else (v.district or "Chennai"),
-                    address=addr.street if addr else "Shop Address",
-                    pincode=addr.pincode if addr else "600001",
-                    created_by="Self-Onboarding Registration"
-                )
-                db.add(address)
+                    address = RetailerAddressModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=use_tenant,
+                        company_id=use_tenant,
+                        retailer_id=new_ret_id,
+                        state=addr.state if addr else (v.state or "Tamil Nadu"),
+                        city=addr.city if addr else (v.district or "Chennai"),
+                        address=addr.street if addr else "Shop Address",
+                        pincode=addr.pincode if addr else "600001",
+                        created_by="Self-Onboarding Registration"
+                    )
+                    db.add(address)
 
-                bank_obj = RetailerBankModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=use_tenant,
-                    company_id=use_tenant,
-                    retailer_id=new_ret_id,
-                    settlement_bank_name=bank.name_at_bank if bank else "Settlement Bank",
-                    account_holder=bank.name_at_bank if bank else v.retailer_name,
-                    account_number=bank.account_number_masked if bank else "000000000000",
-                    ifsc=(bank.ifsc if bank else "PAY20000001").upper(),
-                    verification_status="VERIFIED" if ret_status == "ACTIVE" else "PENDING",
-                    created_by="Self-Onboarding Registration"
-                )
-                db.add(bank_obj)
+                    bank_obj = RetailerBankModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=use_tenant,
+                        company_id=use_tenant,
+                        retailer_id=new_ret_id,
+                        settlement_bank_name=bank.name_at_bank if bank else "Settlement Bank",
+                        account_holder=bank.name_at_bank if bank else v.retailer_name,
+                        account_number=bank.account_number_masked if bank else "000000000000",
+                        ifsc=(bank.ifsc if bank else "PAY20000001").upper(),
+                        verification_status="VERIFIED" if ret_status == "ACTIVE" else "PENDING",
+                        created_by="Self-Onboarding Registration"
+                    )
+                    db.add(bank_obj)
 
-                kyc_obj = RetailerKycModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=use_tenant,
-                    company_id=use_tenant,
-                    retailer_id=new_ret_id,
-                    pan_number=(v.pan_number or (pan.pan_number if pan else None) or "").upper(),
-                    gst_number=(v.gst_number or (gst.gst_number if gst else None) or "").upper(),
-                    aadhaar_number=(aadhaar_rec.aadhaar_masked if aadhaar_rec else (draft_rec.draft_data.get("aadhaar_number") or draft_rec.draft_data.get("aadhaar_masked") if draft_rec and draft_rec.draft_data else None)),
-                    aadhaar_front_url=sync_docs.get("AADHAAR_FRONT"),
-                    aadhaar_back_url=sync_docs.get("AADHAAR_BACK"),
-                    business_proof_url=sync_docs.get("GST_CERT") or sync_docs.get("GST") or (gst.certificate_url if gst else None),
-                    verification_status="VERIFIED" if ret_status == "ACTIVE" else "PENDING",
-                    created_by="Self-Onboarding Registration"
-                )
-                db.add(kyc_obj)
+                    kyc_obj = RetailerKycModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=use_tenant,
+                        company_id=use_tenant,
+                        retailer_id=new_ret_id,
+                        pan_number=(v.pan_number or (pan.pan_number if pan else None) or "").upper(),
+                        gst_number=(v.gst_number or (gst.gst_number if gst else None) or "").upper(),
+                        aadhaar_number=(aadhaar_rec.aadhaar_masked if aadhaar_rec else (draft_rec.draft_data.get("aadhaar_number") or draft_rec.draft_data.get("aadhaar_masked") if draft_rec and draft_rec.draft_data else None)),
+                        aadhaar_front_url=sync_docs.get("AADHAAR_FRONT"),
+                        aadhaar_back_url=sync_docs.get("AADHAAR_BACK"),
+                        business_proof_url=sync_docs.get("GST_CERT") or sync_docs.get("GST") or (gst.certificate_url if gst else None),
+                        verification_status="VERIFIED" if ret_status == "ACTIVE" else "PENDING",
+                        created_by="Self-Onboarding Registration"
+                    )
+                    db.add(kyc_obj)
 
-                wallet_obj = RetailerWalletModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=use_tenant,
-                    company_id=use_tenant,
-                    retailer_id=new_ret_id,
-                    wallet_balance=0.0,
-                    daily_transaction_limit=5000000.0,
-                    single_transaction_limit=500000.0,
-                    created_by="Self-Onboarding Registration"
-                )
-                db.add(wallet_obj)
+                    wallet_obj = RetailerWalletModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=use_tenant,
+                        company_id=use_tenant,
+                        retailer_id=new_ret_id,
+                        wallet_balance=0.0,
+                        daily_transaction_limit=5000000.0,
+                        single_transaction_limit=500000.0,
+                        created_by="Self-Onboarding Registration"
+                    )
+                    db.add(wallet_obj)
 
-                approval_obj = RetailerApprovalModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=use_tenant,
-                    company_id=use_tenant,
-                    retailer_id=new_ret_id,
-                    request_type="ONBOARDING",
-                    status="APPROVED" if ret_status == "ACTIVE" else "PENDING",
-                    created_by="Self-Onboarding Registration"
-                )
-                db.add(approval_obj)
+                    approval_obj = RetailerApprovalModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=use_tenant,
+                        company_id=use_tenant,
+                        retailer_id=new_ret_id,
+                        request_type="ONBOARDING",
+                        status="APPROVED" if ret_status == "ACTIVE" else "PENDING",
+                        created_by="Self-Onboarding Registration"
+                    )
+                    db.add(approval_obj)
 
-                history_obj = RetailerStatusHistoryModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=use_tenant,
-                    company_id=use_tenant,
-                    retailer_id=new_ret_id,
-                    previous_status="DRAFT",
-                    new_status=ret_status,
-                    reason="Self-Registration Submission",
-                    changed_by_email="system@pay2pay.in",
-                    created_by="Self-Onboarding Registration"
-                )
-                db.add(history_obj)
-                synced_count += 1
-            else:
-                if existing_ret.status == "PENDING_APPROVAL" and ret_status == "ACTIVE":
-                    existing_ret.status = "ACTIVE"
+                    history_obj = RetailerStatusHistoryModel(
+                        public_id=uuid.uuid4(),
+                        tenant_id=use_tenant,
+                        company_id=use_tenant,
+                        retailer_id=new_ret_id,
+                        previous_status="DRAFT",
+                        new_status=ret_status,
+                        reason="Self-Registration Submission",
+                        changed_by_email="system@pay2pay.in",
+                        created_by="Self-Onboarding Registration"
+                    )
+                    db.add(history_obj)
                     synced_count += 1
+                else:
+                    if existing_ret.status == "PENDING_APPROVAL" and ret_status == "ACTIVE":
+                        existing_ret.status = "ACTIVE"
+                        synced_count += 1
 
-        if synced_count > 0:
-            await db.commit()
-        return synced_count
+            if synced_count > 0:
+                await db.commit()
+            return synced_count
+        except Exception as e:
+            await db.rollback()
+            return 0
 
     @staticmethod
     async def list_retailers(

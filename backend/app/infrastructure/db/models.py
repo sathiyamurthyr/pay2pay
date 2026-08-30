@@ -533,7 +533,7 @@ class OrganizationNoteModel(BaseEntity, EnterpriseBaseMixin):
 class RetailerModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "retailer"
 
-    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=False), nullable=True, index=True)
     tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)

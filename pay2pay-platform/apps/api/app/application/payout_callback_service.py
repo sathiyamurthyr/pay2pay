@@ -34,6 +34,7 @@ from app.infrastructure.db.enterprise_payout_models import (
     PayoutTransactionStatus
 )
 from app.infrastructure.db.models import RetailerWalletModel
+from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
 
 logger = logging.getLogger("payout_callback_service")
 
@@ -415,17 +416,20 @@ class PayoutCallbackService:
                 matched_tx.failure_reason = message or f"Callback status {new_status} from vendor {vendor_code}"
                 matched_tx.completed_at = datetime.now(timezone.utc)
 
-                # Execute automatic wallet reversal refund
-                stmt_w = select(RetailerWalletModel).where(
-                    RetailerWalletModel.retailer_id == matched_tx.retailer_id
-                ).with_for_update()
-                wallet = (await db.execute(stmt_w)).scalars().first()
-
-                if wallet:
-                    refund_before = wallet.wallet_balance
-                    wallet.wallet_balance = round(wallet.wallet_balance + matched_tx.net_debit, 2)
-                    refund_after = wallet.wallet_balance
-
+                # Execute automatic wallet reversal refund via Stored Procedure: public.wallet_balance_update
+                adj_dto = WalletAdjustmentDTO(
+                    user_id=str(matched_tx.retailer_id),
+                    entry_type="CREDIT",
+                    amount=float(matched_tx.net_debit),
+                    service_name="PAYOUT_REFUND",
+                    wallet_type="MAIN",
+                    user_type="RETAILER",
+                    txn_id=f"REF-CB-{uuid.uuid4().hex[:6].upper()}",
+                    ref_id=str(matched_tx.public_id),
+                    narration=f"Callback Auto Refund [{new_status}] for Payout {matched_tx.public_id}"
+                )
+                sp_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
+                if sp_res.success:
                     audit = PayoutAuditModel(
                         public_id=uuid.uuid4(),
                         transaction_id=matched_tx.public_id,
@@ -434,15 +438,15 @@ class PayoutCallbackService:
                         retailer_id=matched_tx.retailer_id,
                         tenant_id=matched_tx.tenant_id,
                         action=f"CALLBACK_AUTO_REFUND_{new_status}",
-                        wallet_before=refund_before,
-                        wallet_after=refund_after,
+                        wallet_before=sp_res.balance_before,
+                        wallet_after=sp_res.balance_after,
                         timestamp=datetime.now(timezone.utc),
                         is_active=True,
                         is_deleted=False
                     )
                     db.add(audit)
                     logger.info(
-                        f"[PAYOUT CALLBACK] Wallet refunded for retailer {matched_tx.retailer_id}: ₹{matched_tx.net_debit}"
+                        f"[PAYOUT CALLBACK] Wallet refunded via SP for retailer {matched_tx.retailer_id}: ₹{matched_tx.net_debit}"
                     )
 
             await db.commit()
@@ -461,29 +465,19 @@ class PayoutCallbackService:
                 matched_tx.status_description = message or f"Callback status {new_status} from vendor {vendor_code}"
                 matched_tx.completed_at = datetime.now(timezone.utc)
 
-                # Reversal ledger entry
-                stmt_w = select(RetailerWalletModel).where(
-                    RetailerWalletModel.retailer_id == matched_tx.retailer_id
-                ).with_for_update()
-                wallet = (await db.execute(stmt_w)).scalars().first()
-
-                if wallet:
-                    refund_before = wallet.wallet_balance
-                    wallet.wallet_balance = round(wallet.wallet_balance + matched_tx.net_debit, 2)
-                    refund_after = wallet.wallet_balance
-
-                    rev_entry = PayoutDoubleEntryLedgerModel(
-                        public_id=uuid.uuid4(),
-                        transaction_id=matched_tx.public_id,
-                        entry_number=f"REV-CB-{uuid.uuid4().hex[:8].upper()}",
-                        entry_type="CREDIT",
-                        account_type="RETAILER_MAIN_WALLET",
-                        amount=matched_tx.net_debit,
-                        balance_after=refund_after,
-                        description=f"Automatic Callback Reversal for {new_status} payout {matched_tx.transaction_number}",
-                        is_reversal_entry=True
-                    )
-                    db.add(rev_entry)
+                # Reversal via Stored Procedure: public.wallet_balance_update
+                adj_dto = WalletAdjustmentDTO(
+                    user_id=str(matched_tx.retailer_id),
+                    entry_type="CREDIT",
+                    amount=float(matched_tx.net_debit),
+                    service_name="PAYOUT_REFUND",
+                    wallet_type="MAIN",
+                    user_type="RETAILER",
+                    txn_id=f"REV-CB-{uuid.uuid4().hex[:6].upper()}",
+                    ref_id=str(matched_tx.public_id),
+                    narration=f"Automatic Callback Reversal for {new_status} payout {matched_tx.transaction_number}"
+                )
+                sp_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
 
             audit_log = PayoutAuditLogModel(
                 public_id=uuid.uuid4(),

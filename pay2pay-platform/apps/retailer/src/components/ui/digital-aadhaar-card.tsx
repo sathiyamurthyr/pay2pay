@@ -51,7 +51,7 @@ export const DigitalAadhaarCard: React.FC<DigitalAadhaarCardProps> = ({ aadhaarD
   const fullAddress = aadhaarData.full_address || aadhaarData.fullAddress || "—";
   const photo = aadhaarData.photo_base64 || aadhaarData.photoBase64 || aadhaarData.photo_url || aadhaarData.photoUrl || "";
   const aadhaarHash = aadhaarData.aadhaar_hash || aadhaarData.aadhaarHash || "";
-  const totalBilled = aadhaarData.billing?.total_debited || 11.80;
+  const totalBilled = aadhaarData.billing?.total_debited || 3.54;
 
   return (
     <motion.div
@@ -97,13 +97,20 @@ export const DigitalAadhaarCard: React.FC<DigitalAadhaarCardProps> = ({ aadhaarD
           {/* Left Column: Photo & QR Code Badge */}
           <div className="md:col-span-4 flex flex-col items-center justify-center space-y-3 p-3 rounded-xl bg-slate-800/40 border border-slate-800">
             <div className="relative">
-              <BlurImage
-                src={photo}
-                blurhash={KNOWN_BLURHASHES.AADHAAR}
-                alt={fullName}
-                className="w-28 h-32 rounded-xl border-2 border-amber-500/40 shadow-md"
-                imageClassName="w-full h-full object-cover rounded-xl"
-              />
+              <div className="w-28 h-32 rounded-xl overflow-hidden border-2 border-amber-500/40 shadow-md bg-slate-800 flex items-center justify-center">
+                {photo ? (
+                  <img
+                    src={photo.startsWith("data:") || photo.startsWith("http") ? photo : `data:image/jpeg;base64,${photo}`}
+                    alt={fullName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-400 p-2 text-center">
+                    <UserCheck className="w-8 h-8 text-amber-400 mb-1" />
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">UIDAI Photo</span>
+                  </div>
+                )}
+              </div>
               <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1 rounded-full border border-slate-900 shadow-xs z-20">
                 <UserCheck className="w-4 h-4" />
               </div>
@@ -168,7 +175,7 @@ export const DigitalAadhaarCard: React.FC<DigitalAadhaarCardProps> = ({ aadhaarD
 
           <div className="flex items-center gap-2 font-mono">
             <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] font-bold">
-              Fee Billed: ₹{totalBilled.toFixed(2)} (₹10.00 + GST)
+              Fee Billed: ₹{totalBilled.toFixed(2)} (₹3.00 + GST)
             </span>
           </div>
         </div>
