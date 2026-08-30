@@ -49,26 +49,50 @@ async def initiate_bulkpe_payout(
     """
     from app.infrastructure.db.models import RetailerModel
 
-    # 1. Resolve retailer identifier
-    ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id") or "RET-10928"
     ret_obj = None
 
-    # Try UUID parse
+    # 1. Attempt JWT auth token/cookie context resolution
     try:
-        parsed_uuid = uuid.UUID(str(ret_identifier))
-        stmt = select(RetailerModel).where(RetailerModel.public_id == parsed_uuid)
-        ret_obj = (await db.execute(stmt)).scalars().first()
+        from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+        ctx = await resolve_retailer_context(request, req.retailer_id, db=db)
+        if ctx and ctx.get("public_id"):
+            stmt = select(RetailerModel).where(RetailerModel.public_id == ctx.get("public_id"), RetailerModel.is_deleted == False)
+            ret_obj = (await db.execute(stmt)).scalars().first()
     except Exception:
         pass
 
-    # Try retailer_code lookup
-    if not ret_obj and ret_identifier:
-        stmt = select(RetailerModel).where(RetailerModel.retailer_code == str(ret_identifier).strip().upper())
-        ret_obj = (await db.execute(stmt)).scalars().first()
-
-    # Fallback to RET-10928 if not found
+    # 2. Direct indexed BIGINT resolution via user_ref_id / retailer_ref_id
     if not ret_obj:
-        stmt = select(RetailerModel).where(RetailerModel.retailer_code == "RET-10928")
+        eff_ref_id = req.user_ref_id or req.retailer_ref_id or request.headers.get("x-user-ref-id")
+        if eff_ref_id:
+            try:
+                ref_int = int(eff_ref_id)
+                stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == ref_int, RetailerModel.is_deleted == False)
+                ret_obj = (await db.execute(stmt)).scalars().first()
+            except (ValueError, TypeError):
+                pass
+
+    # 3. Resolution via retailer identifier (UUID, retailer_code)
+    if not ret_obj:
+        ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id")
+        if ret_identifier:
+            try:
+                parsed_uuid = uuid.UUID(str(ret_identifier))
+                stmt = select(RetailerModel).where(RetailerModel.public_id == parsed_uuid, RetailerModel.is_deleted == False)
+                ret_obj = (await db.execute(stmt)).scalars().first()
+            except Exception:
+                pass
+
+        if not ret_obj and ret_identifier:
+            stmt = select(RetailerModel).where(RetailerModel.retailer_code == str(ret_identifier).strip().upper(), RetailerModel.is_deleted == False)
+            ret_obj = (await db.execute(stmt)).scalars().first()
+
+    # 4. Fallback to primary active platform retailer P2P-R404667
+    if not ret_obj:
+        stmt = select(RetailerModel).where(RetailerModel.retailer_code == "P2P-R404667", RetailerModel.is_deleted == False)
+        ret_obj = (await db.execute(stmt)).scalars().first()
+    if not ret_obj:
+        stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == 24, RetailerModel.is_deleted == False)
         ret_obj = (await db.execute(stmt)).scalars().first()
 
     retailer_uuid = ret_obj.public_id if ret_obj else uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e")

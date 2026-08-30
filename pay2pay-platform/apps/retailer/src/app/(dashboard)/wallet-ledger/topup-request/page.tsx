@@ -187,17 +187,27 @@ export default function RetailerTopupRequestPage() {
   const fetchMyTopups = useCallback(async () => {
     try {
       setLoadingRequests(true);
-      const activeCode =
-        (typeof window !== "undefined"
-          ? localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("retailer_code") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            ""
-          : "");
-      const query = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
-      const res = await api.get(`/api/v1/topup/my-requests${query}`, {
-        headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}
-      });
+      let userRefId: any = null;
+      let userTypeRefId: any = 2;
+      if (typeof window !== "undefined") {
+        try {
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+            userTypeRefId = u.user_type_ref_id || 2;
+          }
+        } catch {}
+      }
+      const qParams = new URLSearchParams();
+      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
+      if (userRefId) qParams.set("user_ref_id", String(userRefId));
+
+      const res = await api.get(`/api/v1/topup/my-requests?${qParams.toString()}`);
       setMyRequests(res.data.items || []);
       if (res.data?.retailer) {
         setRetailerInfo({
@@ -308,18 +318,27 @@ export default function RetailerTopupRequestPage() {
         mdr_config_id: mdrBreakdown?.mdr_config_id
       };
 
-      const activeCode =
-        retailerInfo?.code ||
-        (typeof window !== "undefined"
-          ? localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("retailer_code") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            ""
-          : "");
-      const queryParam = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
-      const res = await api.post(`/api/v1/topup/request${queryParam}`, payload, {
-        headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}
-      });
+      let userRefId: any = null;
+      let userTypeRefId: any = 2;
+      if (typeof window !== "undefined") {
+        try {
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+            userTypeRefId = u.user_type_ref_id || 2;
+          }
+        } catch {}
+      }
+      const qParams = new URLSearchParams();
+      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
+      if (userRefId) qParams.set("user_ref_id", String(userRefId));
+
+      const res = await api.post(`/api/v1/topup/request?${qParams.toString()}`, payload);
 
       const newReqId = res.data.topup_request_id;
       setSuccessMessage(res.data.message || `Topup request ${newReqId} submitted successfully and is pending admin verification.`);

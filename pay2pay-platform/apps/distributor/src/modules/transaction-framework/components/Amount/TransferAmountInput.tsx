@@ -135,11 +135,11 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
                 fontSize: "36px",
                 p: 0,
                 "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": {
-                  "-webkit-appearance": "none",
+                  WebkitAppearance: "none",
                   margin: 0,
                 },
                 "&[type=number]": {
-                  "-moz-appearance": "textfield",
+                  MozAppearance: "textfield",
                 },
               },
             },

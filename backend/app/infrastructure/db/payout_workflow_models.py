@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, date
 from typing import Optional, List
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON
+    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, Identity, FetchedValue
 )
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB, UUID
 JSONB = JSON
@@ -97,6 +97,13 @@ class BankHealthModel(BaseEntity, EnterpriseBaseMixin):
 class PayoutWorkflowTransactionModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "payout_workflow_transactions"
     __table_args__ = {'extend_existing': True}
+
+    payout_workflow_transactions_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=True))
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    customer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    beneficiary_master_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
 
     transaction_number: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     reference_number: Mapped[str] = mapped_column(String(100), nullable=False, index=True)

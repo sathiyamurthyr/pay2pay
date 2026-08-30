@@ -876,14 +876,34 @@ class PayoutWorkflowService:
         charges = val_res["charges"]
         net_debit = val_res["net_debit"]
         commission = round(amount * 0.0015, 2)  # Retailer commission +₹1.50 per ₹1000
-        
-        wallet_before = wallet_balance
-        wallet_after = wallet_before - net_debit + commission
 
         # Save Payout Transaction Record
+        cust_stmt = select(CustomerModel).where(CustomerModel.public_id == customer_id)
+        cust_obj = (await db.execute(cust_stmt)).scalars().first()
+        eff_cust_ref_id = getattr(cust_obj, "customer_ref_id", None) or 11
+        eff_bm_ref_id = getattr(ben, "beneficiary_master_ref_id", None) or getattr(bank_acc, "beneficiary_master_ref_id", None) or 3
+
+        ret_stmt = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
+        ret_obj = (await db.execute(ret_stmt)).scalars().first()
+        ret_ref_id = getattr(ret_obj, "retailer_ref_id", None) or 24
+        t_ref_id = getattr(ret_obj, "tenant_ref_id", None) or 1
+        c_ref_id = getattr(ret_obj, "company_ref_id", None) or 2
+        ret_name = getattr(ret_obj, "store_name", None) or getattr(ret_obj, "legal_name", None) or "Retailer"
+        comp_id = getattr(ret_obj, "company_id", None)
+
+        charge_ex_gst = max(0.0, float(charges) - float(charges * 0.18 / 1.18))
+        gst_val = round(float(charges) - charge_ex_gst, 2)
+
+        # 1. Primary Workflow Transaction Model (payout_workflow_transactions)
         payout = PayoutWorkflowTransactionModel(
             public_id=uuid.uuid4(),
             tenant_id=tenant_id,
+            company_id=comp_id,
+            retailer_ref_id=ret_ref_id,
+            tenant_ref_id=t_ref_id,
+            company_ref_id=c_ref_id,
+            customer_ref_id=eff_cust_ref_id,
+            beneficiary_master_ref_id=eff_bm_ref_id,
             created_by="RETAILER",
             transaction_number=txn_num,
             reference_number=ref_num,
@@ -895,8 +915,8 @@ class PayoutWorkflowService:
             charges=charges,
             commission=commission,
             net_debit=net_debit,
-            wallet_before=wallet_before,
-            wallet_after=wallet_after,
+            wallet_before=0.0,
+            wallet_after=0.0,
             mode=mode,
             status="SUCCESS",
             cashfree_transfer_id=f"CF-TRANSFER-{random.randint(100000, 999999)}",
@@ -905,70 +925,57 @@ class PayoutWorkflowService:
         )
         db.add(payout)
 
-        # Authoritative Central Ledger & Payout Transaction Records
-        now_dt = datetime.now(timezone.utc)
-        d_keys = compute_transaction_date_and_partition_keys(now_dt)
-        ret_stmt = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
-        ret_obj = (await db.execute(ret_stmt)).scalars().first()
-        ret_ref_id = getattr(ret_obj, "retailer_ref_id", None) or 64
-        t_ref_id = getattr(ret_obj, "tenant_ref_id", None) or 1
-        c_ref_id = getattr(ret_obj, "company_ref_id", None) or 1
-        ret_name = getattr(ret_obj, "store_name", None) or getattr(ret_obj, "legal_name", None) or "Retailer"
-        comp_id = getattr(ret_obj, "company_id", None)
+        # 2. Call Central Authoritative PostgreSQL Stored Procedure: public.wallet_balance_update
+        wbu_res = await db.execute(text("""
+            SELECT * FROM public.wallet_balance_update(
+                p_tenant_id := :p_tenant_id,
+                p_company_id := :p_company_id,
+                p_retailer_id := :p_retailer_id,
+                p_txn_id := :p_txn_id,
+                p_ref_id := :p_ref_id,
+                p_table_ref_id := :p_table_ref_id,
+                p_entry_type := 'DEBIT',
+                p_total_amount := :p_total_amount,
+                p_payout_amount := :p_payout_amount,
+                p_charge_amount := :p_charge_amount,
+                p_gst_amount := :p_gst_amount,
+                p_service_name := 'PAYOUT',
+                p_wallet_type := 'MAIN',
+                p_user_type := 'RETAILER',
+                p_retailer_name := :p_retailer_name,
+                p_dist_id := NULL, p_dist_name := NULL, p_sd_id := NULL, p_sd_name := NULL, p_rm_id := NULL, p_rm_name := NULL,
+                p_vendor_id := NULL, p_vendor_name := 'Cashfree',
+                p_created_by := NULL,
+                p_user_ref_id := :p_user_ref_id,
+                p_user_type_ref_id := 2,
+                p_tenant_ref_id := :p_tenant_ref_id,
+                p_company_ref_id := :p_company_ref_id
+            );
+        """), {
+            "p_tenant_id": tenant_id,
+            "p_company_id": comp_id,
+            "p_retailer_id": retailer_id,
+            "p_txn_id": txn_num,
+            "p_ref_id": ref_num,
+            "p_table_ref_id": payout.public_id,
+            "p_total_amount": Decimal(str(net_debit)),
+            "p_payout_amount": Decimal(str(amount)),
+            "p_charge_amount": Decimal(str(charge_ex_gst)),
+            "p_gst_amount": Decimal(str(gst_val)),
+            "p_retailer_name": ret_name,
+            "p_user_ref_id": ret_ref_id,
+            "p_tenant_ref_id": t_ref_id,
+            "p_company_ref_id": c_ref_id
+        })
+        wbu_row = wbu_res.fetchone()
+        if not wbu_row or not wbu_row[0]:
+            err_msg = wbu_row[7] if wbu_row and len(wbu_row) > 7 else "Wallet debit failed"
+            raise HTTPException(status_code=400, detail=str(err_msg))
 
-        charge_ex_gst = max(0.0, float(charges) - float(charges * 0.18 / 1.18))
-        gst_val = round(float(charges) - charge_ex_gst, 2)
-        
-        txn_lines_data = [
-            (float(amount), "Payout Amount"),
-            (float(charge_ex_gst), "Payout Charge"),
-            (float(gst_val), "GST")
-        ] if float(charges) > 0 else [(float(amount), "Payout Amount")]
-
-        for l_amt, l_narr in txn_lines_data:
-            if l_amt > 0:
-                central_txn_line = CentralTransactionModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=tenant_id,
-                    company_id=comp_id,
-                    tenant_ref_id=t_ref_id,
-                    company_ref_id=c_ref_id,
-                    retailer_ref_id=ret_ref_id,
-                    user_ref_id=ret_ref_id,
-                    retailer_name=ret_name,
-                    retailer_id=retailer_id,
-                    txn_id=txn_num,
-                    ref_id=ref_num,
-                    table_ref_id=payout.public_id,
-                    service_name="PAYOUT",
-                    wallet_type="MAIN",
-                    user_type="RETAILER",
-                    user_type_ref_id=2,
-                    entry_type="DEBIT",
-                    amount=Decimal(str(l_amt)),
-                    balance_before=Decimal(str(wallet_before)),
-                    balance_after=Decimal(str(wallet_after)),
-                    status="SUCCESS",
-                    narration=l_narr,
-                    day_key=d_keys["day_key"],
-                    week_key=d_keys["week_key"],
-                    month_key=d_keys["month_key"],
-                    quarter_key=d_keys["quarter_key"],
-                    year_key=d_keys["year_key"],
-                    financial_year_key=d_keys["financial_year_key"],
-                    financial_quarter_key=d_keys["financial_quarter_key"],
-                    financial_month_key=d_keys["financial_month_key"],
-                    date_key=d_keys["date_key"],
-                    time_key=d_keys["time_key"],
-                    partition_year=d_keys["partition_year"],
-                    partition_month=d_keys["partition_month"],
-                    partition_day=d_keys["partition_day"],
-                    is_active=True,
-                    is_deleted=False,
-                    created_at=now_dt,
-                    updated_at=now_dt,
-                )
-                db.add(central_txn_line)
+        wallet_before = float(wbu_row[2])
+        wallet_after = float(wbu_row[3])
+        payout.wallet_before = wallet_before
+        payout.wallet_after = wallet_after
 
         ptxn_rec = PayoutTransactionModel(
             public_id=uuid.uuid4(),
@@ -977,6 +984,8 @@ class PayoutWorkflowService:
             tenant_ref_id=t_ref_id,
             company_ref_id=c_ref_id,
             retailer_ref_id=ret_ref_id,
+            customer_ref_id=eff_cust_ref_id,
+            beneficiary_master_ref_id=eff_bm_ref_id,
             user_ref_id=ret_ref_id,
             user_type_ref_id=2,
             user_type="RETAILER",

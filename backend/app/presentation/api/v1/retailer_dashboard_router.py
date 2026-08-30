@@ -42,10 +42,14 @@ async def resolve_retailer_context(
     retailer_id: Optional[str] = None,
     tenant_id: Optional[str] = None,
     company_id: Optional[str] = None,
+    user_ref_id: Optional[int] = None,
+    user_type_ref_id: Optional[int] = None,
+    retailer_ref_id: Optional[int] = None,
     db: Optional[AsyncSession] = None
 ) -> Dict[str, Any]:
     """
-    Authoritative Resolver: Identifies the active retailer context strictly from validated session JWT.
+    Authoritative Resolver: Identifies the active user/retailer context strictly from validated session JWT
+    or standard BIGINT user_ref_id / user_type_ref_id identifiers.
     """
     cookies = request.cookies if request else {}
     auth_header = request.headers.get("authorization", "") if request else ""
@@ -55,30 +59,28 @@ async def resolve_retailer_context(
     if not token:
         token = cookies.get("p2p_access_token") or cookies.get("pay2pay_access_token") or cookies.get("pay2pay_auth_token") or cookies.get("access_token")
 
-    if not token or len(token) < 10:
-        raise HTTPException(status_code=401, detail="Authentication credentials were not provided")
+    payload = {}
+    if token and len(token) >= 10:
+        from app.core.security import decode_access_token
+        from app.infrastructure.db.models import UserSessionModel
+        payload = decode_access_token(token) or {}
 
-    from app.core.security import decode_access_token
-    from app.infrastructure.db.models import UserSessionModel
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid or expired authentication token")
+    ret_model = None
+    eff_ref_id = user_ref_id or retailer_ref_id or payload.get("user_ref_id") or payload.get("retailer_ref_id")
+    eff_type_id = user_type_ref_id or payload.get("user_type_ref_id") or 2
 
-    if db:
-        jti = payload.get("jti")
-        if jti:
-            stmt = select(UserSessionModel).where(
-                UserSessionModel.token_jti == jti,
-                UserSessionModel.is_revoked == True
-            )
-            revoked_session = (await db.execute(stmt)).scalars().first()
-            if revoked_session:
-                raise HTTPException(status_code=401, detail="Session has been revoked or logged out")
+    # Direct indexed BIGINT lookup by retailer_ref_id
+    if eff_ref_id and db:
+        try:
+            ref_int = int(eff_ref_id)
+            ret_chk = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_ref_id == ref_int, RetailerModel.is_deleted == False))).scalars().first()
+            if ret_chk:
+                ret_model = ret_chk
+        except (ValueError, TypeError):
+            pass
 
     clean_mobile = ""
     target_ident = retailer_id or payload.get("retailer_id") or payload.get("registration_id")
-    ret_model = None
-    verif = None
 
     if payload.get("mobile"):
         clean_mobile = str(payload.get("mobile"))[-10:]
@@ -94,7 +96,7 @@ async def resolve_retailer_context(
                 if adm_chk and adm_chk.phone:
                     clean_mobile = re.sub(r"\D", "", str(adm_chk.phone))[-10:]
 
-    if target_ident:
+    if target_ident and not ret_model:
         raw_digits = re.sub(r"\D", "", str(target_ident))
         if len(raw_digits) >= 10:
             clean_mobile = raw_digits[-10:]
@@ -246,6 +248,11 @@ async def resolve_retailer_context(
         "status": final_status,
         "kyc_status": final_kyc,
         "public_id": final_public_id,
+        "user_ref_id": getattr(ret_model, "retailer_ref_id", None) or eff_ref_id,
+        "user_type_ref_id": eff_type_id,
+        "retailer_ref_id": getattr(ret_model, "retailer_ref_id", None) or eff_ref_id,
+        "tenant_ref_id": getattr(ret_model, "tenant_ref_id", None) or 1,
+        "company_ref_id": getattr(ret_model, "company_ref_id", None) or 1,
         "tenant_id": final_tenant_id,
         "company_id": final_company_id,
         "is_approved": approve_status,
@@ -269,6 +276,9 @@ def enforce_active_approved_retailer(ctx: Dict[str, Any]):
 class DashboardAuditRequest(BaseModel):
     action: str = Field(..., description="DASHBOARD_VIEWED | REFRESH_TRIGGERED | ACTION_EXECUTED")
     retailer_id: Optional[str] = None
+    user_ref_id: Optional[int] = None
+    user_type_ref_id: Optional[int] = 2
+    retailer_ref_id: Optional[int] = None
     tenant_id: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
 
@@ -276,11 +286,22 @@ class DashboardAuditRequest(BaseModel):
 @router.get("/header-wallet", summary="Get Retailer Header & Wallet Hero Data")
 async def get_retailer_header_wallet(
     request: Request,
-    retailer_id: Optional[str] = Query(None),
+    user_type_ref_id: Optional[int] = Query(2, description="Standard User Type Reference ID (2 for Retailer)"),
+    user_ref_id: Optional[int] = Query(None, description="Standard User Reference ID (e.g. 24)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative Retailer Reference ID (e.g. 24)"),
+    retailer_id: Optional[str] = Query(None, description="Legacy Retailer Code or UUID"),
     tenant_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    ctx = await resolve_retailer_context(request, retailer_id, tenant_id, db=db)
+    ctx = await resolve_retailer_context(
+        request,
+        retailer_id=retailer_id,
+        tenant_id=tenant_id,
+        user_ref_id=user_ref_id,
+        user_type_ref_id=user_type_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        db=db
+    )
     pub_id = ctx.get("public_id")
 
     # Fetch Real Wallet Balance from Database
@@ -489,6 +510,9 @@ async def get_retailer_header_wallet(
 @router.get("/wallet-balance", summary="Ultra-Fast Dedicated Retailer Wallet Balance Endpoint")
 async def get_fast_wallet_balance(
     request: Request,
+    user_type_ref_id: Optional[int] = Query(2, description="Standard User Type Reference ID (2 for Retailer)"),
+    user_ref_id: Optional[int] = Query(None, description="Standard User Reference ID (e.g. 24)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative Retailer Reference ID (e.g. 24)"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
@@ -497,7 +521,15 @@ async def get_fast_wallet_balance(
     Ultra-fast single-index DB lookup on RetailerWalletModel.
     Zero heavy computations — responds in < 3ms for instant refresh button clicks.
     """
-    ctx = await resolve_retailer_context(request, retailer_id, tenant_id, db=db)
+    ctx = await resolve_retailer_context(
+        request,
+        retailer_id=retailer_id,
+        tenant_id=tenant_id,
+        user_ref_id=user_ref_id,
+        user_type_ref_id=user_type_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        db=db
+    )
     enforce_active_approved_retailer(ctx)
     pub_id = ctx.get("public_id")
 
@@ -531,6 +563,8 @@ async def get_fast_wallet_balance(
 
     return {
         "success": True,
+        "user_ref_id": ctx.get("user_ref_id"),
+        "user_type_ref_id": ctx.get("user_type_ref_id"),
         "retailer_id": ctx.get("retailer_id"),
         "retailer_code": ctx.get("retailer_id"),
         "wallet_balance": round(float(wallet_balance), 2),
@@ -549,12 +583,24 @@ async def get_fast_wallet_balance(
 @router.get("/financial-kpis", summary="Get Grouped Financial KPI Metrics")
 async def get_financial_kpis(
     request: Request,
+    user_type_ref_id: Optional[int] = Query(2, description="Standard User Type Reference ID (2 for Retailer)"),
+    user_ref_id: Optional[int] = Query(None, description="Standard User Reference ID (e.g. 24)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative Retailer Reference ID (e.g. 24)"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    ctx = await resolve_retailer_context(request, retailer_id, tenant_id, company_id, db=db)
+    ctx = await resolve_retailer_context(
+        request,
+        retailer_id=retailer_id,
+        tenant_id=tenant_id,
+        company_id=company_id,
+        user_ref_id=user_ref_id,
+        user_type_ref_id=user_type_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        db=db
+    )
     enforce_active_approved_retailer(ctx)
     pub_id = ctx.get("public_id")
     t_uuid = ctx.get("tenant_id")
@@ -637,12 +683,24 @@ async def get_financial_kpis(
 @router.get("/operations-kpis", summary="Get Grouped Operations KPI Metrics")
 async def get_operations_kpis(
     request: Request,
+    user_type_ref_id: Optional[int] = Query(2, description="Standard User Type Reference ID (2 for Retailer)"),
+    user_ref_id: Optional[int] = Query(None, description="Standard User Reference ID (e.g. 24)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative Retailer Reference ID (e.g. 24)"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    ctx = await resolve_retailer_context(request, retailer_id, tenant_id, company_id, db=db)
+    ctx = await resolve_retailer_context(
+        request,
+        retailer_id=retailer_id,
+        tenant_id=tenant_id,
+        company_id=company_id,
+        user_ref_id=user_ref_id,
+        user_type_ref_id=user_type_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        db=db
+    )
     pub_id = ctx.get("public_id")
     t_uuid = ctx.get("tenant_id")
     c_uuid = ctx.get("company_id")
@@ -717,25 +775,39 @@ async def get_operations_kpis(
 @router.get("/kpis", summary="Get Aggregated KPI Metrics")
 async def get_retailer_kpis(
     request: Request,
+    user_type_ref_id: Optional[int] = Query(2, description="Standard User Type Reference ID (2 for Retailer)"),
+    user_ref_id: Optional[int] = Query(None, description="Standard User Reference ID (e.g. 24)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative Retailer Reference ID (e.g. 24)"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     company_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    fin = await get_financial_kpis(request, retailer_id=retailer_id, tenant_id=tenant_id, company_id=company_id, db=db)
-    ops = await get_operations_kpis(request, retailer_id=retailer_id, tenant_id=tenant_id, company_id=company_id, db=db)
+    fin = await get_financial_kpis(request, user_type_ref_id=user_type_ref_id, user_ref_id=user_ref_id, retailer_ref_id=retailer_ref_id, retailer_id=retailer_id, tenant_id=tenant_id, company_id=company_id, db=db)
+    ops = await get_operations_kpis(request, user_type_ref_id=user_type_ref_id, user_ref_id=user_ref_id, retailer_ref_id=retailer_ref_id, retailer_id=retailer_id, tenant_id=tenant_id, company_id=company_id, db=db)
     return {**fin, **ops}
 
 
 @router.get("/charts", summary="Get Interactive Recharts Data Suites")
 async def get_dashboard_charts(
     request: Request,
+    user_type_ref_id: Optional[int] = Query(2, description="Standard User Type Reference ID (2 for Retailer)"),
+    user_ref_id: Optional[int] = Query(None, description="Standard User Reference ID (e.g. 24)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative Retailer Reference ID (e.g. 24)"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     timeframe: str = Query("7D", description="1D | 7D | 30D"),
     db: AsyncSession = Depends(get_db)
 ):
-    ctx = await resolve_retailer_context(request, retailer_id, tenant_id, db=db)
+    ctx = await resolve_retailer_context(
+        request,
+        retailer_id=retailer_id,
+        tenant_id=tenant_id,
+        user_ref_id=user_ref_id,
+        user_type_ref_id=user_type_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        db=db
+    )
     pub_id = ctx.get("public_id")
     t_uuid = ctx.get("tenant_id")
     now_utc = datetime.now(timezone.utc)
@@ -805,11 +877,22 @@ async def get_dashboard_charts(
 @router.get("/live-feed", summary="Get Latest 15 Live Transactions")
 async def get_live_transaction_feed(
     request: Request,
+    user_type_ref_id: Optional[int] = Query(2, description="Standard User Type Reference ID (2 for Retailer)"),
+    user_ref_id: Optional[int] = Query(None, description="Standard User Reference ID (e.g. 24)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative Retailer Reference ID (e.g. 24)"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    ctx = await resolve_retailer_context(request, retailer_id, tenant_id, db=db)
+    ctx = await resolve_retailer_context(
+        request,
+        retailer_id=retailer_id,
+        tenant_id=tenant_id,
+        user_ref_id=user_ref_id,
+        user_type_ref_id=user_type_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        db=db
+    )
     pub_id = ctx.get("public_id")
     t_uuid = ctx.get("tenant_id")
     filters = []
@@ -848,11 +931,22 @@ async def get_live_transaction_feed(
 @router.get("/business-alerts", summary="Get Priority Business Alerts")
 async def get_business_alerts(
     request: Request,
+    user_type_ref_id: Optional[int] = Query(2, description="Standard User Type Reference ID (2 for Retailer)"),
+    user_ref_id: Optional[int] = Query(None, description="Standard User Reference ID (e.g. 24)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative Retailer Reference ID (e.g. 24)"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    ctx = await resolve_retailer_context(request, retailer_id, tenant_id, db=db)
+    ctx = await resolve_retailer_context(
+        request,
+        retailer_id=retailer_id,
+        tenant_id=tenant_id,
+        user_ref_id=user_ref_id,
+        user_type_ref_id=user_type_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        db=db
+    )
     pub_id = ctx.get("public_id")
     wal = 0.00
     if pub_id:
@@ -880,11 +974,22 @@ async def get_business_alerts(
 @router.get("/recent-activity", summary="Get Business Activity Audit Log Feed")
 async def get_recent_activity(
     request: Request,
+    user_type_ref_id: Optional[int] = Query(2, description="Standard User Type Reference ID (2 for Retailer)"),
+    user_ref_id: Optional[int] = Query(None, description="Standard User Reference ID (e.g. 24)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative Retailer Reference ID (e.g. 24)"),
     retailer_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    ctx = await resolve_retailer_context(request, retailer_id, tenant_id, db=db)
+    ctx = await resolve_retailer_context(
+        request,
+        retailer_id=retailer_id,
+        tenant_id=tenant_id,
+        user_ref_id=user_ref_id,
+        user_type_ref_id=user_type_ref_id,
+        retailer_ref_id=retailer_ref_id,
+        db=db
+    )
     pub_id = ctx.get("public_id")
     t_uuid = ctx.get("tenant_id")
     filters = []

@@ -36,15 +36,20 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token.trim()}`;
       }
 
-      const activeRetailer =
-        localStorage.getItem("p2p_active_retailer_id") ||
-        localStorage.getItem("retailer_code") ||
-        localStorage.getItem("p2p_retailer_code") ||
-        localStorage.getItem("pay2pay_reg_mobile");
-      if (activeRetailer) {
-        config.headers["x-retailer-code"] = activeRetailer;
-        config.headers["x-retailer-id"] = activeRetailer;
-      }
+      try {
+        const userStr =
+          localStorage.getItem("user_info") ||
+          localStorage.getItem("user") ||
+          localStorage.getItem("auth_user") ||
+          localStorage.getItem("pay2pay_user_data");
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          const uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id;
+          const uType = u.user_type_ref_id || 2;
+          if (uRef) config.headers["x-user-ref-id"] = String(uRef);
+          if (uType) config.headers["x-user-type-ref-id"] = String(uType);
+        }
+      } catch {}
     }
     return config;
   },

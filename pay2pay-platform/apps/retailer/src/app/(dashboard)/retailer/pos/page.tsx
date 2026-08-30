@@ -60,8 +60,27 @@ export default function PosPage() {
   useEffect(() => {
     const fetchPosData = async () => {
       try {
-        const activeId = getActiveRetailerId();
-        const res = await fetch(`/api/v1/payout/reports/swipe-settlement/list?${activeId ? `retailer_id=${activeId}` : ""}`);
+        let userRefId: any = null;
+        let userTypeRefId: any = 2;
+        if (typeof window !== "undefined") {
+          try {
+            const userStr =
+              localStorage.getItem("user_info") ||
+              localStorage.getItem("user") ||
+              localStorage.getItem("auth_user") ||
+              localStorage.getItem("pay2pay_user_data");
+            if (userStr) {
+              const u = JSON.parse(userStr);
+              userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+              userTypeRefId = u.user_type_ref_id || 2;
+            }
+          } catch {}
+        }
+        const qParams = new URLSearchParams();
+        qParams.set("user_type_ref_id", String(userTypeRefId || 2));
+        if (userRefId) qParams.set("user_ref_id", String(userRefId));
+
+        const res = await fetch(`/api/v1/payout/reports/swipe-settlement/list?${qParams.toString()}`);
         if (res.ok) {
           const data = await res.json();
           const items = data.items || [];

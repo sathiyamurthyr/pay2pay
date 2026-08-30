@@ -507,9 +507,58 @@ class EnterprisePayoutExecutionService:
         )
 
         # =========================================================================
-        # STEP 4: Reserve / Debit Retailer Wallet (WALLET_DEBITED)
+        # STEP 4: Atomic Stored Procedure Wallet Debit (WALLET_DEBITED)
         # =========================================================================
-        wallet.wallet_balance = wallet_after
+        charge_ex_gst = max(Decimal("0.00"), Decimal(str(charges)) - Decimal(str(gst_amount)))
+        wbu_res = await db.execute(text("""
+            SELECT * FROM public.wallet_balance_update(
+                p_tenant_id := :p_tenant_id,
+                p_company_id := :p_company_id,
+                p_retailer_id := :p_retailer_id,
+                p_txn_id := :p_txn_id,
+                p_ref_id := :p_ref_id,
+                p_table_ref_id := :p_table_ref_id,
+                p_entry_type := 'DEBIT',
+                p_total_amount := :p_total_amount,
+                p_payout_amount := :p_payout_amount,
+                p_charge_amount := :p_charge_amount,
+                p_gst_amount := :p_gst_amount,
+                p_service_name := 'PAYOUT',
+                p_wallet_type := 'MAIN',
+                p_user_type := 'RETAILER',
+                p_retailer_name := :p_retailer_name,
+                p_vendor_name := :p_vendor_name,
+                p_user_ref_id := :p_user_ref_id,
+                p_user_type_ref_id := 2,
+                p_tenant_ref_id := :p_tenant_ref_id,
+                p_company_ref_id := :p_company_ref_id
+            );
+        """), {
+            "p_tenant_id": resolved_tenant_id,
+            "p_company_id": resolved_company_id,
+            "p_retailer_id": retailer_id,
+            "p_txn_id": tx_number,
+            "p_ref_id": f"PAY-{tx_number}",
+            "p_table_ref_id": tx_id,
+            "p_total_amount": net_debit,
+            "p_payout_amount": amount_d,
+            "p_charge_amount": charge_ex_gst,
+            "p_gst_amount": gst_amount,
+            "p_retailer_name": ret_ctx.get("retailer_name", "Retailer"),
+            "p_vendor_name": active_vendor or "UTKALDIGITAL",
+            "p_user_ref_id": ret_ctx.get("retailer_ref_id", 24),
+            "p_tenant_ref_id": ret_ctx.get("tenant_ref_id", 1),
+            "p_company_ref_id": ret_ctx.get("company_ref_id", 1)
+        })
+        wbu_row = wbu_res.fetchone()
+        if not wbu_row or not wbu_row[0]:
+            err_msg = wbu_row[7] if wbu_row and len(wbu_row) > 7 else "Wallet debit failed"
+            raise DomainException(str(err_msg))
+
+        wallet_before = cls._money(wbu_row[2])
+        wallet_after = cls._money(wbu_row[3])
+        tx_obj.wallet_before = float(wallet_before)
+        tx_obj.wallet_after = float(wallet_after)
         tx_obj.status = PayoutTransactionStatus.WALLET_DEBITED
         tx_obj.status_description = STATUS_DESCRIPTIONS[PayoutTransactionStatus.WALLET_DEBITED]
         await db.flush()
@@ -581,62 +630,6 @@ class EnterprisePayoutExecutionService:
             is_deleted=False
         )
         db.add(primary_wallet_ledger)
-
-        # Primary Append-Only Retailer Central Transaction Record (transactions table)
-        now_dt = datetime.now(timezone.utc)
-        d_keys = compute_transaction_date_and_partition_keys(now_dt)
-        
-        charge_ex_gst = max(Decimal("0.00"), Decimal(str(charges)) - Decimal(str(gst_amount)))
-        txn_lines_data = [
-            (amount_d, "Payout Amount"),
-            (charge_ex_gst, "Payout Charge"),
-            (Decimal(str(gst_amount)), "GST")
-        ] if Decimal(str(charges)) > 0 else [(amount_d, "Payout Amount")]
-
-        for l_amt, l_narr in txn_lines_data:
-            if l_amt > 0:
-                central_txn_line = CentralTransactionModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=resolved_tenant_id,
-                    company_id=resolved_company_id,
-                    tenant_ref_id=ret_ctx.get("tenant_ref_id", 1),
-                    company_ref_id=ret_ctx.get("company_ref_id", 1),
-                    retailer_ref_id=ret_ctx.get("retailer_ref_id", 64),
-                    user_ref_id=ret_ctx.get("retailer_ref_id", 64),
-                    retailer_name=ret_ctx.get("retailer_name", "Retailer"),
-                    retailer_id=retailer_id,
-                    txn_id=tx_number,
-                    ref_id=f"PAY-{tx_number}",
-                    table_ref_id=tx_id,
-                    service_name="PAYOUT",
-                    wallet_type="MAIN",
-                    user_type="RETAILER",
-                    user_type_ref_id=2,
-                    entry_type="DEBIT",
-                    amount=l_amt,
-                    balance_before=Decimal(str(wallet_before)),
-                    balance_after=Decimal(str(wallet_after)),
-                    status="INITIATED",
-                    narration=l_narr,
-                    day_key=d_keys["day_key"],
-                    week_key=d_keys["week_key"],
-                    month_key=d_keys["month_key"],
-                    quarter_key=d_keys["quarter_key"],
-                    year_key=d_keys["year_key"],
-                    financial_year_key=d_keys["financial_year_key"],
-                    financial_quarter_key=d_keys["financial_quarter_key"],
-                    financial_month_key=d_keys["financial_month_key"],
-                    date_key=d_keys["date_key"],
-                    time_key=d_keys["time_key"],
-                    partition_year=d_keys["partition_year"],
-                    partition_month=d_keys["partition_month"],
-                    partition_day=d_keys["partition_day"],
-                    is_active=True,
-                    is_deleted=False,
-                    created_at=now_dt,
-                    updated_at=now_dt,
-                )
-                db.add(central_txn_line)
 
         # Primary Payout Transaction entry for Payout Reports
         ptxn_record = PayoutTransactionModel(
@@ -1171,30 +1164,63 @@ class EnterprisePayoutExecutionService:
             tenant_id=tenant_id or tx.tenant_id
         )
 
-        reversal_uuid = uuid.uuid4()
+        # 1. Execute Atomic Stored Procedure Wallet Reversal (CREDIT)
+        rev_charge_ex_gst = max(Decimal("0.00"), Decimal(str(tx.charges or 0.0)) - Decimal(str(tx.gst_amount or 0.0)))
+        rev_wbu_res = await db.execute(text("""
+            SELECT * FROM public.wallet_balance_update(
+                p_tenant_id := :p_tenant_id,
+                p_company_id := :p_company_id,
+                p_retailer_id := :p_retailer_id,
+                p_txn_id := :p_txn_id,
+                p_ref_id := :p_ref_id,
+                p_table_ref_id := :p_table_ref_id,
+                p_entry_type := 'CREDIT',
+                p_total_amount := :p_total_amount,
+                p_payout_amount := :p_payout_amount,
+                p_charge_amount := :p_charge_amount,
+                p_gst_amount := :p_gst_amount,
+                p_service_name := 'PAYOUT',
+                p_wallet_type := 'MAIN',
+                p_user_type := 'RETAILER',
+                p_retailer_name := :p_retailer_name,
+                p_vendor_name := :p_vendor_name,
+                p_user_ref_id := :p_user_ref_id,
+                p_user_type_ref_id := 2,
+                p_tenant_ref_id := :p_tenant_ref_id,
+                p_company_ref_id := :p_company_ref_id
+            );
+        """), {
+            "p_tenant_id": tx.tenant_id or tenant_id,
+            "p_company_id": tx.company_id,
+            "p_retailer_id": tx.retailer_id,
+            "p_txn_id": tx.transaction_number,
+            "p_ref_id": f"REV-{tx.transaction_number}",
+            "p_table_ref_id": tx.public_id,
+            "p_total_amount": cls._money(tx.net_debit),
+            "p_payout_amount": cls._money(tx.amount),
+            "p_charge_amount": rev_charge_ex_gst,
+            "p_gst_amount": cls._money(tx.gst_amount or 0.0),
+            "p_retailer_name": "Retailer Partner",
+            "p_vendor_name": tx.vendor_name or "UTKALDIGITAL",
+            "p_user_ref_id": getattr(tx, "retailer_ref_id", None) or 24,
+            "p_tenant_ref_id": getattr(tx, "tenant_ref_id", None) or 1,
+            "p_company_ref_id": getattr(tx, "company_ref_id", None) or 1
+        })
+        rev_row = rev_wbu_res.fetchone()
+        if not rev_row or not rev_row[0]:
+            err_msg = rev_row[7] if rev_row and len(rev_row) > 7 else "Wallet reversal failed"
+            if rev_row and rev_row[5] == "ALREADY_EXISTS":
+                logger.info(f"Reversal for {tx.transaction_number} already completed in DB.")
+                return {
+                    "success": False,
+                    "already_reversed": True,
+                    "status": PayoutTransactionStatus.REVERSED.value,
+                    "message": f"Transaction {tx.transaction_number} has already been reversed."
+                }
+            raise DomainException(str(err_msg))
 
-        # 1. Advisory-lock the retailer wallet for reversal (prevents concurrent writes)
-        rev_lock_key = tx.retailer_id.int & 0x7FFFFFFFFFFFFFFF
-        rev_lock_result = await db.execute(
-            text("SELECT pg_try_advisory_xact_lock(:key)"),
-            {"key": rev_lock_key}
-        )
-        if not rev_lock_result.scalar():
-            raise DomainException(
-                "Retailer wallet is locked by a concurrent transaction. Reversal will be retried."
-            )
-
-        # Credit Retailer Wallet Back
-        stmt_w = select(RetailerWalletModel).where(
-            RetailerWalletModel.retailer_id == tx.retailer_id
-        ).with_for_update()
-        res_w = await db.execute(stmt_w)
-        wallet = res_w.scalars().first()
-        wallet_before_rev = cls._money(wallet.wallet_balance) if wallet else Decimal('0.00')
-        wallet_after_rev = cls._money(wallet_before_rev + cls._money(tx.net_debit))
-        if wallet:
-            wallet.wallet_balance = wallet_after_rev
-            wallet.updated_date = datetime.now(timezone.utc)
+        wallet_before_rev = cls._money(rev_row[2])
+        wallet_after_rev = cls._money(rev_row[3])
 
         # 2. Authoritative Reversal Credit in transaction_ledger_entries
         rev_ledger = TransactionLedgerEntryModel(
@@ -1205,9 +1231,9 @@ class EnterprisePayoutExecutionService:
             entry_type="CREDIT",
             account_type="RETAILER_WALLET",
             account_number=str(tx.retailer_id),
-            amount=tx.net_debit,
-            balance_before=wallet_before_rev,
-            balance_after=wallet_after_rev,
+            amount=float(tx.net_debit),
+            balance_before=float(wallet_before_rev),
+            balance_after=float(wallet_after_rev),
             currency="INR",
             narration=f"Reversal refund for failed transaction {tx.transaction_number}",
             created_at=datetime.now(timezone.utc)
@@ -1229,62 +1255,6 @@ class EnterprisePayoutExecutionService:
             is_deleted=False
         )
         db.add(rev_wallet_ledger)
-
-        # 2.2 Primary Append-Only Retailer Central Transaction Reversal Credit Record (SAME txn_id)
-        now_rev_dt = datetime.now(timezone.utc)
-        r_keys = compute_transaction_date_and_partition_keys(now_rev_dt)
-        
-        rev_charge_ex_gst = max(Decimal("0.00"), Decimal(str(tx.charges or 0.0)) - Decimal(str(tx.gst_amount or 0.0)))
-        rev_lines_data = [
-            (Decimal(str(tx.amount)), "Payout Amount Reversal"),
-            (rev_charge_ex_gst, "Payout Charge Reversal"),
-            (Decimal(str(tx.gst_amount or 0.0)), "GST Reversal")
-        ] if Decimal(str(tx.charges or 0.0)) > 0 else [(Decimal(str(tx.amount)), "Payout Amount Reversal")]
-
-        for rl_amt, rl_narr in rev_lines_data:
-            if rl_amt > 0:
-                central_txn_credit = CentralTransactionModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=tx.tenant_id or tenant_id,
-                    company_id=tx.company_id,
-                    tenant_ref_id=getattr(tx, "tenant_ref_id", None) or 1,
-                    company_ref_id=getattr(tx, "company_ref_id", None) or 1,
-                    retailer_ref_id=getattr(tx, "retailer_ref_id", None) or 64,
-                    user_ref_id=getattr(tx, "retailer_ref_id", None) or 64,
-                    retailer_name="Sathiya Murthy",
-                    retailer_id=tx.retailer_id,
-                    txn_id=tx.transaction_number,
-                    ref_id=f"REV-{tx.transaction_number}",
-                    table_ref_id=tx.public_id,
-                    service_name="PAYOUT",
-                    wallet_type="MAIN",
-                    user_type="RETAILER",
-                    user_type_ref_id=2,
-                    entry_type="CREDIT",
-                    amount=rl_amt,
-                    balance_before=Decimal(str(wallet_before_rev)),
-                    balance_after=Decimal(str(wallet_after_rev)),
-                    status="REVERSED",
-                    narration=rl_narr,
-                    day_key=r_keys["day_key"],
-                    week_key=r_keys["week_key"],
-                    month_key=r_keys["month_key"],
-                    quarter_key=r_keys["quarter_key"],
-                    year_key=r_keys["year_key"],
-                    financial_year_key=r_keys["financial_year_key"],
-                    financial_quarter_key=r_keys["financial_quarter_key"],
-                    financial_month_key=r_keys["financial_month_key"],
-                    date_key=r_keys["date_key"],
-                    time_key=r_keys["time_key"],
-                    partition_year=r_keys["partition_year"],
-                    partition_month=r_keys["partition_month"],
-                    partition_day=r_keys["partition_day"],
-                    is_active=True,
-                    is_deleted=False,
-                    created_at=now_rev_dt,
-                    updated_at=now_rev_dt,
-                )
-                db.add(central_txn_credit)
 
         # Update PayoutTransactionModel status to REVERSED
         stmt_pt_rev = (

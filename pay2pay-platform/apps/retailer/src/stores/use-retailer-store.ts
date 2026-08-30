@@ -157,6 +157,7 @@ interface RetailerStoreState {
   // Actions
   setSyncing: (syncing: boolean) => void;
   updateWallet: (part: Partial<WalletState>) => void;
+  setWalletBalance: (balance: number) => void;
   debitWallet: (amount: number) => number;
   syncBalance: () => Promise<void>;
   toggleSoundbox: () => void;
@@ -277,14 +278,22 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       });
     },
 
+    setWalletBalance: (balance: number) => {
+      set((state) => ({
+        wallet: {
+          ...state.wallet,
+          mainBalance: balance,
+          availableBalance: balance,
+        },
+      }));
+    },
+
     debitWallet: (amount: number) => {
       const current = get().wallet.mainBalance;
       const newBal = Math.max(0, current - amount);
-      // No localStorage write — balance will be refreshed from API after transaction
       set((state) => ({
-        wallet: { ...state.wallet, mainBalance: newBal },
+        wallet: { ...state.wallet, mainBalance: newBal, availableBalance: newBal },
       }));
-      retailerApi.debitWallet(amount).catch(() => {});
       return newBal;
     },
 
@@ -292,8 +301,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       set({ isSyncing: true });
       try {
         let activeUserRefId: any = null;
-        let activeRetailerId = "";
-        let activeTenantId = "";
+        let activeUserTypeId: any = 2;
         if (typeof window !== "undefined") {
           try {
             const userStr =
@@ -304,26 +312,17 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             if (userStr) {
               const u = JSON.parse(userStr);
               activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
-              activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
-              activeTenantId = u.tenant_id || "";
+              activeUserTypeId = u.user_type_ref_id || 2;
             }
           } catch {}
-          if (!activeRetailerId) {
-            activeRetailerId =
-              localStorage.getItem("p2p_active_retailer_id") ||
-              localStorage.getItem("pay2pay_reg_mobile") ||
-              localStorage.getItem("pay2pay_reg_id") ||
-              "";
-          }
-          if (!activeTenantId) {
-            activeTenantId = localStorage.getItem("p2p_tenant_id") || "";
-          }
         }
 
-        const params: any = { user_type_ref_id: 2 };
-        if (activeUserRefId) params.user_ref_id = activeUserRefId;
-        if (activeRetailerId) params.retailer_id = activeRetailerId;
-        if (activeTenantId) params.tenant_id = activeTenantId;
+        const params: Record<string, any> = {
+          user_type_ref_id: Number(activeUserTypeId || 2),
+        };
+        if (activeUserRefId) {
+          params.user_ref_id = Number(activeUserRefId);
+        }
 
         // Standardized user wallet API (/api/v1/wallet-ledger/user-wallet)
         const res = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params });

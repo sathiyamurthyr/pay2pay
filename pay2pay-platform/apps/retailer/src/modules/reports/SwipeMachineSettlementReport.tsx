@@ -115,9 +115,33 @@ export const SwipeMachineSettlementReport: React.FC = () => {
 
   const [selectedSettlement, setSelectedSettlement] = useState<SettlementItem | null>(null);
 
+  const getUserRefs = () => {
+    let userRefId: any = null;
+    let userTypeRefId: any = 2;
+    if (typeof window !== "undefined") {
+      try {
+        const userStr =
+          localStorage.getItem("user_info") ||
+          localStorage.getItem("user") ||
+          localStorage.getItem("auth_user") ||
+          localStorage.getItem("pay2pay_user_data");
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+          userTypeRefId = u.user_type_ref_id || 2;
+        }
+      } catch {}
+    }
+    return { userRefId, userTypeRefId };
+  };
+
   const fetchSummary = async () => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/payout/reports/swipe-settlement/summary?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`);
+      const { userRefId, userTypeRefId } = getUserRefs();
+      const q = new URLSearchParams();
+      q.set("user_type_ref_id", String(userTypeRefId || 2));
+      if (userRefId) q.set("user_ref_id", String(userRefId));
+      const res = await fetch(`${getApiBaseUrl()}/payout/reports/swipe-settlement/summary?${q.toString()}`);
       if (res.ok) setSummary(await res.json());
     } catch (e) {
       console.error("Failed to fetch settlement summary", e);
@@ -127,12 +151,13 @@ export const SwipeMachineSettlementReport: React.FC = () => {
   const fetchGridData = async () => {
     setLoading(true);
     try {
+      const { userRefId, userTypeRefId } = getUserRefs();
       const queryParams = new URLSearchParams({
-        retailer_id: DEFAULT_RETAILER_ID,
-        tenant_id: DEFAULT_TENANT_ID,
+        user_type_ref_id: String(userTypeRefId || 2),
         page: page.toString(),
         limit: "10"
       });
+      if (userRefId) queryParams.set("user_ref_id", String(userRefId));
 
       if (fromDate) queryParams.append("from_date", fromDate);
       if (toDate) queryParams.append("to_date", toDate);

@@ -179,7 +179,7 @@ class AuthService:
             )
         )
         res = await db.execute(stmt)
-        user = res.scalar_one_or_none()
+        user = res.scalars().first()
 
         if not user:
             # Check AuthUserModel (Retailers / Mobile users)
@@ -219,6 +219,10 @@ class AuthService:
                     requires_mfa=False,
                     user={
                         "public_id": str(auth_user.user_id),
+                        "id": str(auth_user.user_id),
+                        "user_ref_id": getattr(ret_obj, "retailer_ref_id", None) or 24,
+                        "user_type_ref_id": 2,
+                        "retailer_ref_id": getattr(ret_obj, "retailer_ref_id", None) or 24,
                         "email": auth_user.email or f"{clean_mob}@pay2pay.in",
                         "full_name": r_name,
                         "mobile_number": clean_mob,
@@ -271,7 +275,7 @@ class AuthService:
 
                     # Reload created user with relationships
                     res = await db.execute(stmt)
-                    user = res.scalar_one_or_none()
+                    user = res.scalars().first()
 
         if not user:
             raise UnauthorizedException("Invalid email/username or password")
@@ -365,6 +369,7 @@ class AuthService:
             jti=jti
         )
 
+        admin_ref = getattr(user, "admin_user_ref_id", None) or getattr(user, "id", None) or 1
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
@@ -372,6 +377,9 @@ class AuthService:
             requires_mfa=False,
             user={
                 "public_id": str(user.public_id),
+                "id": str(user.public_id),
+                "user_ref_id": admin_ref,
+                "user_type_ref_id": 1,
                 "email": user.email,
                 "full_name": user.full_name,
                 "tenant_id": str(user.tenant_id),

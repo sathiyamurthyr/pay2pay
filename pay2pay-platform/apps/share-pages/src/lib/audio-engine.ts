@@ -352,6 +352,14 @@ export class EnterpriseAudioEngine {
   }
 
   // Backward-compatible aliases for legacy callers
+  public static playLockSound(volumePct: number = 80) {
+    this.playLockChime(volumePct);
+  }
+
+  public static playUnlockSound(volumePct: number = 80) {
+    this.playUnlockChime(volumePct);
+  }
+
   public static playSuccess(amount: number = 0, langCode: string = "en") {
     this.playSuccessSound(90);
     if (amount > 0) {
@@ -373,6 +381,14 @@ export class EnterpriseAudioEngine {
     if (warningMsg) {
       this.speakVoice(`Attention Warning. ${warningMsg}`, langCode);
     }
+  }
+
+  public static playError(volumePct: number = 85) {
+    this.playErrorSound(volumePct);
+  }
+
+  public static playNotification(volumePct: number = 75) {
+    this.playNotificationSound(volumePct);
   }
 }
 

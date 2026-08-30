@@ -218,7 +218,10 @@ def build_unified_transactions_query(
             t.txn_id AS txn_id,
             COALESCE(t.ref_id, t.txn_id) AS client_ref_id,
             t.service_name AS service,
-            t.entry_type AS type,
+            CASE 
+                WHEN UPPER(t.entry_type) = 'CREDIT' THEN 'REVERSAL'
+                ELSE COALESCE(p.mode, 'IMPS')
+            END AS type,
             t.amount::float AS amount,
             0.0 AS charges,
             0.0 AS commission,
@@ -236,22 +239,28 @@ def build_unified_transactions_query(
             END AS dr,
             t.balance_after::float AS current_balance,
             t.created_at AS transaction_datetime,
-            UPPER(t.status) AS status,
+            CASE 
+                WHEN UPPER(t.status) IN ('SUCCESS', 'SETTLED', 'COMPLETED', 'LEDGER_POSTED') THEN 'SUCCESS'
+                WHEN UPPER(t.status) IN ('REVERSED', 'REFUNDED') THEN 'REVERSED'
+                WHEN UPPER(t.status) IN ('FAILED', 'REJECTED') THEN 'FAILED'
+                WHEN UPPER(t.entry_type) IN ('DEBIT', 'CREDIT') AND t.balance_after IS NOT NULL THEN 'SUCCESS'
+                ELSE UPPER(t.status)
+            END AS status,
             COALESCE(t.narration, t.service_name) AS status_description,
-            'PAY2PAY' AS provider_name,
-            COALESCE(t.ref_id, t.txn_id) AS provider_txn_id,
-            COALESCE(t.ref_id, t.txn_id) AS provider_ref,
+            COALESCE(pt.vendor_name, t.vendor_name, 'UTKALDIGITAL') AS provider_name,
+            COALESCE(pt.bank_reference, p.cashfree_transfer_id, t.ref_id, t.txn_id) AS provider_txn_id,
+            COALESCE(pt.utr_number, p.utr_number, pt.rrn, t.ref_id, t.txn_id) AS provider_ref,
             'RETAILER_PORTAL' AS channel,
-            t.retailer_id::text AS customer_id,
-            COALESCE(ret_t.store_name, ret_t.owner_name, ret_t.legal_name, 'Direct Customer') AS customer_name,
-            'N/A' AS customer_mobile,
+            COALESCE(c.public_id::text, t.retailer_id::text) AS customer_id,
+            COALESCE(c.full_name, ret_t.store_name, ret_t.owner_name, ret_t.legal_name, 'Direct Customer') AS customer_name,
+            COALESCE(c.mobile_number, 'N/A') AS customer_mobile,
             'ACTIVE' AS customer_status,
-            COALESCE(t.table_ref_id::text, t.retailer_id::text) AS beneficiary_id,
-            COALESCE(ret_t.store_name, ret_t.owner_name, 'Self / Main Wallet') AS beneficiary_name,
-            'Wallet Allocation' AS bank_name,
-            'WALLET-TRANSACTION' AS account_number,
-            'P2P0000001' AS ifsc_code,
-            'SELF' AS relationship,
+            COALESCE(bm.public_id::text, b.public_id::text, t.table_ref_id::text, t.retailer_id::text) AS beneficiary_id,
+            COALESCE(bm.account_holder_name, bm.registered_name_in_bank, b.full_name, ret_t.store_name, ret_t.owner_name, 'Self / Main Wallet') AS beneficiary_name,
+            COALESCE(bm.bank_name, bba.bank_name, 'Bank Transfer') AS bank_name,
+            COALESCE(bm.account_number, bba.account_number, 'WALLET-TRANSACTION') AS account_number,
+            COALESCE(bm.ifsc_code, bba.ifsc_code, 'P2P0000001') AS ifsc_code,
+            COALESCE(b.relationship, 'SELF') AS relationship,
             'ACTIVE' AS beneficiary_status,
             COALESCE(t.created_by::text, 'SYSTEM') AS created_by,
             COALESCE(t.updated_by::text, 'SYSTEM') AS updated_by,
@@ -260,15 +269,21 @@ def build_unified_transactions_query(
             t.txn_id AS request_id,
             t.ref_id AS correlation_id,
             t.narration AS provider_response_message,
-            NULL AS failure_reason,
-            NULL AS reversal_reason,
+            p.failure_reason AS failure_reason,
+            CASE WHEN UPPER(t.entry_type) = 'CREDIT' THEN p.failure_reason ELSE NULL END AS reversal_reason,
             NULL AS reversal_transaction_id,
-            NULL AS reversal_datetime,
+            CASE WHEN UPPER(t.entry_type) = 'CREDIT' THEN t.created_at ELSE NULL END AS reversal_datetime,
             'CENTRAL_TXN' AS source_table,
             COALESCE(ret_t.public_id::text, t.retailer_id::text, '') AS retailer_id,
             COALESCE(ret_t.retailer_code, '') AS retailer_code
         FROM transactions t
-        LEFT JOIN retailer ret_t ON (t.retailer_id = ret_t.public_id OR t.retailer_id::text = ret_t.retailer_code)
+        LEFT JOIN retailer ret_t ON (t.retailer_id = ret_t.public_id OR t.retailer_id::text = ret_t.retailer_code OR t.retailer_ref_id = ret_t.retailer_ref_id OR t.user_ref_id = ret_t.retailer_ref_id)
+        LEFT JOIN payout_workflow_transactions p ON p.transaction_number = t.txn_id
+        LEFT JOIN payout_transaction pt ON pt.transaction_number = t.txn_id
+        LEFT JOIN customer c ON c.public_id = p.customer_id
+        LEFT JOIN beneficiary b ON b.public_id = p.beneficiary_id
+        LEFT JOIN beneficiary_master bm ON bm.public_id = p.beneficiary_id
+        LEFT JOIN beneficiary_bank_account bba ON bba.beneficiary_id = b.public_id
 
         UNION ALL
 
@@ -455,9 +470,9 @@ def build_unified_transactions_query(
         LEFT JOIN customer c3 ON p.customer_id = c3.public_id
         LEFT JOIN beneficiary_master b3 ON p.beneficiary_id = b3.public_id
         WHERE NOT EXISTS (
-            SELECT 1 FROM transactions t3 WHERE t3.txn_id = p.transaction_number AND UPPER(t3.status) = UPPER(p.status)
+            SELECT 1 FROM transactions t3 WHERE t3.txn_id = p.transaction_number
         ) AND NOT EXISTS (
-            SELECT 1 FROM enterprise_payout_transactions e3 WHERE e3.transaction_number = p.transaction_number AND UPPER(e3.status::text) = UPPER(p.status)
+            SELECT 1 FROM enterprise_payout_transactions e3 WHERE e3.transaction_number = p.transaction_number
         )
 
         UNION ALL
@@ -842,8 +857,11 @@ async def list_enterprise_transactions_report(
             dr_amt = raw_dr if raw_dr > 0 else (net_amt if net_amt > 0 else (txn_amt + tax_amt))
             cr_amt = Decimal("0.00")
 
-        # Determine clean human-readable comments
-        if status_norm == "REVERSED":
+        # Determine clean human-readable comments / narration
+        ledger_narr = str(d.get("status_description") or d.get("narration") or "").strip()
+        if ledger_narr and ledger_narr != "None" and ledger_narr.upper() not in ("SUCCESS", "FAILED", "REVERSED", "PENDING"):
+            comments = ledger_narr
+        elif status_norm == "REVERSED":
             comments = "Amount reversed"
         elif status_norm == "FAILED":
             comments = "Payout failed"

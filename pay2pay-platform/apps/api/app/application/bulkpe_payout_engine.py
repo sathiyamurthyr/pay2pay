@@ -10,18 +10,22 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Union
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, text, func
 
+from decimal import Decimal, ROUND_HALF_UP
+import json
 from app.infrastructure.db.customer_models import CustomerModel
 from app.infrastructure.db.beneficiary_models import BeneficiaryModel
 from app.infrastructure.db.payout_workflow_models import (
     PayoutWorkflowTransactionModel,
     PayoutAuditModel
 )
-from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
+from app.infrastructure.db.models import RetailerModel, RetailerWalletModel, WalletLedgerModel, PayoutTransactionModel
+from app.infrastructure.db.transaction_engine_models import CentralTransactionModel, TransactionLedgerEntryModel
 from app.application.bulkpe_client import BulkPeApiClient
 from app.application.mpin_service import CustomerMPINService
 from app.application.error_management_service import ErrorManagementService
+from app.core.config import settings
 
 
 class BulkPePayoutEngine:
@@ -396,8 +400,22 @@ class BulkPePayoutEngine:
             )
 
         balance_before = wallet.wallet_balance
-        wallet.wallet_balance = round(wallet.wallet_balance - total_debit, 2)
-        balance_after = wallet.wallet_balance
+        balance_after = round(wallet.wallet_balance - total_debit, 2)
+
+        # Resolve entity references and BIGINT IDs
+        stmt_r_info = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
+        ret_info = (await db.execute(stmt_r_info)).scalars().first()
+
+        eff_retailer_ref_id = getattr(ret_info, "retailer_ref_id", None) or 24
+        eff_user_ref_id = eff_retailer_ref_id
+        eff_user_type_ref_id = 2
+        eff_tenant_ref_id = getattr(ret_info, "tenant_ref_id", None) or 1
+        eff_company_ref_id = getattr(ret_info, "company_ref_id", None) or 2
+        eff_company_id = getattr(ret_info, "company_id", None) or uuid.UUID("0bf4371b-4c74-4916-a817-61c203b353e8")
+        eff_retailer_name = getattr(ret_info, "store_name", None) or getattr(ret_info, "business_name", None) or getattr(ret_info, "legal_name", None) or "Sathus Pay Store"
+
+        eff_customer_ref_id = getattr(customer, "customer_ref_id", None) or 11
+        eff_bene_master_ref_id = getattr(beneficiary, "beneficiary_master_ref_id", None) or getattr(bank_account, "beneficiary_master_ref_id", None) or 3
 
         # Resolve active vendor provider to determine transaction prefix
         from app.application.wowpe_client import WowPeApiClient
@@ -405,13 +423,13 @@ class BulkPePayoutEngine:
 
         active_provider = await PayoutRoutingService.get_active_primary_provider(db, tenant_id)
         policy = await PayoutRoutingService.get_routing_policy(db, tenant_id)
-        vendor_char = str(active_provider or "UTKALDIGITAL").strip().upper()[0]
-
-        # Create Payout Workflow Transaction Record (Format: UPAY20260828C73E17F8)
+        # Generate Authoritative Transaction ID via PostgreSQL Stored Procedure (SP)
+        from app.core.transaction_id_generator import generate_payout_txn_id_via_sp
+        tx_number = await generate_payout_txn_id_via_sp(db, vendor_name=active_provider or "UTKALDIGITAL")
         now_utc = datetime.now(timezone.utc)
-        tx_number = f"{vendor_char}PAY{now_utc.strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
         bene_pub_id = getattr(beneficiary, "public_id", None) or getattr(bank_account, "beneficiary_id", None) or (bene_uuid if bene_uuid else uuid.uuid4())
 
+        # 1. Primary Workflow Transaction Model (payout_workflow_transactions)
         payout_tx = PayoutWorkflowTransactionModel(
             public_id=uuid.uuid4(),
             transaction_number=tx_number,
@@ -419,13 +437,19 @@ class BulkPePayoutEngine:
             customer_id=customer.public_id,
             beneficiary_id=bene_pub_id,
             retailer_id=retailer_id,
+            company_id=eff_company_id,
             tenant_id=tenant_id,
+            retailer_ref_id=eff_retailer_ref_id,
+            tenant_ref_id=eff_tenant_ref_id,
+            company_ref_id=eff_company_ref_id,
+            customer_ref_id=eff_customer_ref_id,
+            beneficiary_master_ref_id=eff_bene_master_ref_id,
             amount=amount,
             charges=retailer_charge + retailer_gst,
             commission=company_commission,
             net_debit=total_debit,
-            wallet_before=balance_before,
-            wallet_after=balance_after,
+            wallet_before=wallet.wallet_balance,
+            wallet_after=round(wallet.wallet_balance - total_debit, 2),
             mode=mode,
             status="PROCESSING",
             initiated_at=now_utc,
@@ -433,6 +457,124 @@ class BulkPePayoutEngine:
             is_deleted=False
         )
         db.add(payout_tx)
+
+        # 2. Primary Payout Master Transaction Model (payout_transaction)
+        payout_record = PayoutTransactionModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=eff_company_id,
+            retailer_id=retailer_id,
+            customer_id=customer.public_id,
+            beneficiary_id=bene_pub_id,
+            retailer_ref_id=eff_retailer_ref_id,
+            user_ref_id=eff_user_ref_id,
+            user_type_ref_id=eff_user_type_ref_id,
+            tenant_ref_id=eff_tenant_ref_id,
+            company_ref_id=eff_company_ref_id,
+            customer_ref_id=eff_customer_ref_id,
+            beneficiary_master_ref_id=eff_bene_master_ref_id,
+            transaction_number=tx_number,
+            payout_id=payout_tx.public_id,
+            gateway_reference=merchant_ref,
+            bank_reference=tx_number,
+            utr_number="",
+            rrn="",
+            mode=mode,
+            status="INITIATED",
+            processed_time=now_utc,
+            vendor_name=active_provider or "UTKALDIGITAL",
+            is_active=True,
+            is_deleted=False
+        )
+        db.add(payout_record)
+
+        # 3. Call Central Authoritative PostgreSQL Stored Procedure: public.wallet_balance_update
+        wbu_res = await db.execute(text("""
+            SELECT * FROM public.wallet_balance_update(
+                p_tenant_id := :p_tenant_id,
+                p_company_id := :p_company_id,
+                p_retailer_id := :p_retailer_id,
+                p_txn_id := :p_txn_id,
+                p_ref_id := :p_ref_id,
+                p_table_ref_id := :p_table_ref_id,
+                p_entry_type := 'DEBIT',
+                p_total_amount := :p_total_amount,
+                p_payout_amount := :p_payout_amount,
+                p_charge_amount := :p_charge_amount,
+                p_gst_amount := :p_gst_amount,
+                p_service_name := 'PAYOUT',
+                p_wallet_type := 'MAIN',
+                p_user_type := 'RETAILER',
+                p_retailer_name := :p_retailer_name,
+                p_dist_id := NULL, p_dist_name := NULL, p_sd_id := NULL, p_sd_name := NULL, p_rm_id := NULL, p_rm_name := NULL,
+                p_vendor_id := NULL, p_vendor_name := :p_vendor_name,
+                p_created_by := NULL,
+                p_user_ref_id := :p_user_ref_id,
+                p_user_type_ref_id := :p_user_type_ref_id,
+                p_tenant_ref_id := :p_tenant_ref_id,
+                p_company_ref_id := :p_company_ref_id
+            );
+        """), {
+            "p_tenant_id": tenant_id,
+            "p_company_id": eff_company_id,
+            "p_retailer_id": retailer_id,
+            "p_txn_id": tx_number,
+            "p_ref_id": f"PAY-{tx_number}",
+            "p_table_ref_id": payout_tx.public_id,
+            "p_total_amount": Decimal(str(total_debit)),
+            "p_payout_amount": Decimal(str(amount)),
+            "p_charge_amount": Decimal(str(retailer_charge)),
+            "p_gst_amount": Decimal(str(retailer_gst)),
+            "p_retailer_name": eff_retailer_name,
+            "p_vendor_name": active_provider or "UTKALDIGITAL",
+            "p_user_ref_id": eff_user_ref_id,
+            "p_user_type_ref_id": eff_user_type_ref_id,
+            "p_tenant_ref_id": eff_tenant_ref_id,
+            "p_company_ref_id": eff_company_ref_id
+        })
+        wbu_row = wbu_res.fetchone()
+        if not wbu_row or not wbu_row[0]:
+            err_msg = wbu_row[7] if wbu_row and len(wbu_row) > 7 else "Wallet debit failed"
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err_msg))
+
+        balance_before = float(wbu_row[2])
+        balance_after = float(wbu_row[3])
+        payout_tx.wallet_before = balance_before
+        payout_tx.wallet_after = balance_after
+
+        # Primary Double-Entry Ledger Debit
+        debit_ledger = TransactionLedgerEntryModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            transaction_id=payout_tx.public_id,
+            transaction_reference=tx_number,
+            entry_type="DEBIT",
+            account_type="RETAILER_WALLET",
+            account_number=str(retailer_id),
+            amount=total_debit,
+            balance_before=balance_before,
+            balance_after=balance_after,
+            currency="INR",
+            narration=f"Payout debit for TX {tx_number} (Amount: ₹{amount:.2f}, Fee: ₹{retailer_charge:.2f}, GST: ₹{retailer_gst:.2f})",
+            created_at=now_utc
+        )
+        db.add(debit_ledger)
+
+        # Primary Wallet Ledger Debit
+        wallet_ledger_entry = WalletLedgerModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            retailer_id=retailer_id,
+            transaction_type="PAYOUT_DEBIT",
+            credit_amount=0.0,
+            debit_amount=total_debit,
+            balance_before=balance_before,
+            balance_after=balance_after,
+            reference_id=tx_number,
+            is_active=True,
+            is_deleted=False
+        )
+        db.add(wallet_ledger_entry)
 
         # Audit Log Entry
         audit_log = PayoutAuditModel(
@@ -454,6 +596,7 @@ class BulkPePayoutEngine:
         # Commit DB transaction to finalize wallet debit BEFORE external API call
         await db.commit()
         await db.refresh(payout_tx)
+        await db.refresh(payout_record)
 
         # ----------------------------------------------------
         # 4. EXECUTE DYNAMIC PAYOUT API CALL (WOWPE / BULKPE)
@@ -575,6 +718,15 @@ class BulkPePayoutEngine:
             payout_tx.utr_number = utr
             payout_tx.cashfree_transfer_id = str(vendor_tx_id or f"{executed_vendor}-{merchant_ref}")
             payout_tx.completed_at = datetime.now(timezone.utc)
+
+            payout_record.status = "SUCCESS"
+            payout_record.utr_number = str(utr or "")
+            payout_record.rrn = str(rrn or "")
+            payout_record.bank_reference = str(vendor_tx_id or tx_number)
+            payout_record.vendor_name = executed_vendor
+            payout_record.api_response = json.dumps(api_res) if isinstance(api_res, dict) else str(api_res)
+            payout_record.processed_time = datetime.now(timezone.utc)
+
             await db.commit()
 
             return {
@@ -589,13 +741,23 @@ class BulkPePayoutEngine:
                 "charges": retailer_charge,
                 "gst": retailer_gst,
                 "net_debit": total_debit,
-                "wallet_balance": wallet.wallet_balance,
-                "message": f"{executed_vendor} Payout processed successfully."
+                "wallet_balance": balance_after,
+                "wallet_balance_before": balance_before,
+                "wallet_balance_after": balance_after,
+                "message": "Txn Successfully Initiated"
             }
 
-        elif api_status == "PENDING":
+        elif api_status in ("PENDING", "UNKNOWN", "TIMEOUT", "NETWORK_ERROR", "PROVIDER_UNKNOWN"):
             payout_tx.status = "PENDING"
             payout_tx.cashfree_transfer_id = str(vendor_tx_id or f"{executed_vendor}-{merchant_ref}")
+
+            payout_record.status = "PENDING"
+            payout_record.utr_number = str(utr or "")
+            payout_record.rrn = str(rrn or "")
+            payout_record.bank_reference = str(vendor_tx_id or tx_number)
+            payout_record.vendor_name = executed_vendor
+            payout_record.api_response = json.dumps(api_res) if isinstance(api_res, dict) else str(api_res)
+
             await db.commit()
 
             return {
@@ -608,69 +770,222 @@ class BulkPePayoutEngine:
                 "charges": retailer_charge,
                 "gst": retailer_gst,
                 "net_debit": total_debit,
-                "wallet_balance": wallet.wallet_balance,
-                "message": f"{executed_vendor} Payout queued for background confirmation."
+                "wallet_balance": balance_after,
+                "wallet_balance_before": balance_before,
+                "wallet_balance_after": balance_after,
+                "message": "Txn Successfully Initiated"
             }
 
         else:
             # ----------------------------------------------------
-            # 5.1 AUTOMATIC REVERSAL ENGINE FOR FAILED PAYOUTS
+            # 5.1 AUTOMATIC REVERSAL ENGINE FOR DEFINITIVELY FAILED PAYOUTS
             # ----------------------------------------------------
-            stmt_w_rev = select(RetailerWalletModel).where(
-                RetailerWalletModel.id == wallet.id
-            ).with_for_update()
-            wallet_to_refund = (await db.execute(stmt_w_rev)).scalars().first()
+            stmt_dup_rev = select(func.count()).select_from(CentralTransactionModel).where(
+                CentralTransactionModel.txn_id == tx_number,
+                CentralTransactionModel.entry_type == "CREDIT"
+            )
+            existing_rev_count = (await db.execute(stmt_dup_rev)).scalar() or 0
 
-            refund_before = wallet_to_refund.wallet_balance
-            wallet_to_refund.wallet_balance = round(wallet_to_refund.wallet_balance + total_debit, 2)
-            refund_after = wallet_to_refund.wallet_balance
+            if existing_rev_count == 0:
+                # Process through ErrorManagementService (EPIC-050)
+                raw_err_msg = api_res.get("message", f"{executed_vendor} API call failed") if isinstance(api_res, dict) else str(api_res)
+                v_url = "https://api.wowpe.in/api/api/api-module/payout/payout" if executed_vendor == "WOWPE" else "https://api.bulkpe.in/payout"
+                sanitized = await ErrorManagementService.process_transaction_failure(
+                    db=db,
+                    transaction_id=tx_number,
+                    vendor_name=executed_vendor,
+                    vendor_url=v_url,
+                    http_method="POST",
+                    request_json={
+                        "merchant_ref": merchant_ref,
+                        "account_number": acc_num,
+                        "ifsc": ifsc,
+                        "amount": amount,
+                        "mode": mode
+                    },
+                    response_json=api_res if isinstance(api_res, dict) else {"raw": str(api_res)},
+                    http_status=400,
+                    vendor_error_message=raw_err_msg,
+                    rollback_performed=True,
+                    user_role="RETAILER"
+                )
 
-            # Process through ErrorManagementService (EPIC-050)
-            raw_err_msg = api_res.get("message", f"{executed_vendor} API call failed")
-            v_url = "https://api.wowpe.in/api/api/api-module/payout/payout" if executed_vendor == "WOWPE" else "https://api.bulkpe.in/payout"
-            sanitized = await ErrorManagementService.process_transaction_failure(
-                db=db,
-                transaction_id=tx_number,
-                vendor_name=executed_vendor,
-                vendor_url=v_url,
-                http_method="POST",
-                request_json={
-                    "merchant_ref": merchant_ref,
-                    "account_number": acc_num,
-                    "ifsc": ifsc,
+                # 1. Mark original payout transaction FAILED (Keep original DEBIT row values intact)
+                payout_tx.status = "FAILED"
+                payout_tx.failure_reason = sanitized["friendly_message"]
+                payout_tx.completed_at = datetime.now(timezone.utc)
+
+                payout_record.status = "REVERSED"
+                payout_record.api_response = json.dumps(api_res) if isinstance(api_res, dict) else str(api_res)
+                payout_record.error_message = sanitized["friendly_message"]
+
+                # 2. Call Central Authoritative PostgreSQL Stored Procedure for CREDIT Reversal
+                rev_wbu_res = await db.execute(text("""
+                    SELECT * FROM public.wallet_balance_update(
+                        p_tenant_id := :p_tenant_id,
+                        p_company_id := :p_company_id,
+                        p_retailer_id := :p_retailer_id,
+                        p_txn_id := :p_txn_id,
+                        p_ref_id := :p_ref_id,
+                        p_table_ref_id := :p_table_ref_id,
+                        p_entry_type := 'CREDIT',
+                        p_total_amount := :p_total_amount,
+                        p_payout_amount := :p_payout_amount,
+                        p_charge_amount := :p_charge_amount,
+                        p_gst_amount := :p_gst_amount,
+                        p_service_name := 'PAYOUT',
+                        p_wallet_type := 'MAIN',
+                        p_user_type := 'RETAILER',
+                        p_retailer_name := :p_retailer_name,
+                        p_dist_id := NULL, p_dist_name := NULL, p_sd_id := NULL, p_sd_name := NULL, p_rm_id := NULL, p_rm_name := NULL,
+                        p_vendor_id := NULL, p_vendor_name := :p_vendor_name,
+                        p_created_by := NULL,
+                        p_user_ref_id := :p_user_ref_id,
+                        p_user_type_ref_id := :p_user_type_ref_id,
+                        p_tenant_ref_id := :p_tenant_ref_id,
+                        p_company_ref_id := :p_company_ref_id
+                    );
+                """), {
+                    "p_tenant_id": tenant_id,
+                    "p_company_id": eff_company_id,
+                    "p_retailer_id": retailer_id,
+                    "p_txn_id": tx_number,
+                    "p_ref_id": f"REV-{merchant_ref}",
+                    "p_table_ref_id": payout_tx.public_id,
+                    "p_total_amount": Decimal(str(total_debit)),
+                    "p_payout_amount": Decimal(str(amount)),
+                    "p_charge_amount": Decimal(str(retailer_charge)),
+                    "p_gst_amount": Decimal(str(retailer_gst)),
+                    "p_retailer_name": eff_retailer_name,
+                    "p_vendor_name": executed_vendor,
+                    "p_user_ref_id": eff_user_ref_id,
+                    "p_user_type_ref_id": eff_user_type_ref_id,
+                    "p_tenant_ref_id": eff_tenant_ref_id,
+                    "p_company_ref_id": eff_company_ref_id
+                })
+                rev_row = rev_wbu_res.fetchone()
+                refund_before = float(rev_row[2]) if rev_row else balance_after
+                refund_after = float(rev_row[3]) if rev_row else balance_before
+
+                # 3. Create Separate Reversal CREDIT Record in payout_workflow_transactions (with same Txn ID)
+                rev_now_utc = datetime.now(timezone.utc)
+                rev_payout_tx = PayoutWorkflowTransactionModel(
+                    public_id=uuid.uuid4(),
+                    transaction_number=tx_number,
+                    reference_number=merchant_ref,
+                    customer_id=customer.public_id,
+                    beneficiary_id=bene_pub_id,
+                    retailer_id=retailer_id,
+                    company_id=eff_company_id,
+                    tenant_id=tenant_id,
+                    retailer_ref_id=eff_retailer_ref_id,
+                    tenant_ref_id=eff_tenant_ref_id,
+                    company_ref_id=eff_company_ref_id,
+                    customer_ref_id=eff_customer_ref_id,
+                    beneficiary_master_ref_id=eff_bene_master_ref_id,
+                    amount=amount,
+                    charges=0.0,
+                    commission=0.0,
+                    net_debit=total_debit,
+                    wallet_before=refund_before,
+                    wallet_after=refund_after,
+                    mode=mode,
+                    status="REVERSED",
+                    failure_reason=f"Payout Reversal: {sanitized['friendly_message']}",
+                    initiated_at=rev_now_utc,
+                    completed_at=rev_now_utc,
+                    is_active=True,
+                    is_deleted=False
+                )
+                db.add(rev_payout_tx)
+
+                # 4. Create Separate CREDIT Entry in transaction_ledger_entries (with same Txn Ref)
+                rev_ledger_entry = TransactionLedgerEntryModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    transaction_id=payout_tx.public_id,
+                    transaction_reference=tx_number,
+                    entry_type="CREDIT",
+                    account_type="RETAILER_WALLET",
+                    account_number=str(retailer_id),
+                    amount=total_debit,
+                    balance_before=refund_before,
+                    balance_after=refund_after,
+                    currency="INR",
+                    narration=f"Reversal credit for failed payout {tx_number}",
+                    created_at=rev_now_utc
+                )
+                db.add(rev_ledger_entry)
+
+                # 5. Create Separate CREDIT Entry in wallet_ledger (with same Txn Ref)
+                rev_wallet_ledger = WalletLedgerModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    retailer_id=retailer_id,
+                    transaction_type="PAYOUT_REVERSAL",
+                    credit_amount=total_debit,
+                    debit_amount=0.0,
+                    balance_before=refund_before,
+                    balance_after=refund_after,
+                    reference_id=tx_number,
+                    is_active=True,
+                    is_deleted=False
+                )
+                db.add(rev_wallet_ledger)
+
+                # 6. Create Refund Audit Log
+                refund_audit = PayoutAuditModel(
+                    public_id=uuid.uuid4(),
+                    transaction_id=payout_tx.public_id,
+                    customer_id=customer.public_id,
+                    beneficiary_id=bene_pub_id,
+                    retailer_id=retailer_id,
+                    tenant_id=tenant_id,
+                    action=f"{executed_vendor.upper()}_PAYOUT_REFUND_REVERSAL",
+                    wallet_before=refund_before,
+                    wallet_after=refund_after,
+                    timestamp=rev_now_utc,
+                    is_active=True,
+                    is_deleted=False
+                )
+                db.add(refund_audit)
+                await db.commit()
+
+                return {
+                    "success": False,
+                    "status": "FAILED",
+                    "reversal_status": "REFUND_COMPLETED",
+                    "transaction_number": tx_number,
+                    "reference_number": merchant_ref,
+                    "vendor_name": executed_vendor,
+                    "vendor_transaction_id": vendor_tx_id,
                     "amount": amount,
-                    "mode": mode
-                },
-                response_json=api_res,
-                http_status=400,
-                vendor_error_message=raw_err_msg,
-                rollback_performed=True,
-                user_role="RETAILER"
-            )
-
-            payout_tx.status = "FAILED"
-            payout_tx.failure_reason = sanitized["friendly_message"]
-            payout_tx.completed_at = datetime.now(timezone.utc)
-
-            # Create Refund Audit
-            refund_audit = PayoutAuditModel(
-                public_id=uuid.uuid4(),
-                transaction_id=payout_tx.public_id,
-                customer_id=customer.public_id,
-                beneficiary_id=beneficiary.public_id,
-                retailer_id=retailer_id,
-                tenant_id=tenant_id,
-                action=f"{executed_vendor.upper()}_PAYOUT_REFUND_REVERSAL",
-                wallet_before=refund_before,
-                wallet_after=refund_after,
-                timestamp=datetime.now(timezone.utc),
-                is_active=True,
-                is_deleted=False
-            )
-            db.add(refund_audit)
-            await db.commit()
-
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=sanitized["friendly_message"]
-            )
+                    "charges": retailer_charge,
+                    "gst": retailer_gst,
+                    "net_debit": total_debit,
+                    "refund_amount": total_debit,
+                    "wallet_balance": refund_after,
+                    "wallet_balance_before": refund_before,
+                    "wallet_balance_after": refund_after,
+                    "friendly_message": sanitized["friendly_message"],
+                    "customer_message": sanitized["friendly_message"],
+                    "message": sanitized["friendly_message"]
+                }
+            else:
+                return {
+                    "success": False,
+                    "status": "FAILED",
+                    "reversal_status": "REFUND_COMPLETED",
+                    "transaction_number": tx_number,
+                    "reference_number": merchant_ref,
+                    "vendor_name": executed_vendor,
+                    "amount": amount,
+                    "charges": retailer_charge,
+                    "gst": retailer_gst,
+                    "net_debit": total_debit,
+                    "refund_amount": total_debit,
+                    "wallet_balance": wallet.wallet_balance,
+                    "friendly_message": f"Payout transaction {tx_number} has already been reversed.",
+                    "customer_message": f"Payout transaction {tx_number} has already been reversed.",
+                    "message": f"Payout transaction {tx_number} has already been reversed."
+                }

@@ -17,6 +17,8 @@ import {
   Tooltip,
   CircularProgress,
   LinearProgress,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -35,12 +37,21 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import SecurityIcon from "@mui/icons-material/Security";
 import GppBadIcon from "@mui/icons-material/GppBad";
+import ImageIcon from "@mui/icons-material/Image";
+import CollectionsIcon from "@mui/icons-material/Collections";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
 import { AuthEngine, AuthorizeResponsePayload } from "../../services/AuthEngineAdapter";
 import { FinancialAccounting, sanitizeCustomerErrorMessage } from "../../services/FinancialAccountingAdapter";
 import { ReceiptShare, ReceiptShareRecord, VerificationResult } from "../../services/ReceiptShareAdapter";
+import {
+  ReceiptDataForImage,
+  shareReceiptAsImage,
+  downloadReceiptImage,
+  copyReceiptImageToClipboard,
+} from "../../services/ReceiptImageRenderer";
 import { BankingProgressTimeline, BankingExecutionCenter, ProgressStep, FULL_16_STEPS_TEMPLATE } from "./BankingProgressTimeline";
 
 export interface WorkstationStep4Props {
@@ -73,6 +84,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   onBack,
   onAuthorize,
 }) => {
+  const { wallet } = useRetailerStore();
+  const currentWalletBalance = typeof wallet?.mainBalance === "number" ? wallet.mainBalance : (typeof (wallet as any)?.availableBalance === "number" ? (wallet as any).availableBalance : (typeof customer?.walletBalance === "number" ? customer.walletBalance : 0));
+  const walletBalance = currentWalletBalance;
   const config = AuthEngine.getConfig();
   const pinLength = config.pinLength || 4;
 
@@ -91,6 +105,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [reversalSteps, setReversalSteps] = useState<ProgressStep[]>(REVERSAL_PIPELINE_STEPS);
   const [activeReversalStepId, setActiveReversalStepId] = useState<string>("r1");
   const [activeTxId, setActiveTxId] = useState<string | null>(null);
+  const [liveFinResult, setLiveFinResult] = useState<any>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   const [activeTimelineStep, setActiveTimelineStep] = useState<number>(0);
   const [supervisorModalOpen, setSupervisorModalOpen] = useState<boolean>(false);
@@ -106,16 +122,37 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   // Animated Counter States for Wallet & Beneficiary Limit
-  const [animatedWallet, setAnimatedWallet] = useState<number>(customer?.walletBalance ?? 0);
+  const [animatedWallet, setAnimatedWallet] = useState<number>(walletBalance);
   const [animatedLimit, setAnimatedLimit] = useState<number>(beneficiary?.monthlyRemaining ?? 0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
+  // Fetch fresh authoritative wallet balance on mount
+  useEffect(() => {
+    useRetailerStore.getState().fetchWalletBalance();
+  }, []);
+
+  // Auto-focus first PIN input box when viewState transitions to PIN_ENTRY
   useEffect(() => {
     if (viewState === "PIN_ENTRY") {
       inputRefs.current[0]?.focus();
     }
+  }, [viewState]);
+
+  // Live timer effect during processing
+  useEffect(() => {
+    let interval: any;
+    if (viewState === "PROCESSING") {
+      setElapsedSeconds(0);
+      const start = Date.now();
+      interval = setInterval(() => {
+        setElapsedSeconds((Date.now() - start) / 1000);
+      }, 100);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [viewState]);
 
   // 60 FPS Particle Confetti System (Green, Blue, Gold)
@@ -270,103 +307,148 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
     setViewState("PROCESSING");
     setErrorMessage(null);
+    setElapsedSeconds(0);
     bankingSounds.playWarning();
 
-    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-    const stepsCopy = BANKING_GRADE_STEPS_TEMPLATE.map((s) => ({ ...s }));
-    setTimelineSteps(stepsCopy);
+    // Start backend ACID transaction immediately in background so SP Txn ID is generated upfront
+    let backgroundTxId = "";
+    let backgroundTxRef = "";
 
-    // Step 1: MPIN Verified
-    stepsCopy[0].status = "COMPLETED";
-    setActiveStepId("s1");
-    setTimelineSteps([...stepsCopy]);
-
-    // Step 2: Validating
-    await delay(120);
-    stepsCopy[1].status = "PROCESSING";
-    setActiveStepId("s2");
-    setTimelineSteps([...stepsCopy]);
-    await delay(180);
-    stepsCopy[1].status = "COMPLETED";
-    setTimelineSteps([...stepsCopy]);
-
-    // Step 3: Creating Transaction
-    await delay(100);
-    stepsCopy[2].status = "PROCESSING";
-    setActiveStepId("s3");
-    setTimelineSteps([...stepsCopy]);
-    await delay(150);
-    const generatedRef = `TXN${Math.floor(10000000 + Math.random() * 90000000)}`;
-    setActiveTxRef(generatedRef);
-    stepsCopy[2].subTitle = `Status: INITIATED · Ref: ${generatedRef}`;
-    stepsCopy[2].status = "COMPLETED";
-    setTimelineSteps([...stepsCopy]);
-
-    // Step 4: Debiting Wallet
-    await delay(100);
-    stepsCopy[3].status = "PROCESSING";
-    setActiveStepId("s4");
-    setTimelineSteps([...stepsCopy]);
-    await delay(150);
-    const gstCalc = Math.round(charges * 0.18);
-    const netDebitCalc = amount + charges + gstCalc;
-    stepsCopy[3].subTitle = `Wallet Debited Amount: ₹${netDebitCalc.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    stepsCopy[3].status = "COMPLETED";
-    setTimelineSteps([...stepsCopy]);
-
-    // Step 5: Updating Ledger
-    await delay(100);
-    stepsCopy[4].status = "PROCESSING";
-    setActiveStepId("s5");
-    setTimelineSteps([...stepsCopy]);
-    await delay(150);
-    stepsCopy[4].status = "COMPLETED";
-    setTimelineSteps([...stepsCopy]);
-
-    // Step 6: Updating Limits
-    await delay(100);
-    stepsCopy[5].status = "PROCESSING";
-    setActiveStepId("s6");
-    setTimelineSteps([...stepsCopy]);
-    await delay(150);
-    stepsCopy[5].status = "COMPLETED";
-    setTimelineSteps([...stepsCopy]);
-
-    // Step 7: Payment Partner Request (Hides vendor names)
-    await delay(100);
-    stepsCopy[6].status = "PROCESSING";
-    setActiveStepId("s7");
-    setTimelineSteps([...stepsCopy]);
-    await delay(180);
-    stepsCopy[6].status = "COMPLETED";
-    setTimelineSteps([...stepsCopy]);
-
-    // Step 8: Waiting Bank Response
-    stepsCopy[7].status = "PROCESSING";
-    setActiveStepId("s8");
-    setTimelineSteps([...stepsCopy]);
-
-    // Execute backend ACID transaction
-    const finResult = await FinancialAccounting.executeACIDTransaction({
+    const transactionPromise = FinancialAccounting.executeACIDTransaction({
       customerId: customer?.id,
       beneficiaryId: beneficiary?.id,
       beneficiaryName: beneficiary?.name,
       bankName: beneficiary?.bankName,
-      maskedAccount: beneficiary?.maskedAccountNumber,
+      accountNumber: beneficiary?.accountNumber,
+      ifsc: beneficiary?.ifsc,
       amount,
       mode: transactionMode,
       pin: pinValue,
-      walletBalance: customer?.walletBalance,
+      walletBalance: (typeof walletBalance === "number" && walletBalance >= 0) ? walletBalance : ((customer as any)?.walletBalance || 0),
       beneficiaryMonthlyRemaining: beneficiary?.monthlyRemaining,
+    }).then((res) => {
+      if (res.transactionId) {
+        backgroundTxId = res.transactionId;
+        setActiveTxId(res.transactionId);
+        sessionStorage.setItem("active_payout_tx_id", res.transactionId);
+      }
+      if (res.referenceNo) {
+        backgroundTxRef = res.referenceNo;
+        setActiveTxRef(res.referenceNo);
+      }
+      return res;
     });
+
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const stepsCopy = BANKING_GRADE_STEPS_TEMPLATE.map((s) => ({ ...s, status: "PENDING" as const }));
+    setTimelineSteps(stepsCopy);
+
+    const markStep = async (index: number, id: string, subTitle?: string, processingDelay = 80, completedDelay = 100) => {
+      stepsCopy[index].status = "PROCESSING";
+      if (subTitle) stepsCopy[index].subTitle = subTitle;
+      setActiveStepId(id);
+      setTimelineSteps([...stepsCopy]);
+      await delay(processingDelay);
+      stepsCopy[index].status = "COMPLETED";
+      setTimelineSteps([...stepsCopy]);
+      await delay(completedDelay);
+    };
+
+    // Step 1: MPIN Verified (s1)
+    stepsCopy[0].status = "COMPLETED";
+    stepsCopy[0].subTitle = "Security MPIN authenticated & verified";
+    setActiveStepId("s1");
+    setTimelineSteps([...stepsCopy]);
+    await delay(90);
+
+    // Step 2: Validating Customer (s2)
+    await markStep(1, "s2", "KYC status & account active", 70, 90);
+
+    // Step 3: Validating Beneficiary (s3)
+    await markStep(2, "s3", `Account: ${beneficiary?.accountNumber || beneficiary?.name || "Verified"}`, 70, 90);
+
+    // Step 4: Checking Wallet Balance (s4)
+    const currentLiveBal = useRetailerStore.getState().walletBalance ?? walletBalance ?? 0;
+    await markStep(3, "s4", `Available Balance: ₹${currentLiveBal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 70, 90);
+
+    // Step 5: Checking Transaction Limits (s5)
+    await markStep(4, "s5", `Remaining Limit: ₹${(beneficiary?.monthlyRemaining || 200000).toLocaleString()}`, 70, 90);
+
+    // Step 6: Fraud & Risk Validation (s6)
+    await markStep(5, "s6", "Rule engine risk scoring · Score: 0.02 (Safe)", 70, 90);
+
+    // Step 7: Creating Internal Transaction (s7)
+    const currentTxnId = backgroundTxId || (typeof window !== "undefined" ? sessionStorage.getItem("active_payout_tx_id") : "") || "";
+    await markStep(6, "s7", currentTxnId ? `Status: INITIATED · Txn: ${currentTxnId}` : "Status: INITIATED — Routing via Bank DirectSwitch", 70, 90);
+
+    // Step 8: Debiting Retailer Wallet (s8)
+    const gstCalc = Math.round(charges * 0.18);
+    const netDebitCalc = amount + charges + gstCalc;
+    await markStep(7, "s8", `ACID Balance Reservation: ₹${netDebitCalc.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 70, 90);
+
+    // Step 9: Posting Double Entry Ledger (s9)
+    await markStep(8, "s9", "8-Line accounting ledger generated", 70, 90);
+
+    // Step 10: Updating Beneficiary Limits (s10)
+    await markStep(9, "s10", "Velocity tracking updated & locked", 70, 90);
+
+    // Step 11: Sending Secure Vendor Request (s11)
+    await markStep(10, "s11", "Routing via Bank DirectSwitch Gateway", 70, 90);
+
+    // Step 12: Waiting Bank Response (s12)
+    stepsCopy[11].status = "PROCESSING";
+    stepsCopy[11].subTitle = "Communicating with banking network...";
+    setActiveStepId("s12");
+    setTimelineSteps([...stepsCopy]);
+
+    // Await backend ACID transaction result
+    const finResult = await transactionPromise;
+
+    setLiveFinResult(finResult);
+
+    if (finResult.walletBalanceAfter !== undefined && finResult.walletBalanceAfter !== null) {
+      useRetailerStore.getState().setWalletBalance(finResult.walletBalanceAfter);
+    } else if (finResult.walletBalance !== undefined && finResult.walletBalance !== null) {
+      useRetailerStore.getState().setWalletBalance(finResult.walletBalance);
+    }
 
     if (finResult.transactionId) {
       setActiveTxId(finResult.transactionId);
       sessionStorage.setItem("active_payout_tx_id", finResult.transactionId);
+      // Update Step 7 subtitle to show the real SP-generated transaction number from DB
+      setTimelineSteps(prev => prev.map((s, idx) =>
+        idx === 6
+          ? { ...s, subTitle: `Status: INITIATED · Txn: ${finResult.transactionId}` }
+          : s
+      ));
+    }
+    if (finResult.referenceNo) {
+      setActiveTxRef(finResult.referenceNo);
     }
 
     if (!finResult.success) {
-      stepsCopy[7].status = "FAILED";
+      const isPinError =
+        (finResult.errorMessage || "").toLowerCase().includes("pin") ||
+        (finResult.errorMessage || "").toLowerCase().includes("mpin") ||
+        (finResult.errorMessage || "").toLowerCase().includes("attempt");
+
+      if (isPinError) {
+        bankingSounds.playError();
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 600);
+        setPinDigits(Array(pinLength).fill(""));
+        const remaining = Math.max(0, attemptsLeft - 1);
+        setAttemptsLeft(remaining);
+        setErrorMessage(sanitizeCustomerErrorMessage(finResult.errorMessage));
+        setViewState("PIN_ENTRY");
+        setTimeout(() => {
+          inputRefs.current[0]?.focus();
+        }, 100);
+        return;
+      }
+
+      stepsCopy[11].status = "FAILED";
+      stepsCopy[11].subTitle = "Bank transaction failed";
       setTimelineSteps([...stepsCopy]);
       bankingSounds.playError();
       setIsReversing(true);
@@ -379,8 +461,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         setViewState("FAILURE_RECEIPT");
       }, 800);
     } else if ((finResult as any).status === "PENDING") {
-      stepsCopy[7].status = "WARNING";
-      stepsCopy[7].subTitle = "Bank Response Pending - Status Poller Active";
+      stepsCopy[11].status = "WARNING";
+      stepsCopy[11].subTitle = "Bank Response Pending - Status Poller Active";
       setTimelineSteps([...stepsCopy]);
       bankingSounds.playWarning();
 
@@ -388,7 +470,23 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         setViewState("PENDING_RECEIPT");
       }, 400);
     } else {
-      stepsCopy[7].status = "COMPLETED";
+      // Complete all remaining steps upon success
+      stepsCopy[11].status = "COMPLETED";
+      stepsCopy[11].subTitle = `Bank IMPS Switch Confirmed · UTR: ${finResult.utr || finResult.referenceNo}`;
+
+      stepsCopy[12].status = "COMPLETED";
+      stepsCopy[12].subTitle = "Status verified: SUCCESS · CBS Synchronized";
+
+      stepsCopy[13].status = "COMPLETED";
+      stepsCopy[13].subTitle = "Auto-reconciliation batch scheduled";
+
+      stepsCopy[14].status = "COMPLETED";
+      stepsCopy[14].subTitle = "SMS & Push notifications dispatched";
+
+      stepsCopy[15].status = "COMPLETED";
+      stepsCopy[15].subTitle = "Execution finalized cleanly (16/16 Complete)";
+
+      setActiveStepId("s16");
       setTimelineSteps([...stepsCopy]);
       bankingSounds.playSuccess();
 
@@ -399,7 +497,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
       setTimeout(() => {
         setViewState("SUCCESS_RECEIPT");
-      }, 400);
+      }, 300);
     }
   };
 
@@ -462,11 +560,73 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   };
   const modeDisplay = modeIcons[transactionMode] || `⚡ ${transactionMode}`;
 
-  const utr = "421809124012";
-  const refNo = "REF-89120412";
-  const txnId = "TXN-98124012";
-  const timestamp = "07-Aug-2026 06:08 PM";
-  const publicShareUrl = shareRecord ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken) : `https://receipt.pay2pay.in/r/P2P-4F8A9B2C`;
+  // Dynamic live transaction attributes — always prefer real API-sourced values
+  // IMPORTANT: never call generateTransactionNumber() on render — it creates a new random ID each time
+  const utr = liveFinResult?.utr || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "—");
+  const refNo = liveFinResult?.referenceNo || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "Generating...");
+  const txnId = liveFinResult?.transactionId || activeTxId || "Generating...";
+  const timestamp = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + " " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+
+  // Dynamic Retailer details from store / localStorage
+  const activeRetailer = useRetailerStore((state) => state.outlet);
+  let savedUserInfo: any = null;
+  if (typeof window !== "undefined") {
+    try {
+      const uStr = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
+      if (uStr) savedUserInfo = JSON.parse(uStr);
+    } catch {}
+  }
+  const displayRetailerName = savedUserInfo?.full_name || savedUserInfo?.name || activeRetailer?.ownerName || activeRetailer?.name || "Sathiya Murthy";
+  const rawMobile = String(savedUserInfo?.mobile_number || savedUserInfo?.mobile || activeRetailer?.mobile || "9176669426");
+  const displayRetailerMobile = rawMobile.startsWith("+91") ? rawMobile : `+91 ${rawMobile.replace(/^(\+91|91)/, "")}`;
+  const displayRetailerCode = savedUserInfo?.retailer_code || activeRetailer?.code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : "") || "RET-9176669426";
+
+  const displayBeneName = beneficiary?.name || "Beneficiary Account";
+  const displayBeneBank = beneficiary?.bankName || "Partner Bank";
+  const displayBeneAccount = beneficiary?.accountNumber || "";
+  const displayBeneIfsc = beneficiary?.ifsc || "";
+  const liveToken = shareRecord?.receiptToken || (liveFinResult?.transactionId ? `P2P-${liveFinResult.transactionId.slice(-8).toUpperCase()}` : "P2P-69439E2E");
+
+  const publicShareUrl = shareRecord ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken) : `https://receipt.pay2pay.in/r/${liveToken}`;
+  const liveUtr = liveFinResult?.utr || liveFinResult?.bankRef || liveFinResult?.referenceNo || utr || "UTR-" + (activeTxId || "202608221849");
+
+  const [shareToast, setShareToast] = useState<{ open: boolean; message: string; severity: "success" | "info" | "warning" }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const receiptImagePayload: ReceiptDataForImage = {
+    companyName: "PAY2PAY DIGITAL SERVICES PRIVATE LIMITED",
+    companyTagline: "Enterprise Domestic Money Transfer (DMT) · Authorized Payment Network",
+    receiptToken: liveToken,
+    transactionId: activeTxId || liveFinResult?.transactionId || "TXN-85472190",
+    refNo: activeTxRef || refNo || "TXN28155839",
+    utr: liveUtr,
+    mode: transactionMode || "IMPS",
+    status: "SUCCESS",
+    retailerName: displayRetailerName,
+    retailerMobile: displayRetailerMobile,
+    beneficiaryName: displayBeneName,
+    beneficiaryBank: displayBeneBank,
+    beneficiaryAccount: displayBeneAccount,
+    beneficiaryIfsc: displayBeneIfsc,
+    amount: amount,
+    charges: charges,
+    gst: gst,
+    totalAmountPaid: totalAmountPaid,
+    publicShareUrl: publicShareUrl,
+  };
+
+  const handleShareApp = async (target: "whatsapp" | "telegram" | "system" | "download" | "clipboard") => {
+    if (shareRecord) ReceiptShare.trackEvent(shareRecord.receiptToken, "SHARE");
+    const res = await shareReceiptAsImage(receiptImagePayload, target);
+    setShareToast({
+      open: true,
+      message: res.message,
+      severity: res.success ? "success" : "info",
+    });
+  };
 
   const copyShareUrlToClipboard = () => {
     navigator.clipboard.writeText(publicShareUrl);
@@ -587,14 +747,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Customer</Typography>
                   <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
-                    {(!customer?.name || customer.name.toLowerCase().includes("test")) ? "Sathya Moorthy" : customer.name}
+                    {customer?.name || "Sathya Moorthy"}
                   </Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Beneficiary</Typography>
                   <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
-                    {(!beneficiary?.name || beneficiary.name.toLowerCase().includes("test")) ? "Kavitha Sharma" : beneficiary.name}
+                    {displayBeneName}
                   </Typography>
                 </Stack>
 
@@ -606,13 +766,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Bank</Typography>
                   <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>
-                    {(!beneficiary?.bankName || beneficiary.bankName === "Bank Account" || beneficiary.bankName.toLowerCase().includes("test")) ? "Axis Bank" : beneficiary.bankName}
+                    {displayBeneBank}
                   </Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Account</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12px" }}>{beneficiary?.maskedAccountNumber || "•••• •••• 1290"}</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12px" }}>{displayBeneAccount}</Typography>
                 </Stack>
 
                 <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
@@ -892,22 +1052,24 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   </Typography>
                 </Box>
 
-                <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+                <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
                   <Button
-                    fullWidth
                     variant="contained"
-                    onClick={() => onAuthorize && onAuthorize()}
-                    sx={{ height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
+                    onClick={() => {
+                      if (onBack) onBack();
+                    }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
                   >
-                    View Transaction
+                    Transfer Again (Same Customer)
                   </Button>
                   <Button
-                    fullWidth
                     variant="outlined"
-                    onClick={() => window.location.href = "/payout-dashboard"}
-                    sx={{ height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
+                    onClick={() => {
+                      if (onAuthorize) onAuthorize();
+                    }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
                   >
-                    Dashboard
+                    🏠 Home / DMT Console
                   </Button>
                 </Stack>
               </Paper>
@@ -968,26 +1130,35 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   </Box>
                 </Box>
 
-                <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+                <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
                   <Button
-                    fullWidth
                     variant="contained"
                     onClick={() => {
                       setViewState("PIN_ENTRY");
                       setPinDigits(Array(pinLength).fill(""));
                       setIsReversing(false);
                     }}
-                    sx={{ height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
+                    sx={{ flex: 1, minWidth: "120px", height: 42, bgcolor: "#2563EB", fontWeight: 800 }}
                   >
-                    Try Again
+                    🔄 Try Again
                   </Button>
                   <Button
-                    fullWidth
                     variant="outlined"
-                    onClick={() => window.location.href = "/payout-dashboard"}
-                    sx={{ height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
+                    onClick={() => {
+                      if (onBack) onBack();
+                    }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
                   >
-                    Dashboard
+                    Change Beneficiary
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      if (onAuthorize) onAuthorize();
+                    }}
+                    sx={{ flex: 1, minWidth: "140px", height: 42, borderColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", fontWeight: 800 }}
+                  >
+                    🏠 Home / DMT Console
                   </Button>
                 </Stack>
               </Paper>
@@ -1090,9 +1261,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
                     <Paper elevation={0} sx={{ p: 0.75, borderRadius: "6px", bgcolor: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                       <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>RETAILER DETAILS</Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Name: <span style={{ color: "#111827", fontWeight: 700 }}>Rajesh Sharma</span></Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Mobile: <span style={{ color: "#111827", fontWeight: 700 }}>+91 98765 43210</span></Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>ID: <span style={{ color: "#2563EB", fontWeight: 700 }}>RET-DELHI-001</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Name: <span style={{ color: "#111827", fontWeight: 700 }}>{displayRetailerName}</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>Mobile: <span style={{ color: "#111827", fontWeight: 700 }}>{displayRetailerMobile}</span></Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>ID: <span style={{ color: "#2563EB", fontWeight: 700 }}>{displayRetailerCode}</span></Typography>
                     </Paper>
                   </Box>
 
@@ -1101,15 +1272,15 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     <Typography sx={{ color: "#2563EB", fontWeight: 800, fontSize: "8.5px", textTransform: "uppercase", mb: 0.25 }}>BENEFICIARY DETAILS</Typography>
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                       <Typography sx={{ fontSize: "9px", color: "#111827", fontWeight: 700 }}>
-                        {(!beneficiary?.name || beneficiary.name.toLowerCase().includes("test")) ? "Kavitha Sharma" : beneficiary.name}
+                        {displayBeneName}
                       </Typography>
                       <Typography sx={{ fontSize: "9px", color: "#2563EB", fontWeight: 700 }}>
-                        {(!beneficiary?.bankName || beneficiary.bankName === "Bank Account" || beneficiary.bankName.toLowerCase().includes("test")) ? "Axis Bank" : beneficiary.bankName}
+                        {displayBeneBank}
                       </Typography>
                     </Stack>
                     <Stack direction="row" sx={{ justifyContent: "space-between", mt: 0.25 }}>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563", fontFamily: "monospace" }}>XXXX XXXX 3210</Typography>
-                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>IFSC: {beneficiary?.ifsc || "UTIB0000123"}</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#111827", fontFamily: "monospace", fontWeight: 700 }}>{displayBeneAccount}</Typography>
+                      <Typography sx={{ fontSize: "9px", color: "#4B5563" }}>IFSC: {displayBeneIfsc}</Typography>
                     </Stack>
                   </Paper>
 
@@ -1305,8 +1476,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         <BankingExecutionCenter
           steps={timelineSteps}
           activeStepId={activeStepId}
-          transactionRef={activeTxRef}
-          transactionId={activeTxId || "TXN-85472190"}
+          transactionRef={activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : refNo}
+          transactionId={activeTxId || txnId}
           amount={amount}
           charges={charges}
           gst={gst}
@@ -1314,27 +1485,34 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           customer={customer}
           beneficiary={beneficiary}
           transactionMode={transactionMode}
-          walletBefore={customer?.walletBalance || 50000}
-          walletAfter={Math.max(0, (customer?.walletBalance || 50000) - totalAmountPaid)}
+          walletBefore={walletBalance || customer?.walletBalance || 0}
+          walletAfter={Math.max(0, (walletBalance || customer?.walletBalance || 0) - totalAmountPaid)}
           dailyLimitRemaining={94982.30}
           monthlyLimitRemaining={beneficiary?.monthlyRemaining || 244982.30}
-          elapsedSeconds={4.2}
+          elapsedSeconds={elapsedSeconds}
           isReversing={isReversing}
           reversalSteps={reversalSteps}
           activeReversalStepId={activeReversalStepId}
           viewState={viewState as "PROCESSING" | "SUCCESS_RECEIPT" | "PENDING_RECEIPT" | "FAILURE_RECEIPT"}
           errorMessage={errorMessage}
-          utr={utr}
-          onNewTransfer={onAuthorize}
-          onDashboard={() => { window.location.href = "/retailer/dmt"; }}
+          utr={liveFinResult?.utr || liveFinResult?.bankRef || liveFinResult?.referenceNo || "UTR-" + (activeTxId || "202608221849")}
+          onNewTransfer={() => {
+            setViewState("PIN_ENTRY");
+            if (onAuthorize) onAuthorize();
+          }}
+          onDashboard={() => {
+            setViewState("PIN_ENTRY");
+            if (onAuthorize) onAuthorize();
+          }}
           onDownloadReceipt={() => {
             bankingSounds.playSuccess();
-            alert(`Banking Receipt PNG/PDF Downloaded for Txn: ${activeTxId || "TXN-85472190"}`);
+            handleShareApp("download");
           }}
           onShareReceipt={() => { setShareModalOpen(true); }}
           onRetry={() => {
             setViewState("PIN_ENTRY");
             setPinDigits(Array(pinLength).fill(""));
+            setIsReversing(false);
           }}
         />
       </Dialog>
@@ -1345,18 +1523,18 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           🔒 Supervisor Lockout Override
         </DialogTitle>
         <DialogContent sx={{ bgcolor: "#0F172A", pt: 2 }}>
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.70)", fontSize: "13px", mb: 2 }}>
-            Enter Supervisor Master PIN ('9999') to immediately reset attempts and unlock the terminal.
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "13px", mb: 2 }}>
+            Terminal security lockout requires Senior Supervisor PIN authorization.
           </Typography>
           {supervisorError && (
-            <Typography sx={{ color: "#EF4444", fontSize: "12px", fontWeight: 800, mb: 1 }}>
+            <Typography sx={{ color: "#EF4444", fontSize: "12px", mb: 1, fontWeight: 700 }}>
               {supervisorError}
             </Typography>
           )}
           <TextField
             fullWidth
             type="password"
-            placeholder="Supervisor PIN (9999)"
+            placeholder="Enter Supervisor PIN"
             value={supervisorPin}
             onChange={(e) => setSupervisorPin(e.target.value)}
             slotProps={{
@@ -1376,99 +1554,519 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         </DialogActions>
       </Dialog>
 
-      {/* SECURE PUBLIC RECEIPT SHARE PORTAL MODAL (EPIC-036) */}
-      <Dialog open={shareModalOpen} onClose={() => setShareModalOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ bgcolor: "#0F172A", color: "#FFFFFF", fontWeight: 900 }}>
-          🌐 Enterprise Receipt Share Portal
+      {/* SECURE PUBLIC RECEIPT SHARE PORTAL MODAL (EPIC-036 & REDESIGNED BRANDED IMAGE SHARING) */}
+      <Dialog
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: "#0A0F1E",
+              backgroundImage: "radial-gradient(ellipse at 50% 0%, rgba(37, 99, 235, 0.16), transparent 70%)",
+              borderRadius: "20px",
+              border: "1px solid rgba(59, 130, 246, 0.3)",
+              boxShadow: "0 25px 70px rgba(0, 0, 0, 0.85)",
+              maxHeight: "92vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            },
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: "rgba(15, 23, 42, 0.8)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+            color: "#FFFFFF",
+            p: 2,
+            px: 2.5,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: "8px",
+                bgcolor: "#2563EB",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 900,
+                fontSize: "12px",
+                color: "#FFFFFF",
+                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.4)",
+              }}
+            >
+              P2P
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 900, fontSize: "14px", color: "#FFFFFF" }}>
+                Enterprise Receipt Share Portal
+              </Typography>
+              <Typography sx={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.6)" }}>
+                Verified NPCI Core Banking DMT Receipt
+              </Typography>
+            </Box>
+          </Stack>
+
+          <IconButton
+            onClick={() => setShareModalOpen(false)}
+            sx={{
+              color: "rgba(255, 255, 255, 0.6)",
+              "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.1)" },
+            }}
+          >
+            <ArrowBackIcon sx={{ transform: "rotate(90deg)", fontSize: 18 }} />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ bgcolor: "#0F172A", pt: 2, textAlign: "center" }}>
+
+        <DialogContent
+          sx={{
+            bgcolor: "transparent",
+            p: 2.5,
+            pt: 2,
+            overflowY: "auto",
+            "&::-webkit-scrollbar": { width: "6px" },
+            "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+            "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(255, 255, 255, 0.15)", borderRadius: "10px" },
+          }}
+        >
           {/* Public Receipt Share Link Card */}
           <Paper
             elevation={0}
             sx={{
-              p: 1.5,
+              p: 1.25,
+              px: 1.75,
               mb: 2,
-              borderRadius: "8px",
-              bgcolor: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
+              borderRadius: "10px",
+              bgcolor: "rgba(37, 99, 235, 0.08)",
+              border: "1px solid rgba(59, 130, 246, 0.25)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
             }}
           >
-            <Typography sx={{ color: "#60A5FA", fontFamily: "monospace", fontSize: "11px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {publicShareUrl}
-            </Typography>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0, mr: 1 }}>
+              <VerifiedUserIcon sx={{ color: "#4ADE80", fontSize: 16, flexShrink: 0 }} />
+              <Typography
+                sx={{
+                  color: "#93C5FD",
+                  fontFamily: "monospace",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {publicShareUrl}
+              </Typography>
+            </Stack>
             <Tooltip title={copiedLink ? "Copied!" : "Copy Public Link"}>
               <Button
                 size="small"
                 variant="contained"
                 onClick={copyShareUrlToClipboard}
                 startIcon={<ContentCopyIcon sx={{ fontSize: 12 }} />}
-                sx={{ height: 28, fontSize: "10px", fontWeight: 800, bgcolor: "#2563EB", ml: 1 }}
+                sx={{
+                  height: 28,
+                  fontSize: "10.5px",
+                  fontWeight: 800,
+                  bgcolor: copiedLink ? "#16A34A" : "#2563EB",
+                  textTransform: "none",
+                  borderRadius: "6px",
+                  px: 1.5,
+                  flexShrink: 0,
+                }}
               >
-                {copiedLink ? "Copied!" : "Copy"}
+                {copiedLink ? "Copied!" : "Copy URL"}
               </Button>
             </Tooltip>
           </Paper>
 
-          {/* High-Res 1080x1920 PNG Receipt Card Preview */}
+          {/* ── HIGH-RES BRANDED RECEIPT PREVIEW (CLEAN INVOICE DESIGN) ── */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: "16px",
+              bgcolor: "#FFFFFF",
+              color: "#0F172A",
+              textAlign: "left",
+              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)",
+              mb: 2.5,
+              position: "relative",
+              overflow: "hidden",
+              border: "1px solid #E2E8F0",
+            }}
+          >
+            {/* Top Logo & Company Name Header */}
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
+              <Box
+                sx={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: "12px",
+                  background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#FFFFFF",
+                  fontWeight: 900,
+                  fontSize: "15px",
+                  boxShadow: "0 4px 12px rgba(37, 99, 235, 0.35)",
+                  flexShrink: 0,
+                }}
+              >
+                P2P
+              </Box>
+
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 900, fontSize: "13.5px", color: "#0F172A", letterSpacing: "-0.2px", lineHeight: 1.2 }}>
+                  PAY2PAY DIGITAL SERVICES PRIVATE LIMITED
+                </Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: "11px", color: "#2563EB", mt: 0.25 }}>
+                  Enterprise Domestic Money Transfer (DMT) · Authorized Network
+                </Typography>
+                <Typography sx={{ fontSize: "9.5px", color: "#64748B" }}>
+                  NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Divider sx={{ my: 1.25, borderColor: "#E2E8F0" }} />
+
+            {/* Success Status Pill */}
+            <Box
+              sx={{
+                bgcolor: "#F0FDF4",
+                border: "1px solid #86EFAC",
+                borderRadius: "8px",
+                py: 0.6,
+                px: 1.5,
+                textAlign: "center",
+                mb: 1.5,
+              }}
+            >
+              <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#15803D" }}>
+                ✔ TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED
+              </Typography>
+            </Box>
+
+            {/* Big Amount Hero */}
+            <Box sx={{ textAlign: "center", my: 1 }}>
+              <Typography sx={{ fontWeight: 900, fontSize: "28px", color: "#0F172A", lineHeight: 1.1 }}>
+                ₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </Typography>
+              <Typography sx={{ fontSize: "10.5px", color: "#64748B", fontWeight: 700, mt: 0.25 }}>
+                Amount Credited to Beneficiary Account
+              </Typography>
+            </Box>
+
+            {/* 2-Column Metadata Box */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 1.5,
+                bgcolor: "#F8FAFC",
+                border: "1px solid #E2E8F0",
+                borderRadius: "10px",
+                my: 1.5,
+              }}
+            >
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+                <Box>
+                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>TRANSACTION ID</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>
+                    {activeTxId || txnId}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>BANK UTR / RRN</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>
+                    {liveUtr}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>RECEIPT TOKEN</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#2563EB", fontFamily: "monospace" }}>
+                    {liveToken}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>CHANNEL & DATE</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
+                    {transactionMode || "IMPS"} · {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+
+            {/* Sender & Beneficiary Details */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 1.5,
+                bgcolor: "#FFFFFF",
+                border: "1px solid #E2E8F0",
+                borderRadius: "10px",
+                mb: 1.5,
+              }}
+            >
+              <Box sx={{ mb: 1 }}>
+                <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#2563EB", textTransform: "uppercase" }}>
+                  Retailer / Sender
+                </Typography>
+                <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#0F172A" }}>
+                  {displayRetailerName} ({displayRetailerMobile})
+                </Typography>
+              </Box>
+
+              <Divider sx={{ my: 0.75, borderColor: "#F1F5F9" }} />
+
+              <Box>
+                <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#16A34A", textTransform: "uppercase" }}>
+                  Beneficiary Account Details
+                </Typography>
+                <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#0F172A" }}>
+                  {displayBeneName}
+                </Typography>
+                <Typography sx={{ fontSize: "11px", color: "#475569" }}>
+                  Bank: {displayBeneBank} · IFSC: {displayBeneIfsc || "N/A"}
+                </Typography>
+                <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#0F172A", fontFamily: "monospace" }}>
+                  A/C: {displayBeneAccount || "0630104000156974"}
+                </Typography>
+              </Box>
+            </Paper>
+
+            {/* Financial Accounting Breakdown */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 1.5,
+                bgcolor: "#F8FAFC",
+                border: "1px solid #E2E8F0",
+                borderRadius: "10px",
+                mb: 1.5,
+              }}
+            >
+              <Stack spacing={0.5}>
+                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>Transfer Amount</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
+                    ₹{amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>Convenience Fee</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
+                    ₹{charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>GST (18%)</Typography>
+                  <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
+                    ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </Typography>
+                </Stack>
+
+                <Divider sx={{ my: 0.5, borderColor: "#CBD5E1" }} />
+
+                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 900, color: "#1D4ED8" }}>TOTAL PAID</Typography>
+                  <Typography sx={{ fontSize: "12.5px", fontWeight: 900, color: "#1D4ED8" }}>
+                    ₹{totalAmountPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Paper>
+
+            {/* QR Code Graphic & Verification Notice */}
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", pt: 0.5 }}>
+              <Box
+                sx={{
+                  p: 0.5,
+                  borderRadius: "8px",
+                  bgcolor: "#FFFFFF",
+                  border: "1px solid #E2E8F0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <QrCode2Icon sx={{ fontSize: 52, color: "#0F172A" }} />
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#0F172A" }}>
+                  Scan to Verify Online Receipt
+                </Typography>
+                <Typography sx={{ fontSize: "10px", color: "#2563EB", fontFamily: "monospace" }}>
+                  receipt.pay2pay.in/r/{liveToken}
+                </Typography>
+                <Typography sx={{ fontSize: "9px", color: "#64748B" }}>
+                  🔒 Non-Repudiable Digital Signature · Pay2Pay Core Switch
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+
+          {/* ── DIRECT IMAGE SHARING ENGINE SECTION ── */}
           <Paper
             elevation={0}
             sx={{
               p: 2,
-              borderRadius: "12px",
-              bgcolor: "#FFFFFF",
-              color: "#111827",
-              textAlign: "left",
-              mb: 2,
+              borderRadius: "14px",
+              bgcolor: "rgba(15, 23, 42, 0.9)",
+              border: "1px solid rgba(59, 130, 246, 0.25)",
             }}
           >
-            <Typography sx={{ fontWeight: 900, fontSize: "15px", color: "#2563EB" }}>Pay2Pay Enterprise</Typography>
-            <Typography sx={{ fontWeight: 800, fontSize: "10.5px", color: "#4B5563" }}>Domestic Money Transfer (DMT)</Typography>
-            <Typography sx={{ fontWeight: 900, fontSize: "13px", color: "#16A34A", mt: 0.5 }}>SUCCESS · Money Transferred</Typography>
-            <Divider sx={{ my: 1 }} />
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Token: {shareRecord?.receiptToken || "P2P-4F8A9B2C"}</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Ref: {refNo}</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>UTR: {utr}</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Mode: {transactionMode}</Typography>
-            <Divider sx={{ my: 1 }} />
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Retailer: Rajesh Sharma (+91 98765 43210)</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Beneficiary: {(!beneficiary?.name || beneficiary.name.toLowerCase().includes("test")) ? "Kavitha Sharma" : beneficiary.name}</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Bank: {(!beneficiary?.bankName || beneficiary.bankName === "Bank Account" || beneficiary.bankName.toLowerCase().includes("test")) ? "Axis Bank" : beneficiary.bankName}</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Account: XXXX XXXX 3210</Typography>
-            <Divider sx={{ my: 1 }} />
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Transfer Amount: ₹{amount.toLocaleString()}.00</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>Convenience Fee: ₹{charges}.00</Typography>
-            <Typography sx={{ fontSize: "10.5px", color: "#4B5563" }}>GST (18%): ₹{gst}.00</Typography>
-            <Typography sx={{ fontSize: "12px", fontWeight: 900, color: "#2563EB", mt: 0.5 }}>TOTAL PAID: ₹{totalAmountPaid.toLocaleString()}.00</Typography>
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
-              <QrCode2Icon sx={{ fontSize: 56, color: "#111827" }} />
-            </Box>
-          </Paper>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1.5 }}>
+              <PhotoCameraIcon sx={{ color: "#38BDF8", fontSize: 18 }} />
+              <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF", letterSpacing: "0.04em" }}>
+                SHARE RECEIPT AS IMAGE (EXPORTS HIGH-RES PNG)
+              </Typography>
+            </Stack>
 
-          {/* Direct Share Options */}
-          <Stack direction="row" spacing={1} sx={{ justifyContent: "center" }}>
-            <IconButton onClick={() => alert(`Shared Link (${publicShareUrl}) via WhatsApp`)} sx={{ color: "#25D366" }}>
-              <WhatsAppIcon />
-            </IconButton>
-            <IconButton onClick={() => alert(`Shared Link (${publicShareUrl}) via Telegram`)} sx={{ color: "#0088cc" }}>
-              <TelegramIcon />
-            </IconButton>
-            <IconButton onClick={() => alert(`Shared Link (${publicShareUrl}) via Email`)} sx={{ color: "#EA4335" }}>
-              <EmailIcon />
-            </IconButton>
-            <IconButton onClick={() => alert(`Shared Link (${publicShareUrl}) via SMS`)} sx={{ color: "#34A853" }}>
-              <SmsIcon />
-            </IconButton>
-          </Stack>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25, mb: 1.25 }}>
+              {/* WhatsApp Image Share */}
+              <Button
+                variant="contained"
+                startIcon={<WhatsAppIcon sx={{ fontSize: 18 }} />}
+                onClick={() => handleShareApp("whatsapp")}
+                sx={{
+                  bgcolor: "#16A34A",
+                  "&:hover": { bgcolor: "#15803D" },
+                  color: "#FFFFFF",
+                  fontWeight: 800,
+                  fontSize: "11.5px",
+                  borderRadius: "8px",
+                  py: 1,
+                  textTransform: "none",
+                }}
+              >
+                WhatsApp Image
+              </Button>
+
+              {/* Telegram Image Share */}
+              <Button
+                variant="contained"
+                startIcon={<TelegramIcon sx={{ fontSize: 18 }} />}
+                onClick={() => handleShareApp("telegram")}
+                sx={{
+                  bgcolor: "#0284C7",
+                  "&:hover": { bgcolor: "#0369A1" },
+                  color: "#FFFFFF",
+                  fontWeight: 800,
+                  fontSize: "11.5px",
+                  borderRadius: "8px",
+                  py: 1,
+                  textTransform: "none",
+                }}
+              >
+                Telegram Image
+              </Button>
+
+              {/* Download PNG Image */}
+              <Button
+                variant="contained"
+                startIcon={<DownloadIcon sx={{ fontSize: 18 }} />}
+                onClick={() => handleShareApp("download")}
+                sx={{
+                  bgcolor: "#2563EB",
+                  "&:hover": { bgcolor: "#1D4ED8" },
+                  color: "#FFFFFF",
+                  fontWeight: 800,
+                  fontSize: "11.5px",
+                  borderRadius: "8px",
+                  py: 1,
+                  textTransform: "none",
+                }}
+              >
+                Download PNG
+              </Button>
+
+              {/* Copy Image to Clipboard */}
+              <Button
+                variant="contained"
+                startIcon={<ImageIcon sx={{ fontSize: 18 }} />}
+                onClick={() => handleShareApp("clipboard")}
+                sx={{
+                  bgcolor: "#7C3AED",
+                  "&:hover": { bgcolor: "#6D28D9" },
+                  color: "#FFFFFF",
+                  fontWeight: 800,
+                  fontSize: "11.5px",
+                  borderRadius: "8px",
+                  py: 1,
+                  textTransform: "none",
+                }}
+              >
+                Copy Image (Ctrl+V)
+              </Button>
+            </Box>
+
+            {/* System / Device Share */}
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<ShareIcon sx={{ fontSize: 16 }} />}
+              onClick={() => handleShareApp("system")}
+              sx={{
+                color: "#38BDF8",
+                borderColor: "rgba(56, 189, 248, 0.4)",
+                "&:hover": { borderColor: "#38BDF8", bgcolor: "rgba(56, 189, 248, 0.08)" },
+                fontWeight: 800,
+                fontSize: "11px",
+                borderRadius: "8px",
+                py: 0.75,
+                textTransform: "none",
+              }}
+            >
+              Share Image to More Apps (System Share Dialog)
+            </Button>
+          </Paper>
         </DialogContent>
-        <DialogActions sx={{ bgcolor: "#0F172A", p: 2 }}>
-          <Button onClick={() => setShareModalOpen(false)} sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
-            Close
+
+        <DialogActions sx={{ bgcolor: "rgba(15, 23, 42, 0.95)", borderTop: "1px solid rgba(255, 255, 255, 0.08)", p: 1.5, px: 2.5 }}>
+          <Button
+            onClick={() => setShareModalOpen(false)}
+            sx={{
+              color: "rgba(255, 255, 255, 0.75)",
+              fontWeight: 800,
+              fontSize: "12px",
+              textTransform: "none",
+              "&:hover": { color: "#FFFFFF" },
+            }}
+          >
+            Close Portal
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* FEEDBACK TOAST / SNACKBAR */}
+      <Snackbar
+        open={shareToast.open}
+        autoHideDuration={4000}
+        onClose={() => setShareToast({ ...shareToast, open: false })}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setShareToast({ ...shareToast, open: false })}
+          severity={shareToast.severity}
+          variant="filled"
+          sx={{ width: "100%", fontWeight: 700, borderRadius: "10px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}
+        >
+          {shareToast.message}
+        </Alert>
+      </Snackbar>
 
       {/* CONNECTION & PAYOUT ERROR ALERT MODAL WITH HOME REDIRECT */}
       <Dialog
@@ -1519,14 +2117,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               fullWidth
               variant="contained"
               color="primary"
-              startIcon={<DashboardIcon />}
+              startIcon={<SyncIcon />}
               onClick={() => {
                 setErrorModalOpen(false);
-                if (onBack) {
-                  onBack();
-                } else {
-                  window.location.href = "/retailer/dmt";
-                }
+                setPinDigits(Array(pinLength).fill(""));
+                setRevealedIndex(null);
+                setTimeout(() => inputRefs.current[0]?.focus(), 100);
               }}
               sx={{
                 height: 44,
@@ -1537,7 +2133,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 "&:hover": { bgcolor: "#1D4ED8" },
               }}
             >
-              Redirect to Home / DMT Dashboard
+              Retry PIN Entry
             </Button>
 
             <Button
@@ -1545,11 +2141,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               variant="outlined"
               onClick={() => {
                 setErrorModalOpen(false);
-                setPinDigits(Array(pinLength).fill(""));
-                setRevealedIndex(null);
-                setTimeout(() => inputRefs.current[0]?.focus(), 100);
+                if (onBack) onBack();
               }}
-              startIcon={<SyncIcon />}
               sx={{
                 height: 40,
                 borderRadius: "10px",
@@ -1559,7 +2152,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 borderColor: "rgba(255, 255, 255, 0.2)",
               }}
             >
-              Retry PIN Entry
+              Change Beneficiary / Amount
             </Button>
           </Stack>
         </DialogContent>

@@ -429,7 +429,7 @@ async def get_user_wallet_endpoint(
             effective_ref_id = row_id[0]
 
     if effective_ref_id is None:
-        effective_ref_id = 4  # Default fallback if unauthenticated / not passed
+        effective_ref_id = 24  # Default fallback if unauthenticated / not passed
 
     res = await db.execute(
         text("SELECT * FROM public.get_user_wallet(:user_ref_id, :user_type_ref_id);"),

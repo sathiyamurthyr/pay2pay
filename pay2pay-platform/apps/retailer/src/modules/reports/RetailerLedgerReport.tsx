@@ -69,9 +69,6 @@ export interface FooterTotals {
 }
 
 export const RetailerLedgerReport: React.FC = () => {
-  const retailerId = "93538c98-0b19-493c-a247-4cdb02a46c68";
-  const tenantId = "93538c98-0b19-493c-a247-4cdb02a46c68";
-
   const [summary, setSummary] = useState<LedgerSummary | null>(null);
   const [items, setItems] = useState<LedgerItem[]>([]);
   const [footerTotals, setFooterTotals] = useState<FooterTotals | null>(null);
@@ -92,9 +89,33 @@ export const RetailerLedgerReport: React.FC = () => {
   const [amountFrom, setAmountFrom] = useState<string>("");
   const [amountTo, setAmountTo] = useState<string>("");
 
+  const getUserRefs = () => {
+    let userRefId: any = null;
+    let userTypeRefId: any = 2;
+    if (typeof window !== "undefined") {
+      try {
+        const userStr =
+          localStorage.getItem("user_info") ||
+          localStorage.getItem("user") ||
+          localStorage.getItem("auth_user") ||
+          localStorage.getItem("pay2pay_user_data");
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+          userTypeRefId = u.user_type_ref_id || 2;
+        }
+      } catch {}
+    }
+    return { userRefId, userTypeRefId };
+  };
+
   const fetchSummary = async () => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/payout/reports/ledger/summary?retailer_id=${retailerId}&tenant_id=${tenantId}`);
+      const { userRefId, userTypeRefId } = getUserRefs();
+      const q = new URLSearchParams();
+      q.set("user_type_ref_id", String(userTypeRefId || 2));
+      if (userRefId) q.set("user_ref_id", String(userRefId));
+      const res = await fetch(`${getApiBaseUrl()}/payout/reports/ledger/summary?${q.toString()}`);
       if (res.ok) {
         setSummary(await res.json());
       }
@@ -106,12 +127,13 @@ export const RetailerLedgerReport: React.FC = () => {
   const fetchLedgerData = async () => {
     setIsLoading(true);
     try {
+      const { userRefId, userTypeRefId } = getUserRefs();
       const queryParams = new URLSearchParams({
-        retailer_id: retailerId,
-        tenant_id: tenantId,
+        user_type_ref_id: String(userTypeRefId || 2),
         page: (page + 1).toString(),
         limit: rowsPerPage.toString(),
       });
+      if (userRefId) queryParams.set("user_ref_id", String(userRefId));
 
       if (fromDate) queryParams.append("from_date", fromDate);
       if (toDate) queryParams.append("to_date", toDate);

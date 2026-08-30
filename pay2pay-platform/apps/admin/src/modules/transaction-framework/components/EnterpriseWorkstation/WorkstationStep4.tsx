@@ -44,7 +44,7 @@ import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData } from "../../hooks/useBeneficiary";
 import { bankingSounds } from "../../utils/bankingSounds";
 import { AuthEngine, AuthorizeResponsePayload } from "../../services/AuthEngineAdapter";
-import { FinancialAccounting, sanitizeCustomerErrorMessage, generateTransactionNumber, generateReferenceNumber } from "../../services/FinancialAccountingAdapter";
+import { FinancialAccounting, sanitizeCustomerErrorMessage } from "../../services/FinancialAccountingAdapter";
 import { ReceiptShare, ReceiptShareRecord, VerificationResult } from "../../services/ReceiptShareAdapter";
 import {
   ReceiptDataForImage,
@@ -84,7 +84,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   onBack,
   onAuthorize,
 }) => {
-  const { walletBalance } = useRetailerStore();
+  const { wallet } = useRetailerStore();
+  const currentWalletBalance = typeof wallet?.mainBalance === "number" ? wallet.mainBalance : (typeof (wallet as any)?.availableBalance === "number" ? (wallet as any).availableBalance : (typeof customer?.walletBalance === "number" ? customer.walletBalance : 0));
+  const walletBalance = currentWalletBalance;
   const config = AuthEngine.getConfig();
   const pinLength = config.pinLength || 4;
 
@@ -120,12 +122,18 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   // Animated Counter States for Wallet & Beneficiary Limit
-  const [animatedWallet, setAnimatedWallet] = useState<number>(customer?.walletBalance ?? 0);
+  const [animatedWallet, setAnimatedWallet] = useState<number>(walletBalance);
   const [animatedLimit, setAnimatedLimit] = useState<number>(beneficiary?.monthlyRemaining ?? 0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
+  // Fetch fresh authoritative wallet balance on mount
+  useEffect(() => {
+    useRetailerStore.getState().fetchWalletBalance();
+  }, []);
+
+  // Auto-focus first PIN input box when viewState transitions to PIN_ENTRY
   useEffect(() => {
     if (viewState === "PIN_ENTRY") {
       inputRefs.current[0]?.focus();
@@ -302,6 +310,35 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     setElapsedSeconds(0);
     bankingSounds.playWarning();
 
+    // Start backend ACID transaction immediately in background so SP Txn ID is generated upfront
+    let backgroundTxId = "";
+    let backgroundTxRef = "";
+
+    const transactionPromise = FinancialAccounting.executeACIDTransaction({
+      customerId: customer?.id,
+      beneficiaryId: beneficiary?.id,
+      beneficiaryName: beneficiary?.name,
+      bankName: beneficiary?.bankName,
+      accountNumber: beneficiary?.accountNumber,
+      ifsc: beneficiary?.ifsc,
+      amount,
+      mode: transactionMode,
+      pin: pinValue,
+      walletBalance: (typeof walletBalance === "number" && walletBalance >= 0) ? walletBalance : ((customer as any)?.walletBalance || 0),
+      beneficiaryMonthlyRemaining: beneficiary?.monthlyRemaining,
+    }).then((res) => {
+      if (res.transactionId) {
+        backgroundTxId = res.transactionId;
+        setActiveTxId(res.transactionId);
+        sessionStorage.setItem("active_payout_tx_id", res.transactionId);
+      }
+      if (res.referenceNo) {
+        backgroundTxRef = res.referenceNo;
+        setActiveTxRef(res.referenceNo);
+      }
+      return res;
+    });
+
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     const stepsCopy = BANKING_GRADE_STEPS_TEMPLATE.map((s) => ({ ...s, status: "PENDING" as const }));
     setTimelineSteps(stepsCopy);
@@ -331,7 +368,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     await markStep(2, "s3", `Account: ${beneficiary?.accountNumber || beneficiary?.name || "Verified"}`, 70, 90);
 
     // Step 4: Checking Wallet Balance (s4)
-    await markStep(3, "s4", `Available Balance: ₹${(customer?.walletBalance || walletBalance || 0).toLocaleString()}`, 70, 90);
+    const currentLiveBal = useRetailerStore.getState().walletBalance ?? walletBalance ?? 0;
+    await markStep(3, "s4", `Available Balance: ₹${currentLiveBal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 70, 90);
 
     // Step 5: Checking Transaction Limits (s5)
     await markStep(4, "s5", `Remaining Limit: ₹${(beneficiary?.monthlyRemaining || 200000).toLocaleString()}`, 70, 90);
@@ -340,9 +378,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     await markStep(5, "s6", "Rule engine risk scoring · Score: 0.02 (Safe)", 70, 90);
 
     // Step 7: Creating Internal Transaction (s7)
-    // NOTE: real txn_number comes from the backend API at Step 12 — do NOT generate a fake PO ID here
-    setActiveTxRef("TXN-INITIATING");
-    await markStep(6, "s7", "Status: INITIATED — Awaiting Bank Gateway Reference", 70, 90);
+    const currentTxnId = backgroundTxId || (typeof window !== "undefined" ? sessionStorage.getItem("active_payout_tx_id") : "") || "";
+    await markStep(6, "s7", currentTxnId ? `Status: INITIATED · Txn: ${currentTxnId}` : "Status: INITIATED — Routing via Bank DirectSwitch", 70, 90);
 
     // Step 8: Debiting Retailer Wallet (s8)
     const gstCalc = Math.round(charges * 0.18);
@@ -364,22 +401,16 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     setActiveStepId("s12");
     setTimelineSteps([...stepsCopy]);
 
-    // Execute backend ACID transaction with exact beneficiary details
-    const finResult = await FinancialAccounting.executeACIDTransaction({
-      customerId: customer?.id,
-      beneficiaryId: beneficiary?.id,
-      beneficiaryName: beneficiary?.name,
-      bankName: beneficiary?.bankName,
-      accountNumber: beneficiary?.accountNumber,
-      ifsc: beneficiary?.ifsc,
-      amount,
-      mode: transactionMode,
-      pin: pinValue,
-      walletBalance: (typeof walletBalance === "number" && walletBalance >= 0) ? walletBalance : ((customer as any)?.walletBalance || 0),
-      beneficiaryMonthlyRemaining: beneficiary?.monthlyRemaining,
-    });
+    // Await backend ACID transaction result
+    const finResult = await transactionPromise;
 
     setLiveFinResult(finResult);
+
+    if (finResult.walletBalanceAfter !== undefined && finResult.walletBalanceAfter !== null) {
+      useRetailerStore.getState().setWalletBalance(finResult.walletBalanceAfter);
+    } else if (finResult.walletBalance !== undefined && finResult.walletBalance !== null) {
+      useRetailerStore.getState().setWalletBalance(finResult.walletBalance);
+    }
 
     if (finResult.transactionId) {
       setActiveTxId(finResult.transactionId);
@@ -749,14 +780,14 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet Balance</Typography>
                   <Typography sx={{ fontWeight: 900, color: viewState === "SUCCESS_RECEIPT" ? "#4ADE80" : "#FBBF24", fontSize: "13.5px" }}>
-                    ₹{animatedWallet.toLocaleString()}
+                    ₹{(animatedWallet ?? 0).toLocaleString()}
                   </Typography>
                 </Stack>
 
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Monthly Remaining Limit</Typography>
                   <Typography sx={{ fontWeight: 900, color: viewState === "SUCCESS_RECEIPT" ? "#60A5FA" : "#93C5FD", fontSize: "13.5px" }}>
-                    ₹{animatedLimit.toLocaleString()}
+                    ₹{(animatedLimit ?? 0).toLocaleString()}
                   </Typography>
                 </Stack>
 
@@ -1445,7 +1476,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         <BankingExecutionCenter
           steps={timelineSteps}
           activeStepId={activeStepId}
-          transactionRef={activeTxRef}
+          transactionRef={activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : refNo}
           transactionId={activeTxId || txnId}
           amount={amount}
           charges={charges}

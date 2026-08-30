@@ -87,7 +87,8 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
 
   inFlightHeaderWalletPromise = (async () => {
     try {
-      let activeRetailerId = "";
+      let userRefId: any = null;
+      let userTypeRefId: any = 2;
       if (typeof window !== "undefined") {
         try {
           const userStr =
@@ -97,20 +98,20 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
             localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
-            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
+            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+            userTypeRefId = u.user_type_ref_id || 2;
           }
         } catch {}
-        if (!activeRetailerId) {
-          activeRetailerId =
-            localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            localStorage.getItem("pay2pay_reg_id") ||
-            "";
-        }
       }
-      const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
+
+      const qParams = new URLSearchParams();
+      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
+      if (userRefId) {
+        qParams.set("user_ref_id", String(userRefId));
+      }
+
       const res = await fetch(
-        `/api/v1/payout/dashboard/retailer/header-wallet${queryParam}`
+        `/api/v1/payout/dashboard/retailer/header-wallet?${qParams.toString()}`
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -287,7 +288,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
         owner_name: rInfo.owner_name || storedOwner || "Merchant Owner",
         retailer_name: (rInfo.retailer_name && rInfo.retailer_name !== "Retailer Store") ? rInfo.retailer_name : (rInfo.company_name || rInfo.store_name || storedStore || "Merchant Store"),
         retailer_code: resolvedCode,
-        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || `/api/v1/retailer/profile/photo-image?retailer_id=${encodeURIComponent(resolvedCode)}`,
+        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || `/api/v1/retailer/profile/photo-image?user_type_ref_id=2&user_ref_id=${userRefId}`,
         approval_status: rInfo.approval_status || "ACTIVE",
         kyc_status: rInfo.kyc_status || "VERIFIED",
         location: rInfo.location || "India",
@@ -1362,7 +1363,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     label={
                       (profileDetails.retailer_code && !profileDetails.retailer_code.includes("-000") && !profileDetails.retailer_code.startsWith("1072b5d2") && profileDetails.retailer_code.length <= 15)
                         ? profileDetails.retailer_code
-                        : (outlet.code && outlet.code.length <= 15 ? outlet.code : "RET-10928")
+                        : (outlet.code || profileDetails.retailer_code || "—")
                     }
                     size="small"
                     sx={{

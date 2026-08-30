@@ -45,14 +45,21 @@ export const NotificationCenter: React.FC<{
   const getResolvedUserId = useCallback(() => {
     if (userId) return userId;
     if (typeof window !== "undefined") {
+      try {
+        const uStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("pay2pay_user_data");
+        if (uStr) {
+          const u = JSON.parse(uStr);
+          if (u.id || u.public_id || u.retailer_id) return u.id || u.public_id || u.retailer_id;
+        }
+      } catch {}
       return (
         localStorage.getItem("p2p_active_retailer_id") ||
         localStorage.getItem("p2p_retailer_code") ||
         localStorage.getItem("p2p_user_id") ||
-        "RET-10928"
+        ""
       );
     }
-    return "RET-10928";
+    return "";
   }, [userId]);
 
   const fetchNotifications = useCallback(async () => {

@@ -235,14 +235,35 @@ export const EnterpriseReportCenter: React.FC = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  const getUserRefs = () => {
+    let userRefId: any = null;
+    let userTypeRefId: any = 2;
+    if (typeof window !== "undefined") {
+      try {
+        const userStr =
+          localStorage.getItem("user_info") ||
+          localStorage.getItem("user") ||
+          localStorage.getItem("auth_user") ||
+          localStorage.getItem("pay2pay_user_data");
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+          userTypeRefId = u.user_type_ref_id || 2;
+        }
+      } catch {}
+    }
+    return { userRefId, userTypeRefId };
+  };
+
   // Fetch Summary Metrics
   const fetchSummary = useCallback(async (repType: string, fDate: string, tDate: string) => {
     try {
+      const { userRefId, userTypeRefId } = getUserRefs();
       const q = new URLSearchParams({
         report_type: repType === "tax_audit" ? "gst" : repType,
-        retailer_id: DEFAULT_RETAILER_ID,
-        tenant_id: DEFAULT_TENANT_ID,
+        user_type_ref_id: String(userTypeRefId || 2),
       });
+      if (userRefId) q.append("user_ref_id", String(userRefId));
       if (fDate) q.append("from_date", fDate);
       if (tDate) q.append("to_date", tDate);
 
@@ -286,11 +307,11 @@ export const EnterpriseReportCenter: React.FC = () => {
     try {
       const activeFDate = overrideFromDate !== undefined ? overrideFromDate : fromDate;
       const activeTDate = overrideToDate !== undefined ? overrideToDate : toDate;
+      const { userRefId, userTypeRefId } = getUserRefs();
 
       const q = new URLSearchParams({
         report_type: activeTab === "tax_audit" ? "gst" : activeTab,
-        retailer_id: DEFAULT_RETAILER_ID,
-        tenant_id: DEFAULT_TENANT_ID,
+        user_type_ref_id: String(userTypeRefId || 2),
         page: (page + 1).toString(),
         limit: rowsPerPage.toString(),
         from_date: activeFDate,
@@ -298,6 +319,7 @@ export const EnterpriseReportCenter: React.FC = () => {
         sort_by: "initiated_at",
         sort_dir: "desc"
       });
+      if (userRefId) q.append("user_ref_id", String(userRefId));
 
       if (debouncedQuery) q.append("query", debouncedQuery);
       if (statusFilter !== "ALL") q.append("status", statusFilter);
@@ -394,8 +416,13 @@ export const EnterpriseReportCenter: React.FC = () => {
   // View Item Details in 600px 7-Tab Drawer
   const handleViewDetails = async (row: GridItem) => {
     try {
+      const { userRefId, userTypeRefId } = getUserRefs();
       const repType = activeTab === "tax_audit" ? "gst" : activeTab;
-      const res = await fetch(`${API_BASE_URL}/report-center/details/${repType}/${row.id}?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`);
+      const q = new URLSearchParams({
+        user_type_ref_id: String(userTypeRefId || 2),
+      });
+      if (userRefId) q.append("user_ref_id", String(userRefId));
+      const res = await fetch(`${API_BASE_URL}/report-center/details/${repType}/${row.id}?${q.toString()}`);
       if (res.ok) {
         setSelectedItem(await res.json());
       } else {
@@ -413,7 +440,12 @@ export const EnterpriseReportCenter: React.FC = () => {
     if (!selectedItem) return;
     const txId = selectedItem.transaction_details?.transaction_id || selectedItem.id;
     try {
-      const res = await fetch(`${API_BASE_URL}/report-center/check-status/${txId}?retailer_id=${DEFAULT_RETAILER_ID}&tenant_id=${DEFAULT_TENANT_ID}`, { method: "POST" });
+      const { userRefId, userTypeRefId } = getUserRefs();
+      const q = new URLSearchParams({
+        user_type_ref_id: String(userTypeRefId || 2),
+      });
+      if (userRefId) q.append("user_ref_id", String(userRefId));
+      const res = await fetch(`${API_BASE_URL}/report-center/check-status/${txId}?${q.toString()}`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         setToastMessage(data.friendly_message || "Live bank status re-check completed!");

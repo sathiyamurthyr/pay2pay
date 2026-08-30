@@ -108,52 +108,21 @@ async def debit_wallet_endpoint(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Executes atomic database row-locked wallet debit."""
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid debit amount.")
-
+    """Safety endpoint: Direct arbitrary client wallet mutations are forbidden. Returns current authoritative balance."""
     ctx = await resolve_retailer_context(request, req.retailer_id, db=db)
     pub_id = ctx.get("public_id")
     if not pub_id:
         raise HTTPException(status_code=404, detail="Retailer not found.")
 
-    wal_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == pub_id).with_for_update()
+    wal_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == pub_id)
     wallet = (await db.execute(wal_stmt)).scalars().first()
-    if not wallet:
-        raise HTTPException(status_code=404, detail="Retailer wallet not found.")
-
-    bal_before = float(wallet.wallet_balance)
-    if bal_before < req.amount:
-        raise HTTPException(status_code=400, detail=f"Insufficient wallet balance. Available: ₹{bal_before:.2f}, Required: ₹{req.amount:.2f}")
-
-    bal_after = round(bal_before - req.amount, 2)
-    wallet.wallet_balance = bal_after
-    wallet.updated_date = datetime.now(timezone.utc)
-
-    # Record authoritative ledger entry
-    ledger = TransactionLedgerEntryModel(
-        public_id=uuid.uuid4(),
-        tenant_id=wallet.tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
-        transaction_id=uuid.uuid4(),
-        transaction_reference=f"DEB-{int(time.time()*1000)}",
-        entry_type="DEBIT",
-        account_type="RETAILER_WALLET",
-        account_number=str(pub_id),
-        amount=req.amount,
-        balance_before=bal_before,
-        balance_after=bal_after,
-        currency="INR",
-        narration=f"Manual/API Wallet Debit of ₹{req.amount:.2f}",
-        created_at=datetime.now(timezone.utc)
-    )
-    db.add(ledger)
-    await db.commit()
+    bal = float(wallet.wallet_balance) if wallet else 0.00
 
     return {
         "success": True,
-        "mainBalance": bal_after,
-        "wallet_balance": bal_after,
-        "debitedAmount": req.amount
+        "mainBalance": bal,
+        "wallet_balance": bal,
+        "message": "Direct wallet mutation disabled. All financial debits are atomic via stored procedure."
     }
 
 

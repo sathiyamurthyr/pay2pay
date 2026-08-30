@@ -172,13 +172,16 @@ const getActiveRetailerId = () => {
       if (userStr) {
         const u = JSON.parse(userStr);
         if (u.retailer_id) return u.retailer_id;
+        if (u.retailer_code) return u.retailer_code;
+        if (u.id || u.public_id) return u.id || u.public_id;
         if (u.user_id) return u.user_id;
       }
     } catch {}
     return (
       localStorage.getItem("p2p_retailer_id") ||
+      localStorage.getItem("p2p_active_retailer_id") ||
       localStorage.getItem("retailer_code") ||
-      "RET-10928"
+      ""
     );
   }
   return "";
@@ -409,7 +412,19 @@ export const RetailerPayoutReport: React.FC = () => {
       if (minimumAmount) q.append("amount_from", minimumAmount);
       if (maximumAmount) q.append("amount_to", maximumAmount);
 
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("auth_token") ||
+            localStorage.getItem("token") ||
+            localStorage.getItem("access_token")
+          : "";
+      const headers: Record<string, string> = {};
+      if (token && token.trim().length > 10) {
+        headers["Authorization"] = `Bearer ${token.trim()}`;
+      }
+
       const res = await fetch(`/api/v1/payout/reports/grid?${q.toString()}`, {
+        headers,
         credentials: "include",
         cache: "no-store",
       });

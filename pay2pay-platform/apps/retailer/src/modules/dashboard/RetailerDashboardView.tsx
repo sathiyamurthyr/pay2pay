@@ -177,7 +177,8 @@ export const RetailerDashboardView: React.FC = () => {
     setHasLoaded(true);
     try {
       const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
-      let activeRetailerId = "";
+      let userRefId: any = null;
+      let userTypeRefId: any = 2;
       if (typeof window !== "undefined") {
         try {
           const userStr =
@@ -187,20 +188,19 @@ export const RetailerDashboardView: React.FC = () => {
             localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
-            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
+            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+            userTypeRefId = u.user_type_ref_id || 2;
           }
         } catch {}
-        if (!activeRetailerId) {
-          activeRetailerId =
-            localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            localStorage.getItem("pay2pay_reg_id") ||
-            "";
-        }
       }
-      const queryParam = activeRetailerId ? `retailer_id=${activeRetailerId}` : "";
-      const qPrefix = queryParam ? `?${queryParam}` : "";
-      const qAnd = queryParam ? `&${queryParam}` : "";
+
+      const qParams = new URLSearchParams();
+      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
+      if (userRefId) {
+        qParams.set("user_ref_id", String(userRefId));
+      }
+      const qPrefix = `?${qParams.toString()}`;
+      const qAnd = `&${qParams.toString()}`;
 
       const [finRes, opsRes, chRes, feedRes, altRes, actRes, sysRes] = await Promise.all([
         fetch(`${baseUrl}/financial-kpis${qPrefix}`),
@@ -330,7 +330,7 @@ export const RetailerDashboardView: React.FC = () => {
             {headerWallet?.retailer_name || headerWallet?.owner_name || outlet.ownerName || outlet.name || (typeof window !== "undefined" && (localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_user_name"))) || "Sathiya Murthy"}
           </Typography>
           <Chip
-            label={headerWallet?.retailer_code || outlet.code || "RET-10928"}
+            label={headerWallet?.retailer_code || outlet.code || "—"}
             size="small"
             sx={{
               backgroundColor: "rgba(37, 99, 235, 0.2)",

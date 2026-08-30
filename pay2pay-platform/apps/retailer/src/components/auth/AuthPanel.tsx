@@ -406,7 +406,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
       let rCode = normalizedUser.retailer_code || normalizedUser.code;
       if (!rCode || isUuid(rCode)) {
-        rCode = (normalizedUser.retailer_id && !isUuid(normalizedUser.retailer_id)) ? normalizedUser.retailer_id : "RET-10928";
+        rCode = normalizedUser.retailer_id || normalizedUser.public_id || normalizedUser.id || "";
       }
       if (rCode) {
         localStorage.setItem("p2p_active_retailer_id", rCode);

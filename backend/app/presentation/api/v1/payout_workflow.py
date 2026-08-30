@@ -135,6 +135,22 @@ async def payout_workflow_health(
     }
 
 
+@router.get("/generate-txn-id")
+async def generate_workflow_txn_id(
+    vendor_name: Optional[str] = Query("UTKALDIGITAL"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generates the next unique authoritative payout transaction ID via PostgreSQL stored procedure."""
+    from app.core.transaction_id_generator import generate_payout_txn_id_via_sp
+    txn_id = await generate_payout_txn_id_via_sp(db, vendor_name=vendor_name)
+    return {
+        "status": "SUCCESS",
+        "txn_id": txn_id,
+        "vendor_name": vendor_name
+    }
+
+
+
 @router.get("/customers/search")
 @router.post("/customers/search")
 async def search_customers(

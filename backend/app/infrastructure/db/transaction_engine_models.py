@@ -105,8 +105,12 @@ class CentralTransactionModel(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    super_distributor_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    regional_manager_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
-    user_type_ref_id: Mapped[Optional[int]] = mapped_column("user_type_ref_id", BigInteger, ForeignKey("user_type.user_type_ref_id"), nullable=True, index=True)
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column("user_type_ref_id", BigInteger, nullable=True, index=True)
 
     retailer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     retailer_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

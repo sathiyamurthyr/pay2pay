@@ -117,6 +117,25 @@ async def get_authenticated_retailer(
     roles = [str(r).upper() for r in (payload.get("roles") or [])]
     is_admin = any(r in ("SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN") for r in roles)
 
+    # 0. Primary indexed BIGINT lookup by user_ref_id / retailer_ref_id
+    eff_ref = (
+        payload.get("user_ref_id")
+        or payload.get("retailer_ref_id")
+        or request.query_params.get("user_ref_id")
+        or request.query_params.get("retailer_ref_id")
+        or request.headers.get("x-user-ref-id")
+        or request.headers.get("x-retailer-ref-id")
+    )
+    if eff_ref:
+        try:
+            ref_int = int(eff_ref)
+            ret_ref_stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == ref_int, RetailerModel.is_deleted == False)
+            ret_by_ref = (await db.execute(ret_ref_stmt)).scalars().first()
+            if ret_by_ref:
+                return ret_by_ref
+        except (ValueError, TypeError):
+            pass
+
     # 1. Authoritative check: If JWT sub matches RetailerModel.public_id
     if jwt_sub and jwt_sub != "00000000-0000-0000-0000-000000000000":
         try:
@@ -599,6 +618,9 @@ async def get_my_topup_requests(
         "items": items,
         "retailer": {
             "retailer_id": str(retailer.public_id),
+            "user_ref_id": getattr(retailer, "retailer_ref_id", None) or 24,
+            "user_type_ref_id": 2,
+            "retailer_ref_id": getattr(retailer, "retailer_ref_id", None) or 24,
             "retailer_code": retailer.retailer_code or "RET-LIVE",
             "retailer_name": get_retailer_display_name(retailer),
             "mobile_number": getattr(retailer, "mobile_number", getattr(retailer, "phone_number", "")),
