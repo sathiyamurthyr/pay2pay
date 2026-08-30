@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
@@ -23,17 +23,22 @@ class UserResetPasswordRequest(BaseModel):
 
 @router.get("/user-types", response_model=List[UserTypeResponse])
 async def list_user_types(
-    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    tenant_id: Optional[uuid.UUID] = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     types = await UserService.list_user_types(db, tenant_id)
     return [
         UserTypeResponse(
-            public_id=ut.public_id,
-            code=ut.code,
-            name=ut.name,
-            description=ut.description,
-            is_system=ut.is_system,
+            user_type_ref_id=getattr(ut, "user_type_ref_id", 1),
+            user_type_code=getattr(ut, "user_type_code", None) or getattr(ut, "code", "ADMIN"),
+            user_type_name=getattr(ut, "user_type_name", None) or getattr(ut, "name", "Admin"),
+            code=getattr(ut, "user_type_code", None) or getattr(ut, "code", "ADMIN"),
+            name=getattr(ut, "user_type_name", None) or getattr(ut, "name", "Admin"),
+            description=getattr(ut, "description", None),
+            is_active=getattr(ut, "is_active", True),
+            is_deleted=getattr(ut, "is_deleted", False),
+            public_id=getattr(ut, "public_id", None),
+            is_system=getattr(ut, "is_system", True),
         )
         for ut in types
     ]

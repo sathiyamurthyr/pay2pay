@@ -340,9 +340,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     await markStep(5, "s6", "Rule engine risk scoring · Score: 0.02 (Safe)", 70, 90);
 
     // Step 7: Creating Internal Transaction (s7)
-    const generatedRef = generateTransactionNumber("PO");
-    setActiveTxRef(generatedRef);
-    await markStep(6, "s7", `Status: INITIATED · Ref: ${generatedRef}`, 70, 90);
+    // NOTE: real txn_number comes from the backend API at Step 12 — do NOT generate a fake PO ID here
+    setActiveTxRef("TXN-INITIATING");
+    await markStep(6, "s7", "Status: INITIATED — Awaiting Bank Gateway Reference", 70, 90);
 
     // Step 8: Debiting Retailer Wallet (s8)
     const gstCalc = Math.round(charges * 0.18);
@@ -384,6 +384,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     if (finResult.transactionId) {
       setActiveTxId(finResult.transactionId);
       sessionStorage.setItem("active_payout_tx_id", finResult.transactionId);
+      // Update Step 7 subtitle to show the real SP-generated transaction number from DB
+      setTimelineSteps(prev => prev.map((s, idx) =>
+        idx === 6
+          ? { ...s, subTitle: `Status: INITIATED · Txn: ${finResult.transactionId}` }
+          : s
+      ));
     }
     if (finResult.referenceNo) {
       setActiveTxRef(finResult.referenceNo);
@@ -523,10 +529,11 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   };
   const modeDisplay = modeIcons[transactionMode] || `⚡ ${transactionMode}`;
 
-  // Dynamic live transaction attributes
-  const utr = liveFinResult?.utr || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "621819407998");
-  const refNo = liveFinResult?.referenceNo || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : generateReferenceNumber("PAY2PAY"));
-  const txnId = liveFinResult?.transactionId || activeTxId || generateTransactionNumber("PO");
+  // Dynamic live transaction attributes — always prefer real API-sourced values
+  // IMPORTANT: never call generateTransactionNumber() on render — it creates a new random ID each time
+  const utr = liveFinResult?.utr || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "—");
+  const refNo = liveFinResult?.referenceNo || (activeTxRef && activeTxRef !== "TXN-INITIATING" ? activeTxRef : "Generating...");
+  const txnId = liveFinResult?.transactionId || activeTxId || "Generating...";
   const timestamp = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + " " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
   // Dynamic Retailer details from store / localStorage

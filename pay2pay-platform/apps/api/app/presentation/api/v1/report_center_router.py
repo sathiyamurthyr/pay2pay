@@ -282,31 +282,31 @@ def build_payout_cte_query(
 
         UNION ALL
 
-        -- 3. transactions table
+        -- 3. transactions table (Append-Only)
         SELECT 
             t.public_id::text AS id,
             t.public_id::text AS transaction_id,
-            COALESCE(t.transaction_reference, t.id::text) AS transaction_number,
-            COALESCE(t.transaction_reference, t.request_id, t.id::text) AS reference_id,
+            t.txn_id AS transaction_number,
+            COALESCE(t.ref_id, t.txn_id) AS reference_id,
             t.created_at AS initiated_at,
             t.updated_at AS completed_at,
-            COALESCE(c.full_name, ret.store_name, 'Direct Retailer') AS customer_name,
-            COALESCE(c.mobile_number, '--') AS customer_mobile,
-            COALESCE(bb.account_holder, b.full_name, b.nickname, ret.store_name, 'Retailer Account') AS beneficiary_name,
-            COALESCE(b.mobile_number, '--') AS beneficiary_mobile,
-            'State Bank of India' AS bank_name,
-            '1234' AS account_number,
-            'SBIN0001234' AS ifsc_code,
-            COALESCE(t.transaction_type, 'IMPS') AS payment_mode,
+            COALESCE(ret.store_name, ret.owner_name, 'Direct Retailer') AS customer_name,
+            COALESCE(ret.mobile_number, '--') AS customer_mobile,
+            COALESCE(ret.store_name, ret.owner_name, 'Retailer Account') AS beneficiary_name,
+            COALESCE(ret.mobile_number, '--') AS beneficiary_mobile,
+            COALESCE(ret.bank_name, 'State Bank of India') AS bank_name,
+            COALESCE(ret.account_number, '1234') AS account_number,
+            COALESCE(ret.ifsc_code, 'SBIN0001234') AS ifsc_code,
+            COALESCE(t.service_name, 'PAYOUT') AS payment_mode,
             t.amount::float AS transfer_amount,
-            COALESCE(t.charges, 0.0)::float AS charges,
-            COALESCE(t.gst_amount, 0.0)::float AS gst_amount,
-            COALESCE(t.net_amount, t.amount)::float AS wallet_debit,
-            COALESCE(t.commission, 0.0)::float AS commission,
-            COALESCE(t.tds_amount, 0.0)::float AS tds_amount,
-            COALESCE(t.utr, '--') AS utr_number,
-            COALESCE(t.vendor_code, 'PAY2PAY') AS vendor_name,
-            COALESCE(t.vendor_order_id, t.transaction_reference, '--') AS vendor_reference,
+            0.0 AS charges,
+            0.0 AS gst_amount,
+            t.amount::float AS wallet_debit,
+            0.0 AS commission,
+            0.0 AS tds_amount,
+            COALESCE(t.ref_id, t.txn_id, '--') AS utr_number,
+            'PAY2PAY' AS vendor_name,
+            COALESCE(t.ref_id, t.txn_id, '--') AS vendor_reference,
             UPPER(t.status) AS status,
             false AS is_reversed,
             t.retailer_id::text AS retailer_id,
@@ -314,11 +314,8 @@ def build_payout_cte_query(
             t.company_id::text AS company_id,
             ret.store_name AS retailer_name
         FROM transactions t
-        LEFT JOIN customer c ON t.customer_id = c.public_id
-        LEFT JOIN beneficiary b ON t.beneficiary_id = b.public_id
-        LEFT JOIN beneficiary_bank bb ON b.public_id = bb.beneficiary_id
-        LEFT JOIN retailer ret ON t.retailer_id = ret.public_id
-        WHERE COALESCE(t.transaction_reference, '') NOT IN (
+        LEFT JOIN retailer ret ON (t.retailer_id = ret.public_id OR t.retailer_id::text = ret.retailer_code)
+        WHERE COALESCE(t.txn_id, '') NOT IN (
             SELECT transaction_number FROM enterprise_payout_transactions WHERE transaction_number IS NOT NULL
             UNION
             SELECT transaction_number FROM payout_workflow_transactions WHERE transaction_number IS NOT NULL

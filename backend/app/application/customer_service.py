@@ -245,9 +245,9 @@ class CustomerService:
                 b_list.append({
                     "id": str(b_item.public_id),
                     "name": b_item.full_name,
-                    "accountNumber": acc_obj.account_number_masked if acc_obj else "••••4589",
-                    "ifsc": acc_obj.ifsc_code if acc_obj else "SBIN0001824",
-                    "bankName": acc_obj.bank_name if acc_obj else "State Bank of India",
+                    "accountNumber": (acc_obj.account_number_masked or acc_obj.account_number) if acc_obj else "••••4589",
+                    "ifsc": acc_obj.ifsc_code if acc_obj else "IBKL0000630",
+                    "bankName": acc_obj.bank_name if acc_obj else "IDBI Bank",
                     "isVerified": b_item.verification_status == "VERIFIED"
                 })
 

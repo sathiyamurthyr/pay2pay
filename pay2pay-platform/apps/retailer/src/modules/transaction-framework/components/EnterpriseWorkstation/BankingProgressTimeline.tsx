@@ -366,8 +366,8 @@ export const FULL_16_STEPS_TEMPLATE: ProgressStep[] = [
 export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
   steps,
   activeStepId,
-  transactionRef = "REF-2026-94812",
-  transactionId = "TXN-85472190",
+  transactionRef = "—",
+  transactionId = "—",
   amount,
   charges,
   gst,
@@ -472,10 +472,10 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           <Box sx={{ textAlign: "right" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "10.5px", fontWeight: 700 }}>TRANSACTION METADATA</Typography>
             <Typography sx={{ color: "#FFFFFF", fontSize: "12.5px", fontWeight: 800 }}>
-              Txn: <span style={{ color: "#60A5FA", fontFamily: "monospace" }}>{transactionId}</span>
+              Txn: <span style={{ color: "#60A5FA", fontFamily: "monospace" }}>{transactionId && transactionId !== "TXN-INITIATING" ? transactionId : "—"}</span>
             </Typography>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "11px", fontFamily: "monospace" }}>
-              Ref: {transactionRef}
+              Ref: {transactionRef && transactionRef !== "TXN-INITIATING" ? transactionRef : "—"}
             </Typography>
           </Box>
 

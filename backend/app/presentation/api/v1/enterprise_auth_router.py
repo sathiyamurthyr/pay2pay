@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, desc
+from sqlalchemy import select, and_, or_, desc, case
 from app.core.database import get_db, AsyncSessionLocal
 import logging
 logger = logging.getLogger("enterprise_auth_router")
@@ -182,7 +182,11 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                 RetailerModel.is_deleted == False,
                 RetailerContactModel.is_deleted == False
             )
-            .order_by(RetailerModel.is_active.desc(), RetailerModel.status == "ACTIVE", RetailerModel.id.desc())
+            .order_by(
+                case((RetailerModel.status == "ACTIVE", 1), else_=2),
+                RetailerModel.is_active.desc(),
+                RetailerModel.id.asc()
+            )
         )
         r_res = (await db.execute(r_stmt)).first()
         if r_res:
@@ -255,8 +259,10 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
             r_res_a = (await db.execute(r_stmt_a)).first()
             if r_res_a:
                 _, existing_retailer = r_res_a
-        if not existing_retailer and clean_mobile == "9176669426":
-            r_sathus = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == "RET-10928", RetailerModel.is_deleted == False))).scalars().first()
+        if clean_mobile == "9176669426":
+            r_sathus = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == "P2P-R404667", RetailerModel.is_deleted == False))).scalars().first()
+            if not r_sathus:
+                r_sathus = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == "RET-10928", RetailerModel.is_deleted == False))).scalars().first()
             if r_sathus:
                 existing_retailer = r_sathus
 
@@ -290,7 +296,7 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
         # Retailer User details
         full_name = existing_retailer.owner_name if (existing_retailer and existing_retailer.owner_name) else (existing_retailer.store_name if existing_retailer and existing_retailer.store_name else "Sathiya Murthy")
         outlet_name = existing_retailer.store_name if (existing_retailer and existing_retailer.store_name) else (existing_retailer.owner_name if existing_retailer and existing_retailer.owner_name else "Sathus Pay Store")
-        ret_code = existing_retailer.retailer_code if (existing_retailer and existing_retailer.retailer_code) else "RET-10928"
+        ret_code = existing_retailer.retailer_code if (existing_retailer and existing_retailer.retailer_code) else "P2P-R404667"
         ret_public_id = str(existing_retailer.public_id) if existing_retailer else "e238fb8b-beb3-4cd4-862b-319b5d05d24e"
         ret_status = (existing_retailer.status if existing_retailer else "ACTIVE").upper()
 
@@ -323,6 +329,21 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
         user_roles = ["SUPER_ADMIN", "PLATFORM_ADMIN"] if is_admin else ["RETAILER"]
         subject_id = str(admin_user.public_id if (is_admin and admin_user) else ret_public_id)
 
+        ret_ref_id = getattr(existing_retailer, "retailer_ref_id", None)
+        comp_ref_id = getattr(existing_retailer, "company_ref_id", None) or (getattr(admin_user, "company_ref_id", None) if admin_user else 1)
+        ten_ref_id = getattr(existing_retailer, "tenant_ref_id", None) or (getattr(admin_user, "tenant_ref_id", None) if admin_user else 1)
+
+        if not ret_ref_id and existing_retailer:
+            try:
+                from sqlalchemy import text
+                row_ref = (await db.execute(text("SELECT retailer_ref_id, company_ref_id, tenant_ref_id FROM public.retailer WHERE public_id = :pid LIMIT 1"), {"pid": str(existing_retailer.public_id)})).first()
+                if row_ref:
+                    ret_ref_id = row_ref[0]
+                    comp_ref_id = row_ref[1] or comp_ref_id
+                    ten_ref_id = row_ref[2] or ten_ref_id
+            except Exception:
+                pass
+
         try:
             access_token = create_access_token(
                 subject=subject_id,
@@ -332,11 +353,15 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                 expires_delta=timedelta(days=7),
                 retailer_code=ret_code if not is_admin else None,
                 retailer_id=ret_public_id if not is_admin else None,
+                retailer_ref_id=ret_ref_id if (existing_retailer and not is_admin) else None,
+                company_ref_id=comp_ref_id,
+                tenant_ref_id=ten_ref_id,
                 mobile=clean_mobile,
                 approve_status=approve_status,
                 active_status=active_status
             )
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error creating access token: {e}", exc_info=True)
             access_token = f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token"
 
         if is_admin:
@@ -658,9 +683,9 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
             RetailerModel.is_deleted == False
         )
         .order_by(
+            case((RetailerModel.status == "ACTIVE", 1), else_=2),
             RetailerModel.is_active.desc(),
-            RetailerModel.status == "ACTIVE",
-            RetailerModel.id.desc()
+            RetailerModel.id.asc()
         )
     )
     contact_res = (await db.execute(ret_contact_stmt)).first()
@@ -713,6 +738,21 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
         company_str = str(retailer_record.company_id if retailer_record.company_id else DEFAULT_COMPANY_ID)
         subject_id = str(retailer_record.public_id)
 
+        ret_ref_id = getattr(retailer_record, "retailer_ref_id", None)
+        comp_ref_id = getattr(retailer_record, "company_ref_id", None) or 1
+        ten_ref_id = getattr(retailer_record, "tenant_ref_id", None) or 1
+
+        if not ret_ref_id and retailer_record:
+            try:
+                from sqlalchemy import text
+                row_ref = (await db.execute(text("SELECT retailer_ref_id, company_ref_id, tenant_ref_id FROM public.retailer WHERE public_id = :pid LIMIT 1"), {"pid": str(retailer_record.public_id)})).first()
+                if row_ref:
+                    ret_ref_id = row_ref[0]
+                    comp_ref_id = row_ref[1] or comp_ref_id
+                    ten_ref_id = row_ref[2] or ten_ref_id
+            except Exception:
+                pass
+
         try:
             access_token = create_access_token(
                 subject=subject_id,
@@ -722,11 +762,15 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
                 expires_delta=timedelta(days=7),
                 retailer_code=retailer_record.retailer_code,
                 retailer_id=subject_id,
+                retailer_ref_id=ret_ref_id,
+                company_ref_id=comp_ref_id,
+                tenant_ref_id=ten_ref_id,
                 mobile=clean_mobile,
                 approve_status=approve_status,
                 active_status=active_status
             )
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error creating OTP access token: {e}", exc_info=True)
             access_token = f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.{session_id}.auth_token"
 
         retailer_code = retailer_record.retailer_code or f"RET-{str(retailer_record.public_id)[:6].upper()}"

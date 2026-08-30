@@ -379,19 +379,41 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
       const baseUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
       const token = getAuthToken();
 
-      const response = await axios.post(
-        `${baseUrl}/api/v1/auth/verify-pin`,
-        { pin },
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-            "Content-Type": "application/json",
-          },
-          timeout: 8000,
-        }
-      );
+      let response: any = null;
+      let lastErr: any = null;
 
-      if (response.data?.success || response.data?.valid || response.status === 200) {
+      const endpoints = [
+        `${baseUrl}/api/v1/auth/verify-pin`,
+        "/api/v1/auth/verify-pin",
+        `${baseUrl}/api/v1/verify-pin`,
+        "/api/v1/verify-pin",
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          response = await axios.post(
+            endpoint,
+            { pin, mpin: pin },
+            {
+              headers: {
+                Authorization: token ? `Bearer ${token}` : "",
+                "Content-Type": "application/json",
+              },
+              timeout: 6000,
+            }
+          );
+          if (response?.data?.success || response?.data?.valid || response?.status === 200) {
+            break;
+          }
+        } catch (e: any) {
+          lastErr = e;
+          if (e.response?.status === 400 || e.response?.status === 401 || e.response?.status === 403) {
+            break;
+          }
+        }
+      }
+
+      if (response && (response.data?.success || response.data?.valid || response.status === 200)) {
         setSessionState("ACTIVE");
         setLockedAt(null);
         lastActivityRef.current = Date.now();
@@ -413,9 +435,15 @@ export const SessionSecurityProvider: React.FC<{ children: ReactNode }> = ({ chi
         return { success: true };
       } else {
         soundSystem.playErrorSound();
+        const errorMsg =
+          lastErr?.response?.data?.detail ||
+          lastErr?.response?.data?.message ||
+          response?.data?.message ||
+          response?.data?.detail ||
+          "Incorrect security PIN. Please enter your valid 4-digit PIN.";
         return {
           success: false,
-          message: response.data?.message || response.data?.detail || "Invalid security PIN. Please try again.",
+          message: errorMsg,
         };
       }
     } catch (err: any) {

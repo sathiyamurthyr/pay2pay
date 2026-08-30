@@ -34,6 +34,7 @@ from app.infrastructure.db.models import (
 from app.infrastructure.db.transaction_engine_models import (
     CentralTransactionModel, TransactionLedgerEntryModel
 )
+from app.domain.date_keys import compute_transaction_date_and_partition_keys
 from app.application.storage_service import BackblazeStorageService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES
 
 router = APIRouter(prefix="/topup", tags=["Retailer Topup Requests & Verification"])
@@ -1037,47 +1038,40 @@ async def approve_topup_request(
     )
     db.add(ledger_entry)
 
-    # 8. Create Central Transactions Table Record
+    # 8. Create Central Transactions Table Record (Append-Only)
+    top_keys = compute_transaction_date_and_partition_keys(now_utc)
     central_txn = CentralTransactionModel(
         public_id=txn_uuid,
         tenant_id=retailer.tenant_id,
         company_id=retailer.company_id,
-        vendor_code="PAY2PAY_TOPUP",
-        transaction_reference=txn_ref,
-        transaction_type="WALLET_TOPUP",
-        service_type="TOPUP",
         retailer_id=retailer.public_id,
-        amount=final_approved_amount,
-        currency="INR",
-        charges=0.0,
-        commission=0.0,
-        gst_amount=0.0,
-        tds_amount=0.0,
-        net_amount=final_approved_amount,
+        txn_id=txn_ref,
+        ref_id=topup_record.payment_reference or txn_ref,
+        table_ref_id=topup_record.public_id,
+        service_name="TOPUP",
+        entry_type="CREDIT",
+        amount=Decimal(str(final_approved_amount)),
+        balance_before=Decimal(str(opening_balance)),
+        balance_after=Decimal(str(closing_balance)),
         status="SUCCESS",
-        status_description=f"Wallet Topup Approved by Admin: {current_admin.email}",
-        request_id=topup_record.topup_request_id,
-        utr=topup_record.payment_reference or txn_ref,
+        narration=f"Wallet Topup Approved by Admin ({current_admin.email}) [Req: {topup_record.topup_request_id}]",
+        day_key=top_keys["day_key"],
+        week_key=top_keys["week_key"],
+        month_key=top_keys["month_key"],
+        quarter_key=top_keys["quarter_key"],
+        year_key=top_keys["year_key"],
+        financial_year_key=top_keys["financial_year_key"],
+        financial_quarter_key=top_keys["financial_quarter_key"],
+        financial_month_key=top_keys["financial_month_key"],
+        date_key=top_keys["date_key"],
+        time_key=top_keys["time_key"],
+        partition_year=top_keys["partition_year"],
+        partition_month=top_keys["partition_month"],
+        partition_day=top_keys["partition_day"],
+        is_active=True,
+        is_deleted=False,
         created_at=now_utc,
         updated_at=now_utc,
-        created_by=current_admin.email,
-        updated_by=current_admin.email,
-        metadata_json={
-            "topup_request_id": topup_record.topup_request_id,
-            "requested_amount": float(topup_record.requested_amount),
-            "approved_amount": final_approved_amount,
-            "payment_reference": topup_record.payment_reference,
-            "payment_method": topup_record.payment_method,
-            "slip_id": topup_record.slip_id,
-            "slip_url": topup_record.slip_url,
-            "approved_by": current_admin.email,
-            "admin_notes": req.admin_notes,
-            "retailer_code": retailer.retailer_code,
-            "retailer_name": get_retailer_display_name(retailer),
-            "wallet_id": str(wallet_public_id),
-            "previous_balance": opening_balance,
-            "current_balance": closing_balance
-        }
     )
     db.add(central_txn)
 

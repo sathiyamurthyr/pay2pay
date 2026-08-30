@@ -2,7 +2,7 @@ import uuid
 import io
 import csv
 import re
-from datetime import datetime, date, time, timezone
+from datetime import datetime, date, time, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response, Request
@@ -17,6 +17,8 @@ from app.infrastructure.db.models import RetailerModel, RetailerContactModel, Ad
 
 router = APIRouter(prefix="/reports", tags=["Retailer Payout Report"])
 
+IST = timezone(timedelta(hours=5, minutes=30))
+
 def money(value: Any) -> Decimal:
     if value is None:
         return Decimal("0.00")
@@ -26,7 +28,7 @@ def validate_report_date(value: Optional[str], field_name: str) -> Optional[date
     if not value:
         return None
     try:
-        return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=IST).astimezone(timezone.utc)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Invalid {field_name}. Expected YYYY-MM-DD.")
 
@@ -58,12 +60,8 @@ def parse_uuid_or_none(val: Any) -> Optional[uuid.UUID]:
 
 def mask_account_number(acc_no: Optional[str]) -> str:
     if not acc_no:
-        return "XXXX XXXX 0000"
-    clean = str(acc_no).replace(" ", "").replace("-", "")
-    if len(clean) <= 4:
-        return f"XXXX {clean}"
-    last4 = clean[-4:]
-    return f"XXXX XXXX {last4}"
+        return "--"
+    return str(acc_no).strip()
 
 class ReportAuditLogRequest(BaseModel):
     action: str = Field(..., description="REPORT_VIEWED | REPORT_EXPORTED | RECEIPT_DOWNLOADED | RECEIPT_PRINTED")
@@ -195,41 +193,37 @@ async def get_retailer_payout_summary(
     to_date: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    if page < 1:
-        raise HTTPException(status_code=400, detail="page must be >= 1.")
-    if limit < 1 or limit > 5000:
-        raise HTTPException(status_code=400, detail="limit must be between 1 and 5000.")
     ctx = await resolve_report_retailer(request, retailer_id, tenant_id, company_id, db)
     ret_uuid = ctx["retailer_uuid"]
     ret_code = ctx["retailer_code"]
     
-    now_utc = datetime.now(timezone.utc)
+    now_ist = datetime.now(IST)
     
-    if from_date and isinstance(from_date, str):
+    if from_date and isinstance(from_date, str) and from_date.strip():
         try:
-            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+            start_dt = datetime.strptime(from_date.strip(), "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=IST).astimezone(timezone.utc)
         except ValueError:
-            start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
+            start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
     else:
-        start_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0, tzinfo=timezone.utc)
+        start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
 
-    if to_date and isinstance(to_date, str):
+    if to_date and isinstance(to_date, str) and to_date.strip():
         try:
-            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
+            end_dt = datetime.strptime(to_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
         except ValueError:
-            end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
+            end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
     else:
-        end_dt = datetime(now_utc.year, now_utc.month, now_utc.day, 23, 59, 59, tzinfo=timezone.utc)
+        end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
 
     # 1. Query Central Transactions (STRICTLY PAYOUT & DMT ONLY)
     tx_sql = """
     SELECT 
-        COUNT(id) AS total_count,
+        COUNT(transactions_ref_id) AS total_count,
         COALESCE(SUM(amount), 0) AS total_amount,
-        COALESCE(SUM(net_amount), 0) AS total_debit,
-        COALESCE(SUM(commission), 0) AS total_commission,
-        COALESCE(SUM(gst_amount), 0) AS total_gst,
-        COALESCE(SUM(tds_amount), 0) AS total_tds,
+        COALESCE(SUM(amount), 0) AS total_debit,
+        0.0 AS total_commission,
+        0.0 AS total_gst,
+        0.0 AS total_tds,
         COUNT(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN 1 END) AS success_count,
         COALESCE(SUM(CASE WHEN UPPER(status) IN ('SUCCESS', 'SETTLED', 'COMPLETED') THEN amount ELSE 0 END), 0) AS success_amount,
         COUNT(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 END) AS pending_count,
@@ -238,26 +232,24 @@ async def get_retailer_payout_summary(
         COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'TIMEOUT', 'REVERSED') THEN amount ELSE 0 END), 0) AS failed_amount,
         COUNT(CASE WHEN UPPER(status) = 'REVERSED' THEN 1 END) AS reversed_count
     FROM transactions
-    WHERE (
-        UPPER(COALESCE(service_type, '')) IN ('PAYOUT', 'DMT', 'MOVE_TO_BANK', 'BANK_TRANSFER', 'VENDOR_PAYOUT', 'BENEFICIARY_PAYOUT')
-        OR UPPER(COALESCE(transaction_type, '')) IN ('PAYOUT', 'DMT', 'IMPS', 'NEFT', 'RTGS', 'UPI_PAYOUT', 'BANK_TRANSFER')
-    )
-    AND UPPER(COALESCE(service_type, '')) NOT IN ('TOPUP', 'RECHARGE', 'BBPS', 'BILL_PAYMENT', 'AEPS', 'POS', 'CARD_TO_CASH')
-    AND UPPER(COALESCE(transaction_type, '')) NOT IN ('WALLET_TOPUP', 'MANUAL_TOPUP', 'MANUAL_DEBIT', 'TOPUP', 'QR_COLLECT')
-    AND created_at >= :start_dt AND created_at <= :end_dt
+    WHERE UPPER(COALESCE(service_name, '')) IN ('PAYOUT', 'DMT', 'MOVE_TO_BANK', 'BANK_TRANSFER', 'VENDOR_PAYOUT', 'BENEFICIARY_PAYOUT')
+      AND created_at >= :start_dt AND created_at <= :end_dt
     """
     tx_params: Dict[str, Any] = {"start_dt": start_dt, "end_dt": end_dt}
     if t_uuid := ctx.get("tenant_uuid"):
-        tx_sql += " AND t.tenant_id = :tenant_scope"
+        tx_sql += " AND (tenant_id = :tenant_scope OR tenant_ref_id = :tenant_ref_id_scope)"
         tx_params["tenant_scope"] = t_uuid
+        tx_params["tenant_ref_id_scope"] = ctx.get("tenant_ref_id", 1)
     if c_uuid := ctx.get("company_uuid"):
-        tx_sql += " AND t.company_id = :company_scope"
+        tx_sql += " AND (company_id = :company_scope OR company_ref_id = :company_ref_id_scope)"
         tx_params["company_scope"] = c_uuid
+        tx_params["company_ref_id_scope"] = ctx.get("company_ref_id", 1)
 
     if ret_uuid:
-        tx_sql += " AND (retailer_id = :ret_uuid OR retailer_id::text = :ret_uuid_str"
+        tx_sql += " AND (retailer_id = :ret_uuid OR retailer_id::text = :ret_uuid_str OR retailer_ref_id = :ret_ref_id"
         tx_params["ret_uuid"] = ret_uuid
         tx_params["ret_uuid_str"] = str(ret_uuid)
+        tx_params["ret_ref_id"] = ctx.get("retailer_ref_id", 0)
         if ret_code:
             tx_sql += " OR retailer_id::text = :ret_code"
             tx_params["ret_code"] = ret_code
@@ -406,79 +398,86 @@ async def fetch_payout_report_dataset(
     ret_uuid = ctx["retailer_uuid"]
     ret_code = ctx["retailer_code"]
 
-    start_dt = None
-    end_dt = None
-    if from_date and isinstance(from_date, str):
+    now_ist = datetime.now(IST)
+    if from_date and isinstance(from_date, str) and from_date.strip():
         try:
-            start_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+            start_dt = datetime.strptime(from_date.strip(), "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=IST).astimezone(timezone.utc)
         except ValueError:
-            pass
-    if to_date and isinstance(to_date, str):
-        try:
-            end_dt = datetime.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
-        except ValueError:
-            pass
+            start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
+    else:
+        start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
 
-    # 1. Query Central Transactions joined with Double-Entry Ledger Entries (PAYOUT & DMT ONLY)
+    if to_date and isinstance(to_date, str) and to_date.strip():
+        try:
+            end_dt = datetime.strptime(to_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
+        except ValueError:
+            end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
+    else:
+        end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
+
+    # 1. Query Central Transactions (PAYOUT & DMT ONLY)
     central_sql = """
     SELECT 
         t.public_id::text AS transaction_id,
-        t.transaction_reference AS transaction_number,
-        t.transaction_reference AS reference_id,
+        t.txn_id AS transaction_number,
+        COALESCE(t.ref_id, t.txn_id) AS reference_id,
         t.created_at AS initiated_at,
         t.updated_at AS completed_at,
-        COALESCE(c.full_name, 'Verified Customer') AS customer_name,
-        COALESCE(c.mobile_number, NULL) AS customer_mobile,
-        COALESCE(b.account_holder_name, b.registered_name_in_bank, 'Beneficiary') AS beneficiary_name,
-        COALESCE(b.mobile_number, NULL) AS beneficiary_mobile,
-        COALESCE(b.bank_name, 'Bank') AS bank_name,
-        COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
-        COALESCE(b.account_number, 'XXXX') AS account_number,
-        COALESCE(b.ifsc_code, NULL) AS ifsc_code,
-        COALESCE(t.service_type, t.transaction_type, 'MOVE_TO_BANK') AS payment_mode,
+        COALESCE(c.full_name, ret.store_name, ret.owner_name, 'Verified Customer') AS customer_name,
+        COALESCE(c.mobile_number, rc.mobile, 'N/A') AS customer_mobile,
+        COALESCE(b.account_holder_name, pt_b.account_holder_name, ret.store_name, ret.owner_name, 'Beneficiary') AS beneficiary_name,
+        COALESCE(rc.mobile, 'N/A') AS beneficiary_mobile,
+        COALESCE(b.bank_name, pt_b.bank_name, '') AS bank_name,
+        COALESCE(b.account_number, pt_b.account_number, '') AS masked_account_number,
+        COALESCE(b.account_number, pt_b.account_number, '') AS account_number,
+        COALESCE(b.ifsc_code, pt_b.ifsc_code, '') AS ifsc_code,
+        COALESCE(t.service_name, 'PAYOUT') AS payment_mode,
         'PAYOUT' AS service_category,
         t.amount::float AS transfer_amount,
-        t.charges::float AS convenience_fee,
-        t.gst_amount::float AS gst_amount,
-        t.tds_amount::float AS tds_amount,
-        (t.gst_amount + t.tds_amount)::float AS tax_amount,
+        0.0 AS convenience_fee,
+        0.0 AS gst_amount,
+        0.0 AS tds_amount,
+        0.0 AS tax_amount,
         'MAIN_WALLET' AS wallet_type,
-        t.net_amount::float AS wallet_debit,
-        t.commission::float AS retailer_commission,
-        COALESCE(t.utr, '--') AS utr_number,
+        t.amount::float AS wallet_debit,
+        0.0 AS retailer_commission,
+        COALESCE(t.ref_id, t.txn_id, '--') AS utr_number,
         UPPER(t.status) AS status,
         CASE WHEN UPPER(t.status) = 'FAILED' THEN 'REFUNDED' ELSE '' END AS refund_status,
-        COALESCE(t.response_message, t.status_description, '') AS remarks,
-        COALESCE(l.balance_before::float, 0.0) AS wallet_before,
-        COALESCE(l.balance_after::float, 0.0) AS wallet_after,
-        COALESCE(l.entry_type, 'DEBIT') AS entry_type,
-        COALESCE(l.narration, t.status_description, '') AS narration,
+        COALESCE(t.narration, '') AS remarks,
+        t.balance_before::float AS wallet_before,
+        t.balance_after::float AS wallet_after,
+        t.entry_type AS entry_type,
+        COALESCE(t.narration, '') AS narration,
         true AS receipt_enabled
     FROM transactions t
-    LEFT JOIN customer c ON t.customer_id = c.public_id
-    LEFT JOIN beneficiary_master b ON t.beneficiary_id = b.public_id
-    LEFT JOIN transaction_ledger_entries l 
-        ON (t.public_id = l.transaction_id OR t.transaction_reference = l.transaction_reference)
-        AND l.account_type = 'RETAILER_WALLET'
+    LEFT JOIN retailer ret ON (t.retailer_id = ret.public_id OR t.retailer_id::text = ret.retailer_code OR t.retailer_ref_id = ret.retailer_ref_id)
+    LEFT JOIN retailer_contact rc ON rc.retailer_id = ret.public_id
+    LEFT JOIN payout_workflow_transactions pwt ON (pwt.transaction_number = t.txn_id OR pwt.reference_number = t.ref_id)
+    LEFT JOIN beneficiary_master b ON (b.beneficiary_master_ref_id = pwt.beneficiary_master_ref_id OR b.public_id = pwt.beneficiary_id)
+    LEFT JOIN customer c ON (c.customer_ref_id = pwt.customer_ref_id OR c.public_id = pwt.customer_id)
+    LEFT JOIN payout_transaction pt ON (pt.transaction_number = t.txn_id OR pt.gateway_reference = t.txn_id OR pt.bank_reference = t.ref_id)
+    LEFT JOIN beneficiary_master pt_b ON (pt_b.beneficiary_master_ref_id = pt.beneficiary_master_ref_id OR pt_b.public_id = pt.beneficiary_id)
     WHERE (
-        UPPER(COALESCE(t.service_type, '')) IN ('PAYOUT', 'DMT', 'MOVE_TO_BANK', 'BANK_TRANSFER', 'VENDOR_PAYOUT', 'BENEFICIARY_PAYOUT')
-        OR UPPER(COALESCE(t.transaction_type, '')) IN ('PAYOUT', 'DMT', 'IMPS', 'NEFT', 'RTGS', 'UPI_PAYOUT', 'BANK_TRANSFER')
+        UPPER(COALESCE(t.service_name, '')) IN ('PAYOUT', 'DMT', 'MOVE_TO_BANK', 'BANK_TRANSFER', 'VENDOR_PAYOUT', 'BENEFICIARY_PAYOUT')
     )
-    AND UPPER(COALESCE(t.service_type, '')) NOT IN ('TOPUP', 'RECHARGE', 'BBPS', 'BILL_PAYMENT', 'AEPS', 'POS', 'CARD_TO_CASH')
-    AND UPPER(COALESCE(t.transaction_type, '')) NOT IN ('WALLET_TOPUP', 'MANUAL_TOPUP', 'MANUAL_DEBIT', 'TOPUP', 'QR_COLLECT')
+    AND UPPER(COALESCE(t.service_name, '')) NOT IN ('TOPUP', 'RECHARGE', 'BBPS', 'BILL_PAYMENT', 'AEPS', 'POS', 'CARD_TO_CASH')
     """
     params: Dict[str, Any] = {}
     if ctx.get("tenant_uuid"):
-        central_sql += " AND t.tenant_id = :tenant_scope"
+        central_sql += " AND (t.tenant_id = :tenant_scope OR t.tenant_ref_id = :tenant_ref_id_scope)"
         params["tenant_scope"] = ctx["tenant_uuid"]
+        params["tenant_ref_id_scope"] = ctx.get("tenant_ref_id", 1)
     if ctx.get("company_uuid"):
-        central_sql += " AND t.company_id = :company_scope"
+        central_sql += " AND (t.company_id = :company_scope OR t.company_ref_id = :company_ref_id_scope)"
         params["company_scope"] = ctx["company_uuid"]
+        params["company_ref_id_scope"] = ctx.get("company_ref_id", 1)
 
     if ret_uuid:
-        central_sql += " AND (t.retailer_id = :ret_uuid OR t.retailer_id::text = :ret_uuid_str"
+        central_sql += " AND (t.retailer_id = :ret_uuid OR t.retailer_id::text = :ret_uuid_str OR t.retailer_ref_id = :ret_ref_id"
         params["ret_uuid"] = ret_uuid
         params["ret_uuid_str"] = str(ret_uuid)
+        params["ret_ref_id"] = ctx.get("retailer_ref_id", 0)
         if ret_code:
             central_sql += " OR t.retailer_id::text = :ret_code"
             params["ret_code"] = ret_code
@@ -497,12 +496,11 @@ async def fetch_payout_report_dataset(
     if search and search.strip():
         s_val = f"%{search.strip()}%"
         central_sql += """ AND (
-            t.transaction_reference ILIKE :s_val OR 
-            c.full_name ILIKE :s_val OR 
-            c.mobile_number ILIKE :s_val OR 
-            b.account_holder_name ILIKE :s_val OR 
-            b.account_number ILIKE :s_val OR 
-            t.utr ILIKE :s_val
+            t.txn_id ILIKE :s_val OR 
+            t.ref_id ILIKE :s_val OR 
+            ret.store_name ILIKE :s_val OR 
+            ret.owner_name ILIKE :s_val OR 
+            rc.mobile ILIKE :s_val
         )"""
         params["s_val"] = s_val
 
@@ -525,22 +523,22 @@ async def fetch_payout_report_dataset(
 
 
     if transaction_id and transaction_id.strip():
-        central_sql += " AND (t.public_id::text = :transaction_id OR t.transaction_reference = :transaction_id)"
+        central_sql += " AND (t.public_id::text = :transaction_id OR t.txn_id = :transaction_id)"
         params["transaction_id"] = transaction_id.strip()
     if reference_id and reference_id.strip():
-        central_sql += " AND t.transaction_reference ILIKE :reference_id"
+        central_sql += " AND (t.txn_id ILIKE :reference_id OR t.ref_id ILIKE :reference_id)"
         params["reference_id"] = f"%{reference_id.strip()}%"
     if customer_name and customer_name.strip():
-        central_sql += " AND c.full_name ILIKE :customer_name"
+        central_sql += " AND (ret.store_name ILIKE :customer_name OR ret.owner_name ILIKE :customer_name)"
         params["customer_name"] = f"%{customer_name.strip()}%"
     if customer_mobile and customer_mobile.strip():
-        central_sql += " AND c.mobile_number ILIKE :customer_mobile"
+        central_sql += " AND ret.mobile_number ILIKE :customer_mobile"
         params["customer_mobile"] = f"%{customer_mobile.strip()}%"
     if beneficiary_name and beneficiary_name.strip():
         central_sql += " AND b.account_holder_name ILIKE :beneficiary_name"
         params["beneficiary_name"] = f"%{beneficiary_name.strip()}%"
     if beneficiary_mobile and beneficiary_mobile.strip():
-        central_sql += " AND b.mobile_number ILIKE :beneficiary_mobile"
+        central_sql += " AND c.mobile_number ILIKE :beneficiary_mobile"
         params["beneficiary_mobile"] = f"%{beneficiary_mobile.strip()}%"
     if payment_mode and payment_mode.upper() != "ALL":
         central_sql += " AND (UPPER(COALESCE(t.service_type, '')) = :payment_mode OR UPPER(COALESCE(t.transaction_type, '')) = :payment_mode)"
@@ -559,12 +557,12 @@ async def fetch_payout_report_dataset(
         e.completed_at,
         COALESCE(c.full_name, 'Verified Customer') AS customer_name,
         COALESCE(c.mobile_number, NULL) AS customer_mobile,
-        COALESCE(b.account_holder_name, 'Beneficiary') AS beneficiary_name,
-        COALESCE(b.mobile_number, NULL) AS beneficiary_mobile,
-        COALESCE(b.bank_name, NULL) AS bank_name,
-        COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
-        COALESCE(b.account_number, 'XXXX') AS account_number,
-        COALESCE(b.ifsc_code, NULL) AS ifsc_code,
+        COALESCE(b.account_holder_name, bba.account_holder_name, 'Beneficiary') AS beneficiary_name,
+        COALESCE(c.mobile_number, NULL) AS beneficiary_mobile,
+        COALESCE(b.bank_name, bba.bank_name, '') AS bank_name,
+        COALESCE(b.account_number, bba.account_number, b.account_number_masked, '') AS masked_account_number,
+        COALESCE(b.account_number, bba.account_number, b.account_number_masked, '') AS account_number,
+        COALESCE(b.ifsc_code, bba.ifsc_code, '') AS ifsc_code,
         e.mode AS payment_mode,
         'PAYOUT' AS service_category,
         e.amount::float AS transfer_amount,
@@ -585,8 +583,9 @@ async def fetch_payout_report_dataset(
         COALESCE(e.reversal_reason, e.status_description, '') AS narration,
         true AS receipt_enabled
     FROM enterprise_payout_transactions e
-    LEFT JOIN customer c ON e.customer_id = c.public_id
-    LEFT JOIN beneficiary_master b ON e.beneficiary_id = b.public_id
+    LEFT JOIN customer c ON (e.customer_id = c.public_id OR e.customer_ref_id = c.customer_ref_id)
+    LEFT JOIN beneficiary_master b ON (e.beneficiary_id = b.public_id OR e.beneficiary_master_ref_id = b.beneficiary_master_ref_id)
+    LEFT JOIN beneficiary_bank_account bba ON (bba.beneficiary_id = e.beneficiary_id OR bba.public_id = e.beneficiary_id)
     WHERE 1=1
     """
     ep_params: Dict[str, Any] = {}
@@ -662,7 +661,7 @@ async def fetch_payout_report_dataset(
         ep_sql += " AND b.account_holder_name ILIKE :beneficiary_name"
         ep_params["beneficiary_name"] = f"%{beneficiary_name.strip()}%"
     if beneficiary_mobile and beneficiary_mobile.strip():
-        ep_sql += " AND b.mobile_number ILIKE :beneficiary_mobile"
+        ep_sql += " AND c.mobile_number ILIKE :beneficiary_mobile"
         ep_params["beneficiary_mobile"] = f"%{beneficiary_mobile.strip()}%"
     if payment_mode and payment_mode.upper() != "ALL":
         ep_sql += " AND UPPER(COALESCE(e.mode, '')) = :payment_mode"
@@ -682,33 +681,33 @@ async def fetch_payout_report_dataset(
         COALESCE(c.full_name, 'Verified Customer') AS customer_name,
         COALESCE(c.mobile_number, NULL) AS customer_mobile,
         COALESCE(b.account_holder_name, 'Beneficiary') AS beneficiary_name,
-        COALESCE(b.mobile_number, NULL) AS beneficiary_mobile,
-        COALESCE(b.bank_name, NULL) AS bank_name,
-        COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
-        COALESCE(b.account_number, 'XXXX') AS account_number,
-        COALESCE(b.ifsc_code, NULL) AS ifsc_code,
+        COALESCE(c.mobile_number, NULL) AS beneficiary_mobile,
+        COALESCE(b.bank_name, '') AS bank_name,
+        COALESCE(b.account_number, b.account_number_masked, '') AS masked_account_number,
+        COALESCE(b.account_number, b.account_number_masked, '') AS account_number,
+        COALESCE(b.ifsc_code, '') AS ifsc_code,
         p.mode AS payment_mode,
-        'DMT' AS service_category,
+        CASE WHEN p.transaction_number LIKE 'REV-%' OR UPPER(p.status) = 'REVERSED' THEN 'Payout Reversal' ELSE 'Payout' END AS service_category,
         p.amount::float AS transfer_amount,
-        p.charges::float AS convenience_fee,
-        ROUND((p.charges * 0.18)::numeric, 2)::float AS gst_amount,
+        CASE WHEN p.transaction_number LIKE 'REV-%' OR UPPER(p.status) = 'REVERSED' THEN 0.0 ELSE p.charges::float END AS convenience_fee,
+        CASE WHEN p.transaction_number LIKE 'REV-%' OR UPPER(p.status) = 'REVERSED' THEN 0.0 ELSE ROUND((p.charges * 0.18)::numeric, 2)::float END AS gst_amount,
         0.0::float AS tds_amount,
-        ROUND((p.charges * 0.18)::numeric, 2)::float AS tax_amount,
+        CASE WHEN p.transaction_number LIKE 'REV-%' OR UPPER(p.status) = 'REVERSED' THEN 0.0 ELSE ROUND((p.charges * 0.18)::numeric, 2)::float END AS tax_amount,
         'MAIN_WALLET' AS wallet_type,
         p.net_debit::float AS wallet_debit,
-        p.commission::float AS retailer_commission,
+        0.0::float AS retailer_commission,
         COALESCE(p.utr_number, '--') AS utr_number,
-        UPPER(p.status) AS status,
-        CASE WHEN UPPER(p.status) = 'FAILED' THEN 'REFUNDED' ELSE '' END AS refund_status,
+        CASE WHEN p.transaction_number LIKE 'REV-%' OR UPPER(p.status) = 'REVERSED' THEN 'REVERSED' ELSE UPPER(p.status) END AS status,
+        CASE WHEN UPPER(p.status) = 'FAILED' OR p.transaction_number LIKE 'REV-%' THEN 'REFUNDED' ELSE '' END AS refund_status,
         COALESCE(p.failure_reason, '') AS remarks,
         COALESCE(p.wallet_before::float, 0.0) AS wallet_before,
         COALESCE(p.wallet_after::float, 0.0) AS wallet_after,
-        'DEBIT' AS entry_type,
+        CASE WHEN p.transaction_number LIKE 'REV-%' OR UPPER(p.status) = 'REVERSED' THEN 'CREDIT' ELSE 'DEBIT' END AS entry_type,
         COALESCE(p.failure_reason, '') AS narration,
         true AS receipt_enabled
     FROM payout_workflow_transactions p
-    LEFT JOIN customer c ON p.customer_id = c.public_id
-    LEFT JOIN beneficiary_master b ON p.beneficiary_id = b.public_id
+    LEFT JOIN customer c ON (p.customer_id = c.public_id OR p.customer_ref_id = c.customer_ref_id)
+    LEFT JOIN beneficiary_master b ON (p.beneficiary_id = b.public_id OR p.beneficiary_master_ref_id = b.beneficiary_master_ref_id)
     WHERE 1=1
     """
     pw_params: Dict[str, Any] = {}
@@ -784,7 +783,7 @@ async def fetch_payout_report_dataset(
         pw_sql += " AND b.account_holder_name ILIKE :beneficiary_name"
         pw_params["beneficiary_name"] = f"%{beneficiary_name.strip()}%"
     if beneficiary_mobile and beneficiary_mobile.strip():
-        pw_sql += " AND b.mobile_number ILIKE :beneficiary_mobile"
+        pw_sql += " AND c.mobile_number ILIKE :beneficiary_mobile"
         pw_params["beneficiary_mobile"] = f"%{beneficiary_mobile.strip()}%"
     if payment_mode and payment_mode.upper() != "ALL":
         pw_sql += " AND UPPER(COALESCE(p.mode, '')) = :payment_mode"
@@ -798,15 +797,13 @@ async def fetch_payout_report_dataset(
 
     for r in list(rows) + list(ep_rows) + list(pw_rows):
         d = dict(r._mapping)
-        ref = d.get("transaction_number") or d.get("reference_id") or d.get("transaction_id")
-        if ref and ref not in seen_refs:
-            seen_refs.add(ref)
-            init_dt = d.get("initiated_at")
-            comp_dt = d.get("completed_at")
-            if init_dt and isinstance(init_dt, datetime):
-                d["initiated_at"] = init_dt.strftime("%d-%b-%Y %H:%M")
-            if comp_dt and isinstance(comp_dt, datetime):
-                d["completed_at"] = comp_dt.strftime("%d-%b-%Y %H:%M")
+        tx_id = d.get("transaction_id")
+        ref = d.get("transaction_number") or d.get("reference_id") or tx_id
+        entry_t = d.get("entry_type") or "DEBIT"
+        st = d.get("status") or ""
+        item_key = f"{ref}_{entry_t}_{st}" if ref else tx_id
+        if item_key and item_key not in seen_refs:
+            seen_refs.add(item_key)
             all_items.append(d)
 
     # Sort all items
@@ -819,17 +816,110 @@ async def fetch_payout_report_dataset(
     safe_sort, safe_dir = validate_sort(sort_by, sort_dir)
     all_items.sort(key=lambda it: (it.get(safe_sort) is None, get_sort_key(it)), reverse=(safe_dir == "desc"))
 
-    # Assign sequential s_no
-    for idx, item in enumerate(all_items, start=1):
-        item["s_no"] = idx
+    # Format items with exact 15-column short response fields
+    formatted_items = []
+    for idx, d in enumerate(all_items, start=1):
+        amt = float(money(d.get("transfer_amount") or d.get("amount") or 0.0))
+        tax = float(money(d.get("tax_amount") or ((d.get("gst_amount") or 0.0) + (d.get("tds_amount") or 0.0))))
+        
+        # Fee is the base configured commission/charge (excluding tax)
+        fee_raw = float(money(d.get("retailer_commission") or d.get("commission") or 0.0))
+        if fee_raw > 0:
+            fee = fee_raw
+        else:
+            charges_val = float(money(d.get("convenience_fee") or d.get("charges") or 0.0))
+            fee = max(0.0, charges_val - tax) if charges_val > tax else charges_val
+            
+        debit = float(money(d.get("wallet_debit") or d.get("net_debit") or (amt + fee + tax)))
+        
+        init_dt = d.get("initiated_at")
+        if isinstance(init_dt, datetime):
+            dt_ist = init_dt.astimezone(IST) if init_dt.tzinfo else init_dt.replace(tzinfo=timezone.utc).astimezone(IST)
+            date_time_str = dt_ist.strftime("%d-%b-%Y %H:%M:%S")
+        elif isinstance(init_dt, str) and init_dt:
+            date_time_str = init_dt
+        else:
+            date_time_str = "--"
 
-    total_records = len(all_items)
+        # Final short format + full attributes for UI & Drawer
+        item_obj = {
+            "s_no": idx,
+            "txn_id": str(d.get("transaction_number") or d.get("transaction_id") or "--"),
+            "customer": str(d.get("customer_name") or "Verified Customer"),
+            "beneficiary": str(d.get("beneficiary_name") or "Beneficiary"),
+            "ac_no": str(d.get("account_number") or d.get("masked_account_number") or "--"),
+            "amt": amt,
+            "fee": fee,
+            "tax": tax,
+            "debit": debit,
+            "mode": str(d.get("payment_mode") or d.get("mode") or "IMPS"),
+            "utr": str(d.get("utr_number") or d.get("utr") or "--"),
+            "wallet": "Main Wallet",
+            "date_time": date_time_str,
+            "status": str(d.get("status") or "SUCCESS").upper(),
+            "actions": ["VIEW"],
+            # Legacy & deep drawer compatibility fields
+            "id": str(d.get("transaction_id") or d.get("transaction_number")),
+            "transaction_id": str(d.get("transaction_id") or d.get("transaction_number")),
+            "transaction_number": str(d.get("transaction_number") or d.get("transaction_id")),
+            "reference_id": str(d.get("reference_id") or d.get("transaction_number")),
+            "transfer_amount": amt,
+            "convenience_fee": fee,
+            "gst_amount": float(money(d.get("gst_amount") or tax)),
+            "tds_amount": float(money(d.get("tds_amount") or 0.0)),
+            "tax_amount": tax,
+            "wallet_debit": debit,
+            "payment_mode": str(d.get("payment_mode") or d.get("mode") or "IMPS"),
+            "customer_name": str(d.get("customer_name") or "Verified Customer"),
+            "customer_mobile": str(d.get("customer_mobile") or ""),
+            "beneficiary_name": str(d.get("beneficiary_name") or "Beneficiary"),
+            "bank_name": str(d.get("bank_name") or "Bank Transfer"),
+            "account_number": str(d.get("account_number") or "--"),
+            "masked_account_number": str(d.get("account_number") or "--"),
+            "ifsc_code": str(d.get("ifsc_code") or "--"),
+            "utr_number": str(d.get("utr_number") or d.get("utr") or "--"),
+            "initiated_at": date_time_str,
+            "wallet_type": "MAIN_WALLET",
+            "receipt_enabled": True,
+        }
+        formatted_items.append(item_obj)
+
+    total_records = len(formatted_items)
     offset = (page - 1) * limit
-    paginated_items = all_items[offset:offset + limit]
+    paginated_items = formatted_items[offset:offset + limit]
     total_pages = (total_records + limit - 1) // limit if limit > 0 else 1
+
+    # Resolve dynamic company branding for report
+    comp_sql = """
+        SELECT 
+            COALESCE(c.display_name, c.company_name, c.legal_name, 'Pay2Pay') AS company_name,
+            COALESCE(c.legal_name, c.company_name, 'Pay2Pay Technologies Private Limited') AS legal_name,
+            COALESCE(c.company_code, 'P2P') AS company_code,
+            COALESCE(cb.logo_url, '/branding/logo.png') AS logo_url
+        FROM public.company c
+        LEFT JOIN public.company_branding cb ON (cb.company_id = c.public_id OR cb.company_ref_id = c.company_ref_id)
+        WHERE 1=1
+    """
+    comp_p = {}
+    if ctx.get("company_ref_id"):
+        comp_sql += " AND c.company_ref_id = :comp_ref"
+        comp_p["comp_ref"] = ctx["company_ref_id"]
+    elif ctx.get("company_uuid"):
+        comp_sql += " AND c.public_id = :comp_uuid"
+        comp_p["comp_uuid"] = ctx["company_uuid"]
+    comp_sql += " ORDER BY c.company_ref_id ASC LIMIT 1"
+
+    comp_row = (await db.execute(text(comp_sql), comp_p)).fetchone()
+    company_meta = dict(comp_row._mapping) if comp_row else {
+        "company_name": "Pay2Pay Fintech",
+        "legal_name": "Pay2Pay Technologies Private Limited",
+        "company_code": "PAY2PAY",
+        "logo_url": "/branding/pay2pay-logo.png"
+    }
 
     return {
         "items": paginated_items,
+        "company": company_meta,
         "meta": {
             "total_records": total_records,
             "page": page,
@@ -893,6 +983,7 @@ async def get_retailer_payout_report_list(
     items = dataset["items"]
     return {
         "items": items,
+        "company": dataset.get("company"),
         "pagination": dataset["meta"],
         "footer_totals": {
             "total_transactions": dataset["meta"]["total_records"],
@@ -911,37 +1002,33 @@ async def get_retailer_transaction_details(
     tx_sql = """
     SELECT 
         t.public_id::text AS transaction_id,
-        t.transaction_reference AS transaction_number,
-        t.transaction_reference AS reference_id,
+        t.txn_id AS transaction_number,
+        COALESCE(t.ref_id, t.txn_id) AS reference_id,
         t.created_at AS initiated_at,
         t.updated_at AS completed_at,
-        c.full_name AS customer_name,
-        c.mobile_number AS customer_mobile,
-        c.kyc_status AS customer_kyc_status,
-        b.account_holder_name AS beneficiary_name,
-        b.bank_name,
-        b.account_number,
-        b.account_number_masked,
-        b.ifsc_code,
-        t.service_type AS mode,
+        COALESCE(ret.store_name, ret.owner_name, 'Verified Customer') AS customer_name,
+        COALESCE(ret.mobile_number, 'N/A') AS customer_mobile,
+        'VERIFIED' AS customer_kyc_status,
+        COALESCE(ret.store_name, ret.owner_name, 'Beneficiary') AS beneficiary_name,
+        COALESCE(ret.bank_name, '') AS bank_name,
+        COALESCE(ret.account_number, '') AS account_number,
+        COALESCE(ret.account_number, '') AS account_number_masked,
+        COALESCE(ret.ifsc_code, '') AS ifsc_code,
+        t.service_name AS mode,
         t.amount::float AS amount,
-        t.charges::float AS charges,
-        t.gst_amount::float AS gst_amount,
-        t.tds_amount::float AS tds_amount,
-        t.net_amount::float AS net_debit,
-        t.commission::float AS commission,
+        0.0 AS charges,
+        0.0 AS gst_amount,
+        0.0 AS tds_amount,
+        t.amount::float AS net_debit,
+        0.0 AS commission,
         UPPER(t.status) AS status,
-        COALESCE(t.utr, '--') AS utr_number,
-        COALESCE(t.response_message, t.status_description, '') AS remarks,
-        COALESCE(l.balance_before::float, 0.0) AS wallet_before,
-        COALESCE(l.balance_after::float, 0.0) AS wallet_after
+        COALESCE(t.ref_id, t.txn_id, '--') AS utr_number,
+        COALESCE(t.narration, '') AS remarks,
+        t.balance_before::float AS wallet_before,
+        t.balance_after::float AS wallet_after
     FROM transactions t
-    LEFT JOIN customer c ON t.customer_id = c.public_id
-    LEFT JOIN beneficiary_master b ON t.beneficiary_id = b.public_id
-    LEFT JOIN transaction_ledger_entries l 
-        ON (t.public_id = l.transaction_id OR t.transaction_reference = l.transaction_reference)
-        AND l.account_type = 'RETAILER_WALLET'
-    WHERE (t.public_id::text = :tx_id OR t.transaction_reference = :tx_id)
+    LEFT JOIN retailer ret ON (t.retailer_id = ret.public_id OR t.retailer_id::text = ret.retailer_code)
+    WHERE (t.public_id::text = :tx_id OR t.txn_id = :tx_id)
     AND (:retailer_id IS NULL OR t.retailer_id::text = :retailer_id)
     AND (:tenant_id IS NULL OR t.tenant_id::text = :tenant_id)
     """
@@ -974,7 +1061,8 @@ async def get_retailer_transaction_details(
             "beneficiary_details": {
                 "name": d["beneficiary_name"] or "N/A",
                 "bank_name": d["bank_name"] or "N/A",
-                "masked_account_number": d["account_number_masked"] or mask_account_number(d["account_number"]),
+                "account_number": d.get("account_number") or d.get("account_number_masked") or "N/A",
+                "masked_account_number": d.get("account_number") or d.get("account_number_masked") or "N/A",
                 "ifsc_code": d["ifsc_code"] or "N/A"
             },
             "amount_details": {
@@ -1005,11 +1093,11 @@ async def get_retailer_transaction_details(
         e.completed_at,
         COALESCE(c.full_name, 'Verified Customer') AS customer_name,
         COALESCE(c.mobile_number, NULL) AS customer_mobile,
-        COALESCE(b.account_holder_name, 'Beneficiary') AS beneficiary_name,
-        COALESCE(b.bank_name, 'Bank') AS bank_name,
-        COALESCE(b.account_number_masked, b.account_number, 'XXXX') AS masked_account_number,
-        COALESCE(b.account_number, 'XXXX') AS account_number,
-        COALESCE(b.ifsc_code, NULL) AS ifsc_code,
+        COALESCE(b.account_holder_name, bba.account_holder_name, 'Beneficiary') AS beneficiary_name,
+        COALESCE(b.bank_name, bba.bank_name, '') AS bank_name,
+        COALESCE(b.account_number, bba.account_number, b.account_number_masked, '') AS masked_account_number,
+        COALESCE(b.account_number, bba.account_number, b.account_number_masked, '') AS account_number,
+        COALESCE(b.ifsc_code, bba.ifsc_code, '') AS ifsc_code,
         e.mode,
         e.amount::float AS amount,
         e.charges::float AS charges,
@@ -1023,8 +1111,9 @@ async def get_retailer_transaction_details(
         COALESCE(e.wallet_before::float, 0.0) AS wallet_before,
         COALESCE(e.wallet_after::float, 0.0) AS wallet_after
     FROM enterprise_payout_transactions e
-    LEFT JOIN customer c ON e.customer_id = c.public_id
-    LEFT JOIN beneficiary_master b ON e.beneficiary_id = b.public_id
+    LEFT JOIN customer c ON (e.customer_id = c.public_id OR e.customer_ref_id = c.customer_ref_id)
+    LEFT JOIN beneficiary_master b ON (e.beneficiary_id = b.public_id OR e.beneficiary_master_ref_id = b.beneficiary_master_ref_id)
+    LEFT JOIN beneficiary_bank_account bba ON (bba.beneficiary_id = e.beneficiary_id OR bba.public_id = e.beneficiary_id)
     WHERE (e.public_id::text = :tx_id OR e.transaction_number = :tx_id)
     AND (:retailer_id IS NULL OR e.retailer_id::text = :retailer_id)
     AND (:tenant_id IS NULL OR e.tenant_id::text = :tenant_id)
@@ -1055,7 +1144,8 @@ async def get_retailer_transaction_details(
             "beneficiary_details": {
                 "name": d["beneficiary_name"] or "N/A",
                 "bank_name": d["bank_name"] or "N/A",
-                "masked_account_number": d["masked_account_number"] or mask_account_number(d["account_number"]),
+                "account_number": d.get("account_number") or d.get("masked_account_number") or "N/A",
+                "masked_account_number": d.get("account_number") or d.get("masked_account_number") or "N/A",
                 "ifsc_code": d["ifsc_code"] or "N/A"
             },
             "amount_details": {
@@ -1124,27 +1214,39 @@ async def export_retailer_payout_report(
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        "S.No", "Txn ID", "Reference No", "Customer", "Beneficiary", "Account", "IFSC", "Amount",
-        "Mode", "UTR", "Tax", "Date & Time", "Fee", "Wallet Debit", "Commission", "Status"
+        "S.No",
+        "Txn ID",
+        "Customer",
+        "Beneficiary",
+        "A/C No",
+        "Amt",
+        "Fee",
+        "Tax",
+        "Debit",
+        "Mode",
+        "UTR",
+        "Wallet",
+        "Date/Time",
+        "Status",
+        "Actions"
     ])
     for it in items:
         writer.writerow([
             it.get("s_no"),
-            it.get("transaction_number") or it.get("transaction_id"),
-            it.get("reference_id"),
-            it.get("customer_name"),
-            it.get("beneficiary_name"),
-            it.get("masked_account_number"),
-            it.get("ifsc_code"),
-            f"Rs. {money(it.get('transfer_amount', 0)):,.2f}",
-            it.get("payment_mode"),
-            it.get("utr_number"),
-            f"Rs. {money(it.get('tax_amount', 0) or (money(it.get('gst_amount', 0)) + money(it.get('tds_amount', 0)))):,.2f}",
-            it.get("initiated_at"),
-            f"Rs. {money(it.get('convenience_fee', 0)):,.2f}",
-            f"Rs. {money(it.get('wallet_debit', 0)):,.2f}",
-            f"Rs. {money(it.get('retailer_commission', 0)):,.2f}",
-            it.get("status")
+            it.get("txn_id") or it.get("transaction_number") or it.get("transaction_id") or "--",
+            it.get("customer") or it.get("customer_name") or "Verified Customer",
+            it.get("beneficiary") or it.get("beneficiary_name") or "Beneficiary",
+            it.get("ac_no") or it.get("account_number") or it.get("masked_account_number") or "--",
+            f"{money(it.get('amt') or it.get('transfer_amount') or 0):.2f}",
+            f"{money(it.get('fee') or it.get('convenience_fee') or 0):.2f}",
+            f"{money(it.get('tax') or it.get('tax_amount') or 0):.2f}",
+            f"{money(it.get('debit') or it.get('wallet_debit') or 0):.2f}",
+            it.get("mode") or it.get("payment_mode") or "IMPS",
+            it.get("utr") or it.get("utr_number") or "--",
+            it.get("wallet") or "Main Wallet",
+            it.get("date_time") or it.get("initiated_at") or "--",
+            it.get("status") or "SUCCESS",
+            "VIEW"
         ])
     output.seek(0)
     return StreamingResponse(

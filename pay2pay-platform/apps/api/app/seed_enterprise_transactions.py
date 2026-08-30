@@ -16,6 +16,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import text
 from app.core.database import get_db
+from app.domain.date_keys import compute_transaction_date_and_partition_keys
 
 async def seed_enterprise_transactions():
     print("=== Seeding Enterprise Multi-Service Transactions ===", flush=True)
@@ -25,10 +26,10 @@ async def seed_enterprise_transactions():
         t_id = str(tenant_row[0]) if tenant_row else "93538c98-0b19-493c-a247-4cdb02a46c68"
         
         comp_row = (await db.execute(text("SELECT public_id FROM company LIMIT 1"))).fetchone()
-        c_id = str(comp_row[0]) if comp_row else str(uuid.uuid4())
+        c_id = str(comp_row[0]) if comp_row else "745da621-36cf-448f-8dc8-f58c7e87ab0e"
 
         ret_row = (await db.execute(text("SELECT public_id FROM retailer LIMIT 1"))).fetchone()
-        r_id = str(ret_row[0]) if ret_row else "f89239b5-4dbb-41a9-9ba7-0f97580c9368"
+        r_id = str(ret_row[0]) if ret_row else "97268800-4740-4fe7-b0a6-163462f27eb6"
 
         cust_row = (await db.execute(text("SELECT public_id FROM customer LIMIT 1"))).fetchone()
         cust_id = str(cust_row[0]) if cust_row else str(uuid.uuid4())
@@ -98,129 +99,129 @@ async def seed_enterprise_transactions():
                 "gst": 0.00,
                 "status": "SUCCESS",
                 "vendor": "BILLDESK",
-                "utr": "REC778899001",
+                "utr": "BD2608100392",
                 "hours_ago": 5,
                 "bal_before": 42480.70,
                 "entry_type": "DEBIT",
-                "cust_name": "Venkatesh S",
+                "cust_name": "Karthik Raja",
                 "cust_mob": "9840123456",
-                "bene_name": None,
-                "bank": None,
-                "acc": None,
-                "ifsc": None,
+                "bene_name": "Jio Prepaid 9840123456",
+                "bank": "Jio Telecom",
+                "acc": "9840123456",
+                "ifsc": "JIOM0000001",
                 "channel": "WEB",
-                "desc": "Airtel 28 Days Unlimited Prepaid Plan"
+                "desc": "Jio ₹299 Unlimited Plan Recharge"
             },
             {
                 "ref": "TXN260821004",
                 "service": "BBPS",
-                "type": "PAYMENT",
+                "type": "BILL_PAYMENT",
                 "sub_service": "ELECTRICITY",
                 "amount": 1450.00,
                 "charges": 0.00,
-                "comm": 5.00,
+                "comm": 3.50,
                 "gst": 0.00,
                 "status": "SUCCESS",
-                "vendor": "NPCI_BBPS",
-                "utr": "BBP556677889",
-                "hours_ago": 7,
+                "vendor": "BILLDESK",
+                "utr": "TNEB8829104",
+                "hours_ago": 8,
                 "bal_before": 42181.70,
                 "entry_type": "DEBIT",
                 "cust_name": "Ananya Sharma",
-                "cust_mob": "9944556677",
-                "bene_name": None,
-                "bank": None,
-                "acc": None,
-                "ifsc": None,
-                "channel": "PORTAL",
+                "cust_mob": "9444123456",
+                "bene_name": "TANGEDCO Electricity",
+                "bank": "TANGEDCO",
+                "acc": "04012891230",
+                "ifsc": "BBPS0000001",
+                "channel": "WEB",
                 "desc": "TANGEDCO Electricity Bill Payment"
             },
             {
                 "ref": "TXN260821005",
                 "service": "TOPUP",
-                "type": "TOPUP",
-                "sub_service": "UPI_GATEWAY",
+                "type": "CREDIT",
+                "sub_service": "QR_UPI",
                 "amount": 20000.00,
                 "charges": 0.00,
                 "comm": 0.00,
                 "gst": 0.00,
                 "status": "SUCCESS",
                 "vendor": "RAZORPAY",
-                "utr": "RZP998877665",
+                "utr": "UPI2608219901",
                 "hours_ago": 12,
-                "bal_before": 40731.70,
+                "bal_before": 20731.70,
                 "entry_type": "CREDIT",
-                "cust_name": "Metro Express Point",
+                "cust_name": "Retailer Topup",
                 "cust_mob": "9876543210",
-                "bene_name": None,
-                "bank": None,
-                "acc": None,
-                "ifsc": None,
-                "channel": "API",
-                "desc": "Retailer Main Wallet Instant Topup via UPI"
+                "bene_name": "Pay2Pay Wallet",
+                "bank": "HDFC Bank",
+                "acc": "P2P9876543210",
+                "ifsc": "HDFC0000050",
+                "channel": "SYSTEM",
+                "desc": "Instant UPI Dynamic QR Wallet Topup"
             },
             {
                 "ref": "TXN260821006",
                 "service": "CARD_TO_CASH",
-                "type": "WITHDRAWAL",
-                "sub_service": "POS_SWIPE",
-                "amount": 3000.00,
-                "charges": 15.00,
-                "comm": 9.00,
-                "gst": 2.70,
+                "type": "POS_SWIPE",
+                "sub_service": "CREDIT_CARD",
+                "amount": 8000.00,
+                "charges": 160.00,
+                "comm": 40.00,
+                "gst": 28.80,
                 "status": "SUCCESS",
-                "vendor": "PAX_POS",
-                "utr": "POS334455667",
-                "hours_ago": 18,
-                "bal_before": 60731.70,
+                "vendor": "MOSAMBEE",
+                "utr": "POS99281726",
+                "hours_ago": 16,
+                "bal_before": 40731.70,
                 "entry_type": "CREDIT",
-                "cust_name": "Rajesh V",
-                "cust_mob": "9789012345",
-                "bene_name": None,
-                "bank": "HDFC Bank",
-                "acc": "XXXX-XXXX-4521",
-                "ifsc": "HDFC0000123",
+                "cust_name": "Vijay Sundaram",
+                "cust_mob": "9884012345",
+                "bene_name": "POS Terminal #M910",
+                "bank": "ICICI Bank POS",
+                "acc": "4591XXXXXXXX1092",
+                "ifsc": "ICIC0000002",
                 "channel": "POS_MACHINE",
-                "desc": "Debit Card Swipe Cash Withdrawal"
+                "desc": "POS Card Swipe Cash Payout Credit"
             },
             {
                 "ref": "TXN260821007",
                 "service": "AEPS",
                 "type": "WITHDRAWAL",
-                "sub_service": "CASH_WITHDRAWAL",
-                "amount": 2000.00,
+                "sub_service": "CASH_OUT",
+                "amount": 3000.00,
                 "charges": 0.00,
-                "comm": 10.00,
+                "comm": 8.00,
                 "gst": 0.00,
                 "status": "SUCCESS",
-                "vendor": "UTKALDIGITAL",
-                "utr": "AEP112233445",
-                "hours_ago": 24,
-                "bal_before": 63731.70,
+                "vendor": "PAYSPRINT",
+                "utr": "AEPS81928374",
+                "hours_ago": 20,
+                "bal_before": 48542.90,
                 "entry_type": "CREDIT",
-                "cust_name": "Murugesan K",
-                "cust_mob": "9443123456",
-                "bene_name": None,
-                "bank": "Canara Bank",
-                "acc": "XXXX-XXXX-8910",
-                "ifsc": "CNRB0000456",
-                "channel": "BIOMETRIC_DEVICE",
-                "desc": "Aadhaar Biometric Cash Withdrawal"
+                "cust_name": "Murugan Velu",
+                "cust_mob": "9790123456",
+                "bene_name": "Aadhaar XXXX-XXXX-4091",
+                "bank": "Indian Bank",
+                "acc": "Aadhaar Bio",
+                "ifsc": "IDIB0000001",
+                "channel": "BIOMETRIC",
+                "desc": "AEPS Aadhaar Cash Withdrawal"
             },
             {
                 "ref": "TXN260821008",
                 "service": "PAYOUT",
                 "type": "TRANSFER",
                 "sub_service": "IMPS",
-                "amount": 10000.00,
+                "amount": 4200.00,
                 "charges": 10.00,
                 "comm": 0.00,
                 "gst": 1.80,
                 "status": "FAILED",
                 "vendor": "UTKALDIGITAL",
                 "utr": None,
-                "hours_ago": 30,
-                "bal_before": 65731.70,
+                "hours_ago": 24,
+                "bal_before": 51542.90,
                 "entry_type": "DEBIT",
                 "cust_name": "Sathiya Murthy R",
                 "cust_mob": "9876543210",
@@ -229,22 +230,22 @@ async def seed_enterprise_transactions():
                 "acc": "912010045678901",
                 "ifsc": "UTIB0000123",
                 "channel": "WEB",
-                "desc": "Service is temporarily down on vendor bank switch"
+                "desc": "IMPS Beneficiary Bank Down / Timed Out"
             },
             {
-                "ref": "TXN260821009",
+                "ref": "TXN260821008",
                 "service": "PAYOUT",
                 "type": "REVERSAL",
-                "sub_service": "REVERSAL",
-                "amount": 10011.80,
+                "sub_service": "REFUND",
+                "amount": 4211.80,
                 "charges": 0.00,
                 "comm": 0.00,
                 "gst": 0.00,
                 "status": "REVERSED",
                 "vendor": "UTKALDIGITAL",
                 "utr": "REV100001180",
-                "hours_ago": 29,
-                "bal_before": 55719.90,
+                "hours_ago": 23,
+                "bal_before": 47331.10,
                 "entry_type": "CREDIT",
                 "cust_name": "Sathiya Murthy R",
                 "cust_mob": "9876543210",
@@ -263,48 +264,59 @@ async def seed_enterprise_transactions():
             net_amt = s["amount"] + s["charges"] + s["gst"] if s["entry_type"] == "DEBIT" else s["amount"]
             bal_after = s["bal_before"] - net_amt if s["entry_type"] == "DEBIT" else s["bal_before"] + net_amt
 
-            # Insert into transactions
+            keys = compute_transaction_date_and_partition_keys(tx_time)
+
+            # Insert into append-only transactions table
             await db.execute(text(f"""
                 INSERT INTO transactions (
-                    public_id, tenant_id, company_id, retailer_id, vendor_code,
-                    transaction_reference, transaction_type, service_type,
-                    amount, currency, charges, commission, gst_amount, tds_amount, net_amount,
-                    status, status_description, utr, response_message, created_at, updated_at,
-                    created_by, updated_by, is_active, is_deleted
+                    public_id, tenant_id, company_id, retailer_id,
+                    txn_id, ref_id, table_ref_id, service_name,
+                    entry_type, amount, balance_before, balance_after,
+                    status, narration,
+                    day_key, week_key, month_key, quarter_key, year_key,
+                    financial_year_key, financial_quarter_key, financial_month_key,
+                    date_key, time_key,
+                    partition_year, partition_month, partition_day,
+                    is_active, is_deleted, created_at, updated_at
                 ) VALUES (
-                    :pub_id, :tenant_id, :company_id, :ret_id, :vendor,
-                    :ref, :tx_type, :srv_type,
-                    :amt, 'INR', :charges, :comm, :gst, 0.00, :net_amt,
-                    :status, :desc, :utr, :desc, :created_at, :created_at,
-                    'SYSTEM', 'SYSTEM', true, false
-                ) ON CONFLICT (transaction_reference) DO UPDATE SET
-                    status = EXCLUDED.status,
-                    service_type = EXCLUDED.service_type,
-                    transaction_type = EXCLUDED.transaction_type,
-                    amount = EXCLUDED.amount,
-                    charges = EXCLUDED.charges,
-                    commission = EXCLUDED.commission,
-                    gst_amount = EXCLUDED.gst_amount,
-                    net_amount = EXCLUDED.net_amount,
-                    utr = EXCLUDED.utr,
-                    status_description = EXCLUDED.status_description;
+                    :pub_id, :tenant_id, :company_id, :ret_id,
+                    :txn_id, :ref_id, :table_ref_id, :service_name,
+                    :entry_type, :amount, :balance_before, :balance_after,
+                    :status, :narration,
+                    :day_key, :week_key, :month_key, :quarter_key, :year_key,
+                    :financial_year_key, :financial_quarter_key, :financial_month_key,
+                    :date_key, :time_key,
+                    :partition_year, :partition_month, :partition_day,
+                    true, false, :created_at, :created_at
+                );
             """), {
                 "pub_id": tx_id,
                 "tenant_id": t_id,
                 "company_id": c_id,
                 "ret_id": r_id,
-                "vendor": s["vendor"],
-                "ref": s["ref"],
-                "tx_type": s["type"],
-                "srv_type": s["service"],
-                "amt": s["amount"],
-                "charges": s["charges"],
-                "comm": s["comm"],
-                "gst": s["gst"],
-                "net_amt": net_amt,
+                "txn_id": s["ref"],
+                "ref_id": s["utr"] or s["ref"],
+                "table_ref_id": None,
+                "service_name": s["service"],
+                "entry_type": s["entry_type"],
+                "amount": net_amt,
+                "balance_before": s["bal_before"],
+                "balance_after": bal_after,
                 "status": s["status"],
-                "desc": s["desc"],
-                "utr": s["utr"],
+                "narration": s["desc"],
+                "day_key": keys["day_key"],
+                "week_key": keys["week_key"],
+                "month_key": keys["month_key"],
+                "quarter_key": keys["quarter_key"],
+                "year_key": keys["year_key"],
+                "financial_year_key": keys["financial_year_key"],
+                "financial_quarter_key": keys["financial_quarter_key"],
+                "financial_month_key": keys["financial_month_key"],
+                "date_key": keys["date_key"],
+                "time_key": keys["time_key"],
+                "partition_year": keys["partition_year"],
+                "partition_month": keys["partition_month"],
+                "partition_day": keys["partition_day"],
                 "created_at": tx_time
             })
 
@@ -353,8 +365,7 @@ async def seed_enterprise_transactions():
             })
 
         await db.commit()
-        print(f"Successfully seeded {len(services_data)} enterprise multi-service transactions with complete double-entry ledger and audit logs!", flush=True)
-        break
+        print(f"Successfully seeded {len(services_data)} enterprise multi-service transactions into append-only transactions table with complete double-entry ledger and audit logs!", flush=True)
 
 if __name__ == "__main__":
     asyncio.run(seed_enterprise_transactions())

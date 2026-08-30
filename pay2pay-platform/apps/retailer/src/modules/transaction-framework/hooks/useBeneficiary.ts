@@ -160,6 +160,36 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
             // Ignore
           }
 
+          let customerPreloadedList: BeneficiaryData[] = [];
+          if (Array.isArray((selectedCustomer as any)?.beneficiaries) && (selectedCustomer as any).beneficiaries.length > 0) {
+            customerPreloadedList = (selectedCustomer as any).beneficiaries.map((b: any, index: number) => {
+              const acc = b.accountNumber || b.account_number || b.account_number_masked || b.masked_account_number || "";
+              const masked = b.maskedAccountNumber || b.account_number_masked || b.masked_account_number || (acc.length > 4 ? `XXXX-XXXX-${acc.slice(-4)}` : acc);
+              return {
+                id: String(b.id || b.public_id || `BEN-${index + 1}`),
+                beneficiaryCode: b.beneficiaryCode || b.beneficiary_number || b.beneficiary_code || `BEN-00${index + 1}`,
+                name: b.name || b.full_name || b.beneficiary_name || "Beneficiary Account",
+                relationship: b.relationship || "Family",
+                accountNumber: acc,
+                maskedAccountNumber: masked,
+                ifsc: (b.ifsc || b.ifsc_code || "").trim().toUpperCase(),
+                branchName: b.branchName || b.branch_name || "Main Branch",
+                bankName: (b.bankName && b.bankName !== "Bank Account") ? b.bankName : (b.bank_name && b.bank_name !== "Bank Account") ? b.bank_name : "IDBI Bank",
+                isVerified: b.isVerified === true || b.verification_status === "VERIFIED" || b.status === "VERIFIED",
+                isFavorite: Boolean(b.isFavorite ?? b.is_favourite ?? false),
+                lastUsedAt: b.lastUsedAt || b.last_used_at || "Active",
+                transferCount: b.transferCount ?? b.transfer_count ?? 0,
+                status: b.status || b.beneficiary_status || "ACTIVE",
+                preferredGateway: b.preferredGateway || "DirectGateway",
+                dailyUsage: b.dailyUsage ?? 0,
+                monthlyUsage: b.monthlyUsage ?? 0,
+                dailyRemaining: b.dailyRemaining ?? 50000,
+                monthlyRemaining: b.monthlyRemaining ?? 200000,
+                notes: b.notes || "",
+              };
+            });
+          }
+
           let mapped: BeneficiaryData[] = [];
           if (Array.isArray(resData) && resData.length > 0) {
             mapped = resData.map((b: any, index: number) => {
@@ -191,7 +221,7 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
           }
 
           // Combine and strictly deduplicate beneficiaries
-          const combinedRaw = [...userAddedList, ...mapped];
+          const combinedRaw = [...customerPreloadedList, ...userAddedList, ...mapped];
           const dedupedList = deduplicateBeneficiaries(combinedRaw);
 
           // Sort Favourite DESC, Transfer Count DESC

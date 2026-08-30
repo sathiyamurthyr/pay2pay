@@ -1,10 +1,19 @@
 "use client";
 
 import React from "react";
-import { X, Receipt, Shield, Building, User, Landmark, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { X, Receipt, Shield, Building, User, Landmark, CheckCircle2, Clock, AlertTriangle, MessageSquare, Server } from "lucide-react";
 
 export interface PayoutTransactionDetail {
-  transaction_info: {
+  transaction?: {
+    txn_id: string;
+    reference_id?: string;
+    service: string;
+    date_time: string | null;
+    status: string;
+    mode?: string;
+    amount?: number;
+  };
+  transaction_info?: {
     transaction_id: string;
     payout_id: string;
     service: string;
@@ -12,49 +21,111 @@ export interface PayoutTransactionDetail {
     status: string;
     payment_mode: string;
   };
-  hierarchy: {
-    tenant: string;
-    company: string;
-    sd: string;
-    distributor: string;
-    retailer: string;
+  hierarchy?: {
+    tenant?: string;
+    company?: string;
+    sd?: string;
+    distributor?: string;
+    retailer?: string;
   };
-  financial: {
-    gross_amount: number;
-    charges: number;
-    gst: number;
-    commission: number;
-    net_amount: number;
-    payout_amount: number;
+  party?: {
+    company?: string;
+    retailer?: string;
+    distributor?: string;
+    sd?: string;
+    rm?: string;
+    customer?: string;
+    customer_mobile?: string;
   };
-  bank: {
+  customer?: {
+    name: string;
+    mobile: string;
+  };
+  financial?: {
+    amount?: number;
+    gross_amount?: number;
+    charge?: number;
+    charges?: number;
+    gst?: number;
+    commission?: number;
+    total_debit?: number;
+    net_amount?: number;
+    payout_amount?: number;
+  };
+  beneficiary?: {
+    name: string;
+    account: string;
+    bank: string;
+    ifsc: string;
+  };
+  bank?: {
     bank_name: string;
     masked_account_number: string;
     ifsc: string;
     utr: string;
   };
-  status_timeline: Array<{
+  vendor?: {
+    name: string;
+    api_status: string;
+    api_response: string;
+  } | null;
+  comments?: string;
+  status_timeline?: Array<{
     step: string;
     status: string;
     timestamp?: string | null;
   }>;
-  audit: {
-    created_by: string;
-    created_at: string | null;
-    updated_by: string;
-    updated_at: string | null;
+  audit?: {
+    created_by?: string;
+    created_at?: string | null;
+    created_date?: string | null;
+    updated_by?: string;
+    updated_at?: string | null;
+    updated_date?: string | null;
   };
 }
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  data: PayoutTransactionDetail | null;
+  data: any;
   loading?: boolean;
 }
 
 export const PayoutTransactionDetailDrawer: React.FC<Props> = ({ open, onClose, data, loading }) => {
   if (!open) return null;
+
+  const txnId = data?.transaction?.txn_id || data?.transaction_info?.transaction_id || "N/A";
+  const status = (data?.transaction?.status || data?.transaction_info?.status || "SUCCESS").toUpperCase();
+  const paymentMode = data?.transaction?.mode || data?.transaction_info?.payment_mode || "IMPS";
+  const dateTime = data?.transaction?.date_time || data?.transaction_info?.date_time || "N/A";
+
+  const isSuccess = status === "SUCCESS" || status === "COMPLETED" || status === "SETTLED";
+  const isPending = status === "PENDING" || status === "PROCESSING" || status === "INITIATED";
+
+  const companyName = data?.company?.name || data?.party?.company || data?.hierarchy?.company || "Pay2Pay Fintech";
+  const retailerName = data?.party?.retailer || data?.hierarchy?.retailer || "Retailer Merchant";
+  const distName = data?.party?.distributor || data?.hierarchy?.distributor;
+  const sdName = data?.party?.sd || data?.hierarchy?.sd;
+  const rmName = data?.party?.rm;
+
+  const custName = data?.customer?.name || data?.party?.customer || "Not Available";
+  const custMobile = data?.customer?.mobile || data?.party?.customer_mobile || "Not Available";
+
+  const beneName = data?.beneficiary?.name || "Not Available";
+  const beneAcc = data?.beneficiary?.account || data?.bank?.masked_account_number || "Not Available";
+  const beneBank = data?.beneficiary?.bank || data?.bank?.bank_name || "Not Available";
+  const beneIfsc = data?.beneficiary?.ifsc || data?.bank?.ifsc || "Not Available";
+  const utr = data?.processing?.utr || data?.bank?.utr || "--";
+
+  const grossAmount = Number(data?.financial?.amount ?? data?.financial?.gross_amount ?? data?.transaction?.amount ?? 0);
+  const charge = Number(data?.financial?.charge ?? data?.financial?.charges ?? 0);
+  const gst = Number(data?.financial?.gst ?? 0);
+  const commission = Number(data?.financial?.commission ?? 0);
+  const netDebit = Number(data?.financial?.total_debit ?? data?.financial?.net_amount ?? (grossAmount + charge + gst));
+
+  const vendor = data?.vendor;
+  const comments = data?.comments;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/70 backdrop-blur-sm flex justify-end">
@@ -68,8 +139,8 @@ export const PayoutTransactionDetailDrawer: React.FC<Props> = ({ open, onClose, 
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">Payout Transaction Audit Details</h2>
-              <p className="text-xs text-slate-400">
-                {data ? `Transaction ID: ${data.transaction_info.transaction_id}` : "Loading audit parameters..."}
+              <p className="text-xs text-slate-400 font-mono">
+                {data ? `Txn ID: ${txnId}` : "Loading transaction details..."}
               </p>
             </div>
           </div>
@@ -84,8 +155,8 @@ export const PayoutTransactionDetailDrawer: React.FC<Props> = ({ open, onClose, 
         {/* Drawer Body */}
         {loading || !data ? (
           <div className="p-12 flex flex-col items-center justify-center flex-1">
-            <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-sm text-slate-400 font-medium">Fetching enterprise transaction ledger...</p>
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-sm text-slate-400 font-medium">Loading transaction details...</p>
           </div>
         ) : (
           <div className="p-6 space-y-6 flex-1">
@@ -95,20 +166,20 @@ export const PayoutTransactionDetailDrawer: React.FC<Props> = ({ open, onClose, 
               <div>
                 <span className="text-xs font-semibold text-slate-400 block mb-1">Status</span>
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                  data.transaction_info.status === "SUCCESS"
+                  isSuccess
                     ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    : data.transaction_info.status === "FAILED"
-                    ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    : isPending
+                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                 }`}>
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  {data.transaction_info.status}
+                  {status}
                 </span>
               </div>
 
               <div className="text-right">
                 <span className="text-xs font-semibold text-slate-400 block mb-1">Payment Mode</span>
-                <span className="text-sm font-bold text-white tracking-wider">{data.transaction_info.payment_mode}</span>
+                <span className="text-sm font-bold text-white tracking-wider">{paymentMode}</span>
               </div>
             </div>
 
@@ -116,28 +187,44 @@ export const PayoutTransactionDetailDrawer: React.FC<Props> = ({ open, onClose, 
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                 <Building className="w-4 h-4 text-blue-400" />
-                Organizational Hierarchy Scope
+                Organizational Hierarchy & Customer
               </h3>
               <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-900/40 border border-slate-800 text-xs">
                 <div>
-                  <span className="text-slate-400 block">Tenant</span>
-                  <span className="font-semibold text-slate-200">{data.hierarchy.tenant}</span>
-                </div>
-                <div>
                   <span className="text-slate-400 block">Company</span>
-                  <span className="font-semibold text-slate-200">{data.hierarchy.company}</span>
+                  <span className="font-semibold text-slate-200">{companyName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Super Distributor (SD)</span>
-                  <span className="font-semibold text-blue-400">{data.hierarchy.sd}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Distributor (DIST)</span>
-                  <span className="font-semibold text-indigo-400">{data.hierarchy.distributor}</span>
-                </div>
-                <div className="col-span-2 pt-2 border-t border-slate-800/60">
                   <span className="text-slate-400 block">Retailer Merchant</span>
-                  <span className="font-bold text-white">{data.hierarchy.retailer}</span>
+                  <span className="font-bold text-white">{retailerName}</span>
+                </div>
+                {distName && (
+                  <div>
+                    <span className="text-slate-400 block">Distributor (DIST)</span>
+                    <span className="font-semibold text-indigo-400">{distName}</span>
+                  </div>
+                )}
+                {sdName && (
+                  <div>
+                    <span className="text-slate-400 block">Super Distributor (SD)</span>
+                    <span className="font-semibold text-blue-400">{sdName}</span>
+                  </div>
+                )}
+                {rmName && (
+                  <div>
+                    <span className="text-slate-400 block">Regional Manager (RM)</span>
+                    <span className="font-semibold text-slate-300">{rmName}</span>
+                  </div>
+                )}
+                <div className="col-span-2 pt-2 border-t border-slate-800/60 grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-slate-400 block">Customer Name</span>
+                    <span className="font-semibold text-slate-200">{custName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">Customer Mobile</span>
+                    <span className="font-mono text-slate-200">{custMobile}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -150,88 +237,102 @@ export const PayoutTransactionDetailDrawer: React.FC<Props> = ({ open, onClose, 
               </h3>
               <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2.5 text-xs">
                 <div className="flex justify-between text-slate-300">
-                  <span>Gross Payout Amount</span>
-                  <span className="font-bold text-white">₹{data.financial.gross_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  <span>Payout Transfer Amount</span>
+                  <span className="font-bold text-white font-mono">₹{grossAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
-                  <span>Service Charges</span>
-                  <span>₹{data.financial.charges.toFixed(2)}</span>
+                  <span>Service / Transfer Charge</span>
+                  <span className="font-mono">₹{charge.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
-                  <span>GST (18%)</span>
-                  <span>₹{data.financial.gst.toFixed(2)}</span>
+                  <span>GST</span>
+                  <span className="font-mono">₹{gst.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Commission Earned</span>
-                  <span className="text-emerald-400">+₹{data.financial.commission.toFixed(2)}</span>
-                </div>
+                {commission > 0 && (
+                  <div className="flex justify-between text-slate-400">
+                    <span>Commission Earned</span>
+                    <span className="text-emerald-400 font-mono">+₹{commission.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="pt-2 border-t border-slate-800 flex justify-between text-sm font-bold text-white">
-                  <span>Net Debited Amount</span>
-                  <span className="text-blue-400">₹{data.financial.net_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  <span>Total Wallet Debit</span>
+                  <span className="text-blue-400 font-mono">₹{netDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
 
-            {/* 4. Bank Information (Masked) */}
+            {/* 4. Beneficiary Bank Information */}
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                 <Landmark className="w-4 h-4 text-purple-400" />
-                Beneficiary Bank Information
+                Beneficiary Information
               </h3>
               <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-900/40 border border-slate-800 text-xs">
                 <div>
-                  <span className="text-slate-400 block">Bank Name</span>
-                  <span className="font-bold text-slate-200">{data.bank.bank_name}</span>
+                  <span className="text-slate-400 block">Beneficiary Name</span>
+                  <span className="font-bold text-slate-200">{beneName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Masked Account Number</span>
-                  <span className="font-mono font-bold text-amber-400">{data.bank.masked_account_number}</span>
+                  <span className="text-slate-400 block">Account Number</span>
+                  <span className="font-mono font-bold text-amber-400">{beneAcc}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block">Bank Name</span>
+                  <span className="font-semibold text-slate-200">{beneBank}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">IFSC Code</span>
-                  <span className="font-mono text-slate-300">{data.bank.ifsc}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Bank UTR</span>
-                  <span className="font-mono font-bold text-emerald-400">{data.bank.utr}</span>
+                  <span className="font-mono text-slate-300">{beneIfsc}</span>
                 </div>
               </div>
             </div>
 
-            {/* 5. Status Timeline */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-400" />
-                Status Timeline
-              </h3>
-              <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3 text-xs">
-                {data.status_timeline.map((st, idx) => (
-                  <div key={idx} className="flex items-center justify-between border-b border-slate-800/40 pb-2 last:border-0 last:pb-0">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        st.status === "COMPLETED" ? "bg-emerald-400 shadow-sm shadow-emerald-400/50" : "bg-slate-600"
-                      }`} />
-                      <span className={st.status === "COMPLETED" ? "font-semibold text-white" : "text-slate-500"}>
-                        {st.step}
-                      </span>
-                    </div>
-                    <span className="text-[11px] font-mono text-slate-400">
-                      {st.timestamp || st.status}
+            {/* 5. Vendor / API Details (Authorized Admin Role) */}
+            {vendor && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                  <Server className="w-4 h-4 text-cyan-400" />
+                  Vendor / Gateway Details (Authorized Role Only)
+                </h3>
+                <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Vendor / Switch Name</span>
+                    <span className="font-bold text-slate-200">{vendor.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">API Status</span>
+                    <span className={`font-bold ${vendor.api_status === "SUCCESS" ? "text-emerald-400" : "text-rose-400"}`}>
+                      {vendor.api_status}
                     </span>
                   </div>
-                ))}
+                  <div>
+                    <span className="text-slate-400 block mb-1">API Response</span>
+                    <div className="font-mono text-[11px] text-slate-300 bg-slate-950/60 p-2 rounded-lg border border-slate-800/60">
+                      {vendor.api_response}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* 6. Audit Trail */}
+            {/* 6. Comments */}
+            {comments && (
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-2.5 text-xs">
+                <MessageSquare className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                <div>
+                  <span className="text-slate-400 block font-semibold text-[11px]">Transaction Comments</span>
+                  <span className={`font-semibold ${isSuccess ? "text-emerald-400" : isPending ? "text-amber-400" : "text-rose-400"}`}>
+                    {comments}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* 7. Audit Trail */}
             <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
               <div className="flex justify-between">
-                <span>Created By: <strong className="text-slate-200">{data.audit.created_by}</strong></span>
-                <span>Created At: <strong className="text-slate-200">{data.audit.created_at || "N/A"}</strong></span>
-              </div>
-              <div className="flex justify-between">
-                <span>Updated By: <strong className="text-slate-200">{data.audit.updated_by}</strong></span>
-                <span>Updated At: <strong className="text-slate-200">{data.audit.updated_at || "N/A"}</strong></span>
+                <span>Initiated Date: <strong className="text-slate-200">{dateTime}</strong></span>
+                <span>Completed Date: <strong className="text-slate-200">{data?.audit?.updated_date || data?.audit?.created_date || dateTime}</strong></span>
               </div>
             </div>
 

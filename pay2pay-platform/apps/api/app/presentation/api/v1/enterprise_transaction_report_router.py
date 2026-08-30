@@ -212,61 +212,54 @@ def build_unified_transactions_query(
 
     cte_sql = """
     WITH unified_txns AS (
-        -- 1. Central Authoritative Transactions Table
+        -- 1. Central Authoritative Transactions Table (Append-Only)
         SELECT 
             t.public_id::text AS id,
-            COALESCE(t.transaction_reference, t.id::text) AS txn_id,
-            COALESCE(t.transaction_reference, t.id::text) AS client_ref_id,
-            COALESCE(t.service_type, 'PAYOUT') AS service,
-            COALESCE(t.transaction_type, 'IMPS') AS type,
+            t.txn_id AS txn_id,
+            COALESCE(t.ref_id, t.txn_id) AS client_ref_id,
+            t.service_name AS service,
+            t.entry_type AS type,
             t.amount::float AS amount,
-            COALESCE(t.charges, 0.0)::float AS charges,
-            COALESCE(t.commission, 0.0)::float AS commission,
-            COALESCE(t.gst_amount, 0.0)::float AS gst_amount,
-            COALESCE(t.tds_amount, 0.0)::float AS tds_amount,
-            COALESCE(t.net_amount, (t.amount + COALESCE(t.charges, 0.0) + COALESCE(t.gst_amount, 0.0)))::float AS net_amount,
-            COALESCE(l.balance_before::float, 0.0) AS previous_balance,
+            0.0 AS charges,
+            0.0 AS commission,
+            0.0 AS gst_amount,
+            0.0 AS tds_amount,
+            t.amount::float AS net_amount,
+            t.balance_before::float AS previous_balance,
             CASE 
-                WHEN UPPER(COALESCE(l.entry_type, '')) = 'CREDIT' THEN COALESCE(l.amount::float, t.net_amount::float) 
-                WHEN UPPER(COALESCE(t.service_type, '')) = 'TOPUP' AND UPPER(COALESCE(t.transaction_type, '')) IN ('WALLET_TOPUP', 'MANUAL_TOPUP', 'TOPUP') THEN COALESCE(t.net_amount::float, t.amount::float)
+                WHEN UPPER(t.entry_type) = 'CREDIT' THEN t.amount::float 
                 ELSE 0.0 
             END AS cr,
             CASE 
-                WHEN UPPER(COALESCE(l.entry_type, '')) = 'DEBIT' THEN COALESCE(l.amount::float, t.net_amount::float) 
-                WHEN UPPER(COALESCE(t.service_type, '')) != 'TOPUP' THEN COALESCE(t.net_amount::float, t.amount::float)
+                WHEN UPPER(t.entry_type) = 'DEBIT' THEN t.amount::float 
                 ELSE 0.0 
             END AS dr,
-            COALESCE(l.balance_after::float, 
-                CASE 
-                    WHEN UPPER(COALESCE(t.service_type, '')) = 'TOPUP' THEN COALESCE(l.balance_before::float, 0.0) + COALESCE(t.net_amount::float, 0.0)
-                    ELSE GREATEST(0.0, COALESCE(l.balance_before::float, 0.0) - COALESCE(t.net_amount::float, 0.0))
-                END
-            ) AS current_balance,
+            t.balance_after::float AS current_balance,
             t.created_at AS transaction_datetime,
             UPPER(t.status) AS status,
-            COALESCE(l.narration, t.status_description, 'Transaction Completed') AS status_description,
-            COALESCE(t.vendor_code, 'PAY2PAY') AS provider_name,
-            COALESCE(t.vendor_order_id, t.request_id) AS provider_txn_id,
-            COALESCE(t.utr, t.request_id, t.transaction_reference) AS provider_ref,
+            COALESCE(t.narration, t.service_name) AS status_description,
+            'PAY2PAY' AS provider_name,
+            COALESCE(t.ref_id, t.txn_id) AS provider_txn_id,
+            COALESCE(t.ref_id, t.txn_id) AS provider_ref,
             'RETAILER_PORTAL' AS channel,
-            COALESCE(t.customer_id::text, t.retailer_id::text) AS customer_id,
-            COALESCE(c.full_name, ret_t.store_name, ret_t.owner_name, ret_t.legal_name, 'Direct Customer') AS customer_name,
-            COALESCE(c.mobile_number, 'N/A') AS customer_mobile,
-            COALESCE(c.customer_status, 'ACTIVE') AS customer_status,
-            COALESCE(t.beneficiary_id::text, t.retailer_id::text) AS beneficiary_id,
-            COALESCE(b.account_holder_name, b.registered_name_in_bank, bene.full_name, ret_t.store_name, ret_t.owner_name, 'Self / Main Wallet') AS beneficiary_name,
-            COALESCE(b.bank_name, 'Wallet Allocation') AS bank_name,
-            COALESCE(b.account_number_masked, b.account_number, 'WALLET-TOPUP') AS account_number,
-            COALESCE(b.ifsc_code, 'P2P0000001') AS ifsc_code,
-            COALESCE(bene.relationship, 'SELF') AS relationship,
-            COALESCE(b.status, bene.beneficiary_status, 'ACTIVE') AS beneficiary_status,
-            COALESCE(t.created_by, 'SYSTEM') AS created_by,
-            COALESCE(t.updated_by, 'SYSTEM') AS updated_by,
+            t.retailer_id::text AS customer_id,
+            COALESCE(ret_t.store_name, ret_t.owner_name, ret_t.legal_name, 'Direct Customer') AS customer_name,
+            'N/A' AS customer_mobile,
+            'ACTIVE' AS customer_status,
+            COALESCE(t.table_ref_id::text, t.retailer_id::text) AS beneficiary_id,
+            COALESCE(ret_t.store_name, ret_t.owner_name, 'Self / Main Wallet') AS beneficiary_name,
+            'Wallet Allocation' AS bank_name,
+            'WALLET-TRANSACTION' AS account_number,
+            'P2P0000001' AS ifsc_code,
+            'SELF' AS relationship,
+            'ACTIVE' AS beneficiary_status,
+            COALESCE(t.created_by::text, 'SYSTEM') AS created_by,
+            COALESCE(t.updated_by::text, 'SYSTEM') AS updated_by,
             t.created_at AS created_at,
             t.updated_at AS updated_at,
-            t.request_id AS request_id,
-            t.idempotency_key AS correlation_id,
-            t.response_message AS provider_response_message,
+            t.txn_id AS request_id,
+            t.ref_id AS correlation_id,
+            t.narration AS provider_response_message,
             NULL AS failure_reason,
             NULL AS reversal_reason,
             NULL AS reversal_transaction_id,
@@ -275,13 +268,7 @@ def build_unified_transactions_query(
             COALESCE(ret_t.public_id::text, t.retailer_id::text, '') AS retailer_id,
             COALESCE(ret_t.retailer_code, '') AS retailer_code
         FROM transactions t
-        LEFT JOIN customer c ON t.customer_id = c.public_id
         LEFT JOIN retailer ret_t ON (t.retailer_id = ret_t.public_id OR t.retailer_id::text = ret_t.retailer_code)
-        LEFT JOIN beneficiary_master b ON t.beneficiary_id = b.public_id
-        LEFT JOIN beneficiary bene ON t.beneficiary_id = bene.public_id
-        LEFT JOIN transaction_ledger_entries l 
-            ON (t.public_id = l.transaction_id OR t.transaction_reference = l.transaction_reference)
-            AND l.account_type = 'RETAILER_WALLET'
 
         UNION ALL
 
@@ -343,7 +330,7 @@ def build_unified_transactions_query(
         LEFT JOIN beneficiary_master b2 ON e.beneficiary_id = b2.public_id
         LEFT JOIN beneficiary bene2 ON e.beneficiary_id = bene2.public_id
         WHERE NOT EXISTS (
-            SELECT 1 FROM transactions t2 WHERE t2.transaction_reference = e.transaction_number
+            SELECT 1 FROM transactions t2 WHERE t2.txn_id = e.transaction_number
         )
 
         UNION ALL
@@ -351,7 +338,7 @@ def build_unified_transactions_query(
         -- 2B. Enterprise Payout Dedicated Reversal Entries
         SELECT 
             COALESCE(e_rev.reversal_transaction_id::text, CONCAT(e_rev.public_id::text, '-REV')) AS id,
-            CONCAT('REV-', e_rev.transaction_number) AS txn_id,
+            e_rev.transaction_number AS txn_id,
             e_rev.transaction_number AS client_ref_id,
             'PAYOUT' AS service,
             'REVERSAL' AS type,
@@ -387,7 +374,7 @@ def build_unified_transactions_query(
             COALESCE(e_rev.updated_by, 'SYSTEM') AS updated_by,
             COALESCE(e_rev.reversal_at, e_rev.created_date) AS created_at,
             COALESCE(e_rev.reversal_at, e_rev.updated_date) AS updated_at,
-            CONCAT('REV-', e_rev.transaction_number) AS request_id,
+            e_rev.transaction_number AS request_id,
             e_rev.idempotency_key AS correlation_id,
             'Transaction failed and automatically refunded to wallet' AS provider_response_message,
             e_rev.reversal_reason AS failure_reason,
@@ -404,7 +391,7 @@ def build_unified_transactions_query(
         LEFT JOIN beneficiary bene2_rev ON e_rev.beneficiary_id = bene2_rev.public_id
         WHERE (e_rev.is_reversed = true OR e_rev.reversal_transaction_id IS NOT NULL OR UPPER(e_rev.status::text) = 'REVERSED')
           AND NOT EXISTS (
-              SELECT 1 FROM transactions t2_rev WHERE t2_rev.transaction_reference = CONCAT('REV-', e_rev.transaction_number)
+              SELECT 1 FROM transactions t2_rev WHERE t2_rev.txn_id = e_rev.transaction_number AND UPPER(t2_rev.status) = 'REVERSED'
           )
 
         UNION ALL
@@ -415,21 +402,26 @@ def build_unified_transactions_query(
             p.transaction_number AS txn_id,
             p.reference_number AS client_ref_id,
             'PAYOUT' AS service,
-            COALESCE(p.mode, 'IMPS') AS type,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 'REVERSAL' ELSE COALESCE(p.mode, 'IMPS') END AS type,
             p.amount::float AS amount,
-            COALESCE(p.charges, 0.0)::float AS charges,
-            COALESCE(p.commission, 0.0)::float AS commission,
-            round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)::float AS gst_amount,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE COALESCE(p.charges, 0.0)::float END AS charges,
+            0.0 AS commission,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)::float END AS gst_amount,
             0.0 AS tds_amount,
             COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)))::float AS net_amount,
             COALESCE(p.wallet_before, 50000.0)::float AS previous_balance,
-            0.0 AS cr,
-            COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)))::float AS dr,
-            (COALESCE(p.wallet_before, 50000.0) - COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2))))::float AS current_balance,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN COALESCE(p.net_debit, p.amount)::float ELSE 0.0 END AS cr,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)))::float END AS dr,
+            COALESCE(p.wallet_after, 
+                CASE 
+                    WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN COALESCE(p.wallet_before, 50000.0) + COALESCE(p.net_debit, p.amount)
+                    ELSE COALESCE(p.wallet_before, 50000.0) - COALESCE(p.net_debit, p.amount)
+                END
+            )::float AS current_balance,
             COALESCE(p.initiated_at, p.created_date) AS transaction_datetime,
-            UPPER(p.status) AS status,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 'REVERSED' ELSE UPPER(p.status) END AS status,
             p.failure_reason AS status_description,
-            'CASHFREE' AS provider_name,
+            'UTKALDIGITAL' AS provider_name,
             p.cashfree_transfer_id AS provider_txn_id,
             p.utr_number AS provider_ref,
             'RETAILER_PORTAL' AS channel,
@@ -438,12 +430,12 @@ def build_unified_transactions_query(
             COALESCE(c3.mobile_number, 'N/A') AS customer_mobile,
             COALESCE(c3.customer_status, 'ACTIVE') AS customer_status,
             p.beneficiary_id::text AS beneficiary_id,
-            'Direct Beneficiary' AS beneficiary_name,
-            'Bank Transfer' AS bank_name,
-            '-' AS account_number,
-            '-' AS ifsc_code,
+            COALESCE(b3.account_holder_name, b3.registered_name_in_bank, 'Direct Beneficiary') AS beneficiary_name,
+            COALESCE(b3.bank_name, 'Bank Transfer') AS bank_name,
+            COALESCE(b3.account_number_masked, b3.account_number, '-') AS account_number,
+            COALESCE(b3.ifsc_code, '-') AS ifsc_code,
             'SELF' AS relationship,
-            'ACTIVE' AS beneficiary_status,
+            COALESCE(b3.status, 'ACTIVE') AS beneficiary_status,
             COALESCE(p.created_by, 'SYSTEM') AS created_by,
             COALESCE(p.updated_by, 'SYSTEM') AS updated_by,
             p.created_date AS created_at,
@@ -452,19 +444,20 @@ def build_unified_transactions_query(
             p.reference_number AS correlation_id,
             p.failure_reason AS provider_response_message,
             p.failure_reason AS failure_reason,
-            NULL AS reversal_reason,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN p.failure_reason ELSE NULL END AS reversal_reason,
             NULL AS reversal_transaction_id,
-            NULL AS reversal_datetime,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN p.completed_at ELSE NULL END AS reversal_datetime,
             'WORKFLOW_TXN' AS source_table,
             COALESCE(ret_p.public_id::text, p.retailer_id::text, '') AS retailer_id,
             COALESCE(ret_p.retailer_code, '') AS retailer_code
         FROM payout_workflow_transactions p
         LEFT JOIN retailer ret_p ON (p.retailer_id = ret_p.public_id OR p.retailer_id::text = ret_p.retailer_code)
         LEFT JOIN customer c3 ON p.customer_id = c3.public_id
+        LEFT JOIN beneficiary_master b3 ON p.beneficiary_id = b3.public_id
         WHERE NOT EXISTS (
-            SELECT 1 FROM transactions t3 WHERE t3.transaction_reference = p.transaction_number
+            SELECT 1 FROM transactions t3 WHERE t3.txn_id = p.transaction_number AND UPPER(t3.status) = UPPER(p.status)
         ) AND NOT EXISTS (
-            SELECT 1 FROM enterprise_payout_transactions e3 WHERE e3.transaction_number = p.transaction_number
+            SELECT 1 FROM enterprise_payout_transactions e3 WHERE e3.transaction_number = p.transaction_number AND UPPER(e3.status::text) = UPPER(p.status)
         )
 
         UNION ALL
@@ -474,8 +467,15 @@ def build_unified_transactions_query(
             l4.public_id::text AS id,
             COALESCE(l4.transaction_reference, l4.id::text) AS txn_id,
             COALESCE(l4.transaction_reference, l4.id::text) AS client_ref_id,
-            'TOPUP' AS service,
-            CASE WHEN UPPER(l4.entry_type) = 'CREDIT' THEN 'MANUAL_TOPUP' ELSE 'MANUAL_DEBIT' END AS type,
+            CASE 
+                WHEN l4.narration ILIKE '%payout%' OR l4.transaction_reference LIKE 'UPAY%' OR l4.transaction_reference LIKE 'PAY%' THEN 'PAYOUT' 
+                ELSE 'TOPUP' 
+            END AS service,
+            CASE 
+                WHEN l4.narration ILIKE '%payout%' OR l4.transaction_reference LIKE 'UPAY%' OR l4.transaction_reference LIKE 'PAY%' THEN 'REVERSAL'
+                WHEN UPPER(l4.entry_type) = 'CREDIT' THEN 'MANUAL_TOPUP' 
+                ELSE 'MANUAL_DEBIT' 
+            END AS type,
             l4.amount::float AS amount,
             0.0 AS charges,
             0.0 AS commission,
@@ -487,7 +487,10 @@ def build_unified_transactions_query(
             CASE WHEN UPPER(l4.entry_type) = 'DEBIT' THEN l4.amount::float ELSE 0.0 END AS dr,
             COALESCE(l4.balance_after::float, 0.0) AS current_balance,
             l4.created_at AS transaction_datetime,
-            'SUCCESS' AS status,
+            CASE 
+                WHEN l4.narration ILIKE '%payout%' OR l4.transaction_reference LIKE 'UPAY%' OR l4.transaction_reference LIKE 'PAY%' THEN 'REVERSED'
+                ELSE 'SUCCESS' 
+            END AS status,
             COALESCE(l4.narration, 'Admin Wallet Adjustment') AS status_description,
             'ADMIN_MANUAL' AS provider_name,
             l4.transaction_reference AS provider_txn_id,
@@ -524,11 +527,15 @@ def build_unified_transactions_query(
           AND UPPER(l4.entry_type) = 'CREDIT'
           AND NOT EXISTS (
               SELECT 1 FROM transactions t4 
-              WHERE t4.public_id = l4.transaction_id OR t4.transaction_reference = l4.transaction_reference
+              WHERE t4.public_id = l4.transaction_id OR t4.txn_id = l4.transaction_reference
           )
           AND NOT EXISTS (
               SELECT 1 FROM enterprise_payout_transactions e4 
               WHERE e4.transaction_number = l4.transaction_reference
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM payout_workflow_transactions p4 
+              WHERE p4.transaction_number = l4.transaction_reference
           )
     )
     """

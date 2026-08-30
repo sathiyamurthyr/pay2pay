@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   ShieldAlert,
   LogOut,
@@ -8,20 +9,15 @@ import {
   Image as ImageIcon,
   Sparkles,
   Lock,
-  KeyRound,
   ArrowRight,
   ShieldCheck,
-  User,
   Clock,
-  Building2,
 } from "lucide-react";
 import { useSessionSecurity } from "@/context/SessionSecurityProvider";
 import { useWalletSync } from "@/context/WalletSyncProvider";
 import { useTheme } from "@/context/ThemeContext";
 import { resolvePortalRoute } from "@/lib/portal-resolver";
-
 import { BlurHashCanvas } from "@/components/ui/blurhash-canvas";
-import { BlurImage } from "@/components/ui/blur-image";
 import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 // Curated Collection of 4K FinTech, Architectural & Deep Abstract Wallpapers with BlurHashes
@@ -93,6 +89,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
   const { walletData } = useWalletSync();
   const { effectiveTheme } = useTheme();
 
+  const [mounted, setMounted] = useState<boolean>(false);
   const [pin, setPin] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -101,9 +98,15 @@ export const SessionLockScreenOverlay: React.FC = () => {
   // 4K Dynamic Wallpaper State
   const [currentWallpaperIndex, setCurrentWallpaperIndex] = useState<number>(0);
   const [wallpaperLoaded, setWallpaperLoaded] = useState<boolean>(false);
+  const [imageError, setImageError] = useState<boolean>(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const isLocked = sessionState === "LOCKED";
+
+  // Mount tracking for SSR hydration safety & React Portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Pick a random 4K wallpaper every time screen locks
   useEffect(() => {
@@ -111,6 +114,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
       const randomIndex = Math.floor(Math.random() * CURATED_4K_WALLPAPERS.length);
       setCurrentWallpaperIndex(randomIndex);
       setWallpaperLoaded(false);
+      setImageError(false);
     }
   }, [isLocked]);
 
@@ -169,19 +173,21 @@ export const SessionLockScreenOverlay: React.FC = () => {
   // Cycle to next wallpaper on demand
   const handleNextWallpaper = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setImageError(false);
+    setWallpaperLoaded(false);
     setCurrentWallpaperIndex((prev) => (prev + 1) % CURATED_4K_WALLPAPERS.length);
   };
 
   // Format Elapsed Lock Duration (e.g. 00:42)
   const formatLockDuration = () => {
-    if (!lockedAt) return "00:00";
-    const elapsedSeconds = Math.max(0, Math.floor((currentTime.getTime() - lockedAt) / 1000));
+    const lockTs = Number(lockedAt) || currentTime.getTime();
+    const elapsedSeconds = Math.max(0, Math.floor((currentTime.getTime() - lockTs) / 1000));
     const mins = Math.floor(elapsedSeconds / 60);
     const secs = elapsedSeconds % 60;
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
-  // Format Date & Time
+  // Format Date & Time safely
   const formattedDate = currentTime.toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
@@ -197,9 +203,17 @@ export const SessionLockScreenOverlay: React.FC = () => {
   });
 
   // Dynamic Company & Retailer Metadata from authenticated session
-  const companyName = walletData?.company_name || "Pay2Pay Enterprise";
-  const retailerName = walletData?.owner_name || walletData?.retailer_name || "Retailer Partner";
-  const retailerCode = walletData?.retailer_code || (walletData as any)?.user_code || "RET-9182";
+  let savedUserInfo: any = null;
+  if (typeof window !== "undefined") {
+    try {
+      const uStr = localStorage.getItem("user_info") || localStorage.getItem("pay2pay_user_data");
+      if (uStr) savedUserInfo = JSON.parse(uStr);
+    } catch {}
+  }
+
+  const companyName = walletData?.company_name || savedUserInfo?.company_name || "Pay2Pay Enterprise";
+  const retailerName = walletData?.owner_name || walletData?.retailer_name || savedUserInfo?.full_name || savedUserInfo?.name || "Retailer Partner";
+  const retailerCode = walletData?.retailer_code || savedUserInfo?.retailer_code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : null) || "RET-9182";
   const currentWallpaper = CURATED_4K_WALLPAPERS[currentWallpaperIndex] || CURATED_4K_WALLPAPERS[0];
 
   // Handle PIN Unlock Submission
@@ -235,7 +249,6 @@ export const SessionLockScreenOverlay: React.FC = () => {
     setPin(clean);
     setErrorMsg("");
     if (clean.length === 4) {
-      // Auto submit on 4th digit
       setTimeout(() => {
         handleUnlockSubmit();
       }, 80);
@@ -282,12 +295,17 @@ export const SessionLockScreenOverlay: React.FC = () => {
 
   const isLight = effectiveTheme === "light";
 
-  if (!isLocked) return null;
-
-  return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 select-none overflow-y-auto animate-fade-in">
+  const overlayContent = (
+    <div
+      id="pay2pay-session-lockscreen-root"
+      className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center p-4 sm:p-6 select-none overflow-y-auto bg-slate-950/90 backdrop-blur-md transition-all duration-300"
+      style={{
+        minHeight: "100vh",
+        minWidth: "100vw",
+      }}
+    >
       {/* ── 1. DYNAMIC 4K WALLPAPER BACKGROUND WITH BLURHASH PLACEHOLDER ── */}
-      <div className="fixed inset-0 z-0 bg-slate-950 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 z-0 bg-slate-950 overflow-hidden pointer-events-none">
         {/* Instant 0ms BlurHash Canvas Placeholder */}
         <div className="absolute inset-0 z-0 transform scale-110 filter blur-[8px] opacity-90 transition-opacity duration-1000">
           <BlurHashCanvas
@@ -297,23 +315,27 @@ export const SessionLockScreenOverlay: React.FC = () => {
           />
         </div>
 
-        {/* 4K High-Res Progressive Image */}
-        <img
-          key={currentWallpaper.url}
-          src={currentWallpaper.url}
-          alt={currentWallpaper.title}
-          onLoad={() => setWallpaperLoaded(true)}
-          className={`relative z-10 w-full h-full object-cover transition-all duration-1000 ease-out transform scale-105 ${
-            wallpaperLoaded ? "opacity-100 blur-0" : "opacity-0 blur-lg"
-          }`}
-        />
+        {/* 4K High-Res Progressive Image with graceful error fallback */}
+        {!imageError && (
+          <img
+            key={currentWallpaper.url}
+            src={currentWallpaper.url}
+            alt={currentWallpaper.title}
+            onLoad={() => setWallpaperLoaded(true)}
+            onError={() => setImageError(true)}
+            className={`relative z-10 w-full h-full object-cover transition-all duration-1000 ease-out transform scale-105 ${
+              wallpaperLoaded ? "opacity-100 blur-0" : "opacity-0 blur-lg"
+            }`}
+          />
+        )}
+
         {/* Dark Vignette & Glassmorphism Blur Filter Overlay */}
-        <div className="absolute inset-0 z-20 bg-gradient-to-b from-slate-950/85 via-slate-950/70 to-slate-950/90 backdrop-blur-[8px]" />
+        <div className="absolute inset-0 z-10 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/95 backdrop-blur-[6px]" />
       </div>
 
       {/* ── 2. WALLPAPER INFO & SWITCHER BADGE (TOP-RIGHT) ── */}
-      <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-20 flex items-center gap-2">
-        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/70 border border-white/15 text-white/85 text-[11px] backdrop-blur-xl shadow-lg shadow-black/20">
+      <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-30 flex items-center gap-2">
+        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/80 border border-white/15 text-white/90 text-[11px] backdrop-blur-xl shadow-lg shadow-black/20">
           <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
           <span className="font-semibold">{currentWallpaper.title}</span>
           <span className="text-white/40">·</span>
@@ -323,7 +345,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
           type="button"
           onClick={handleNextWallpaper}
           title="Change 4K Wallpaper"
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-600/85 hover:bg-blue-600 border border-blue-400/40 text-white text-xs font-bold backdrop-blur-xl transition-all shadow-lg shadow-blue-500/25 active:scale-95 cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 border border-blue-400/40 text-white text-xs font-bold backdrop-blur-xl transition-all shadow-lg shadow-blue-500/25 active:scale-95 cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">New Wallpaper</span>
@@ -332,23 +354,23 @@ export const SessionLockScreenOverlay: React.FC = () => {
 
       {/* ── 3. PREMIUM DYNAMIC GLASSMORPHISM SECURITY CARD ── */}
       <div
-        className="my-auto w-full max-w-[430px] text-center p-6 sm:p-8 relative z-10 overflow-hidden transition-all duration-300 rounded-[28px] border shadow-2xl"
+        className="relative z-20 my-auto w-full max-w-[440px] text-center p-6 sm:p-8 overflow-hidden transition-all duration-300 rounded-[28px] border shadow-2xl"
         style={{
-          backgroundColor: isLight ? "rgba(255, 255, 255, 0.92)" : "rgba(15, 23, 42, 0.85)",
+          backgroundColor: isLight ? "rgba(255, 255, 255, 0.95)" : "rgba(15, 23, 42, 0.92)",
           backdropFilter: "blur(32px) saturate(160%)",
           WebkitBackdropFilter: "blur(32px) saturate(160%)",
-          borderColor: isLight ? "rgba(203, 213, 225, 0.9)" : "rgba(255, 255, 255, 0.15)",
+          borderColor: isLight ? "rgba(203, 213, 225, 0.95)" : "rgba(255, 255, 255, 0.18)",
           boxShadow: isLight
-            ? "0 25px 70px rgba(0, 0, 0, 0.20), 0 4px 16px rgba(0, 0, 0, 0.06)"
-            : "0 30px 80px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.22)",
+            ? "0 25px 70px rgba(0, 0, 0, 0.25), 0 4px 16px rgba(0, 0, 0, 0.08)"
+            : "0 30px 80px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.25)",
         }}
       >
         {/* Specular Top Sheen Highlight Line */}
-        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400/70 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400/80 to-transparent pointer-events-none" />
 
         {/* ── 4. OFFICIAL PAY2PAY LOGO BADGE ── */}
         <div className="flex flex-col items-center justify-center mb-4">
-          <div className="w-16 h-16 rounded-2xl p-2 bg-gradient-to-br from-slate-900/90 to-slate-950/90 border border-amber-500/50 flex items-center justify-center mb-3 shadow-xl shadow-amber-500/15 backdrop-blur-md group relative overflow-hidden">
+          <div className="w-16 h-16 rounded-2xl p-2 bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-amber-500/50 flex items-center justify-center mb-3 shadow-xl shadow-amber-500/20 backdrop-blur-md group relative overflow-hidden">
             <div className="w-full h-full rounded-[14px] flex items-center justify-center bg-slate-950">
               <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent">
                 P2P
@@ -366,10 +388,10 @@ export const SessionLockScreenOverlay: React.FC = () => {
 
         {/* ── 5. RETAILER INFORMATION BADGE ── */}
         <div
-          className="rounded-2xl py-2.5 px-4 mb-4 max-w-[340px] mx-auto text-center flex items-center justify-center gap-3 transition-colors"
+          className="rounded-2xl py-2.5 px-4 mb-4 max-w-[350px] mx-auto text-center flex items-center justify-center gap-3 transition-colors"
           style={{
-            backgroundColor: isLight ? "#F1F5F9" : "rgba(0, 0, 0, 0.40)",
-            border: isLight ? "1px solid #E2E8F0" : "1px solid rgba(255, 255, 255, 0.12)",
+            backgroundColor: isLight ? "#F1F5F9" : "rgba(0, 0, 0, 0.45)",
+            border: isLight ? "1px solid #E2E8F0" : "1px solid rgba(255, 255, 255, 0.14)",
           }}
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm">
@@ -415,8 +437,8 @@ export const SessionLockScreenOverlay: React.FC = () => {
         <div
           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono mb-4 shadow-sm"
           style={{
-            backgroundColor: isLight ? "#FEF3C7" : "rgba(0, 0, 0, 0.45)",
-            border: isLight ? "1px solid #FCD34D" : "1px solid rgba(255, 255, 255, 0.15)",
+            backgroundColor: isLight ? "#FEF3C7" : "rgba(0, 0, 0, 0.50)",
+            border: isLight ? "1px solid #FCD34D" : "1px solid rgba(255, 255, 255, 0.18)",
             color: isLight ? "#92400E" : "#E2E8F0",
           }}
         >
@@ -446,7 +468,7 @@ export const SessionLockScreenOverlay: React.FC = () => {
               })}
             </div>
 
-            {/* Accessible Hidden/Styled Input */}
+            {/* Accessible Styled Input */}
             <div className="relative">
               <input
                 ref={inputRef}
@@ -465,8 +487,8 @@ export const SessionLockScreenOverlay: React.FC = () => {
                 }}
                 placeholder="Enter 4-Digit Security PIN"
                 style={{
-                  backgroundColor: isLight ? "#F8FAFC" : "rgba(0, 0, 0, 0.40)",
-                  border: isLight ? "1.5px solid #CBD5E1" : "1.5px solid rgba(255, 255, 255, 0.18)",
+                  backgroundColor: isLight ? "#F8FAFC" : "rgba(0, 0, 0, 0.50)",
+                  border: isLight ? "1.5px solid #CBD5E1" : "1.5px solid rgba(255, 255, 255, 0.22)",
                   color: isLight ? "#0F172A" : "#FFFFFF",
                 }}
                 className="w-full h-12 px-4 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40 rounded-xl text-center text-lg font-mono font-black tracking-[0.4em] outline-none transition-all placeholder:tracking-normal placeholder:font-sans placeholder:font-semibold placeholder:text-slate-400 placeholder:text-xs shadow-inner"
@@ -474,16 +496,18 @@ export const SessionLockScreenOverlay: React.FC = () => {
             </div>
           </div>
 
-          {/* ── 9. ERROR MESSAGE BANNER ── */}
+          {/* ── 9. ERROR / HINT MESSAGE BANNER (GOLD YELLOW LUXURY THEME) ── */}
           {errorMsg && (
             <div
-              className="p-3 rounded-xl text-rose-600 dark:text-rose-300 text-xs font-bold text-center flex items-center justify-center gap-2 backdrop-blur-md animate-shake"
+              className="p-3 rounded-xl text-amber-800 dark:text-amber-200 text-xs font-bold text-center flex items-center justify-center gap-2 backdrop-blur-md transition-all animate-fadeIn"
               style={{
-                backgroundColor: isLight ? "#FEE2E2" : "rgba(225, 29, 72, 0.22)",
-                border: isLight ? "1px solid #FECACA" : "1px solid rgba(244, 63, 94, 0.40)",
+                backgroundColor: isLight ? "rgba(254, 243, 199, 0.95)" : "rgba(245, 158, 11, 0.18)",
+                border: isLight ? "1px solid rgba(251, 191, 36, 0.85)" : "1px solid rgba(251, 191, 36, 0.45)",
+                boxShadow: isLight ? "0 4px 12px rgba(217, 119, 6, 0.15)" : "0 4px 16px rgba(245, 158, 11, 0.15)",
+                color: isLight ? "#92400E" : "#FDE68A",
               }}
             >
-              <ShieldAlert className="w-4 h-4 shrink-0 text-rose-500" />
+              <ShieldAlert className="w-4 h-4 shrink-0 text-amber-500 dark:text-amber-400" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -533,4 +557,12 @@ export const SessionLockScreenOverlay: React.FC = () => {
       </div>
     </div>
   );
+
+  if (!mounted || typeof document === "undefined") {
+    return overlayContent;
+  }
+
+  return createPortal(overlayContent, document.body);
 };
+
+export default SessionLockScreenOverlay;

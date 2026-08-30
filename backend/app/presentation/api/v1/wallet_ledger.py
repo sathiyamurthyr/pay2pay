@@ -2,6 +2,7 @@ import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 from pydantic import BaseModel
 
 from app.core.database import get_db
@@ -201,7 +202,9 @@ async def execute_manual_topup(
     from sqlalchemy import select, update, or_
     from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
     from app.infrastructure.db.transaction_engine_models import CentralTransactionModel, TransactionLedgerEntryModel
+    from app.domain.date_keys import compute_transaction_date_and_partition_keys
     from datetime import datetime, timezone
+    from decimal import Decimal
 
     target_code = req.entity_code or req.entity_id or ""
     delta = req.amount if req.txn_type.upper() == "CREDIT" else -req.amount
@@ -293,45 +296,43 @@ async def execute_manual_topup(
     )
     db.add(ledger_entry)
 
-    # 4. Write to Central Transactions table (transactions)
+    # 4. Write to Central Transactions table (transactions - Append-Only)
+    wl_keys = compute_transaction_date_and_partition_keys(now_utc)
     central_txn = CentralTransactionModel(
         public_id=txn_uuid,
         tenant_id=ret_obj.tenant_id,
         company_id=ret_obj.company_id,
-        vendor_code="ADMIN_MANUAL",
-        transaction_reference=txn_ref,
-        transaction_type="MANUAL_TOPUP" if req.txn_type.upper() == "CREDIT" else "MANUAL_DEBIT",
-        service_type="WALLET_TOPUP",
         retailer_id=ret_obj.public_id,
-        amount=req.amount,
-        currency="INR",
-        charges=0.0,
-        commission=0.0,
-        gst_amount=0.0,
-        tds_amount=0.0,
-        net_amount=req.amount,
+        txn_id=txn_ref,
+        ref_id=req.transaction_id or txn_ref,
+        table_ref_id=None,
+        service_name=req.service_name or "WALLET_TOPUP",
+        wallet_type="MAIN",
+        user_type="RETAILER",
+        user_type_ref_id=2,
+        entry_type=req.txn_type.upper(),
+        amount=Decimal(str(req.amount)),
+        balance_before=Decimal(str(opening_bal)),
+        balance_after=Decimal(str(updated_bal)),
         status="SUCCESS",
-        status_description=req.comments or f"Admin Manual {req.txn_type} Top-up ({req.service_name}) by {req.performed_by}",
-        request_id=req.transaction_id or txn_ref,
-        utr=req.transaction_id or txn_ref,
+        narration=req.comments or f"Admin Manual {req.txn_type} ({req.service_name}) by {req.performed_by}",
+        day_key=wl_keys["day_key"],
+        week_key=wl_keys["week_key"],
+        month_key=wl_keys["month_key"],
+        quarter_key=wl_keys["quarter_key"],
+        year_key=wl_keys["year_key"],
+        financial_year_key=wl_keys["financial_year_key"],
+        financial_quarter_key=wl_keys["financial_quarter_key"],
+        financial_month_key=wl_keys["financial_month_key"],
+        date_key=wl_keys["date_key"],
+        time_key=wl_keys["time_key"],
+        partition_year=wl_keys["partition_year"],
+        partition_month=wl_keys["partition_month"],
+        partition_day=wl_keys["partition_day"],
+        is_active=True,
+        is_deleted=False,
         created_at=now_utc,
         updated_at=now_utc,
-        created_by=req.performed_by or "Platform Admin",
-        updated_by=req.performed_by or "Platform Admin",
-        metadata_json={
-            "service_name": req.service_name,
-            "wallet_type": req.wallet_type,
-            "txn_type": req.txn_type,
-            "entity_scope": req.entity_scope,
-            "entity_code": req.entity_code,
-            "entity_name": req.entity_name,
-            "retailer_code": ret_obj.retailer_code,
-            "retailer_name": ret_obj.store_name,
-            "previous_balance": opening_bal,
-            "current_balance": updated_bal,
-            "performed_by": req.performed_by or "Platform Admin",
-            "comments": req.comments
-        }
     )
     db.add(central_txn)
     
@@ -400,5 +401,62 @@ async def get_manual_topup_ledger(
         "items": items,
         "total": len(items)
     }
+
+
+@router.get("/user-wallet")
+async def get_user_wallet_endpoint(
+    user_ref_id: Optional[int] = Query(None, description="User / Retailer Reference ID"),
+    retailer_ref_id: Optional[int] = Query(None, description="Alternative: Retailer Reference ID"),
+    retailer_id: Optional[str] = Query(None, description="Alternative: Retailer Code (e.g. RET-10928) or UUID"),
+    user_type_ref_id: Optional[int] = Query(2, description="User Type Reference ID from user_type master (2 for RETAILER)"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Calls public.get_user_wallet(p_user_ref_id, p_user_type_ref_id)
+    Returns wallet information, balance, and status.
+    """
+    effective_ref_id = user_ref_id or retailer_ref_id
+
+    if effective_ref_id is None and retailer_id:
+        # Resolve retailer_ref_id from retailer_code or public_id
+        q = await db.execute(text("""
+            SELECT r.retailer_ref_id FROM public.retailer r
+            WHERE r.retailer_code = :r_id OR r.public_id::text = :r_id
+            LIMIT 1;
+        """), {"r_id": str(retailer_id).strip()})
+        row_id = q.fetchone()
+        if row_id:
+            effective_ref_id = row_id[0]
+
+    if effective_ref_id is None:
+        effective_ref_id = 4  # Default fallback if unauthenticated / not passed
+
+    res = await db.execute(
+        text("SELECT * FROM public.get_user_wallet(:user_ref_id, :user_type_ref_id);"),
+        {"user_ref_id": effective_ref_id, "user_type_ref_id": user_type_ref_id or 2}
+    )
+    row = res.fetchone()
+    if not row:
+        return {
+            "success": False,
+            "message": f"Wallet not found for user_ref_id={effective_ref_id} and user_type_ref_id={user_type_ref_id}",
+            "data": None
+        }
+    
+    d = dict(row._mapping)
+    return {
+        "success": True,
+        "data": d,
+        "wallet_balance": float(d.get("wallet_balance") or 0.0),
+        "available_balance": float(d.get("wallet_balance") or 0.0),
+        "balance": float(d.get("wallet_balance") or 0.0),
+        "wallet_status": d.get("wallet_status", "ACTIVE"),
+        "is_active": d.get("is_active", True),
+        "is_frozen": d.get("is_frozen", False),
+        "user_ref_id": d.get("user_ref_id"),
+        "wallet_ref_id": d.get("wallet_ref_id")
+    }
+
+
 
 

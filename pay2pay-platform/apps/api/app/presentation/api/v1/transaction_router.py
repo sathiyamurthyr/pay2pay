@@ -38,6 +38,7 @@ class CreateTransactionRequest(BaseModel):
     recipient_name: Optional[str] = None
     recipient_mobile: Optional[str] = None
     transfer_mode: str = Field("IMPS", description="IMPS, NEFT, RTGS, UPI")
+    wallet_type: Optional[str] = Field("MAIN", description="MAIN, COMMISSION, SETTLEMENT, etc.")
 
 
 class UpdateConfigReq(BaseModel):
@@ -86,7 +87,8 @@ async def create_transaction(
         recipient_ifsc=req.recipient_ifsc,
         recipient_name=req.recipient_name,
         recipient_mobile=req.recipient_mobile,
-        transfer_mode=req.transfer_mode
+        transfer_mode=req.transfer_mode,
+        wallet_type=req.wallet_type or "MAIN"
     )
 
     return {

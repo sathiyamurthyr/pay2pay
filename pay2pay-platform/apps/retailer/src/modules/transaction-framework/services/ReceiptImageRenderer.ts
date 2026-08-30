@@ -206,7 +206,7 @@ export function renderReceiptToCanvas(
   ctx.textBaseline = "top";
   ctx.fillStyle = "#0F172A";
   ctx.font = `900 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  ctx.fillText(data.companyName || "PAY2PAY DIGITAL SERVICES PRIVATE LIMITED", logoX + logoSize + 14, logoY + 2);
+  ctx.fillText(data.companyName || "AUTHORIZED PAYMENT NETWORK", logoX + logoSize + 14, logoY + 2);
 
   // Subtitle / Tagline
   ctx.fillStyle = "#2563EB";
@@ -460,7 +460,7 @@ export function renderReceiptToCanvas(
   ctx.fillStyle = "#94A3B8";
   ctx.font = `600 9.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.fillText(
-    "🔒 Pay2Pay Enterprise CBS · System Generated Receipt · No Physical Signature Required",
+    "🔒 Enterprise CBS · System Generated Receipt · No Physical Signature Required",
     cardX + cardW / 2,
     curY
   );
@@ -489,7 +489,7 @@ export async function downloadReceiptImage(data: ReceiptDataForImage): Promise<v
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Pay2Pay_Receipt_${data.refNo || data.transactionId || "Transaction"}.png`;
+  a.download = `Receipt_${data.refNo || data.transactionId || "Transaction"}.png`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -527,7 +527,7 @@ export async function shareReceiptAsImage(
 ): Promise<{ success: boolean; method: string; message: string }> {
   try {
     const blob = await getReceiptPngBlob(data);
-    const fileName = `Pay2Pay_Receipt_${data.refNo || data.transactionId || "TXN"}.png`;
+    const fileName = `Receipt_${data.refNo || data.transactionId || "TXN"}.png`;
     const file = new File([blob], fileName, { type: "image/png" });
 
     // 1. Direct System / Native Web Share API with File
@@ -539,8 +539,8 @@ export async function shareReceiptAsImage(
       ) {
         await navigator.share({
           files: [file],
-          title: `Pay2Pay Transaction Receipt - ${data.refNo}`,
-          text: `Pay2Pay Official DMT Receipt: ₹${data.amount} transferred to ${data.beneficiaryName}`,
+          title: `${data.companyName || "Transaction"} Receipt - ${data.refNo}`,
+          text: `Official Receipt: ₹${data.amount} transferred to ${data.beneficiaryName}`,
         });
         return {
           success: true,
@@ -550,72 +550,56 @@ export async function shareReceiptAsImage(
       }
     }
 
-    // 2. Direct Clipboard Copy
+    // 2. Clipboard action
     if (targetApp === "clipboard") {
-      const copied = await copyReceiptImageToClipboard(data);
-      if (copied) {
-        return {
-          success: true,
-          method: "clipboard",
-          message: "Receipt image copied to clipboard! Paste (Ctrl+V) directly into your chat.",
-        };
-      }
-    }
-
-    // 3. Direct Download
-    if (targetApp === "download") {
-      await downloadReceiptImage(data);
+      const ok = await copyReceiptImageToClipboard(data);
       return {
-        success: true,
-        method: "download",
-        message: "High-resolution receipt PNG downloaded.",
+        success: ok,
+        method: "clipboard",
+        message: ok ? "Receipt image copied to clipboard!" : "Could not copy image automatically",
       };
     }
 
-    // 4. Fallback for WhatsApp & Telegram on Desktop/Unsupported browsers:
-    // Copy image to clipboard + Download image file + Open WhatsApp Web or Telegram
-    await copyReceiptImageToClipboard(data);
+    // 3. Fallback: Download the PNG file and notify user
     await downloadReceiptImage(data);
 
     if (targetApp === "whatsapp") {
       const shareUrl = data.publicShareUrl || `https://receipt.pay2pay.in/r/${data.receiptToken}`;
-      const waText = encodeURIComponent(
-        `*Pay2Pay Transaction Receipt*\nAmount: ₹${data.amount}\nBeneficiary: ${data.beneficiaryName}\nUTR: ${data.utr}\nView Online: ${shareUrl}`
+      const msg = encodeURIComponent(
+        `*${data.companyName || "Transaction"} Receipt*\nAmount: ₹${data.amount}\nBeneficiary: ${data.beneficiaryName}\nUTR: ${data.utr}\nView Online: ${shareUrl}`
       );
-      window.open(`https://api.whatsapp.com/send?text=${waText}`, "_blank");
+      window.open(`https://api.whatsapp.com/send?text=${msg}`, "_blank");
       return {
         success: true,
-        method: "whatsapp_fallback",
-        message: "Receipt image copied & downloaded! Paste (Ctrl+V) directly into WhatsApp.",
+        method: "whatsapp_download",
+        message: "Receipt image downloaded and WhatsApp opened!",
       };
     }
 
     if (targetApp === "telegram") {
       const shareUrl = data.publicShareUrl || `https://receipt.pay2pay.in/r/${data.receiptToken}`;
-      const tgText = encodeURIComponent(
-        `Pay2Pay Transaction Receipt: ₹${data.amount} to ${data.beneficiaryName} (UTR: ${data.utr})`
+      const msg = encodeURIComponent(
+        `${data.companyName || "Transaction"} Receipt: ₹${data.amount} to ${data.beneficiaryName} (UTR: ${data.utr})`
       );
-      window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${tgText}`, "_blank");
+      window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${msg}`, "_blank");
       return {
         success: true,
-        method: "telegram_fallback",
-        message: "Receipt image copied & downloaded! Paste directly into Telegram.",
+        method: "telegram_download",
+        message: "Receipt image downloaded and Telegram opened!",
       };
     }
 
     return {
       success: true,
       method: "download",
-      message: "Receipt image downloaded successfully.",
+      message: "Receipt PNG image downloaded to device!",
     };
   } catch (err: any) {
-    console.error("Error sharing receipt image:", err);
-    // Fallback to direct download
-    await downloadReceiptImage(data);
+    console.error("Receipt image sharing failed:", err);
     return {
-      success: true,
-      method: "download_fallback",
-      message: "Receipt image downloaded to your device.",
+      success: false,
+      method: "error",
+      message: err.message || "Failed to generate receipt image",
     };
   }
 }

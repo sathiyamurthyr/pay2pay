@@ -90,6 +90,21 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
         }
       }
 
+      let activeUserRefId: any = null;
+      if (typeof window !== "undefined") {
+        try {
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+          }
+        } catch {}
+      }
+
       const params: any = {};
       if (activeRetailerId) {
         params.retailer_id = activeRetailerId;
@@ -100,6 +115,24 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
       });
 
       let data = res.data;
+
+      // Integrate standardized user wallet (/api/v1/wallet-ledger/user-wallet)
+      try {
+        const uParams: any = { user_type_ref_id: 2 };
+        if (activeUserRefId) uParams.user_ref_id = activeUserRefId;
+        if (activeRetailerId) uParams.retailer_id = activeRetailerId;
+        const uWalletRes = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params: uParams });
+        const uData = uWalletRes.data?.data || uWalletRes.data;
+        if (uData && typeof uData.wallet_balance === "number") {
+          data = {
+            ...data,
+            wallet_balance: uData.wallet_balance,
+            available_balance: uData.wallet_balance,
+            wallet_status: uData.wallet_status || "ACTIVE",
+          };
+        }
+      } catch {}
+
       if (!data.retailer_name && localName) {
         const short = localName.trim().split(" ")[0] || localName;
         data = {
@@ -165,6 +198,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
   const refreshWalletFast = useCallback(async () => {
     setIsLoading(true);
     try {
+      let activeUserRefId: any = null;
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
         try {
@@ -175,6 +209,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
             localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
+            activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
             activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
           }
         } catch {}
@@ -187,14 +222,18 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
         }
       }
 
-      const params: any = {};
+      const params: any = { user_type_ref_id: 2 };
+      if (activeUserRefId) params.user_ref_id = activeUserRefId;
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
-      const res = await apiClient.get("/api/v1/payout/dashboard/retailer/wallet-balance", { params });
-      const data = res.data;
+      const res = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params });
+      const rawData = res.data;
+      const data = rawData.data || rawData;
       const bal =
         typeof data.wallet_balance === "number"
           ? data.wallet_balance
+          : typeof data.balance === "number"
+          ? data.balance
           : typeof data.available_balance === "number"
           ? data.available_balance
           : 0.0;
@@ -214,6 +253,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
               ...prev,
               wallet_balance: bal,
               available_balance: avail,
+              wallet_status: data.wallet_status || "ACTIVE",
             }
           : null
       );

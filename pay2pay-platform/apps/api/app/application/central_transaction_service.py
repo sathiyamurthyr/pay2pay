@@ -18,6 +18,7 @@ Authenticated Request
 
 import uuid
 import logging
+from decimal import Decimal
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from sqlalchemy import select, update, desc, and_
@@ -28,6 +29,7 @@ from app.infrastructure.db.transaction_engine_models import (
     CentralTransactionModel, TransactionAuditLogModel,
     TransactionLedgerEntryModel, TransactionConfigurationModel
 )
+from app.domain.date_keys import compute_transaction_date_and_partition_keys
 from app.application.transaction_reference_service import TransactionReferenceService
 from app.application.wowpe_client import WowPeApiClient
 
@@ -129,7 +131,8 @@ class CentralTransactionService:
         recipient_ifsc: Optional[str] = None,
         recipient_name: Optional[str] = None,
         recipient_mobile: Optional[str] = None,
-        transfer_mode: str = "IMPS"
+        transfer_mode: str = "IMPS",
+        wallet_type: str = "MAIN"
     ) -> Dict[str, Any]:
         """
         Executes end-to-end transaction creation:
@@ -243,37 +246,60 @@ class CentralTransactionService:
         tx_public_id = uuid.uuid4()
 
         # =====================================================================
-        # 4. Create Transaction Record
+        # 4. Create Transaction Record (Append-Only)
         # =====================================================================
+        user_ref_id_val = None
+        user_type_ref_id_val = 2
+        tenant_ref_id_val = 1
+        company_ref_id_val = 1
+        if retailer_id:
+            from app.infrastructure.db.models import RetailerModel
+            stmt_ret = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
+            ret_obj = (await db.execute(stmt_ret)).scalars().first()
+            if ret_obj:
+                user_ref_id_val = ret_obj.retailer_ref_id
+                tenant_ref_id_val = ret_obj.tenant_ref_id or 1
+                company_ref_id_val = ret_obj.company_ref_id or 1
+
+        now_dt = datetime.now(timezone.utc)
+        k = compute_transaction_date_and_partition_keys(now_dt)
         tx = CentralTransactionModel(
             public_id=tx_public_id,
             tenant_id=tid,
-            company_id=company_id,
-            vendor_code=v_code,
-            transaction_reference=txn_ref,
-            transaction_type=transaction_type,
-            service_type=service_type,
-            customer_id=customer_id,
-            retailer_id=retailer_id,
-            beneficiary_id=beneficiary_id,
-            amount=amount,
-            currency="INR",
-            charges=charges,
-            commission=commission,
-            gst_amount=gst_amount,
-            tds_amount=tds_amount,
-            net_amount=net_amount,
+            company_id=company_id or tid,
+            tenant_ref_id=tenant_ref_id_val,
+            company_ref_id=company_ref_id_val,
+            user_ref_id=user_ref_id_val,
+            user_type_ref_id=user_type_ref_id_val,
+            retailer_id=retailer_id or tid,
+            txn_id=txn_ref,
+            ref_id=request_id or txn_ref,
+            table_ref_id=customer_id or beneficiary_id,
+            service_name=service_type,
+            wallet_type=wallet_type,
+            entry_type="DEBIT",
+            amount=Decimal(str(net_amount)),
+            balance_before=Decimal("100000.00"),
+            balance_after=Decimal(str(100000.0 - net_amount)),
             status="INITIATED",
-            status_description="Transaction initiated and reference registered.",
-            request_id=request_id or f"REQ_{uuid.uuid4().hex[:12]}",
-            idempotency_key=idempotency_key,
-            metadata_json=metadata_json or {},
+            narration=f"Transaction {txn_ref} initiated for {service_type}",
+            day_key=k["day_key"],
+            week_key=k["week_key"],
+            month_key=k["month_key"],
+            quarter_key=k["quarter_key"],
+            year_key=k["year_key"],
+            financial_year_key=k["financial_year_key"],
+            financial_quarter_key=k["financial_quarter_key"],
+            financial_month_key=k["financial_month_key"],
+            date_key=k["date_key"],
+            time_key=k["time_key"],
+            partition_year=k["partition_year"],
+            partition_month=k["partition_month"],
+            partition_day=k["partition_day"],
             is_active=True,
             is_deleted=False,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
-            created_by="SYSTEM",
-            updated_by="SYSTEM"
+            created_at=now_dt,
+            updated_at=now_dt,
         )
         db.add(tx)
         await db.flush()
@@ -405,17 +431,15 @@ class CentralTransactionService:
 
         return {
             "transaction_id": str(tx.public_id),
-            "transaction_reference": tx.transaction_reference,
-            "transaction_type": tx.transaction_type,
-            "service_type": tx.service_type,
+            "transaction_reference": tx.txn_id,
+            "txn_id": tx.txn_id,
+            "entry_type": tx.entry_type,
+            "service_name": tx.service_name,
             "amount": float(tx.amount),
-            "charges": float(tx.charges),
-            "gst_amount": float(tx.gst_amount),
-            "net_amount": float(tx.net_amount),
+            "balance_before": float(tx.balance_before),
+            "balance_after": float(tx.balance_after),
             "status": tx.status,
-            "vendor_code": tx.vendor_code,
-            "utr": tx.utr,
-            "response_message": tx.response_message,
+            "narration": tx.narration,
             "created_at": tx.created_at.isoformat()
         }
 
@@ -429,7 +453,7 @@ class CentralTransactionService:
         """Retrieves full transaction object with ledger & audit trail."""
         tid = tenant_id or DEFAULT_TENANT_ID
         stmt = select(CentralTransactionModel).where(
-            CentralTransactionModel.transaction_reference == transaction_reference,
+            CentralTransactionModel.txn_id == transaction_reference,
             CentralTransactionModel.tenant_id == tid
         )
         res = await db.execute(stmt)
@@ -453,19 +477,15 @@ class CentralTransactionService:
 
         return {
             "transaction_id": str(tx.public_id),
-            "transaction_reference": tx.transaction_reference,
-            "transaction_type": tx.transaction_type,
-            "service_type": tx.service_type,
+            "transaction_reference": tx.txn_id,
+            "txn_id": tx.txn_id,
+            "entry_type": tx.entry_type,
+            "service_name": tx.service_name,
             "amount": float(tx.amount),
-            "charges": float(tx.charges),
-            "gst_amount": float(tx.gst_amount),
-            "tds_amount": float(tx.tds_amount),
-            "net_amount": float(tx.net_amount),
+            "balance_before": float(tx.balance_before),
+            "balance_after": float(tx.balance_after),
             "status": tx.status,
-            "vendor_code": tx.vendor_code,
-            "utr": tx.utr,
-            "vendor_order_id": tx.vendor_order_id,
-            "response_message": tx.response_message,
+            "narration": tx.narration,
             "created_at": tx.created_at.isoformat(),
             "audit_trail": [
                 {
@@ -508,15 +528,13 @@ class CentralTransactionService:
         tid = tenant_id or DEFAULT_TENANT_ID
         conditions = [CentralTransactionModel.tenant_id == tid]
 
-        if vendor_code and vendor_code != "ALL":
-            conditions.append(CentralTransactionModel.vendor_code == vendor_code.upper())
         if status and status != "ALL":
             conditions.append(CentralTransactionModel.status == status.upper())
         if service_type and service_type != "ALL":
-            conditions.append(CentralTransactionModel.service_type == service_type.upper())
+            conditions.append(CentralTransactionModel.service_name == service_type.upper())
         if search:
             search_str = f"%{search.strip()}%"
-            conditions.append(CentralTransactionModel.transaction_reference.ilike(search_str))
+            conditions.append(CentralTransactionModel.txn_id.ilike(search_str))
 
         stmt = select(CentralTransactionModel).where(
             and_(*conditions)
@@ -532,15 +550,15 @@ class CentralTransactionService:
             "items": [
                 {
                     "transaction_id": str(t.public_id),
-                    "transaction_reference": t.transaction_reference,
-                    "transaction_type": t.transaction_type,
-                    "service_type": t.service_type,
+                    "transaction_reference": t.txn_id,
+                    "txn_id": t.txn_id,
+                    "service_name": t.service_name,
+                    "entry_type": t.entry_type,
                     "amount": float(t.amount),
-                    "charges": float(t.charges),
-                    "net_amount": float(t.net_amount),
+                    "balance_before": float(t.balance_before),
+                    "balance_after": float(t.balance_after),
                     "status": t.status,
-                    "vendor_code": t.vendor_code,
-                    "utr": t.utr,
+                    "narration": t.narration,
                     "created_at": t.created_at.isoformat()
                 }
                 for t in txs

@@ -264,8 +264,8 @@ class FinancialAccountingService {
 
   public async executeACIDTransaction(params: ProcessTransactionParams): Promise<FinancialProcessResult> {
     const timestamp = new Date().toISOString();
-    const transactionId = generateTransactionNumber("PO");
-    const referenceNo = generateReferenceNumber("PAY2PAY");
+    let transactionId = "";
+    let referenceNo = "";
 
     const token = typeof window !== "undefined" ? (localStorage.getItem("p2p_access_token") || localStorage.getItem("token") || "") : "";
     const activeRetailerId = typeof window !== "undefined" ? (localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("retailer_code") || "RET-10928") : "RET-10928";
@@ -322,7 +322,9 @@ class FinancialAccountingService {
           } else if (errData.message) {
             errMsg = errData.message;
           }
-          return this.failTransaction(transactionId, referenceNo, walletBefore, beneMonthlyBefore, errMsg);
+          const serverTxId = errData.transaction_number || errData.transaction_id || errData.data?.transaction_number || "";
+          const serverRefNo = errData.reference_number || errData.reference_no || errData.data?.reference_number || "";
+          return this.failTransaction(serverTxId, serverRefNo, walletBefore, beneMonthlyBefore, errMsg);
         } else {
           // Direct raw fetch fallback
           try {
@@ -336,12 +338,14 @@ class FinancialAccountingService {
             } else {
               const errJson = await rawRes.json().catch(() => ({}));
               const msg = errJson.friendly_message || errJson.customer_message || errJson.detail || errJson.message || "Payout service is temporarily unavailable. Please try again later.";
-              return this.failTransaction(transactionId, referenceNo, walletBefore, beneMonthlyBefore, msg);
+              const serverTxId = errJson.transaction_number || errJson.transaction_id || errJson.data?.transaction_number || "";
+              const serverRefNo = errJson.reference_number || errJson.reference_no || errJson.data?.reference_number || "";
+              return this.failTransaction(serverTxId, serverRefNo, walletBefore, beneMonthlyBefore, msg);
             }
           } catch {
             return this.failTransaction(
-              transactionId,
-              referenceNo,
+              "",
+              "",
               walletBefore,
               beneMonthlyBefore,
               "Unable to connect to the payment service. Please check your connection and try again."
@@ -400,9 +404,11 @@ class FinancialAccountingService {
             }
           };
         } else {
+          const failTxId = apiData.transaction_number || apiData.transaction_id || apiData.data?.transaction_number || "";
+          const failRefNo = apiData.reference_number || apiData.reference_no || apiData.data?.reference_number || "";
           return this.failTransaction(
-            transactionId,
-            referenceNo,
+            failTxId,
+            failRefNo,
             walletBefore,
             beneMonthlyBefore,
             apiData.friendly_message || apiData.customer_message || apiData.detail || apiData.message || "Payout transaction could not be completed."

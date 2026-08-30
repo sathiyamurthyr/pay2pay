@@ -342,7 +342,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 RETAILER WALLET BALANCE
               </Typography>
               <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "24px" }}>
-                ₹{wallet.mainBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </Typography>
             </Box>
           </Stack>

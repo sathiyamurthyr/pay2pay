@@ -3,7 +3,7 @@ import io
 import csv
 from datetime import datetime, date, time, timezone
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Response, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func, and_, or_, desc, asc
@@ -20,11 +20,8 @@ router = APIRouter(prefix="/admin/reports", tags=["Admin Enterprise Reports"])
 
 def mask_account_number(acc: Optional[str]) -> str:
     if not acc:
-        return "XXXX XXXX 0000"
-    clean = acc.replace(" ", "").replace("-", "")
-    if len(clean) <= 4:
-        return f"XXXX {clean}"
-    return f"XXXX XXXX {clean[-4:]}"
+        return "--"
+    return str(acc).strip()
 
 
 def mask_pan(pan: Optional[str]) -> str:
@@ -299,70 +296,15 @@ async def list_payout_transactions_report(
 @router.get("/payout-transactions/{id}/details")
 async def get_payout_transaction_details(
     id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    try:
-        req_uuid = uuid.UUID(id)
-        stmt = select(EnterprisePayoutTransactionModel).where(EnterprisePayoutTransactionModel.public_id == req_uuid)
-    except ValueError:
-        stmt = select(EnterprisePayoutTransactionModel).where(EnterprisePayoutTransactionModel.transaction_number == id)
-
-    tx = (await db.execute(stmt)).scalar_one_or_none()
-    if not tx:
-        raise HTTPException(status_code=404, detail="Payout transaction not found.")
-
-    st_val = tx.status.value if hasattr(tx.status, "value") else str(tx.status)
-    init_dt = get_created_dt(tx)
-    comp_dt = getattr(tx, "completed_at", None)
-
-    return {
-        "status": "SUCCESS",
-        "data": {
-            "transaction_info": {
-                "transaction_id": tx.transaction_number,
-                "payout_id": tx.vendor_ref or f"PAY-{str(tx.public_id)[:8]}",
-                "service": "DMT Payout",
-                "date_time": init_dt.strftime("%Y-%m-%d %H:%M:%S") if init_dt else None,
-                "status": st_val,
-                "payment_mode": tx.mode,
-            },
-            "hierarchy": {
-                "tenant": "Pay2Pay Primary Tenant",
-                "company": "Pay2Pay Solutions Pvt Ltd",
-                "sd": "Super Distributor Alpha",
-                "distributor": "Distributor Metro",
-                "retailer": "Sathiya Traders (RET-0CFE2B)"
-            },
-            "financial": {
-                "gross_amount": float(tx.amount),
-                "charges": float(tx.charges),
-                "gst": float(tx.gst_amount),
-                "commission": float(tx.commission),
-                "net_amount": float(tx.net_debit),
-                "payout_amount": float(tx.amount),
-            },
-            "bank": {
-                "bank_name": "HDFC Bank",
-                "masked_account_number": mask_account_number("50100012345678"),
-                "ifsc": "HDFC0001234",
-                "utr": tx.utr_number or "N/A"
-            },
-            "status_timeline": [
-                {"step": "Initiated", "status": "COMPLETED", "timestamp": init_dt.strftime("%Y-%m-%d %H:%M:%S") if init_dt else None},
-                {"step": "Processing", "status": "COMPLETED" if st_val in ["PROCESSING", "SUCCESS"] else "PENDING"},
-                {"step": "Submitted to Bank", "status": "COMPLETED" if st_val in ["SUCCESS", "SETTLED"] else "PENDING"},
-                {"step": "Bank Processing", "status": "COMPLETED" if st_val in ["SUCCESS", "SETTLED"] else "PENDING"},
-                {"step": "Success", "status": "COMPLETED" if st_val in ["SUCCESS", "SETTLED"] else ("FAILED" if st_val == "FAILED" else "PENDING")},
-                {"step": "Settled", "status": "COMPLETED" if st_val == "SETTLED" else "PENDING"}
-            ],
-            "audit": {
-                "created_by": "System Operator",
-                "created_at": safe_iso(init_dt),
-                "updated_by": "Payout Webhook Handler",
-                "updated_at": safe_iso(comp_dt or init_dt)
-            }
-        }
-    }
+    from app.presentation.api.v1.transaction_report_router import get_transaction_dynamic_details
+    return await get_transaction_dynamic_details(
+        txn_id=id,
+        request=request,
+        db=db
+    )
 
 
 @router.get("/payout-transactions/export")

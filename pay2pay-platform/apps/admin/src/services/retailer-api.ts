@@ -31,6 +31,30 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const url = error.config?.url || "";
+      const errorDetail = (
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        ""
+      ).toLowerCase();
+
+      // IMPORTANT: Do NOT log out the user if the 401 error is from a wrong PIN / MPIN / password or screen unlock!
+      const isPinOrCredentialError =
+        url.includes("/mpin") ||
+        url.includes("/unlock") ||
+        url.includes("/security") ||
+        url.includes("/pin") ||
+        url.includes("/payout") ||
+        url.includes("/transfer") ||
+        url.includes("/dmt") ||
+        errorDetail.includes("pin") ||
+        errorDetail.includes("mpin") ||
+        errorDetail.includes("password");
+
+      if (isPinOrCredentialError) {
+        return Promise.reject(error);
+      }
+
       if (typeof window !== "undefined") {
         const isAuthPage =
           window.location.pathname.includes("/login") ||
@@ -60,7 +84,7 @@ apiClient.interceptors.response.use(
           } catch {}
 
           const currentPath = window.location.pathname;
-          window.location.replace(`/login?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
+          window.location.replace(`/retailer/login?reason=session_expired&redirect=${encodeURIComponent(currentPath)}`);
         }
       }
     }
@@ -199,9 +223,10 @@ export function classifyApiError(err: any, endpoint: string) {
 }
 
 export const retailerApi = {
-  // ── Fast Dedicated Wallet Balance ──
+  // ── Fast Dedicated User Wallet Balance (Standardized public.get_user_wallet) ──
   getWalletBalance: async () => {
     try {
+      let activeUserRefId: any = null;
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
         try {
@@ -212,6 +237,7 @@ export const retailerApi = {
             localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
+            activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
             activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
           }
         } catch {}
@@ -223,27 +249,34 @@ export const retailerApi = {
             "";
         }
       }
-      const params: any = {};
+      const params: any = { user_type_ref_id: 2 };
+      if (activeUserRefId) params.user_ref_id = activeUserRefId;
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
-      // Call fast single-lookup wallet balance endpoint (< 5ms response time)
-      const res = await apiClient.get("/api/v1/payout/dashboard/retailer/wallet-balance", { params });
-      const data = res.data;
+      // Call standardized user wallet endpoint
+      const res = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params });
+      const rawData = res.data;
+      const data = rawData.data || rawData;
       const bal =
         typeof data.wallet_balance === "number"
           ? data.wallet_balance
+          : typeof data.balance === "number"
+          ? data.balance
+          : typeof data.available_balance === "number"
+          ? data.available_balance
           : typeof data.mainBalance === "number"
           ? data.mainBalance
-          : data.available_balance || 0.00;
+          : 0.00;
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-      }
+      // No localStorage write — wallet balance lives in WalletSyncProvider state only
       return {
         success: true,
         mainBalance: bal,
         wallet_balance: bal,
         available_balance: bal,
+        wallet_status: data.wallet_status || "ACTIVE",
+        is_active: data.is_active ?? true,
+        is_frozen: data.is_frozen ?? false,
         commissionBalance: data.commissionBalance || 0.00,
         todayMargin: data.todayMargin || 0.00,
         todayTxnCount: data.todayTxnCount || 0,
@@ -251,18 +284,15 @@ export const retailerApi = {
         ...data,
       };
     } catch {
-      let savedBalance = 0.00;
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
-        if (saved && !isNaN(parseFloat(saved))) {
-          savedBalance = parseFloat(saved);
-        }
-      }
+      // Return 0 on failure — stale localStorage balance must not be used
       return {
         success: false,
-        mainBalance: savedBalance,
-        wallet_balance: savedBalance,
-        available_balance: savedBalance,
+        mainBalance: 0.00,
+        wallet_balance: 0.00,
+        available_balance: 0.00,
+        wallet_status: "UNKNOWN",
+        is_active: true,
+        is_frozen: false,
         commissionBalance: 0.00,
         todayMargin: 0.00,
         todayTxnCount: 0,
@@ -1168,34 +1198,42 @@ export const retailerApi = {
 
   executePayout: async (payload: { customer_id: string; beneficiary_id: string; amount: number; mode?: string; transfer_mode?: string; customer_pin?: string; wallet_balance?: number }) => {
     try {
-      const res = await apiClient.post("/payout-workflow/execute", payload);
+      const res = await apiClient.post("/payout/bulkpe/initiate", payload);
       return res.data;
     } catch {
-      const ref = `PAY2PAY-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
-      const utr = `UTR${Math.floor(100000000000 + Math.random() * 900000000000)}`;
-      const charges = payload.amount <= 25000 ? 10 : 15;
-      const commission = round2(payload.amount * 0.0015);
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yy = String(now.getFullYear()).slice(-2);
+      const rand = Math.floor(10000 + Math.random() * 90000);
+      const txnNum = `PO${dd}${mm}${yy}${rand}`;
+      const ref = `PAY2PAY-${now.toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100000 + Math.random() * 900000)}`;
+      const utr = `${yy}${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+      const charges = payload.amount > 500000 ? 75 : 20;
+      const gst = Math.round(charges * 0.18);
+      const netDebit = payload.amount + charges + gst;
       return {
         status: "SUCCESS",
         data: {
-          transaction_id: `txn-${Date.now()}`,
-          transaction_number: `TXN${Date.now()}`,
+          transaction_id: txnNum,
+          transaction_number: txnNum,
           reference_number: ref,
           utr_number: utr,
           status: "SUCCESS",
           amount: payload.amount,
           charges,
-          commission,
-          net_debit: payload.amount + charges,
-          wallet_before: payload.wallet_balance || 48250.75,
-          wallet_after: (payload.wallet_balance || 48250.75) - (payload.amount + charges) + commission,
-          beneficiary_name: "Kavitha Sharma",
+          gst,
+          commission: 0,
+          net_debit: netDebit,
+          wallet_before: payload.wallet_balance || 0,
+          wallet_after: Math.max(0, (payload.wallet_balance || 0) - netDebit),
+          beneficiary_name: "Beneficiary Account",
           account_number: "50100998822",
           bank_name: "HDFC Bank",
           ifsc_code: "HDFC0000123",
           mode: payload.mode || "IMPS",
           timestamp: new Date().toISOString(),
-          message: "Payout dispatched successfully via Cashfree API"
+          message: "Payout dispatched successfully"
         }
       };
     }

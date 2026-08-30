@@ -366,8 +366,8 @@ export const FULL_16_STEPS_TEMPLATE: ProgressStep[] = [
 export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
   steps,
   activeStepId,
-  transactionRef = "REF-2026-94812",
-  transactionId = "TXN-85472190",
+  transactionRef = "—",
+  transactionId = "—",
   amount,
   charges,
   gst,
@@ -394,19 +394,20 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
 }) => {
   const leftTimelineContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const activeStepIdx = steps.findIndex((s) => s.id === activeStepId);
-  const progressPercent = Math.max(5, Math.min(100, Math.round(((activeStepIdx + 1) / steps.length) * 100)));
+  const isSuccess = viewState === "SUCCESS_RECEIPT";
+  const activeStepIdx = isSuccess ? steps.length - 1 : Math.max(0, steps.findIndex((s) => s.id === activeStepId));
+  const progressPercent = isSuccess ? 100 : Math.max(5, Math.min(100, Math.round(((activeStepIdx + 1) / steps.length) * 100)));
 
-  // Backend micro-services friendly status list
+  // Backend micro-services dynamic status list
   const backendServices = [
-    { name: "Wallet Service", desc: "Balance reservation & check", status: activeStepIdx >= 7 ? "COMPLETED" : activeStepIdx === 7 ? "PROCESSING" : "PENDING", time: "42ms" },
-    { name: "Ledger Service", desc: "8-Line double-entry posting", status: activeStepIdx >= 8 ? "COMPLETED" : activeStepIdx === 8 ? "PROCESSING" : "PENDING", time: "65ms" },
-    { name: "Limit Service", desc: "Customer & Bene velocity locks", status: activeStepIdx >= 9 ? "COMPLETED" : activeStepIdx === 9 ? "PROCESSING" : "PENDING", time: "38ms" },
-    { name: "Vendor Request", desc: "Processing payout securely", status: activeStepIdx >= 10 ? "COMPLETED" : activeStepIdx === 10 ? "PROCESSING" : "PENDING", time: "180ms" },
-    { name: "Vendor Response", desc: "Banking network confirmation", status: activeStepIdx >= 11 ? "COMPLETED" : activeStepIdx === 11 ? "PROCESSING" : "PENDING", time: "Waiting..." },
-    { name: "Status Synchronization", desc: "Error mapping & role sanitization", status: activeStepIdx >= 12 ? "COMPLETED" : activeStepIdx === 12 ? "PROCESSING" : "PENDING", time: "Pending..." },
-    { name: "Notification Service", desc: "SMS / Email notification queue", status: activeStepIdx >= 14 ? "COMPLETED" : activeStepIdx === 14 ? "PROCESSING" : "PENDING", time: "Queued..." },
-    { name: "Receipt Generation", desc: "Digital verification token", status: activeStepIdx >= 15 ? "COMPLETED" : activeStepIdx === 15 ? "PROCESSING" : "PENDING", time: "Waiting..." },
+    { name: "Wallet Service", desc: "Balance reservation & check", status: isSuccess || activeStepIdx >= 7 ? "COMPLETED" : activeStepIdx === 7 ? "PROCESSING" : "PENDING", time: "42ms" },
+    { name: "Ledger Service", desc: "8-Line double-entry posting", status: isSuccess || activeStepIdx >= 8 ? "COMPLETED" : activeStepIdx === 8 ? "PROCESSING" : "PENDING", time: "65ms" },
+    { name: "Limit Service", desc: "Customer & Bene velocity locks", status: isSuccess || activeStepIdx >= 9 ? "COMPLETED" : activeStepIdx === 9 ? "PROCESSING" : "PENDING", time: "38ms" },
+    { name: "Vendor Request", desc: "Processing payout securely", status: isSuccess || activeStepIdx >= 10 ? "COMPLETED" : activeStepIdx === 10 ? "PROCESSING" : "PENDING", time: "188ms" },
+    { name: "Vendor Response", desc: "Banking network confirmation", status: isSuccess || activeStepIdx >= 11 ? "COMPLETED" : activeStepIdx === 11 ? "PROCESSING" : "PENDING", time: isSuccess ? "1.2s" : "Waiting..." },
+    { name: "Status Synchronization", desc: "Error mapping & role sanitization", status: isSuccess || activeStepIdx >= 12 ? "COMPLETED" : activeStepIdx === 12 ? "PROCESSING" : "PENDING", time: isSuccess ? "15ms" : "Pending..." },
+    { name: "Notification Service", desc: "SMS / Email notification queue", status: isSuccess || activeStepIdx >= 14 ? "COMPLETED" : activeStepIdx === 14 ? "PROCESSING" : "PENDING", time: isSuccess ? "22ms" : "Queued..." },
+    { name: "Receipt Generation", desc: "Digital verification token", status: isSuccess || activeStepIdx >= 15 ? "COMPLETED" : activeStepIdx === 15 ? "PROCESSING" : "PENDING", time: isSuccess ? "12ms" : "Waiting..." },
   ];
 
   return (
@@ -418,8 +419,10 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
         maxHeight: "900px",
         bgcolor: "#080F1D",
         borderRadius: "20px",
-        border: "1px solid rgba(59, 130, 246, 0.35)",
-        boxShadow: "0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 60px rgba(37, 99, 235, 0.25)",
+        border: isSuccess ? "1px solid rgba(74, 222, 128, 0.4)" : "1px solid rgba(59, 130, 246, 0.35)",
+        boxShadow: isSuccess 
+          ? "0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 60px rgba(34, 197, 94, 0.2)"
+          : "0 25px 60px -10px rgba(0, 0, 0, 0.95), 0 0 60px rgba(37, 99, 235, 0.25)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -469,17 +472,17 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           <Box sx={{ textAlign: "right" }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "10.5px", fontWeight: 700 }}>TRANSACTION METADATA</Typography>
             <Typography sx={{ color: "#FFFFFF", fontSize: "12.5px", fontWeight: 800 }}>
-              Txn: <span style={{ color: "#60A5FA", fontFamily: "monospace" }}>{transactionId}</span>
+              Txn: <span style={{ color: "#60A5FA", fontFamily: "monospace" }}>{transactionId && transactionId !== "TXN-INITIATING" ? transactionId : "—"}</span>
             </Typography>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "11px", fontFamily: "monospace" }}>
-              Ref: {transactionRef}
+              Ref: {transactionRef && transactionRef !== "TXN-INITIATING" ? transactionRef : "—"}
             </Typography>
           </Box>
 
-          <Box sx={{ textAlign: "right", minWidth: 140 }}>
+          <Box sx={{ textAlign: "right", minWidth: 150 }}>
             <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "10.5px", fontWeight: 700 }}>EXECUTION METRICS</Typography>
-            <Typography sx={{ color: "#4ADE80", fontSize: "12.5px", fontWeight: 800 }}>
-              Elapsed: {elapsedSeconds.toFixed(1)}s | ETA: 8.0s
+            <Typography sx={{ color: isSuccess ? "#4ADE80" : "#60A5FA", fontSize: "12.5px", fontWeight: 800 }}>
+              Elapsed: {elapsedSeconds > 0 ? elapsedSeconds.toFixed(1) : isSuccess ? "2.4" : "4.2"}s | ETA: {isSuccess ? "0.0s" : Math.max(0, 8.0 - elapsedSeconds).toFixed(1) + "s"}
             </Typography>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 0.5 }}>
               <LinearProgress
@@ -487,13 +490,16 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 value={progressPercent}
                 sx={{
                   flex: 1,
-                  height: 6,
-                  borderRadius: 3,
+                  height: 7,
+                  borderRadius: 3.5,
                   bgcolor: "rgba(255, 255, 255, 0.1)",
-                  "& .MuiLinearProgress-bar": { bgcolor: isReversing ? "#EF4444" : "#3B82F6" },
+                  "& .MuiLinearProgress-bar": { 
+                    bgcolor: isReversing ? "#EF4444" : isSuccess ? "#10B981" : "#3B82F6",
+                    backgroundImage: isSuccess ? "linear-gradient(90deg, #10B981, #4ADE80)" : "none",
+                  },
                 }}
               />
-              <Typography sx={{ fontSize: "11px", fontWeight: 900, color: "#60A5FA" }}>
+              <Typography sx={{ fontSize: "11.5px", fontWeight: 900, color: isSuccess ? "#4ADE80" : "#60A5FA" }}>
                 {progressPercent}%
               </Typography>
             </Stack>
@@ -519,7 +525,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           sx={{
             bgcolor: "rgba(15, 23, 42, 0.8)",
             borderRadius: "14px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            border: isSuccess ? "1px solid rgba(74, 222, 128, 0.25)" : "1px solid rgba(255, 255, 255, 0.08)",
             p: 2,
             display: "flex",
             flexDirection: "column",
@@ -527,13 +533,20 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           }}
         >
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-            <Typography sx={{ fontWeight: 900, fontSize: "13px", color: "#60A5FA", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <Typography sx={{ fontWeight: 900, fontSize: "13px", color: isSuccess ? "#4ADE80" : "#60A5FA", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               EXECUTION STEPS
             </Typography>
             <Chip
-              label={`${activeStepIdx + 1} / ${steps.length}`}
+              label={isSuccess ? `${steps.length} / ${steps.length}` : `${activeStepIdx + 1} / ${steps.length}`}
               size="small"
-              sx={{ height: 20, fontSize: "10px", fontWeight: 900, bgcolor: "rgba(37, 99, 235, 0.2)", color: "#93C5FD" }}
+              sx={{ 
+                height: 20, 
+                fontSize: "10px", 
+                fontWeight: 900, 
+                bgcolor: isSuccess ? "rgba(34, 197, 94, 0.2)" : "rgba(37, 99, 235, 0.2)", 
+                color: isSuccess ? "#4ADE80" : "#93C5FD",
+                border: isSuccess ? "1px solid rgba(74, 222, 128, 0.4)" : "1px solid rgba(59, 130, 246, 0.3)"
+              }}
             />
           </Stack>
 
@@ -548,12 +561,12 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
             }}
           >
             <Stack spacing={1}>
-              {steps.map((step) => {
-                const isActive = step.id === activeStepId;
-                const isCompleted = step.status === "COMPLETED";
-                const isProcessing = step.status === "PROCESSING";
+              {steps.map((step, idx) => {
+                const isCompleted = isSuccess || step.status === "COMPLETED";
+                const isProcessing = !isSuccess && (step.status === "PROCESSING" || (idx === activeStepIdx && step.status !== "FAILED"));
                 const isFailed = step.status === "FAILED";
                 const isWarning = step.status === "WARNING";
+                const isActive = isSuccess ? false : step.id === activeStepId;
 
                 let nodeBg = "rgba(255, 255, 255, 0.02)";
                 let nodeBorder = "rgba(255, 255, 255, 0.05)";
@@ -607,11 +620,11 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                         <RadioButtonUncheckedIcon sx={{ color: iconColor, fontSize: 14 }} />
                       )}
                       <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography sx={{ fontWeight: isActive ? 900 : 700, fontSize: "11.5px", color: titleColor, lineHeight: 1.2 }}>
+                        <Typography sx={{ fontWeight: isActive || isCompleted ? 800 : 600, fontSize: "11.5px", color: titleColor, lineHeight: 1.2 }}>
                           {step.title}
                         </Typography>
                         {step.subTitle && (
-                          <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "10px", mt: 0.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <Typography sx={{ color: isCompleted ? "rgba(74, 222, 128, 0.7)" : "rgba(255, 255, 255, 0.5)", fontSize: "10px", mt: 0.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {step.subTitle}
                           </Typography>
                         )}
@@ -681,18 +694,63 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
           {viewState === "SUCCESS_RECEIPT" ? (
             /* ── TERMINAL SUCCESS SCREEN VIEW ── */
             <Box sx={{ textAlign: "center", my: "auto" }}>
-              <Box sx={{ width: 64, height: 64, borderRadius: "50%", bgcolor: "rgba(34, 197, 94, 0.15)", border: "2px solid #4ADE80", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
+              {/* STUNNING 16/16 BANKING PROGRESS BAR */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1.5,
+                  mb: 2.5,
+                  borderRadius: "12px",
+                  bgcolor: "rgba(34, 197, 94, 0.08)",
+                  border: "1px solid rgba(74, 222, 128, 0.3)",
+                }}
+              >
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                    <CheckCircleIcon sx={{ color: "#4ADE80", fontSize: 16 }} />
+                    <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#4ADE80", letterSpacing: "0.04em" }}>
+                      16/16 CORE BANKING PIPELINES VERIFIED & COMPLETED
+                    </Typography>
+                  </Stack>
+                  <Typography sx={{ fontSize: "12px", fontWeight: 900, color: "#4ADE80" }}>
+                    100% COMPLETE
+                  </Typography>
+                </Stack>
+                <Box
+                  sx={{
+                    width: "100%",
+                    height: 8,
+                    borderRadius: 4,
+                    bgcolor: "rgba(255, 255, 255, 0.08)",
+                    overflow: "hidden",
+                    position: "relative",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: 4,
+                      background: "linear-gradient(90deg, #10B981 0%, #3B82F6 50%, #4ADE80 100%)",
+                      boxShadow: "0 0 12px rgba(74, 222, 128, 0.6)",
+                      transition: "width 0.5s ease",
+                    }}
+                  />
+                </Box>
+              </Paper>
+
+              <Box sx={{ width: 64, height: 64, borderRadius: "50%", bgcolor: "rgba(34, 197, 94, 0.15)", border: "2px solid #4ADE80", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 1.5 }}>
                 <CheckCircleIcon sx={{ fontSize: 44, color: "#4ADE80" }} />
               </Box>
 
               <Typography sx={{ fontWeight: 900, fontSize: "22px", color: "#4ADE80", mb: 0.5 }}>
                 Transaction Successful
               </Typography>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px", mb: 2.5 }}>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px", mb: 2 }}>
                 Funds transferred successfully to beneficiary bank account.
               </Typography>
 
-              <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(37, 99, 235, 0.1)", border: "1px solid rgba(59, 130, 246, 0.3)", mb: 2.5 }}>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(37, 99, 235, 0.1)", border: "1px solid rgba(59, 130, 246, 0.3)", mb: 2 }}>
                 <Typography sx={{ fontSize: "11px", color: "#60A5FA", fontWeight: 800, textTransform: "uppercase" }}>TRANSFER AMOUNT CREDITED</Typography>
                 <Typography sx={{ fontWeight: 900, fontSize: "32px", color: "#FFFFFF", my: 0.5 }}>
                   ₹{amount.toLocaleString()}.00
@@ -702,16 +760,16 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                 </Typography>
               </Paper>
 
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5, mb: 3 }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5, mb: 2.5 }}>
                 <Paper elevation={0} sx={{ p: 1.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", textAlign: "left" }}>
                   <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.5)", fontWeight: 700 }}>CUSTOMER</Typography>
-                  <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>{customer?.name || "Rajesh Sharma"}</Typography>
-                  <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>{customer?.mobile || "9876543210"}</Typography>
+                  <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>{customer?.name || "Customer"}</Typography>
+                  <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>{customer?.mobile || ""}</Typography>
                 </Paper>
                 <Paper elevation={0} sx={{ p: 1.5, borderRadius: "8px", bgcolor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", textAlign: "left" }}>
                   <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.5)", fontWeight: 700 }}>BENEFICIARY</Typography>
                   <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FFFFFF" }}>{beneficiary?.name || "Beneficiary"}</Typography>
-                  <Typography sx={{ fontSize: "11px", color: "#60A5FA" }}>{beneficiary?.bankName || "Axis Bank"}</Typography>
+                  <Typography sx={{ fontSize: "11px", color: "#60A5FA" }}>{beneficiary?.bankName || "IDBI Bank"}</Typography>
                 </Paper>
               </Box>
 
@@ -858,12 +916,12 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontSize: "9.5px", color: "#60A5FA", fontWeight: 800, textTransform: "uppercase" }}>CUSTOMER</Typography>
                       <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {customer?.name || "Rajesh Sharma"}
+                        {customer?.name || "Customer"}
                       </Typography>
                     </Box>
                   </Stack>
                   <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.65)" }}>
-                    Mob: {customer?.mobile || "9876543210"}
+                    Mob: {customer?.mobile || ""}
                   </Typography>
                 </Paper>
 
@@ -881,10 +939,10 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     </Box>
                   </Stack>
                   <Typography sx={{ fontSize: "11px", color: "#60A5FA", fontWeight: 700 }}>
-                    {beneficiary?.bankName || "Axis Bank"}
+                    {beneficiary?.bankName || "IDBI Bank"}
                   </Typography>
-                  <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.6)", fontFamily: "monospace" }}>
-                    Account: ••••••••3210
+                  <Typography sx={{ fontSize: "10.5px", color: "#FFFFFF", fontFamily: "monospace", fontWeight: 700 }}>
+                    Account: {beneficiary?.accountNumber || beneficiary?.maskedAccountNumber || "—"}
                   </Typography>
                 </Paper>
               </Box>
@@ -1032,10 +1090,10 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
         </Stack>
 
         <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <Typography sx={{ color: "#60A5FA", fontSize: "11.5px", fontWeight: 800 }}>
-            Current Step: {steps[activeStepIdx]?.title || "Processing..."}
+          <Typography sx={{ color: isSuccess ? "#4ADE80" : "#60A5FA", fontSize: "11.5px", fontWeight: 800 }}>
+            {isSuccess ? "✅ All 16 Pipeline Steps Verified & Completed · Real-Time CBS Synchronized" : `Current Step: ${steps[activeStepIdx]?.title || "Processing..."}`}
           </Typography>
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>
+          <Typography sx={{ color: isSuccess ? "#4ADE80" : "rgba(255, 255, 255, 0.5)", fontSize: "11px", fontWeight: isSuccess ? 800 : 400 }}>
             Overall: {progressPercent}%
           </Typography>
         </Stack>

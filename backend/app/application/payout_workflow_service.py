@@ -36,6 +36,9 @@ from app.infrastructure.db.epic014_models import (
     BeneficiaryMasterModel,
     BeneficiaryCustomerMappingModel,
 )
+from app.infrastructure.db.models import PayoutTransactionModel, RetailerModel
+from app.infrastructure.db.transaction_engine_models import CentralTransactionModel
+from app.domain.date_keys import compute_transaction_date_and_partition_keys
 
 
 class PayoutWorkflowService:
@@ -862,9 +865,11 @@ class PayoutWorkflowService:
                 detail="Payout blocked: Destination bank network is currently DOWN."
             )
 
-        # Generate Reference Numbers
-        from app.core.transaction_id_generator import generate_transaction_number
-        txn_num = await generate_transaction_number(db, service_prefix="PO", model_class=PayoutWorkflowTransactionModel)
+        # Generate Reference Numbers — txn ID via authoritative PostgreSQL SP
+        # SP format: <VENDOR_FIRST_CHAR> + 'PAY' + DDMMYYHH24MI + <5-digit-seq>
+        # Example: CPAY290826215900042 for vendor='Cashfree'
+        from app.core.transaction_id_generator import generate_payout_txn_id_via_sp
+        txn_num = await generate_payout_txn_id_via_sp(db, vendor_name="Cashfree")
         ref_num = f"PAY2PAY-{uuid.uuid4().hex[:12].upper()}"
         utr_num = f"UTR{random.randint(100000000000, 999999999999)}"
 
@@ -899,6 +904,100 @@ class PayoutWorkflowService:
             completed_at=datetime.now()
         )
         db.add(payout)
+
+        # Authoritative Central Ledger & Payout Transaction Records
+        now_dt = datetime.now(timezone.utc)
+        d_keys = compute_transaction_date_and_partition_keys(now_dt)
+        ret_stmt = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
+        ret_obj = (await db.execute(ret_stmt)).scalars().first()
+        ret_ref_id = getattr(ret_obj, "retailer_ref_id", None) or 64
+        t_ref_id = getattr(ret_obj, "tenant_ref_id", None) or 1
+        c_ref_id = getattr(ret_obj, "company_ref_id", None) or 1
+        ret_name = getattr(ret_obj, "store_name", None) or getattr(ret_obj, "legal_name", None) or "Retailer"
+        comp_id = getattr(ret_obj, "company_id", None)
+
+        charge_ex_gst = max(0.0, float(charges) - float(charges * 0.18 / 1.18))
+        gst_val = round(float(charges) - charge_ex_gst, 2)
+        
+        txn_lines_data = [
+            (float(amount), "Payout Amount"),
+            (float(charge_ex_gst), "Payout Charge"),
+            (float(gst_val), "GST")
+        ] if float(charges) > 0 else [(float(amount), "Payout Amount")]
+
+        for l_amt, l_narr in txn_lines_data:
+            if l_amt > 0:
+                central_txn_line = CentralTransactionModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    company_id=comp_id,
+                    tenant_ref_id=t_ref_id,
+                    company_ref_id=c_ref_id,
+                    retailer_ref_id=ret_ref_id,
+                    user_ref_id=ret_ref_id,
+                    retailer_name=ret_name,
+                    retailer_id=retailer_id,
+                    txn_id=txn_num,
+                    ref_id=ref_num,
+                    table_ref_id=payout.public_id,
+                    service_name="PAYOUT",
+                    wallet_type="MAIN",
+                    user_type="RETAILER",
+                    user_type_ref_id=2,
+                    entry_type="DEBIT",
+                    amount=Decimal(str(l_amt)),
+                    balance_before=Decimal(str(wallet_before)),
+                    balance_after=Decimal(str(wallet_after)),
+                    status="SUCCESS",
+                    narration=l_narr,
+                    day_key=d_keys["day_key"],
+                    week_key=d_keys["week_key"],
+                    month_key=d_keys["month_key"],
+                    quarter_key=d_keys["quarter_key"],
+                    year_key=d_keys["year_key"],
+                    financial_year_key=d_keys["financial_year_key"],
+                    financial_quarter_key=d_keys["financial_quarter_key"],
+                    financial_month_key=d_keys["financial_month_key"],
+                    date_key=d_keys["date_key"],
+                    time_key=d_keys["time_key"],
+                    partition_year=d_keys["partition_year"],
+                    partition_month=d_keys["partition_month"],
+                    partition_day=d_keys["partition_day"],
+                    is_active=True,
+                    is_deleted=False,
+                    created_at=now_dt,
+                    updated_at=now_dt,
+                )
+                db.add(central_txn_line)
+
+        ptxn_rec = PayoutTransactionModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=comp_id,
+            tenant_ref_id=t_ref_id,
+            company_ref_id=c_ref_id,
+            retailer_ref_id=ret_ref_id,
+            user_ref_id=ret_ref_id,
+            user_type_ref_id=2,
+            user_type="RETAILER",
+            retailer_id=retailer_id,
+            customer_id=customer_id,
+            beneficiary_id=beneficiary_id,
+            transaction_number=txn_num,
+            payout_id=payout.public_id,
+            gateway_reference=ref_num,
+            bank_reference=f"PAY-{txn_num}",
+            utr_number=utr_num,
+            rrn=f"RRN-{uuid.uuid4().hex[:10].upper()}",
+            mode=mode,
+            status="SUCCESS",
+            vendor_name="Cashfree",
+            created_date=now_dt,
+            processed_time=now_dt,
+            is_active=True,
+            is_deleted=False
+        )
+        db.add(ptxn_rec)
 
         # Update Customer Monthly Limit
         cur_month = datetime.now().strftime("%Y-%m")

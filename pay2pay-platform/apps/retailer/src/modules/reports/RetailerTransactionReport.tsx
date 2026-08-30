@@ -52,6 +52,8 @@ import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { getApiBaseUrl } from "@/lib/api-config";
+import { DynamicTransactionDetailsModal } from "@/components/transactions/DynamicTransactionDetailsModal";
+import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
 export interface TransactionReportSummary {
   total_transactions: number;
@@ -113,6 +115,9 @@ export interface TransactionReportItem {
 
 const SERVICE_BADGES: Record<string, { label: string; bg: string; text: string; border: string }> = {
   PAYOUT: { label: "Payout", bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.3)" },
+  Payout: { label: "Payout", bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.3)" },
+  "Payout Reversal": { label: "Payout", bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.3)" },
+  PAYOUT_REVERSAL: { label: "Payout", bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.3)" },
   DMT: { label: "DMT", bg: "rgba(16, 185, 129, 0.15)", text: "#34D399", border: "rgba(16, 185, 129, 0.3)" },
   AEPS: { label: "AEPS", bg: "rgba(245, 158, 11, 0.15)", text: "#FBBF24", border: "rgba(245, 158, 11, 0.3)" },
   UPI: { label: "UPI", bg: "rgba(139, 92, 246, 0.15)", text: "#A78BFA", border: "rgba(139, 92, 246, 0.3)" },
@@ -121,6 +126,7 @@ const SERVICE_BADGES: Record<string, { label: string; bg: string; text: string; 
   CARD_TO_CASH: { label: "Card-to-Cash", bg: "rgba(249, 115, 22, 0.15)", text: "#FB923C", border: "rgba(249, 115, 22, 0.3)" },
   SETTLEMENT: { label: "Settlement", bg: "rgba(99, 102, 241, 0.15)", text: "#818CF8", border: "rgba(99, 102, 241, 0.3)" },
   TOPUP: { label: "Topup", bg: "rgba(34, 197, 94, 0.15)", text: "#4ADE80", border: "rgba(34, 197, 94, 0.3)" },
+  Topup: { label: "Topup", bg: "rgba(34, 197, 94, 0.15)", text: "#4ADE80", border: "rgba(34, 197, 94, 0.3)" },
 };
 
 const BANK_SHORT_NAMES: Record<string, string> = {
@@ -244,6 +250,8 @@ export const getTransactionComments = (row: TransactionReportItem): string => {
 };
 
 export const RetailerTransactionReport: React.FC = () => {
+  const branding = useCompanyBranding();
+
   // State: Real Data directly from Database API
   const [items, setItems] = useState<TransactionReportItem[]>([]);
   const [summary, setSummary] = useState<TransactionReportSummary | null>(null);
@@ -305,7 +313,9 @@ export const RetailerTransactionReport: React.FC = () => {
 
       if (serviceFilter !== "ALL") params.append("service", serviceFilter);
       if (statusFilter !== "ALL") params.append("status", statusFilter);
-      if (creditDebitFilter !== "ALL") params.append("credit_debit", creditDebitFilter);
+      if (creditDebitFilter !== "ALL") {
+        params.append("entry_type", creditDebitFilter === "CR" ? "CREDIT" : "DEBIT");
+      }
       if (fromDate) params.append("from_date", fromDate);
       if (toDate) params.append("to_date", toDate);
       if (globalSearch.trim()) params.append("search", globalSearch.trim());
@@ -319,24 +329,13 @@ export const RetailerTransactionReport: React.FC = () => {
         ""
       ) : "";
 
-      const activeRetailer = typeof window !== "undefined" ? (
-        localStorage.getItem("p2p_active_retailer_id") ||
-        localStorage.getItem("retailer_code") ||
-        localStorage.getItem("p2p_retailer_code") ||
-        ""
-      ) : "";
-
       const headers: Record<string, string> = {};
       if (token && token.trim().length > 10) {
         headers["Authorization"] = `Bearer ${token.trim()}`;
       }
-      if (activeRetailer) {
-        headers["x-retailer-code"] = activeRetailer;
-        headers["x-retailer-id"] = activeRetailer;
-        params.append("retailer_id", activeRetailer);
-      }
 
-      const res = await fetch(`${baseUrl}/reports/transactions?${params.toString()}`, {
+      // Explicitly calls GET /api/v1/transactions/report
+      const res = await fetch(`${baseUrl}/transactions/report?${params.toString()}`, {
         headers,
         credentials: "include",
         cache: "no-store",
@@ -344,68 +343,97 @@ export const RetailerTransactionReport: React.FC = () => {
 
       if (res.ok) {
         const json = await res.json();
-        const rawItems = json.data?.items || json.items || [];
-        const total = json.data?.pagination?.total ?? json.data?.summary?.total_records ?? json.total ?? rawItems.length;
+        const rawItems = Array.isArray(json.data) ? json.data : (json.data?.items || json.items || []);
+        const total = json.pagination?.total_records ?? json.data?.pagination?.total_records ?? rawItems.length;
         
-        const mappedItems: TransactionReportItem[] = rawItems.map((r: any) => ({
-          id: r.id || r.txn_id,
-          txn_id: r.txn_id,
-          client_ref_id: r.client_ref_id || r.txn_id,
-          service: (r.service || "Payout").toUpperCase(),
-          raw_service: r.raw_service || r.service,
-          type: r.type || "IMPS",
-          customer_name: r.customer_name || "Direct Customer",
-          customer_mobile: r.customer_mobile || "-",
-          beneficiary_name: r.beneficiary_name || "Self / Beneficiary",
-          account_number: r.account_number || "-",
-          bank_name: r.bank_name || "-",
-          ifsc_code: r.ifsc_code || "-",
-          amount: Number(r.amount) || 0,
-          charges: Number(r.charges) || 0,
-          commission: Number(r.commission) || 0,
-          gst_amount: Number(r.gst_amount) || 0,
-          tds_amount: Number(r.tds_amount) || 0,
-          net_amount: Number(r.net_amount) || Number(r.amount) || 0,
-          previous_balance: Number(r.previous_balance) || 0,
-          cr: Number(r.cr) || 0,
-          dr: Number(r.dr) || 0,
-          current_balance: Number(r.current_balance) || 0,
-          datetime: r.datetime || r.transaction_datetime,
-          transaction_datetime: r.transaction_datetime || r.datetime || new Date().toISOString(),
-          date: r.date || "",
-          time: r.time || "",
-          status: r.status || "SUCCESS",
-          raw_status: r.raw_status || r.status,
-          status_description: r.status_description || "",
-          provider_name: r.provider_name || "",
-          provider_txn_id: r.provider_txn_id || "",
-          provider_ref: r.provider_ref || "",
-          channel: r.channel || "RETAILER_PORTAL",
-        }));
+        let totalVol = 0;
+        let totalCr = 0;
+        let totalDr = 0;
+        let totalSuccess = 0;
+        let totalPending = 0;
+        let totalFailed = 0;
+        let totalReversed = 0;
+
+        const mappedItems: TransactionReportItem[] = rawItems.map((r: any, idx: number) => {
+          const isCr = (r.entry || "").toUpperCase() === "CREDIT" || Number(r.cr_amt || r.cr || 0) > 0;
+          const amt = Number(r.amount) || 0;
+          const preBal = Number(r.opening_bal ?? r.balance_before ?? r.pre_bal ?? r.previous_balance) || 0;
+          const clsBal = Number(r.closing_bal ?? r.balance_after ?? r.cls_bal ?? r.current_balance) || 0;
+          const st = (r.status || "SUCCESS").toUpperCase();
+
+          totalVol += amt;
+          if (isCr) totalCr += amt;
+          else totalDr += amt;
+
+          if (st === "SUCCESS" || st === "SETTLED" || st === "COMPLETED") totalSuccess++;
+          else if (st === "PENDING" || st === "PROCESSING" || st === "INITIATED") totalPending++;
+          else if (st === "REVERSED") totalReversed++;
+          else totalFailed++;
+
+          const uniqueKey = r.transactions_ref_id
+            ? String(r.transactions_ref_id)
+            : r.public_id
+            ? String(r.public_id)
+            : `${r.txn_id || "txn"}-${r.entry || (isCr ? "CR" : "DR")}-${r.description || ""}-${amt}-${idx}`;
+
+          return {
+            id: uniqueKey,
+            txn_id: r.txn_id || "",
+            ref_id: r.ref_id || r.txn_id || "--",
+            client_ref_id: r.ref_id || r.txn_id || "",
+            service: (r.service || "PAYOUT").toUpperCase(),
+            raw_service: r.service,
+            type: r.wallet || "MAIN",
+            customer_name: r.retailer || "Retailer",
+            customer_mobile: "-",
+            beneficiary_name: r.retailer || "",
+            account_number: "-",
+            bank_name: "-",
+            ifsc_code: "-",
+            amount: amt,
+            charges: 0,
+            commission: 0,
+            gst_amount: 0,
+            tds_amount: 0,
+            net_amount: amt,
+            pre_bal: preBal,
+            previous_balance: preBal,
+            dr_amt: isCr ? 0 : amt,
+            dr: isCr ? 0 : amt,
+            cr_amt: isCr ? amt : 0,
+            cr: isCr ? amt : 0,
+            cls_bal: clsBal,
+            current_balance: clsBal,
+            txn_amt: amt,
+            tax: 0,
+            date_time: r.date_time || r.created_at,
+            transaction_datetime: r.date_time || r.created_at || new Date().toISOString(),
+            date: (r.date_time || "").split("T")[0] || "",
+            time: (r.date_time || "").split("T")[1]?.split(".")[0] || "",
+            status: st,
+            raw_status: r.status,
+            status_description: r.description || "",
+            comments: r.description || "",
+            narration: r.description || "",
+            cr_dr: isCr ? "CR" : "DR",
+            provider_name: r.company || "Pay2Pay",
+            provider_ref: r.ref_id || r.txn_id || "",
+            channel: "RETAILER_PORTAL",
+          };
+        });
 
         setItems(mappedItems);
         setTotalRecords(total);
-
-        // Fetch Summary KPIs
-        const sumRes = await fetch(`${baseUrl}/reports/transactions/summary?${params.toString()}`, {
-          headers,
-          credentials: "include",
-          cache: "no-store",
+        setSummary({
+          total_transactions: total,
+          total_volume: totalVol,
+          total_credit: totalCr,
+          total_debit: totalDr,
+          successful_transactions: totalSuccess,
+          pending_transactions: totalPending,
+          failed_transactions: totalFailed,
+          reversed_transactions: totalReversed,
         });
-        if (sumRes.ok) {
-          const sumJson = await sumRes.json();
-          const sData = sumJson.data || {};
-          setSummary({
-            total_transactions: sData.total_records ?? total,
-            total_volume: sData.total_amount ?? sData.total_volume ?? 0,
-            total_credit: sData.total_cr ?? sData.total_credit ?? 0,
-            total_debit: sData.total_dr ?? sData.total_debit ?? 0,
-            successful_transactions: sData.successful_transactions ?? 0,
-            pending_transactions: sData.pending_transactions ?? 0,
-            failed_transactions: sData.failed_transactions ?? 0,
-            reversed_transactions: sData.reversed_transactions ?? 0,
-          });
-        }
       } else {
         setItems([]);
         setTotalRecords(0);
@@ -433,37 +461,10 @@ export const RetailerTransactionReport: React.FC = () => {
     return () => clearInterval(interval);
   }, [activePreset, fetchData]);
 
-  // Load Deep Details on Drawer Open
-  const openDetailsDrawer = async (item: TransactionReportItem) => {
+  // Open Dynamic Transaction Details Modal
+  const openDetailsDrawer = (item: TransactionReportItem) => {
     setSelectedTxn(item);
     setDrawerOpen(true);
-    setDrawerLoading(true);
-    try {
-      const baseUrl = getApiBaseUrl();
-      const token = typeof window !== "undefined" ? (
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("access_token") ||
-        ""
-      ) : "";
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token.trim()}`;
-
-      const res = await fetch(`${baseUrl}/reports/transactions/${encodeURIComponent(item.txn_id)}/details`, {
-        headers,
-        credentials: "include",
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setDrawerDetails(json.data || null);
-      } else {
-        setDrawerDetails(null);
-      }
-    } catch (e) {
-      setDrawerDetails(null);
-    } finally {
-      setDrawerLoading(false);
-    }
   };
 
   const handleDatePreset = (preset: string) => {
@@ -565,40 +566,12 @@ export const RetailerTransactionReport: React.FC = () => {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "22% repeat(4, 19.5%)" },
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 25%)" },
             gap: { xs: 2, lg: 0 },
             width: "100%",
             alignItems: "center",
           }}
         >
-          {/* SECTION 1 — PAGE TITLE (Width ~22%) */}
-          <Box sx={{ pr: { lg: 2.5 } }}>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 800,
-                fontSize: "20px",
-                color: "#FFFFFF",
-                letterSpacing: "-0.3px",
-                lineHeight: 1.2,
-              }}
-            >
-              Transactions
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: "#94A3B8",
-                fontSize: "11px",
-                fontWeight: 500,
-                display: "block",
-                mt: 0.3,
-                lineHeight: 1.3,
-              }}
-            >
-              Unified multi-service transaction ledger &amp; report
-            </Typography>
-          </Box>
 
           {/* SECTION 2 — TOTAL VOLUME */}
           <Box
@@ -1029,8 +1002,10 @@ export const RetailerTransactionReport: React.FC = () => {
             anchorEl={exportAnchorEl}
             open={Boolean(exportAnchorEl)}
             onClose={() => setExportAnchorEl(null)}
-            PaperProps={{
-              sx: { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: "8px", border: "1px solid #334155", mt: 0.5 },
+            slotProps={{
+              paper: {
+                sx: { bgcolor: "#1E293B", color: "#FFFFFF", borderRadius: "8px", border: "1px solid #334155", mt: 0.5 },
+              },
             }}
           >
             <MenuItem onClick={handleExportCsv} sx={{ fontSize: "13px", fontWeight: 600, gap: 1.5, py: 1 }}>
@@ -1104,7 +1079,7 @@ export const RetailerTransactionReport: React.FC = () => {
               ) : items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={14} align="center" sx={{ py: 8 }}>
-                    <Stack alignItems="center" spacing={1.5}>
+                    <Stack sx={{ alignItems: "center" }} spacing={1.5}>
                       <ReceiptIcon sx={{ fontSize: 48, color: "#334155" }} />
                       <Typography variant="body1" sx={{ color: "#94A3B8", fontWeight: 600 }}>
                         No transactions found in database for the selected filters.
@@ -1126,7 +1101,7 @@ export const RetailerTransactionReport: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                items.map((row) => {
+                items.map((row, idx) => {
                   const badge = SERVICE_BADGES[row.service] || { label: row.service, bg: "#1E293B", text: "#94A3B8", border: "#334155" };
                   const drVal = row.dr_amt ?? row.dr ?? 0;
                   const crVal = row.cr_amt ?? row.cr ?? 0;
@@ -1141,7 +1116,7 @@ export const RetailerTransactionReport: React.FC = () => {
 
                   return (
                     <TableRow
-                      key={row.id || row.txn_id}
+                      key={row.id ? `${row.id}-${idx}` : `${row.txn_id || "row"}-${idx}`}
                       hover
                       sx={{
                         "&:hover": { bgcolor: "rgba(30, 41, 59, 0.5) !important" },
@@ -1153,7 +1128,7 @@ export const RetailerTransactionReport: React.FC = () => {
                     >
                       {/* 1. Txn ID */}
                       <TableCell sx={{ py: 1.5 }}>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <Stack direction="row" sx={{ alignItems: "center" }} spacing={0.5}>
                           <Tooltip title={row.txn_id} arrow placement="top">
                             <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#60A5FA", fontSize: "12px", whiteSpace: "nowrap" }}>
                               {row.txn_id}
@@ -1362,217 +1337,14 @@ export const RetailerTransactionReport: React.FC = () => {
         />
       </Paper>
 
-      {/* ── Transaction Detail Drawer (Sections A through I) ─────────────────── */}
-      <Drawer
-        anchor="right"
+      {/* ── Dynamic Universal Transaction Details / View Report Modal ────── */}
+      <DynamicTransactionDetailsModal
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: { xs: "100%", sm: 520 },
-            bgcolor: "#0F172A",
-            color: "#FFFFFF",
-            borderLeft: "1px solid #1E293B",
-            p: 3,
-          },
-        }}
-      >
-        {selectedTxn && (
-          <Box>
-            {/* Header */}
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
-                Transaction Audit Ledger
-              </Typography>
-              <IconButton onClick={() => setDrawerOpen(false)} sx={{ color: "#94A3B8" }}>
-                <CloseIcon />
-              </IconButton>
-            </Stack>
-
-            {/* Status Hero */}
-            <Paper
-              sx={{
-                p: 2.5,
-                borderRadius: "16px",
-                bgcolor: selectedTxn.status === "SUCCESS" ? "rgba(16, 185, 129, 0.1)" : selectedTxn.status === "PENDING" ? "rgba(245, 158, 11, 0.1)" : "rgba(239, 68, 68, 0.1)",
-                border: `1px solid ${selectedTxn.status === "SUCCESS" ? "rgba(16, 185, 129, 0.3)" : selectedTxn.status === "PENDING" ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-                textAlign: "center",
-                mb: 3,
-              }}
-            >
-              <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>
-                {selectedTxn.service} • {selectedTxn.type}
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 900, color: "#FFFFFF", my: 1, fontFamily: "monospace" }}>
-                ₹{selectedTxn.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </Typography>
-              <Chip
-                label={selectedTxn.status}
-                size="small"
-                sx={{
-                  bgcolor: selectedTxn.status === "SUCCESS" ? "#10B981" : selectedTxn.status === "PENDING" ? "#F59E0B" : "#EF4444",
-                  color: "#FFFFFF",
-                  fontWeight: 800,
-                  fontSize: "12px",
-                }}
-              />
-            </Paper>
-
-            {/* Section A: Transaction Overview */}
-            <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5 }}>
-              A. Transaction Identification
-            </Typography>
-            <Stack spacing={1.2} sx={{ mb: 3 }}>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Txn ID / Ref</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{selectedTxn.txn_id}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Client Reference</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>{selectedTxn.client_ref_id}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Execution Date &amp; Time</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>{new Date(selectedTxn.transaction_datetime).toLocaleString("en-IN")}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Bank UTR Number</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, color: "#34D399" }}>{selectedTxn.provider_ref || "--"}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Gateway / Switch</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>{selectedTxn.provider_name || "PAY2PAY SYSTEM"}</Typography>
-              </Stack>
-            </Stack>
-
-            <Divider sx={{ borderColor: "#1E293B", my: 2 }} />
-
-            {/* Section B & C: Beneficiary & Customer */}
-            <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5 }}>
-              B. Party &amp; Beneficiary Account
-            </Typography>
-            <Stack spacing={1.2} sx={{ mb: 3 }}>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Customer Name</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedTxn.customer_name}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Customer Mobile</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace" }}>{selectedTxn.customer_mobile}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Beneficiary Account Holder</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: "#60A5FA" }}>{selectedTxn.beneficiary_name || selectedTxn.customer_name}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Bank Name</Typography>
-                <Typography variant="body2">{selectedTxn.bank_name || "IDBI Bank"}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>Account Number</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace" }}>{selectedTxn.account_number || "0630104000156974"}</Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" sx={{ color: "#94A3B8" }}>IFSC Code</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace" }}>{selectedTxn.ifsc_code || "IBKL0000630"}</Typography>
-              </Stack>
-            </Stack>
-
-            <Divider sx={{ borderColor: "#1E293B", my: 2 }} />
-
-            {/* Section E & F: Authoritative Ledger Balance Movement */}
-            <Typography variant="subtitle2" sx={{ color: "#60A5FA", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5 }}>
-              C. Financial Ledger Movement
-            </Typography>
-            <Paper sx={{ p: 2, borderRadius: "12px", bgcolor: "#111827", border: "1px solid #1E293B", mb: 3 }}>
-              <Stack spacing={1}>
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" sx={{ color: "#94A3B8" }}>Opening / Previous Balance</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
-                    ₹{selectedTxn.previous_balance.toFixed(2)}
-                  </Typography>
-                </Stack>
-                {selectedTxn.cr > 0 && (
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ color: "#34D399" }}>Credit Inflow (+)</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#34D399" }}>
-                      +₹{selectedTxn.cr.toFixed(2)}
-                    </Typography>
-                  </Stack>
-                )}
-                {selectedTxn.dr > 0 && (
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ color: "#F87171" }}>Debit Outflow (-)</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "#F87171" }}>
-                      -₹{selectedTxn.dr.toFixed(2)}
-                    </Typography>
-                  </Stack>
-                )}
-                {selectedTxn.charges > 0 && (
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ color: "#94A3B8" }}>Service / Transfer Fee</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: "monospace" }}>₹{selectedTxn.charges.toFixed(2)}</Typography>
-                  </Stack>
-                )}
-                {selectedTxn.commission > 0 && (
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ color: "#34D399" }}>Retailer Commission</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#34D399", fontWeight: 700 }}>
-                      +₹{selectedTxn.commission.toFixed(2)}
-                    </Typography>
-                  </Stack>
-                )}
-                <Divider sx={{ borderColor: "#1E293B", my: 0.5 }} />
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" sx={{ fontWeight: 800, color: "#FFFFFF" }}>Closing / Current Balance</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 900, color: "#60A5FA" }}>
-                    ₹{selectedTxn.current_balance.toFixed(2)}
-                  </Typography>
-                </Stack>
-              </Stack>
-            </Paper>
-
-            {/* Actions */}
-            <Stack direction="row" spacing={1.5}>
-              <Button
-                fullWidth
-                variant="contained"
-                startIcon={<PrintIcon />}
-                onClick={() => window.print()}
-                sx={{
-                  bgcolor: "#2563EB",
-                  color: "#FFFFFF",
-                  fontWeight: 700,
-                  borderRadius: "10px",
-                  "&:hover": { bgcolor: "#1D4ED8" },
-                }}
-              >
-                Print Slip
-              </Button>
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<ShareIcon />}
-                onClick={() => {
-                  copyToClipboard(
-                    `Transaction Slip\nTxn ID: ${selectedTxn.txn_id}\nAmount: ₹${selectedTxn.amount}\nService: ${selectedTxn.service}\nBeneficiary: ${selectedTxn.beneficiary_name}\nBank: ${selectedTxn.bank_name}\nUTR: ${selectedTxn.provider_ref || "N/A"}\nStatus: ${selectedTxn.status}`,
-                    "Transaction details"
-                  );
-                }}
-                sx={{
-                  borderColor: "#1E293B",
-                  color: "#94A3B8",
-                  fontWeight: 700,
-                  borderRadius: "10px",
-                  "&:hover": { borderColor: "#3B82F6", color: "#FFFFFF" },
-                }}
-              >
-                Share Slip
-              </Button>
-            </Stack>
-          </Box>
-        )}
-      </Drawer>
+        txnId={selectedTxn?.txn_id || null}
+        initialData={selectedTxn}
+        onToast={showToast}
+      />
 
       {/* Snackbar */}
       <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)}>

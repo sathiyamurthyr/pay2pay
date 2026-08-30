@@ -311,6 +311,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
       const res = await fetch(`/api/v1/payout/reports/summary?${q.toString()}`, {
         credentials: "include",
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -360,6 +361,7 @@ export const RetailerPayoutReport: React.FC = () => {
 
       const res = await fetch(`/api/v1/payout/reports/grid?${q.toString()}`, {
         credentials: "include",
+        cache: "no-store",
       });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -398,6 +400,16 @@ export const RetailerPayoutReport: React.FC = () => {
     fetchSummary(fromDate, toDate);
     fetchReportData();
   }, [fetchSummary, fetchReportData]);
+
+  // Auto-refresh every 60 seconds when viewing TODAY to keep data live
+  useEffect(() => {
+    if (activePreset !== "TODAY") return;
+    const interval = setInterval(() => {
+      fetchSummary(fromDate, toDate);
+      fetchReportData();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [activePreset, fromDate, toDate, fetchSummary, fetchReportData]);
 
   // Handle Preset Date Buttons
   const applyDatePreset = (presetKey: string) => {
@@ -829,7 +841,7 @@ export const RetailerPayoutReport: React.FC = () => {
         <table>
           <tr><td class="lbl">Beneficiary Name</td><td class="val">${txn.beneficiary_name || "N/A"}</td></tr>
           <tr><td class="lbl">Bank Name</td><td class="val">${txn.bank_name || "N/A"}</td></tr>
-          <tr><td class="lbl">Account Number</td><td class="val mono">${txn.masked_account_number || "XXXX XXXX 1234"}</td></tr>
+          <tr><td class="lbl">Account Number</td><td class="val mono">${txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"}</td></tr>
           <tr><td class="lbl">IFSC Code</td><td class="val mono">${txn.ifsc_code || "N/A"}</td></tr>
         </table>
 
@@ -928,7 +940,7 @@ export const RetailerPayoutReport: React.FC = () => {
       ["Customer Mobile", txn.customer_mobile || "N/A"],
       ["Beneficiary Name", txn.beneficiary_name || "N/A"],
       ["Bank Name", txn.bank_name || "N/A"],
-      ["Account Number", txn.masked_account_number || "XXXX XXXX 1234"],
+      ["Account Number", txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"],
       ["IFSC Code", txn.ifsc_code || "N/A"],
       ["Wallet Debit", `₹${Number(txn.wallet_debit || txn.transfer_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
       ["Retailer Name", "Pay2Pay Verified Merchant"],
@@ -1013,7 +1025,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
     const dateStr = txn.initiated_at ? txn.initiated_at.replace("T", " ") : "N/A";
     
-    const msg = `Pay2Pay FinTech Retailer Platform\n\nOfficial Transaction Receipt\n\nTransaction ID:\n${txId}\n\nStatus:\n${stStr}\n\nAmount:\n${amtStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nDate:\n${dateStr}\n\nRetailer:\nPay2Pay Verified Merchant\n\nCustomer:\n${txn.customer_name || "N/A"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"} (${txn.masked_account_number || "XXXX XXXX 1234"})\n\nFor more details, please refer to your official receipt statement.`;
+    const msg = `Pay2Pay FinTech Retailer Platform\n\nOfficial Transaction Receipt\n\nTransaction ID:\n${txId}\n\nStatus:\n${stStr}\n\nAmount:\n${amtStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nDate:\n${dateStr}\n\nRetailer:\nPay2Pay Verified Merchant\n\nCustomer:\n${txn.customer_name || "N/A"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"} (${txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"})\n\nFor more details, please refer to your official receipt statement.`;
 
     logAudit("RECEIPT_SHARED_WHATSAPP", { transaction_id: txId });
 
@@ -1027,7 +1039,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
     const subject = `Pay2Pay Transaction Receipt - ${txId}`;
-    const body = `Dear Customer,\n\nPlease find the transaction details below.\n\nTransaction ID:\n${txId}\n\nAmount:\n${amtStr}\n\nStatus:\n${stStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"}\n\nRegards,\nPay2Pay FinTech Retailer Platform`;
+    const body = `Dear Customer,\n\nPlease find the transaction details below.\n\nTransaction ID:\n${txId}\n\nAmount:\n${amtStr}\n\nStatus:\n${stStr}\n\nReference ID:\n${txn.reference_id || "-"}\n\nUTR:\n${txn.utr_number || "--"}\n\nBeneficiary:\n${txn.beneficiary_name || "N/A"} (${txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"})\n\nRegards,\nPay2Pay FinTech Retailer Platform`;
 
     logAudit("RECEIPT_SHARED_EMAIL", { transaction_id: txId });
 
@@ -1040,7 +1052,7 @@ export const RetailerPayoutReport: React.FC = () => {
     const amtStr = `₹${Number(txn.transfer_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
     const dateStr = txn.initiated_at ? txn.initiated_at.replace("T", " ") : "N/A";
 
-    const text = `Pay2Pay Transaction Receipt\nID: ${txId}\nStatus: ${stStr}\nAmount: ${amtStr}\nRef ID: ${txn.reference_id || "-"}\nUTR: ${txn.utr_number || "--"}\nDate: ${dateStr}\nCustomer: ${txn.customer_name || "N/A"}\nBeneficiary: ${txn.beneficiary_name || "N/A"} (${txn.masked_account_number || "XXXX XXXX 1234"})`;
+    const text = `Pay2Pay Transaction Receipt\nID: ${txId}\nStatus: ${stStr}\nAmount: ${amtStr}\nRef ID: ${txn.reference_id || "-"}\nUTR: ${txn.utr_number || "--"}\nDate: ${dateStr}\nCustomer: ${txn.customer_name || "N/A"}\nBeneficiary: ${txn.beneficiary_name || "N/A"} (${txn.account_number || txn.masked_account_number || txn.ac_no || "N/A"})`;
 
     navigator.clipboard.writeText(text);
     setSnackbarMsg("Transaction receipt details copied to clipboard!");
@@ -2275,7 +2287,7 @@ export const RetailerPayoutReport: React.FC = () => {
                 <Stack spacing={1.2}>
                   <DetailRow label="Beneficiary Name" value={selectedTxn.beneficiary_name || "N/A"} />
                   <DetailRow label="Bank Name" value={selectedTxn.bank_name || "N/A"} />
-                  <DetailRow label="Account Number" value={selectedTxn.masked_account_number || "XXXX XXXX 1234"} isMono copyValue={(selectedTxn as any).account_number || selectedTxn.masked_account_number} />
+                  <DetailRow label="Account Number" value={selectedTxn.account_number || selectedTxn.masked_account_number || selectedTxn.ac_no || "--"} isMono copyValue={selectedTxn.account_number || selectedTxn.masked_account_number || selectedTxn.ac_no} />
                   <DetailRow label="IFSC Code" value={selectedTxn.ifsc_code || "N/A"} isMono />
                   <DetailRow label="Beneficiary Mobile" value={selectedTxn.beneficiary_mobile || "N/A"} />
                 </Stack>

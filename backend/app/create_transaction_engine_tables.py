@@ -1,7 +1,7 @@
 """
 Database migration script to create central transaction engine tables in PostgreSQL:
 - transaction_configuration
-- transactions
+- transactions (Authoritative Append-Only Transaction Table)
 - transaction_audit_logs
 - transaction_ledger_entries
 """
@@ -41,55 +41,139 @@ STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_txn_cfg_tenant ON transaction_configuration(tenant_id);",
     "CREATE INDEX IF NOT EXISTS idx_txn_cfg_vendor ON transaction_configuration(vendor_code);",
 
-    # 2. transactions
+    # 2. transactions (Authoritative Append-Only Design)
     """
     CREATE TABLE IF NOT EXISTS transactions (
-        id BIGSERIAL PRIMARY KEY,
-        public_id UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
-        tenant_id UUID NOT NULL,
-        company_id UUID,
-        vendor_id UUID,
-        vendor_code VARCHAR(50) NOT NULL DEFAULT 'WOWPE',
-        transaction_reference VARCHAR(50) UNIQUE NOT NULL,
-        transaction_type VARCHAR(50) NOT NULL,
-        service_type VARCHAR(50) NOT NULL,
-        customer_id UUID,
-        retailer_id UUID,
-        beneficiary_id UUID,
-        amount NUMERIC(18, 2) NOT NULL,
-        currency VARCHAR(10) NOT NULL DEFAULT 'INR',
-        charges NUMERIC(18, 2) NOT NULL DEFAULT 0.00,
-        commission NUMERIC(18, 2) NOT NULL DEFAULT 0.00,
-        gst_amount NUMERIC(18, 2) NOT NULL DEFAULT 0.00,
-        tds_amount NUMERIC(18, 2) NOT NULL DEFAULT 0.00,
-        net_amount NUMERIC(18, 2) NOT NULL DEFAULT 0.00,
-        status VARCHAR(50) NOT NULL DEFAULT 'INITIATED',
-        status_description VARCHAR(255),
-        request_id VARCHAR(100),
-        idempotency_key VARCHAR(255),
-        utr VARCHAR(100),
-        vendor_order_id VARCHAR(100),
-        response_message TEXT,
-        metadata_json JSONB,
-        is_active BOOLEAN NOT NULL DEFAULT TRUE,
-        is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        created_by VARCHAR(100) NOT NULL DEFAULT 'SYSTEM',
-        updated_by VARCHAR(100) NOT NULL DEFAULT 'SYSTEM'
+        -- Primary / Public IDs
+        id                  BIGSERIAL PRIMARY KEY,
+        public_id           UUID NOT NULL DEFAULT gen_random_uuid(),
+
+        -- Enterprise Scope
+        tenant_id           UUID NOT NULL,
+        company_id          UUID NOT NULL,
+        retailer_id         UUID NOT NULL,
+
+        -- Business Transaction References
+        txn_id              VARCHAR(64) NOT NULL,
+        ref_id              VARCHAR(128),
+        table_ref_id        UUID,
+
+        -- Transaction Information
+        service_name       VARCHAR(50) NOT NULL,
+        entry_type         VARCHAR(10) NOT NULL,
+        amount             NUMERIC(18,2) NOT NULL,
+
+        -- Wallet Balance Snapshot
+        balance_before     NUMERIC(18,2) NOT NULL,
+        balance_after      NUMERIC(18,2) NOT NULL,
+
+        -- Transaction Status
+        status              VARCHAR(30) NOT NULL,
+
+        -- Description
+        narration           VARCHAR(500),
+
+        -- Enterprise Date Keys
+        day_key             INTEGER,
+        week_key            INTEGER,
+        month_key           INTEGER,
+        quarter_key         INTEGER,
+        year_key             INTEGER,
+
+        financial_year_key  INTEGER,
+        financial_quarter_key INTEGER,
+        financial_month_key  INTEGER,
+
+        date_key            INTEGER,
+        time_key            INTEGER,
+
+        -- Partition Keys
+        partition_year      SMALLINT NOT NULL,
+        partition_month     SMALLINT NOT NULL,
+        partition_day       SMALLINT NOT NULL,
+
+        -- Audit / Lifecycle
+        is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+        is_deleted          BOOLEAN NOT NULL DEFAULT FALSE,
+
+        created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+        created_by          UUID,
+        updated_by          UUID,
+
+        -- Constraints
+        CONSTRAINT uq_transactions_public_id
+            UNIQUE (public_id),
+
+        CONSTRAINT chk_transactions_entry_type
+            CHECK (entry_type IN ('DEBIT', 'CREDIT')),
+
+        CONSTRAINT chk_transactions_amount
+            CHECK (amount > 0),
+
+        CONSTRAINT chk_transactions_balance_before
+            CHECK (balance_before >= 0),
+
+        CONSTRAINT chk_transactions_balance_after
+            CHECK (balance_after >= 0),
+
+        CONSTRAINT chk_transactions_partition_month
+            CHECK (partition_month BETWEEN 1 AND 12),
+
+        CONSTRAINT chk_transactions_partition_day
+            CHECK (partition_day BETWEEN 1 AND 31)
     );
     """,
-    "CREATE INDEX IF NOT EXISTS idx_transactions_ref ON transactions(transaction_reference);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_tenant ON transactions(tenant_id);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_company ON transactions(company_id);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_vendor_id ON transactions(vendor_id);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_retailer ON transactions(retailer_id);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_customer ON transactions(customer_id);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(transaction_type);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_service ON transactions(service_type);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at);",
-    "CREATE INDEX IF NOT EXISTS idx_transactions_idem ON transactions(idempotency_key);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_tenant_company_retailer ON transactions (tenant_id, company_id, retailer_id);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_txn_id ON transactions (txn_id);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_ref_id ON transactions (ref_id);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_table_ref_id ON transactions (table_ref_id);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_service_name ON transactions (service_name);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_entry_type ON transactions (entry_type);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_status ON transactions (status);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_created_at ON transactions (created_at);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_retailer_created_at ON transactions (retailer_id, created_at DESC);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_retailer_txn ON transactions (retailer_id, txn_id);",
+    "CREATE INDEX IF NOT EXISTS idx_rt_retailer_service_date ON transactions (retailer_id, service_name, created_at DESC);",
+
+    # Triggers on transactions
+    """
+    CREATE OR REPLACE FUNCTION set_transactions_updated_at()
+    RETURNS TRIGGER
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+    END;
+    $$;
+    """,
+    "DROP TRIGGER IF EXISTS trg_transactions_updated_at ON transactions;",
+    """
+    CREATE TRIGGER trg_transactions_updated_at
+    BEFORE UPDATE ON transactions
+    FOR EACH ROW
+    EXECUTE FUNCTION set_transactions_updated_at();
+    """,
+    """
+    CREATE OR REPLACE FUNCTION prevent_retailer_transaction_mutation()
+    RETURNS TRIGGER
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        RAISE EXCEPTION
+            'transactions is append-only. UPDATE/DELETE is not allowed.';
+    END;
+    $$;
+    """,
+    "DROP TRIGGER IF EXISTS trg_transactions_no_update ON transactions;",
+    """
+    CREATE TRIGGER trg_transactions_no_update
+    BEFORE UPDATE OR DELETE ON transactions
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_retailer_transaction_mutation();
+    """,
 
     # 3. transaction_audit_logs
     """
@@ -168,7 +252,7 @@ async def create_tables():
             s = stmt.strip()
             if s:
                 await conn.execute(text(s))
-        print("All transaction engine tables and indexes successfully created!")
+        print("All transaction engine tables, indexes, and triggers successfully created!")
 
 if __name__ == "__main__":
     asyncio.run(create_tables())

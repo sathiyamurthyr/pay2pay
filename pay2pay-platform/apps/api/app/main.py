@@ -114,9 +114,12 @@ async def domain_exception_handler(request: Request, exc: DomainException):
     )
 
 
-# Register API v1 Routers
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(tenants.router, prefix=settings.API_V1_STR)
+from app.presentation.api.v1 import company_branding_router
+app.include_router(company_branding_router.router, prefix=settings.API_V1_STR)
+app.include_router(company_branding_router.router, prefix="/api")
+app.include_router(company_branding_router.router, prefix="")
 app.include_router(companies.router, prefix=settings.API_V1_STR)
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(roles.router, prefix=settings.API_V1_STR)
@@ -177,9 +180,10 @@ app.include_router(bulkpe_payout_router.router, prefix=settings.API_V1_STR)
 app.include_router(wowpe_payout_router.router, prefix=settings.API_V1_STR)
 app.include_router(wowpe_payout_router.notify_router)
 app.include_router(utkaldigital_payout_router.router, prefix=settings.API_V1_STR)
-app.include_router(utkaldigital_payout_router.router, prefix="/api")
-app.include_router(admin_payout_routing_router.router, prefix=settings.API_V1_STR)
-app.include_router(admin_payout_routing_router.router, prefix="/api")
+from app.presentation.api.v1 import transaction_report_router
+app.include_router(transaction_report_router.router, prefix=settings.API_V1_STR)
+app.include_router(transaction_report_router.router, prefix="/api")
+app.include_router(transaction_report_router.router, prefix="")
 app.include_router(transaction_router.router, prefix=settings.API_V1_STR)
 app.include_router(transaction_router.router, prefix="/api")
 app.include_router(enterprise_auth_router.router, prefix=settings.API_V1_STR)
@@ -187,6 +191,14 @@ app.include_router(enterprise_auth_router.router, prefix="/api")
 app.include_router(enterprise_auth_router.router, prefix="")
 app.include_router(admin_error_management_router.router, prefix=settings.API_V1_STR)
 app.include_router(enterprise_payout_execution_router.router, prefix=settings.API_V1_STR)
+from app.presentation.api.v1 import payout_transaction_report_router
+app.include_router(payout_transaction_report_router.router, prefix=settings.API_V1_STR)
+app.include_router(payout_transaction_report_router.router, prefix="/api/v1")
+app.include_router(payout_transaction_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
+app.include_router(payout_transaction_report_router.router, prefix="/api/v1/payout")
+app.include_router(payout_transaction_report_router.router, prefix="/api/payout")
+app.include_router(payout_transaction_report_router.router, prefix="/payout")
+app.include_router(payout_transaction_report_router.router, prefix="")
 app.include_router(payout_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(payout_ledger_report_router.router, prefix=f"{settings.API_V1_STR}/payout")
 from app.presentation.api.v1 import retailer_verification_router

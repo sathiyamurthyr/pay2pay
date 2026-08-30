@@ -75,6 +75,8 @@ export interface ProcessTransactionParams {
   beneficiaryId?: string;
   beneficiaryName?: string;
   bankName?: string;
+  accountNumber?: string;
+  ifsc?: string;
   maskedAccount?: string;
   amount: number;
   mode?: "IMPS" | "NEFT" | "RTGS" | "UPI";
@@ -180,6 +182,9 @@ export function sanitizeCustomerErrorMessage(rawError: any): string {
 
   // 5. Authentication / PIN errors
   if (lower.includes("mpin") || lower.includes("pin") || lower.includes("invalid operator transaction pin")) {
+    if (lower.includes("attempt") || lower.includes("locked") || lower.includes("incorrect")) {
+      return rawMessage;
+    }
     return "Authentication Error: Invalid Security PIN.";
   }
 
@@ -223,6 +228,30 @@ export function sanitizeCustomerErrorMessage(rawError: any): string {
   return "Transaction could not be completed. If any amount was debited, it will be automatically refunded.";
 }
 
+export function generateTransactionNumber(prefix = "PO"): string {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yy = String(now.getFullYear()).slice(-2);
+  const rand = Math.floor(10000 + Math.random() * 90000);
+  return `${prefix}${dd}${mm}${yy}${rand}`;
+}
+
+export function generateReferenceNumber(prefix = "PAY2PAY"): string {
+  const now = new Date();
+  const yyyymmdd = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = Math.floor(100000 + Math.random() * 900000);
+  return `${prefix}-${yyyymmdd}-${rand}`;
+}
+
+export function generateBankingUtr(): string {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const doy = String(Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24))).padStart(3, "0");
+  const rand = Math.floor(1000000 + Math.random() * 9000000);
+  return `${yy}${doy}${rand}`;
+}
+
 class FinancialAccountingService {
   private masterTransactions: MasterTransactionRecord[] = [];
   private payoutTransactions: PayoutTransactionRecord[] = [];
@@ -235,11 +264,14 @@ class FinancialAccountingService {
 
   public async executeACIDTransaction(params: ProcessTransactionParams): Promise<FinancialProcessResult> {
     const timestamp = new Date().toISOString();
-    const transactionId = `TXN-${Date.now()}`;
-    const referenceNo = `REF-${Math.floor(100000000 + Math.random() * 900000000)}`;
+    let transactionId = "";
+    let referenceNo = "";
 
-    const walletBefore = params.walletBalance ?? 0;
-    const beneMonthlyBefore = params.beneficiaryMonthlyRemaining ?? 0;
+    const token = typeof window !== "undefined" ? (localStorage.getItem("p2p_access_token") || localStorage.getItem("token") || "") : "";
+    const activeRetailerId = typeof window !== "undefined" ? (localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("retailer_code") || "RET-10928") : "RET-10928";
+
+    const walletBefore = (typeof params.walletBalance === "number" && params.walletBalance >= 0) ? params.walletBalance : 0;
+    const beneMonthlyBefore = params.beneficiaryMonthlyRemaining ?? 5000000.0;
     const amount = params.amount;
     const mode = params.mode || "IMPS";
 
@@ -247,15 +279,32 @@ class FinancialAccountingService {
     try {
       const custId = params.customerId || "93538c98-0b19-493c-a247-4cdb02a46c68";
       const beneId = params.beneficiaryId || "a46ec999-57db-4138-a79b-a208a6d75109";
+      const payload = {
+        customer_id: custId,
+        beneficiary_id: beneId,
+        account_number: params.accountNumber || (params as any).account || params.maskedAccount,
+        ifsc_code: params.ifsc,
+        account_holder_name: params.beneficiaryName,
+        bank_name: params.bankName,
+        amount: amount,
+        mpin: params.pin,
+        mode: mode,
+        retailer_id: activeRetailerId,
+        tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8"
+      };
+
+      const reqHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-retailer-code": activeRetailerId,
+      };
+      if (token) {
+        reqHeaders["Authorization"] = `Bearer ${token}`;
+      }
 
       let apiData: any = null;
       try {
-        const res = await apiClient.post("/payout/bulkpe/initiate", {
-          customer_id: custId,
-          beneficiary_id: beneId,
-          amount: amount,
-          mpin: params.pin,
-          mode: mode
+        const res = await apiClient.post("/payout/bulkpe/initiate", payload, {
+          headers: reqHeaders
         });
         apiData = res.data;
       } catch (axiosErr: any) {
@@ -273,32 +322,30 @@ class FinancialAccountingService {
           } else if (errData.message) {
             errMsg = errData.message;
           }
-          return this.failTransaction(transactionId, referenceNo, walletBefore, beneMonthlyBefore, errMsg);
+          const serverTxId = errData.transaction_number || errData.transaction_id || errData.data?.transaction_number || "";
+          const serverRefNo = errData.reference_number || errData.reference_no || errData.data?.reference_number || "";
+          return this.failTransaction(serverTxId, serverRefNo, walletBefore, beneMonthlyBefore, errMsg);
         } else {
           // Direct raw fetch fallback
           try {
             const rawRes = await fetch(`${getApiBaseUrl()}/payout/bulkpe/initiate`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                customer_id: custId,
-                beneficiary_id: beneId,
-                amount: amount,
-                mpin: params.pin,
-                mode: mode
-              })
+              headers: reqHeaders,
+              body: JSON.stringify(payload)
             });
             if (rawRes.ok) {
               apiData = await rawRes.json();
             } else {
               const errJson = await rawRes.json().catch(() => ({}));
               const msg = errJson.friendly_message || errJson.customer_message || errJson.detail || errJson.message || "Payout service is temporarily unavailable. Please try again later.";
-              return this.failTransaction(transactionId, referenceNo, walletBefore, beneMonthlyBefore, msg);
+              const serverTxId = errJson.transaction_number || errJson.transaction_id || errJson.data?.transaction_number || "";
+              const serverRefNo = errJson.reference_number || errJson.reference_no || errJson.data?.reference_number || "";
+              return this.failTransaction(serverTxId, serverRefNo, walletBefore, beneMonthlyBefore, msg);
             }
           } catch {
             return this.failTransaction(
-              transactionId,
-              referenceNo,
+              "",
+              "",
               walletBefore,
               beneMonthlyBefore,
               "Unable to connect to the payment service. Please check your connection and try again."
@@ -315,51 +362,53 @@ class FinancialAccountingService {
           const wAfter = apiData.wallet_balance ?? apiData.wallet_balance_after ?? apiData.data?.wallet_balance_after ?? (wBefore - amount);
           return {
             success: true,
-            transactionId: apiData.transaction_number || apiData.data?.transaction_id || transactionId,
-            referenceNo: apiData.reference_number || apiData.data?.reference_no || referenceNo,
-            utr: apiData.utr || apiData.data?.utr || `UTR${Date.now()}`,
-            npciRef: apiData.rrn || apiData.data?.npci_ref || `NPCI${Date.now()}`,
-            bankRef: apiData.vendor_transaction_id || apiData.data?.bank_ref || `BANK${Date.now()}`,
+            transactionId: apiData.transaction_number || apiData.transaction_id || apiData.data?.transaction_number || apiData.data?.transaction_id || transactionId,
+            referenceNo: apiData.reference_number || apiData.reference_no || apiData.data?.reference_number || apiData.data?.reference_no || referenceNo,
+            utr: apiData.utr || apiData.utr_number || apiData.data?.utr || apiData.data?.utr_number || generateBankingUtr(),
+            npciRef: apiData.rrn || apiData.data?.npci_ref || apiData.data?.rrn || `RRN${generateBankingUtr()}`,
+            bankRef: apiData.vendor_transaction_id || apiData.data?.bank_ref || apiData.data?.vendor_transaction_id || `BANK-${generateTransactionNumber("PO")}`,
             status: "SUCCESS",
             walletBalanceBefore: wBefore,
             walletBalanceAfter: wAfter,
             beneficiaryRemainingMonthlyLimit: Math.max(0, beneMonthlyBefore - amount),
             ledgers: {
-              walletLedgerId: `LEDG-WAL-${Date.now()}`,
-              payoutLedgerId: `LEDG-PAY-${Date.now()}`,
-              commissionLedgerId: `LEDG-COM-${Date.now()}`,
-              gstLedgerId: `LEDG-GST-${Date.now()}`,
-              tdsLedgerId: `LEDG-TDS-${Date.now()}`,
-              generalLedgerId: `LEDG-GEN-${Date.now()}`,
-              auditLedgerId: `AUD-${Date.now()}`
+              walletLedgerId: `LEDG-WAL-${generateTransactionNumber("LD")}`,
+              payoutLedgerId: `LEDG-PAY-${generateTransactionNumber("LD")}`,
+              commissionLedgerId: `LEDG-COM-${generateTransactionNumber("LD")}`,
+              gstLedgerId: `LEDG-GST-${generateTransactionNumber("LD")}`,
+              tdsLedgerId: `LEDG-TDS-${generateTransactionNumber("LD")}`,
+              generalLedgerId: `LEDG-GEN-${generateTransactionNumber("LD")}`,
+              auditLedgerId: `AUD-${generateTransactionNumber("AU")}`
             }
           };
         } else if (apiData.status === "PENDING") {
           return {
             success: true,
-            transactionId: apiData.transaction_number || transactionId,
-            referenceNo: apiData.reference_number || referenceNo,
-            utr: apiData.utr || "PENDING_BANK_CONFIRMATION",
-            npciRef: `NPCI${Date.now()}`,
-            bankRef: `BANK${Date.now()}`,
+            transactionId: apiData.transaction_number || apiData.transaction_id || apiData.data?.transaction_number || apiData.data?.transaction_id || transactionId,
+            referenceNo: apiData.reference_number || apiData.reference_no || apiData.data?.reference_number || apiData.data?.reference_no || referenceNo,
+            utr: apiData.utr || apiData.utr_number || "PENDING_BANK_CONFIRMATION",
+            npciRef: apiData.rrn || `RRN${generateBankingUtr()}`,
+            bankRef: apiData.vendor_transaction_id || `BANK-${generateTransactionNumber("PO")}`,
             status: "SUCCESS",
             walletBalanceBefore: walletBefore,
             walletBalanceAfter: walletBefore - amount,
             beneficiaryRemainingMonthlyLimit: Math.max(0, beneMonthlyBefore - amount),
             ledgers: {
-              walletLedgerId: `LEDG-WAL-${Date.now()}`,
-              payoutLedgerId: `LEDG-PAY-${Date.now()}`,
-              commissionLedgerId: `LEDG-COM-${Date.now()}`,
-              gstLedgerId: `LEDG-GST-${Date.now()}`,
-              tdsLedgerId: `LEDG-TDS-${Date.now()}`,
-              generalLedgerId: `LEDG-GEN-${Date.now()}`,
-              auditLedgerId: `AUD-${Date.now()}`
+              walletLedgerId: `LEDG-WAL-${generateTransactionNumber("LD")}`,
+              payoutLedgerId: `LEDG-PAY-${generateTransactionNumber("LD")}`,
+              commissionLedgerId: `LEDG-COM-${generateTransactionNumber("LD")}`,
+              gstLedgerId: `LEDG-GST-${generateTransactionNumber("LD")}`,
+              tdsLedgerId: `LEDG-TDS-${generateTransactionNumber("LD")}`,
+              generalLedgerId: `LEDG-GEN-${generateTransactionNumber("LD")}`,
+              auditLedgerId: `AUD-${generateTransactionNumber("AU")}`
             }
           };
         } else {
+          const failTxId = apiData.transaction_number || apiData.transaction_id || apiData.data?.transaction_number || "";
+          const failRefNo = apiData.reference_number || apiData.reference_no || apiData.data?.reference_number || "";
           return this.failTransaction(
-            transactionId,
-            referenceNo,
+            failTxId,
+            failRefNo,
             walletBefore,
             beneMonthlyBefore,
             apiData.friendly_message || apiData.customer_message || apiData.detail || apiData.message || "Payout transaction could not be completed."
@@ -389,11 +438,11 @@ class FinancialAccountingService {
     }
 
     // ── STEP 2 & 3: CALCULATION ENGINE (DB Pricing Version v2.4.0-ENT) ──
-    const convenienceFee = amount > 10000 ? 20 : amount > 5000 ? 15 : 10;
+    const convenienceFee = amount > 500000 ? 75 : 20;
     const gstAmount = Math.round(convenienceFee * 0.18);
     const tdsAmount = Math.round(convenienceFee * 0.01);
-    const companyCommission = Math.round(amount * 0.0025);
-    const vendorCommission = Math.round(amount * 0.001);
+    const companyCommission = 0;
+    const vendorCommission = 0;
     const totalWalletDebit = amount + convenienceFee + gstAmount;
     const walletAfter = walletBefore - totalWalletDebit;
     const beneMonthlyAfter = Math.max(0, beneMonthlyBefore - amount);
@@ -412,7 +461,7 @@ class FinancialAccountingService {
 
     // ── STEP 5: CREATE PAYOUT TRANSACTION ──
     const payoutRecord: PayoutTransactionRecord = {
-      payoutId: `PAY-${Date.now()}`,
+      payoutId: generateTransactionNumber("PO"),
       transactionId,
       referenceNo,
       tenantId: params.tenantId || "TENANT-PAY2PAY",
@@ -440,13 +489,13 @@ class FinancialAccountingService {
     this.payoutTransactions.push(payoutRecord);
 
     // ── STEP 6: POST DOUBLE ENTRY LEDGER ENTRIES ──
-    const walletLedgerId = `LEDG-WAL-${Date.now()}`;
-    const payoutLedgerId = `LEDG-PAY-${Date.now()}`;
-    const commissionLedgerId = `LEDG-COM-${Date.now()}`;
-    const gstLedgerId = `LEDG-GST-${Date.now()}`;
-    const tdsLedgerId = `LEDG-TDS-${Date.now()}`;
-    const generalLedgerId = `LEDG-GEN-${Date.now()}`;
-    const auditLedgerId = `AUD-${Date.now()}`;
+    const walletLedgerId = `LEDG-WAL-${generateTransactionNumber("LD")}`;
+    const payoutLedgerId = `LEDG-PAY-${generateTransactionNumber("LD")}`;
+    const commissionLedgerId = `LEDG-COM-${generateTransactionNumber("LD")}`;
+    const gstLedgerId = `LEDG-GST-${generateTransactionNumber("LD")}`;
+    const tdsLedgerId = `LEDG-TDS-${generateTransactionNumber("LD")}`;
+    const generalLedgerId = `LEDG-GEN-${generateTransactionNumber("LD")}`;
+    const auditLedgerId = `AUD-${generateTransactionNumber("AU")}`;
 
     // Entry 1: Wallet Debit -> Debit Operator Wallet / Credit Settlement Holding
     this.generalLedgers.push({

@@ -223,9 +223,10 @@ export function classifyApiError(err: any, endpoint: string) {
 }
 
 export const retailerApi = {
-  // ── Fast Dedicated Wallet Balance ──
+  // ── Fast Dedicated User Wallet Balance (Standardized public.get_user_wallet) ──
   getWalletBalance: async () => {
     try {
+      let activeUserRefId: any = null;
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
         try {
@@ -236,6 +237,7 @@ export const retailerApi = {
             localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
+            activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
             activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
           }
         } catch {}
@@ -247,18 +249,24 @@ export const retailerApi = {
             "";
         }
       }
-      const params: any = {};
+      const params: any = { user_type_ref_id: 2 };
+      if (activeUserRefId) params.user_ref_id = activeUserRefId;
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
-      // Call fast single-lookup wallet balance endpoint (< 5ms response time)
-      const res = await apiClient.get("/api/v1/payout/dashboard/retailer/wallet-balance", { params });
-      const data = res.data;
+      // Call standardized user wallet endpoint
+      const res = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params });
+      const rawData = res.data;
+      const data = rawData.data || rawData;
       const bal =
         typeof data.wallet_balance === "number"
           ? data.wallet_balance
+          : typeof data.balance === "number"
+          ? data.balance
+          : typeof data.available_balance === "number"
+          ? data.available_balance
           : typeof data.mainBalance === "number"
           ? data.mainBalance
-          : data.available_balance || 0.00;
+          : 0.00;
 
       // No localStorage write — wallet balance lives in WalletSyncProvider state only
       return {
@@ -266,6 +274,9 @@ export const retailerApi = {
         mainBalance: bal,
         wallet_balance: bal,
         available_balance: bal,
+        wallet_status: data.wallet_status || "ACTIVE",
+        is_active: data.is_active ?? true,
+        is_frozen: data.is_frozen ?? false,
         commissionBalance: data.commissionBalance || 0.00,
         todayMargin: data.todayMargin || 0.00,
         todayTxnCount: data.todayTxnCount || 0,
@@ -279,6 +290,9 @@ export const retailerApi = {
         mainBalance: 0.00,
         wallet_balance: 0.00,
         available_balance: 0.00,
+        wallet_status: "UNKNOWN",
+        is_active: true,
+        is_frozen: false,
         commissionBalance: 0.00,
         todayMargin: 0.00,
         todayTxnCount: 0,
@@ -612,7 +626,7 @@ export const retailerApi = {
           healthy: true,
           api_status: "ONLINE",
           db_status: "HEALTHY",
-          customer_search_endpoint: "/customers/?query=",
+          customer_search_endpoint: "/customers?query=",
           message: "Customer service is online",
           code: 200,
           endpoint: "/health",
@@ -627,7 +641,7 @@ export const retailerApi = {
           healthy: true,
           api_status: "ONLINE",
           db_status: "HEALTHY",
-          customer_search_endpoint: "/customers/?query=",
+          customer_search_endpoint: "/customers?query=",
           message: "Customer service is online",
           code: 200,
           endpoint: "/health",
@@ -640,7 +654,7 @@ export const retailerApi = {
       healthy: true,
       api_status: "ONLINE",
       db_status: "HEALTHY",
-      customer_search_endpoint: "/customers/?query=",
+      customer_search_endpoint: "/customers?query=",
       message: "Customer service is online",
       code: 200,
       endpoint: "/health",
@@ -672,29 +686,40 @@ export const retailerApi = {
 
     // Always fetch directly from PostgreSQL backend API:
     try {
-      const res = await apiClient.get(`/customers/?query=${encodeURIComponent(normalizedQuery)}`);
-      if (res.status === 200 && res.data && Array.isArray(res.data.data)) {
-        const rawList = res.data.data;
+      const res = await apiClient.get(`/customers?query=${encodeURIComponent(normalizedQuery)}`);
+      if (res.status === 200 && res.data) {
+        const rawList = Array.isArray(res.data.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
         const mapped = rawList.map((c: any) => ({
+          ...c,
+          id: c.public_id || c.id || `c-${Date.now()}`,
           public_id: c.public_id || c.id || `c-${Date.now()}`,
           customer_number: c.customer_number || `CUST${c.mobile_number?.slice(-4) || '0000'}`,
           full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
-          mobile_number: c.mobile_number || query,
+          name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
+          mobile_number: c.mobile_number || trimmedQuery,
+          mobile: c.mobile_number || trimmedQuery,
           kyc_status: c.kyc_status || "VERIFIED",
           kyc_level: c.kyc_level || "FULL_KYC",
           risk_score: c.risk_score || 15,
+          risk_category: c.risk_category || "LOW",
+          customer_category: c.customer_category || "REGULAR",
           monthly_limit: c.monthly_limit || 200000.0,
           monthly_used: c.monthly_used || 0.0,
           monthly_remaining: c.monthly_remaining || 200000.0,
+          daily_remaining: c.daily_remaining || 25000.0,
           aadhaar_status: "VERIFIED",
           pan_status: "VERIFIED",
           pin_status: "SET",
+          mpin_enabled: c.mpin_enabled !== false,
           last_transaction: "Today",
           onboarding_complete: true,
+          beneficiaries: Array.isArray(c.beneficiaries) ? c.beneficiaries : [],
         }));
         return { status: "SUCCESS", data: mapped };
       }
-    } catch (err: any) {}
+    } catch (err: any) {
+      console.error("searchPayoutCustomer API error:", err);
+    }
 
     return { status: "SUCCESS", data: [] };
   },

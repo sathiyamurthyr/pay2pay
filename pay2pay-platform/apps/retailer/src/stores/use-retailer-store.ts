@@ -291,9 +291,9 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     syncBalance: async () => {
       set({ isSyncing: true });
       try {
+        let activeUserRefId: any = null;
         let activeRetailerId = "";
         let activeTenantId = "";
-
         if (typeof window !== "undefined") {
           try {
             const userStr =
@@ -303,6 +303,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
               localStorage.getItem("pay2pay_user_data");
             if (userStr) {
               const u = JSON.parse(userStr);
+              activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
               activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
               activeTenantId = u.tenant_id || "";
             }
@@ -319,16 +320,20 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
           }
         }
 
-        const params: any = {};
+        const params: any = { user_type_ref_id: 2 };
+        if (activeUserRefId) params.user_ref_id = activeUserRefId;
         if (activeRetailerId) params.retailer_id = activeRetailerId;
         if (activeTenantId) params.tenant_id = activeTenantId;
 
-        // Ultra-fast dedicated wallet balance API (< 5ms response)
-        const res = await apiClient.get("/api/v1/payout/dashboard/retailer/wallet-balance", { params });
-        const data = res.data;
+        // Standardized user wallet API (/api/v1/wallet-ledger/user-wallet)
+        const res = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params });
+        const rawData = res.data;
+        const data = rawData.data || rawData;
         const bal =
           typeof data.wallet_balance === "number"
             ? data.wallet_balance
+            : typeof data.balance === "number"
+            ? data.balance
             : typeof data.mainBalance === "number"
             ? data.mainBalance
             : typeof data.available_balance === "number"
@@ -340,6 +345,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
           wallet: {
             ...state.wallet,
             mainBalance: bal,
+            availableBalance: bal,
             commissionBalance: data.commissionBalance ?? state.wallet.commissionBalance,
             todayMargin: data.todayMargin ?? state.wallet.todayMargin,
             todaySettlement: data.todaySettlement ?? state.wallet.todaySettlement,

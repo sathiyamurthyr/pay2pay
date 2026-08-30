@@ -25,7 +25,7 @@ except ImportError:
         from backports.zoneinfo import ZoneInfo
     except ImportError:
         ZoneInfo = None
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.db.transaction_engine_models import (
@@ -131,12 +131,12 @@ class TransactionReferenceService:
         cls,
         vendor_first_char: str,
         tz_name: str = DEFAULT_TIMEZONE,
-        random_length: int = 8
+        random_length: int = 5
     ) -> str:
         """
         Generates a candidate reference string in format:
-        <VENDOR_FIRST_CHAR>PAY<YYYYMMDD><RANDOM_HEX_8>
-        Example: UPAY20260828C73E17F8
+        <VENDOR_FIRST_CHAR>PAY<DDMMYYHHMM><5_DIGIT_UNIQUE_NUMBER>
+        Example: CPAY290826142100123
         """
         tz = timezone.utc
         if ZoneInfo:
@@ -152,11 +152,13 @@ class TransactionReferenceService:
                 tz = timezone.utc
 
         now = datetime.now(tz)
-        date_str = now.strftime("%Y%m%d")
-        hex_suffix = uuid.uuid4().hex[:random_length].upper()
+        date_str = now.strftime("%d%m%y%H%M")
+        # 5-digit zero padded random / sequence fallback
+        rand_num = secrets.randbelow(100000)
+        num_suffix = f"{rand_num:05d}"
 
-        v_char = str(vendor_first_char or "U").strip().upper()[0]
-        return f"{v_char}PAY{date_str}{hex_suffix}"
+        v_char = str(vendor_first_char or "P").strip().upper()[0]
+        return f"{v_char}PAY{date_str}{num_suffix}"
 
     @classmethod
     async def generate_unique_reference(
@@ -196,7 +198,10 @@ class TransactionReferenceService:
 
             # Check if reference already exists in transactions table
             stmt_check = select(CentralTransactionModel.id).where(
-                CentralTransactionModel.transaction_reference == candidate
+                or_(
+                    CentralTransactionModel.txn_id == candidate,
+                    CentralTransactionModel.ref_id == candidate
+                )
             )
             exists = (await db.execute(stmt_check)).scalars().first()
 

@@ -15,6 +15,7 @@ from app.core.security import (
 from app.core.exceptions import (
     BadRequestException, UnauthorizedException, ForbiddenException, NotFoundException, ConflictException
 )
+from app.application.user_type_service import UserTypeService
 from app.application.storage_service import BackblazeStorageService
 from app.domain.validators import (
     validate_gst, validate_pan, validate_ifsc, validate_mobile, validate_pincode, validate_employee_code,
@@ -543,7 +544,7 @@ class UserService:
             hashed_password=hash_password(req.password),
             full_name=req.full_name,
             phone=req.phone,
-            user_type=req.user_type or "PLATFORM_ADMIN",
+            user_type=UserTypeService.validate_user_type(req.user_type, allow_none=True) or "ADMIN",
             status="ACTIVE",
             created_by=actor_user.email
         )
@@ -652,43 +653,11 @@ class UserService:
         return user
 
     @staticmethod
-    async def list_user_types(db: AsyncSession, tenant_id: uuid.UUID) -> List[UserTypeModel]:
-        stmt = select(UserTypeModel).where(UserTypeModel.tenant_id == tenant_id, UserTypeModel.is_deleted == False)
+    async def list_user_types(db: AsyncSession, tenant_id: Optional[uuid.UUID] = None) -> List[UserTypeModel]:
+        stmt = select(UserTypeModel).where(UserTypeModel.is_deleted == False).order_by(UserTypeModel.user_type_ref_id.asc())
         types = (await db.execute(stmt)).scalars().all()
-
-        if not types:
-            # Seed default User Types for this tenant
-            default_types = [
-                {"code": "PLATFORM_ADMIN", "name": "Platform Admin", "description": "Full platform administration rights"},
-                {"code": "SUPER_ADMIN", "name": "Super Admin", "description": "Global administrator with all privileges"},
-                {"code": "REGIONAL_MANAGER", "name": "Regional Manager", "description": "Manages territory super distributors and operations"},
-                {"code": "CRM_EXECUTIVE", "name": "CRM Executive", "description": "Customer relationship management & merchant support officer"},
-                {"code": "CRM_MANAGER", "name": "CRM Manager", "description": "CRM team lead & support manager"},
-                {"code": "SUPER_DISTRIBUTOR", "name": "Super Distributor", "description": "Manages distributors network and bulk allocations"},
-                {"code": "DISTRIBUTOR", "name": "Distributor", "description": "Manages retailer network and local operations"},
-                {"code": "RETAILER", "name": "Retailer", "description": "Merchant outlet user"},
-                {"code": "OPERATIONS", "name": "Operations Executive", "description": "Day-to-day transaction & terminal support"},
-                {"code": "COMPLIANCE", "name": "Compliance Officer", "description": "KYC, audit & AML review officer"},
-                {"code": "FINANCE", "name": "Finance Manager", "description": "Settlements, accounting & payout manager"},
-                {"code": "SETTLEMENT_MGR", "name": "Settlement Manager", "description": "Settlement approval & processing"},
-                {"code": "AUDIT_VIEWER", "name": "Audit Viewer", "description": "Read-only audit & reports access"},
-            ]
-            types = []
-            for dt in default_types:
-                ut = UserTypeModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=tenant_id,
-                    code=dt["code"],
-                    name=dt["name"],
-                    description=dt["description"],
-                    is_system=True,
-                    created_by="system",
-                )
-                db.add(ut)
-                types.append(ut)
-            await db.commit()
-
         return types
+
 
 
 class RolePermissionService:

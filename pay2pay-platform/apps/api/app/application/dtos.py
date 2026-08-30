@@ -294,10 +294,15 @@ CompanyResponse = CompanyDetailsResponse
 
 # User Type DTO
 class UserTypeResponse(BaseModel):
-    public_id: uuid.UUID
-    code: str
-    name: str
+    user_type_ref_id: int
+    user_type_code: str
+    user_type_name: str
+    code: Optional[str] = None
+    name: Optional[str] = None
     description: Optional[str] = None
+    is_active: bool = True
+    is_deleted: bool = False
+    public_id: Optional[uuid.UUID] = None
     is_system: bool = True
 
 

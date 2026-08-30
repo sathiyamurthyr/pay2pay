@@ -230,15 +230,26 @@ class CompanyConfigurationModel(BaseEntity, EnterpriseBaseMixin):
     company: Mapped["CompanyModel"] = relationship("CompanyModel", back_populates="configurations")
 
 
-class UserTypeModel(BaseEntity, EnterpriseBaseMixin):
+class UserTypeModel(Base):
     __tablename__ = "user_type"
 
-    code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    user_type_ref_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_type_code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    user_type_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    is_system: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    updated_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    __table_args__ = (UniqueConstraint("tenant_id", "code", name="uq_user_type_tenant_code"),)
+    __table_args__ = (
+        UniqueConstraint("user_type_code", name="uq_user_type_user_type_code"),
+        {"extend_existing": True}
+    )
 
 
 class AdminUserModel(BaseEntity, EnterpriseBaseMixin):
@@ -694,6 +705,9 @@ class RetailerWalletModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "retailer_wallet"
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("user_type.user_type_ref_id"), nullable=True, index=True)
+    wallet_type: Mapped[str] = mapped_column(String(50), default="MAIN", nullable=False)
     wallet_balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     daily_transaction_limit: Mapped[float] = mapped_column(Float, default=5000000.0, nullable=False)
     single_transaction_limit: Mapped[float] = mapped_column(Float, default=500000.0, nullable=False)
@@ -945,6 +959,8 @@ class WalletLedgerModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "wallet_ledger"
 
     retailer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("user_type.user_type_ref_id"), nullable=True, index=True)
     transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)  # SWIPE_CREDIT, BANK_PAYOUT, ADJUSTMENT
     credit_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     debit_amount: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
@@ -1856,6 +1872,9 @@ class PayoutTransactionModel(BaseEntity, EnterpriseBaseMixin):
 
     transaction_number: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     payout_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("payout_request.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("user_type.user_type_ref_id"), nullable=True, index=True)
+    user_type: Mapped[Optional[str]] = mapped_column(String(50), default="RETAILER", nullable=True)
     gateway_reference: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     bank_reference: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     utr_number: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
@@ -1863,6 +1882,36 @@ class PayoutTransactionModel(BaseEntity, EnterpriseBaseMixin):
     mode: Mapped[str] = mapped_column(String(20), default="IMPS", nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="SUCCESS", nullable=False, index=True)
     processed_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    # Refund Details
+    refund_type_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    refund_type: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    refund_status_ref_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    refund_status: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+
+    # API Request / Response Payloads
+    request: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    enc_request: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    vendor_request: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    api_request: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    enc_response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    vendor_response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    api_response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    api_response_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    error_code: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # Callback / Notification Flags
+    api_callback_status: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    partner_callback_status: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    partner_notification: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    customer_email_notification: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    customer_sms_notification: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Vendor Details
+    vendor_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    vendor_name: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     payout: Mapped["PayoutRequestModel"] = relationship("PayoutRequestModel", back_populates="transactions")
 
