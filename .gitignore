@@ -27,6 +27,7 @@ pay2pay-platform/**/dist/
 pay2pay-platform/**/.turbo/
 
 # Deploy & Scratch Artifacts
+admin_deploy_staging/
 *.zip
 *.tar.gz
 *.tar

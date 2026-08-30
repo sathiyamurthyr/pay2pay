@@ -384,7 +384,7 @@ async def get_retailer_header_wallet(
     # Resolve direct photo URL from database
     direct_photo_url = None
     reg_id_target = ctx.get("registration_id") or ctx.get("retailer_id")
-    clean_mob = ctx.get("mobile") or clean_mobile
+    clean_mob = ctx.get("mobile") or ctx.get("mobile_number") or ""
 
     # 1. Resolve actual registration_id if reg_id_target is not REG-*
     actual_reg_id = reg_id_target if (reg_id_target and str(reg_id_target).startswith("REG-")) else None
