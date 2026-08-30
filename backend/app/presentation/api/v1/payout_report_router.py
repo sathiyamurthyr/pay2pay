@@ -1,10 +1,11 @@
+from __future__ import annotations
 import uuid
 import io
 import csv
 import re
 from datetime import datetime, date, time, timezone, timedelta
 from decimal import Decimal
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -32,7 +33,7 @@ def validate_report_date(value: Optional[str], field_name: str) -> Optional[date
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Invalid {field_name}. Expected YYYY-MM-DD.")
 
-def validate_sort(sort_by: str, sort_dir: str) -> tuple[str, str]:
+def validate_sort(sort_by: str, sort_dir: str) -> Tuple[str, str]:
     allowed = {
         "initiated_at": "initiated_at",
         "transaction_number": "transaction_number",
