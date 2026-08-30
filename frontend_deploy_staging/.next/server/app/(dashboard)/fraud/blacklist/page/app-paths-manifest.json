@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/fraud/blacklist/page": "app/(dashboard)/fraud/blacklist/page.js"
+}

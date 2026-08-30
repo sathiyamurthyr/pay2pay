@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/settlement-processing/layout,_N_T_/(dashboard)/settlement-processing/journals/layout,_N_T_/(dashboard)/settlement-processing/journals/page,_N_T_/settlement-processing/journals"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/settlement-processing/journals/__PAGE__",
+    "/!KGRhc2hib2FyZCk/settlement-processing/journals",
+    "/!KGRhc2hib2FyZCk/settlement-processing",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

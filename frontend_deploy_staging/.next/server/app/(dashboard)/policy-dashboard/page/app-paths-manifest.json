@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/policy-dashboard/page": "app/(dashboard)/policy-dashboard/page.js"
+}

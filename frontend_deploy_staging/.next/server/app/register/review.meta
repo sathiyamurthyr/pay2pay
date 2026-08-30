@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/register/layout,_N_T_/register/review/layout,_N_T_/register/review/page,_N_T_/register/review"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/register/review/__PAGE__",
+    "/register/review",
+    "/register",
+    "/_index",
+    "/_head"
+  ]
+}

@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/policies/monthly-limits/page": "app/(dashboard)/policies/monthly-limits/page.js"
+}

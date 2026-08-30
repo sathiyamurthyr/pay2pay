@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/admin/reports/payout-transactions/page": "app/(dashboard)/admin/reports/payout-transactions/page.js"
+}

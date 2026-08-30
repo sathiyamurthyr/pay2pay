@@ -237,6 +237,29 @@ class EmailService:
                 "status": "SIMULATED",
                 "delivered": True,
                 "recipient": recipient_email,
+                "subject": subject
+            }
+
+        try:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_username, smtp_password)
+                server.send_message(msg)
+            logger.info(f"Password reset email sent to {recipient_email}")
+            return {
+                "status": "SENT",
+                "delivered": True,
+                "recipient": recipient_email
+            }
+        except Exception as e:
+            logger.error(f"Failed to send password reset email to {recipient_email}: {str(e)}")
+            return {
+                "status": "FAILED",
+                "delivered": False,
+                "error": str(e),
+                "recipient": recipient_email
+            }
+
     def _build_topup_approval_html(self, data: Dict[str, Any]) -> str:
         req_id = data.get("topup_request_id", "N/A")
         ret_name = data.get("retailer_name", "Valued Retailer")

@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/retailers/layout,_N_T_/(dashboard)/retailers/onboard-distributor/layout,_N_T_/(dashboard)/retailers/onboard-distributor/page,_N_T_/retailers/onboard-distributor"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/retailers/onboard-distributor/__PAGE__",
+    "/!KGRhc2hib2FyZCk/retailers/onboard-distributor",
+    "/!KGRhc2hib2FyZCk/retailers",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

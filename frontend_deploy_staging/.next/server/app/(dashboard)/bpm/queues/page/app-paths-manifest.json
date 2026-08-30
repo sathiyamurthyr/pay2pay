@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/bpm/queues/page": "app/(dashboard)/bpm/queues/page.js"
+}

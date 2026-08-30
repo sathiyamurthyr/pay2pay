@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/payouts/gateways/page": "app/(dashboard)/payouts/gateways/page.js"
+}

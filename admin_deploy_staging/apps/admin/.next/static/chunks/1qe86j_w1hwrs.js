@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,528654,t=>{"use strict";var i=t.i(843476);t.i(142216);var e=t.i(567220);t.s(["default",0,function(){return(0,i.jsx)(e.TransactionLayout,{service:"DMT"})}])}]);

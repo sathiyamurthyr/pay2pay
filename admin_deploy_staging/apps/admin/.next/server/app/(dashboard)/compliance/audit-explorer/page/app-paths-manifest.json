@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/compliance/audit-explorer/page": "app/(dashboard)/compliance/audit-explorer/page.js"
+}

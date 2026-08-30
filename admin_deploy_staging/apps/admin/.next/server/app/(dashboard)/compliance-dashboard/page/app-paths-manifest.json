@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/compliance-dashboard/page": "app/(dashboard)/compliance-dashboard/page.js"
+}

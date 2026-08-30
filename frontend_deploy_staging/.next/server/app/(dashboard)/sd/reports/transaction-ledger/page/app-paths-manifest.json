@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/sd/reports/transaction-ledger/page": "app/(dashboard)/sd/reports/transaction-ledger/page.js"
+}

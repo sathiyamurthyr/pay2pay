@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/finance/statements/page": "app/(dashboard)/finance/statements/page.js"
+}

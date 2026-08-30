@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/admin/reports/daily-open-close/page": "app/(dashboard)/admin/reports/daily-open-close/page.js"
+}

@@ -1,0 +1,1189 @@
+{
+  "version": 3,
+  "pages404": true,
+  "appType": "app",
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "onMatchHeaders": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [
+      {
+        "source": "/api/v1/:path*",
+        "destination": "http://127.0.0.1:8000/api/v1/:path*",
+        "regex": "^/api/v1(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
+      },
+      {
+        "source": "/uploads/:path*",
+        "destination": "http://127.0.0.1:8000/uploads/:path*",
+        "regex": "^/uploads(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
+      }
+    ],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/companies/[id]",
+      "regex": "^/companies/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/companies/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/machines/[id]",
+      "regex": "^/machines/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/machines/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/retailers/[id]",
+      "regex": "^/retailers/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/retailers/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/retailers/[id]/controller",
+      "regex": "^/retailers/([^/]+?)/controller(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/retailers/(?<nxtPid>[^/]+?)/controller(?:/)?$"
+    },
+    {
+      "page": "/uploads/[...slug]",
+      "regex": "^/uploads/(.+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/uploads/(?<nxtPslug>.+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/account-restricted",
+      "regex": "^/account\\-restricted(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/account\\-restricted(?:/)?$"
+    },
+    {
+      "page": "/account-under-review",
+      "regex": "^/account\\-under\\-review(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/account\\-under\\-review(?:/)?$"
+    },
+    {
+      "page": "/admin",
+      "regex": "^/admin(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin(?:/)?$"
+    },
+    {
+      "page": "/admin/announcements",
+      "regex": "^/admin/announcements(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/announcements(?:/)?$"
+    },
+    {
+      "page": "/admin/api-logs",
+      "regex": "^/admin/api\\-logs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/api\\-logs(?:/)?$"
+    },
+    {
+      "page": "/admin/approvals",
+      "regex": "^/admin/approvals(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/approvals(?:/)?$"
+    },
+    {
+      "page": "/admin/error-management",
+      "regex": "^/admin/error\\-management(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/error\\-management(?:/)?$"
+    },
+    {
+      "page": "/admin/reports/daily-open-close",
+      "regex": "^/admin/reports/daily\\-open\\-close(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/reports/daily\\-open\\-close(?:/)?$"
+    },
+    {
+      "page": "/admin/reports/payout-transactions",
+      "regex": "^/admin/reports/payout\\-transactions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/reports/payout\\-transactions(?:/)?$"
+    },
+    {
+      "page": "/admin/reports/tax",
+      "regex": "^/admin/reports/tax(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/reports/tax(?:/)?$"
+    },
+    {
+      "page": "/admin/reports/transaction-ledger",
+      "regex": "^/admin/reports/transaction\\-ledger(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/reports/transaction\\-ledger(?:/)?$"
+    },
+    {
+      "page": "/admin/retailer-verification",
+      "regex": "^/admin/retailer\\-verification(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/retailer\\-verification(?:/)?$"
+    },
+    {
+      "page": "/admin/topup-requests",
+      "regex": "^/admin/topup\\-requests(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/topup\\-requests(?:/)?$"
+    },
+    {
+      "page": "/aeps/devices",
+      "regex": "^/aeps/devices(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/aeps/devices(?:/)?$"
+    },
+    {
+      "page": "/aeps/services",
+      "regex": "^/aeps/services(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/aeps/services(?:/)?$"
+    },
+    {
+      "page": "/aeps/transactions",
+      "regex": "^/aeps/transactions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/aeps/transactions(?:/)?$"
+    },
+    {
+      "page": "/aeps-dashboard",
+      "regex": "^/aeps\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/aeps\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/announcements",
+      "regex": "^/announcements(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/announcements(?:/)?$"
+    },
+    {
+      "page": "/application-rejected",
+      "regex": "^/application\\-rejected(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/application\\-rejected(?:/)?$"
+    },
+    {
+      "page": "/approvals",
+      "regex": "^/approvals(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/approvals(?:/)?$"
+    },
+    {
+      "page": "/audio/languages",
+      "regex": "^/audio/languages(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/audio/languages(?:/)?$"
+    },
+    {
+      "page": "/audio/preferences",
+      "regex": "^/audio/preferences(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/audio/preferences(?:/)?$"
+    },
+    {
+      "page": "/audio/preview",
+      "regex": "^/audio/preview(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/audio/preview(?:/)?$"
+    },
+    {
+      "page": "/audio/themes",
+      "regex": "^/audio/themes(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/audio/themes(?:/)?$"
+    },
+    {
+      "page": "/audio-dashboard",
+      "regex": "^/audio\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/audio\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/audit-logs",
+      "regex": "^/audit\\-logs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/audit\\-logs(?:/)?$"
+    },
+    {
+      "page": "/beneficiaries",
+      "regex": "^/beneficiaries(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/beneficiaries(?:/)?$"
+    },
+    {
+      "page": "/beneficiaries/beneficiary-360",
+      "regex": "^/beneficiaries/beneficiary\\-360(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/beneficiaries/beneficiary\\-360(?:/)?$"
+    },
+    {
+      "page": "/beneficiary-dashboard",
+      "regex": "^/beneficiary\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/beneficiary\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/bpm/approvals",
+      "regex": "^/bpm/approvals(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/bpm/approvals(?:/)?$"
+    },
+    {
+      "page": "/bpm/queues",
+      "regex": "^/bpm/queues(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/bpm/queues(?:/)?$"
+    },
+    {
+      "page": "/bpm/tasks",
+      "regex": "^/bpm/tasks(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/bpm/tasks(?:/)?$"
+    },
+    {
+      "page": "/bpm/workflows",
+      "regex": "^/bpm/workflows(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/bpm/workflows(?:/)?$"
+    },
+    {
+      "page": "/bpm-dashboard",
+      "regex": "^/bpm\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/bpm\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/companies",
+      "regex": "^/companies(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/companies(?:/)?$"
+    },
+    {
+      "page": "/company-dashboard",
+      "regex": "^/company\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/company\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/compliance/audit-explorer",
+      "regex": "^/compliance/audit\\-explorer(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/compliance/audit\\-explorer(?:/)?$"
+    },
+    {
+      "page": "/compliance/reports",
+      "regex": "^/compliance/reports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/compliance/reports(?:/)?$"
+    },
+    {
+      "page": "/compliance-dashboard",
+      "regex": "^/compliance\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/compliance\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/configuration/payout-slabs",
+      "regex": "^/configuration/payout\\-slabs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/configuration/payout\\-slabs(?:/)?$"
+    },
+    {
+      "page": "/crm/knowledge-base",
+      "regex": "^/crm/knowledge\\-base(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/crm/knowledge\\-base(?:/)?$"
+    },
+    {
+      "page": "/crm/retailer-360",
+      "regex": "^/crm/retailer\\-360(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/crm/retailer\\-360(?:/)?$"
+    },
+    {
+      "page": "/crm/tickets",
+      "regex": "^/crm/tickets(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/crm/tickets(?:/)?$"
+    },
+    {
+      "page": "/crm-dashboard",
+      "regex": "^/crm\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/crm\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/customer-dashboard",
+      "regex": "^/customer\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/customer\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/customers",
+      "regex": "^/customers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/customers(?:/)?$"
+    },
+    {
+      "page": "/customers/create-pin",
+      "regex": "^/customers/create\\-pin(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/customers/create\\-pin(?:/)?$"
+    },
+    {
+      "page": "/customers/customer-360",
+      "regex": "^/customers/customer\\-360(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/customers/customer\\-360(?:/)?$"
+    },
+    {
+      "page": "/customers/identification",
+      "regex": "^/customers/identification(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/customers/identification(?:/)?$"
+    },
+    {
+      "page": "/customers/new",
+      "regex": "^/customers/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/customers/new(?:/)?$"
+    },
+    {
+      "page": "/customers/register",
+      "regex": "^/customers/register(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/customers/register(?:/)?$"
+    },
+    {
+      "page": "/dashboard",
+      "regex": "^/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/dashboard/verification",
+      "regex": "^/dashboard/verification(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/verification(?:/)?$"
+    },
+    {
+      "page": "/design-system",
+      "regex": "^/design\\-system(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/design\\-system(?:/)?$"
+    },
+    {
+      "page": "/developer/api-keys",
+      "regex": "^/developer/api\\-keys(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/developer/api\\-keys(?:/)?$"
+    },
+    {
+      "page": "/developer/disputes",
+      "regex": "^/developer/disputes(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/developer/disputes(?:/)?$"
+    },
+    {
+      "page": "/developer-dashboard",
+      "regex": "^/developer\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/developer\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/dmt/transactions",
+      "regex": "^/dmt/transactions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dmt/transactions(?:/)?$"
+    },
+    {
+      "page": "/dmt/transfer",
+      "regex": "^/dmt/transfer(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dmt/transfer(?:/)?$"
+    },
+    {
+      "page": "/dmt-dashboard",
+      "regex": "^/dmt\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dmt\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/eip/connectors",
+      "regex": "^/eip/connectors(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/eip/connectors(?:/)?$"
+    },
+    {
+      "page": "/eip/developer-portal",
+      "regex": "^/eip/developer\\-portal(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/eip/developer\\-portal(?:/)?$"
+    },
+    {
+      "page": "/eip/partners",
+      "regex": "^/eip/partners(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/eip/partners(?:/)?$"
+    },
+    {
+      "page": "/eip/webhooks",
+      "regex": "^/eip/webhooks(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/eip/webhooks(?:/)?$"
+    },
+    {
+      "page": "/eip-dashboard",
+      "regex": "^/eip\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/eip\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/favicon.ico",
+      "regex": "^/favicon\\.ico(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/favicon\\.ico(?:/)?$"
+    },
+    {
+      "page": "/finance/bank-reconciliation",
+      "regex": "^/finance/bank\\-reconciliation(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/finance/bank\\-reconciliation(?:/)?$"
+    },
+    {
+      "page": "/finance/periods",
+      "regex": "^/finance/periods(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/finance/periods(?:/)?$"
+    },
+    {
+      "page": "/finance/statements",
+      "regex": "^/finance/statements(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/finance/statements(?:/)?$"
+    },
+    {
+      "page": "/finance/trial-balance",
+      "regex": "^/finance/trial\\-balance(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/finance/trial\\-balance(?:/)?$"
+    },
+    {
+      "page": "/finance-dashboard",
+      "regex": "^/finance\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/finance\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/financial-config/approvals",
+      "regex": "^/financial\\-config/approvals(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/financial\\-config/approvals(?:/)?$"
+    },
+    {
+      "page": "/financial-config/rules",
+      "regex": "^/financial\\-config/rules(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/financial\\-config/rules(?:/)?$"
+    },
+    {
+      "page": "/financial-config-dashboard",
+      "regex": "^/financial\\-config\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/financial\\-config\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/forgot-password",
+      "regex": "^/forgot\\-password(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/forgot\\-password(?:/)?$"
+    },
+    {
+      "page": "/fraud/blacklist",
+      "regex": "^/fraud/blacklist(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/fraud/blacklist(?:/)?$"
+    },
+    {
+      "page": "/fraud/cases",
+      "regex": "^/fraud/cases(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/fraud/cases(?:/)?$"
+    },
+    {
+      "page": "/fraud/rules",
+      "regex": "^/fraud/rules(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/fraud/rules(?:/)?$"
+    },
+    {
+      "page": "/fraud-dashboard",
+      "regex": "^/fraud\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/fraud\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/icon.png",
+      "regex": "^/icon\\.png(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/icon\\.png(?:/)?$"
+    },
+    {
+      "page": "/login",
+      "regex": "^/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/login(?:/)?$"
+    },
+    {
+      "page": "/machine-dashboard",
+      "regex": "^/machine\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/machine\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/machines",
+      "regex": "^/machines(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/machines(?:/)?$"
+    },
+    {
+      "page": "/mis-dashboard",
+      "regex": "^/mis\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/mis\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/notification-dashboard",
+      "regex": "^/notification\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/notification\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/notifications",
+      "regex": "^/notifications(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/notifications(?:/)?$"
+    },
+    {
+      "page": "/notifications/campaigns",
+      "regex": "^/notifications/campaigns(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/notifications/campaigns(?:/)?$"
+    },
+    {
+      "page": "/notifications/templates",
+      "regex": "^/notifications/templates(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/notifications/templates(?:/)?$"
+    },
+    {
+      "page": "/operations/alerts",
+      "regex": "^/operations/alerts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/operations/alerts(?:/)?$"
+    },
+    {
+      "page": "/operations/api-logs",
+      "regex": "^/operations/api\\-logs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/operations/api\\-logs(?:/)?$"
+    },
+    {
+      "page": "/operations/feature-flags",
+      "regex": "^/operations/feature\\-flags(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/operations/feature\\-flags(?:/)?$"
+    },
+    {
+      "page": "/operations/queues",
+      "regex": "^/operations/queues(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/operations/queues(?:/)?$"
+    },
+    {
+      "page": "/operations/topup-requests",
+      "regex": "^/operations/topup\\-requests(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/operations/topup\\-requests(?:/)?$"
+    },
+    {
+      "page": "/ops-dashboard",
+      "regex": "^/ops\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/organization",
+      "regex": "^/organization(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/organization(?:/)?$"
+    },
+    {
+      "page": "/organization/transfers",
+      "regex": "^/organization/transfers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/organization/transfers(?:/)?$"
+    },
+    {
+      "page": "/organization-dashboard",
+      "regex": "^/organization\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/organization\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/payout-dashboard",
+      "regex": "^/payout\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/payout\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/payouts/gateways",
+      "regex": "^/payouts/gateways(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/payouts/gateways(?:/)?$"
+    },
+    {
+      "page": "/payouts/requests",
+      "regex": "^/payouts/requests(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/payouts/requests(?:/)?$"
+    },
+    {
+      "page": "/permissions",
+      "regex": "^/permissions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/permissions(?:/)?$"
+    },
+    {
+      "page": "/policies",
+      "regex": "^/policies(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/policies(?:/)?$"
+    },
+    {
+      "page": "/policies/evaluator",
+      "regex": "^/policies/evaluator(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/policies/evaluator(?:/)?$"
+    },
+    {
+      "page": "/policies/monthly-limits",
+      "regex": "^/policies/monthly\\-limits(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/policies/monthly\\-limits(?:/)?$"
+    },
+    {
+      "page": "/policy-dashboard",
+      "regex": "^/policy\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/policy\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/profile",
+      "regex": "^/profile(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/profile(?:/)?$"
+    },
+    {
+      "page": "/register",
+      "regex": "^/register(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register(?:/)?$"
+    },
+    {
+      "page": "/register/aadhaar",
+      "regex": "^/register/aadhaar(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/aadhaar(?:/)?$"
+    },
+    {
+      "page": "/register/address",
+      "regex": "^/register/address(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/address(?:/)?$"
+    },
+    {
+      "page": "/register/bank",
+      "regex": "^/register/bank(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/bank(?:/)?$"
+    },
+    {
+      "page": "/register/documents",
+      "regex": "^/register/documents(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/documents(?:/)?$"
+    },
+    {
+      "page": "/register/email",
+      "regex": "^/register/email(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/email(?:/)?$"
+    },
+    {
+      "page": "/register/email-otp",
+      "regex": "^/register/email\\-otp(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/email\\-otp(?:/)?$"
+    },
+    {
+      "page": "/register/gst",
+      "regex": "^/register/gst(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/gst(?:/)?$"
+    },
+    {
+      "page": "/register/mobile",
+      "regex": "^/register/mobile(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/mobile(?:/)?$"
+    },
+    {
+      "page": "/register/mobile-otp",
+      "regex": "^/register/mobile\\-otp(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/mobile\\-otp(?:/)?$"
+    },
+    {
+      "page": "/register/pan",
+      "regex": "^/register/pan(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/pan(?:/)?$"
+    },
+    {
+      "page": "/register/password",
+      "regex": "^/register/password(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/password(?:/)?$"
+    },
+    {
+      "page": "/register/review",
+      "regex": "^/register/review(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/review(?:/)?$"
+    },
+    {
+      "page": "/register/shop",
+      "regex": "^/register/shop(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/shop(?:/)?$"
+    },
+    {
+      "page": "/register/submitted",
+      "regex": "^/register/submitted(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/submitted(?:/)?$"
+    },
+    {
+      "page": "/register/video",
+      "regex": "^/register/video(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register/video(?:/)?$"
+    },
+    {
+      "page": "/reporting/reports",
+      "regex": "^/reporting/reports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/reporting/reports(?:/)?$"
+    },
+    {
+      "page": "/reporting/schedules",
+      "regex": "^/reporting/schedules(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/reporting/schedules(?:/)?$"
+    },
+    {
+      "page": "/retailer",
+      "regex": "^/retailer(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer(?:/)?$"
+    },
+    {
+      "page": "/retailer/account-restricted",
+      "regex": "^/retailer/account\\-restricted(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/account\\-restricted(?:/)?$"
+    },
+    {
+      "page": "/retailer/account-under-review",
+      "regex": "^/retailer/account\\-under\\-review(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/account\\-under\\-review(?:/)?$"
+    },
+    {
+      "page": "/retailer/aeps",
+      "regex": "^/retailer/aeps(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/aeps(?:/)?$"
+    },
+    {
+      "page": "/retailer/application-rejected",
+      "regex": "^/retailer/application\\-rejected(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/application\\-rejected(?:/)?$"
+    },
+    {
+      "page": "/retailer/bbps",
+      "regex": "^/retailer/bbps(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/bbps(?:/)?$"
+    },
+    {
+      "page": "/retailer/beneficiary",
+      "regex": "^/retailer/beneficiary(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/beneficiary(?:/)?$"
+    },
+    {
+      "page": "/retailer/beneficiary/new",
+      "regex": "^/retailer/beneficiary/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/beneficiary/new(?:/)?$"
+    },
+    {
+      "page": "/retailer/card-to-cash",
+      "regex": "^/retailer/card\\-to\\-cash(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/card\\-to\\-cash(?:/)?$"
+    },
+    {
+      "page": "/retailer/commission",
+      "regex": "^/retailer/commission(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/commission(?:/)?$"
+    },
+    {
+      "page": "/retailer/customers",
+      "regex": "^/retailer/customers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/customers(?:/)?$"
+    },
+    {
+      "page": "/retailer/customers/new",
+      "regex": "^/retailer/customers/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/customers/new(?:/)?$"
+    },
+    {
+      "page": "/retailer/dashboard",
+      "regex": "^/retailer/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/dashboard(?:/)?$"
+    },
+    {
+      "page": "/retailer/dmt",
+      "regex": "^/retailer/dmt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/dmt(?:/)?$"
+    },
+    {
+      "page": "/retailer/dmt/ledger",
+      "regex": "^/retailer/dmt/ledger(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/dmt/ledger(?:/)?$"
+    },
+    {
+      "page": "/retailer/dmt/presentation",
+      "regex": "^/retailer/dmt/presentation(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/dmt/presentation(?:/)?$"
+    },
+    {
+      "page": "/retailer/dmt/reports",
+      "regex": "^/retailer/dmt/reports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/dmt/reports(?:/)?$"
+    },
+    {
+      "page": "/retailer/kyc",
+      "regex": "^/retailer/kyc(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/kyc(?:/)?$"
+    },
+    {
+      "page": "/retailer/notifications",
+      "regex": "^/retailer/notifications(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/notifications(?:/)?$"
+    },
+    {
+      "page": "/retailer/pos",
+      "regex": "^/retailer/pos(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/pos(?:/)?$"
+    },
+    {
+      "page": "/retailer/pos/settlement-report",
+      "regex": "^/retailer/pos/settlement\\-report(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/pos/settlement\\-report(?:/)?$"
+    },
+    {
+      "page": "/retailer/profile",
+      "regex": "^/retailer/profile(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/profile(?:/)?$"
+    },
+    {
+      "page": "/retailer/recharge",
+      "regex": "^/retailer/recharge(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/recharge(?:/)?$"
+    },
+    {
+      "page": "/retailer/reports",
+      "regex": "^/retailer/reports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/reports(?:/)?$"
+    },
+    {
+      "page": "/retailer/settlement",
+      "regex": "^/retailer/settlement(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/settlement(?:/)?$"
+    },
+    {
+      "page": "/retailer/topup-request",
+      "regex": "^/retailer/topup\\-request(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/topup\\-request(?:/)?$"
+    },
+    {
+      "page": "/retailer/transactions",
+      "regex": "^/retailer/transactions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/transactions(?:/)?$"
+    },
+    {
+      "page": "/retailer/upi",
+      "regex": "^/retailer/upi(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/upi(?:/)?$"
+    },
+    {
+      "page": "/retailer/wallet",
+      "regex": "^/retailer/wallet(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/wallet(?:/)?$"
+    },
+    {
+      "page": "/retailer/wallet-statement",
+      "regex": "^/retailer/wallet\\-statement(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer/wallet\\-statement(?:/)?$"
+    },
+    {
+      "page": "/retailer-dashboard",
+      "regex": "^/retailer\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailer\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/retailers",
+      "regex": "^/retailers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailers(?:/)?$"
+    },
+    {
+      "page": "/retailers/onboard",
+      "regex": "^/retailers/onboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailers/onboard(?:/)?$"
+    },
+    {
+      "page": "/retailers/onboard-distributor",
+      "regex": "^/retailers/onboard\\-distributor(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailers/onboard\\-distributor(?:/)?$"
+    },
+    {
+      "page": "/retailers/onboard-sd",
+      "regex": "^/retailers/onboard\\-sd(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/retailers/onboard\\-sd(?:/)?$"
+    },
+    {
+      "page": "/roles",
+      "regex": "^/roles(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/roles(?:/)?$"
+    },
+    {
+      "page": "/settings",
+      "regex": "^/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settings(?:/)?$"
+    },
+    {
+      "page": "/settings/secrets",
+      "regex": "^/settings/secrets(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settings/secrets(?:/)?$"
+    },
+    {
+      "page": "/settlement-dashboard",
+      "regex": "^/settlement\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settlement\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/settlement-intake/rejects",
+      "regex": "^/settlement\\-intake/rejects(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settlement\\-intake/rejects(?:/)?$"
+    },
+    {
+      "page": "/settlement-intake/upload",
+      "regex": "^/settlement\\-intake/upload(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settlement\\-intake/upload(?:/)?$"
+    },
+    {
+      "page": "/settlement-intake-dashboard",
+      "regex": "^/settlement\\-intake\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settlement\\-intake\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/settlement-processing/batches",
+      "regex": "^/settlement\\-processing/batches(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settlement\\-processing/batches(?:/)?$"
+    },
+    {
+      "page": "/settlement-processing/journals",
+      "regex": "^/settlement\\-processing/journals(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settlement\\-processing/journals(?:/)?$"
+    },
+    {
+      "page": "/settlement-processing-dashboard",
+      "regex": "^/settlement\\-processing\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settlement\\-processing\\-dashboard(?:/)?$"
+    },
+    {
+      "page": "/settlements/batches",
+      "regex": "^/settlements/batches(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settlements/batches(?:/)?$"
+    },
+    {
+      "page": "/settlements/transactions",
+      "regex": "^/settlements/transactions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settlements/transactions(?:/)?$"
+    },
+    {
+      "page": "/users",
+      "regex": "^/users(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/users(?:/)?$"
+    },
+    {
+      "page": "/wallet-ledger/chart-of-accounts",
+      "regex": "^/wallet\\-ledger/chart\\-of\\-accounts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/wallet\\-ledger/chart\\-of\\-accounts(?:/)?$"
+    },
+    {
+      "page": "/wallet-ledger/entity-wallets",
+      "regex": "^/wallet\\-ledger/entity\\-wallets(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/wallet\\-ledger/entity\\-wallets(?:/)?$"
+    },
+    {
+      "page": "/wallet-ledger/manual-topup",
+      "regex": "^/wallet\\-ledger/manual\\-topup(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/wallet\\-ledger/manual\\-topup(?:/)?$"
+    },
+    {
+      "page": "/wallet-ledger/reconciliation",
+      "regex": "^/wallet\\-ledger/reconciliation(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/wallet\\-ledger/reconciliation(?:/)?$"
+    },
+    {
+      "page": "/wallet-ledger/topup-request",
+      "regex": "^/wallet\\-ledger/topup\\-request(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/wallet\\-ledger/topup\\-request(?:/)?$"
+    },
+    {
+      "page": "/wallet-ledger/wallets",
+      "regex": "^/wallet\\-ledger/wallets(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/wallet\\-ledger/wallets(?:/)?$"
+    },
+    {
+      "page": "/wallet-ledger-dashboard",
+      "regex": "^/wallet\\-ledger\\-dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/wallet\\-ledger\\-dashboard(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

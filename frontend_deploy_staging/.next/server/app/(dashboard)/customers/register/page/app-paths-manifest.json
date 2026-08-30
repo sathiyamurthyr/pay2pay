@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/customers/register/page": "app/(dashboard)/customers/register/page.js"
+}

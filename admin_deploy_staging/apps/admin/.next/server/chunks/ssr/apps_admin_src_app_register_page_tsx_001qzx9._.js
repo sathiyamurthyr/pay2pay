@@ -1,0 +1,3 @@
+module.exports=[453210,a=>{"use strict";var b=a.i(187924),c=a.i(572131),d=a.i(50944),e=a.i(737161);a.s(["default",0,function(){let a=(0,d.useRouter)(),{currentStep:f}=(0,e.useRegistration)();return(0,c.useEffect)(()=>{let b=e.STEP_ROUTES[f]||"/register/mobile";a.replace(b)},[f,a]),(0,b.jsxs)("div",{className:"py-8 text-center",children:[(0,b.jsx)("div",{className:"w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"}),(0,b.jsx)("p",{className:"text-sm font-bold text-slate-400",children:"Loading your registration portal step..."})]})}])}];
+
+//# sourceMappingURL=apps_admin_src_app_register_page_tsx_001qzx9._.js.map

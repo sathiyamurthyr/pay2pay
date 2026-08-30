@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/settlements/layout,_N_T_/(dashboard)/settlements/batches/layout,_N_T_/(dashboard)/settlements/batches/page,_N_T_/settlements/batches"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/settlements/batches/__PAGE__",
+    "/!KGRhc2hib2FyZCk/settlements/batches",
+    "/!KGRhc2hib2FyZCk/settlements",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

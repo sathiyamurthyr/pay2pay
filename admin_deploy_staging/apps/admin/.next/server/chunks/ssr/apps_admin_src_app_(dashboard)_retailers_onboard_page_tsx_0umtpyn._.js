@@ -1,0 +1,3 @@
+module.exports=[580433,a=>{"use strict";var b=a.i(187924),c=a.i(572131),d=a.i(50944);a.s(["default",0,function(){let a=(0,d.useRouter)();return(0,c.useEffect)(()=>{a.replace("/register")},[a]),(0,b.jsxs)("div",{className:"py-12 text-center text-white",children:[(0,b.jsx)("div",{className:"w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"}),(0,b.jsx)("p",{className:"text-xs font-bold text-slate-400",children:"Redirecting to Enterprise Registration Portal..."})]})}])}];
+
+//# sourceMappingURL=apps_admin_src_app_%28dashboard%29_retailers_onboard_page_tsx_0umtpyn._.js.map

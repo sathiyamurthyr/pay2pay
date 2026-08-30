@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/retailer/layout,_N_T_/retailer/application-rejected/layout,_N_T_/retailer/application-rejected/page,_N_T_/retailer/application-rejected"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/retailer/application-rejected/__PAGE__",
+    "/retailer/application-rejected",
+    "/retailer",
+    "/_index",
+    "/_head"
+  ]
+}

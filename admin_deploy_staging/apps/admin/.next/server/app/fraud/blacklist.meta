@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/fraud/layout,_N_T_/(dashboard)/fraud/blacklist/layout,_N_T_/(dashboard)/fraud/blacklist/page,_N_T_/fraud/blacklist"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/fraud/blacklist/__PAGE__",
+    "/!KGRhc2hib2FyZCk/fraud/blacklist",
+    "/!KGRhc2hib2FyZCk/fraud",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

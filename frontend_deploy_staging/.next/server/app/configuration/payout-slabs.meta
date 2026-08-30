@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/configuration/layout,_N_T_/(dashboard)/configuration/payout-slabs/layout,_N_T_/(dashboard)/configuration/payout-slabs/page,_N_T_/configuration/payout-slabs"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/configuration/payout-slabs/__PAGE__",
+    "/!KGRhc2hib2FyZCk/configuration/payout-slabs",
+    "/!KGRhc2hib2FyZCk/configuration",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

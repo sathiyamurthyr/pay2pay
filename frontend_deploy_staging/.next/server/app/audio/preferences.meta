@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/audio/layout,_N_T_/(dashboard)/audio/preferences/layout,_N_T_/(dashboard)/audio/preferences/page,_N_T_/audio/preferences"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/audio/preferences/__PAGE__",
+    "/!KGRhc2hib2FyZCk/audio/preferences",
+    "/!KGRhc2hib2FyZCk/audio",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

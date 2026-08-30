@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/retailer/layout,_N_T_/(dashboard)/retailer/transactions/layout,_N_T_/(dashboard)/retailer/transactions/page,_N_T_/retailer/transactions"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/retailer/transactions/__PAGE__",
+    "/!KGRhc2hib2FyZCk/retailer/transactions",
+    "/!KGRhc2hib2FyZCk/retailer",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

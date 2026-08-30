@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/machines/page": "app/(dashboard)/machines/page.js"
+}

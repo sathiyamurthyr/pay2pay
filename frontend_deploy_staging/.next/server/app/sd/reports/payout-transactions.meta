@@ -1,0 +1,18 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/sd/layout,_N_T_/(dashboard)/sd/reports/layout,_N_T_/(dashboard)/sd/reports/payout-transactions/layout,_N_T_/(dashboard)/sd/reports/payout-transactions/page,_N_T_/sd/reports/payout-transactions"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/sd/reports/payout-transactions/__PAGE__",
+    "/!KGRhc2hib2FyZCk/sd/reports/payout-transactions",
+    "/!KGRhc2hib2FyZCk/sd/reports",
+    "/!KGRhc2hib2FyZCk/sd",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}
