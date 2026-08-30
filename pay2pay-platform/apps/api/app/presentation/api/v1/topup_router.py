@@ -16,6 +16,9 @@ import os
 import re
 import uuid
 import hashlib
+import asyncio
+import logging
+from decimal import Decimal
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -36,6 +39,9 @@ from app.infrastructure.db.transaction_engine_models import (
 )
 from app.domain.date_keys import compute_transaction_date_and_partition_keys
 from app.application.storage_service import BackblazeStorageService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES
+from app.infrastructure.adapters.email_service import email_service
+
+logger = logging.getLogger("topup_router")
 
 router = APIRouter(prefix="/topup", tags=["Retailer Topup Requests & Verification"])
 
@@ -86,7 +92,8 @@ class TopupCreateRequest(BaseModel):
 
 
 class TopupApprovalRequest(BaseModel):
-    approved_amount: Optional[float] = Field(None, gt=0, description="Admin approved amount (can be edited)")
+    approved_amount: Optional[float] = Field(None, gt=0, description="Admin approved / received amount (can be edited)")
+    received_amount: Optional[float] = Field(None, gt=0, description="Admin approved / received amount alias")
     admin_notes: Optional[str] = Field(None, description="Optional administrative verification notes")
 
 
@@ -767,9 +774,10 @@ async def get_admin_topup_requests(
     result = await db.execute(stmt)
     rows = result.all()
 
-    # Pre-fetch contact numbers for all retailers in this page
+    # Pre-fetch contact numbers and emails for all retailers in this page
     ret_ids = [topup.retailer_id for topup, _, _ in rows if topup.retailer_id]
     contact_map: Dict[Any, str] = {}
+    email_map: Dict[Any, str] = {}
     if ret_ids:
         c_stmt = (
             select(RetailerContactModel)
@@ -780,6 +788,8 @@ async def get_admin_topup_requests(
         for c in c_res.scalars().all():
             if c.retailer_id not in contact_map or c.primary_contact:
                 contact_map[c.retailer_id] = c.mobile or ""
+            if c.retailer_id not in email_map or c.primary_contact:
+                email_map[c.retailer_id] = c.email or ""
 
     items = []
     for topup, retailer, wallet in rows:
@@ -787,15 +797,26 @@ async def get_admin_topup_requests(
         ret_code = (retailer.retailer_code if retailer else meta.get("retailer_code")) or "N/A"
         ret_name = (get_retailer_display_name(retailer) if retailer else meta.get("retailer_name")) or "Unknown Retailer"
         ret_mobile = contact_map.get(topup.retailer_id, "")
+        ret_email = email_map.get(topup.retailer_id, "") or meta.get("email", "") or meta.get("retailer_email", "")
+
+        received_val = float(topup.received_amount) if topup.received_amount is not None else (
+            float(topup.approved_amount) if topup.approved_amount is not None else float(topup.requested_amount)
+        )
 
         items.append({
             "id": str(topup.public_id),
             "topup_request_id": topup.topup_request_id,
             "requested_amount": float(topup.requested_amount),
             "approved_amount": float(topup.approved_amount) if topup.approved_amount is not None else None,
+            "received_amount": received_val,
+            "mdr_charge": float(topup.mdr_charge) if topup.mdr_charge is not None else 0.0,
+            "gst_amount": float(topup.gst_amount) if topup.gst_amount is not None else 0.0,
+            "charges": float(topup.charges) if topup.charges is not None else 0.0,
+            "mdr_config_id": str(topup.mdr_config_id) if topup.mdr_config_id else None,
             "currency": topup.currency,
             "payment_reference": topup.payment_reference,
-            "payment_method": topup.payment_method,
+            "payment_method": topup.payment_method or "POS - Instant",
+            "payment_mode": topup.payment_method or "POS - Instant",
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -815,6 +836,7 @@ async def get_admin_topup_requests(
                 "retailer_code": ret_code,
                 "retailer_name": ret_name,
                 "mobile_number": ret_mobile,
+                "email": ret_email,
                 "company_name": (getattr(retailer, "store_name", "") or getattr(retailer, "legal_name", "")) if retailer else "",
                 "account_status": getattr(retailer, "status", "UNKNOWN") if retailer else "UNKNOWN",
                 "wallet_id": str(wallet.public_id) if wallet else None,
@@ -842,12 +864,12 @@ async def get_admin_topup_requests(
 @router.get("/requests/{request_id}", summary="Get Topup Request Detail")
 async def get_topup_request_detail(
     request_id: str,
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Fetches comprehensive topup request detail for right-side drawer inspection.
+    Returns complete single topup record with slip verification metadata and retailer wallet context.
     """
-    # Lookup by topup_request_id or public_id
     conditions = [TopupRequestModel.is_deleted == False]
     try:
         r_uuid = uuid.UUID(request_id)
@@ -873,21 +895,31 @@ async def get_topup_request_detail(
 
     topup, retailer, wallet = row
 
-    # Fetch contact mobile if retailer exists
+    # Fetch contact mobile & email if retailer exists
     ret_mobile = ""
+    ret_email = ""
     if retailer:
         c_stmt = (
-            select(RetailerContactModel.mobile)
+            select(RetailerContactModel)
             .where(RetailerContactModel.retailer_id == retailer.public_id, RetailerContactModel.is_deleted == False)
             .order_by(RetailerContactModel.primary_contact.desc())
             .limit(1)
         )
         c_res = await db.execute(c_stmt)
-        ret_mobile = c_res.scalar() or ""
+        c_obj = c_res.scalars().first()
+        if c_obj:
+            ret_mobile = c_obj.mobile or ""
+            ret_email = c_obj.email or ""
 
     meta = topup.metadata_json or {}
     ret_code = (retailer.retailer_code if retailer else meta.get("retailer_code")) or "N/A"
     ret_name = (get_retailer_display_name(retailer) if retailer else meta.get("retailer_name")) or "Unknown Retailer"
+    if not ret_email:
+        ret_email = meta.get("email", "") or meta.get("retailer_email", "")
+
+    received_val = float(topup.received_amount) if topup.received_amount is not None else (
+        float(topup.approved_amount) if topup.approved_amount is not None else float(topup.requested_amount)
+    )
 
     return {
         "success": True,
@@ -896,9 +928,15 @@ async def get_topup_request_detail(
             "topup_request_id": topup.topup_request_id,
             "requested_amount": float(topup.requested_amount),
             "approved_amount": float(topup.approved_amount) if topup.approved_amount is not None else None,
+            "received_amount": received_val,
+            "mdr_charge": float(topup.mdr_charge) if topup.mdr_charge is not None else 0.0,
+            "gst_amount": float(topup.gst_amount) if topup.gst_amount is not None else 0.0,
+            "charges": float(topup.charges) if topup.charges is not None else 0.0,
+            "mdr_config_id": str(topup.mdr_config_id) if topup.mdr_config_id else None,
             "currency": topup.currency,
             "payment_reference": topup.payment_reference,
-            "payment_method": topup.payment_method,
+            "payment_method": topup.payment_method or "POS - Instant",
+            "payment_mode": topup.payment_method or "POS - Instant",
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -921,6 +959,7 @@ async def get_topup_request_detail(
                 "retailer_code": ret_code,
                 "retailer_name": ret_name,
                 "mobile_number": ret_mobile,
+                "email": ret_email,
                 "company_name": (getattr(retailer, "store_name", "") or getattr(retailer, "legal_name", "")) if retailer else "",
                 "account_status": getattr(retailer, "status", "UNKNOWN") if retailer else "UNKNOWN",
                 "wallet_id": str(wallet.public_id) if wallet else None,
@@ -988,12 +1027,14 @@ async def approve_topup_request(
             detail=f"Cannot approve a topup request with status '{topup_record.status}'."
         )
 
-    # 3. Derive Approved Amount
-    final_approved_amount = req.approved_amount if (req.approved_amount is not None and req.approved_amount > 0) else float(topup_record.requested_amount)
+    # 3. Derive Approved & Received Amount
+    final_approved_amount = req.received_amount or req.approved_amount or (
+        float(topup_record.received_amount) if topup_record.received_amount is not None else float(topup_record.requested_amount)
+    )
     if final_approved_amount <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Approved amount must be greater than zero."
+            detail="Approved / received amount must be greater than zero."
         )
 
     # 4. Strict Retailer & Wallet Resolution from Topup Record
@@ -1120,6 +1161,7 @@ async def approve_topup_request(
     # 9. Update TopupRequestModel
     topup_record.status = "APPROVED"
     topup_record.approved_amount = final_approved_amount
+    topup_record.received_amount = final_approved_amount
     topup_record.approved_by = current_admin.email
     topup_record.approved_at = now_utc
     topup_record.wallet_id = wallet_public_id
@@ -1132,9 +1174,72 @@ async def approve_topup_request(
     # 10. Commit Atomic Database Transaction
     await db.commit()
 
+    # 11. Send Automated Email Notification to Retailer
+    recipient_email = None
+    email_dispatched = False
+    try:
+        # Check RetailerContactModel
+        ret_c_stmt = select(RetailerContactModel).where(
+            RetailerContactModel.retailer_id == retailer.public_id,
+            RetailerContactModel.is_deleted == False
+        ).order_by(RetailerContactModel.created_date.asc())
+        ret_c_res = await db.execute(ret_c_stmt)
+        c_list = ret_c_res.scalars().all()
+        for c in c_list:
+            if c.email and "@" in c.email:
+                recipient_email = c.email.strip()
+                break
+        
+        # Fallback to AdminUserModel if contact email not found
+        if not recipient_email:
+            u_stmt = select(AdminUserModel).where(
+                or_(
+                    AdminUserModel.mobile_number == getattr(retailer, "mobile_number", None),
+                    AdminUserModel.username == retailer.retailer_code
+                ),
+                AdminUserModel.is_deleted == False
+            )
+            u_res = await db.execute(u_stmt)
+            u_obj = u_res.scalars().first()
+            if u_obj and u_obj.email:
+                recipient_email = u_obj.email.strip()
+
+        if not recipient_email and topup_record.metadata_json:
+            recipient_email = topup_record.metadata_json.get("email") or topup_record.metadata_json.get("retailer_email")
+
+        if recipient_email:
+            email_payload = {
+                "recipient_email": recipient_email,
+                "retailer_name": get_retailer_display_name(retailer),
+                "retailer_code": retailer.retailer_code,
+                "topup_request_id": topup_record.topup_request_id,
+                "transaction_reference": txn_ref,
+                "payment_reference": topup_record.payment_reference or "N/A",
+                "payment_method": topup_record.payment_method or "POS - Instant",
+                "payment_date": topup_record.payment_date.strftime("%d-%m-%Y %H:%M") if topup_record.payment_date else now_utc.strftime("%d-%m-%Y %H:%M"),
+                "requested_amount": float(topup_record.requested_amount),
+                "mdr_charge": float(topup_record.mdr_charge) if topup_record.mdr_charge is not None else 0.0,
+                "gst_amount": float(topup_record.gst_amount) if topup_record.gst_amount is not None else 0.0,
+                "charges": float(topup_record.charges) if topup_record.charges is not None else 0.0,
+                "approved_amount": final_approved_amount,
+                "received_amount": final_approved_amount,
+                "previous_balance": opening_balance,
+                "current_balance": closing_balance,
+                "approved_by": current_admin.email,
+                "approved_at": now_utc.strftime("%d-%m-%Y %H:%M:%S IST"),
+                "admin_notes": req.admin_notes
+            }
+            asyncio.create_task(email_service.send_topup_approval_email(email_payload))
+            email_dispatched = True
+            logger.info(f"Topup approval email queued for {recipient_email} (Req: {topup_record.topup_request_id})")
+    except Exception as email_err:
+        logger.warning(f"Failed to dispatch topup approval email: {email_err}")
+
     return {
         "success": True,
         "message": f"Topup request {topup_record.topup_request_id} successfully approved. ₹{final_approved_amount:,.2f} credited to {get_retailer_display_name(retailer)}'s wallet.",
+        "email_sent": email_dispatched,
+        "recipient_email": recipient_email,
         "data": {
             "topup_request_id": topup_record.topup_request_id,
             "transaction_reference": txn_ref,
@@ -1143,12 +1248,15 @@ async def approve_topup_request(
             "wallet_id": str(wallet_public_id),
             "requested_amount": float(topup_record.requested_amount),
             "approved_amount": final_approved_amount,
+            "received_amount": final_approved_amount,
             "previous_balance": opening_balance,
             "credited_amount": final_approved_amount,
             "current_balance": closing_balance,
             "status": "APPROVED",
             "approved_by": current_admin.email,
-            "approved_at": now_utc.isoformat()
+            "approved_at": now_utc.isoformat(),
+            "email_sent": email_dispatched,
+            "recipient_email": recipient_email
         }
     }
 
