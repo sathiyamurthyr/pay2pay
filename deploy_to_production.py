@@ -86,40 +86,65 @@ def deploy_to_server(retailer_zip: Path, admin_zip: Path, backend_zip: Path):
     print("✅ Uploaded deployment archives successfully!")
 
     print("\n🔄 Extracting packages and restarting services on production server...")
-    remote_script = (
-        "set -e\n"
-        "echo '=== 1. Deploying Retailer Frontend (Port 3000) ==='\n"
-        "sudo rm -rf /home/ubuntu/pay2pay/frontend/*\n"
-        "sudo unzip -q -o /home/ubuntu/retailer_deploy.zip -d /home/ubuntu/pay2pay/frontend/\n"
-        "if [ -f /home/ubuntu/pay2pay/frontend/apps/retailer/server.js ]; then\n"
-        "  cp /home/ubuntu/pay2pay/frontend/apps/retailer/server.js /home/ubuntu/pay2pay/frontend/server.js || true\n"
-        "fi\n"
-        "echo '=== 2. Deploying Admin Frontend (Port 3003) ==='\n"
-        "sudo rm -rf /home/ubuntu/pay2pay/admin/*\n"
-        "sudo unzip -q -o /home/ubuntu/admin_deploy.zip -d /home/ubuntu/pay2pay/admin/\n"
-        "if [ -f /home/ubuntu/pay2pay/admin/apps/admin/server.js ]; then\n"
-        "  cp /home/ubuntu/pay2pay/admin/apps/admin/server.js /home/ubuntu/pay2pay/admin/server.js || true\n"
-        "fi\n"
-        "echo '=== 3. Deploying Backend API ==='\n"
-        "sudo unzip -q -o /home/ubuntu/backend_deploy.zip -d /home/ubuntu/pay2pay/backend/\n"
-        "echo '=== 4. Setting Correct Ownership & Permissions ==='\n"
-        "sudo chown -R ubuntu:ubuntu /home/ubuntu/pay2pay\n"
-        "echo '=== 5. Restarting Production Systemd Services ==='\n"
-        "sudo systemctl restart pay2pay-backend\n"
-        "sudo systemctl restart pay2pay-frontend\n"
-        "sudo systemctl restart pay2pay-admin\n"
-        "sleep 4\n"
-        "echo '=== 6. Service Health Check ==='\n"
-        "sudo systemctl is-active pay2pay-backend\n"
-        "sudo systemctl is-active pay2pay-frontend\n"
-        "sudo systemctl is-active pay2pay-admin\n"
-        "curl -s -o /dev/null -w 'Retailer (Port 3000) Status: %{http_code}\\n' http://127.0.0.1:3000/retailer/login || true\n"
-        "curl -s -o /dev/null -w 'Admin (Port 3003) Status: %{http_code}\\n' http://127.0.0.1:3003/admin/login || true\n"
-        "echo '=== Live Production Deployment Finished Successfully! ==='\n"
-    )
+    remote_script = """#!/bin/bash
+set -e
+echo '=== 1. Deploying Retailer Frontend (Port 3000) ==='
+sudo rm -rf /home/ubuntu/pay2pay/frontend/*
+sudo unzip -q -o /home/ubuntu/retailer_deploy.zip -d /home/ubuntu/pay2pay/frontend/
+if [ -f /home/ubuntu/pay2pay/frontend/apps/retailer/server.js ]; then
+  cp /home/ubuntu/pay2pay/frontend/apps/retailer/server.js /home/ubuntu/pay2pay/frontend/server.js || true
+fi
+if [ -d /home/ubuntu/pay2pay/frontend/apps/retailer/.next ]; then
+  cp -r /home/ubuntu/pay2pay/frontend/apps/retailer/.next /home/ubuntu/pay2pay/frontend/ || true
+fi
+if [ -d /home/ubuntu/pay2pay/frontend/apps/retailer/public ]; then
+  cp -r /home/ubuntu/pay2pay/frontend/apps/retailer/public /home/ubuntu/pay2pay/frontend/ || true
+fi
 
-    ssh_cmd = f'ssh -o StrictHostKeyChecking=no -i "{KEY_PATH}" {SERVER_HOST} "{remote_script}"'
-    res = subprocess.run(ssh_cmd, shell=True, capture_output=True, encoding="utf-8", errors="replace")
+echo '=== 2. Deploying Admin Frontend (Port 3003) ==='
+sudo rm -rf /home/ubuntu/pay2pay/admin/*
+sudo unzip -q -o /home/ubuntu/admin_deploy.zip -d /home/ubuntu/pay2pay/admin/
+if [ -f /home/ubuntu/pay2pay/admin/apps/admin/server.js ]; then
+  cp /home/ubuntu/pay2pay/admin/apps/admin/server.js /home/ubuntu/pay2pay/admin/server.js || true
+fi
+if [ -d /home/ubuntu/pay2pay/admin/apps/admin/.next ]; then
+  cp -r /home/ubuntu/pay2pay/admin/apps/admin/.next /home/ubuntu/pay2pay/admin/ || true
+fi
+if [ -d /home/ubuntu/pay2pay/admin/apps/admin/public ]; then
+  cp -r /home/ubuntu/pay2pay/admin/apps/admin/public /home/ubuntu/pay2pay/admin/ || true
+fi
+
+echo '=== 3. Deploying Backend API ==='
+sudo unzip -q -o /home/ubuntu/backend_deploy.zip -d /home/ubuntu/pay2pay/backend/
+
+echo '=== 4. Setting Correct Ownership & Permissions ==='
+sudo chown -R ubuntu:ubuntu /home/ubuntu/pay2pay
+
+echo '=== 5. Restarting Production Systemd Services ==='
+sudo systemctl restart pay2pay-backend
+sudo systemctl restart pay2pay-frontend
+sudo systemctl restart pay2pay-admin
+sudo systemctl reload nginx || sudo systemctl restart nginx
+
+sleep 4
+
+echo '=== 6. Service Health Check ==='
+sudo systemctl status pay2pay-backend --no-pager
+sudo systemctl status pay2pay-frontend --no-pager
+sudo systemctl status pay2pay-admin --no-pager
+curl -s -o /dev/null -w 'Retailer (Port 3000) Status: %{http_code}\n' http://127.0.0.1:3000/retailer/login || true
+curl -s -o /dev/null -w 'Admin (Port 3003) Status: %{http_code}\n' http://127.0.0.1:3003/admin/login || true
+curl -s -o /dev/null -w 'Backend Docs (Port 8000) Status: %{http_code}\n' http://127.0.0.1:8000/docs || true
+echo '=== Live Production Deployment Finished Successfully! ==='
+"""
+
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".sh", newline="\n") as f:
+        f.write(remote_script)
+        tmp_script_path = f.name
+
+    subprocess.run(["scp", "-o", "StrictHostKeyChecking=no", "-i", KEY_PATH, tmp_script_path, f"{SERVER_HOST}:/tmp/do_deploy.sh"], check=True)
+    res = subprocess.run(["ssh", "-o", "StrictHostKeyChecking=no", "-i", KEY_PATH, SERVER_HOST, "bash /tmp/do_deploy.sh"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     print("STDOUT:\n", res.stdout)
     if res.stderr:
         print("STDERR:\n", res.stderr)

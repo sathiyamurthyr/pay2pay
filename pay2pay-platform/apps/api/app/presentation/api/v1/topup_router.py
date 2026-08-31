@@ -11,6 +11,8 @@ Full enterprise workflow:
 - Rejection handling with zero financial side-effects
 """
 
+from __future__ import annotations
+
 import io
 import os
 import re
@@ -20,7 +22,7 @@ import asyncio
 import logging
 from decimal import Decimal
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status, Request
 from fastapi.responses import JSONResponse
@@ -66,7 +68,7 @@ def get_retailer_display_name(retailer: Optional[RetailerModel]) -> str:
     )
 
 
-def check_t1_approval_eligibility(topup: TopupRequestModel) -> tuple[bool, bool, str]:
+def check_t1_approval_eligibility(topup: TopupRequestModel) -> Tuple[bool, bool, str]:
     """
     Strict Financial Settlement Governance:
     Evaluates whether a topup request is a POS T+1 mode and enforces that T+1 requests

@@ -11,6 +11,8 @@ Full enterprise workflow:
 - Rejection handling with zero financial side-effects
 """
 
+from __future__ import annotations
+
 import io
 import os
 import re
