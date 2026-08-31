@@ -501,27 +501,32 @@ async def get_payout_transactions_report(
     retailer_ref_id = auth_ctx.retailer_ref_id
     rm_ref_id = auth_ctx.regional_manager_ref_id
 
-    # Resolve explicit query params if provided
-    if retailer_id and str(retailer_id).strip():
-        r_clean = str(retailer_id).strip()
-        try:
-            r_lookup = await db.execute(text("""
-                SELECT retailer_ref_id, company_ref_id, tenant_ref_id
-                FROM public.retailer
-                WHERE public_id::text = :r_clean
-                   OR retailer_code = :r_clean
-                   OR retailer_ref_id::text = :r_clean
-                LIMIT 1;
-            """), {"r_clean": r_clean})
-            r_match = r_lookup.fetchone()
-            if r_match:
-                retailer_ref_id = r_match[0]
-                if r_match[1]:
-                    company_ref_id = r_match[1]
-                if r_match[2]:
-                    tenant_ref_id = r_match[2]
-        except Exception as e:
-            logger.warning(f"Error resolving retailer_id query param: {e}")
+    # Resolve explicit query params if provided (Admin / RM only)
+    if auth_ctx.user_type in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "CRM", "RM"):
+        if retailer_id and str(retailer_id).strip():
+            r_clean = str(retailer_id).strip()
+            try:
+                r_lookup = await db.execute(text("""
+                    SELECT retailer_ref_id, company_ref_id, tenant_ref_id
+                    FROM public.retailer
+                    WHERE public_id::text = :r_clean
+                       OR retailer_code = :r_clean
+                       OR retailer_ref_id::text = :r_clean
+                    LIMIT 1;
+                """), {"r_clean": r_clean})
+                r_match = r_lookup.fetchone()
+                if r_match:
+                    retailer_ref_id = r_match[0]
+                    if r_match[1]:
+                        company_ref_id = r_match[1]
+                    if r_match[2]:
+                        tenant_ref_id = r_match[2]
+            except Exception as e:
+                logger.warning(f"Error resolving retailer_id query param: {e}")
+    elif auth_ctx.user_type == "RETAILER":
+        # Strict Retailer isolation: Lock to authenticated retailer only
+        if retailer_ref_id is None:
+            retailer_ref_id = -1
 
     from_date_parsed = start_dt.strftime("%Y-%m-%d")
     to_date_parsed = end_dt.strftime("%Y-%m-%d")

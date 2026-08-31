@@ -749,11 +749,6 @@ export default function AdminTopupRequestsPage() {
                                 </span>
                               )}
                             </div>
-                            {item.retailer?.retailer_id && (
-                              <div className="text-[10px] font-mono text-slate-500 mt-0.5 truncate max-w-[200px]" title={item.retailer.retailer_id}>
-                                ID: {item.retailer.retailer_id}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -1061,14 +1056,6 @@ export default function AdminTopupRequestsPage() {
                         <h4 className="text-base font-black text-white">
                           {selectedRequest.retailer?.retailer_name || "Unknown Retailer"}
                         </h4>
-                        {selectedRequest.retailer?.retailer_id && (
-                          <div className="flex items-center gap-1.5 mt-1.5 text-xs">
-                            <span className="text-slate-500 font-medium">Retailer UUID:</span>
-                            <span className="font-mono text-xs font-bold text-slate-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 select-all">
-                              {selectedRequest.retailer.retailer_id}
-                            </span>
-                          </div>
-                        )}
                         {selectedRequest.retailer?.mobile_number && (
                           <p className="text-xs text-slate-300 flex items-center gap-1.5 mt-1.5 font-medium">
                             <Phone className="h-3.5 w-3.5 text-slate-400" />
