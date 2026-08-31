@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, func, Identity, FetchedValue
+    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, func, Identity, FetchedValue, Numeric
 )
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB, UUID
 JSONB = JSON
@@ -3978,6 +3978,24 @@ class NotificationAnalyticsModel(BaseEntity, EnterpriseBaseMixin):
 from app.infrastructure.db.enterprise_api_log_model import EnterpriseApiLogModel
 from app.infrastructure.db.topup_request_model import TopupRequestModel
 from app.infrastructure.db.payout_slab_model import PayoutSlabModel, PayoutSlabAuditModel
+
+
+class AdminFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "admin_favorite_menu"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    menu_href: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    menu_label: Mapped[str] = mapped_column(String(150), nullable=False)
+    menu_category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    icon_name: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        Index("ix_admin_fav_user_tenant", "tenant_id", "user_id", "is_active", "is_deleted"),
+        {"extend_existing": True}
+    )
+
 
 
 

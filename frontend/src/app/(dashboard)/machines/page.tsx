@@ -81,17 +81,18 @@ function SearchableRetailerSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedRetailer = retailers.find((r) => r.public_id === value || r.retailer_code === value);
+  const selectedRetailer = retailers.find((r) => r.public_id === value || r.retailer_code === value || String(r.id) === value);
 
   const filteredRetailers = retailers.filter((r) => {
     const q = filterText.toLowerCase().trim();
     if (!q) return true;
-    const text = `${r.store_name} ${r.retailer_code} ${r.owner_name} ${r.registered_mobile || ""} ${r.legal_name || ""}`.toLowerCase();
+    const mob = r.registered_mobile || r.mobile || "";
+    const text = `${r.store_name || ""} ${r.retailer_code || ""} ${r.owner_name || ""} ${mob} ${r.legal_name || ""}`.toLowerCase();
     return text.includes(q);
   });
 
   const displayLabel = selectedRetailer
-    ? `${selectedRetailer.store_name || selectedRetailer.owner_name} (${selectedRetailer.retailer_code})`
+    ? `${selectedRetailer.store_name || selectedRetailer.owner_name} (${selectedRetailer.retailer_code})${selectedRetailer.registered_mobile || selectedRetailer.mobile ? ` • ${selectedRetailer.registered_mobile || selectedRetailer.mobile}` : ""}`
     : placeholder;
 
   return (
@@ -179,7 +180,7 @@ function SearchableRetailerSelect({
                   >
                     <div className="truncate pr-2">
                       <div className="font-bold text-[#0F172A]">{r.store_name || r.owner_name} <span className="font-mono text-[11px] text-[#64748B]">({r.retailer_code})</span></div>
-                      <div className="text-[11px] text-[#64748B] font-medium">{r.owner_name} {r.registered_mobile ? `| ${r.registered_mobile}` : ""}</div>
+                      <div className="text-[11px] text-[#64748B] font-medium">{r.owner_name} {r.registered_mobile || r.mobile ? `| ${r.registered_mobile || r.mobile}` : ""}</div>
                     </div>
                     {isSelected && <Check className="w-4 h-4 text-[#2563EB] shrink-0" />}
                   </button>
@@ -256,9 +257,9 @@ export default function MachinesPage() {
   const [mdrForm, setMdrForm] = useState({
     retailer_id: "",
     payment_mode: "POS - Instant",
-    mdr: 1.70,
+    mdr: "1.70" as string | number,
     mdr_type: "PERCENTAGE",
-    gst_rate: 18.00,
+    gst_rate: "18.00" as string | number,
     remarks: "",
     is_active: true
   });
@@ -281,14 +282,25 @@ export default function MachinesPage() {
     }
   };
 
-  // Load Active Retailers & Companies
+  // Load Active & Approved Retailers & Companies from DB
   const fetchRetailersAndCompanies = async () => {
     try {
-      const [rRes, cRes] = await Promise.all([
-        api.get("/api/v1/retailers"),
-        api.get("/api/v1/companies")
-      ]);
-      setRetailers(rRes.data.items || []);
+      let retList: any[] = [];
+      try {
+        const rRes = await api.get("/api/v1/pos/admin/approved-retailers");
+        retList = rRes.data.items || [];
+      } catch {
+        try {
+          const rRes2 = await api.get("/api/v1/retailers/approved");
+          retList = rRes2.data.items || [];
+        } catch {
+          const rRes3 = await api.get("/api/v1/retailers");
+          retList = rRes3.data.items || [];
+        }
+      }
+
+      const cRes = await api.get("/api/v1/companies");
+      setRetailers(retList);
       setCompanies(cRes.data.items || []);
       if (cRes.data.items?.length > 0 && !machineForm.company_id) {
         setMachineForm(prev => ({ ...prev, company_id: cRes.data.items[0].public_id }));
@@ -474,12 +486,28 @@ export default function MachinesPage() {
     setSubmitting(true);
     setModalError("");
 
+    const parsedMdr = parseFloat(String(mdrForm.mdr));
+    const parsedGst = parseFloat(String(mdrForm.gst_rate));
+
+    if (isNaN(parsedMdr) || parsedMdr < 0) {
+      setModalError("MDR Rate Percentage must be a valid non-negative number.");
+      setSubmitting(false);
+      return;
+    }
+    if (isNaN(parsedGst) || parsedGst < 0) {
+      setModalError("GST Rate Percentage must be a valid non-negative number (0.0 or greater).");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       if (editingMdrConfig) {
-        await api.put(`/api/v1/pos/admin/mdr-configs/${editingMdrConfig.id}`, {
-          mdr: mdrForm.mdr,
-          mdr_type: mdrForm.mdr_type,
-          gst_rate: mdrForm.gst_rate,
+        const configId = editingMdrConfig.id || editingMdrConfig.public_id;
+        await api.put(`/api/v1/pos/admin/mdr-configs/${configId}`, {
+          id: configId,
+          mdr: parsedMdr,
+          mdr_type: mdrForm.mdr_type || "PERCENTAGE",
+          gst_rate: parsedGst,
           remarks: mdrForm.remarks,
           is_active: mdrForm.is_active
         });
@@ -492,9 +520,9 @@ export default function MachinesPage() {
         await api.post("/api/v1/pos/admin/mdr-configs", {
           retailer_id: mdrForm.retailer_id || null,
           payment_mode: mdrForm.payment_mode,
-          mdr: mdrForm.mdr,
-          mdr_type: mdrForm.mdr_type,
-          gst_rate: mdrForm.gst_rate,
+          mdr: parsedMdr,
+          mdr_type: mdrForm.mdr_type || "PERCENTAGE",
+          gst_rate: parsedGst,
           remarks: mdrForm.remarks,
           is_active: mdrForm.is_active
         });
@@ -539,9 +567,9 @@ export default function MachinesPage() {
     setMdrForm({
       retailer_id: cfg.retailer_id || "",
       payment_mode: cfg.payment_mode,
-      mdr: cfg.mdr,
+      mdr: cfg.mdr !== undefined && cfg.mdr !== null ? String(cfg.mdr) : "1.70",
       mdr_type: cfg.mdr_type || "PERCENTAGE",
-      gst_rate: cfg.gst_rate ?? 18.00,
+      gst_rate: cfg.gst_rate !== undefined && cfg.gst_rate !== null ? String(cfg.gst_rate) : "18.00",
       remarks: cfg.remarks || "",
       is_active: cfg.is_active ?? true
     });
@@ -1255,7 +1283,7 @@ export default function MachinesPage() {
                     min="0"
                     required
                     value={mdrForm.mdr}
-                    onChange={(e) => setMdrForm({ ...mdrForm, mdr: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setMdrForm({ ...mdrForm, mdr: e.target.value })}
                     className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
                   />
                 </div>
@@ -1270,7 +1298,7 @@ export default function MachinesPage() {
                     min="0"
                     required
                     value={mdrForm.gst_rate}
-                    onChange={(e) => setMdrForm({ ...mdrForm, gst_rate: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setMdrForm({ ...mdrForm, gst_rate: e.target.value })}
                     className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
                   />
                 </div>

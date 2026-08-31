@@ -49,7 +49,7 @@ async def create_machine(
             "vendor_id": m.vendor_id,
             "vendor_name": m.vendor_name,
             "vendor_commission_type": m.vendor_commission_type,
-            "vendor_commission_value": float(m.vendor_commission_value),
+            "vendor_commission_value": float(m.vendor_commission_value) if m.vendor_commission_value is not None else 0.0,
             "status": m.status,
             "mapped_retailer_id": str(m.mapped_retailer_id) if m.mapped_retailer_id else None,
             "assigned_at": m.assigned_at.isoformat() if m.assigned_at else None,

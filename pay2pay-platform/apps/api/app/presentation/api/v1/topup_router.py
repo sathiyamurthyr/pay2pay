@@ -66,7 +66,44 @@ def get_retailer_display_name(retailer: Optional[RetailerModel]) -> str:
     )
 
 
+def check_t1_approval_eligibility(topup: TopupRequestModel) -> tuple[bool, bool, str]:
+    """
+    Strict Financial Settlement Governance:
+    Evaluates whether a topup request is a POS T+1 mode and enforces that T+1 requests
+    CANNOT be approved on the current (T+0) day.
+    Returns: (is_pos_t1, can_approve, approval_block_reason)
+    """
+    mode = ((topup.payment_method or "") + " " + (getattr(topup, "payment_mode", "") or "")).upper()
+    is_t1 = "T+1" in mode or "T1" in mode or "POS+T1" in mode or "POS T1" in mode or "POS - T1" in mode
+    if not is_t1:
+        return False, True, ""
+
+    # Check date in IST timezone (+05:30)
+    ist = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist).date()
+
+    tx_dt = topup.payment_date or topup.submitted_at or topup.created_date
+    if tx_dt:
+        if tx_dt.tzinfo is None:
+            tx_dt = tx_dt.replace(tzinfo=timezone.utc)
+        tx_date_ist = tx_dt.astimezone(ist).date()
+    else:
+        tx_date_ist = now_ist
+
+    # If transaction date is today or later (same day T+0), approval is strictly BLOCKED
+    if tx_date_ist >= now_ist:
+        next_day = tx_date_ist + timedelta(days=1)
+        return (
+            True,
+            False,
+            f"T+1 Settlement Policy Lock: This POS T+1 request was submitted on {tx_date_ist.strftime('%d-%b-%Y')} and is locked for same-day (T+0) approval. Approval will unlock tomorrow ({next_day.strftime('%d-%b-%Y')} / T+1)."
+        )
+
+    return True, True, ""
+
+
 from app.application.pos_mdr_service import PosMdrService
+
 
 # ==============================================================================
 # SCHEMAS
@@ -906,6 +943,8 @@ async def get_admin_topup_requests(
             base_mdr = float(topup.charges) if not topup.gst_amount else float(topup.charges) - float(topup.gst_amount)
             mdr_pct = round((max(0.0, base_mdr) / float(topup.requested_amount)) * 100, 2)
 
+        is_t1, can_app, block_reason = check_t1_approval_eligibility(topup)
+
         items.append({
             "id": str(topup.public_id),
             "topup_request_id": topup.topup_request_id,
@@ -921,6 +960,9 @@ async def get_admin_topup_requests(
             "payment_reference": topup.payment_reference,
             "payment_method": topup.payment_method or "POS - Instant",
             "payment_mode": topup.payment_method or "POS - Instant",
+            "is_pos_t1": is_t1,
+            "can_approve": can_app if topup.status.upper() in ("PENDING", "UNDER_REVIEW") else False,
+            "approval_block_reason": block_reason,
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -948,6 +990,7 @@ async def get_admin_topup_requests(
                 "is_wallet_frozen": wallet.is_frozen if wallet else False
             } if (retailer or topup.retailer_id) else None
         })
+
 
     total_pages = (total + page_size - 1) // page_size if total > 0 else 1
 
@@ -1024,6 +1067,7 @@ async def get_topup_request_detail(
     received_val = float(topup.received_amount) if topup.received_amount is not None else (
         float(topup.approved_amount) if topup.approved_amount is not None else float(topup.requested_amount)
     )
+    is_t1, can_app, block_reason = check_t1_approval_eligibility(topup)
 
     return {
         "success": True,
@@ -1041,6 +1085,9 @@ async def get_topup_request_detail(
             "payment_reference": topup.payment_reference,
             "payment_method": topup.payment_method or "POS - Instant",
             "payment_mode": topup.payment_method or "POS - Instant",
+            "is_pos_t1": is_t1,
+            "can_approve": can_app if topup.status.upper() in ("PENDING", "UNDER_REVIEW") else False,
+            "approval_block_reason": block_reason,
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -1089,17 +1136,18 @@ async def approve_topup_request(
     CRITICAL FINANCIAL P0 ATOMIC APPROVAL:
     1. Locks topup request row with FOR UPDATE.
     2. Validates status is PENDING or UNDER_REVIEW.
-    3. DERIVES retailer_id and wallet_id strictly from topup_request row (NEVER from frontend).
-    4. Validates approved amount (defaults to requested_amount if not specified).
-    5. Row-locks RetailerWalletModel with FOR UPDATE.
-    6. Authoritative Database Ledger Credit:
+    3. Strictly enforces T+1 settlement policy (blocks same-day / current-day approval).
+    4. DERIVES retailer_id and wallet_id strictly from topup_request row (NEVER from frontend).
+    5. Validates approved amount (defaults to requested_amount if not specified).
+    6. Row-locks RetailerWalletModel with FOR UPDATE.
+    7. Authoritative Database Ledger Credit:
        - balance_before = wallet.wallet_balance
        - balance_after = balance_before + approved_amount
        - wallet.wallet_balance = balance_after
-    7. Creates TransactionLedgerEntryModel (CREDIT, RETAILER_WALLET).
-    8. Creates CentralTransactionModel (service_type=TOPUP, transaction_type=WALLET_TOPUP, status=SUCCESS).
-    9. Updates TopupRequestModel (status=APPROVED, approved_amount, approved_by, approved_at).
-    10. Commits atomic database transaction.
+    8. Creates TransactionLedgerEntryModel (CREDIT, RETAILER_WALLET).
+    9. Creates CentralTransactionModel (service_type=TOPUP, transaction_type=WALLET_TOPUP, status=SUCCESS).
+    10. Updates TopupRequestModel (status=APPROVED, approved_amount, approved_by, approved_at).
+    11. Commits atomic database transaction.
     """
     # 1. Row-lock TopupRequestModel
     conditions = [TopupRequestModel.is_deleted == False]
@@ -1129,6 +1177,14 @@ async def approve_topup_request(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot approve a topup request with status '{topup_record.status}'."
+        )
+
+    # 2b. Strict T+1 Settlement Policy Enforcement
+    is_t1, can_app, block_reason = check_t1_approval_eligibility(topup_record)
+    if is_t1 and not can_app:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=block_reason or "T+1 Settlement Policy Lock: POS T+1 requests cannot be approved on the current (T+0) day. Approval is strictly allowed starting from next business day (T+1)."
         )
 
     # 3. Derive Approved & Received Amount

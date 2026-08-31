@@ -59,6 +59,14 @@ interface TopupItem {
   currency: string;
   payment_reference: string;
   payment_method: string;
+  payment_mode?: string;
+  pos_type?: string;
+  is_pos_t1?: boolean;
+  is_pos_instant?: boolean;
+  can_approve?: boolean;
+  approval_block_reason?: string;
+  request_date?: string;
+  current_business_date?: string;
   payment_date?: string;
   slip_id?: string;
   slip_url?: string;
@@ -86,6 +94,13 @@ interface TopupItem {
     current_wallet_balance: number;
     is_wallet_frozen: boolean;
   };
+}
+
+export function isPosT1Mode(item: TopupItem | null | undefined): boolean {
+  if (!item) return false;
+  if (item.is_pos_t1 !== undefined) return item.is_pos_t1;
+  const mode = (item.payment_mode || item.payment_method || "").toUpperCase().replace(/[\s\-_+]/g, "");
+  return mode.includes("T1") || mode === "POST1" || mode === "POS_T1";
 }
 
 interface Metrics {
@@ -237,6 +252,10 @@ export default function AdminTopupRequestsPage() {
 
   const handleApprove = async () => {
     if (!selectedRequest) return;
+    if (selectedRequest.can_approve === false) {
+      setActionErrorMsg(selectedRequest.approval_block_reason || "POS T1 requests can be approved from the next day (T+1).");
+      return;
+    }
     setApproving(true);
     setActionSuccessMsg(null);
     setActionErrorMsg(null);
@@ -1305,13 +1324,26 @@ export default function AdminTopupRequestsPage() {
                       Reject Request
                     </button>
 
-                    <button
-                      onClick={() => setShowApproveModal(true)}
-                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-1.5 active:scale-95"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Approve &amp; Credit Wallet (₹{(parseFloat(customApprovedAmount) || 0).toLocaleString("en-IN")})
-                    </button>
+                    {selectedRequest.can_approve === false ? (
+                      <div className="relative group" title={selectedRequest.approval_block_reason || "POS T1 requests can be approved from the next day (T+1)."}>
+                        <button
+                          type="button"
+                          disabled
+                          className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-500 border border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-not-allowed shadow-none"
+                        >
+                          <Clock className="h-4 w-4 text-slate-500" />
+                          Approve Disabled (T+1 Pending)
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowApproveModal(true)}
+                        className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-1.5 active:scale-95"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Approve &amp; Credit Wallet (₹{(parseFloat(customApprovedAmount) || 0).toLocaleString("en-IN")})
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
