@@ -256,6 +256,8 @@ class TransactionReportItem(BaseModel):
     distributor: str
     sd: str
     rm: str
+    user_ref_id: Optional[int] = None
+    user_type_ref_id: Optional[int] = None
 
 
 class TransactionReportResponse(BaseModel):
@@ -387,6 +389,9 @@ async def get_transaction_report(
     status: Optional[str] = Query(None, description="Status filter (SUCCESS, PENDING, FAILED, REVERSED, ALL)"),
     wallet: Optional[str] = Query(None, description="Wallet filter (MAIN, COMMISSION, SETTLEMENT, ALL)"),
     user_type: Optional[str] = Query(None, description="User type filter (ADMIN, RETAILER, DISTRIBUTOR, SD, CRM, RM, ALL)"),
+    user_type_ref_id: Optional[int] = Query(None, description="User type ref ID (1=ADMIN, 2=RETAILER, 3=DISTRIBUTOR, 4=SD, 5=CRM, 6=RM)"),
+    user_ref_id: Optional[int] = Query(None, description="Optional user_ref_id filter (for Admin / CRM / RM)"),
+    retailer_ref_id: Optional[int] = Query(None, description="Optional retailer_ref_id alias for user_ref_id (for Admin / CRM / RM)"),
     search: Optional[str] = Query(None, description="Search term for Txn ID, Ref ID, Service, Retailer, Description"),
     sort_by: Optional[str] = Query("date_time", description="Sort by field (default: date_time)"),
     sort_order: Optional[str] = Query("DESC", description="Sort direction (ASC, DESC)"),
@@ -409,30 +414,55 @@ async def get_transaction_report(
         sort_order=sort_order
     )
 
-    # 3. Validate user_type query parameter if provided
-    query_user_type_ref_id: Optional[int] = None
+    # 3. Validate user_type and user_type_ref_id query parameter if provided
+    query_user_type_ref_id: Optional[int] = user_type_ref_id
     query_user_type_code: Optional[str] = None
     if user_type is not None and str(user_type).strip() != "":
         validated_ut = UserTypeService.validate_user_type(user_type, allow_all=True)
         if validated_ut != "ALL":
             query_user_type_code = validated_ut
-            query_user_type_ref_id = await UserTypeService.get_user_type_ref_id(db, validated_ut)
+            if query_user_type_ref_id is None:
+                query_user_type_ref_id = await UserTypeService.get_user_type_ref_id(db, validated_ut)
+    elif user_type_ref_id is not None:
+        query_user_type_ref_id = int(user_type_ref_id)
+        query_user_type_code = await UserTypeService.get_user_type_code(db, query_user_type_ref_id)
 
     # For non-admin users, restrict to their authorized user_type_ref_id
     effective_user_type_ref_id = query_user_type_ref_id
     effective_user_type_code = query_user_type_code
 
     if auth_ctx.user_type == "RETAILER":
-        effective_user_type_ref_id = auth_ctx.user_type_ref_id
+        effective_user_type_ref_id = 2  # RETAILER
         effective_user_type_code = "RETAILER"
+    elif auth_ctx.user_type == "DISTRIBUTOR":
+        effective_user_type_ref_id = 3  # DISTRIBUTOR
+        effective_user_type_code = "DISTRIBUTOR"
+    elif auth_ctx.user_type == "SD":
+        effective_user_type_ref_id = 4  # SD
+        effective_user_type_code = "SD"
     elif auth_ctx.user_type == "RM":
-        # RM sees mapped retailers' transactions
         pass
 
     # 4. Execute Authoritative PostgreSQL Stored Function
     tenant_ref_id = auth_ctx.tenant_ref_id or 1
     company_ref_id = auth_ctx.company_ref_id
-    retailer_ref_id = auth_ctx.retailer_ref_id
+    
+    # Resolve effective user/retailer scoping
+    effective_user_ref_id = auth_ctx.retailer_ref_id
+    if auth_ctx.user_type in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "CRM", "RM"):
+        if user_ref_id is not None:
+            effective_user_ref_id = user_ref_id
+        elif retailer_ref_id is not None:
+            effective_user_ref_id = retailer_ref_id
+    elif auth_ctx.user_type == "RETAILER":
+        # Strict Retailer isolation: Lock to authenticated retailer only, prevent any unmapped fallback
+        if effective_user_ref_id is None:
+            effective_user_ref_id = -1
+    elif auth_ctx.user_type == "DISTRIBUTOR":
+        effective_user_ref_id = auth_ctx.distributor_ref_id or -1
+    elif auth_ctx.user_type == "SD":
+        effective_user_ref_id = auth_ctx.super_distributor_ref_id or -1
+
     rm_ref_id = auth_ctx.regional_manager_ref_id
 
     # Format from_date and to_date as YYYY-MM-DD
@@ -457,9 +487,9 @@ async def get_transaction_report(
         where_clauses.append("COALESCE(t.company_ref_id, ret.company_ref_id, 1) = :company_ref_id")
         count_params["company_ref_id"] = company_ref_id
 
-    if retailer_ref_id is not None:
-        where_clauses.append("t.retailer_ref_id = :retailer_ref_id")
-        count_params["retailer_ref_id"] = retailer_ref_id
+    if effective_retailer_ref_id is not None:
+        where_clauses.append("t.user_ref_id = :user_ref_id")
+        count_params["user_ref_id"] = effective_retailer_ref_id
 
     if rm_ref_id is not None:
         where_clauses.append("COALESCE(t.regional_manager_ref_id, ret.regional_manager_ref_id) = :rm_ref_id")
@@ -510,7 +540,7 @@ async def get_transaction_report(
     count_sql = f"""
     SELECT COUNT(*) 
     FROM public.transactions t
-    LEFT JOIN public.retailer ret ON ret.retailer_ref_id = t.retailer_ref_id
+    LEFT JOIN public.retailer ret ON (ret.public_id = t.retailer_id OR (ret.retailer_ref_id = t.user_ref_id AND t.user_type_ref_id = 2) OR ret.retailer_ref_id = t.retailer_ref_id)
     LEFT JOIN public.company c ON c.company_ref_id = COALESCE(t.company_ref_id, ret.company_ref_id)
     WHERE {" AND ".join(where_clauses)};
     """
@@ -535,12 +565,12 @@ async def get_transaction_report(
     sp_params = {
         "tenant_ref_id": tenant_ref_id,
         "company_ref_id": company_ref_id,
-        "retailer_ref_id": retailer_ref_id,
+        "user_ref_id": effective_user_ref_id,
         "rm_ref_id": rm_ref_id,
         "user_type_ref_id": effective_user_type_ref_id,
         "user_type": effective_user_type_code,
-        "from_date": start_dt.date(),
-        "to_date": end_dt.date(),
+        "from_date": start_dt.astimezone(IST).date(),
+        "to_date": end_dt.astimezone(IST).date(),
         "service": service.strip().upper() if service and service.strip().upper() != "ALL" else None,
         "wallet": wallet.strip().upper() if wallet and wallet.strip().upper() != "ALL" else None,
         "entry": entry_type.strip().upper() if entry_type and entry_type.strip().upper() != "ALL" else None,
@@ -554,7 +584,7 @@ async def get_transaction_report(
     SELECT * FROM public.get_transactions_report(
         p_tenant_ref_id := CAST(:tenant_ref_id AS BIGINT),
         p_company_ref_id := CAST(:company_ref_id AS BIGINT),
-        p_user_ref_id := CAST(:retailer_ref_id AS BIGINT),
+        p_user_ref_id := CAST(:user_ref_id AS BIGINT),
         p_rm_ref_id := CAST(:rm_ref_id AS BIGINT),
         p_user_type_ref_id := CAST(:user_type_ref_id AS BIGINT),
         p_user_type := CAST(:user_type AS VARCHAR),
@@ -573,7 +603,7 @@ async def get_transaction_report(
     rows_res = await db.execute(text(select_sp_sql), sp_params)
     rows = rows_res.fetchall()
 
-    # 5. Format Output (16 Columns in strict order)
+    # 5. Format Output (16 Columns in strict order + dynamic user identifiers)
     output_items: List[Dict[str, Any]] = []
     for r in rows:
         m = dict(r._mapping)
@@ -600,7 +630,9 @@ async def get_transaction_report(
             "retailer": m.get("retailer") or "Retailer",
             "distributor": m.get("distributor") or "",
             "sd": m.get("sd") or "",
-            "rm": m.get("rm") or ""
+            "rm": m.get("rm") or "",
+            "user_ref_id": m.get("user_ref_id"),
+            "user_type_ref_id": m.get("user_type_ref_id")
         }
         output_items.append(item)
 

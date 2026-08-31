@@ -183,23 +183,23 @@ DROP FUNCTION IF EXISTS public.get_transactions_report(BIGINT, BIGINT, BIGINT, B
 CREATE OR REPLACE FUNCTION public.get_transactions_report(
     p_tenant_ref_id       BIGINT,
     p_company_ref_id      BIGINT DEFAULT NULL,
-    p_retailer_ref_id     BIGINT DEFAULT NULL,
-    p_rm_ref_id            BIGINT DEFAULT NULL,
-    p_user_type            VARCHAR(50) DEFAULT NULL,
+    p_user_ref_id         BIGINT DEFAULT NULL,
+    p_rm_ref_id           BIGINT DEFAULT NULL,
+    p_user_type           VARCHAR(50) DEFAULT NULL,
 
-    p_from_date            DATE DEFAULT CURRENT_DATE,
-    p_to_date              DATE DEFAULT CURRENT_DATE,
+    p_from_date           DATE DEFAULT CURRENT_DATE,
+    p_to_date             DATE DEFAULT CURRENT_DATE,
 
-    p_service              VARCHAR(100) DEFAULT NULL,
-    p_wallet               VARCHAR(450) DEFAULT NULL,
-    p_entry                VARCHAR(10) DEFAULT NULL,
-    p_status               VARCHAR(100) DEFAULT NULL,
+    p_service             VARCHAR(100) DEFAULT NULL,
+    p_wallet              VARCHAR(450) DEFAULT NULL,
+    p_entry               VARCHAR(10) DEFAULT NULL,
+    p_status              VARCHAR(100) DEFAULT NULL,
 
-    p_search               VARCHAR(200) DEFAULT NULL,
+    p_search              VARCHAR(200) DEFAULT NULL,
 
-    p_page                 INTEGER DEFAULT 1,
-    p_limit                INTEGER DEFAULT 25,
-    p_user_type_ref_id     BIGINT DEFAULT NULL
+    p_page                INTEGER DEFAULT 1,
+    p_limit               INTEGER DEFAULT 25,
+    p_user_type_ref_id    BIGINT DEFAULT NULL
 )
 RETURNS TABLE (
     txn_id                VARCHAR(100),
@@ -224,15 +224,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_offset  INTEGER;
-    v_from_dt TIMESTAMPTZ;
-    v_to_dt   TIMESTAMPTZ;
+    v_offset     INTEGER;
+    v_from_dt    TIMESTAMPTZ;
+    v_to_dt      TIMESTAMPTZ;
 BEGIN
-    p_page := GREATEST(COALESCE(p_page, 1), 1);
-    p_limit := LEAST(GREATEST(COALESCE(p_limit, 25), 1), 100);
+    p_page   := GREATEST(COALESCE(p_page, 1), 1);
+    p_limit  := LEAST(GREATEST(COALESCE(p_limit, 25), 1), 100);
     v_offset := (p_page - 1) * p_limit;
 
-    -- Timezone handling: Default to Asia/Kolkata (IST: UTC+05:30) bounds
+    -- Timezone handling: Asia/Kolkata (IST: UTC+05:30) bounds
     v_from_dt := (COALESCE(p_from_date, CURRENT_DATE)::TEXT || ' 00:00:00+05:30')::TIMESTAMPTZ;
     v_to_dt   := (COALESCE(p_to_date, CURRENT_DATE)::TEXT || ' 23:59:59.999999+05:30')::TIMESTAMPTZ;
 
@@ -250,31 +250,58 @@ BEGIN
         t.created_at AS date_time,
         COALESCE(t.status, 'SUCCESS')::VARCHAR(100) AS status,
         COALESCE(c.company_name, c.display_name, c.legal_name, 'Pay2Pay')::VARCHAR(500) AS company,
-        COALESCE(r.store_name, r.legal_name, t.retailer_name, r.owner_name, 'Retailer')::VARCHAR(500) AS retailer,
+        COALESCE(r.store_name, r.legal_name, t.retailer_name, r.owner_name, (CASE WHEN t.user_type_ref_id = 2 THEN 'Retailer' ELSE '' END))::VARCHAR(500) AS retailer,
         COALESCE(t.dist_name, d.business_name, d.owner_name, '')::VARCHAR(500) AS distributor,
         COALESCE(t.sd_name, sd.business_name, sd.owner_name, '')::VARCHAR(500) AS sd,
         COALESCE(t.rm_name, rm.full_name, '')::VARCHAR(500) AS rm
     FROM public.transactions t
-    LEFT JOIN public.retailer r ON r.retailer_ref_id = t.retailer_ref_id
-    LEFT JOIN public.company c ON c.company_ref_id = COALESCE(t.company_ref_id, r.company_ref_id)
-    LEFT JOIN public.distributor d ON d.distributor_ref_id = t.distributor_ref_id
-    LEFT JOIN public.super_distributor sd ON sd.super_distributor_ref_id = t.super_distributor_ref_id
-    LEFT JOIN public.regional_manager rm ON rm.regional_manager_ref_id = COALESCE(t.regional_manager_ref_id, r.regional_manager_ref_id)
+    -- Dynamic role entity joins using user_ref_id and user_type_ref_id
+    LEFT JOIN public.retailer r ON (r.retailer_ref_id = t.user_ref_id AND t.user_type_ref_id = 2)
+    LEFT JOIN public.distributor d ON (d.distributor_ref_id = t.user_ref_id AND t.user_type_ref_id = 3) OR (d.distributor_ref_id = r.distributor_ref_id)
+    LEFT JOIN public.super_distributor sd ON (sd.super_distributor_ref_id = t.user_ref_id AND t.user_type_ref_id = 4) OR (sd.super_distributor_ref_id = d.super_distributor_ref_id)
+    LEFT JOIN public.regional_manager rm ON (rm.regional_manager_ref_id = t.user_ref_id AND t.user_type_ref_id = 6) OR (rm.regional_manager_ref_id = r.regional_manager_ref_id)
+    LEFT JOIN public.company c ON c.company_ref_id = COALESCE(t.company_ref_id, r.company_ref_id, d.company_ref_id, sd.company_ref_id, rm.company_ref_id, 1)
     WHERE
+        -- Multi-tenancy
         (p_tenant_ref_id IS NULL OR COALESCE(t.tenant_ref_id, r.tenant_ref_id, 1) = p_tenant_ref_id OR t.tenant_ref_id IS NULL)
         AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
         AND (t.is_active IS NULL OR t.is_active = TRUE)
+
+        -- IST Date Filtering
         AND t.created_at >= v_from_dt
         AND t.created_at <= v_to_dt
+
+        -- Company Scoping
         AND (p_company_ref_id IS NULL OR COALESCE(t.company_ref_id, r.company_ref_id, 1) = p_company_ref_id OR t.company_ref_id IS NULL)
-        AND (p_retailer_ref_id IS NULL OR t.retailer_ref_id = p_retailer_ref_id)
-        AND (p_rm_ref_id IS NULL OR COALESCE(t.regional_manager_ref_id, r.regional_manager_ref_id) = p_rm_ref_id)
+        
+        -- Dynamic User Scoping (Works for Retailer, Distributor, SD, RM, Admin using user_ref_id and user_type_ref_id)
+        AND (
+            p_user_ref_id IS NULL 
+            OR (t.user_ref_id = p_user_ref_id AND (p_user_type_ref_id IS NULL OR t.user_type_ref_id = p_user_type_ref_id))
+        )
+        
+        -- Regional Manager Scoping (Hierarchy traversal)
+        AND (
+            p_rm_ref_id IS NULL 
+            OR COALESCE(r.regional_manager_ref_id, 0) = p_rm_ref_id
+            OR (t.user_type_ref_id = 6 AND t.user_ref_id = p_rm_ref_id)
+        )
+        
+        -- Role and Service Filters
         AND (p_user_type_ref_id IS NULL OR t.user_type_ref_id = p_user_type_ref_id)
         AND (p_user_type IS NULL OR p_user_type = 'ALL' OR UPPER(COALESCE(t.user_type, 'RETAILER')) = UPPER(p_user_type))
         AND (p_service IS NULL OR p_service = 'ALL' OR UPPER(t.service_name) = UPPER(p_service))
         AND (p_wallet IS NULL OR p_wallet = 'ALL' OR UPPER(COALESCE(t.wallet_type, 'MAIN')) = UPPER(p_wallet))
-        AND (p_entry IS NULL OR p_entry = 'ALL' OR UPPER(t.entry_type) = UPPER(p_entry) OR (UPPER(p_entry) = 'CR' AND UPPER(t.entry_type) = 'CREDIT') OR (UPPER(p_entry) = 'DR' AND UPPER(t.entry_type) = 'DEBIT'))
+        AND (
+            p_entry IS NULL 
+            OR p_entry = 'ALL' 
+            OR UPPER(t.entry_type) = UPPER(p_entry) 
+            OR (UPPER(p_entry) = 'CR' AND UPPER(t.entry_type) = 'CREDIT') 
+            OR (UPPER(p_entry) = 'DR' AND UPPER(t.entry_type) = 'DEBIT')
+        )
         AND (p_status IS NULL OR p_status = 'ALL' OR UPPER(t.status) = UPPER(p_status))
+        
+        -- Global Search
         AND (
             p_search IS NULL
             OR t.txn_id ILIKE '%' || p_search || '%'
@@ -284,6 +311,9 @@ BEGIN
             OR t.retailer_name ILIKE '%' || p_search || '%'
             OR r.store_name ILIKE '%' || p_search || '%'
             OR r.legal_name ILIKE '%' || p_search || '%'
+            OR d.business_name ILIKE '%' || p_search || '%'
+            OR sd.business_name ILIKE '%' || p_search || '%'
+            OR rm.full_name ILIKE '%' || p_search || '%'
             OR c.company_name ILIKE '%' || p_search || '%'
         )
     ORDER BY t.created_at DESC, t.transactions_ref_id DESC

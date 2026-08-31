@@ -56,6 +56,8 @@ ENTITY_PREFIX_MAP = {
     "SUPER_DISTRIBUTOR": "cmp/sd",
     "DISTRIBUTOR":       "cmp/dist",
     "RETAILER":          "cmp/ret",
+    "CUSTOMER":          "cmp/customer",
+    "CUST":              "cmp/customer",
     "COMPANY":           "cmp",
 }
 
@@ -359,8 +361,13 @@ class BackblazeStorageService:
 
         try:
             clean_b64 = base64_data
-            if "," in base64_data:
-                clean_b64 = base64_data.split(",", 1)[1]
+            if "," in clean_b64:
+                clean_b64 = clean_b64.split(",", 1)[1]
+
+            clean_b64 = "".join(clean_b64.split())
+            missing_padding = len(clean_b64) % 4
+            if missing_padding:
+                clean_b64 += "=" * (4 - missing_padding)
 
             image_bytes = base64.b64decode(clean_b64)
             b2_path = _build_b2_path(entity_type, filename)

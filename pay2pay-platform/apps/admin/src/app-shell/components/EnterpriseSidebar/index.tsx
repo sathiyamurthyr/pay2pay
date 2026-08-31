@@ -112,6 +112,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
     {
       title: "Reports & Analytics",
       items: [
+        { label: "Admin Transaction Report", path: "/admin/reports/transactions", icon: AssessmentIcon, badge: "Master", financial: true },
+        { label: "Transaction Ledger", path: "/admin/reports/transaction-ledger", icon: ReceiptLongIcon, financial: true },
         { label: "Payout Report", path: "/retailer/dmt/reports", icon: AssessmentIcon, financial: false },
         { label: "Enterprise Report Center", path: "/retailer/reports", icon: AssessmentIcon, financial: false },
         { label: "POS Settlement Report", path: "/retailer/pos/settlement-report", icon: AccountBalanceIcon, financial: false },

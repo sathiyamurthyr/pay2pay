@@ -642,16 +642,19 @@ export function CustomerMasterSlideOver({
                       >
                         <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 2 }}>
                           <Avatar
+                            src={duplicateCustomer.photo_url || duplicateCustomer.photo_avatar || undefined}
                             sx={{
-                              width: 48,
-                              height: 48,
+                              width: 52,
+                              height: 52,
                               bgcolor: "#16A34A",
                               fontWeight: 900,
                               fontSize: "1.1rem",
                               color: "#FFF",
+                              border: "2px solid #BBF7D0",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
                             }}
                           >
-                            <VerifiedUserIcon />
+                            {duplicateCustomer.photo_url ? null : <VerifiedUserIcon />}
                           </Avatar>
 
                           <Box sx={{ flexGrow: 1 }}>
@@ -660,19 +663,19 @@ export function CustomerMasterSlideOver({
                                 Existing Customer Found
                               </Typography>
                               <Chip
-                                label="Match Confirmed"
+                                label={duplicateCustomer.kyc_status === "APPROVED" || duplicateCustomer.kyc_status === "VERIFIED" ? "KYC Approved" : "KYC Pending"}
                                 size="small"
                                 sx={{
                                   height: 20,
                                   fontSize: "0.65rem",
                                   fontWeight: 800,
-                                  bgcolor: "#DCFCE7",
-                                  color: "#15803D",
+                                  bgcolor: duplicateCustomer.kyc_status === "APPROVED" || duplicateCustomer.kyc_status === "VERIFIED" ? "#DCFCE7" : "#FEF3C7",
+                                  color: duplicateCustomer.kyc_status === "APPROVED" || duplicateCustomer.kyc_status === "VERIFIED" ? "#15803D" : "#B45309",
                                 }}
                               />
                             </Stack>
                             <Typography variant="caption" sx={{ color: "#166534", fontWeight: 600, display: "block" }}>
-                              Verified customer profile in database
+                              {duplicateCustomer.kyc_status === "APPROVED" || duplicateCustomer.kyc_status === "VERIFIED" ? "Verified customer profile in database" : "Customer record found — Aadhaar eKYC verification required"}
                             </Typography>
                           </Box>
                         </Stack>

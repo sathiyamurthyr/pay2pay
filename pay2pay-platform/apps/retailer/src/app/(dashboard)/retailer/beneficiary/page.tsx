@@ -546,56 +546,36 @@ function BeneficiaryWorkspaceContent() {
     // 2-Step Workflow: Click button on Step 1 -> Open Permission Dialog showing Debit Amount Details
     setConfirmModalOpen(true);
   };
-
-  // ─── Pre-checks & Pricing ─────────────────────────────────────────────────
-
-  const runPrechecks = async () => {
-    setPrecheckLoading(true);
-    setPrecheckResult(null);
-    setVerificationCharge(null);
-    try {
-      // Load wallet balance fresh
-      await loadWalletBalance();
-      // Simulate pre-checks
-      await new Promise(r => setTimeout(r, 1200));
-      // Dynamic pricing from pricing master (₹3.00 + 18% GST = ₹3.54)
-      const base = 3.00;
-      const gstRate = 0.18;
-      const gst = parseFloat((base * gstRate).toFixed(2));
-      const total = parseFloat((base + gst).toFixed(2));
-      setVerificationCharge({ base, gst, total });
-
-      const checks = {
-        // Verification (penny drop) is allowed even with 0 wallet balance.
-        // The ₹3.54 fee is post-paid when balance is insufficient — never a blocker.
-        wallet_balance: true,
-        retailer_active: true,
-        customer_active: true,
-        tenant_active: true,
-        company_active: true,
-      };
-      const passed = Object.values(checks).every(Boolean);
-      const lowBalance = walletBalance < total;
-      setPrecheckResult({ passed, checks, wallet_balance: walletBalance, charge: total, low_balance: lowBalance });
-    } catch {
-      setVerificationCharge({ base: 3.00, gst: 0.54, total: 3.54 });
-      setPrecheckResult({
-        passed: true,
-        checks: { wallet_balance: true, retailer_active: true, customer_active: true, tenant_active: true, company_active: true },
-        wallet_balance: walletBalance,
-        charge: 3.54,
-      });
-    } finally {
-      setPrecheckLoading(false);
-    }
-  };
-
   // ─── Penny Drop Verification ──────────────────────────────────────────────
 
   const handleRunPennyDrop = async () => {
     setPennyDropLoading(true);
     setVerificationError("");
     setConfirmModalOpen(false);
+
+    // 1. P0 Real-Time Live Balance Lookup via GET /api/v1/wallet/balance
+    let latestBalance = walletBalance;
+    try {
+      const balRes = await retailerApi.getWalletBalance();
+      if (balRes && balRes.mainBalance != null) {
+        latestBalance = balRes.mainBalance;
+        setWalletBalance(latestBalance);
+      }
+    } catch {
+      // fallback to current walletBalance
+    }
+
+    const REQUIRED_FEE = verificationCharge?.total || 3.54;
+    if (latestBalance < REQUIRED_FEE) {
+      setPennyDropLoading(false);
+      const errDetail = `Insufficient wallet balance. Available: ₹${latestBalance.toFixed(2)}, Required: ₹${REQUIRED_FEE.toFixed(2)} (Base Charge: ₹3.00 + GST 18%: ₹0.54). Please top up your wallet before verifying.`;
+      setVerificationError(errDetail);
+      setResultModalSuccess(false);
+      setResultModalData({ error: errDetail });
+      setResultModalOpen(true);
+      playFailureSound();
+      return;
+    }
 
     try {
       const custId = rawId && rawId.includes("-") ? rawId : "011b2d7f-9426-4444-8888-000000000001";
@@ -610,7 +590,7 @@ function BeneficiaryWorkspaceContent() {
         bank_short_name: bankShortName,
         account_holder_name: benName,
         nickname: nickName || undefined,
-        current_wallet_balance: walletBalance,
+        current_wallet_balance: latestBalance,
       });
 
       const isSuccess = Boolean(
@@ -634,7 +614,7 @@ function BeneficiaryWorkspaceContent() {
         const isReused     = Boolean(res.is_reused || res.is_reused_master || beneData.is_reused);
 
         const actualDebit        = isReused ? 0.00 : (verificationCharge?.total || 3.54);
-        const actualBalanceAfter = isReused ? walletBalance : walletBalance - actualDebit;
+        const actualBalanceAfter = isReused ? latestBalance : latestBalance - actualDebit;
 
         const newBen = {
           beneficiary_id: beneData.beneficiary_id || `ben-${Date.now()}`,
@@ -648,44 +628,56 @@ function BeneficiaryWorkspaceContent() {
           account_number_masked: `•••• •••• ${accNum.slice(-4)}`,
           ifsc_code: ifscCode,
           bank_name: bankName,
-          branch: "Main Branch",
-          city: "",
-          micr: micrCode || "",
-          is_verified: true,
-          is_reused: isReused,
+          branch_name: beneData.branch || "MAIN BRANCH",
+          verification_status: "VERIFIED",
           penny_drop_status: "SUCCESS",
-          vendor_ref: vendorRef,
           utr,
-          wallet_debit: actualDebit,
-          wallet_balance_after: actualBalanceAfter,
-        };
-
-        setCreatedBeneficiary(newBen);
-        setBenName(officialName); // Replace with official name from bank
-
-        // Save to store & localStorage
-        const formattedBene = {
-          id: newBen.beneficiary_id,
-          beneficiaryCode: shortBenId,
-          name: officialName,
-          nickname: newBen.nickname,
-          relationship,
-          accountNumber: accNum,
-          maskedAccountNumber: newBen.account_number_masked,
-          ifsc: ifscCode,
-          branchName: newBen.branch,
-          bankName,
-          isVerified: true,
-          isFavorite: false,
-          lastUsedAt: "Just now",
-          transferCount: 0,
+          verification_reference: vendorRef,
+          verification_date: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          is_favorite: false,
+          is_active: true,
           status: "ACTIVE",
-          preferredGateway: isReused ? "Cashfree (Idempotent Reuse)" : "Cashfree Verified",
-          dailyUsage: 0, monthlyUsage: 0,
-          dailyRemaining: 50000, monthlyRemaining: 200000,
+          transfer_count: 0,
+          total_transferred: 0,
+          customer_id: activeCustomerId,
+          customer_name: activeCustomerName,
+          customer_mobile: activeCustomerMobile,
+          charges_applied: isReused ? 0.00 : 3.00,
+          gst_applied: isReused ? 0.00 : 0.54,
+          total_debited: actualDebit,
+          wallet_balance_before: latestBalance,
+          wallet_balance_after: actualBalanceAfter,
+          is_reused: isReused,
+          bank_code: bankCode || selectedBankObj?.bank_code || "",
+          bank_short_name: bankShortName || selectedBankObj?.bank_short_name || bankName,
+          account_status_code: beneData.account_status_code || "ACCOUNT_IS_VALID",
+          ifsc_details: beneData.ifsc_details || {
+            bank: bankName,
+            ifsc: ifscCode,
+            branch: beneData.branch || "MAIN BRANCH",
+            city: beneData.city || "",
+          },
+          verified_by: "Cashfree V2 Penny Drop",
         };
-        setSelectedBeneficiary(formattedBene);
 
+        const formattedBene: any = {
+          id: newBen.beneficiary_id,
+          name: newBen.account_holder_name,
+          accountNumber: newBen.account_number,
+          ifsc: newBen.ifsc_code,
+          bankName: newBen.bank_name,
+          status: "ACTIVE",
+          verificationStatus: "VERIFIED",
+          isVerified: true,
+          monthlyLimit: 200000,
+          usedLimit: 0,
+          remainingLimit: 200000,
+          relationship: newBen.relationship,
+        };
+
+        // Note: Assuming addBeneficiary helper exists or logic follows
+        
         try {
           const key = `pay2pay_user_added_beneficiaries_${activeCustomerId}`;
           const existing = JSON.parse(localStorage.getItem(key) || "[]");
@@ -693,10 +685,11 @@ function BeneficiaryWorkspaceContent() {
           localStorage.setItem(key, JSON.stringify([formattedBene, ...deduped]));
         } catch { /* ignore */ }
 
+        setCreatedBeneficiary(newBen);
+        setBenName(officialName);
+
         if (!isReused) {
-          const debitAmt = verificationCharge?.total || 3.54;
-          const newBal = useRetailerStore.getState().debitWallet(debitAmt);
-          setWalletBalance(newBal);
+          setWalletBalance(actualBalanceAfter);
         }
 
         const notifMsg = isReused
@@ -704,7 +697,6 @@ function BeneficiaryWorkspaceContent() {
           : `✅ Verified: ${officialName}`;
         notificationEngine.notify("BENEFICIARY_VERIFIED", notifMsg);
 
-        // Show success result modal
         setResultModalSuccess(true);
         setResultModalData(newBen);
         setResultModalOpen(true);
@@ -730,7 +722,22 @@ function BeneficiaryWorkspaceContent() {
         throw new Error(msg);
       }
     } catch (err: any) {
-      const errMsg = err?.message || "Penny Drop Verification Failed. Please check bank details and try again.";
+      const resDetail = err?.response?.data?.detail;
+      let errMsg = "Penny Drop Verification Failed. Please check bank details and try again.";
+      if (typeof resDetail === "string") {
+        errMsg = resDetail;
+      } else if (resDetail && typeof resDetail === "object") {
+        if (resDetail.error_code === "INSUFFICIENT_BALANCE") {
+          errMsg = resDetail.message || `Insufficient wallet balance. Available: ₹${resDetail.wallet_balance || 0.00}, Required: ₹${resDetail.required_amount || 3.54}.`;
+        } else if (resDetail.wallet_refunded) {
+          errMsg = `${resDetail.message || "Verification failed"}. ₹${resDetail.refund_amount || 3.54} has been automatically reversed and refunded back to your wallet (Current Balance: ₹${resDetail.wallet_balance_after || latestBalance}).`;
+        } else {
+          errMsg = resDetail.message || resDetail.error || errMsg;
+        }
+      } else if (err?.message) {
+        errMsg = err.message;
+      }
+
       setVerificationError(errMsg);
       setResultModalSuccess(false);
       setResultModalData({ error: errMsg });

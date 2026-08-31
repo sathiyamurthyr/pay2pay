@@ -24,6 +24,8 @@ export interface CustomerData {
   mpin_enabled?: boolean;
   category?: string;
   kycLevel?: string;
+  photo_url?: string;
+  photo_avatar?: string;
   beneficiaries?: any[];
 }
 
@@ -77,6 +79,8 @@ export function useCustomer() {
           mobile: c.mobile_number || c.mobile || trimmedQuery,
           mobile_number: c.mobile_number || c.mobile || trimmedQuery,
           email: c.email || "",
+          photo_url: c.photo_url || c.photo_avatar || c.profile_image_url || "",
+          photo_avatar: c.photo_url || c.photo_avatar || c.profile_image_url || "",
           kycStatus: c.kyc_status === "APPROVED" || c.kyc_status === "VERIFIED" ? "VERIFIED" : (c.kyc_status || "VERIFIED"),
           kycLevel: c.kyc_level || "FULL_KYC",
           category: c.customer_category || c.category || "REGULAR",

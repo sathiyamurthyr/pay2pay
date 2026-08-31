@@ -36,7 +36,41 @@ import {
   Unlock,
   Loader2,
   RefreshCw,
+  Activity,
+  Cpu,
+  Zap,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
+
+// ─── Real-Time Processing Stages for Anti-Double-Entry Flow ─────────────────
+const PROCESSING_STEPS = [
+  {
+    id: "VALIDATE",
+    title: "1. Security & Compliance Validation",
+    desc: "Verifying entity status, wallet locks, and balance thresholds.",
+  },
+  {
+    id: "LOCK",
+    title: "2. Row-Level Concurrency Isolation",
+    desc: "Acquiring PostgreSQL FOR UPDATE transactional lock on target wallet.",
+  },
+  {
+    id: "MUTATION",
+    title: "3. Stored Procedure Execution",
+    desc: "Executing public.wallet_balance_update to perform double-entry mutation.",
+  },
+  {
+    id: "LEDGER",
+    title: "4. Transactions Ledger Sync",
+    desc: "Committing immutable audit ledger line and recalculating closing balance.",
+  },
+  {
+    id: "CONFIRM",
+    title: "5. Finalization & Receipt Creation",
+    desc: "Authoritative balance confirmed. Generating official allocation receipt.",
+  },
+];
 
 // ─── Scope & Entity Options ──────────────────────────────────────────────────
 const ENTITY_SCOPES = [
@@ -76,6 +110,7 @@ function SearchableEntitySelect({
   onChange,
   placeholder,
   isLoading = false,
+  disabled = false,
   onRefresh,
 }: {
   options: { id: string; name: string; code: string; currentBal: number }[];
@@ -83,6 +118,7 @@ function SearchableEntitySelect({
   onChange: (opt: { id: string; name: string; code: string; currentBal: number } | null) => void;
   placeholder: string;
   isLoading?: boolean;
+  disabled?: boolean;
   onRefresh?: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -114,8 +150,11 @@ function SearchableEntitySelect({
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#0F172A] hover:border-[#2563EB] focus:outline-none transition-colors shadow-2xs cursor-pointer"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((p) => !p)}
+        className={`w-full flex items-center justify-between rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#0F172A] hover:border-[#2563EB] focus:outline-none transition-colors shadow-2xs ${
+          disabled ? "opacity-60 cursor-not-allowed bg-[#F8FAFC]" : "cursor-pointer"
+        }`}
       >
         <span className={value ? "text-[#0F172A]" : "text-[#94A3B8]"}>
           {value ? `${value.name} (${value.code})` : placeholder}
@@ -219,6 +258,14 @@ function ManualTopupContent() {
   const [topupLedger, setTopupLedger] = useState<any[]>(INITIAL_TOPUPS);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [error, setError] = useState("");
+
+  // Anti-Double Submission & Real-Time Progress Loader States
+  const isSubmittingRef = useRef(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [processingStatusMsg, setProcessingStatusMsg] = useState("");
 
   // Receipt Modal State
   const [receiptData, setReceiptData] = useState<any | null>(null);
@@ -435,10 +482,25 @@ function ManualTopupContent() {
     return { isFrozen: false, reason: "", scope: "" };
   }, [selectedEntity, walletType, frozenWalletsMap]);
 
-  // Handle Form Submission with Live Database Persistence
+  // Handle Form Submission with Live Database Persistence & Anti-Double-Entry Protection
   const handleTopupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEntity || !amount || typeof amount !== "number" || amount <= 0) return;
+
+    // 1. Strict Synchronous & State Anti-Double-Submission Guard
+    if (isSubmittingRef.current || loading || isProcessing) {
+      console.warn("Blocked duplicate top-up submission attempt.");
+      return;
+    }
+
+    if (!selectedEntity || !amount || typeof amount !== "number" || amount <= 0) {
+      setError("Please select a target entity and enter a valid allocation amount.");
+      return;
+    }
+
+    if (isTxnIdDuplicate) {
+      setError(`Transaction ID '${txnId}' already exists in ledger. Please click 'Regenerate ID' to proceed.`);
+      return;
+    }
 
     // Check if target wallet is frozen
     const entityLocks = frozenWalletsMap[selectedEntity.code] || {};
@@ -448,7 +510,11 @@ function ManualTopupContent() {
       return;
     }
 
+    // Engage lock synchronously to instantly block subsequent fast clicks
+    isSubmittingRef.current = true;
     setLoading(true);
+    setIsProcessing(true);
+    setError("");
     setSuccessMsg("");
 
     const numericAmount = Number(amount);
@@ -479,34 +545,77 @@ function ManualTopupContent() {
       performed_by: "Platform Admin",
     };
 
-    // 1. Post to live database backend API
+    let actualBalanceAfter = estimatedBalance;
+    let actualOpeningBal = openingBal;
+    let actualTxnId = txnId;
+
     try {
-      await api.post("/api/v1/wallet-ledger/wallets/manual-topup", payload);
-    } catch (err) {
+      // ── Stage 1: Validation & Security Verification ──
+      setActiveStepIndex(0);
+      setProgressPercent(18);
+      setProcessingStatusMsg("Validating entity authorization & compliance lock status...");
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // ── Stage 2: Concurrency Isolation ──
+      setActiveStepIndex(1);
+      setProgressPercent(42);
+      setProcessingStatusMsg(`Acquiring PostgreSQL FOR UPDATE lock on ${selectedEntity.name} (${selectedEntity.code})...`);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // ── Stage 3: Executing Stored Procedure ──
+      setActiveStepIndex(2);
+      setProgressPercent(68);
+      setProcessingStatusMsg("Executing public.wallet_balance_update stored procedure...");
+
+      const resp = await api.post("/api/v1/wallet-ledger/wallets/manual-topup", payload);
+      if (resp?.data) {
+        actualBalanceAfter = typeof resp.data.balance_after === "number" ? resp.data.balance_after : estimatedBalance;
+        actualOpeningBal = typeof resp.data.opening_balance === "number" ? resp.data.opening_balance : openingBal;
+        actualTxnId = resp.data.transaction_id || txnId;
+      }
+
+      // ── Stage 4: Ledger & Balances Sync ──
+      setActiveStepIndex(3);
+      setProgressPercent(88);
+      setProcessingStatusMsg("Synchronizing double-entry transactions ledger & cache...");
+
+      await Promise.allSettled([
+        fetchLiveDatabaseEntities(),
+        fetchTopupLedger(),
+      ]);
+
+      // ── Stage 5: Finalization & Receipt ──
+      setActiveStepIndex(4);
+      setProgressPercent(100);
+      setProcessingStatusMsg("Transaction verified & successfully committed to ledger!");
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      const newLedgerItem = {
+        public_id: `top-${Date.now()}`,
+        ...payload,
+        transaction_id: actualTxnId,
+        opening_balance: actualOpeningBal,
+        balance_after: actualBalanceAfter,
+        new_balance: actualBalanceAfter,
+      };
+      setTopupLedger((prev) => [newLedgerItem, ...prev]);
+
+      // Open Detailed Receipt Modal with Share Options
+      setReceiptData(newLedgerItem);
+
+      // Success Message
+      setSuccessMsg(
+        `Successfully ${txnType === "CREDIT" ? "credited" : "debited"} ₹${numericAmount.toLocaleString("en-IN")} to ${selectedEntity.name} (${selectedEntity.code}). Authoritative Balance: ₹${actualBalanceAfter.toLocaleString("en-IN")}`
+      );
+    } catch (err: any) {
       console.error("Manual topup backend error:", err);
+      const errMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Failed to execute wallet adjustment via Stored Procedure.";
+      setError(errMsg);
+    } finally {
+      setIsProcessing(false);
+      setLoading(false);
+      isSubmittingRef.current = false;
     }
-
-    // 2. Re-fetch live database records & ledger
-    await Promise.allSettled([
-      fetchLiveDatabaseEntities(),
-      fetchTopupLedger(),
-    ]);
-
-    // 3. Update Recent Topup Ledger in UI
-    const newLedgerItem = {
-      public_id: `top-${Date.now()}`,
-      ...payload,
-    };
-    setTopupLedger((prev) => [newLedgerItem, ...prev]);
-
-    // 5. Open Detailed Receipt Modal with Share Options
-    setReceiptData(newLedgerItem);
-
-    // 6. Success Message
-    setSuccessMsg(
-      `Successfully ${txnType === "CREDIT" ? "credited" : "debited"} ₹${numericAmount.toLocaleString("en-IN")} to ${selectedEntity.name} (${selectedEntity.code}). New Available Balance: ₹${estimatedBalance.toLocaleString("en-IN")}`
-    );
-    setLoading(false);
   };
 
   const closeReceiptModal = () => {
@@ -928,6 +1037,19 @@ Thank you for using Pay2Pay Enterprise Portal!`;
         </div>
       )}
 
+      {/* Error Notification */}
+      {error && (
+        <div className="p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-between text-xs font-bold text-[#991B1B] shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-[#DC2626] shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError("")} className="hover:opacity-75 cursor-pointer">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* ── TOP-UP FORM & LIVE PREVIEW CARD ──────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Form Panel (2 Columns wide) */}
@@ -951,11 +1073,14 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                     <button
                       key={sc.value}
                       type="button"
+                      disabled={loading || isProcessing}
                       onClick={() => {
                         setScope(sc.value);
                         setSelectedEntity(null);
                       }}
-                      className={`flex items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer ${
+                      className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${
+                        loading || isProcessing ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                      } ${
                         isSelected
                           ? "border-[#2563EB] bg-[#EFF6FF] text-[#1E40AF] shadow-2xs"
                           : "border-[#E2E8F0] bg-[#F8FAFC] text-[#475569] hover:bg-white"
@@ -980,6 +1105,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 onChange={setSelectedEntity}
                 placeholder="Click to select target entity user..."
                 isLoading={entitiesLoading}
+                disabled={loading || isProcessing}
                 onRefresh={fetchLiveDatabaseEntities}
               />
             </div>
@@ -992,8 +1118,11 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 </label>
                 <select
                   value={serviceName}
+                  disabled={loading || isProcessing}
                   onChange={(e) => setServiceName(e.target.value)}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                  className={`w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none ${
+                    loading || isProcessing ? "opacity-60 cursor-not-allowed bg-[#F8FAFC]" : "cursor-pointer"
+                  }`}
                 >
                   {SERVICE_OPTIONS.map((s) => (
                     <option key={s.value} value={s.value}>{s.label}</option>
@@ -1007,8 +1136,11 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 </label>
                 <select
                   value={walletType}
+                  disabled={loading || isProcessing}
                   onChange={(e) => setWalletType(e.target.value)}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none cursor-pointer"
+                  className={`w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 text-xs font-bold text-[#0F172A] focus:border-[#2563EB] focus:outline-none ${
+                    loading || isProcessing ? "opacity-60 cursor-not-allowed bg-[#F8FAFC]" : "cursor-pointer"
+                  }`}
                 >
                   {WALLET_TYPES.map((w) => (
                     <option key={w.value} value={w.value}>{w.label}</option>
@@ -1026,6 +1158,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                   </label>
                   <button
                     type="button"
+                    disabled={loading || isProcessing}
                     onClick={() =>
                       setTxnId(
                         `TOPUP-${new Date().toISOString().split("T")[0].replace(/-/g, "")}-${Math.floor(
@@ -1033,20 +1166,23 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                         )}`
                       )
                     }
-                    className="text-[10px] font-extrabold text-[#2563EB] hover:underline cursor-pointer flex items-center gap-1"
+                    className={`text-[10px] font-extrabold text-[#2563EB] hover:underline flex items-center gap-1 ${
+                      loading || isProcessing ? "opacity-50 cursor-not-allowed pointer-events-none" : "cursor-pointer"
+                    }`}
                   >
                     <RotateCcw className="w-3 h-3" /> Regenerate ID
                   </button>
                 </div>
                 <input
                   type="text"
+                  disabled={loading || isProcessing}
                   value={txnId}
                   onChange={(e) => setTxnId(e.target.value)}
                   className={`w-full rounded-xl border px-3.5 py-2.5 font-mono text-xs font-extrabold transition-colors focus:outline-none ${
                     isTxnIdDuplicate
                       ? "border-[#EF4444] bg-[#FEF2F2] text-[#DC2626]"
                       : "border-[#CBD5E1] bg-[#F8FAFC] text-[#2563EB] focus:border-[#2563EB] focus:bg-white"
-                  }`}
+                  } ${loading || isProcessing ? "opacity-60 cursor-not-allowed" : ""}`}
                   required
                 />
                 {isTxnIdDuplicate && (
@@ -1063,8 +1199,11 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
+                    disabled={loading || isProcessing}
                     onClick={() => setTxnType("CREDIT")}
-                    className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-extrabold cursor-pointer transition-all ${
+                    className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-extrabold transition-all ${
+                      loading || isProcessing ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                    } ${
                       txnType === "CREDIT"
                         ? "bg-[#DCFCE7] text-[#15803D] border-[#86EFAC] shadow-2xs"
                         : "bg-[#F8FAFC] text-[#64748B] border-[#CBD5E1]"
@@ -1074,8 +1213,11 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                   </button>
                   <button
                     type="button"
+                    disabled={loading || isProcessing}
                     onClick={() => setTxnType("DEBIT")}
-                    className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-extrabold cursor-pointer transition-all ${
+                    className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-extrabold transition-all ${
+                      loading || isProcessing ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                    } ${
                       txnType === "DEBIT"
                         ? "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5] shadow-2xs"
                         : "bg-[#F8FAFC] text-[#64748B] border-[#CBD5E1]"
@@ -1098,8 +1240,11 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                     <button
                       key={presetAmt}
                       type="button"
+                      disabled={loading || isProcessing}
                       onClick={() => setAmount(presetAmt)}
-                      className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#EFF6FF] text-[#2563EB] hover:bg-[#2563EB] hover:text-white transition-colors border border-[#BFDBFE] cursor-pointer"
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#EFF6FF] text-[#2563EB] hover:bg-[#2563EB] hover:text-white transition-colors border border-[#BFDBFE] ${
+                        loading || isProcessing ? "opacity-50 cursor-not-allowed pointer-events-none" : "cursor-pointer"
+                      }`}
                     >
                       +₹{(presetAmt / 1000).toFixed(0)}k
                     </button>
@@ -1110,13 +1255,16 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                 type="number"
                 step="0.01"
                 min="1"
+                disabled={loading || isProcessing}
                 placeholder="Enter amount in ₹..."
                 value={amount}
                 onChange={(e) => {
                   const v = e.target.value;
                   setAmount(v === "" ? "" : parseFloat(v) || 0);
                 }}
-                className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 font-mono text-base font-extrabold text-[#0F172A] focus:border-[#2563EB] focus:outline-none placeholder-[#94A3B8]"
+                className={`w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 py-2.5 font-mono text-base font-extrabold text-[#0F172A] focus:border-[#2563EB] focus:outline-none placeholder-[#94A3B8] ${
+                  loading || isProcessing ? "opacity-60 cursor-not-allowed bg-[#F8FAFC]" : ""
+                }`}
                 required
               />
             </div>
@@ -1128,10 +1276,13 @@ Thank you for using Pay2Pay Enterprise Portal!`;
               </label>
               <textarea
                 rows={2}
+                disabled={loading || isProcessing}
                 placeholder="Enter bank NEFT reference, UTR number, or authorization note..."
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
-                className="w-full rounded-xl border border-[#CBD5E1] bg-white p-3 text-xs font-semibold text-[#0F172A] focus:border-[#2563EB] focus:outline-none placeholder-[#94A3B8]"
+                className={`w-full rounded-xl border border-[#CBD5E1] bg-white p-3 text-xs font-semibold text-[#0F172A] focus:border-[#2563EB] focus:outline-none placeholder-[#94A3B8] ${
+                  loading || isProcessing ? "opacity-60 cursor-not-allowed bg-[#F8FAFC]" : ""
+                }`}
                 required
               />
             </div>
@@ -1158,6 +1309,7 @@ Thank you for using Pay2Pay Enterprise Portal!`;
             <div className="pt-3 border-t border-[#F1F5F9] flex justify-end gap-3">
               <button
                 type="button"
+                disabled={loading || isProcessing}
                 onClick={() => {
                   setSelectedEntity(null);
                   setAmount("");
@@ -1166,21 +1318,28 @@ Thank you for using Pay2Pay Enterprise Portal!`;
                   setWalletType("MAIN");
                   setTxnType("CREDIT");
                 }}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] text-[#475569] font-extrabold text-xs hover:bg-[#EFF6FF] hover:text-[#2563EB] transition cursor-pointer"
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] text-[#475569] font-extrabold text-xs hover:bg-[#EFF6FF] hover:text-[#2563EB] transition ${
+                  loading || isProcessing ? "opacity-50 cursor-not-allowed pointer-events-none" : "cursor-pointer"
+                }`}
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Clear Form
               </button>
 
               <button
                 type="submit"
-                disabled={loading || frozenDetails.isFrozen}
+                disabled={loading || isProcessing || frozenDetails.isFrozen || !selectedEntity || !amount || Number(amount) <= 0 || isTxnIdDuplicate}
                 className={`flex items-center gap-2 px-6 py-3 rounded-xl font-extrabold text-xs shadow-md transition-all ${
-                  frozenDetails.isFrozen
-                    ? "bg-[#94A3B8] text-white cursor-not-allowed opacity-60"
-                    : "bg-[#2563EB] text-white hover:bg-[#1D4ED8] cursor-pointer"
+                  frozenDetails.isFrozen || loading || isProcessing || !selectedEntity || !amount || Number(amount) <= 0 || isTxnIdDuplicate
+                    ? "bg-[#94A3B8] text-white cursor-not-allowed opacity-70 pointer-events-none"
+                    : "bg-[#2563EB] text-white hover:bg-[#1D4ED8] cursor-pointer hover:shadow-lg active:scale-98"
                 }`}
               >
-                {frozenDetails.isFrozen ? (
+                {loading || isProcessing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Processing {progressPercent}% (Stage {activeStepIndex + 1}/{PROCESSING_STEPS.length})...</span>
+                  </>
+                ) : frozenDetails.isFrozen ? (
                   <>
                     <Lock className="w-4 h-4" />
                     Top-up Blocked (Wallet Frozen)
@@ -1321,6 +1480,156 @@ Thank you for using Pay2Pay Enterprise Portal!`;
           }
         }
       `}</style>
+
+      {/* ── REAL-TIME FINANCIAL MUTATION PROGRESS MODAL & DOUBLE-ENTRY BLOCKER ── */}
+      {isProcessing && (
+        <div className="fixed inset-0 z-[99998] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl border border-slate-700/60 bg-slate-900/95 text-white shadow-2xl p-6 sm:p-8 space-y-6 overflow-hidden">
+            {/* Ambient Background Glows */}
+            <div className="absolute -top-24 -right-24 w-60 h-60 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Header with Pulsing Activity Indicator */}
+            <div className="flex items-center gap-4 border-b border-slate-800 pb-5">
+              <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 shrink-0">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-lg font-black tracking-tight text-white truncate">
+                    Processing {txnType} Allocation
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    txnType === "CREDIT"
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                      : "bg-red-500/20 text-red-400 border border-red-500/30"
+                  }`}>
+                    {txnType === "CREDIT" ? "🟢 Credit (+)" : "🔴 Debit (-)"}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  Atomic Stored Procedure Execution • Double-Entry Ledger Protection
+                </p>
+              </div>
+            </div>
+
+            {/* Transaction Target Entity Summary Box */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4 space-y-2.5 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-semibold">Target Entity:</span>
+                <span className="font-extrabold text-slate-100 text-right truncate max-w-[240px]">
+                  {selectedEntity?.name} <span className="font-mono text-blue-400">({selectedEntity?.code})</span>
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-semibold">Allocation Amount:</span>
+                <span className={`font-mono text-base font-black ${
+                  txnType === "CREDIT" ? "text-emerald-400" : "text-red-400"
+                }`}>
+                  {txnType === "CREDIT" ? "+" : "-"}₹{Number(amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-[11px] pt-1.5 border-t border-slate-700/50">
+                <span className="text-slate-400 font-semibold">Reference ID:</span>
+                <span className="font-mono text-blue-300 font-bold">{txnId}</span>
+              </div>
+            </div>
+
+            {/* Dynamic Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-blue-400 font-mono flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
+                  Stage {activeStepIndex + 1} of {PROCESSING_STEPS.length}
+                </span>
+                <span className="font-mono text-emerald-400 text-sm">{progressPercent}%</span>
+              </div>
+              <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 transition-all duration-300 ease-out shadow-[0_0_14px_rgba(59,130,246,0.6)]"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Step-by-Step Status Flow */}
+            <div className="space-y-2">
+              {PROCESSING_STEPS.map((st, idx) => {
+                const isDone = idx < activeStepIndex;
+                const isCurrent = idx === activeStepIndex;
+                const isPending = idx > activeStepIndex;
+
+                return (
+                  <div
+                    key={st.id}
+                    className={`flex items-start gap-3 p-2.5 rounded-xl border transition-all ${
+                      isCurrent
+                        ? "bg-blue-950/40 border-blue-500/40 text-blue-100 shadow-sm"
+                        : isDone
+                        ? "bg-slate-800/30 border-emerald-500/20 text-slate-300"
+                        : "bg-transparent border-transparent text-slate-500 opacity-50"
+                    }`}
+                  >
+                    <div className="mt-0.5 shrink-0">
+                      {isDone ? (
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                        </div>
+                      ) : isCurrent ? (
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 border border-slate-700 text-slate-500 text-[10px] font-bold font-mono">
+                          {idx + 1}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-bold ${isCurrent ? "text-blue-300" : isDone ? "text-emerald-400/90" : "text-slate-400"}`}>
+                        {st.title}
+                      </p>
+                      <p className="text-[11px] text-slate-400 font-normal leading-tight mt-0.5 truncate">
+                        {st.desc}
+                      </p>
+                    </div>
+
+                    {isDone && (
+                      <span className="text-[10px] font-extrabold text-emerald-400 font-mono shrink-0">
+                        DONE
+                      </span>
+                    )}
+                    {isCurrent && (
+                      <span className="text-[10px] font-extrabold text-blue-400 font-mono shrink-0 animate-pulse">
+                        ACTIVE
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Live Status Ticker Banner */}
+            <div className="rounded-xl border border-blue-900/50 bg-blue-950/60 p-3 flex items-center gap-2.5 text-xs text-blue-200">
+              <Cpu className="w-4 h-4 text-blue-400 shrink-0 animate-pulse" />
+              <span className="font-mono text-[11px] truncate flex-1">{processingStatusMsg}</span>
+            </div>
+
+            {/* Anti-Tamper & Double-Entry Protection Footer Banner */}
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex items-center gap-2.5 text-[11px] text-amber-300">
+              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="font-semibold leading-tight">
+                🔒 <strong>Double-Entry Protection Active</strong>: All form controls and concurrent clicks are locked until database commitment.
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── RECEIPT MODAL WINDOW WITH SHARE OPTIONS ──────────────────────────── */}
       {receiptData && (

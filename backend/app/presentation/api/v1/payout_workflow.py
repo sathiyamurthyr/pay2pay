@@ -208,13 +208,15 @@ async def verify_mobile_otp(
 @router.post("/aadhaar-otp/generate")
 async def generate_aadhaar_otp(
     req: AadhaarOtpGenReq,
+    request: Request,
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
+    ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id") or "P2P-R404667"
     res = await AadhaarEkycWorkflowService.generate_otp(
-        db, tenant_id, req.retailer_id or "RET-001", req.customer_id, req.aadhaar_number
+        db, tenant_id, ret_identifier, req.customer_id, req.aadhaar_number
     )
     return {"status": "SUCCESS", "data": res}
 
@@ -222,6 +224,7 @@ async def generate_aadhaar_otp(
 @router.post("/aadhaar-otp/verify")
 async def verify_aadhaar_otp(
     req: AadhaarOtpVerifyReq,
+    request: Request,
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -229,8 +232,9 @@ async def verify_aadhaar_otp(
     from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
     ref = req.ref_id or req.ref_number or ""
     cust_id = str(req.customer_id) if req.customer_id else None
+    ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id") or "P2P-R404667"
     res = await AadhaarEkycWorkflowService.verify_otp(
-        db, tenant_id, req.retailer_id or "RET-001", cust_id, ref, req.otp_code, req.aadhaar_number
+        db, tenant_id, ret_identifier, cust_id, ref, req.otp_code, req.aadhaar_number
     )
     return {"status": "SUCCESS", "data": res}
 

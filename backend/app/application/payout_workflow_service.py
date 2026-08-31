@@ -23,7 +23,7 @@ from fastapi import HTTPException
 from app.core.config import settings
 from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 from app.infrastructure.adapters.cashfree_aadhaar_adapter import CashfreeAadhaarAdapter
-from app.infrastructure.db.customer_models import CustomerModel, CustomerKycModel
+from app.infrastructure.db.customer_models import CustomerModel, CustomerKycModel, CustomerProfileModel
 from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
 from app.infrastructure.db.models import AdminUserModel, CompanyModel
 from app.infrastructure.db.payout_workflow_models import (
@@ -77,6 +77,10 @@ class PayoutWorkflowService:
         results = []
         for c in customers:
             monthly_limit_info = await PayoutWorkflowService.get_customer_monthly_limit(db, tenant_id, c.public_id)
+            res_p = await db.execute(select(CustomerProfileModel).where(CustomerProfileModel.customer_id == c.public_id))
+            p_obj = res_p.scalars().first()
+            p_url = p_obj.photo_url if p_obj else ""
+
             results.append({
                 "public_id": str(c.public_id),
                 "customer_number": c.customer_number,
@@ -90,6 +94,8 @@ class PayoutWorkflowService:
                 "kyc_status": c.kyc_status,
                 "kyc_level": c.kyc_level,
                 "customer_status": c.customer_status,
+                "photo_url": p_url,
+                "photo_avatar": p_url,
                 "risk_score": 15 if c.risk_category == "LOW" else 65,
                 "monthly_limit": monthly_limit_info["monthly_limit"],
                 "monthly_used": monthly_limit_info["used_amount"],
@@ -140,8 +146,8 @@ class PayoutWorkflowService:
             mobile_number=mobile,
             email=req_data.get("email"),
             gender=req_data.get("gender", "MALE"),
-            kyc_level="BASIC",
-            kyc_status="APPROVED",
+            kyc_level="MINIMUM_KYC",
+            kyc_status="PENDING",
             risk_category="LOW",
             customer_status="ACTIVE",
             registration_date=datetime.now(),

@@ -99,6 +99,8 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Reports",
     items: [
+      { label: "Transaction Report", href: "/admin/reports/transactions", icon: FileText, badge: "Master" },
+      { label: "Transaction Ledger", href: "/admin/reports/transaction-ledger", icon: ScrollText },
       { label: "Payout Report", href: "/retailer/dmt/reports", icon: FileText },
       { label: "Report Center", href: "/retailer/reports", icon: FileText },
       { label: "Settlement", href: "/settlement-processing/batches", icon: FileText },
@@ -134,7 +136,7 @@ export const Sidebar: React.FC = () => {
         "Administration": ["Super Distributor", "Distributor", "Retailer", "POS Machine"],
         "Configuration": ["Customer Policy", "Notifications", "Announcements"],
         "Approvals": ["KYC & Onboarding"],
-        "Reports": ["Settlement", "Wallet", "Retailers", "Machines", "Audit", "Reconciliation"],
+        "Reports": ["Transaction Report", "Transaction Ledger", "Settlement", "Wallet", "Retailers", "Machines", "Audit", "Reconciliation"],
       };
 
       return ADMIN_NAV.map((cat) => {
@@ -150,7 +152,7 @@ export const Sidebar: React.FC = () => {
         "Main": ["Dashboard"],
         "Administration": ["Organization", "RM", "Super Distributor", "Distributor", "Retailer", "POS Machine"],
         "Approvals": ["KYC & Onboarding"],
-        "Reports": ["Retailers", "Machines"],
+        "Reports": ["Transaction Report", "Retailers", "Machines"],
       };
 
       return ADMIN_NAV.map((cat) => {
@@ -167,7 +169,7 @@ export const Sidebar: React.FC = () => {
         "Administration": ["Entity User", "Manual Top-up", "Topup Requests"],
         "Configuration": ["Payout Switch", "Wallet", "Chart of Accounts", "Transactions", "Commission", "Charges"],
         "Approvals": ["Topup Requests", "Settlement", "Wallet Adjustments"],
-        "Reports": ["Settlement", "Wallet", "Reconciliation"],
+        "Reports": ["Transaction Report", "Transaction Ledger", "Settlement", "Wallet", "Reconciliation"],
       };
 
       return ADMIN_NAV.map((cat) => {
@@ -183,7 +185,7 @@ export const Sidebar: React.FC = () => {
         "Main": ["Dashboard"],
         "Configuration": ["Customer Policy", "Beneficiary Policy", "Risk", "AML", "Security"],
         "Approvals": ["KYC & Onboarding", "High Value"],
-        "Reports": ["Audit"],
+        "Reports": ["Transaction Report", "Audit"],
       };
 
       return ADMIN_NAV.map((cat) => {

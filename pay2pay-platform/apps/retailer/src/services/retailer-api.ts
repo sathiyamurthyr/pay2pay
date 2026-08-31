@@ -700,32 +700,39 @@ export const retailerApi = {
       const res = await apiClient.get(`/customers?query=${encodeURIComponent(normalizedQuery)}`);
       if (res.status === 200 && res.data) {
         const rawList = Array.isArray(res.data.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
-        const mapped = rawList.map((c: any) => ({
-          ...c,
-          id: c.public_id || c.id || `c-${Date.now()}`,
-          public_id: c.public_id || c.id || `c-${Date.now()}`,
-          customer_number: c.customer_number || `CUST${c.mobile_number?.slice(-4) || '0000'}`,
-          full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
-          name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
-          mobile_number: c.mobile_number || trimmedQuery,
-          mobile: c.mobile_number || trimmedQuery,
-          kyc_status: c.kyc_status || "VERIFIED",
-          kyc_level: c.kyc_level || "FULL_KYC",
-          risk_score: c.risk_score || 15,
-          risk_category: c.risk_category || "LOW",
-          customer_category: c.customer_category || "REGULAR",
-          monthly_limit: c.monthly_limit || 200000.0,
-          monthly_used: c.monthly_used || 0.0,
-          monthly_remaining: c.monthly_remaining || 200000.0,
-          daily_remaining: c.daily_remaining || 25000.0,
-          aadhaar_status: "VERIFIED",
-          pan_status: "VERIFIED",
-          pin_status: "SET",
-          mpin_enabled: c.mpin_enabled !== false,
-          last_transaction: "Today",
-          onboarding_complete: true,
-          beneficiaries: Array.isArray(c.beneficiaries) ? c.beneficiaries : [],
-        }));
+        const mapped = rawList.map((c: any) => {
+          const isAadhaarVerified = c.aadhaar_verified === true || c.kyc_status === "APPROVED" || c.kyc_status === "VERIFIED";
+          const customerPhoto = c.photo_url || c.photo_avatar || c.profile_image_url || c.cust_profile?.photo_url || "";
+          return {
+            ...c,
+            id: c.public_id || c.id || `c-${Date.now()}`,
+            public_id: c.public_id || c.id || `c-${Date.now()}`,
+            customer_number: c.customer_number || `CUST${c.mobile_number?.slice(-4) || '0000'}`,
+            full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
+            name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
+            mobile_number: c.mobile_number || trimmedQuery,
+            mobile: c.mobile_number || trimmedQuery,
+            kyc_status: c.kyc_status || (isAadhaarVerified ? "APPROVED" : "PENDING"),
+            kyc_level: c.kyc_level || (isAadhaarVerified ? "FULL_KYC" : "MINIMUM_KYC"),
+            photo_url: customerPhoto,
+            photo_avatar: customerPhoto,
+            risk_score: c.risk_score || 15,
+            risk_category: c.risk_category || "LOW",
+            customer_category: c.customer_category || "REGULAR",
+            monthly_limit: c.monthly_limit || 200000.0,
+            monthly_used: c.monthly_used || 0.0,
+            monthly_remaining: c.monthly_remaining || 200000.0,
+            daily_remaining: c.daily_remaining || 25000.0,
+            aadhaar_status: isAadhaarVerified ? "VERIFIED" : "NOT_VERIFIED",
+            aadhaar_verified: isAadhaarVerified,
+            pan_status: isAadhaarVerified ? "VERIFIED" : "NOT_VERIFIED",
+            pin_status: "SET",
+            mpin_enabled: c.mpin_enabled !== false,
+            last_transaction: "Today",
+            onboarding_complete: isAadhaarVerified,
+            beneficiaries: Array.isArray(c.beneficiaries) ? c.beneficiaries : [],
+          };
+        });
         return { status: "SUCCESS", data: mapped };
       }
     } catch (err: any) {
@@ -783,23 +790,13 @@ export const retailerApi = {
       return res.data;
     } catch (err: any) {
       console.error("Aadhaar OTP Generation API Error:", err);
-      const detailMsg = err?.response?.data?.detail || err?.response?.data?.message;
-      if (detailMsg) {
-        return { status: "FAILED", error: detailMsg };
-      }
-      const clean = aadhaar_number.replace(/\D/g, "");
-      const masked = `XXXX-XXXX-${clean.slice(-4) || "4748"}`;
-      const ref_number = `CF-AADHAAR-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message;
+      const detailMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail;
       return {
-        status: "SUCCESS",
-        data: {
-          ref_number,
-          ref_id: ref_number,
-          masked_aadhaar: masked,
-          fee_debited: 11.80,
-          status: "OTP_SENT",
-          message: `Aadhaar OTP dispatched to registered mobile. ₹10.00 (+ ₹1.80 GST) verification fee debited from Retailer Wallet.`
-        }
+        status: "FAILED",
+        error: detailMsg || "Aadhaar OTP generation failed",
+        detail: detailMsg || "Aadhaar OTP generation failed",
+        message: detailMsg || "Aadhaar OTP generation failed"
       };
     }
   },
@@ -829,71 +826,13 @@ export const retailerApi = {
       return res.data;
     } catch (err: any) {
       console.error("Aadhaar OTP Verification API Error:", err);
-      const detailMsg = err?.response?.data?.detail || err?.response?.data?.message;
-      if (detailMsg) {
-        return {
-          status: "FAILED",
-          error: detailMsg
-        };
-      }
-      const clean = (payload.aadhaar_number || "").replace(/\D/g, "") || "22599264748";
-      const masked = payload.masked_aadhaar || `XXXX-XXXX-${clean.slice(-4) || "4748"}`;
-      
-      if (payload.otp_code === "000000" || payload.otp_code === "999999") {
-        return {
-          status: "FAILED",
-          error: "Aadhaar OTP verification failed: Invalid OTP code. Verification fee ₹10.00 (+ ₹1.80 GST) has been fully refunded to your wallet."
-        };
-      }
-
+      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message;
+      const detailMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail;
       return {
-        status: "SUCCESS",
-        data: {
-          status: "SUCCESS",
-          verification_status: "VERIFIED",
-          customer_id: payload.customer_id,
-          ref_id: payload.ref_number || `CF-AADHAAR-${Date.now()}`,
-          masked_aadhaar: masked,
-          full_name: "SATHIYA MURTHY",
-          first_name: "SATHIYA",
-          middle_name: "",
-          last_name: "MURTHY",
-          dob: "1992-05-15",
-          gender: "M",
-          care_of: "S/O RAMASAMY",
-          house: "No. 42/B",
-          street: "GST Main Road",
-          landmark: "Near Bus Stand",
-          city: "Chennai",
-          district: "Chengalpattu",
-          state: "Tamil Nadu",
-          country: "INDIA",
-          pincode: "600044",
-          full_address: "No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chennai, Chengalpattu, Tamil Nadu - 600044",
-          photo_base64: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          photo_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          photo_avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          vendor_name: "CASHFREE_OFFLINE_AADHAAR",
-          vendor_reference: payload.ref_number || `CF-AADHAAR-${Date.now()}`,
-          verification_date: new Date().toISOString(),
-          pii_encrypted: true,
-          aadhaar_hash: `sha256-aadhaar-${clean}`,
-          audit_trail: [
-            { event: "Aadhaar Verified", timestamp: new Date().toISOString() },
-            { event: "Customer Auto Populated", timestamp: new Date().toISOString() },
-            { event: "Photo Imported", timestamp: new Date().toISOString() },
-            { event: "Profile Updated", timestamp: new Date().toISOString() }
-          ],
-          billing: {
-            base_fee: 10.00,
-            cgst: 0.90,
-            sgst: 0.90,
-            total_debited: 11.80,
-            hsn_sac: "998313",
-            debit_txn_id: `TXN-EKYC-${Date.now()}`
-          },
-          message: "Aadhaar eKYC verified successfully via Cashfree API"
-        }
+        status: "FAILED",
+        error: detailMsg || "Aadhaar OTP verification failed",
+        detail: detailMsg || "Aadhaar OTP verification failed",
+        message: detailMsg || "Aadhaar OTP verification failed"
       };
     }
   },
@@ -1286,10 +1225,39 @@ export const retailerApi = {
     account_holder_name?: string;
     nickname?: string;
     current_wallet_balance?: number;
+    retailer_id?: string;
+    retailer_code?: string;
   }) => {
 
     try {
-      const res = await apiClient.post("/beneficiaries/epic014/add-and-verify", payload);
+      let activeRetailerId = payload.retailer_id || "";
+      let activeRetailerCode = payload.retailer_code || "";
+
+      if (typeof window !== "undefined" && (!activeRetailerId || !activeRetailerCode)) {
+        try {
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            if (!activeRetailerCode) activeRetailerCode = u.retailer_code || "";
+            if (!activeRetailerId) activeRetailerId = u.public_id || u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || "";
+        }
+      }
+
+      const bodyPayload = {
+        ...payload,
+        retailer_id: activeRetailerId || undefined,
+        retailer_code: activeRetailerCode || undefined,
+      };
+
+      const res = await apiClient.post("/beneficiaries/epic014/add-and-verify", bodyPayload);
       const resData = res.data;
       if (resData && (resData.status === "SUCCESS" || resData.verification_status === "VERIFIED")) {
         const beneInfo = resData.beneficiary || {};

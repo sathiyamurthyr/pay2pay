@@ -257,7 +257,18 @@ class CustomerService:
     @staticmethod
     async def get_customer(db: AsyncSession, customer_id: Union[uuid.UUID, str]) -> Optional[CustomerResponse]:
         c = await CustomerService._find_customer_model(db, customer_id)
-        return _to_customer_response(c) if c else None
+        if not c:
+            return None
+        res_p = await db.execute(select(CustomerProfileModel).where(CustomerProfileModel.customer_id == c.public_id))
+        p_obj = res_p.scalars().first()
+        p_url = p_obj.photo_url if p_obj else None
+
+        res_i = await db.execute(select(CustomerIdentityModel).where(
+            and_(CustomerIdentityModel.customer_id == c.public_id, CustomerIdentityModel.identity_type == "AADHAAR")))
+        id_obj = res_i.scalars().first()
+        m_aadhaar = id_obj.identity_number_masked if id_obj else None
+
+        return _to_customer_response(c, photo_url=p_url, photo_base64=p_url, masked_aadhaar=m_aadhaar)
 
     @staticmethod
     async def _find_customer_model(db: AsyncSession, customer_id: Union[uuid.UUID, str]) -> Optional[CustomerModel]:
@@ -370,10 +381,10 @@ class CustomerService:
         ) for t in tl_result.scalars().all()]
 
         prof_res = await db.execute(select(CustomerProfileModel).where(CustomerProfileModel.customer_id == customer_id))
-        prof_obj = prof_res.scalar_one_or_none()
+        prof_obj = prof_res.scalars().first()
 
-        aadh_res = await db.execute(select(AadhaarVerificationModel).where(AadhaarVerificationModel.customer_id == customer_id))
-        aadh_obj = aadh_res.scalar_one_or_none()
+        aadh_res = await db.execute(select(AadhaarVerificationModel).where(AadhaarVerificationModel.customer_id == customer_id).order_by(AadhaarVerificationModel.id.desc()))
+        aadh_obj = aadh_res.scalars().first()
 
         photo_url = prof_obj.photo_url if prof_obj else None
         photo_base64 = aadh_obj.photo_base64 if aadh_obj else None

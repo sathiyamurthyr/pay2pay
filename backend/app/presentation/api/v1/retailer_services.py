@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.infrastructure.db.models import RetailerModel, RetailerWalletModel
 from app.infrastructure.db.transaction_engine_models import TransactionLedgerEntryModel
 from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
 import time
 import random
 
@@ -142,40 +143,32 @@ async def execute_dmt(
     ctx = await resolve_retailer_context(request, req.retailer_id, db=db)
     pub_id = ctx.get("public_id")
 
-    wal_stmt = select(RetailerWalletModel).where(RetailerWalletModel.retailer_id == pub_id).with_for_update()
-    wallet = (await db.execute(wal_stmt)).scalars().first()
-    if not wallet:
-        raise HTTPException(status_code=404, detail="Retailer wallet not found.")
-
-    bal_before = float(wallet.wallet_balance)
-    if bal_before < total_debit:
-        raise HTTPException(status_code=400, detail=f"Insufficient balance. Available: ₹{bal_before:.2f}, Required: ₹{total_debit:.2f}")
-
-    bal_after = round(bal_before - total_debit, 2)
-    wallet.wallet_balance = bal_after
-    wallet.updated_date = datetime.now(timezone.utc)
-
     txn_ref = f"DMT{int(time.time()*1000)}"
     utr_val = f"UTR{random.randint(1000000000, 9999999999)}"
 
-    # Record ledger entry
-    ledger = TransactionLedgerEntryModel(
-        public_id=uuid.uuid4(),
-        tenant_id=wallet.tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
-        transaction_id=uuid.uuid4(),
-        transaction_reference=txn_ref,
+    # Execute atomic debit via Stored Procedure: public.wallet_balance_update
+    adj_dto = WalletAdjustmentDTO(
+        user_id=str(pub_id),
         entry_type="DEBIT",
-        account_type="RETAILER_WALLET",
-        account_number=str(pub_id),
         amount=total_debit,
-        balance_before=bal_before,
-        balance_after=bal_after,
-        currency="INR",
-        narration=f"DMT transfer to {req.accountNumber} ({req.ifsc}) - Amount: ₹{req.amount:.2f}, Charge: ₹{charge:.2f}",
-        created_at=datetime.now(timezone.utc)
+        payout_amount=req.amount,
+        charge_amount=charge,
+        gst_amount=0.0,
+        service_name="DMT",
+        wallet_type="MAIN",
+        user_type="RETAILER",
+        txn_id=txn_ref,
+        ref_id=utr_val,
+        narration=f"DMT transfer to {req.accountNumber} ({req.ifsc}) - Amount: ₹{req.amount:.2f}, Charge: ₹{charge:.2f}"
     )
-    db.add(ledger)
-    await db.commit()
+
+    sp_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
+    if not sp_res.success:
+        err_msg = sp_res.error_message or "Debit failed."
+        raise HTTPException(status_code=400, detail=f"Transaction Rejected [{sp_res.error_code}]: {err_msg}")
+
+    bal_before = sp_res.balance_before
+    bal_after = sp_res.balance_after
 
     return {
         "success": True,

@@ -809,7 +809,9 @@ async def list_enterprise_transactions_report(
         time_str = dt.strftime("%H:%M:%S") if hasattr(dt, "strftime") else str(dt)[11:19] if dt else ""
 
         raw_svc = str(d.get("service") or "PAYOUT").upper()
-        if "PAYOUT" in raw_svc or "BANK" in raw_svc:
+        if "BENE" in raw_svc or "VERIF" in raw_svc:
+            svc_name = "BENE_VERIFY"
+        elif "PAYOUT" in raw_svc or "BANK" in raw_svc:
             svc_name = "PAYOUT"
         elif "DMT" in raw_svc:
             svc_name = "DMT"

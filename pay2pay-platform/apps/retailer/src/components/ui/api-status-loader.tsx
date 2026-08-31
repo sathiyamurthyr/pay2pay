@@ -19,7 +19,7 @@ interface ApiStatusLoaderProps {
 
 const DEFAULT_GENERATE_STEPS: ApiStatusStep[] = [
   { label: "Connecting Cashfree eKYC Gateway...", sublabel: "Establishing secure SSL connection to Cashfree API" },
-  { label: "Validating Wallet Balance (₹11.80)...", sublabel: "Debiting ₹10.00 (+ ₹1.80 GST) from Retailer Main Wallet" },
+  { label: "Validating Wallet Balance (₹3.54)...", sublabel: "Debiting ₹3.00 (+ ₹0.54 GST) from Retailer Main Wallet" },
   { label: "Requesting UIDAI Aadhaar OTP Dispatch...", sublabel: "Sending SMS request to Aadhaar registered mobile" },
   { label: "OTP Dispatched Successfully!", sublabel: "Check your mobile phone for the 6-digit OTP code" },
 ];

@@ -81,6 +81,8 @@ export default function NewCustomerWorkspacePage() {
   const [aadhaarRefId, setAadhaarRefId] = useState("");
   const [verifiedAadhaarData, setVerifiedAadhaarData] = useState<any>(null);
   const [createdCustomer, setCreatedCustomer] = useState<any | null>(null);
+  const [securityPinError, setSecurityPinError] = useState("");
+  const [securityPinLoading, setSecurityPinLoading] = useState(false);
 
   // Initial Health Check on page load
   useEffect(() => {
@@ -180,6 +182,7 @@ export default function NewCustomerWorkspacePage() {
     if (mobileNumber.length !== 10) return;
     setOtpLoading(true);
     setOtpError("");
+    setLookupError("");
 
     // Register customer profile if new
     let cust = createdCustomer;
@@ -194,24 +197,42 @@ export default function NewCustomerWorkspacePage() {
         if (regRes.status === "SUCCESS") {
           cust = regRes.data;
           setCreatedCustomer(cust);
+        } else {
+          const errMsg = regRes.message || regRes.error || "Customer registration failed.";
+          setLookupError(errMsg);
+          setOtpLoading(false);
+          notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+          return;
         }
-      } catch {
-        // Continue to OTP generation
+      } catch (err: any) {
+        const errMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Customer registration failed.";
+        setLookupError(errMsg);
+        setOtpLoading(false);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+        return;
       }
     }
 
     try {
       const res = await retailerApi.generateMobileOtp(mobileNumber, "WHATSAPP");
       setOtpLoading(false);
-      setOtpSent(true);
-      setActiveStep(1);
-      notificationEngine.notify(
-        "OTP_RECEIVED",
-        `WhatsApp OTP Dispatched to +91 ${mobileNumber}`
-      );
+      if (res.status === "SUCCESS" || res.data) {
+        setOtpSent(true);
+        setActiveStep(1);
+        notificationEngine.notify(
+          "OTP_RECEIVED",
+          `WhatsApp OTP Dispatched to +91 ${mobileNumber}`
+        );
+      } else {
+        const errMsg = res.detail || res.message || res.error || "Failed to generate Mobile OTP";
+        setLookupError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+      }
     } catch (err: any) {
       setOtpLoading(false);
-      setOtpError(err?.message || "Failed to generate Mobile OTP");
+      const errMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Failed to generate Mobile OTP";
+      setLookupError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
@@ -262,7 +283,7 @@ export default function NewCustomerWorkspacePage() {
         setAadhaarRefId(res.data.ref_id || res.data.ref_number);
         notificationEngine.notify(
           "AADHAAR_EKYC_COMPLETED",
-          `Cashfree OTP sent for ${res.data.masked_aadhaar}. Fee Billed: ₹10.00 (+ ₹1.80 GST)`
+          `Aadhaar OTP sent for ${res.data.masked_aadhaar}. Fee Billed: ₹3.00 (+ ₹0.54 GST)`
         );
       } else {
         setAadhaarError(res.detail || res.message || "Failed to generate Cashfree Aadhaar OTP.");
@@ -288,7 +309,7 @@ export default function NewCustomerWorkspacePage() {
       setAadhaarLoading(false);
 
       if (res.status === "FAILED" || res.error) {
-        setAadhaarError(res.error || "Aadhaar verification failed. Verification fee ₹10.00 (+ GST) has been fully refunded to your wallet.");
+        setAadhaarError(res.error || "Aadhaar verification failed. Verification fee ₹3.00 (+ GST) has been fully refunded to your wallet.");
         notificationEngine.notify("TRANSACTION_FAILED", "Invalid Aadhaar OTP. Verification fee refunded to wallet.");
         return;
       }
@@ -296,9 +317,11 @@ export default function NewCustomerWorkspacePage() {
       if (res.status === "SUCCESS" && res.data) {
         setAadhaarVerified(true);
         setVerifiedAadhaarData(res.data);
+        if (res.data.first_name) setFirstName(res.data.first_name);
+        if (res.data.last_name) setLastName(res.data.last_name);
         notificationEngine.notify(
           "CUSTOMER_VERIFIED",
-          `Aadhaar eKYC Verified via Cashfree API! Fee Billed: ₹${res.data.billing?.total_debited || 11.80}`
+          `Aadhaar eKYC Verified Successfully! Fee Billed: ₹${res.data.billing?.total_debited?.toFixed(2) || "3.54"}`
         );
       }
     } catch (err: any) {
@@ -308,25 +331,44 @@ export default function NewCustomerWorkspacePage() {
   };
 
   const handleCreateCustomer = async () => {
+    if (securityPin.length !== 4) {
+      setSecurityPinError("Security PIN must be exactly 4 digits");
+      return;
+    }
+    setSecurityPinLoading(true);
+    setSecurityPinError("");
+
     const payload = {
       mobile_number: mobileNumber,
       first_name: firstName || "Customer",
       last_name: lastName || "User",
-      email: email,
+      email: email || undefined,
       aadhaar_number: aadhaarNumber,
     };
-    const res = await retailerApi.registerPayoutCustomer(payload);
-    if (res.status === "SUCCESS") {
-      const newCust = {
-        public_id: res.data.public_id || `cust-${Date.now()}`,
-        customer_number: res.data.customer_number || `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-        full_name: `${firstName} ${lastName}`.trim(),
-        mobile_number: mobileNumber,
-        kyc_status: "VERIFIED",
-      };
-      setCreatedCustomer(newCust);
-      notificationEngine.notify("CUSTOMER_VERIFIED", "Customer Account Created & Verified!");
-      setActiveStep(4);
+    try {
+      const res = await retailerApi.registerPayoutCustomer(payload);
+      setSecurityPinLoading(false);
+      if (res.status === "SUCCESS" && res.data) {
+        const newCust = {
+          public_id: res.data.public_id || `cust-${Date.now()}`,
+          customer_number: res.data.customer_number || `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
+          full_name: `${firstName} ${lastName}`.trim(),
+          mobile_number: mobileNumber,
+          kyc_status: "VERIFIED",
+        };
+        setCreatedCustomer(newCust);
+        notificationEngine.notify("CUSTOMER_VERIFIED", "Customer Account Created & Verified!");
+        setActiveStep(4);
+      } else {
+        const errMsg = res.message || res.error || "Customer registration failed.";
+        setSecurityPinError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+      }
+    } catch (err: any) {
+      setSecurityPinLoading(false);
+      const errMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Customer registration failed.";
+      setSecurityPinError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
@@ -568,12 +610,21 @@ export default function NewCustomerWorkspacePage() {
                                 size="small"
                                 startIcon={<ReplayIcon />}
                                 onClick={() => handleSearchCustomer(mobileNumber)}
-                                sx={{ fontWeight: 800, textTransform: "none" }}
+                                sx={{ fontWeight: 800, textTransform: "none", color: "#991B1B" }}
                               >
                                 Retry
                               </Button>
                             }
-                            sx={{ borderRadius: 3, fontWeight: 700, alignItems: "center" }}
+                            sx={{
+                              borderRadius: 3,
+                              fontWeight: 700,
+                              alignItems: "center",
+                              bgcolor: "#FEE2E2 !important",
+                              color: "#991B1B !important",
+                              border: "1px solid #FCA5A5 !important",
+                              "& .MuiAlert-icon": { color: "#DC2626 !important" },
+                              "& .MuiAlert-message": { color: "#991B1B !important", fontWeight: 700 }
+                            }}
                           >
                             {lookupError}
                           </Alert>
@@ -746,7 +797,19 @@ export default function NewCustomerWorkspacePage() {
                       </Typography>
 
                       {otpError && (
-                        <Alert severity="error" sx={{ mb: 2.5, borderRadius: 3, fontWeight: 700 }}>
+                        <Alert
+                          severity="error"
+                          sx={{
+                            mb: 2.5,
+                            borderRadius: 3,
+                            fontWeight: 700,
+                            bgcolor: "#FEE2E2 !important",
+                            color: "#991B1B !important",
+                            border: "1px solid #FCA5A5 !important",
+                            "& .MuiAlert-icon": { color: "#DC2626 !important" },
+                            "& .MuiAlert-message": { color: "#991B1B !important", fontWeight: 700 }
+                          }}
+                        >
                           {otpError}
                         </Alert>
                       )}
@@ -772,14 +835,26 @@ export default function NewCustomerWorkspacePage() {
                         <Typography variant="h6" sx={{ fontWeight: 900, color: "#0F172A" }}>
                           Step 3 — Cashfree Aadhaar eKYC Verification
                         </Typography>
-                        <Chip label="Fee: ₹10.00 + GST (Auto-Refund on Fail)" size="small" sx={{ bgcolor: "#F1F5F9", color: "#2563EB", fontWeight: 800, fontSize: "0.7rem" }} />
+                        <Chip label="Fee: ₹3.00 + GST (Auto-Refund on Fail)" size="small" sx={{ bgcolor: "#F1F5F9", color: "#2563EB", fontWeight: 800, fontSize: "0.7rem" }} />
                       </Box>
                       <Typography variant="body2" sx={{ color: "#64748B", mb: 3 }}>
                         Real-time Aadhaar OTP verification via Cashfree APIs for instant verification status.
                       </Typography>
 
                       {aadhaarError && (
-                        <Alert severity="error" sx={{ mb: 2.5, borderRadius: 3, fontWeight: 700 }}>
+                        <Alert
+                          severity="error"
+                          sx={{
+                            mb: 2.5,
+                            borderRadius: 3,
+                            fontWeight: 700,
+                            bgcolor: "#FEE2E2 !important",
+                            color: "#991B1B !important",
+                            border: "1px solid #FCA5A5 !important",
+                            "& .MuiAlert-icon": { color: "#DC2626 !important" },
+                            "& .MuiAlert-message": { color: "#991B1B !important", fontWeight: 700 }
+                          }}
+                        >
                           {aadhaarError}
                         </Alert>
                       )}
@@ -805,8 +880,19 @@ export default function NewCustomerWorkspacePage() {
                             </M3Button>
                           ) : (
                             <>
-                              <Alert severity="info" sx={{ borderRadius: 3, fontWeight: 600 }}>
-                                OTP dispatched to Aadhaar linked mobile number for XXXX-XXXX-{aadhaarNumber.slice(-4)}. ₹10.00 (+ GST) fee debited from wallet.
+                              <Alert
+                                severity="info"
+                                sx={{
+                                  borderRadius: 3,
+                                  fontWeight: 600,
+                                  bgcolor: "#E0F2FE !important",
+                                  color: "#0369A1 !important",
+                                  border: "1px solid #7DD3FC !important",
+                                  "& .MuiAlert-icon": { color: "#0284C7 !important" },
+                                  "& .MuiAlert-message": { color: "#075985 !important", fontWeight: 600 }
+                                }}
+                              >
+                                OTP dispatched to Aadhaar linked mobile number for XXXX-XXXX-{aadhaarNumber.slice(-4)}. ₹3.00 (+ GST) fee debited from wallet.
                               </Alert>
                               <M3TextField
                                 label="Enter 6-Digit Aadhaar OTP *"
@@ -837,7 +923,19 @@ export default function NewCustomerWorkspacePage() {
                         </Stack>
                       ) : (
                         <Stack spacing={3}>
-                          <Alert severity="success" icon={<CheckCircleIcon fontSize="inherit" />} sx={{ borderRadius: 3, fontWeight: 800 }}>
+                          <Alert
+                            severity="success"
+                            icon={<CheckCircleIcon sx={{ color: "#16A34A !important" }} fontSize="inherit" />}
+                            sx={{
+                              borderRadius: 3,
+                              fontWeight: 800,
+                              bgcolor: "#DCFCE7 !important",
+                              color: "#14532D !important",
+                              border: "1px solid #86EFAC !important",
+                              "& .MuiAlert-icon": { color: "#16A34A !important" },
+                              "& .MuiAlert-message": { color: "#14532D !important", fontWeight: 800 }
+                            }}
+                          >
                             Cashfree Aadhaar eKYC Verification Successful! PII encrypted & saved.
                           </Alert>
 
@@ -866,11 +964,29 @@ export default function NewCustomerWorkspacePage() {
                         Set up a 4-digit security PIN for customer authorization during payout execution.
                       </Typography>
 
+                      {securityPinError && (
+                        <Alert
+                          severity="error"
+                          sx={{
+                            mb: 2.5,
+                            borderRadius: 3,
+                            fontWeight: 700,
+                            bgcolor: "#FEE2E2 !important",
+                            color: "#991B1B !important",
+                            border: "1px solid #FCA5A5 !important",
+                            "& .MuiAlert-icon": { color: "#DC2626 !important" },
+                            "& .MuiAlert-message": { color: "#991B1B !important", fontWeight: 700 }
+                          }}
+                        >
+                          {securityPinError}
+                        </Alert>
+                      )}
+
                       <Stack spacing={2.5}>
                         <M3TextField label="4-Digit Security PIN *" value={securityPin} onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, "").slice(0, 4))} type="password" placeholder="••••" />
 
-                        <M3Button variant="contained" disabled={securityPin.length !== 4} onClick={handleCreateCustomer} sx={{ py: 1.75, bgcolor: "#0F172A" }}>
-                          Finalize & Create Customer →
+                        <M3Button variant="contained" loading={securityPinLoading} disabled={securityPin.length !== 4 || securityPinLoading} onClick={handleCreateCustomer} sx={{ py: 1.75, bgcolor: "#0F172A" }}>
+                          {securityPinLoading ? "Creating Customer..." : "Finalize & Create Customer →"}
                         </M3Button>
                       </Stack>
                     </Box>
@@ -909,19 +1025,25 @@ export default function NewCustomerWorkspacePage() {
 
                 {/* Customer Avatar & Main Badge */}
                 <Box sx={{ textAlign: "center", p: 2, bgcolor: "#F8FAFC", borderRadius: 3, mb: 2 }}>
-                  <Avatar sx={{ width: 56, height: 56, mx: "auto", mb: 1, bgcolor: existingCustomer ? "#16A34A" : "#0284C7", fontWeight: 900, fontSize: "1.25rem" }}>
-                    {existingCustomer
+                  <Avatar
+                    src={verifiedAadhaarData?.photo_url || verifiedAadhaarData?.photo_avatar || existingCustomer?.photo_url}
+                    sx={{ width: 56, height: 56, mx: "auto", mb: 1, bgcolor: existingCustomer || aadhaarVerified ? "#16A34A" : "#0284C7", fontWeight: 900, fontSize: "1.25rem" }}
+                  >
+                    {verifiedAadhaarData?.full_name
+                      ? verifiedAadhaarData.full_name.charAt(0)
+                      : existingCustomer
                       ? (existingCustomer.full_name || existingCustomer.first_name || "C").charAt(0)
                       : firstName
                       ? firstName.charAt(0)
                       : "C"}
                   </Avatar>
                   <Typography variant="subtitle2" sx={{ fontWeight: 900, color: "#0F172A" }}>
-                    {existingCustomer
-                      ? existingCustomer.full_name || `${existingCustomer.first_name} ${existingCustomer.last_name}`
-                      : firstName || lastName
-                      ? `${firstName} ${lastName}`.trim()
-                      : "Draft Customer"}
+                    {verifiedAadhaarData?.full_name ||
+                      (existingCustomer
+                        ? existingCustomer.full_name || `${existingCustomer.first_name} ${existingCustomer.last_name}`
+                        : firstName || lastName
+                        ? `${firstName} ${lastName}`.trim()
+                        : "Draft Customer")}
                   </Typography>
                   <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
                     {mobileNumber ? `+91 ${mobileNumber}` : "Mobile Pending"}
@@ -941,8 +1063,8 @@ export default function NewCustomerWorkspacePage() {
                   {[
                     { label: "Mobile Verified", ok: !!existingCustomer || activeStep >= 1 },
                     { label: "Aadhaar Verified", ok: !!existingCustomer || aadhaarVerified },
-                    { label: "PAN Verified", ok: !!existingCustomer || aadhaarVerified },
-                    { label: "Face Verified", ok: !!existingCustomer || aadhaarVerified },
+                    { label: "PAN Verified", ok: !!existingCustomer?.pan_verified },
+                    { label: "Face Verified", ok: !!existingCustomer?.face_verified },
                     { label: "PIN Created", ok: !!existingCustomer || securityPin.length === 4 },
                   ].map((item) => (
                     <Stack key={item.label} direction="row" spacing={1} sx={{ alignItems: "center" }}>
