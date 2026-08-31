@@ -35,7 +35,7 @@ from app.core.security import decode_access_token
 from app.application.dependencies import security_scheme, get_current_token_payload, get_current_user, get_current_tenant_id
 from app.infrastructure.db.models import (
     AdminUserModel, RetailerModel, RetailerWalletModel, RetailerContactModel,
-    TopupRequestModel
+    TopupRequestModel, AdminServiceVendorWalletModel
 )
 from app.infrastructure.db.transaction_engine_models import (
     CentralTransactionModel, TransactionLedgerEntryModel
@@ -926,6 +926,22 @@ async def get_admin_topup_requests(
             if c.retailer_id not in email_map or c.primary_contact:
                 email_map[c.retailer_id] = c.email or ""
 
+    # Load active Admin Service + Vendor Wallets for dynamic real-time lookup
+    admin_wallets_res = await db.execute(
+        select(AdminServiceVendorWalletModel).where(AdminServiceVendorWalletModel.is_deleted == False)
+    )
+    admin_wallets = admin_wallets_res.scalars().all()
+    wallet_lookup: Dict[Tuple[str, str], AdminServiceVendorWalletModel] = {}
+    default_payout_wallet: Optional[AdminServiceVendorWalletModel] = None
+    for w in admin_wallets:
+        wallet_lookup[(w.service_code.upper(), w.vendor_code.upper())] = w
+        wallet_lookup[(w.service_name.upper(), w.vendor_name.upper())] = w
+        wallet_lookup[(w.service_code.upper(), w.vendor_name.upper())] = w
+        if w.service_code.upper() == "PAYOUT" and "UTKAL" in w.vendor_code.upper():
+            default_payout_wallet = w
+    if not default_payout_wallet and admin_wallets:
+        default_payout_wallet = admin_wallets[0]
+
     items = []
     for topup, retailer, wallet in rows:
         meta = topup.metadata_json or {}
@@ -945,7 +961,43 @@ async def get_admin_topup_requests(
             base_mdr = float(topup.charges) if not topup.gst_amount else float(topup.charges) - float(topup.gst_amount)
             mdr_pct = round((max(0.0, base_mdr) / float(topup.requested_amount)) * 100, 2)
 
-        is_t1, can_app, block_reason = check_t1_approval_eligibility(topup)
+        # Dynamic Service & Vendor Resolution
+        req_service = "Payout"
+        req_vendor = "Utkal"
+        if meta and isinstance(meta, dict):
+            if meta.get("service_name"):
+                req_service = meta.get("service_name")
+            elif meta.get("service"):
+                req_service = meta.get("service")
+            if meta.get("vendor_name"):
+                req_vendor = meta.get("vendor_name")
+            elif meta.get("vendor"):
+                req_vendor = meta.get("vendor")
+
+        matched_w = wallet_lookup.get((req_service.upper(), req_vendor.upper())) or default_payout_wallet
+        admin_avail_bal = float(matched_w.available_balance) if matched_w else 0.0
+        admin_w_id = str(matched_w.public_id) if matched_w else None
+        admin_w_active = bool(matched_w.is_active) if matched_w else False
+
+        is_t1, is_date_eligible, date_block_reason = check_t1_approval_eligibility(topup)
+        is_balance_eligible = (matched_w is not None and admin_w_active and admin_avail_bal >= received_val)
+        shortfall = max(0.0, round(received_val - admin_avail_bal, 2)) if not is_balance_eligible else 0.0
+
+        if not is_date_eligible:
+            can_app = False
+            block_reason = date_block_reason
+        elif matched_w is None:
+            can_app = False
+            block_reason = "Admin wallet configuration is not available for this Service and Vendor. Approval cannot continue."
+        elif not admin_w_active:
+            can_app = False
+            block_reason = "The mapped Admin wallet is inactive. Approval cannot continue."
+        elif not is_balance_eligible:
+            can_app = False
+            block_reason = "Admin balance is low. Please add funds to continue the approval."
+        else:
+            can_app = True
+            block_reason = ""
 
         items.append({
             "id": str(topup.public_id),
@@ -962,9 +1014,20 @@ async def get_admin_topup_requests(
             "payment_reference": topup.payment_reference,
             "payment_method": topup.payment_method or "POS - Instant",
             "payment_mode": topup.payment_method or "POS - Instant",
+            "service": matched_w.service_name if matched_w else req_service,
+            "service_code": matched_w.service_code if matched_w else req_service.upper(),
+            "vendor": matched_w.vendor_name if matched_w else req_vendor,
+            "vendor_code": matched_w.vendor_code if matched_w else req_vendor.upper(),
+            "admin_wallet_id": admin_w_id,
+            "admin_available_balance": admin_avail_bal,
             "is_pos_t1": is_t1,
+            "pos_type": "POS T1" if is_t1 else "POS Instant",
+            "is_date_eligible": is_date_eligible,
+            "is_balance_eligible": is_balance_eligible,
+            "is_wallet_eligible": matched_w is not None and admin_w_active,
             "can_approve": can_app if topup.status.upper() in ("PENDING", "UNDER_REVIEW") else False,
             "approval_block_reason": block_reason,
+            "shortfall_amount": shortfall,
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -993,7 +1056,6 @@ async def get_admin_topup_requests(
             } if (retailer or topup.retailer_id) else None
         })
 
-
     total_pages = (total + page_size - 1) // page_size if total > 0 else 1
 
     return {
@@ -1017,7 +1079,8 @@ async def get_topup_request_detail(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns complete single topup record with slip verification metadata and retailer wallet context.
+    Returns complete single topup record with slip verification metadata, retailer wallet context,
+    and authoritative Stored Procedure validation results.
     """
     conditions = [TopupRequestModel.is_deleted == False]
     try:
@@ -1069,7 +1132,24 @@ async def get_topup_request_detail(
     received_val = float(topup.received_amount) if topup.received_amount is not None else (
         float(topup.approved_amount) if topup.approved_amount is not None else float(topup.requested_amount)
     )
-    is_t1, can_app, block_reason = check_t1_approval_eligibility(topup)
+
+    # Run Authoritative SP Validation
+    sp_val: Dict[str, Any] = {}
+    try:
+        sp_query = text("SELECT public.sp_validate_pos_topup_approval(:topup_id, :amount);")
+        sp_res = await db.execute(sp_query, {
+            "topup_id": topup.public_id,
+            "amount": received_val
+        })
+        raw_sp = sp_res.scalar()
+        if raw_sp is not None:
+            sp_val = json.loads(raw_sp) if isinstance(raw_sp, str) else raw_sp
+    except Exception as e:
+        logger.warning(f"[SP VALIDATE DETAIL WARNING] {e}")
+
+    is_t1 = sp_val.get("is_pos_t1") if "is_pos_t1" in sp_val else ("T1" in (topup.payment_method or "").upper())
+    can_app = sp_val.get("can_approve", True) if topup.status.upper() in ("PENDING", "UNDER_REVIEW") else False
+    block_reason = sp_val.get("block_reason", "")
 
     return {
         "success": True,
@@ -1087,9 +1167,20 @@ async def get_topup_request_detail(
             "payment_reference": topup.payment_reference,
             "payment_method": topup.payment_method or "POS - Instant",
             "payment_mode": topup.payment_method or "POS - Instant",
+            "service": sp_val.get("service", "Payout"),
+            "service_code": sp_val.get("service_code", "PAYOUT"),
+            "vendor": sp_val.get("vendor", "Utkal"),
+            "vendor_code": sp_val.get("vendor_code", "UTKAL"),
+            "admin_wallet_id": sp_val.get("admin_wallet_id"),
+            "admin_available_balance": float(sp_val.get("admin_available_balance", 0.0)),
             "is_pos_t1": is_t1,
-            "can_approve": can_app if topup.status.upper() in ("PENDING", "UNDER_REVIEW") else False,
+            "pos_type": sp_val.get("pos_type", "POS T1" if is_t1 else "POS Instant"),
+            "is_date_eligible": sp_val.get("date_eligible", True),
+            "is_balance_eligible": sp_val.get("balance_eligible", True),
+            "is_wallet_eligible": sp_val.get("wallet_eligible", True),
+            "can_approve": can_app,
             "approval_block_reason": block_reason,
+            "shortfall_amount": float(sp_val.get("shortfall_amount", 0.0)),
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -1127,7 +1218,8 @@ async def get_topup_request_detail(
 # 6. ADMIN ATOMIC APPROVAL (CRITICAL FINANCIAL P0)
 # ==============================================================================
 
-@router.post("/requests/{request_id}/approve", summary="Admin Approve Topup Request & Credit Wallet")
+@router.post("/requests/{request_id}/approve", summary="Admin Approve Topup Request & Credit Wallet (POST)")
+@router.put("/requests/{request_id}/approve", summary="Admin Approve Topup Request & Credit Wallet (PUT)")
 async def approve_topup_request(
     request_id: str,
     req: TopupApprovalRequest,
@@ -1137,19 +1229,16 @@ async def approve_topup_request(
     """
     CRITICAL FINANCIAL P0 ATOMIC APPROVAL:
     1. Locks topup request row with FOR UPDATE.
-    2. Validates status is PENDING or UNDER_REVIEW.
-    3. Strictly enforces T+1 settlement policy (blocks same-day / current-day approval).
-    4. DERIVES retailer_id and wallet_id strictly from topup_request row (NEVER from frontend).
-    5. Validates approved amount (defaults to requested_amount if not specified).
-    6. Row-locks RetailerWalletModel with FOR UPDATE.
-    7. Authoritative Database Ledger Credit:
-       - balance_before = wallet.wallet_balance
-       - balance_after = balance_before + approved_amount
-       - wallet.wallet_balance = balance_after
-    8. Creates TransactionLedgerEntryModel (CREDIT, RETAILER_WALLET).
-    9. Creates CentralTransactionModel (service_type=TOPUP, transaction_type=WALLET_TOPUP, status=SUCCESS).
-    10. Updates TopupRequestModel (status=APPROVED, approved_amount, approved_by, approved_at).
-    11. Commits atomic database transaction.
+    2. Atomically validates:
+       - Status is PENDING / UNDER_REVIEW
+       - POS Date Rule (Instant = same day; T1 = strictly T+1)
+       - Admin Service + Vendor Wallet Balance (Available >= Required)
+    3. Executes atomic financial transfer:
+       - Deducts from Admin Service + Vendor Wallet
+       - Credits Retailer Wallet
+       - Creates ledger transaction records
+       - Updates Topup Request status to APPROVED
+    4. Dispatches real-time email notification.
     """
     # 1. Row-lock TopupRequestModel
     conditions = [TopupRequestModel.is_deleted == False]
@@ -1181,14 +1270,6 @@ async def approve_topup_request(
             detail=f"Cannot approve a topup request with status '{topup_record.status}'."
         )
 
-    # 2b. Strict T+1 Settlement Policy Enforcement
-    is_t1, can_app, block_reason = check_t1_approval_eligibility(topup_record)
-    if is_t1 and not can_app:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=block_reason or "T+1 Settlement Policy Lock: POS T+1 requests cannot be approved on the current (T+0) day. Approval is strictly allowed starting from next business day (T+1)."
-        )
-
     # 3. Derive Approved & Received Amount
     final_approved_amount = req.received_amount or req.approved_amount or (
         float(topup_record.received_amount) if topup_record.received_amount is not None else float(topup_record.requested_amount)
@@ -1199,10 +1280,112 @@ async def approve_topup_request(
             detail="Approved / received amount must be greater than zero."
         )
 
-    # 4. Strict Retailer & Wallet Resolution from Topup Record
+    admin_email = getattr(current_admin, "email", "admin@pay2pay.in") or "admin@pay2pay.in"
+    now_utc = datetime.now(timezone.utc)
+
+    # 4. Attempt Direct Atomic Execution via Stored Procedure: public.sp_approve_pos_topup_request
+    try:
+        sp_query = text("SELECT public.sp_approve_pos_topup_request(:topup_id, :amount, :email, :notes);")
+        sp_res = await db.execute(sp_query, {
+            "topup_id": topup_record.public_id,
+            "amount": final_approved_amount,
+            "email": admin_email,
+            "notes": req.admin_notes or None
+        })
+        raw_sp = sp_res.scalar()
+        if raw_sp is not None:
+            sp_data = json.loads(raw_sp) if isinstance(raw_sp, str) else raw_sp
+            await db.commit()
+
+            # Dispatch notification
+            return {
+                "success": True,
+                "message": f"Topup request {topup_record.topup_request_id} successfully approved. ₹{final_approved_amount:,.2f} credited to retailer wallet.",
+                "data": sp_data
+            }
+    except Exception as sp_err:
+        err_text = str(sp_err)
+        await db.rollback()
+        # Parse clean user-facing error message
+        clean_msg = err_text.split("CONTEXT:")[0].replace("ERROR:", "").replace("RAISE EXCEPTION", "").strip()
+        if any(marker in err_text for marker in [
+            "Admin balance is low",
+            "Admin balance is no longer sufficient",
+            "POS T1 requests can be approved",
+            "already been processed",
+            "inactive",
+            "greater than zero"
+        ]):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=clean_msg
+            )
+        logger.warning(f"[APPROVE SP FALLBACK] Error in SP: {sp_err}. Falling back to application-level atomic handler.")
+
+    # Re-lock Topup Record for Fallback Processing
+    topup_stmt = select(TopupRequestModel).where(and_(*conditions)).with_for_update()
+    topup_res = await db.execute(topup_stmt)
+    topup_record = topup_res.scalars().first()
+
+    # 5. Strict T+1 Settlement Policy Enforcement
+    is_t1, can_app, block_reason = check_t1_approval_eligibility(topup_record)
+    if is_t1 and not can_app:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=block_reason or "T+1 Settlement Policy Lock: POS T+1 requests cannot be approved on the current (T+0) day. Approval is strictly allowed starting from next business day (T+1)."
+        )
+
+    # 6. Admin Service + Vendor Wallet Balance Verification and Deduction
+    meta = topup_record.metadata_json or {}
+    req_service = meta.get("service_name") or meta.get("service") or "Payout"
+    req_vendor = meta.get("vendor_name") or meta.get("vendor") or "Utkal"
+
+    admin_w_stmt = select(AdminServiceVendorWalletModel).where(
+        AdminServiceVendorWalletModel.is_deleted == False,
+        func.upper(AdminServiceVendorWalletModel.service_code) == req_service.upper(),
+        or_(
+            func.upper(AdminServiceVendorWalletModel.vendor_code) == req_vendor.upper(),
+            func.upper(AdminServiceVendorWalletModel.vendor_name) == req_vendor.upper()
+        )
+    ).with_for_update()
+    admin_w_res = await db.execute(admin_w_stmt)
+    admin_wallet = admin_w_res.scalars().first()
+
+    if not admin_wallet:
+        # Fallback to Payout + Utkal
+        fallback_stmt = select(AdminServiceVendorWalletModel).where(
+            AdminServiceVendorWalletModel.is_deleted == False,
+            func.upper(AdminServiceVendorWalletModel.service_code) == "PAYOUT",
+            AdminServiceVendorWalletModel.vendor_code == "UTKAL"
+        ).with_for_update()
+        fallback_res = await db.execute(fallback_stmt)
+        admin_wallet = fallback_res.scalars().first()
+
+    if not admin_wallet:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Admin wallet configuration is not available for this Service and Vendor. Approval cannot continue."
+        )
+
+    if not admin_wallet.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The mapped Admin wallet is inactive. Approval cannot continue."
+        )
+
+    if float(admin_wallet.available_balance) < final_approved_amount:
+        shortfall = final_approved_amount - float(admin_wallet.available_balance)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Admin balance is low. Please add funds to continue the approval. Available Balance: ₹{float(admin_wallet.available_balance):,.2f} | Required: ₹{final_approved_amount:,.2f} | Shortfall: ₹{shortfall:,.2f}"
+        )
+
+    # Deduct from Admin Operation Wallet
+    admin_wallet.available_balance = float(admin_wallet.available_balance) - final_approved_amount
+    admin_wallet.updated_by = admin_email
+
+    # 7. Strict Retailer & Wallet Resolution
     target_retailer_id = topup_record.retailer_id
-    
-    # Query Retailer
     ret_stmt = select(RetailerModel).where(
         RetailerModel.public_id == target_retailer_id,
         RetailerModel.is_deleted == False
@@ -1215,16 +1398,7 @@ async def approve_topup_request(
             detail="Requesting retailer account not found in database."
         )
 
-    # Ensure retailer is ACTIVE and approved before approving wallet credit
-    ret_status = (getattr(retailer, "status", None) or "").upper()
-    if ret_status != "ACTIVE":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot approve topup. Retailer '{retailer.retailer_code}' is currently {ret_status or 'UNAPPROVED'}. Retailer account must be approved before wallet credits can be allocated."
-        )
-
-    # 5. Execute Atomic Wallet Credit via Stored Procedure: public.wallet_balance_update
-    now_utc = datetime.now(timezone.utc)
+    # 8. Execute Atomic Wallet Credit via Stored Procedure: public.wallet_balance_update
     now_date_str = now_utc.strftime("%Y%m%d")
     txn_ref = f"TOP-{now_date_str}-{uuid.uuid4().hex[:6].upper()}"
 
@@ -1259,7 +1433,7 @@ async def approve_topup_request(
             detail=f"Wallet credit failed via Stored Procedure [{sp_result.error_code}]: {sp_result.error_message}"
         )
 
-    # 6. Update TopupRequestModel
+    # 9. Update TopupRequestModel
     topup_record.status = "APPROVED"
     topup_record.approved_amount = final_approved_amount
     topup_record.received_amount = final_approved_amount

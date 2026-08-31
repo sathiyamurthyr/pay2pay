@@ -29,7 +29,28 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  Wallet,
+  PlusCircle,
+  ShieldAlert,
+  ArrowUpRight,
+  Lock,
+  Building2
 } from "lucide-react";
+
+interface AdminOperationWallet {
+  id: string;
+  public_id: string;
+  service_code: string;
+  service_name: string;
+  vendor_code: string;
+  vendor_name: string;
+  wallet_number: string;
+  available_balance: number;
+  hold_balance: number;
+  currency: string;
+  is_active: boolean;
+  updated_date?: string;
+}
 
 interface TopupItem {
   id: string;
@@ -46,11 +67,21 @@ interface TopupItem {
   payment_reference: string;
   payment_method: string;
   payment_mode?: string;
+  service?: string;
+  service_code?: string;
+  vendor?: string;
+  vendor_code?: string;
+  admin_wallet_id?: string;
+  admin_available_balance?: number;
   pos_type?: string;
   is_pos_t1?: boolean;
   is_pos_instant?: boolean;
+  is_date_eligible?: boolean;
+  is_balance_eligible?: boolean;
+  is_wallet_eligible?: boolean;
   can_approve?: boolean;
   approval_block_reason?: string;
+  shortfall_amount?: number;
   request_date?: string;
   current_business_date?: string;
   payment_date?: string;
@@ -126,8 +157,18 @@ export default function AdminTopupRequestsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [metricsLoading, setMetricsLoading] = useState<boolean>(true);
 
+  // Admin Service + Vendor Operation Wallets
+  const [adminWallets, setAdminWallets] = useState<AdminOperationWallet[]>([]);
+  const [walletsLoading, setWalletsLoading] = useState<boolean>(true);
+  const [showAddFundModal, setShowAddFundModal] = useState<boolean>(false);
+  const [selectedWalletForFund, setSelectedWalletForFund] = useState<AdminOperationWallet | null>(null);
+  const [fundAmount, setFundAmount] = useState<string>("50000");
+  const [fundRemarks, setFundRemarks] = useState<string>("Operational fund added for POS payout settlement");
+  const [addingFund, setAddingFund] = useState<boolean>(false);
+  const [fundSuccessMsg, setFundSuccessMsg] = useState<string | null>(null);
+
   // Filters & Pagination
-  const [search, setSearch] = useState<string>("");
+  const [search, setSearch] = useState<string>("" );
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [datePreset, setDatePreset] = useState<string>("ALL");
   const [customStartDate, setCustomStartDate] = useState<string>("");
@@ -155,6 +196,21 @@ export default function AdminTopupRequestsPage() {
   const [rotation, setRotation] = useState<number>(0);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Fetch Admin Operation Wallets (Dynamic Service + Vendor mapping)
+  const fetchAdminWallets = useCallback(async () => {
+    setWalletsLoading(true);
+    try {
+      const res = await api.get("/api/v1/admin/operation-wallets");
+      if (res.data?.success) {
+        setAdminWallets(res.data.items || []);
+      }
+    } catch (err) {
+      console.error("Failed to load admin operation wallets:", err);
+    } finally {
+      setWalletsLoading(false);
+    }
+  }, []);
 
   // Fetch Dashboard Real-Time Metrics
   const fetchMetrics = useCallback(async () => {
@@ -217,8 +273,9 @@ export default function AdminTopupRequestsPage() {
   }, [page, pageSize, statusFilter, datePreset, search, customStartDate, customEndDate]);
 
   useEffect(() => {
+    fetchAdminWallets();
     fetchMetrics();
-  }, [fetchMetrics]);
+  }, [fetchAdminWallets, fetchMetrics]);
 
   useEffect(() => {
     fetchRequests();
@@ -245,10 +302,55 @@ export default function AdminTopupRequestsPage() {
     setDrawerOpen(true);
   };
 
+  // Quick Topup Admin Service+Vendor Wallet
+  const handleAddFund = async () => {
+    if (!selectedWalletForFund) return;
+    const amount = parseFloat(fundAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid fund amount greater than 0");
+      return;
+    }
+    setAddingFund(true);
+    setFundSuccessMsg(null);
+    try {
+      const res = await api.put(`/api/v1/admin/operation-wallets/${selectedWalletForFund.id}/topup`, {
+        amount: amount,
+        remarks: fundRemarks || undefined
+      });
+      if (res.data?.success) {
+        setFundSuccessMsg(`Successfully added ₹${amount.toLocaleString("en-IN")} to ${selectedWalletForFund.service_name} - ${selectedWalletForFund.vendor_name} wallet.`);
+        fetchAdminWallets();
+        fetchRequests();
+        setTimeout(() => {
+          setShowAddFundModal(false);
+          setFundSuccessMsg(null);
+        }, 1500);
+      } else {
+        alert(res.data?.message || "Failed to add funds.");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.detail || err.message || "Failed to add funds to Admin wallet.");
+    } finally {
+      setAddingFund(false);
+    }
+  };
+
+  const openFundModalForWallet = (w: AdminOperationWallet) => {
+    setSelectedWalletForFund(w);
+    setFundAmount("50000");
+    setFundRemarks(`Operational fund added for ${w.service_name} (${w.vendor_name}) payout clearance`);
+    setShowAddFundModal(true);
+  };
+
+  // Primary Payout + Utkal wallet
+  const payoutUtkalWallet = adminWallets.find(
+    (w) => w.service_code.toUpperCase() === "PAYOUT" && w.vendor_name.toUpperCase().includes("UTKAL")
+  ) || adminWallets.find((w) => w.service_code.toUpperCase() === "PAYOUT") || adminWallets[0];
+
   const handleApprove = async () => {
     if (!selectedRequest) return;
     if (selectedRequest.can_approve === false) {
-      setActionErrorMsg(selectedRequest.approval_block_reason || "POS T1 requests can be approved from the next day (T+1).");
+      setActionErrorMsg(selectedRequest.approval_block_reason || "Approval blocked due to policy validation.");
       return;
     }
     setApproving(true);
@@ -262,24 +364,23 @@ export default function AdminTopupRequestsPage() {
         return;
       }
 
-      const res = await api.post(`/api/v1/topup/requests/${selectedRequest.id}/approve`, {
+      // Execute PUT / POST to approve
+      const res = await api.put(`/api/v1/topup/requests/${selectedRequest.id}/approve`, {
         approved_amount: amount,
         received_amount: amount,
         admin_notes: adminNotes.trim() || undefined,
       });
 
       if (res.data?.success) {
-        const emailNotice = res.data.email_sent
-          ? ` • Confirmation email sent to ${res.data.recipient_email || selectedRequest.retailer?.email || "retailer"}`
-          : "";
         setActionSuccessMsg(
           `Successfully approved & credited Received Amount ₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })} to ${
             selectedRequest.retailer?.retailer_name || "Retailer"
-          }${emailNotice}`
+          }.`
         );
         setShowApproveModal(false);
         fetchRequests();
         fetchMetrics();
+        fetchAdminWallets();
         setSelectedRequest((prev) =>
           prev
             ? {
@@ -357,6 +458,8 @@ export default function AdminTopupRequestsPage() {
       "Request ID",
       "Retailer Code",
       "Retailer Name",
+      "Service",
+      "Vendor",
       "Mobile",
       "Requested Amount",
       "MDR (%)",
@@ -364,11 +467,11 @@ export default function AdminTopupRequestsPage() {
       "GST Amount",
       "Total Deductions",
       "Received Amount",
-      "Approved Amount",
+      "Admin Wallet Balance",
       "Payment Method",
       "Payment Reference (UTR)",
-      "Payment Date",
       "Status",
+      "Approval Eligibility",
       "Submitted At",
       "Approved At",
       "Transaction Reference",
@@ -391,6 +494,8 @@ export default function AdminTopupRequestsPage() {
         r.topup_request_id,
         r.retailer?.retailer_code || "",
         `"${(r.retailer?.retailer_name || "").replace(/"/g, '""')}"`,
+        r.service || "Payout",
+        r.vendor || "Utkal",
         r.retailer?.mobile_number || "",
         r.requested_amount,
         rMdrPct > 0 ? `${rMdrPct.toFixed(2)}%` : "0%",
@@ -398,11 +503,11 @@ export default function AdminTopupRequestsPage() {
         r.gst_amount || 0,
         deductions,
         received,
-        r.approved_amount || "",
+        r.admin_available_balance || 0,
         r.payment_method,
         `"${(r.payment_reference || "").replace(/"/g, '""')}"`,
-        r.payment_date ? new Date(r.payment_date).toISOString().split("T")[0] : "",
         r.status,
+        r.can_approve ? "Eligible" : `Blocked (${r.approval_block_reason || "Rule Lock"})`,
         r.submitted_at ? new Date(r.submitted_at).toISOString() : "",
         r.approved_at ? new Date(r.approved_at).toISOString() : "",
         r.transaction_reference || "",
@@ -419,45 +524,31 @@ export default function AdminTopupRequestsPage() {
     document.body.removeChild(link);
   };
 
-  const simulatedClosingBalance =
-    (selectedRequest?.retailer?.current_wallet_balance || 0) + (parseFloat(customApprovedAmount) || 0);
-
-  const selectedMdrPct = selectedRequest
-    ? (selectedRequest.mdr_percentage !== undefined && selectedRequest.mdr_percentage !== null
-        ? selectedRequest.mdr_percentage
-        : (selectedRequest.requested_amount > 0
-            ? (selectedRequest.mdr_charge !== undefined && selectedRequest.mdr_charge !== null
-                ? (selectedRequest.mdr_charge / selectedRequest.requested_amount) * 100
-                : (selectedRequest.charges ? ((selectedRequest.gst_amount ? selectedRequest.charges - selectedRequest.gst_amount : selectedRequest.charges) / selectedRequest.requested_amount) * 100 : 0))
-            : 0))
-    : 0;
-
   return (
-    <div className="space-y-4 pb-12 font-sans min-h-screen bg-slate-50 text-slate-900">
+    <div className="space-y-5 pb-12 font-sans min-h-screen bg-slate-50 text-slate-900">
       {/* ── Top Header Cockpit ── */}
-      <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs relative overflow-hidden">
-
+      <div className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6 shadow-xs relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-xs shrink-0">
+            <div className="h-12 w-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-xs shrink-0">
               <ArrowLeftRight className="h-6 w-6" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-                  Retailer Topup Requests
+                  POS Top-up Request Approvals
                 </h1>
                 <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold flex items-center gap-1.5 shadow-xs">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Verified Settlement Engine
+                  Dual-Rule Governance
                 </span>
                 <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-bold flex items-center gap-1.5">
-                  <Layers className="h-3.5 w-3.5" />
-                  Double-Entry Ledger
+                  <ShieldAlert className="h-3.5 w-3.5 text-blue-600" />
+                  Service + Vendor Wallet
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1 max-w-3xl leading-relaxed">
-                Review payment slips, verify bank reference UTRs, adjust approval amounts, and atomically credit retailer wallets with instant transaction ledger posting.
+                Approve POS machine top-up requests with strict enforcement of <strong>POS Approval Date Rule</strong> (Instant vs T+1) and <strong>Admin Service/Vendor Wallet Balance</strong>.
               </p>
             </div>
           </div>
@@ -466,26 +557,114 @@ export default function AdminTopupRequestsPage() {
             {/* Manual Refresh Button */}
             <button
               onClick={() => {
+                fetchAdminWallets();
                 fetchMetrics();
                 fetchRequests();
               }}
-              disabled={loading || metricsLoading}
-              className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl transition-all shadow-xs active:scale-95 disabled:opacity-50"
+              disabled={loading || metricsLoading || walletsLoading}
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl transition-all shadow-xs active:scale-95 disabled:opacity-50"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading || metricsLoading ? "animate-spin text-amber-600" : "text-slate-500"}`} />
-              Refresh
+              <RefreshCw className={`h-3.5 w-3.5 ${loading || metricsLoading || walletsLoading ? "animate-spin text-amber-600" : "text-slate-500"}`} />
+              Refresh Data
             </button>
 
             {/* Export CSV */}
             <button
               onClick={exportToCSV}
               disabled={requests.length === 0}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
             >
               <Download className="h-3.5 w-3.5" />
               Export CSV
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* ── ADMIN SERVICE + VENDOR OPERATION WALLET CARDS (LIVE DATABASE MAPPING) ── */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white border border-slate-700/60 shadow-lg relative overflow-hidden">
+        <div className="absolute -right-10 -bottom-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 -top-10 w-60 h-60 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/80 pb-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-400">
+              <Wallet className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-white tracking-tight">
+                  ADMIN OPERATION WALLET
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  LIVE DB MAPPING
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Top-up request approval balance validation is mapped dynamically by <strong>Service + Vendor</strong>.
+              </p>
+            </div>
+          </div>
+
+          {payoutUtkalWallet && (
+            <button
+              onClick={() => openFundModalForWallet(payoutUtkalWallet)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-95"
+            >
+              <PlusCircle className="h-4 w-4" />
+              + Add Fund to Admin Wallet
+            </button>
+          )}
+        </div>
+
+        {/* Dynamic Service + Vendor Wallets Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {adminWallets.map((w) => {
+            const isPayoutUtkal = w.service_code.toUpperCase() === "PAYOUT" && w.vendor_name.toUpperCase().includes("UTKAL");
+            return (
+              <div
+                key={w.id}
+                className={`rounded-xl p-4 border transition-all ${
+                  isPayoutUtkal
+                    ? "bg-slate-800/90 border-amber-400/50 shadow-md ring-1 ring-amber-400/30"
+                    : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">
+                      Service: <strong className="text-amber-400">{w.service_name}</strong>
+                    </span>
+                  </div>
+                  {isPayoutUtkal && (
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                      PRIMARY POS
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
+                  <span>Vendor: <strong className="text-white">{w.vendor_name}</strong></span>
+                  <span className="text-[10px] text-slate-400 font-mono">{w.wallet_number}</span>
+                </div>
+
+                <div className="mt-2.5 flex items-baseline justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Available Balance</span>
+                    <div className="text-xl font-black text-emerald-400 tracking-tight font-mono">
+                      ₹{w.available_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => openFundModalForWallet(w)}
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-700/80 hover:bg-slate-600 text-amber-300 border border-slate-600 transition-colors"
+                  >
+                    + Add Fund
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -619,7 +798,7 @@ export default function AdminTopupRequestsPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by Request ID, Retailer Code, Name, UTR / Ref..."
+              placeholder="Search by Request ID, Retailer Code, Name, UTR / Ref, Vendor..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -709,16 +888,18 @@ export default function AdminTopupRequestsPage() {
               <tr>
                 <th className="py-3.5 px-4 font-black">REQUEST ID</th>
                 <th className="py-3.5 px-4 font-black">RETAILER</th>
+                <th className="py-3.5 px-4 font-black">SERVICE / VENDOR</th>
                 <th className="py-3.5 px-4 font-black">MODE &amp; REF</th>
                 <th className="py-3.5 px-4 text-right font-black">
-                  TRANSACTION AMOUNT (₹) <span className="text-rose-500">*</span>
+                  TRANSACTION AMOUNT (₹)
                 </th>
-                <th className="py-3.5 px-4 text-right font-black">MDR % / CHARGES</th>
+                <th className="py-3.5 px-4 text-right font-black">MDR / CHARGES</th>
                 <th className="py-3.5 px-4 text-right font-black text-emerald-800">
                   RECEIVED AMOUNT (₹)
                 </th>
-                <th className="py-3.5 px-4 text-center font-black">SLIP PROOF</th>
-                <th className="py-3.5 px-4 font-black">SUBMITTED AT</th>
+                <th className="py-3.5 px-4 text-center font-black">ADMIN WALLET BAL</th>
+                <th className="py-3.5 px-4 text-center font-black">ELIGIBILITY</th>
+                <th className="py-3.5 px-4 text-center font-black">SLIP</th>
                 <th className="py-3.5 px-4 text-center font-black">STATUS</th>
                 <th className="py-3.5 px-4 text-right font-black">ACTION</th>
               </tr>
@@ -726,15 +907,15 @@ export default function AdminTopupRequestsPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-20 text-center text-slate-500">
+                  <td colSpan={12} className="py-20 text-center text-slate-500">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-amber-500" />
                     <p className="font-bold text-sm text-slate-800">Loading live topup requests...</p>
-                    <p className="text-xs text-slate-400 mt-1">Directly retrieving PostgreSQL database records</p>
+                    <p className="text-xs text-slate-400 mt-1">Directly querying PostgreSQL database with dual-rule governance</p>
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-20 text-center text-slate-500">
+                  <td colSpan={12} className="py-20 text-center text-slate-500">
                     <AlertCircle className="h-10 w-10 text-slate-400 mx-auto mb-2" />
                     <p className="font-bold text-base text-slate-800">No topup requests found</p>
                     <p className="text-xs text-slate-400 mt-1">Try adjusting your search query or status filters.</p>
@@ -750,6 +931,7 @@ export default function AdminTopupRequestsPage() {
                   const displayReceived = item.received_amount !== undefined && item.received_amount !== null
                     ? item.received_amount
                     : (item.approved_amount !== undefined && item.approved_amount !== null ? item.approved_amount : item.requested_amount);
+
                   const itemMdrPct = item.mdr_percentage !== undefined && item.mdr_percentage !== null
                     ? item.mdr_percentage
                     : (item.requested_amount > 0
@@ -758,22 +940,26 @@ export default function AdminTopupRequestsPage() {
                             : (item.charges ? ((item.gst_amount ? item.charges - item.gst_amount : item.charges) / item.requested_amount) * 100 : 0))
                         : 0);
 
+                  const isT1 = isPosT1Mode(item);
+
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-slate-50/90 transition-colors group cursor-pointer"
                       onClick={() => openDrawer(item)}
+                      className={`cursor-pointer transition-colors group ${
+                        selectedRequest?.id === item.id ? "bg-amber-50/50" : "hover:bg-slate-50/80"
+                      }`}
                     >
                       {/* Request ID */}
-                      <td className="py-3.5 px-4 font-mono font-medium text-slate-800">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 tracking-wide">{item.topup_request_id}</span>
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span>{item.topup_request_id}</span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               copyToClipboard(item.topup_request_id, item.id);
                             }}
-                            className="text-slate-400 hover:text-amber-600 p-1 rounded-md hover:bg-slate-100 transition-colors"
+                            className="text-slate-400 hover:text-slate-600 transition-colors"
                             title="Copy Request ID"
                           >
                             {copiedId === item.id ? (
@@ -783,17 +969,12 @@ export default function AdminTopupRequestsPage() {
                             )}
                           </button>
                         </div>
-                        {item.transaction_reference && (
-                          <div className="text-[10px] text-emerald-700 font-mono mt-0.5">
-                            Ref: {item.transaction_reference}
-                          </div>
-                        )}
                       </td>
 
-                      {/* Retailer Details */}
+                      {/* Retailer Info */}
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-xl bg-amber-100/70 border border-amber-200 flex items-center justify-center font-black text-amber-800 text-sm shrink-0">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-8 w-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
                             {initialLetter}
                           </div>
                           <div>
@@ -804,33 +985,25 @@ export default function AdminTopupRequestsPage() {
                               <span className="font-mono font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" title="Retailer Code">
                                 {item.retailer?.retailer_code || "RET-N/A"}
                               </span>
-                              {item.retailer?.account_status && item.retailer.account_status !== "ACTIVE" && (
-                                <span
-                                  className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
-                                    item.retailer.account_status === "HOLD"
-                                      ? "bg-amber-100 text-amber-900 border-amber-300"
-                                      : item.retailer.account_status === "REJECTED"
-                                      ? "bg-rose-100 text-rose-900 border-rose-300"
-                                      : "bg-slate-100 text-slate-800 border-slate-300"
-                                  }`}
-                                  title={`Retailer KYC / Onboarding Status: ${item.retailer.account_status}`}
-                                >
-                                  KYC: {item.retailer.account_status}
-                                </span>
-                              )}
                               {item.retailer?.mobile_number && (
                                 <span className="text-slate-600 font-medium flex items-center gap-1">
                                   <Phone className="h-3 w-3 text-slate-400" />
                                   {item.retailer.mobile_number}
                                 </span>
                               )}
-                              {item.retailer?.current_wallet_balance !== undefined && (
-                                <span className="text-slate-600 font-semibold">
-                                  • Bal: <strong className="text-emerald-700">₹{item.retailer.current_wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                                </span>
-                              )}
                             </div>
                           </div>
+                        </div>
+                      </td>
+
+                      {/* Service & Vendor Mapping */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            <span className="text-amber-600 font-black">{item.service || "Payout"}</span>
+                            <span className="text-slate-400">·</span>
+                            <span className="text-slate-900 font-extrabold">{item.vendor || "Utkal"}</span>
+                          </span>
                         </div>
                       </td>
 
@@ -840,83 +1013,91 @@ export default function AdminTopupRequestsPage() {
                           <div className="flex items-center gap-1.5 font-medium text-slate-700">
                             <span
                               className={`px-2 py-0.5 text-[10px] font-black rounded border ${
-                                isPosT1Mode(item)
+                                isT1
                                   ? "bg-purple-50 text-purple-800 border-purple-200"
                                   : "bg-slate-100 text-slate-700 border-slate-200"
                               }`}
                             >
                               {item.payment_mode || item.payment_method || "POS - Instant"}
                             </span>
-                            <span
-                              className="font-mono text-slate-800 truncate max-w-[130px] font-bold"
-                              title={item.payment_reference}
-                            >
-                              {item.payment_reference || "No Ref"}
-                            </span>
                           </div>
-                          {isPending && isPosT1Mode(item) && item.can_approve === false && (
-                            <div className="flex items-center gap-1">
-                              <span
-                                className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 inline-flex items-center gap-1"
-                                title="POS T1 requests can be approved from the next day (T+1)."
-                              >
-                                <Clock className="h-2.5 w-2.5 text-amber-600" />
-                                T+1 Rule: Next Day
-                              </span>
-                            </div>
-                          )}
-                          {item.payment_date && (
-                            <div className="text-[11px] text-slate-500">
-                              {new Date(item.payment_date).toLocaleDateString("en-IN")}
-                            </div>
-                          )}
+                          <span
+                            className="font-mono text-slate-800 truncate max-w-[130px] font-bold text-[11px]"
+                            title={item.payment_reference}
+                          >
+                            {item.payment_reference || "No Ref"}
+                          </span>
                         </div>
                       </td>
 
-                      {/* Transaction Amount (Gross Requested) */}
+                      {/* Transaction Amount */}
                       <td className="py-3.5 px-4 text-right font-black text-slate-900 text-sm tracking-wide">
                         ₹{item.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
 
-                      {/* MDR % / Deductions */}
+                      {/* MDR / Deductions */}
                       <td className="py-3.5 px-4 text-right font-medium">
                         {totalDeductions > 0 ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-1.5 justify-end">
-                              {itemMdrPct > 0 && (
-                                <span className="text-[10px] font-black font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs" title={`Configured MDR Rate: ${itemMdrPct.toFixed(2)}%`}>
-                                  {itemMdrPct.toFixed(2)}%
-                                </span>
-                              )}
-                              <span className="text-amber-800 font-mono font-bold text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block">
-                                -₹{totalDeductions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-slate-500 block font-sans">
-                              {item.mdr_charge ? `MDR ₹${item.mdr_charge.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : ""} {item.gst_amount ? `+ GST` : "incl. GST"}
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-amber-800 font-mono font-bold text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block">
+                              -₹{totalDeductions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-sans">
+                              {itemMdrPct > 0 ? `${itemMdrPct.toFixed(2)}% MDR` : ""}
                             </span>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-end gap-0.5">
-                            {itemMdrPct > 0 && (
-                              <span className="text-[10px] font-black font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                                {itemMdrPct.toFixed(2)}%
-                              </span>
-                            )}
-                            <span className="text-slate-400 text-xs font-mono">₹0.00</span>
-                          </div>
+                          <span className="text-slate-400 text-xs font-mono">₹0.00</span>
                         )}
                       </td>
 
-                      {/* Received Amount (Net Credited / Creditable) */}
+                      {/* Received Amount */}
                       <td className="py-3.5 px-4 text-right font-black">
                         {isApproved ? (
                           <span className="text-emerald-700 text-sm bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-block font-mono">
                             ₹{displayReceived.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </span>
                         ) : (
-                          <span className="text-blue-700 text-sm bg-blue-50/90 px-2.5 py-1 rounded-lg border border-blue-200 inline-block font-mono font-bold" title="Received Amount (Editable upon approval)">
+                          <span className="text-blue-700 text-sm bg-blue-50/90 px-2.5 py-1 rounded-lg border border-blue-200 inline-block font-mono font-bold">
                             ₹{displayReceived.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Admin Wallet Available Balance */}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-mono font-bold text-xs text-slate-900">
+                            ₹{(item.admin_available_balance ?? payoutUtkalWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {item.vendor || "Utkal"}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Approval Eligibility Badge */}
+                      <td className="py-3.5 px-4 text-center">
+                        {item.status !== "PENDING" ? (
+                          <span className="text-slate-400 text-[11px] font-medium">—</span>
+                        ) : item.can_approve ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                            Eligible
+                          </span>
+                        ) : item.is_date_eligible === false ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs" title={item.approval_block_reason}>
+                            <Lock className="h-3 w-3 text-amber-700" />
+                            POS T1 Locked
+                          </span>
+                        ) : item.is_balance_eligible === false ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-900 border border-rose-300 shadow-2xs" title={`Low Admin Balance. Shortfall: ₹${item.shortfall_amount || 0}`}>
+                            <AlertCircle className="h-3 w-3 text-rose-600" />
+                            Balance Low
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+                            Locked
                           </span>
                         )}
                       </td>
@@ -926,35 +1107,20 @@ export default function AdminTopupRequestsPage() {
                         {item.slip_url ? (
                           <button
                             onClick={() => openDrawer(item)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200 transition-all shadow-xs"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200 transition-all shadow-xs"
                           >
                             <FileImage className="h-3.5 w-3.5 text-amber-600" />
-                            View Slip
+                            Slip
                           </button>
                         ) : (
-                          <span className="text-slate-400 text-[11px] font-semibold">No Slip</span>
-                        )}
-                      </td>
-
-                      {/* Submitted At */}
-                      <td className="py-3.5 px-4 text-slate-500 text-[11px] whitespace-nowrap font-medium">
-                        {item.submitted_at ? (
-                          new Date(item.submitted_at).toLocaleString("en-IN", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        ) : (
-                          "N/A"
+                          <span className="text-slate-400 text-[11px] font-semibold">—</span>
                         )}
                       </td>
 
                       {/* Status Badge */}
                       <td className="py-3.5 px-4 text-center">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black border uppercase tracking-wider ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black border uppercase tracking-wider ${
                             isPending
                               ? "bg-amber-50 text-amber-800 border-amber-200 shadow-xs"
                               : isApproved
@@ -964,9 +1130,9 @@ export default function AdminTopupRequestsPage() {
                               : "bg-slate-100 text-slate-600 border-slate-200"
                           }`}
                         >
-                          {isPending && <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />}
-                          {isApproved && <Check className="h-3.5 w-3.5 text-emerald-600" />}
-                          {isRejected && <X className="h-3.5 w-3.5 text-rose-600" />}
+                          {isPending && <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />}
+                          {isApproved && <Check className="h-3 w-3 text-emerald-600" />}
+                          {isRejected && <X className="h-3 w-3 text-rose-600" />}
                           {item.status}
                         </span>
                       </td>
@@ -982,7 +1148,7 @@ export default function AdminTopupRequestsPage() {
                           }`}
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          {isPending ? "Verify & Review" : "View Details"}
+                          {isPending ? "Review" : "View"}
                         </button>
                       </td>
                     </tr>
@@ -999,492 +1165,320 @@ export default function AdminTopupRequestsPage() {
             Showing <strong className="text-slate-900">{requests.length}</strong> of{" "}
             <strong className="text-slate-900">{totalCount}</strong> topup requests
           </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
-              className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 disabled:opacity-40 transition-colors font-bold shadow-xs flex items-center gap-1"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors shadow-xs"
             >
-              <ChevronLeft className="h-3.5 w-3.5" />
-              Previous
+              <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="px-3.5 py-1 bg-white border border-slate-200 rounded-xl font-black text-slate-900 shadow-xs">
+            <span className="font-bold text-slate-800 px-2">
               Page {page} of {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
-              className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 disabled:opacity-40 transition-colors font-bold shadow-xs flex items-center gap-1"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors shadow-xs"
             >
-              Next
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Slide-Over Inspection & Verification Drawer ── */}
+      {/* ── RIGHT-SIDE INSPECTION & APPROVAL DRAWER ── */}
       {drawerOpen && selectedRequest && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-fadeIn"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fadeIn"
             onClick={() => setDrawerOpen(false)}
           />
 
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-4xl bg-white border-l border-slate-200 shadow-2xl flex flex-col justify-between text-slate-800">
+            <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col border-l border-slate-200 text-xs animate-slideLeft">
               {/* Drawer Header */}
-              <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                  <div className="h-10 w-10 rounded-xl bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center font-black">
                     <ArrowLeftRight className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-black text-slate-900 font-mono">
-                        {selectedRequest.topup_request_id}
-                      </h2>
-                      <span
-                        className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase border ${
-                          selectedRequest.status === "PENDING"
-                            ? "bg-amber-50 text-amber-800 border-amber-200"
-                            : selectedRequest.status === "APPROVED"
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                            : "bg-rose-50 text-rose-800 border-rose-200"
-                        }`}
-                      >
-                        {selectedRequest.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Submitted on {new Date(selectedRequest.submitted_at).toLocaleString("en-IN")}
-                    </p>
+                    <h2 className="text-base font-black text-slate-900">Topup Request Verification</h2>
+                    <p className="text-[11px] text-slate-500 font-mono">{selectedRequest.topup_request_id}</p>
                   </div>
                 </div>
 
                 <button
                   onClick={() => setDrawerOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors"
+                  className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200 transition-colors"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Drawer Body */}
+              {/* Drawer Scrollable Content */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Alert Messages */}
+                {/* Feedback Alerts */}
                 {actionSuccessMsg && (
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-3 shadow-xs">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-xs flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>{actionSuccessMsg}</span>
                   </div>
                 )}
                 {actionErrorMsg && (
-                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-3 shadow-xs">
-                    <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 font-bold text-xs flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
                     <span>{actionErrorMsg}</span>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Left Column: Proof Slip Image Viewer */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                        <FileImage className="h-4 w-4 text-amber-600" />
-                        Uploaded Payment Proof
+                {/* ── 2-RULE GOVERNANCE & APPROVAL ELIGIBILITY CHECKCARD ── */}
+                <div className="rounded-2xl bg-slate-900 text-white p-5 border border-slate-700 space-y-4 shadow-md">
+                  <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 text-amber-400" />
+                      <span className="font-black text-xs uppercase tracking-wider text-amber-300">
+                        Dual Approval Governance
                       </span>
-                      {selectedRequest.slip_url && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setZoomLevel((z) => Math.min(3, z + 0.25))}
-                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                            title="Zoom In"
-                          >
-                            <ZoomIn className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setZoomLevel((z) => Math.max(0.75, z - 0.25))}
-                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                            title="Zoom Out"
-                          >
-                            <ZoomOut className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setRotation((r) => (r + 90) % 360)}
-                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                            title="Rotate 90°"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setFullscreenImage(selectedRequest.slip_url || null)}
-                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                            title="Fullscreen"
-                          >
-                            <Maximize2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      )}
+                    </div>
+                    <span
+                      id="approval_eligibility"
+                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                        selectedRequest.status !== "PENDING"
+                          ? "bg-slate-800 text-slate-300 border-slate-600"
+                          : selectedRequest.can_approve
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                          : "bg-rose-500/20 text-rose-300 border-rose-500/30"
+                      }`}
+                    >
+                      {selectedRequest.status !== "PENDING"
+                        ? selectedRequest.status
+                        : selectedRequest.can_approve
+                        ? "ELIGIBLE TO APPROVE"
+                        : "APPROVAL LOCKED"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Condition 1: POS Date Eligibility */}
+                    <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-400 font-bold">1. POS Approval Date</span>
+                        {selectedRequest.is_date_eligible !== false ? (
+                          <span className="text-emerald-400 font-black flex items-center gap-1">
+                            <Check className="h-3 w-3" /> PASS
+                          </span>
+                        ) : (
+                          <span className="text-amber-400 font-black flex items-center gap-1">
+                            <Lock className="h-3 w-3" /> LOCKED
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-white">
+                        {isPosT1Mode(selectedRequest) ? "POS T+1 Settlement Rule" : "POS Instant Rule"}
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-normal">
+                        {isPosT1Mode(selectedRequest)
+                          ? "Strictly locked on same-day (T+0). Unlocks on calendar date T+1 (tomorrow)."
+                          : "Eligible for same-day immediate approval."}
+                      </p>
                     </div>
 
-                    <div className="h-80 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center relative group p-2">
-                      {selectedRequest.slip_url ? (
-                        <div className="overflow-auto w-full h-full flex items-center justify-center">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={selectedRequest.slip_url}
-                            alt="Payment Slip Proof"
-                            style={{
-                              transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
-                              transition: "transform 0.2s ease-in-out",
-                            }}
-                            className="max-h-full max-w-full object-contain rounded-lg shadow-sm cursor-pointer"
-                            onClick={() => setFullscreenImage(selectedRequest.slip_url || null)}
-                          />
-                        </div>
-                      ) : (
-                        <div className="text-center text-slate-400">
-                          <FileImage className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                          <p className="text-xs font-bold text-slate-600">No physical slip attached</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">Retailer submitted reference without file</p>
-                        </div>
-                      )}
+                    {/* Condition 2: Admin Service + Vendor Wallet Balance */}
+                    <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-400 font-bold">2. Admin Wallet Balance</span>
+                        {selectedRequest.is_balance_eligible !== false ? (
+                          <span className="text-emerald-400 font-black flex items-center gap-1">
+                            <Check className="h-3 w-3" /> SUFFICIENT
+                          </span>
+                        ) : (
+                          <span className="text-rose-400 font-black flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" /> LOW BALANCE
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-white font-mono flex items-center justify-between">
+                        <span>Avail: ₹{(selectedRequest.admin_available_balance ?? payoutUtkalWallet?.available_balance ?? 0).toLocaleString("en-IN")}</span>
+                        <span className="text-[10px] text-amber-400 font-sans">{selectedRequest.service || "Payout"} · {selectedRequest.vendor || "Utkal"}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-normal">
+                        {selectedRequest.is_balance_eligible !== false
+                          ? `Wallet balance is sufficient to settle ₹${(parseFloat(customApprovedAmount) || selectedRequest.requested_amount).toLocaleString("en-IN")}.`
+                          : `Admin balance is low. Shortfall: ₹${(selectedRequest.shortfall_amount || 0).toLocaleString("en-IN")}. Please add funds to continue.`}
+                      </p>
                     </div>
+                  </div>
 
+                  {/* Low Balance Alert Banner */}
+                  {selectedRequest.status === "PENDING" && selectedRequest.is_balance_eligible === false && (
+                    <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="font-black text-rose-100 flex items-center gap-1.5">
+                          <AlertCircle className="h-4 w-4 text-rose-400" />
+                          Admin balance is low. Please add funds to continue the approval.
+                        </div>
+                        <div className="text-[11px] text-rose-300 mt-0.5">
+                          Available: ₹{(selectedRequest.admin_available_balance ?? 0).toLocaleString("en-IN")} | Required: ₹{(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN")} | Shortfall: ₹{(selectedRequest.shortfall_amount || 0).toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (payoutUtkalWallet) openFundModalForWallet(payoutUtkalWallet);
+                        }}
+                        className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-lg shadow-sm whitespace-nowrap self-start sm:self-auto"
+                      >
+                        + Add Fund
+                      </button>
+                    </div>
+                  )}
+
+                  {/* POS T1 Date Lock Banner */}
+                  {selectedRequest.status === "PENDING" && selectedRequest.is_date_eligible === false && (
+                    <div className="p-3 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs">
+                      <div className="font-black text-amber-100 flex items-center gap-1.5">
+                        <Lock className="h-4 w-4 text-amber-400" />
+                        POS T1 Settlement Lock
+                      </div>
+                      <div className="text-[11px] text-amber-300 mt-0.5">
+                        {selectedRequest.approval_block_reason || "POS T1 requests can be approved from T+1 only."}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Slip Proof Viewer */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <FileImage className="h-4 w-4 text-amber-600" />
+                      Uploaded Payment Slip
+                    </span>
                     {selectedRequest.slip_url && (
-                      <div className="flex items-center justify-between text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 font-mono">
-                        <span className="truncate max-w-[200px]" title={selectedRequest.slip_original_filename}>
-                          {selectedRequest.slip_original_filename || "payment_slip.jpg"}
-                        </span>
-                        <a
-                          href={selectedRequest.slip_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-amber-700 hover:text-amber-800 font-bold flex items-center gap-1"
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setZoomLevel((z) => Math.min(3, z + 0.25))}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          title="Zoom In"
                         >
-                          <Download className="h-3 w-3" />
-                          Download Original
-                        </a>
+                          <ZoomIn className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.25))}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          title="Zoom Out"
+                        >
+                          <ZoomOut className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setRotation((r) => (r + 90) % 360)}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          title="Rotate 90°"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setFullscreenImage(selectedRequest.slip_url || null)}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          title="Fullscreen"
+                        >
+                          <Maximize2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     )}
                   </div>
 
-                  {/* Right Column: Financial & Entity Audit */}
-                  <div className="space-y-4">
-                    {/* Retailer Profile Card */}
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                          Retailer Profile
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-200" title="Retailer Code">
-                            {selectedRequest.retailer?.retailer_code || "RET-N/A"}
-                          </span>
-                          {selectedRequest.retailer?.account_status && selectedRequest.retailer.account_status !== "ACTIVE" && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-900 border border-rose-300">
-                              KYC: {selectedRequest.retailer.account_status}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {selectedRequest.retailer?.account_status && selectedRequest.retailer.account_status !== "ACTIVE" && (
-                        <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 font-semibold flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                          <span>This retailer account is not approved (Status: <strong>{selectedRequest.retailer.account_status}</strong>). The account must be approved before funds can be credited.</span>
-                        </div>
-                      )}
-
-                      <div>
-                        <h4 className="text-base font-black text-slate-900">
-                          {selectedRequest.retailer?.retailer_name || "Unknown Retailer"}
-                        </h4>
-                        {selectedRequest.retailer?.mobile_number && (
-                          <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-1.5 font-medium">
-                            <Phone className="h-3.5 w-3.5 text-slate-400" />
-                            <span className="text-slate-800 font-bold">{selectedRequest.retailer.mobile_number}</span>
-                          </p>
-                        )}
-                        {selectedRequest.retailer?.company_name && (
-                          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
-                            <Store className="h-3.5 w-3.5 text-slate-400" />
-                            <span>{selectedRequest.retailer.company_name}</span>
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Current Wallet Balance */}
-                      <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between">
-                        <span className="text-xs text-slate-600 font-medium">Current Wallet Balance</span>
-                        <span className="text-sm font-black text-emerald-700">
-                          ₹{(selectedRequest.retailer?.current_wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
+                  {selectedRequest.slip_url ? (
+                    <div className="relative rounded-2xl border border-slate-200 bg-slate-900 p-2 overflow-hidden flex items-center justify-center min-h-[260px] max-h-[360px]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedRequest.slip_url}
+                        alt="Payment Slip Proof"
+                        style={{
+                          transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
+                          transition: "transform 0.2s ease-in-out",
+                        }}
+                        className="max-h-[320px] max-w-full object-contain rounded-xl select-none"
+                      />
                     </div>
-
-                    {/* Payment Details & Fee Breakdown Card */}
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                        Payment &amp; Calculation Breakdown
-                      </span>
-
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <span className="text-slate-500 block text-[10px] uppercase font-bold">Payment Method / Mode</span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span
-                              className={`font-bold px-2 py-0.5 rounded border ${
-                                isPosT1Mode(selectedRequest)
-                                  ? "bg-purple-50 text-purple-800 border-purple-200"
-                                  : "bg-white text-slate-900 border-slate-200"
-                              }`}
-                            >
-                              {selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}
-                            </span>
-                            {isPosT1Mode(selectedRequest) ? (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-300">
-                                T+1 Settlement
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                Instant
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[10px] uppercase font-bold">Payment Date</span>
-                          <span className="font-bold text-slate-900 block mt-0.5">
-                            {selectedRequest.payment_date
-                              ? new Date(selectedRequest.payment_date).toLocaleDateString("en-IN")
-                              : "N/A"}
-                          </span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-slate-500 block text-[10px] uppercase font-bold">UTR / Bank Reference</span>
-                          <span className="font-mono font-bold text-amber-800 text-sm block mt-0.5">
-                            {selectedRequest.payment_reference || "No Reference Provided"}
-                          </span>
-                        </div>
-
-                        {/* POS T1 Approval Rule Notice */}
-                        {selectedRequest.status === "PENDING" && isPosT1Mode(selectedRequest) && selectedRequest.can_approve === false && (
-                          <div className="col-span-2 p-3 bg-amber-50 border-2 border-amber-300 rounded-xl text-xs text-amber-900 font-semibold space-y-1">
-                            <div className="flex items-center gap-2 font-bold text-amber-950">
-                              <Clock className="h-4 w-4 text-amber-700 shrink-0" />
-                              <span>POS T1 requests can be approved from the next day (T+1).</span>
-                            </div>
-                            <p className="text-[11px] text-amber-800 font-normal pl-6 leading-relaxed">
-                              Request Date: <strong>{selectedRequest.request_date ? new Date(selectedRequest.request_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : (selectedRequest.submitted_at ? new Date(selectedRequest.submitted_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Today")}</strong>. Per platform business rule, same-day approval is disabled for POS T1 transactions. The Admin can review details today, and approval will become active tomorrow.
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Amount & Fee Breakdown Summary */}
-                        <div className="col-span-2 p-3 bg-white rounded-xl border border-slate-200 space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-600 font-medium">Transaction Amount (Gross):</span>
-                            <span className="font-black text-slate-900">
-                              ₹{selectedRequest.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                          {(selectedRequest.charges || selectedRequest.mdr_charge || 0) > 0 && (
-                            <>
-                              <div className="flex items-center justify-between text-xs text-amber-800">
-                                <span className="flex items-center gap-1.5">
-                                  <span>MDR Fee:</span>
-                                  {selectedMdrPct > 0 && (
-                                    <span className="font-mono text-[10px] font-black bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded border border-amber-300">
-                                      {selectedMdrPct.toFixed(2)}%
-                                    </span>
-                                  )}
-                                </span>
-                                <span className="font-mono font-bold">
-                                  -₹{(selectedRequest.mdr_charge || (selectedRequest.gst_amount ? selectedRequest.charges! - selectedRequest.gst_amount : selectedRequest.charges) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                </span>
-                              </div>
-                              {selectedRequest.gst_amount ? (
-                                <div className="flex items-center justify-between text-xs text-amber-800">
-                                  <span>GST on MDR (18%):</span>
-                                  <span className="font-mono">
-                                    -₹{selectedRequest.gst_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              ) : null}
-                              <div className="flex items-center justify-between text-xs text-amber-900 font-bold pt-1 border-t border-slate-100">
-                                <span>Total Deductions:</span>
-                                <span className="font-mono">
-                                  -₹{((selectedRequest.charges || selectedRequest.mdr_charge || 0) + (selectedRequest.gst_amount || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                          <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-xs font-black">
-                            <span className="text-slate-700">Calculated Received Amount:</span>
-                            <span className="text-emerald-700 font-mono text-sm">
-                              ₹{(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        </div>
-
-                        {selectedRequest.retailer_remarks && (
-                          <div className="col-span-2 pt-1 border-t border-slate-200">
-                            <span className="text-slate-500 block text-[10px] uppercase font-bold">Retailer Remarks</span>
-                            <p className="text-xs text-slate-700 italic mt-0.5">
-                              &ldquo;{selectedRequest.retailer_remarks}&rdquo;
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                  ) : (
+                    <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-slate-400">
+                      <FileImage className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="font-semibold">No payment proof image attached</p>
                     </div>
+                  )}
+                </div>
 
-                    {/* Approve Amount & Live Balance Simulation Card */}
-                    {selectedRequest.status === "PENDING" && (
-                      <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200 shadow-xs space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                            <Sparkles className="h-4 w-4 text-emerald-600" />
-                            Received Amount Configuration
-                          </span>
-                          <div className="flex items-center gap-2 text-[10px]">
-                            {selectedMdrPct > 0 && (
-                              <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                MDR: {selectedMdrPct.toFixed(2)}%
-                              </span>
-                            )}
-                            <span className="text-slate-600 font-medium">
-                              Txn Gross: <strong className="text-slate-900">₹{selectedRequest.requested_amount.toLocaleString("en-IN")}</strong>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Editable Received Amount Input */}
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                            <span>Received Amount to Credit (INR) *</span>
-                            {parseFloat(customApprovedAmount) !== (selectedRequest.received_amount || selectedRequest.requested_amount) && (
-                              <span className="text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
-                                ✏️ Custom Edited Amount
-                              </span>
-                            )}
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-emerald-700 text-sm">₹</span>
-                            <input
-                              type="number"
-                              step="any"
-                              value={customApprovedAmount}
-                              onChange={(e) => setCustomApprovedAmount(e.target.value)}
-                              placeholder="Enter received amount to credit"
-                              className="w-full pl-8 pr-4 py-2.5 bg-white border-2 border-emerald-300 rounded-xl text-base font-black text-emerald-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-mono shadow-xs"
-                            />
-                          </div>
-
-                          {/* Quick Adjust Buttons */}
-                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => setCustomApprovedAmount((selectedRequest.received_amount || selectedRequest.requested_amount).toString())}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                                parseFloat(customApprovedAmount) === (selectedRequest.received_amount || selectedRequest.requested_amount)
-                                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                              }`}
-                            >
-                              Received (₹{(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setCustomApprovedAmount(selectedRequest.requested_amount.toString())}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                                parseFloat(customApprovedAmount) === selectedRequest.requested_amount
-                                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                              }`}
-                            >
-                              Gross (₹{selectedRequest.requested_amount.toLocaleString("en-IN")})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setCustomApprovedAmount(((selectedRequest.received_amount || selectedRequest.requested_amount) / 2).toString())}
-                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
-                            >
-                              50%
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Admin Notes */}
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-700">
-                            Admin Approval Remarks / Reference (Optional)
-                          </label>
-                          <input
-                            type="text"
-                            value={adminNotes}
-                            onChange={(e) => setAdminNotes(e.target.value)}
-                            placeholder="e.g. Verified UTR on bank portal, credited received amount"
-                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-500 transition-colors shadow-xs"
-                          />
-                        </div>
-
-                        {/* Live Balance Simulation Grid */}
-                        <div className="pt-2 border-t border-slate-200">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                            Simulated Balance Impact
-                          </span>
-                          <div className="grid grid-cols-3 gap-2 text-center">
-                            <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-xs">
-                              <span className="text-[10px] text-slate-500 block font-bold">Opening</span>
-                              <span className="text-xs font-black text-slate-900">
-                                ₹{(selectedRequest.retailer?.current_wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
-                              <span className="text-[10px] text-emerald-700 block font-bold">+ Received</span>
-                              <span className="text-xs font-black text-emerald-700 font-mono">
-                                ₹{(parseFloat(customApprovedAmount) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                            <div className="p-2 rounded-xl bg-blue-50 border border-blue-200">
-                              <span className="text-[10px] text-blue-700 block font-bold">Closing</span>
-                              <span className="text-xs font-black text-blue-800 font-mono">
-                                ₹{simulatedClosingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Automated Email Notice */}
-                        <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-[11px] flex items-center gap-2">
-                          <span className="text-sm">📧</span>
-                          <span>An automated email with transaction details, MDR deductions, and updated balance will be sent to the retailer immediately upon approval.</span>
-                        </div>
-                      </div>
-                    )}
+                {/* Retailer & Account Details */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Store className="h-4 w-4 text-slate-600" />
+                    Retailer Account Profile
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-500 text-[11px]">Retailer Name:</span>
+                      <p className="font-bold text-slate-900">{selectedRequest.retailer?.retailer_name || "Unknown"}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-[11px]">Retailer Code:</span>
+                      <p className="font-mono font-bold text-amber-800">{selectedRequest.retailer?.retailer_code || "N/A"}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-[11px]">Mobile Number:</span>
+                      <p className="font-medium text-slate-800">{selectedRequest.retailer?.mobile_number || "N/A"}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-[11px]">Current Wallet Balance:</span>
+                      <p className="font-mono font-black text-emerald-700">
+                        ₹{(selectedRequest.retailer?.current_wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Audit Trail for Past Actions */}
-                {(selectedRequest.status === "APPROVED" || selectedRequest.status === "REJECTED") && (
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Audit Trail &amp; Ledger Reference
-                    </span>
-                    <div className="space-y-1.5">
-                      {selectedRequest.transaction_reference && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Transaction Reference:</span>
-                          <span className="font-mono font-bold text-emerald-700">{selectedRequest.transaction_reference}</span>
-                        </div>
-                      )}
+                {/* Amount & MDR Calculation */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                    Financial Summary
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Transaction Amount (Gross):</span>
+                      <span className="font-bold text-slate-900 font-mono">
+                        ₹{selectedRequest.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {(selectedRequest.charges || selectedRequest.mdr_charge || 0) > 0 && (
+                      <div className="flex items-center justify-between text-amber-800">
+                        <span>Total Deductions (MDR + GST):</span>
+                        <span className="font-mono font-bold">
+                          -₹{((selectedRequest.charges || selectedRequest.mdr_charge || 0) + (selectedRequest.gst_amount || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                      <span className="font-black text-slate-800">Received Amount (Net Credited):</span>
+                      <span className="font-mono font-black text-emerald-700 text-sm">
+                        ₹{(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Historical Audit Info if already Processed */}
+                {selectedRequest.status !== "PENDING" && (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                      Audit Trail
+                    </div>
+                    <div className="space-y-1.5 text-xs">
                       {selectedRequest.approved_by && (
                         <div className="flex items-center justify-between">
                           <span className="text-slate-500">Approved By:</span>
-                          <span className="font-bold text-slate-800">{selectedRequest.approved_by}</span>
+                          <span className="font-medium text-slate-700">{selectedRequest.approved_by}</span>
                         </div>
                       )}
                       {selectedRequest.approved_at && (
@@ -1493,16 +1487,10 @@ export default function AdminTopupRequestsPage() {
                           <span className="font-medium text-slate-700">{new Date(selectedRequest.approved_at).toLocaleString("en-IN")}</span>
                         </div>
                       )}
-                      {selectedRequest.rejected_by && (
+                      {selectedRequest.transaction_reference && (
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Rejected By:</span>
-                          <span className="font-bold text-rose-800">{selectedRequest.rejected_by}</span>
-                        </div>
-                      )}
-                      {selectedRequest.rejected_at && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Rejected At:</span>
-                          <span className="font-medium text-slate-700">{new Date(selectedRequest.rejected_at).toLocaleString("en-IN")}</span>
+                          <span className="text-slate-500">Transaction Ref:</span>
+                          <span className="font-mono font-bold text-emerald-700">{selectedRequest.transaction_reference}</span>
                         </div>
                       )}
                       {selectedRequest.rejection_reason && (
@@ -1517,7 +1505,7 @@ export default function AdminTopupRequestsPage() {
               </div>
 
               {/* Drawer Footer Actions */}
-              <div className="p-6 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-4">
+              <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-4">
                 <button
                   onClick={() => setDrawerOpen(false)}
                   className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all shadow-xs"
@@ -1532,18 +1520,30 @@ export default function AdminTopupRequestsPage() {
                       className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs"
                     >
                       <XCircle className="h-4 w-4 text-rose-600" />
-                      Reject Request
+                      Reject
                     </button>
 
                     {selectedRequest.can_approve === false ? (
-                      <div className="relative group" title={selectedRequest.approval_block_reason || "POS T1 requests can be approved from the next day (T+1)."}>
+                      <div className="flex items-center gap-2">
+                        {selectedRequest.is_balance_eligible === false && (
+                          <button
+                            onClick={() => {
+                              if (payoutUtkalWallet) openFundModalForWallet(payoutUtkalWallet);
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition-all flex items-center gap-1.5"
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                            Add Fund
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled
                           className="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-400 border border-slate-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-not-allowed shadow-none"
+                          title={selectedRequest.approval_block_reason || "Approval blocked by policy"}
                         >
-                          <Clock className="h-4 w-4 text-slate-400" />
-                          Approve Disabled (T+1 Pending)
+                          <Lock className="h-4 w-4 text-slate-400" />
+                          Approve Blocked
                         </button>
                       </div>
                     ) : (
@@ -1552,7 +1552,7 @@ export default function AdminTopupRequestsPage() {
                         className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
                       >
                         <CheckCircle2 className="h-4 w-4" />
-                        Approve Received Amount (₹{(parseFloat(customApprovedAmount) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })})
+                        Approve (₹{(parseFloat(customApprovedAmount) || selectedRequest.requested_amount).toLocaleString("en-IN")})
                       </button>
                     )}
                   </div>
@@ -1563,7 +1563,7 @@ export default function AdminTopupRequestsPage() {
         </div>
       )}
 
-      {/* ── Approval Modal ── */}
+      {/* ── Approval Confirmation Modal ── */}
       {showApproveModal && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowApproveModal(false)} />
@@ -1581,23 +1581,21 @@ export default function AdminTopupRequestsPage() {
             {/* Read-Only Transaction Breakdown */}
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Transaction Amount (Gross):</span>
-                <span className="font-black text-slate-900">
-                  ₹{selectedRequest.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                <span className="text-slate-500 font-medium">Mapped Admin Wallet:</span>
+                <span className="font-bold text-slate-800">
+                  {selectedRequest.service || "Payout"} · {selectedRequest.vendor || "Utkal"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Admin Available Balance:</span>
+                <span className="font-mono font-black text-emerald-700">
+                  ₹{(selectedRequest.admin_available_balance ?? payoutUtkalWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-500">
                 <span>Payment Mode:</span>
                 <span className="font-bold text-slate-700">{selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}</span>
               </div>
-              {(selectedRequest.charges || selectedRequest.mdr_charge || 0) > 0 && (
-                <div className="flex items-center justify-between text-amber-800">
-                  <span>MDR / Charges:</span>
-                  <span className="font-mono font-bold">
-                    -₹{((selectedRequest.charges || selectedRequest.mdr_charge || 0) + (selectedRequest.gst_amount || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
             </div>
 
             <div className="space-y-3 text-xs">
@@ -1605,9 +1603,6 @@ export default function AdminTopupRequestsPage() {
                 <label className="block text-slate-800 font-black mb-1">
                   Received Amount to Credit (INR) <span className="text-rose-500">*</span>
                 </label>
-                <p className="text-[11px] text-slate-500 mb-1.5">
-                  Only the Received Amount can be edited and approved for wallet credit.
-                </p>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-emerald-700 text-sm">₹</span>
                   <input
@@ -1620,49 +1615,18 @@ export default function AdminTopupRequestsPage() {
                 </div>
               </div>
 
-              {/* Quick Amount Preset Chips */}
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  {
-                    label: `Received (₹${(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })})`,
-                    val: selectedRequest.received_amount || selectedRequest.requested_amount
-                  },
-                  {
-                    label: `Gross (₹${selectedRequest.requested_amount.toLocaleString("en-IN")})`,
-                    val: selectedRequest.requested_amount
-                  },
-                  {
-                    label: "50%",
-                    val: (selectedRequest.received_amount || selectedRequest.requested_amount) * 0.5
-                  },
-                ].map((chip) => (
-                  <button
-                    key={chip.label}
-                    onClick={() => setCustomApprovedAmount(chip.val.toString())}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200"
-                  >
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Administrative Notes (Optional)</label>
+                <label className="block text-slate-700 font-bold mb-1">Admin Notes (Optional)</label>
                 <textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="e.g. Bank verified via SBI NetBanking UTR confirmation"
+                  placeholder="e.g. Approved via SP against Utkal Payout Operation Wallet"
                   className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500 h-16 resize-none"
                 />
               </div>
 
-              {/* Automated Email Notice */}
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
-                📧 <strong>Automated Retailer Email:</strong> Once confirmed, an email with full topup verification details, UTR reference, MDR deductions, and new wallet balance will be sent to the retailer.
-              </div>
-
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium">
-                ⚡ <strong>Atomic DB Lock:</strong> Approving will immediately lock the retailer wallet, add ₹{parseFloat(customApprovedAmount) || 0} to balance, and post a ledger entry.
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium leading-relaxed">
+                ⚡ <strong>Atomic SP Settlement:</strong> Deducts ₹{parseFloat(customApprovedAmount) || 0} from Admin <strong>{selectedRequest.service || "Payout"} ({selectedRequest.vendor || "Utkal"})</strong> wallet, credits retailer wallet, and posts ledger transaction.
               </div>
             </div>
 
@@ -1732,7 +1696,7 @@ export default function AdminTopupRequestsPage() {
               </div>
 
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium">
-                ⚠️ Zero financial movement will be recorded. The retailer will be notified of this rejection reason.
+                ⚠️ Zero financial movement will be recorded.
               </div>
             </div>
 
@@ -1750,6 +1714,100 @@ export default function AdminTopupRequestsPage() {
               >
                 {rejecting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 Reject Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Fund Modal for Admin Service + Vendor Wallet ── */}
+      {showAddFundModal && selectedWalletForFund && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAddFundModal(false)} />
+          <div className="relative z-10 w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Add Operational Funds</h3>
+                <p className="text-xs text-slate-500">
+                  {selectedWalletForFund.service_name} · {selectedWalletForFund.vendor_name} ({selectedWalletForFund.wallet_number})
+                </p>
+              </div>
+            </div>
+
+            {fundSuccessMsg && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-xs flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>{fundSuccessMsg}</span>
+              </div>
+            )}
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+              <div className="flex items-center justify-between text-slate-500">
+                <span>Current Available Balance:</span>
+                <span className="font-mono font-black text-slate-900 text-sm">
+                  ₹{selectedWalletForFund.available_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-800 font-black mb-1">
+                  Fund Amount to Add (INR) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-amber-700 text-sm">₹</span>
+                  <input
+                    type="number"
+                    step="any"
+                    value={fundAmount}
+                    onChange={(e) => setFundAmount(e.target.value)}
+                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border-2 border-amber-300 rounded-xl text-base font-black text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-mono shadow-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Amount Chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {["10000", "25000", "50000", "100000", "250000"].map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => setFundAmount(val)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200"
+                  >
+                    +₹{parseInt(val).toLocaleString("en-IN")}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Remarks / Reference</label>
+                <textarea
+                  value={fundRemarks}
+                  onChange={(e) => setFundRemarks(e.target.value)}
+                  placeholder="e.g. Bank transfer from HDFC Master Pool account"
+                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-amber-500 h-16 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowAddFundModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddFund}
+                disabled={addingFund || !fundAmount}
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2"
+              >
+                {addingFund && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                Add ₹{(parseFloat(fundAmount) || 0).toLocaleString("en-IN")}
               </button>
             </div>
           </div>

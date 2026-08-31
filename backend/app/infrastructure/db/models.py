@@ -4017,6 +4017,26 @@ class AdminFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
     )
 
 
+class AdminServiceVendorWalletModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "admin_service_vendor_wallet"
+
+    service_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    service_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    vendor_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    vendor_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    wallet_number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    available_balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    hold_balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    currency: Mapped[str] = mapped_column(String(10), default="INR", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        Index("ix_admin_svc_vendor_lookup", "tenant_id", "service_code", "vendor_code", "is_active", "is_deleted"),
+        {"extend_existing": True}
+    )
+
+
+
 
 
 
