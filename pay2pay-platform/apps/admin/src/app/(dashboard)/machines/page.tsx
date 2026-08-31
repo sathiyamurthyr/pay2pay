@@ -474,27 +474,35 @@ export default function MachinesPage() {
     setSubmitting(true);
     setModalError("");
 
+    const parsedGst = mdrForm.gst_rate !== undefined && mdrForm.gst_rate !== null && !isNaN(Number(mdrForm.gst_rate))
+      ? Number(mdrForm.gst_rate)
+      : 0.0;
+
+    const parsedMdr = mdrForm.mdr !== undefined && mdrForm.mdr !== null && !isNaN(Number(mdrForm.mdr))
+      ? Number(mdrForm.mdr)
+      : 0.0;
+
     try {
       if (editingMdrConfig) {
         await api.put(`/api/v1/pos/admin/mdr-configs/${editingMdrConfig.id}`, {
-          mdr: mdrForm.mdr,
+          mdr: parsedMdr,
           mdr_type: mdrForm.mdr_type,
-          gst_rate: mdrForm.gst_rate,
+          gst_rate: parsedGst,
           remarks: mdrForm.remarks,
           is_active: mdrForm.is_active
         });
         playSuccessSound();
         setAlertState({
           type: "success",
-          message: `POS MDR Configuration for "${editingMdrConfig.payment_mode}" updated successfully.`
+          message: `POS MDR Configuration for "${editingMdrConfig.payment_mode}" updated successfully (GST: ${parsedGst.toFixed(2)}%).`
         });
       } else {
         await api.post("/api/v1/pos/admin/mdr-configs", {
           retailer_id: mdrForm.retailer_id || null,
           payment_mode: mdrForm.payment_mode,
-          mdr: mdrForm.mdr,
+          mdr: parsedMdr,
           mdr_type: mdrForm.mdr_type,
-          gst_rate: mdrForm.gst_rate,
+          gst_rate: parsedGst,
           remarks: mdrForm.remarks,
           is_active: mdrForm.is_active
         });
@@ -539,9 +547,9 @@ export default function MachinesPage() {
     setMdrForm({
       retailer_id: cfg.retailer_id || "",
       payment_mode: cfg.payment_mode,
-      mdr: cfg.mdr,
+      mdr: cfg.mdr !== undefined && cfg.mdr !== null ? cfg.mdr : 1.70,
       mdr_type: cfg.mdr_type || "PERCENTAGE",
-      gst_rate: cfg.gst_rate ?? 18.00,
+      gst_rate: cfg.gst_rate !== undefined && cfg.gst_rate !== null ? cfg.gst_rate : 0.0,
       remarks: cfg.remarks || "",
       is_active: cfg.is_active ?? true
     });
@@ -1255,7 +1263,7 @@ export default function MachinesPage() {
                     min="0"
                     required
                     value={mdrForm.mdr}
-                    onChange={(e) => setMdrForm({ ...mdrForm, mdr: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setMdrForm({ ...mdrForm, mdr: e.target.value === "" ? 0 : Number(e.target.value) })}
                     className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
                   />
                 </div>
@@ -1270,7 +1278,7 @@ export default function MachinesPage() {
                     min="0"
                     required
                     value={mdrForm.gst_rate}
-                    onChange={(e) => setMdrForm({ ...mdrForm, gst_rate: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setMdrForm({ ...mdrForm, gst_rate: e.target.value === "" ? 0 : Number(e.target.value) })}
                     className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
                   />
                 </div>

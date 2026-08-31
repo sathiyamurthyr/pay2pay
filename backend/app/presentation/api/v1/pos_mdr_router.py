@@ -280,16 +280,24 @@ async def create_admin_mdr_config(
 
 
 @router.put("/admin/mdr-configs/{config_id}")
+@router.post("/admin/mdr-configs/{config_id}")
+@router.patch("/admin/mdr-configs/{config_id}")
 async def update_admin_mdr_config(
-    config_id: uuid.UUID,
+    config_id: str,
     req: PosMdrConfigUpdateRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Updates an existing POS MDR configuration rate, GST, effective dates, or active status.
+    Supports 0.00% GST, custom MDR rates, and PUT/POST/PATCH methods.
     """
+    try:
+        cfg_uuid = uuid.UUID(str(config_id).strip())
+    except Exception:
+        raise HTTPException(status_code=400, detail=f"Invalid configuration ID format: '{config_id}'")
+
     stmt = select(PosMdrConfigurationModel).where(
-        PosMdrConfigurationModel.public_id == config_id,
+        PosMdrConfigurationModel.public_id == cfg_uuid,
         PosMdrConfigurationModel.is_deleted == False
     )
     res = await db.execute(stmt)
@@ -326,7 +334,7 @@ async def update_admin_mdr_config(
         "payment_mode": cfg.payment_mode,
         "mdr": float(cfg.mdr),
         "mdr_type": cfg.mdr_type,
-        "gst_rate": float(cfg.gst_rate),
+        "gst_rate": float(cfg.gst_rate) if cfg.gst_rate is not None else 0.0,
         "is_active": cfg.is_active
     }
 

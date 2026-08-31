@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, func, Identity, FetchedValue
+    BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Date, Float, JSON, func, Identity, FetchedValue, Numeric
 )
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB, UUID
 JSONB = JSON
