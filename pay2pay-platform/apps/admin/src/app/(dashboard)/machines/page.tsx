@@ -81,17 +81,18 @@ function SearchableRetailerSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedRetailer = retailers.find((r) => r.public_id === value || r.retailer_code === value);
+  const selectedRetailer = retailers.find((r) => r.public_id === value || r.retailer_code === value || String(r.id) === value);
 
   const filteredRetailers = retailers.filter((r) => {
     const q = filterText.toLowerCase().trim();
     if (!q) return true;
-    const text = `${r.store_name} ${r.retailer_code} ${r.owner_name} ${r.registered_mobile || ""} ${r.legal_name || ""}`.toLowerCase();
+    const mob = r.registered_mobile || r.mobile || "";
+    const text = `${r.store_name || ""} ${r.retailer_code || ""} ${r.owner_name || ""} ${mob} ${r.legal_name || ""}`.toLowerCase();
     return text.includes(q);
   });
 
   const displayLabel = selectedRetailer
-    ? `${selectedRetailer.store_name || selectedRetailer.owner_name} (${selectedRetailer.retailer_code})`
+    ? `${selectedRetailer.store_name || selectedRetailer.owner_name} (${selectedRetailer.retailer_code})${selectedRetailer.registered_mobile || selectedRetailer.mobile ? ` • ${selectedRetailer.registered_mobile || selectedRetailer.mobile}` : ""}`
     : placeholder;
 
   return (
@@ -179,7 +180,7 @@ function SearchableRetailerSelect({
                   >
                     <div className="truncate pr-2">
                       <div className="font-bold text-[#0F172A]">{r.store_name || r.owner_name} <span className="font-mono text-[11px] text-[#64748B]">({r.retailer_code})</span></div>
-                      <div className="text-[11px] text-[#64748B] font-medium">{r.owner_name} {r.registered_mobile ? `| ${r.registered_mobile}` : ""}</div>
+                      <div className="text-[11px] text-[#64748B] font-medium">{r.owner_name} {r.registered_mobile || r.mobile ? `| ${r.registered_mobile || r.mobile}` : ""}</div>
                     </div>
                     {isSelected && <Check className="w-4 h-4 text-[#2563EB] shrink-0" />}
                   </button>
@@ -237,10 +238,10 @@ export default function MachinesPage() {
   const [machineForm, setMachineForm] = useState({
     serial_number: "",
     mobile_number: "",
-    vendor_id: "VND_PINELABS",
-    vendor_name: "Pine Labs",
+    vendor_id: "",
+    vendor_name: "",
     vendor_commission_type: "PERCENTAGE",
-    vendor_commission_value: 0.50,
+    vendor_commission_value: 0.0,
     pos_model: "Android POS Terminal",
     machine_type: "ANDROID_POS",
     os_version: "Android 11",
@@ -256,9 +257,9 @@ export default function MachinesPage() {
   const [mdrForm, setMdrForm] = useState({
     retailer_id: "",
     payment_mode: "POS - Instant",
-    mdr: 1.70,
+    mdr: "1.70" as string | number,
     mdr_type: "PERCENTAGE",
-    gst_rate: 18.00,
+    gst_rate: "18.00" as string | number,
     remarks: "",
     is_active: true
   });
@@ -268,27 +269,30 @@ export default function MachinesPage() {
     try {
       const res = await api.get("/api/v1/machines/vendors");
       setVendors(res.data.items || []);
-      if (res.data.items?.length > 0 && !machineForm.vendor_id) {
-        setMachineForm(prev => ({
-          ...prev,
-          vendor_id: res.data.items[0].vendor_code,
-          vendor_name: res.data.items[0].vendor_name,
-          vendor_commission_value: res.data.items[0].default_commission_value
-        }));
-      }
     } catch (e) {
       console.error("Failed to load vendors", e);
     }
   };
 
-  // Load Active Retailers & Companies
+  // Load Active & Approved Retailers & Companies from DB
   const fetchRetailersAndCompanies = async () => {
     try {
-      const [rRes, cRes] = await Promise.all([
-        api.get("/api/v1/retailers"),
-        api.get("/api/v1/companies")
-      ]);
-      setRetailers(rRes.data.items || []);
+      let retList: any[] = [];
+      try {
+        const rRes = await api.get("/api/v1/pos/admin/approved-retailers");
+        retList = rRes.data.items || [];
+      } catch {
+        try {
+          const rRes2 = await api.get("/api/v1/retailers/approved");
+          retList = rRes2.data.items || [];
+        } catch {
+          const rRes3 = await api.get("/api/v1/retailers");
+          retList = rRes3.data.items || [];
+        }
+      }
+
+      const cRes = await api.get("/api/v1/companies");
+      setRetailers(retList);
       setCompanies(cRes.data.items || []);
       if (cRes.data.items?.length > 0 && !machineForm.company_id) {
         setMachineForm(prev => ({ ...prev, company_id: cRes.data.items[0].public_id }));
@@ -368,14 +372,20 @@ export default function MachinesPage() {
     setModalError("");
 
     try {
+      const isVendorSelected = Boolean(machineForm.vendor_id && machineForm.vendor_id.trim());
+      const vendorName = isVendorSelected ? machineForm.vendor_name : null;
+      const vendorId = isVendorSelected ? machineForm.vendor_id : null;
+      const vendorCommVal = isVendorSelected ? (Number(machineForm.vendor_commission_value) || 0) : 0.0;
+      const vendorCommType = isVendorSelected ? (machineForm.vendor_commission_type || "PERCENTAGE") : "PERCENTAGE";
+
       if (editingMachine) {
         await api.put(`/api/v1/machines/${editingMachine.public_id}`, {
           serial_number: machineForm.serial_number,
-          mobile_number: machineForm.mobile_number,
-          vendor_id: machineForm.vendor_id,
-          vendor_name: machineForm.vendor_name,
-          vendor_commission_type: machineForm.vendor_commission_type,
-          vendor_commission_value: machineForm.vendor_commission_value,
+          mobile_number: machineForm.mobile_number || null,
+          vendor_id: vendorId,
+          vendor_name: vendorName,
+          vendor_commission_type: vendorCommType,
+          vendor_commission_value: vendorCommVal,
           pos_model: machineForm.pos_model,
           status: machineForm.status,
           mapped_retailer_id: machineForm.mapped_retailer_id ? machineForm.mapped_retailer_id : null
@@ -388,6 +398,11 @@ export default function MachinesPage() {
       } else {
         await api.post("/api/v1/machines", {
           ...machineForm,
+          mobile_number: machineForm.mobile_number || null,
+          vendor_id: vendorId,
+          vendor_name: vendorName,
+          vendor_commission_type: vendorCommType,
+          vendor_commission_value: vendorCommVal,
           mapped_retailer_id: machineForm.mapped_retailer_id || null,
           company_id: machineForm.company_id || (companies[0]?.public_id ?? null)
         });
@@ -416,10 +431,10 @@ export default function MachinesPage() {
     setMachineForm({
       serial_number: m.serial_number || "",
       mobile_number: m.mobile_number || "",
-      vendor_id: m.vendor_id || "VND_PINELABS",
-      vendor_name: m.vendor_name || "Pine Labs",
+      vendor_id: m.vendor_id || "",
+      vendor_name: m.vendor_name || "",
       vendor_commission_type: m.vendor_commission_type || "PERCENTAGE",
-      vendor_commission_value: m.vendor_commission_value ?? 0.50,
+      vendor_commission_value: m.vendor_commission_value ?? 0.0,
       pos_model: m.pos_model || "Android POS Terminal",
       machine_type: m.machine_type || "ANDROID_POS",
       os_version: m.os_version || "Android 11",
@@ -474,19 +489,27 @@ export default function MachinesPage() {
     setSubmitting(true);
     setModalError("");
 
-    const parsedGst = mdrForm.gst_rate !== undefined && mdrForm.gst_rate !== null && !isNaN(Number(mdrForm.gst_rate))
-      ? Number(mdrForm.gst_rate)
-      : 0.0;
+    const parsedMdr = parseFloat(String(mdrForm.mdr));
+    const parsedGst = parseFloat(String(mdrForm.gst_rate));
 
-    const parsedMdr = mdrForm.mdr !== undefined && mdrForm.mdr !== null && !isNaN(Number(mdrForm.mdr))
-      ? Number(mdrForm.mdr)
-      : 0.0;
+    if (isNaN(parsedMdr) || parsedMdr < 0) {
+      setModalError("MDR Rate Percentage must be a valid non-negative number.");
+      setSubmitting(false);
+      return;
+    }
+    if (isNaN(parsedGst) || parsedGst < 0) {
+      setModalError("GST Rate Percentage must be a valid non-negative number (0.0 or greater).");
+      setSubmitting(false);
+      return;
+    }
 
     try {
       if (editingMdrConfig) {
-        await api.put(`/api/v1/pos/admin/mdr-configs/${editingMdrConfig.id}`, {
+        const configId = editingMdrConfig.id || editingMdrConfig.public_id;
+        await api.put(`/api/v1/pos/admin/mdr-configs/${configId}`, {
+          id: configId,
           mdr: parsedMdr,
-          mdr_type: mdrForm.mdr_type,
+          mdr_type: mdrForm.mdr_type || "PERCENTAGE",
           gst_rate: parsedGst,
           remarks: mdrForm.remarks,
           is_active: mdrForm.is_active
@@ -494,14 +517,14 @@ export default function MachinesPage() {
         playSuccessSound();
         setAlertState({
           type: "success",
-          message: `POS MDR Configuration for "${editingMdrConfig.payment_mode}" updated successfully (GST: ${parsedGst.toFixed(2)}%).`
+          message: `POS MDR Configuration for "${editingMdrConfig.payment_mode}" updated successfully.`
         });
       } else {
         await api.post("/api/v1/pos/admin/mdr-configs", {
           retailer_id: mdrForm.retailer_id || null,
           payment_mode: mdrForm.payment_mode,
           mdr: parsedMdr,
-          mdr_type: mdrForm.mdr_type,
+          mdr_type: mdrForm.mdr_type || "PERCENTAGE",
           gst_rate: parsedGst,
           remarks: mdrForm.remarks,
           is_active: mdrForm.is_active
@@ -547,9 +570,9 @@ export default function MachinesPage() {
     setMdrForm({
       retailer_id: cfg.retailer_id || "",
       payment_mode: cfg.payment_mode,
-      mdr: cfg.mdr !== undefined && cfg.mdr !== null ? cfg.mdr : 1.70,
+      mdr: cfg.mdr !== undefined && cfg.mdr !== null ? String(cfg.mdr) : "1.70",
       mdr_type: cfg.mdr_type || "PERCENTAGE",
-      gst_rate: cfg.gst_rate !== undefined && cfg.gst_rate !== null ? cfg.gst_rate : 0.0,
+      gst_rate: cfg.gst_rate !== undefined && cfg.gst_rate !== null ? String(cfg.gst_rate) : "18.00",
       remarks: cfg.remarks || "",
       is_active: cfg.is_active ?? true
     });
@@ -594,10 +617,18 @@ export default function MachinesPage() {
       header: "POS Vendor & Commission",
       cell: (m) => (
         <div>
-          <span className="font-bold text-xs text-[#0F172A] block">{m.vendor_name || "Pine Labs"}</span>
-          <span className="inline-block mt-0.5 px-2 py-0.5 bg-[#F1F5F9] text-[#334155] border border-[#CBD5E1] rounded text-[11px] font-mono font-black">
-            {m.vendor_commission_value}% {m.vendor_commission_type || "PERCENT"}
-          </span>
+          {m.vendor_id || m.vendor_name ? (
+            <>
+              <span className="font-bold text-xs text-[#0F172A] block">{m.vendor_name || m.vendor_id}</span>
+              <span className="inline-block mt-0.5 px-2 py-0.5 bg-[#F1F5F9] text-[#334155] border border-[#CBD5E1] rounded text-[11px] font-mono font-black">
+                {m.vendor_commission_value ?? 0}% {m.vendor_commission_type || "PERCENT"}
+              </span>
+            </>
+          ) : (
+            <span className="px-2 py-0.5 bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0] rounded text-[11px] font-semibold">
+              Direct / No Vendor
+            </span>
+          )}
         </div>
       ),
     },
@@ -793,10 +824,10 @@ export default function MachinesPage() {
                 setMachineForm({
                   serial_number: "",
                   mobile_number: "",
-                  vendor_id: vendors[0]?.vendor_code || "VND_PINELABS",
-                  vendor_name: vendors[0]?.vendor_name || "Pine Labs",
+                  vendor_id: "",
+                  vendor_name: "",
                   vendor_commission_type: "PERCENTAGE",
-                  vendor_commission_value: 0.50,
+                  vendor_commission_value: 0.0,
                   pos_model: "Android POS Terminal",
                   machine_type: "ANDROID_POS",
                   os_version: "Android 11",
@@ -927,10 +958,10 @@ export default function MachinesPage() {
               setMachineForm({
                 serial_number: "",
                 mobile_number: "",
-                vendor_id: vendors[0]?.vendor_code || "VND_PINELABS",
-                vendor_name: vendors[0]?.vendor_name || "Pine Labs",
+                vendor_id: "",
+                vendor_name: "",
                 vendor_commission_type: "PERCENTAGE",
-                vendor_commission_value: 0.50,
+                vendor_commission_value: 0.0,
                 pos_model: "Android POS Terminal",
                 machine_type: "ANDROID_POS",
                 os_version: "Android 11",
@@ -1109,20 +1140,33 @@ export default function MachinesPage() {
               {/* Vendor & Vendor Commission */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="font-bold text-[#374151] block mb-1">POS Vendor *</label>
+                  <label className="font-bold text-[#374151] block mb-1">
+                    POS Vendor <span className="text-[#64748B] font-normal">(Optional)</span>
+                  </label>
                   <select
                     value={machineForm.vendor_id}
                     onChange={(e) => {
-                      const v = vendors.find(x => x.vendor_code === e.target.value);
-                      setMachineForm({
-                        ...machineForm,
-                        vendor_id: e.target.value,
-                        vendor_name: v?.vendor_name || e.target.value,
-                        vendor_commission_value: v?.default_commission_value ?? 0.50
-                      });
+                      const selVal = e.target.value;
+                      if (!selVal) {
+                        setMachineForm({
+                          ...machineForm,
+                          vendor_id: "",
+                          vendor_name: "",
+                          vendor_commission_value: 0.0
+                        });
+                      } else {
+                        const v = vendors.find(x => x.vendor_code === selVal);
+                        setMachineForm({
+                          ...machineForm,
+                          vendor_id: selVal,
+                          vendor_name: v?.vendor_name || selVal,
+                          vendor_commission_value: v?.default_commission_value ?? 0.50
+                        });
+                      }
                     }}
                     className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] font-bold cursor-pointer"
                   >
+                    <option value="">-- No Vendor / Direct Terminal (Optional) --</option>
                     {vendors.map((v) => (
                       <option key={v.vendor_code} value={v.vendor_code}>
                         {v.vendor_name} ({v.default_commission_value}%)
@@ -1131,15 +1175,18 @@ export default function MachinesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="font-bold text-[#374151] block mb-1">Vendor Commission (%)</label>
+                  <label className="font-bold text-[#374151] block mb-1">
+                    Vendor Commission (%) <span className="text-[#64748B] font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    required
+                    disabled={!machineForm.vendor_id}
                     value={machineForm.vendor_commission_value}
                     onChange={(e) => setMachineForm({ ...machineForm, vendor_commission_value: parseFloat(e.target.value) || 0 })}
-                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
+                    placeholder={machineForm.vendor_id ? "0.50" : "0.00 (No Vendor)"}
+                    className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold disabled:bg-[#F1F5F9] disabled:text-[#94A3B8]"
                   />
                 </div>
               </div>
@@ -1263,7 +1310,7 @@ export default function MachinesPage() {
                     min="0"
                     required
                     value={mdrForm.mdr}
-                    onChange={(e) => setMdrForm({ ...mdrForm, mdr: e.target.value === "" ? 0 : Number(e.target.value) })}
+                    onChange={(e) => setMdrForm({ ...mdrForm, mdr: e.target.value })}
                     className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
                   />
                 </div>
@@ -1278,7 +1325,7 @@ export default function MachinesPage() {
                     min="0"
                     required
                     value={mdrForm.gst_rate}
-                    onChange={(e) => setMdrForm({ ...mdrForm, gst_rate: e.target.value === "" ? 0 : Number(e.target.value) })}
+                    onChange={(e) => setMdrForm({ ...mdrForm, gst_rate: e.target.value })}
                     className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
                   />
                 </div>
@@ -1397,13 +1444,13 @@ export default function MachinesPage() {
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                     <span className="text-[11px] text-[#64748B] block font-medium">POS Vendor</span>
                     <span className="font-bold text-[#0F172A]">
-                      {selectedMachineDetails.machine.vendor_name || "Pine Labs"}
+                      {selectedMachineDetails.machine.vendor_name || (selectedMachineDetails.machine.vendor_id ? selectedMachineDetails.machine.vendor_id : "None (Direct)")}
                     </span>
                   </div>
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">
                     <span className="text-[11px] text-[#64748B] block font-medium">Vendor Commission</span>
                     <span className="font-mono font-bold text-[#2563EB]">
-                      {selectedMachineDetails.machine.vendor_commission_value}%
+                      {selectedMachineDetails.machine.vendor_id ? `${selectedMachineDetails.machine.vendor_commission_value ?? 0}%` : "0.00% (N/A)"}
                     </span>
                   </div>
                   <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E2E8F0]">

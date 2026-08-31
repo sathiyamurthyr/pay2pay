@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.application.dependencies import get_current_token_payload, get_current_user, get_current_tenant_id
-from app.infrastructure.db.models import AdminUserModel, RetailerModel
+from app.infrastructure.db.models import AdminUserModel, RetailerModel, RetailerContactModel
 from app.infrastructure.db.pos_mdr_models import (
     PosPaymentModeConfigModel, PosMdrConfigurationModel
 )
@@ -70,6 +70,8 @@ class PosMdrConfigCreateRequest(BaseModel):
 
 
 class PosMdrConfigUpdateRequest(BaseModel):
+    id: Optional[str] = Field(None)
+    config_id: Optional[str] = Field(None)
     mdr: Optional[float] = Field(None, ge=0)
     mdr_type: Optional[str] = Field(None)
     gst_rate: Optional[float] = Field(None, ge=0)
@@ -178,8 +180,13 @@ async def list_admin_mdr_configs(
             ret_map[r.public_id] = {
                 "retailer_code": r.retailer_code,
                 "name": r.store_name or r.owner_name or r.legal_name or r.retailer_code,
-                "mobile": r.registered_mobile
+                "mobile": None
             }
+        c_stmt = select(RetailerContactModel).where(RetailerContactModel.retailer_id.in_(ret_ids))
+        c_res = await db.execute(c_stmt)
+        for rc in c_res.scalars().all():
+            if rc.retailer_id in ret_map and not ret_map[rc.retailer_id]["mobile"]:
+                ret_map[rc.retailer_id]["mobile"] = rc.mobile
 
     items = []
     for c in configs:
@@ -279,32 +286,127 @@ async def create_admin_mdr_config(
     }
 
 
-@router.put("/admin/mdr-configs/{config_id}")
-@router.post("/admin/mdr-configs/{config_id}")
-@router.patch("/admin/mdr-configs/{config_id}")
-async def update_admin_mdr_config(
-    config_id: str,
-    req: PosMdrConfigUpdateRequest,
+# ==============================================================================
+# APPROVED RETAILERS API (SP BASED)
+# ==============================================================================
+
+@router.get("/approved-retailers")
+@router.get("/admin/approved-retailers")
+async def get_approved_retailers_list(
+    search: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Updates an existing POS MDR configuration rate, GST, effective dates, or active status.
-    Supports 0.00% GST, custom MDR rates, and PUT/POST/PATCH methods.
+    Returns only Approved and Active retailers loaded directly from the database
+    via the Stored Procedure public.get_approved_retailers_list.
     """
+    comp_uuid = None
+    if company_id:
+        try:
+            comp_uuid = uuid.UUID(str(company_id).strip())
+        except Exception:
+            pass
+
     try:
-        cfg_uuid = uuid.UUID(str(config_id).strip())
-    except Exception:
-        raise HTTPException(status_code=400, detail=f"Invalid configuration ID format: '{config_id}'")
+        from sqlalchemy import text, func
+        sp_query = text("""
+            SELECT id, public_id, retailer_code, store_name, legal_name, owner_name,
+                   business_category, registered_mobile, email, status, wallet_balance,
+                   company_id, tenant_id, created_date
+            FROM public.get_approved_retailers_list(:search, :comp_id)
+        """)
+        res = await db.execute(sp_query, {"search": search or None, "comp_id": comp_uuid})
+        rows = res.fetchall()
+        items = [
+            {
+                "id": r.id,
+                "public_id": str(r.public_id),
+                "retailer_code": r.retailer_code,
+                "store_name": r.store_name,
+                "legal_name": r.legal_name,
+                "owner_name": r.owner_name,
+                "business_category": r.business_category,
+                "registered_mobile": r.registered_mobile,
+                "email": r.email,
+                "status": r.status,
+                "wallet_balance": float(r.wallet_balance) if r.wallet_balance is not None else 0.0,
+                "company_id": str(r.company_id) if r.company_id else None,
+                "tenant_id": str(r.tenant_id) if r.tenant_id else None,
+                "created_date": r.created_date.isoformat() if r.created_date else None
+            }
+            for r in rows
+        ]
+        return {"items": items, "total": len(items)}
+    except Exception as sp_err:
+        # Robust SQLAlchemy Fallback in case SP migration is pending
+        stmt = (
+            select(RetailerModel)
+            .where(
+                RetailerModel.is_deleted == False,
+                RetailerModel.status.in_(["ACTIVE", "APPROVED"])
+            )
+            .order_by(RetailerModel.store_name.asc())
+        )
+        if comp_uuid:
+            stmt = stmt.where(RetailerModel.company_id == comp_uuid)
+        res = await db.execute(stmt)
+        ret_list = res.scalars().all()
+        ret_ids = [r.public_id for r in ret_list]
 
-    stmt = select(PosMdrConfigurationModel).where(
-        PosMdrConfigurationModel.public_id == cfg_uuid,
-        PosMdrConfigurationModel.is_deleted == False
-    )
-    res = await db.execute(stmt)
-    cfg = res.scalars().first()
-    if not cfg:
-        raise HTTPException(status_code=404, detail="MDR configuration not found.")
+        c_map = {}
+        if ret_ids:
+            from app.infrastructure.db.models import RetailerContactModel
+            c_res = await db.execute(
+                select(RetailerContactModel).where(
+                    RetailerContactModel.retailer_id.in_(ret_ids),
+                    RetailerContactModel.is_deleted == False
+                )
+            )
+            for c in c_res.scalars().all():
+                if c.retailer_id not in c_map:
+                    c_map[c.retailer_id] = c.mobile or ""
 
+        items = []
+        for r in ret_list:
+            if search:
+                s_low = search.lower()
+                matched = (
+                    s_low in (r.retailer_code or "").lower() or
+                    s_low in (r.store_name or "").lower() or
+                    s_low in (r.owner_name or "").lower() or
+                    s_low in c_map.get(r.public_id, "").lower()
+                )
+                if not matched:
+                    continue
+
+            items.append({
+                "id": r.id,
+                "public_id": str(r.public_id),
+                "retailer_code": r.retailer_code,
+                "store_name": r.store_name,
+                "legal_name": r.legal_name,
+                "owner_name": r.owner_name,
+                "business_category": r.business_category,
+                "registered_mobile": c_map.get(r.public_id, ""),
+                "status": r.status,
+                "wallet_balance": 0.0,
+                "company_id": str(r.company_id) if r.company_id else None,
+                "tenant_id": str(r.tenant_id) if r.tenant_id else None,
+                "created_date": r.created_date.isoformat() if r.created_date else None
+            })
+        return {"items": items, "total": len(items)}
+
+
+# ==============================================================================
+# MDR UPDATE / DELETE / PROVISION ENDPOINTS
+# ==============================================================================
+
+async def _perform_mdr_update(
+    cfg: PosMdrConfigurationModel,
+    req: PosMdrConfigUpdateRequest,
+    db: AsyncSession
+) -> Dict[str, Any]:
     if req.mdr is not None:
         if req.mdr < 0:
             raise HTTPException(status_code=400, detail="MDR cannot be negative.")
@@ -334,14 +436,62 @@ async def update_admin_mdr_config(
         "payment_mode": cfg.payment_mode,
         "mdr": float(cfg.mdr),
         "mdr_type": cfg.mdr_type,
-        "gst_rate": float(cfg.gst_rate) if cfg.gst_rate is not None else 0.0,
+        "gst_rate": float(cfg.gst_rate),
         "is_active": cfg.is_active
     }
 
 
+@router.put("/admin/mdr-configs/{config_id}")
+@router.patch("/admin/mdr-configs/{config_id}")
+async def update_admin_mdr_config(
+    config_id: str,
+    req: PosMdrConfigUpdateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Updates an existing POS MDR configuration rate, GST (0.0 allowed), effective dates, or active status.
+    Accepts UUID or string/integer ID.
+    """
+    stmt = select(PosMdrConfigurationModel).where(
+        PosMdrConfigurationModel.is_deleted == False
+    )
+    try:
+        val_uuid = uuid.UUID(str(config_id).strip())
+        stmt = stmt.where(PosMdrConfigurationModel.public_id == val_uuid)
+    except Exception:
+        if str(config_id).isdigit():
+            stmt = stmt.where(PosMdrConfigurationModel.id == int(config_id))
+        else:
+            raise HTTPException(status_code=404, detail=f"Invalid MDR configuration ID '{config_id}'.")
+
+    res = await db.execute(stmt)
+    cfg = res.scalars().first()
+    if not cfg:
+        raise HTTPException(status_code=404, detail="MDR configuration not found.")
+
+    return await _perform_mdr_update(cfg, req, db)
+
+
+@router.put("/admin/mdr-configs")
+@router.patch("/admin/mdr-configs")
+async def update_admin_mdr_config_no_path(
+    req: PosMdrConfigUpdateRequest,
+    id: Optional[str] = Query(None),
+    config_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Fallback PUT/PATCH handler when ID is provided via query parameter or body payload.
+    """
+    target_id = id or config_id or getattr(req, "id", None) or getattr(req, "config_id", None)
+    if not target_id:
+        raise HTTPException(status_code=400, detail="MDR configuration ID must be provided in URL path, query params, or body.")
+    return await update_admin_mdr_config(config_id=str(target_id), req=req, db=db)
+
+
 @router.delete("/admin/mdr-configs/{config_id}")
 async def delete_admin_mdr_config(
-    config_id: uuid.UUID,
+    config_id: str,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -349,9 +499,17 @@ async def delete_admin_mdr_config(
     Historical transactions remain preserved.
     """
     stmt = select(PosMdrConfigurationModel).where(
-        PosMdrConfigurationModel.public_id == config_id,
         PosMdrConfigurationModel.is_deleted == False
     )
+    try:
+        val_uuid = uuid.UUID(str(config_id).strip())
+        stmt = stmt.where(PosMdrConfigurationModel.public_id == val_uuid)
+    except Exception:
+        if str(config_id).isdigit():
+            stmt = stmt.where(PosMdrConfigurationModel.id == int(config_id))
+        else:
+            raise HTTPException(status_code=404, detail=f"Invalid MDR configuration ID '{config_id}'.")
+
     res = await db.execute(stmt)
     cfg = res.scalars().first()
     if not cfg:
@@ -370,7 +528,7 @@ async def provision_retailer_default_mdr(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Provisions default POS MDR configurations (POS Instant 1.70%, POS+T1 1.60%) for the specified retailer.
+    Provisions default POS MDR configurations (POS Instant 1.70%, POS+T1 1.60%, POS+T2 1.50%) for the specified retailer.
     """
     items = await PosMdrService.create_default_mdr_for_retailer(
         db=db,
@@ -382,3 +540,24 @@ async def provision_retailer_default_mdr(
         "message": f"Successfully provisioned {len(items)} default MDR configurations for retailer.",
         "created_count": len(items)
     }
+
+
+@router.post("/admin/provision-all-approved-defaults")
+async def provision_all_approved_defaults(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Triggers DB procedure to provision default POS MDR configurations for all approved/active retailers.
+    """
+    try:
+        from sqlalchemy import text
+        res = await db.execute(text("SELECT * FROM public.provision_default_mdr_for_approved_retailers()"))
+        count = res.scalar() or 0
+        await db.commit()
+        return {
+            "message": f"Successfully provisioned {count} default MDR records for approved retailers.",
+            "provisioned_count": count
+        }
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to provision default MDR: {str(e)}")

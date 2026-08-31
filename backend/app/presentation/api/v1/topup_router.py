@@ -20,7 +20,81 @@ import asyncio
 import logging
 from decimal import Decimal
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Dict, Any
+from datetime import date as datetime_date
+from typing import Optional, List, Dict, Any, Tuple, Union
+
+try:
+    from zoneinfo import ZoneInfo
+    INDIA_TZ = ZoneInfo("Asia/Kolkata")
+except Exception:
+    INDIA_TZ = timezone(timedelta(hours=5, minutes=30))
+
+
+def is_pos_t1(payment_mode_or_method: Optional[str]) -> bool:
+    """Checks whether the payment mode is POS T1."""
+    if not payment_mode_or_method:
+        return False
+    norm = re.sub(r"[\s\-_+]", "", payment_mode_or_method.upper())
+    return "T1" in norm or norm in ("POST1", "POS_T1", "POS+T1")
+
+
+def is_pos_instant(payment_mode_or_method: Optional[str]) -> bool:
+    """Checks whether the payment mode is POS Instant."""
+    if not payment_mode_or_method:
+        return False
+    norm = re.sub(r"[\s\-_+]", "", payment_mode_or_method.upper())
+    return "INSTANT" in norm or norm in ("POSINSTANT", "POS_INSTANT", "POS-INSTANT")
+
+
+def get_business_calendar_date(dt: Optional[Union[datetime, datetime_date, str]]) -> datetime_date:
+    """Returns calendar date in Indian Standard Time (Asia/Kolkata, UTC+05:30)."""
+    if not dt:
+        return datetime.now(INDIA_TZ).date()
+    if isinstance(dt, datetime):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(INDIA_TZ).date()
+    if isinstance(dt, datetime_date):
+        return dt
+    if isinstance(dt, str):
+        try:
+            parsed = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(INDIA_TZ).date()
+        except Exception:
+            try:
+                return datetime.strptime(dt[:10], "%Y-%m-%d").date()
+            except Exception:
+                pass
+    return datetime.now(INDIA_TZ).date()
+
+
+def validate_topup_approval_date(
+    payment_mode_or_method: Optional[str],
+    submitted_at: Optional[Union[datetime, datetime_date, str]],
+    status_val: str
+) -> Tuple[bool, Optional[str]]:
+    """
+    Validates approval date business rule:
+    - POS_INSTANT (or regular instant modes): Admin can approve on current date (req_date <= current_date).
+    - POS_T1: Admin cannot approve on current day; allowed only from next calendar day T+1 (req_date < current_date).
+    - Status Protection: Only applies to active pending/under review requests.
+    """
+    if (status_val or "").upper() not in ("PENDING", "UNDER_REVIEW"):
+        return True, None
+
+    req_cal_date = get_business_calendar_date(submitted_at)
+    curr_cal_date = get_business_calendar_date(datetime.now(timezone.utc))
+
+    if is_pos_t1(payment_mode_or_method):
+        if req_cal_date >= curr_cal_date:
+            return False, "POS T1 requests can be approved from the next day (T+1)."
+        return True, None
+    else:
+        if req_cal_date > curr_cal_date:
+            return False, "Future-dated topup requests cannot be approved."
+        return True, None
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status, Request
 from fastapi.responses import JSONResponse
@@ -903,6 +977,12 @@ async def get_admin_topup_requests(
             base_mdr = float(topup.charges) if not topup.gst_amount else float(topup.charges) - float(topup.gst_amount)
             mdr_pct = round((max(0.0, base_mdr) / float(topup.requested_amount)) * 100, 2)
 
+        is_date_valid, date_block_reason = validate_topup_approval_date(
+            payment_mode_or_method=topup.payment_method or topup.payment_mode,
+            submitted_at=topup.submitted_at or topup.created_date,
+            status_val=topup.status
+        )
+
         items.append({
             "id": str(topup.public_id),
             "topup_request_id": topup.topup_request_id,
@@ -918,6 +998,13 @@ async def get_admin_topup_requests(
             "payment_reference": topup.payment_reference,
             "payment_method": topup.payment_method or "POS - Instant",
             "payment_mode": topup.payment_method or "POS - Instant",
+            "pos_type": "POS_T1" if is_pos_t1(topup.payment_method or topup.payment_mode) else ("POS_INSTANT" if is_pos_instant(topup.payment_method or topup.payment_mode) else (topup.payment_method or "POS_INSTANT")),
+            "is_pos_t1": is_pos_t1(topup.payment_method or topup.payment_mode),
+            "is_pos_instant": is_pos_instant(topup.payment_method or topup.payment_mode),
+            "can_approve": is_date_valid,
+            "approval_block_reason": date_block_reason,
+            "request_date": get_business_calendar_date(topup.submitted_at or topup.created_date).isoformat(),
+            "current_business_date": get_business_calendar_date(datetime.now(timezone.utc)).isoformat(),
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -1022,6 +1109,12 @@ async def get_topup_request_detail(
         float(topup.approved_amount) if topup.approved_amount is not None else float(topup.requested_amount)
     )
 
+    is_date_valid, date_block_reason = validate_topup_approval_date(
+        payment_mode_or_method=topup.payment_method or topup.payment_mode,
+        submitted_at=topup.submitted_at or topup.created_date,
+        status_val=topup.status
+    )
+
     return {
         "success": True,
         "data": {
@@ -1038,6 +1131,13 @@ async def get_topup_request_detail(
             "payment_reference": topup.payment_reference,
             "payment_method": topup.payment_method or "POS - Instant",
             "payment_mode": topup.payment_method or "POS - Instant",
+            "pos_type": "POS_T1" if is_pos_t1(topup.payment_method or topup.payment_mode) else ("POS_INSTANT" if is_pos_instant(topup.payment_method or topup.payment_mode) else (topup.payment_method or "POS_INSTANT")),
+            "is_pos_t1": is_pos_t1(topup.payment_method or topup.payment_mode),
+            "is_pos_instant": is_pos_instant(topup.payment_method or topup.payment_mode),
+            "can_approve": is_date_valid,
+            "approval_block_reason": date_block_reason,
+            "request_date": get_business_calendar_date(topup.submitted_at or topup.created_date).isoformat(),
+            "current_business_date": get_business_calendar_date(datetime.now(timezone.utc)).isoformat(),
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -1126,6 +1226,18 @@ async def approve_topup_request(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot approve a topup request with status '{topup_record.status}'."
+        )
+
+    # 2b. Approval Date Business Rule Validation (T+1 Rule for POS T1)
+    is_date_valid, date_block_reason = validate_topup_approval_date(
+        payment_mode_or_method=topup_record.payment_method or topup_record.payment_mode,
+        submitted_at=topup_record.submitted_at or topup_record.created_date,
+        status_val=topup_record.status
+    )
+    if not is_date_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=date_block_reason or "POS T1 requests can be approved from the next day (T+1)."
         )
 
     # 3. Derive Approved & Received Amount

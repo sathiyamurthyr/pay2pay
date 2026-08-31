@@ -120,6 +120,81 @@ async def onboard_retailer(
     )
 
 
+@router.get("/approved")
+async def list_approved_retailers(
+    search: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns only Approved and Active retailers loaded via SP / database.
+    """
+    comp_uuid = None
+    if company_id:
+        try:
+            comp_uuid = uuid.UUID(str(company_id).strip())
+        except Exception:
+            pass
+
+    try:
+        from sqlalchemy import text
+        sp_query = text("""
+            SELECT id, public_id, retailer_code, store_name, legal_name, owner_name,
+                   business_category, registered_mobile, email, status, wallet_balance,
+                   company_id, tenant_id, created_date
+            FROM public.get_approved_retailers_list(:search, :comp_id)
+        """)
+        res = await db.execute(sp_query, {"search": search or None, "comp_id": comp_uuid})
+        rows = res.fetchall()
+        items = [
+            {
+                "id": r.id,
+                "public_id": str(r.public_id),
+                "retailer_code": r.retailer_code,
+                "store_name": r.store_name,
+                "legal_name": r.legal_name,
+                "owner_name": r.owner_name,
+                "business_category": r.business_category,
+                "registered_mobile": r.registered_mobile,
+                "email": r.email,
+                "status": r.status,
+                "wallet_balance": float(r.wallet_balance) if r.wallet_balance is not None else 0.0,
+                "company_id": str(r.company_id) if r.company_id else None,
+                "tenant_id": str(r.tenant_id) if r.tenant_id else None,
+                "created_date": r.created_date.isoformat() if r.created_date else None
+            }
+            for r in rows
+        ]
+        return {"items": items, "total": len(items)}
+    except Exception:
+        from app.infrastructure.db.models import RetailerModel
+        from sqlalchemy import select
+        stmt = select(RetailerModel).where(
+            RetailerModel.is_deleted == False,
+            RetailerModel.status.in_(["ACTIVE", "APPROVED"])
+        ).order_by(RetailerModel.store_name.asc())
+        res = await db.execute(stmt)
+        items = [
+            {
+                "id": r.id,
+                "public_id": str(r.public_id),
+                "retailer_code": r.retailer_code,
+                "store_name": r.store_name,
+                "legal_name": r.legal_name,
+                "owner_name": r.owner_name,
+                "business_category": r.business_category,
+                "registered_mobile": "",
+                "status": r.status,
+                "wallet_balance": 0.0,
+                "company_id": str(r.company_id) if r.company_id else None,
+                "tenant_id": str(r.tenant_id) if r.tenant_id else None,
+                "created_date": r.created_date.isoformat() if r.created_date else None
+            }
+            for r in res.scalars().all()
+        ]
+        return {"items": items, "total": len(items)}
+
+
 @router.get("", response_model=PaginatedResponse)
 async def list_retailers(
     search: Optional[str] = Query(None),

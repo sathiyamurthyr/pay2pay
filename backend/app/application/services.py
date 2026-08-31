@@ -3031,7 +3031,7 @@ class RetailerManagementService:
                     retailer_id=retailer.public_id,
                     company_id=retailer.company_id,
                     tenant_id=retailer.tenant_id,
-                    created_by=actor_user.email
+                    created_by=reviewer_user.email if hasattr(reviewer_user, "email") and reviewer_user.email else "ADMIN_APPROVER"
                 )
             except Exception as mdr_err:
                 logger.warning(f"Failed to auto-provision default POS MDR for retailer {retailer.retailer_code}: {mdr_err}")
@@ -3345,10 +3345,10 @@ class MachineManagementService:
             raise ConflictException(f"Serial Number '{clean_serial}' or Terminal ID (TID) is already registered.")
 
         # Resolve vendor details from pos_vendor_master if vendor_id is given
-        vendor_name = req.vendor_name
-        vendor_id = req.vendor_id
+        vendor_name = (req.vendor_name or "").strip() if req.vendor_name else None
+        vendor_id = (req.vendor_id or "").strip() if req.vendor_id else None
         vendor_comm_type = req.vendor_commission_type or "PERCENTAGE"
-        vendor_comm_val = req.vendor_commission_value if req.vendor_commission_value is not None else 0.50
+        vendor_comm_val = req.vendor_commission_value if req.vendor_commission_value is not None else (0.50 if vendor_id else 0.0)
 
         if vendor_id and not vendor_name:
             from app.infrastructure.db.models import PosVendorMasterModel
@@ -3496,9 +3496,12 @@ class MachineManagementService:
         if req.mobile_number is not None:
             machine.mobile_number = req.mobile_number.strip() if req.mobile_number else None
         if req.vendor_id is not None:
-            machine.vendor_id = req.vendor_id
+            clean_vid = req.vendor_id.strip() if req.vendor_id else None
+            machine.vendor_id = clean_vid
+            if not clean_vid:
+                machine.vendor_name = None
         if req.vendor_name is not None:
-            machine.vendor_name = req.vendor_name
+            machine.vendor_name = req.vendor_name.strip() if req.vendor_name else None
         if req.vendor_commission_type is not None:
             machine.vendor_commission_type = req.vendor_commission_type
         if req.vendor_commission_value is not None:
@@ -3599,7 +3602,10 @@ class MachineManagementService:
         if status and status.upper() != "ALL":
             stmt = stmt.where(SwipeMachineModel.status == status.upper())
         if vendor_id and vendor_id.upper() != "ALL":
-            stmt = stmt.where(SwipeMachineModel.vendor_id == vendor_id)
+            if vendor_id.upper() in ("NONE", "DIRECT", "NULL"):
+                stmt = stmt.where(or_(SwipeMachineModel.vendor_id == None, SwipeMachineModel.vendor_id == ""))
+            else:
+                stmt = stmt.where(SwipeMachineModel.vendor_id == vendor_id)
         if retailer_id:
             stmt = stmt.where(SwipeMachineModel.mapped_retailer_id == retailer_id)
         if search:
@@ -3628,14 +3634,23 @@ class MachineManagementService:
 
         ret_map = {}
         if ret_ids:
+            from app.infrastructure.db.models import RetailerContactModel
             r_stmt = select(RetailerModel).where(RetailerModel.public_id.in_(ret_ids))
             r_res = await db.execute(r_stmt)
             for r in r_res.scalars().all():
                 ret_map[r.public_id] = {
                     "name": r.store_name or r.owner_name or r.retailer_code,
                     "code": r.retailer_code,
-                    "mobile": r.registered_mobile
+                    "mobile": None
                 }
+            c_stmt = select(RetailerContactModel).where(
+                RetailerContactModel.retailer_id.in_(ret_ids),
+                RetailerContactModel.is_deleted == False
+            )
+            c_res = await db.execute(c_stmt)
+            for c in c_res.scalars().all():
+                if c.retailer_id in ret_map and not ret_map[c.retailer_id]["mobile"]:
+                    ret_map[c.retailer_id]["mobile"] = c.mobile
 
         comp_map = {}
         if comp_ids:
@@ -3724,13 +3739,19 @@ class MachineManagementService:
 
         ret_info = {}
         if m.mapped_retailer_id:
+            from app.infrastructure.db.models import RetailerContactModel
             r_stmt = select(RetailerModel).where(RetailerModel.public_id == m.mapped_retailer_id)
             r_obj = (await db.execute(r_stmt)).scalar_one_or_none()
             if r_obj:
+                c_stmt = select(RetailerContactModel.mobile).where(
+                    RetailerContactModel.retailer_id == m.mapped_retailer_id,
+                    RetailerContactModel.is_deleted == False
+                ).limit(1)
+                c_mob = (await db.execute(c_stmt)).scalar_one_or_none()
                 ret_info = {
                     "name": r_obj.store_name or r_obj.owner_name or r_obj.retailer_code,
                     "code": r_obj.retailer_code,
-                    "mobile": r_obj.registered_mobile
+                    "mobile": c_mob
                 }
 
         company_name = "Pay2Pay Enterprise"

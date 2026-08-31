@@ -46,6 +46,13 @@ interface TopupItem {
   payment_reference: string;
   payment_method: string;
   payment_mode?: string;
+  pos_type?: string;
+  is_pos_t1?: boolean;
+  is_pos_instant?: boolean;
+  can_approve?: boolean;
+  approval_block_reason?: string;
+  request_date?: string;
+  current_business_date?: string;
   payment_date?: string;
   slip_id?: string;
   slip_url?: string;
@@ -75,6 +82,20 @@ interface TopupItem {
     current_wallet_balance: number;
     is_wallet_frozen: boolean;
   };
+}
+
+export function isPosT1Mode(item: TopupItem | null | undefined): boolean {
+  if (!item) return false;
+  if (item.is_pos_t1 !== undefined) return item.is_pos_t1;
+  const mode = (item.payment_mode || item.payment_method || "").toUpperCase().replace(/[\s\-_+]/g, "");
+  return mode.includes("T1") || mode === "POST1" || mode === "POS_T1";
+}
+
+export function isPosInstantMode(item: TopupItem | null | undefined): boolean {
+  if (!item) return false;
+  if (item.is_pos_instant !== undefined) return item.is_pos_instant;
+  const mode = (item.payment_mode || item.payment_method || "").toUpperCase().replace(/[\s\-_+]/g, "");
+  return mode.includes("INSTANT") || mode === "POSINSTANT" || mode === "POS_INSTANT";
 }
 
 interface Metrics {
@@ -226,6 +247,10 @@ export default function AdminTopupRequestsPage() {
 
   const handleApprove = async () => {
     if (!selectedRequest) return;
+    if (selectedRequest.can_approve === false) {
+      setActionErrorMsg(selectedRequest.approval_block_reason || "POS T1 requests can be approved from the next day (T+1).");
+      return;
+    }
     setApproving(true);
     setActionSuccessMsg(null);
     setActionErrorMsg(null);
@@ -408,9 +433,10 @@ export default function AdminTopupRequestsPage() {
     : 0;
 
   return (
-    <div className="space-y-6 pb-16 font-sans min-h-screen bg-slate-50 text-slate-900 p-2 sm:p-4">
+    <div className="space-y-4 pb-12 font-sans min-h-screen bg-slate-50 text-slate-900">
       {/* ── Top Header Cockpit ── */}
-      <div className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6 shadow-xs relative overflow-hidden">
+      <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs relative overflow-hidden">
+
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-xs shrink-0">
@@ -810,22 +836,41 @@ export default function AdminTopupRequestsPage() {
 
                       {/* Payment Mode & Reference */}
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5 font-medium text-slate-700">
-                          <span className="px-2 py-0.5 text-[10px] font-black rounded bg-slate-100 text-slate-700 border border-slate-200">
-                            {item.payment_mode || item.payment_method || "POS - Instant"}
-                          </span>
-                          <span
-                            className="font-mono text-slate-800 truncate max-w-[140px] font-bold"
-                            title={item.payment_reference}
-                          >
-                            {item.payment_reference || "No Ref"}
-                          </span>
-                        </div>
-                        {item.payment_date && (
-                          <div className="text-[11px] text-slate-500 mt-0.5">
-                            {new Date(item.payment_date).toLocaleDateString("en-IN")}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                            <span
+                              className={`px-2 py-0.5 text-[10px] font-black rounded border ${
+                                isPosT1Mode(item)
+                                  ? "bg-purple-50 text-purple-800 border-purple-200"
+                                  : "bg-slate-100 text-slate-700 border-slate-200"
+                              }`}
+                            >
+                              {item.payment_mode || item.payment_method || "POS - Instant"}
+                            </span>
+                            <span
+                              className="font-mono text-slate-800 truncate max-w-[130px] font-bold"
+                              title={item.payment_reference}
+                            >
+                              {item.payment_reference || "No Ref"}
+                            </span>
                           </div>
-                        )}
+                          {isPending && isPosT1Mode(item) && item.can_approve === false && (
+                            <div className="flex items-center gap-1">
+                              <span
+                                className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 inline-flex items-center gap-1"
+                                title="POS T1 requests can be approved from the next day (T+1)."
+                              >
+                                <Clock className="h-2.5 w-2.5 text-amber-600" />
+                                T+1 Rule: Next Day
+                              </span>
+                            </div>
+                          )}
+                          {item.payment_date && (
+                            <div className="text-[11px] text-slate-500">
+                              {new Date(item.payment_date).toLocaleDateString("en-IN")}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Transaction Amount (Gross Requested) */}
@@ -1189,9 +1234,26 @@ export default function AdminTopupRequestsPage() {
                       <div className="grid grid-cols-2 gap-3 text-xs">
                         <div>
                           <span className="text-slate-500 block text-[10px] uppercase font-bold">Payment Method / Mode</span>
-                          <span className="font-bold text-slate-900 px-2 py-0.5 rounded bg-white border border-slate-200 inline-block mt-0.5">
-                            {selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}
-                          </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span
+                              className={`font-bold px-2 py-0.5 rounded border ${
+                                isPosT1Mode(selectedRequest)
+                                  ? "bg-purple-50 text-purple-800 border-purple-200"
+                                  : "bg-white text-slate-900 border-slate-200"
+                              }`}
+                            >
+                              {selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}
+                            </span>
+                            {isPosT1Mode(selectedRequest) ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-300">
+                                T+1 Settlement
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                Instant
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div>
                           <span className="text-slate-500 block text-[10px] uppercase font-bold">Payment Date</span>
@@ -1207,6 +1269,19 @@ export default function AdminTopupRequestsPage() {
                             {selectedRequest.payment_reference || "No Reference Provided"}
                           </span>
                         </div>
+
+                        {/* POS T1 Approval Rule Notice */}
+                        {selectedRequest.status === "PENDING" && isPosT1Mode(selectedRequest) && selectedRequest.can_approve === false && (
+                          <div className="col-span-2 p-3 bg-amber-50 border-2 border-amber-300 rounded-xl text-xs text-amber-900 font-semibold space-y-1">
+                            <div className="flex items-center gap-2 font-bold text-amber-950">
+                              <Clock className="h-4 w-4 text-amber-700 shrink-0" />
+                              <span>POS T1 requests can be approved from the next day (T+1).</span>
+                            </div>
+                            <p className="text-[11px] text-amber-800 font-normal pl-6 leading-relaxed">
+                              Request Date: <strong>{selectedRequest.request_date ? new Date(selectedRequest.request_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : (selectedRequest.submitted_at ? new Date(selectedRequest.submitted_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Today")}</strong>. Per platform business rule, same-day approval is disabled for POS T1 transactions. The Admin can review details today, and approval will become active tomorrow.
+                            </p>
+                          </div>
+                        )}
 
                         {/* Amount & Fee Breakdown Summary */}
                         <div className="col-span-2 p-3 bg-white rounded-xl border border-slate-200 space-y-1.5">
@@ -1460,13 +1535,26 @@ export default function AdminTopupRequestsPage() {
                       Reject Request
                     </button>
 
-                    <button
-                      onClick={() => setShowApproveModal(true)}
-                      className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Approve Received Amount (₹{(parseFloat(customApprovedAmount) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })})
-                    </button>
+                    {selectedRequest.can_approve === false ? (
+                      <div className="relative group" title={selectedRequest.approval_block_reason || "POS T1 requests can be approved from the next day (T+1)."}>
+                        <button
+                          type="button"
+                          disabled
+                          className="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-400 border border-slate-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-not-allowed shadow-none"
+                        >
+                          <Clock className="h-4 w-4 text-slate-400" />
+                          Approve Disabled (T+1 Pending)
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowApproveModal(true)}
+                        className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Approve Received Amount (₹{(parseFloat(customApprovedAmount) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })})
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1587,7 +1675,7 @@ export default function AdminTopupRequestsPage() {
               </button>
               <button
                 onClick={handleApprove}
-                disabled={approving}
+                disabled={approving || selectedRequest.can_approve === false}
                 className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2"
               >
                 {approving && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
