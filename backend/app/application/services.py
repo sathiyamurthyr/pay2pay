@@ -3022,6 +3022,19 @@ class RetailerManagementService:
                 retailer.kyc.verification_status = "VERIFIED"
             for b in retailer.banks:
                 b.verification_status = "VERIFIED"
+            
+            # Automatically provision Default POS MDR configurations if not present
+            try:
+                from app.application.pos_mdr_service import PosMdrService
+                await PosMdrService.create_default_mdr_for_retailer(
+                    db=db,
+                    retailer_id=retailer.public_id,
+                    company_id=retailer.company_id,
+                    tenant_id=retailer.tenant_id,
+                    created_by=actor_user.email
+                )
+            except Exception as mdr_err:
+                logger.warning(f"Failed to auto-provision default POS MDR for retailer {retailer.retailer_code}: {mdr_err}")
         elif action_upper in ["HOLD", "PENDING"]:
             retailer.status = "HOLD"
             if retailer.kyc:
@@ -3310,38 +3323,76 @@ class MachineManagementService:
         req: MachineCreateRequest,
         actor_user: AdminUserModel
     ) -> SwipeMachineModel:
-        validate_serial_number(req.serial_number)
-        validate_tid(req.tid)
-        validate_mid(req.mid)
+        # Validate serial number
+        clean_serial = (req.serial_number or "").strip().upper()
+        if not clean_serial or len(clean_serial) < 3:
+            raise ValidationException("Serial Number must be at least 3 characters.")
+
+        # Generate or format TID / MID
+        tid = (req.tid or f"TID{clean_serial[-8:]}").strip().upper()
+        mid = (req.mid or f"MID{clean_serial[:8]}").strip().upper()
 
         # Uniqueness checks across serial number and TID
         dup_stmt = select(SwipeMachineModel).where(
             SwipeMachineModel.tenant_id == tenant_id,
             or_(
-                SwipeMachineModel.serial_number == req.serial_number,
-                SwipeMachineModel.tid == req.tid
+                SwipeMachineModel.serial_number == clean_serial,
+                SwipeMachineModel.tid == tid
             ),
             SwipeMachineModel.is_deleted == False
         )
         if (await db.execute(dup_stmt)).scalar_one_or_none():
-            raise ConflictException("Serial Number or Terminal ID (TID) already registered.")
+            raise ConflictException(f"Serial Number '{clean_serial}' or Terminal ID (TID) is already registered.")
+
+        # Resolve vendor details from pos_vendor_master if vendor_id is given
+        vendor_name = req.vendor_name
+        vendor_id = req.vendor_id
+        vendor_comm_type = req.vendor_commission_type or "PERCENTAGE"
+        vendor_comm_val = req.vendor_commission_value if req.vendor_commission_value is not None else 0.50
+
+        if vendor_id and not vendor_name:
+            from app.infrastructure.db.models import PosVendorMasterModel
+            v_stmt = select(PosVendorMasterModel).where(
+                or_(
+                    PosVendorMasterModel.vendor_code == vendor_id,
+                    PosVendorMasterModel.public_id.cast(String) == str(vendor_id)
+                ),
+                PosVendorMasterModel.is_deleted == False
+            )
+            v_obj = (await db.execute(v_stmt)).scalar_one_or_none()
+            if v_obj:
+                vendor_name = v_obj.vendor_name
+                vendor_id = v_obj.vendor_code
+                if req.vendor_commission_value is None:
+                    vendor_comm_val = float(v_obj.default_commission_value)
+                    vendor_comm_type = v_obj.default_commission_type
+
+        # Machine status
+        initial_status = req.status or ("ASSIGNED" if req.mapped_retailer_id else "ACTIVE")
+        assigned_dt = datetime.now(timezone.utc) if req.mapped_retailer_id else None
 
         machine_id = uuid.uuid4()
         machine = SwipeMachineModel(
             public_id=machine_id,
             tenant_id=tenant_id,
             company_id=req.company_id,
-            serial_number=req.serial_number.upper(),
-            tid=req.tid.upper(),
-            mid=req.mid.upper(),
-            pos_model=req.pos_model,
-            machine_type=req.machine_type,
-            os_version=req.os_version,
-            firmware_version=req.firmware_version,
+            serial_number=clean_serial,
+            mobile_number=req.mobile_number,
+            vendor_id=vendor_id,
+            vendor_name=vendor_name,
+            vendor_commission_type=vendor_comm_type,
+            vendor_commission_value=vendor_comm_val,
+            tid=tid,
+            mid=mid,
+            pos_model=req.pos_model or "Pax A920",
+            machine_type=req.machine_type or "ANDROID_POS",
+            os_version=req.os_version or "Android 11",
+            firmware_version=req.firmware_version or "v2.4.1",
             sim_iccid=req.sim_iccid,
-            telecom_provider=req.telecom_provider,
+            telecom_provider=req.telecom_provider or "Airtel M2M",
             mapped_retailer_id=req.mapped_retailer_id,
-            status="ACTIVE",
+            assigned_at=assigned_dt,
+            status=initial_status,
             created_by=actor_user.email
         )
         db.add(machine)
@@ -3368,7 +3419,7 @@ class MachineManagementService:
             tenant_id=tenant_id,
             company_id=req.company_id,
             machine_id=machine_id,
-            dukpt_ksn=f"987654{req.tid.upper()}",
+            dukpt_ksn=f"987654{tid}",
             master_key_alias="MK_PROD_STAGE01",
             encryption_standard="AES-256",
             created_by=actor_user.email
@@ -3382,8 +3433,8 @@ class MachineManagementService:
             company_id=req.company_id,
             machine_id=machine_id,
             previous_status="INVENTORY",
-            new_status="ACTIVE",
-            reason="Initial Terminal Deployment & Key Injection",
+            new_status=initial_status,
+            reason="Initial Terminal Deployment & Retailer Setup",
             changed_by_email=actor_user.email,
             created_by=actor_user.email
         )
@@ -3401,8 +3452,131 @@ class MachineManagementService:
             action="CREATE_POS_MACHINE",
             resource_type="POS_MACHINE",
             resource_id=str(machine_id),
-            details={"serial_number": machine.serial_number, "tid": machine.tid}
+            details={
+                "serial_number": machine.serial_number,
+                "mobile_number": machine.mobile_number,
+                "vendor_name": machine.vendor_name,
+                "vendor_commission_value": float(machine.vendor_commission_value),
+                "mapped_retailer_id": str(machine.mapped_retailer_id) if machine.mapped_retailer_id else None
+            }
         )
+        return machine
+
+    @staticmethod
+    async def update_machine(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        machine_id: uuid.UUID,
+        req: MachineUpdateRequest,
+        actor_user: AdminUserModel
+    ) -> SwipeMachineModel:
+        stmt = select(SwipeMachineModel).where(
+            SwipeMachineModel.public_id == machine_id,
+            SwipeMachineModel.tenant_id == tenant_id,
+            SwipeMachineModel.is_deleted == False
+        )
+        machine = (await db.execute(stmt)).scalar_one_or_none()
+        if not machine:
+            raise NotFoundException("POS Terminal not found.")
+
+        old_status = machine.status
+        if req.serial_number is not None:
+            clean_ser = req.serial_number.strip().upper()
+            if clean_ser != machine.serial_number:
+                dup_stmt = select(SwipeMachineModel).where(
+                    SwipeMachineModel.tenant_id == tenant_id,
+                    SwipeMachineModel.serial_number == clean_ser,
+                    SwipeMachineModel.public_id != machine_id,
+                    SwipeMachineModel.is_deleted == False
+                )
+                if (await db.execute(dup_stmt)).scalar_one_or_none():
+                    raise ConflictException(f"Serial Number '{clean_ser}' is already registered on another machine.")
+                machine.serial_number = clean_ser
+
+        if req.mobile_number is not None:
+            machine.mobile_number = req.mobile_number.strip() if req.mobile_number else None
+        if req.vendor_id is not None:
+            machine.vendor_id = req.vendor_id
+        if req.vendor_name is not None:
+            machine.vendor_name = req.vendor_name
+        if req.vendor_commission_type is not None:
+            machine.vendor_commission_type = req.vendor_commission_type
+        if req.vendor_commission_value is not None:
+            machine.vendor_commission_value = req.vendor_commission_value
+        if req.pos_model is not None:
+            machine.pos_model = req.pos_model
+
+        if req.mapped_retailer_id is not None:
+            if machine.mapped_retailer_id != req.mapped_retailer_id:
+                machine.mapped_retailer_id = req.mapped_retailer_id
+                machine.assigned_at = datetime.now(timezone.utc) if req.mapped_retailer_id else None
+
+        if req.status is not None:
+            new_st = req.status.upper()
+            if new_st != machine.status:
+                machine.status = new_st
+                # Record Status History
+                h = MachineStatusHistoryModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    company_id=machine.company_id,
+                    machine_id=machine.public_id,
+                    previous_status=old_status,
+                    new_status=new_st,
+                    reason=f"Status updated by {actor_user.email}",
+                    changed_by_email=actor_user.email,
+                    created_by=actor_user.email
+                )
+                db.add(h)
+
+        machine.updated_by = actor_user.email
+        machine.updated_date = datetime.now(timezone.utc)
+        machine.version_no = (machine.version_no or 1) + 1
+
+        await db.commit()
+        await db.refresh(machine)
+        return machine
+
+    @staticmethod
+    async def assign_machine_retailer(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        machine_id: uuid.UUID,
+        retailer_id: Optional[uuid.UUID],
+        actor_user: AdminUserModel
+    ) -> SwipeMachineModel:
+        stmt = select(SwipeMachineModel).where(
+            SwipeMachineModel.public_id == machine_id,
+            SwipeMachineModel.tenant_id == tenant_id,
+            SwipeMachineModel.is_deleted == False
+        )
+        machine = (await db.execute(stmt)).scalar_one_or_none()
+        if not machine:
+            raise NotFoundException("POS Terminal not found.")
+
+        old_ret = machine.mapped_retailer_id
+        machine.mapped_retailer_id = retailer_id
+        machine.assigned_at = datetime.now(timezone.utc) if retailer_id else None
+        machine.status = "ASSIGNED" if retailer_id else "ACTIVE"
+        machine.updated_by = actor_user.email
+        machine.updated_date = datetime.now(timezone.utc)
+
+        # Record Status History
+        h = MachineStatusHistoryModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=machine.company_id,
+            machine_id=machine.public_id,
+            previous_status="ASSIGNED" if old_ret else "UNASSIGNED",
+            new_status=machine.status,
+            reason=f"Assigned to retailer {retailer_id}" if retailer_id else "Unassigned from retailer",
+            changed_by_email=actor_user.email,
+            created_by=actor_user.email
+        )
+        db.add(h)
+
+        await db.commit()
+        await db.refresh(machine)
         return machine
 
     @staticmethod
@@ -3411,16 +3585,21 @@ class MachineManagementService:
         tenant_id: uuid.UUID,
         search: Optional[str] = None,
         status: Optional[str] = None,
+        vendor_id: Optional[str] = None,
         retailer_id: Optional[uuid.UUID] = None,
         page: int = 1,
         page_size: int = 20
-    ) -> Tuple[List[SwipeMachineModel], int]:
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        from app.infrastructure.db.models import RetailerModel, CompanyModel
+
         stmt = select(SwipeMachineModel).where(
             SwipeMachineModel.tenant_id == tenant_id,
             SwipeMachineModel.is_deleted == False
         )
-        if status:
+        if status and status.upper() != "ALL":
             stmt = stmt.where(SwipeMachineModel.status == status.upper())
+        if vendor_id and vendor_id.upper() != "ALL":
+            stmt = stmt.where(SwipeMachineModel.vendor_id == vendor_id)
         if retailer_id:
             stmt = stmt.where(SwipeMachineModel.mapped_retailer_id == retailer_id)
         if search:
@@ -3428,6 +3607,8 @@ class MachineManagementService:
             stmt = stmt.where(
                 or_(
                     SwipeMachineModel.serial_number.ilike(pat),
+                    SwipeMachineModel.mobile_number.ilike(pat),
+                    SwipeMachineModel.vendor_name.ilike(pat),
                     SwipeMachineModel.tid.ilike(pat),
                     SwipeMachineModel.mid.ilike(pat),
                     SwipeMachineModel.pos_model.ilike(pat)
@@ -3439,7 +3620,61 @@ class MachineManagementService:
 
         stmt = stmt.order_by(SwipeMachineModel.created_date.desc()).offset((page - 1) * page_size).limit(page_size)
         res = await db.execute(stmt)
-        return res.scalars().all(), total
+        machines = res.scalars().all()
+
+        # Batch load retailer and company names
+        ret_ids = [m.mapped_retailer_id for m in machines if m.mapped_retailer_id]
+        comp_ids = [m.company_id for m in machines if m.company_id]
+
+        ret_map = {}
+        if ret_ids:
+            r_stmt = select(RetailerModel).where(RetailerModel.public_id.in_(ret_ids))
+            r_res = await db.execute(r_stmt)
+            for r in r_res.scalars().all():
+                ret_map[r.public_id] = {
+                    "name": r.store_name or r.owner_name or r.retailer_code,
+                    "code": r.retailer_code,
+                    "mobile": r.registered_mobile
+                }
+
+        comp_map = {}
+        if comp_ids:
+            c_stmt = select(CompanyModel).where(CompanyModel.public_id.in_(comp_ids))
+            c_res = await db.execute(c_stmt)
+            for c in c_res.scalars().all():
+                comp_map[c.public_id] = c.company_name
+
+        items = []
+        for m in machines:
+            ret_info = ret_map.get(m.mapped_retailer_id, {})
+            items.append({
+                "public_id": str(m.public_id),
+                "tenant_id": str(m.tenant_id) if m.tenant_id else None,
+                "company_id": str(m.company_id) if m.company_id else None,
+                "company_name": comp_map.get(m.company_id, "Pay2Pay Enterprise"),
+                "serial_number": m.serial_number,
+                "mobile_number": m.mobile_number,
+                "vendor_id": m.vendor_id,
+                "vendor_name": m.vendor_name or "Standard POS",
+                "vendor_commission_type": m.vendor_commission_type or "PERCENTAGE",
+                "vendor_commission_value": float(m.vendor_commission_value or 0.50),
+                "tid": m.tid,
+                "mid": m.mid,
+                "pos_model": m.pos_model,
+                "machine_type": m.machine_type,
+                "status": m.status,
+                "mapped_retailer_id": str(m.mapped_retailer_id) if m.mapped_retailer_id else None,
+                "retailer_name": ret_info.get("name"),
+                "retailer_code": ret_info.get("code"),
+                "retailer_mobile": ret_info.get("mobile"),
+                "assigned_at": m.assigned_at.isoformat() if m.assigned_at else None,
+                "version_no": m.version_no,
+                "created_date": m.created_date.isoformat() if m.created_date else None,
+                "updated_date": m.updated_date.isoformat() if m.updated_date else None,
+                "updated_by": m.updated_by
+            })
+
+        return items, total
 
     @staticmethod
     async def process_telemetry_ping(
@@ -3470,7 +3705,9 @@ class MachineManagementService:
         return telemetry
 
     @staticmethod
-    async def get_machine_details(db: AsyncSession, tenant_id: uuid.UUID, machine_id: uuid.UUID) -> MachineDetailsResponse:
+    async def get_machine_details(db: AsyncSession, tenant_id: uuid.UUID, machine_id: uuid.UUID) -> Dict[str, Any]:
+        from app.infrastructure.db.models import RetailerModel, CompanyModel
+
         stmt = select(SwipeMachineModel).where(
             SwipeMachineModel.public_id == machine_id,
             SwipeMachineModel.tenant_id == tenant_id,
@@ -3485,31 +3722,61 @@ class MachineManagementService:
         if not m:
             raise NotFoundException("POS Terminal not found.")
 
-        machine_dto = MachineResponse(
-            public_id=m.public_id,
-            tenant_id=m.tenant_id,
-            company_id=m.company_id,
-            serial_number=m.serial_number,
-            tid=m.tid,
-            mid=m.mid,
-            pos_model=m.pos_model,
-            machine_type=m.machine_type,
-            os_version=m.os_version,
-            firmware_version=m.firmware_version,
-            sim_iccid=m.sim_iccid,
-            telecom_provider=m.telecom_provider,
-            status=m.status,
-            mapped_retailer_id=m.mapped_retailer_id,
-            version_no=m.version_no,
-            created_date=m.created_date
-        )
+        ret_info = {}
+        if m.mapped_retailer_id:
+            r_stmt = select(RetailerModel).where(RetailerModel.public_id == m.mapped_retailer_id)
+            r_obj = (await db.execute(r_stmt)).scalar_one_or_none()
+            if r_obj:
+                ret_info = {
+                    "name": r_obj.store_name or r_obj.owner_name or r_obj.retailer_code,
+                    "code": r_obj.retailer_code,
+                    "mobile": r_obj.registered_mobile
+                }
+
+        company_name = "Pay2Pay Enterprise"
+        if m.company_id:
+            c_stmt = select(CompanyModel).where(CompanyModel.public_id == m.company_id)
+            c_obj = (await db.execute(c_stmt)).scalar_one_or_none()
+            if c_obj:
+                company_name = c_obj.company_name
+
+        machine_data = {
+            "public_id": str(m.public_id),
+            "tenant_id": str(m.tenant_id) if m.tenant_id else None,
+            "company_id": str(m.company_id) if m.company_id else None,
+            "company_name": company_name,
+            "serial_number": m.serial_number,
+            "mobile_number": m.mobile_number,
+            "vendor_id": m.vendor_id,
+            "vendor_name": m.vendor_name or "Standard POS",
+            "vendor_commission_type": m.vendor_commission_type or "PERCENTAGE",
+            "vendor_commission_value": float(m.vendor_commission_value or 0.50),
+            "tid": m.tid,
+            "mid": m.mid,
+            "pos_model": m.pos_model,
+            "machine_type": m.machine_type,
+            "os_version": m.os_version,
+            "firmware_version": m.firmware_version,
+            "sim_iccid": m.sim_iccid,
+            "telecom_provider": m.telecom_provider,
+            "status": m.status,
+            "mapped_retailer_id": str(m.mapped_retailer_id) if m.mapped_retailer_id else None,
+            "retailer_name": ret_info.get("name"),
+            "retailer_code": ret_info.get("code"),
+            "retailer_mobile": ret_info.get("mobile"),
+            "assigned_at": m.assigned_at.isoformat() if m.assigned_at else None,
+            "version_no": m.version_no,
+            "created_date": m.created_date.isoformat() if m.created_date else None,
+            "updated_date": m.updated_date.isoformat() if m.updated_date else None,
+            "updated_by": m.updated_by
+        }
 
         telemetry = {
             "battery_percentage": m.telemetry.battery_percentage,
             "network_type": m.telemetry.network_type,
             "signal_strength": m.telemetry.signal_strength,
             "app_version": m.telemetry.app_version,
-            "last_ping_at": m.telemetry.last_ping_at,
+            "last_ping_at": m.telemetry.last_ping_at.isoformat() if m.telemetry.last_ping_at else None,
             "txns": m.telemetry.total_txns_processed,
             "volume": m.telemetry.total_volume_processed
         } if m.telemetry else None
@@ -3521,51 +3788,63 @@ class MachineManagementService:
         } if m.key_profile else None
 
         maintenances = [{"type": mn.maintenance_type, "description": mn.description, "technician": mn.technician_email} for mn in m.maintenances]
-        history = [{"previous": h.previous_status, "new": h.new_status, "reason": h.reason, "by": h.changed_by_email, "date": h.created_date} for h in m.status_history]
+        history = [
+            {
+                "previous": h.previous_status,
+                "new": h.new_status,
+                "reason": h.reason,
+                "by": h.changed_by_email,
+                "date": h.created_date.isoformat() if h.created_date else None
+            }
+            for h in m.status_history
+        ]
 
-        return MachineDetailsResponse(
-            machine=machine_dto,
-            telemetry=telemetry,
-            key_profile=key_profile,
-            maintenances=maintenances,
-            status_history=history
-        )
+        return {
+            "machine": machine_data,
+            "telemetry": telemetry,
+            "key_profile": key_profile,
+            "maintenances": maintenances,
+            "status_history": history
+        }
 
     @staticmethod
     async def get_dashboard_metrics(db: AsyncSession, tenant_id: uuid.UUID) -> MachineDashboardMetricsResponse:
         total_stmt = select(func.count(SwipeMachineModel.id)).where(SwipeMachineModel.tenant_id == tenant_id, SwipeMachineModel.is_deleted == False)
         total_machines = (await db.execute(total_stmt)).scalar() or 0
 
-        active_stmt = select(func.count(SwipeMachineModel.id)).where(SwipeMachineModel.tenant_id == tenant_id, SwipeMachineModel.status == "ACTIVE", SwipeMachineModel.is_deleted == False)
+        active_stmt = select(func.count(SwipeMachineModel.id)).where(
+            SwipeMachineModel.tenant_id == tenant_id,
+            SwipeMachineModel.status.in_(["ACTIVE", "ASSIGNED"]),
+            SwipeMachineModel.is_deleted == False
+        )
         active_machines = (await db.execute(active_stmt)).scalar() or 0
 
-        faulty_stmt = select(func.count(SwipeMachineModel.id)).where(SwipeMachineModel.tenant_id == tenant_id, SwipeMachineModel.status == "FAULTY", SwipeMachineModel.is_deleted == False)
+        inventory_stmt = select(func.count(SwipeMachineModel.id)).where(
+            SwipeMachineModel.tenant_id == tenant_id,
+            SwipeMachineModel.mapped_retailer_id == None,
+            SwipeMachineModel.is_deleted == False
+        )
+        inventory_stock = (await db.execute(inventory_stmt)).scalar() or 0
+
+        faulty_stmt = select(func.count(SwipeMachineModel.id)).where(
+            SwipeMachineModel.tenant_id == tenant_id,
+            SwipeMachineModel.status.in_(["FAULTY", "BLOCKED"]),
+            SwipeMachineModel.is_deleted == False
+        )
         faulty_machines = (await db.execute(faulty_stmt)).scalar() or 0
 
         vol_stmt = select(func.sum(MachineTelemetryModel.total_volume_processed)).where(MachineTelemetryModel.tenant_id == tenant_id, MachineTelemetryModel.is_deleted == False)
         total_daily_volume = (await db.execute(vol_stmt)).scalar() or 0.0
 
-        model_dist = {
-            "Pax A920": int(total_machines * 0.5),
-            "Verifone V200t": int(total_machines * 0.3),
-            "Ingenico DX8000": int(total_machines * 0.2)
-        }
-
-        network_dist = {
-            "4G LTE": int(total_machines * 0.7),
-            "Wi-Fi": int(total_machines * 0.2),
-            "GPRS": int(total_machines * 0.1)
-        }
-
         return MachineDashboardMetricsResponse(
             total_machines=total_machines,
             active_machines=active_machines,
-            inventory_stock=15,
+            inventory_stock=inventory_stock,
             faulty_machines=faulty_machines,
             offline_24h=0,
-            total_daily_volume=float(total_daily_volume),
-            model_distribution=model_dist,
-            network_distribution=network_dist
+            total_daily_volume=float(total_daily_volume or 0.0),
+            model_distribution={"Pax A920": total_machines},
+            network_distribution={"4G": total_machines}
         )
 
 

@@ -796,24 +796,36 @@ class RetailerDashboardMetricsResponse(BaseModel):
 
 # EPIC-005 Swipe Machine DTOs
 class MachineCreateRequest(BaseModel):
-    serial_number: str = Field(..., min_length=5, max_length=100)
-    tid: str = Field(..., min_length=8, max_length=16, description="Terminal ID")
-    mid: str = Field(..., min_length=8, max_length=24, description="Merchant ID")
+    serial_number: str = Field(..., min_length=3, max_length=100)
+    mobile_number: Optional[str] = Field(None, description="POS SIM / Mobile Number")
+    vendor_id: Optional[str] = Field(None, description="POS Vendor Code/ID")
+    vendor_name: Optional[str] = Field(None, description="POS Vendor Name")
+    vendor_commission_type: Optional[str] = Field("PERCENTAGE", description="PERCENTAGE or FIXED")
+    vendor_commission_value: Optional[float] = Field(0.50, ge=0.0, description="Vendor commission rate/value")
+    tid: Optional[str] = Field(None, description="Terminal ID (auto-generated if omitted)")
+    mid: Optional[str] = Field(None, description="Merchant ID (auto-generated if omitted)")
     pos_model: str = "Pax A920"
     machine_type: str = "ANDROID_POS"
     os_version: Optional[str] = "Android 11"
     firmware_version: Optional[str] = "v2.4.1"
     sim_iccid: Optional[str] = None
     telecom_provider: Optional[str] = "Airtel M2M"
-    mapped_retailer_id: uuid.UUID
-    company_id: uuid.UUID
+    status: Optional[str] = "ACTIVE"
+    mapped_retailer_id: Optional[uuid.UUID] = None
+    company_id: Optional[uuid.UUID] = None
 
 
 class MachineUpdateRequest(BaseModel):
+    serial_number: Optional[str] = None
+    mobile_number: Optional[str] = None
+    vendor_id: Optional[str] = None
+    vendor_name: Optional[str] = None
+    vendor_commission_type: Optional[str] = None
+    vendor_commission_value: Optional[float] = None
     pos_model: Optional[str] = None
     status: Optional[str] = None
     mapped_retailer_id: Optional[uuid.UUID] = None
-    version_no: int = Field(..., description="Optimistic locking version")
+    version_no: Optional[int] = None
 
 
 class MachineTelemetryPingRequest(BaseModel):
@@ -832,21 +844,33 @@ class MachineReplacementCreateRequest(BaseModel):
 
 class MachineResponse(BaseModel):
     public_id: uuid.UUID
-    tenant_id: uuid.UUID
+    tenant_id: Optional[uuid.UUID] = None
     company_id: Optional[uuid.UUID] = None
+    company_name: Optional[str] = None
     serial_number: str
-    tid: str
-    mid: str
-    pos_model: str
-    machine_type: str
+    mobile_number: Optional[str] = None
+    vendor_id: Optional[str] = None
+    vendor_name: Optional[str] = None
+    vendor_commission_type: Optional[str] = "PERCENTAGE"
+    vendor_commission_value: Optional[float] = 0.50
+    tid: Optional[str] = None
+    mid: Optional[str] = None
+    pos_model: Optional[str] = None
+    machine_type: Optional[str] = None
     os_version: Optional[str] = None
     firmware_version: Optional[str] = None
     sim_iccid: Optional[str] = None
     telecom_provider: Optional[str] = None
     status: str
     mapped_retailer_id: Optional[uuid.UUID] = None
-    version_no: int
-    created_date: datetime
+    retailer_name: Optional[str] = None
+    retailer_code: Optional[str] = None
+    retailer_mobile: Optional[str] = None
+    assigned_at: Optional[datetime] = None
+    version_no: Optional[int] = 1
+    created_date: Optional[datetime] = None
+    updated_date: Optional[datetime] = None
+    updated_by: Optional[str] = None
 
 
 class MachineDetailsResponse(BaseModel):

@@ -478,31 +478,37 @@ async def create_topup_request(
     # Auto-resolve B2 slip_url from slip_id if not explicitly provided
     resolved_slip_url = _resolve_slip_url(req.slip_url, req.slip_id)
 
-    # 2b. Compute POS MDR Snapshot
+    # 2b. Compute POS MDR & Vendor Snapshot
     selected_mode = (req.payment_mode or req.payment_method or "POS - Instant").strip()
     mdr_charge_val = req.mdr_charge
     gst_amount_val = req.gst_amount
     charges_val = req.charges
     received_amount_val = req.received_amount
     mdr_config_uuid = None
+    vendor_calc_meta = {}
 
     try:
-        mdr_cfg = await PosMdrService.resolve_mdr_configuration(
+        calc = await PosMdrService.calculate_pos_topup_pricing(
             db=db,
-            payment_mode=selected_mode,
-            retailer_id=retailer.public_id,
-            company_id=retailer.company_id,
-            tenant_id=retailer.tenant_id
-        )
-        calc = PosMdrService.calculate_mdr(
             amount=req.requested_amount,
-            mdr_config=mdr_cfg
+            payment_mode=selected_mode,
+            retailer_id=retailer.public_id
         )
         mdr_charge_val = calc["mdr"]
         gst_amount_val = calc["gst"]
         charges_val = calc["charges"]
         received_amount_val = calc["received_amount"]
-        mdr_config_uuid = mdr_cfg.public_id
+        if calc.get("mdr_config_id"):
+            mdr_config_uuid = uuid.UUID(calc["mdr_config_id"])
+        vendor_calc_meta = {
+            "vendor_id": calc.get("vendor_id"),
+            "vendor_name": calc.get("vendor_name"),
+            "vendor_commission_rate": calc.get("vendor_commission_rate"),
+            "vendor_commission_type": calc.get("vendor_commission_type"),
+            "vendor_commission_amount": calc.get("vendor_commission_amount"),
+            "pos_serial_number": calc.get("pos_serial_number"),
+            "pos_mobile_number": calc.get("pos_mobile_number"),
+        }
     except Exception as mdr_err:
         # If client provided values, use them, otherwise fallback to amount if not a configured POS mode
         if received_amount_val is None:
@@ -562,7 +568,8 @@ async def create_topup_request(
             "mdr": mdr_charge_val,
             "gst": gst_amount_val,
             "charges": charges_val,
-            "received_amount": received_amount_val
+            "received_amount": received_amount_val,
+            **vendor_calc_meta
         }
     )
     db.add(topup_model)
@@ -588,10 +595,7 @@ async def create_topup_request(
             "payment_method": topup_model.payment_method,
             "slip_url": topup_model.slip_url,
             "submitted_at": topup_model.submitted_at.isoformat(),
-            "retailer": {
-                "retailer_code": retailer.retailer_code,
-                "retailer_name": get_retailer_display_name(retailer)
-            }
+            **vendor_calc_meta
         }
     }
 
@@ -618,20 +622,17 @@ async def calculate_topup_mdr(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Calculates MDR, GST, Charges, and Received Amount dynamically for POS payment modes.
+    Calculates MDR, GST, Charges, Received Amount, and Vendor Commission dynamically for POS payment modes.
     """
     pmode = req.get("payment_mode") or req.get("payment_method") or "POS - Instant"
     amt = float(req.get("transaction_amount") or req.get("requested_amount") or 0)
     ret_id = req.get("retailer_id")
 
-    mdr_config = await PosMdrService.resolve_mdr_configuration(
+    result = await PosMdrService.calculate_pos_topup_pricing(
         db=db,
+        amount=amt,
         payment_mode=pmode,
         retailer_id=ret_id
-    )
-    result = PosMdrService.calculate_mdr(
-        amount=amt,
-        mdr_config=mdr_config
     )
     return {
         "payment_mode": result["payment_mode"],
@@ -640,7 +641,13 @@ async def calculate_topup_mdr(
         "gst": result["gst"],
         "charges": result["charges"],
         "received_amount": result["received_amount"],
-        "mdr_config_id": result["mdr_config_id"]
+        "mdr_config_id": result.get("mdr_config_id"),
+        "vendor_id": result.get("vendor_id"),
+        "vendor_name": result.get("vendor_name"),
+        "vendor_commission_rate": result.get("vendor_commission_rate"),
+        "vendor_commission_amount": result.get("vendor_commission_amount"),
+        "pos_serial_number": result.get("pos_serial_number"),
+        "pos_mobile_number": result.get("pos_mobile_number"),
     }
 
 

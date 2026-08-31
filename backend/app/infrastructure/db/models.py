@@ -755,14 +755,24 @@ class SwipeMachineModel(BaseEntity, EnterpriseBaseMixin):
     serial_number: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     tid: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # Terminal ID
     mid: Mapped[str] = mapped_column(String(30), nullable=False, index=True)  # Merchant ID
+    mobile_number: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True) # POS SIM / Mobile
     pos_model: Mapped[str] = mapped_column(String(100), default="Pax A920", nullable=False)
     machine_type: Mapped[str] = mapped_column(String(50), default="ANDROID_POS", nullable=False)
     os_version: Mapped[Optional[str]] = mapped_column(String(50), default="Android 11", nullable=True)
     firmware_version: Mapped[Optional[str]] = mapped_column(String(50), default="v2.4.1", nullable=True)
     sim_iccid: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     telecom_provider: Mapped[Optional[str]] = mapped_column(String(50), default="Airtel M2M", nullable=True)
-    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False, index=True)  # INVENTORY, ALLOCATED, ACTIVE, SUSPENDED, FAULTY, REPLACED, DECOMMISSIONED
+    
+    # Vendor & Commission Configuration
+    vendor_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    vendor_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    vendor_commission_type: Mapped[str] = mapped_column(String(20), nullable=False, default="PERCENTAGE") # PERCENTAGE, FIXED
+    vendor_commission_value: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.5000)
+
+    # Status & Assignment
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False, index=True)  # ACTIVE, INACTIVE, ASSIGNED, UNASSIGNED, BLOCKED
     mapped_retailer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("retailer.public_id", ondelete="SET NULL"), nullable=True, index=True)
+    assigned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     telemetry: Mapped[Optional["MachineTelemetryModel"]] = relationship("MachineTelemetryModel", back_populates="machine", uselist=False, cascade="all, delete-orphan")
     key_profile: Mapped[Optional["MachineKeyProfileModel"]] = relationship("MachineKeyProfileModel", back_populates="machine", uselist=False, cascade="all, delete-orphan")
@@ -772,7 +782,28 @@ class SwipeMachineModel(BaseEntity, EnterpriseBaseMixin):
     __table_args__ = (
         UniqueConstraint("tenant_id", "serial_number", name="uq_machine_tenant_serial"),
         UniqueConstraint("tenant_id", "tid", name="uq_machine_tenant_tid"),
+        {"extend_existing": True}
     )
+
+
+class PosVendorMasterModel(BaseEntity, EnterpriseBaseMixin):
+    """
+    Dynamic POS Vendor Master Table.
+    """
+    __tablename__ = "pos_vendor_master"
+    __table_args__ = (
+        Index("idx_pos_vendor_code", "vendor_code"),
+        Index("idx_pos_vendor_active", "is_active", "is_deleted"),
+        {"extend_existing": True}
+    )
+
+    vendor_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    vendor_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    default_commission_type: Mapped[str] = mapped_column(String(20), nullable=False, default="PERCENTAGE")
+    default_commission_value: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False, default=0.5000)
+    contact_person: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    contact_email: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    contact_mobile: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
 
 class MachineInventoryModel(BaseEntity, EnterpriseBaseMixin):
