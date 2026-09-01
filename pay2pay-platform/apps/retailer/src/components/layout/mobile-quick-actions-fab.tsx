@@ -8,13 +8,12 @@ import {
   Drawer,
   Typography,
   ButtonBase,
-  useTheme,
-  alpha,
   IconButton,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
+import CloudUploadRoundedIcon from "@mui/icons-material/CloudUploadRounded";
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import QrCodeScannerRoundedIcon from "@mui/icons-material/QrCodeScannerRounded";
@@ -27,7 +26,7 @@ import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
 import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
 import SparklesIcon from "@mui/icons-material/AutoAwesome";
 
-// ─── Complete 11 Services for Quick Actions Bottom Sheet ───────────────────────
+// ─── Complete Services for Quick Actions Bottom Sheet ─────────────────────────
 export const QUICK_ACTIONS = [
   {
     id: "payout",
@@ -41,6 +40,19 @@ export const QUICK_ACTIONS = [
     iconBg: "#F59E0B",
     iconColor: "#0B0E14",
     badge: "Fast",
+  },
+  {
+    id: "topup-request",
+    label: "Topup Request",
+    sublabel: "Add wallet funds",
+    href: "/retailer/topup-request",
+    icon: CloudUploadRoundedIcon,
+    accentColor: "#FBBF24",
+    glowColor: "rgba(251, 191, 36, 0.35)",
+    gradient: "linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(217, 119, 6, 0.12) 100%)",
+    iconBg: "#FBBF24",
+    iconColor: "#0B0E14",
+    badge: "Topup",
   },
   {
     id: "po-report",
@@ -341,7 +353,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
               >
                 <SparklesIcon sx={{ fontSize: 11, color: "#FBBF24" }} />
                 <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#FDE68A" }}>
-                  11 Services
+                  {QUICK_ACTIONS.length} Services
                 </Typography>
               </Box>
             </Box>
@@ -376,7 +388,7 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
           </IconButton>
         </Box>
 
-        {/* ── 11 Services Responsive Mobile Grid ───────────────────────────── */}
+        {/* ── Responsive Mobile Grid (3-Col on Mobile / 4-Col on Tablets) ──── */}
         <Box
           sx={{
             display: "grid",
