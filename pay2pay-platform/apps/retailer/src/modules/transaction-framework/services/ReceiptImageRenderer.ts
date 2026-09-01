@@ -343,7 +343,7 @@ export function renderReceiptToCanvas(
 
   ctx.fillStyle = "#64748B";
   ctx.font = `600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  ctx.fillText(`Mobile: ${data.retailerMobile || "+91 9176669426"}`, col1X, partyBoxY + 46);
+  ctx.fillText(`Mobile: ${data.retailerMobile || ""}`, col1X, partyBoxY + 46);
 
   // Beneficiary (Receiver)
   ctx.fillStyle = "#16A34A";

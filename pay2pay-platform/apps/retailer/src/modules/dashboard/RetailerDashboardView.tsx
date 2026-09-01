@@ -291,7 +291,7 @@ export const RetailerDashboardView: React.FC = () => {
     headerWallet?.retailer_code ||
     outlet.code ||
     (typeof window !== "undefined" && localStorage.getItem("p2p_active_retailer_id")) ||
-    "P2P-R404667";
+    "";
 
   const retailerName =
     headerWallet?.retailer_name ||

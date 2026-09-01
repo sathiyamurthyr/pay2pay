@@ -200,11 +200,11 @@ function BeneficiaryWorkspaceContent() {
         const fallbackFromUrl = {
           id: urlCustomerId || (urlCustomerMobile ? `cust-${urlCustomerMobile}` : ""),
           public_id: urlCustomerId || (urlCustomerMobile ? `cust-${urlCustomerMobile}` : ""),
-          full_name: urlCustomerName || (urlCustomerMobile ? `Customer (${urlCustomerMobile})` : "Sathiya Murthy"),
-          name: urlCustomerName || (urlCustomerMobile ? `Customer (${urlCustomerMobile})` : "Sathiya Murthy"),
-          mobile_number: urlCustomerMobile || "9176669426",
-          mobile: urlCustomerMobile || "9176669426",
-          customer_number: urlCustomerMobile ? `CUST-${urlCustomerMobile}` : (urlCustomerId ? formatShortCustomerId(urlCustomerId) : "CUST-9176669426"),
+          full_name: urlCustomerName || (urlCustomerMobile ? `Customer (${urlCustomerMobile})` : ""),
+          name: urlCustomerName || (urlCustomerMobile ? `Customer (${urlCustomerMobile})` : ""),
+          mobile_number: urlCustomerMobile || "",
+          mobile: urlCustomerMobile || "",
+          customer_number: urlCustomerMobile ? `CUST-${urlCustomerMobile}` : (urlCustomerId ? formatShortCustomerId(urlCustomerId) : ""),
         };
         setActiveCustomer(fallbackFromUrl);
         setSelectedCustomer(fallbackFromUrl);
@@ -222,40 +222,22 @@ function BeneficiaryWorkspaceContent() {
       if (res?.data?.customer) {
         setActiveCustomer(res.data.customer);
       } else {
-        // High fidelity fallback matching user screen
-        const defaultCust = {
-          id: "cust-9176669426",
-          public_id: "cust-9176669426",
-          full_name: "Sathiya Murthy",
-          name: "Sathiya Murthy",
-          mobile_number: "9176669426",
-          mobile: "9176669426",
-          customer_number: "CUST-9176669426",
-        };
-        setActiveCustomer(defaultCust);
+        // No customer found in API — leave as null so UI shows "Select Customer"
+        setActiveCustomer(null);
       }
     } catch (err) {
       console.error("Failed to load secure context:", err);
-      const defaultCust = {
-        id: "cust-9176669426",
-        public_id: "cust-9176669426",
-        full_name: "Sathiya Murthy",
-        name: "Sathiya Murthy",
-        mobile_number: "9176669426",
-        mobile: "9176669426",
-        customer_number: "CUST-9176669426",
-      };
-      setActiveCustomer(defaultCust);
+      setActiveCustomer(null);
     } finally {
       setIsCustomerLoading(false);
     }
   };
 
   const effectiveCustomer = activeCustomer || selectedCustomer;
-  const activeCustomerName   = effectiveCustomer?.full_name || effectiveCustomer?.name || effectiveCustomer?.fullName || (urlCustomerName ? urlCustomerName : "Sathiya Murthy");
-  const activeCustomerMobile = effectiveCustomer?.mobile_number || effectiveCustomer?.mobile || urlCustomerMobile || "9176669426";
-  const rawId                = effectiveCustomer?.public_id || effectiveCustomer?.id || effectiveCustomer?.customer_id || urlCustomerId || "9176669426";
-  const activeCustomerId     = effectiveCustomer?.customer_number || (rawId ? formatShortCustomerId(rawId) : "CUST-9176669426");
+  const activeCustomerName   = effectiveCustomer?.full_name || effectiveCustomer?.name || effectiveCustomer?.fullName || urlCustomerName || "";
+  const activeCustomerMobile = effectiveCustomer?.mobile_number || effectiveCustomer?.mobile || urlCustomerMobile || "";
+  const rawId                = effectiveCustomer?.public_id || effectiveCustomer?.id || effectiveCustomer?.customer_id || urlCustomerId || "";
+  const activeCustomerId     = effectiveCustomer?.customer_number || (rawId ? formatShortCustomerId(rawId) : "");
 
   // ── Step ──────────────────────────────────────────────────────────────────
   const [activeStep, setActiveStep] = useState(0);
