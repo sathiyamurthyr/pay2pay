@@ -8,7 +8,7 @@ from pathlib import Path
 BASE_DIR = Path(r"d:\pay2pay")
 RETAILER_DIR = BASE_DIR / "pay2pay-platform" / "apps" / "retailer"
 ADMIN_DIR = BASE_DIR / "pay2pay-platform" / "apps" / "admin"
-BACKEND_DIR = BASE_DIR / "pay2pay-platform" / "apps" / "api"
+BACKEND_DIR = BASE_DIR / "backend"
 KEY_PATH = r"C:\Users\Sathyamoorthy\.ssh\id_rsa_129_225_91_190"
 SERVER_HOST = "ubuntu@129.225.91.190"
 
@@ -67,9 +67,9 @@ def package_backend():
 
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
         for root, dirs, files in os.walk(BACKEND_DIR):
-            dirs[:] = [d for d in dirs if d not in ('venv', '__pycache__', '.pytest_cache', '.git', 'node_modules', 'uploads')]
+            dirs[:] = [d for d in dirs if d not in ('venv', '__pycache__', '.pytest_cache', '.git', 'node_modules', 'uploads', 'scratch')]
             for file in files:
-                if file.endswith('.pyc') or file.endswith('.pyo'):
+                if file.endswith('.pyc') or file.endswith('.pyo') or file.startswith('.env'):
                     continue
                 full_path = Path(root) / file
                 rel_path = full_path.relative_to(BACKEND_DIR)
@@ -88,7 +88,14 @@ def deploy_to_server(retailer_zip: Path, admin_zip: Path, backend_zip: Path):
     print("\n🔄 Extracting packages and restarting services on production server...")
     remote_script = """#!/bin/bash
 set -e
-echo '=== 1. Deploying Retailer Frontend (Port 3000) ==='
+echo '=== 1. Syncing Git Repository on Server ==='
+if [ -d /home/ubuntu/pay2pay_repo ]; then
+  cd /home/ubuntu/pay2pay_repo
+  git reset --hard origin/main || true
+  git pull origin main || true
+fi
+
+echo '=== 2. Deploying Retailer Frontend (Port 3000) ==='
 sudo rm -rf /home/ubuntu/pay2pay/frontend/*
 sudo unzip -q -o /home/ubuntu/retailer_deploy.zip -d /home/ubuntu/pay2pay/frontend/
 if [ -f /home/ubuntu/pay2pay/frontend/apps/retailer/server.js ]; then
@@ -101,7 +108,7 @@ if [ -d /home/ubuntu/pay2pay/frontend/apps/retailer/public ]; then
   cp -r /home/ubuntu/pay2pay/frontend/apps/retailer/public /home/ubuntu/pay2pay/frontend/ || true
 fi
 
-echo '=== 2. Deploying Admin Frontend (Port 3003) ==='
+echo '=== 3. Deploying Admin Frontend (Port 3003) ==='
 sudo rm -rf /home/ubuntu/pay2pay/admin/*
 sudo unzip -q -o /home/ubuntu/admin_deploy.zip -d /home/ubuntu/pay2pay/admin/
 if [ -f /home/ubuntu/pay2pay/admin/apps/admin/server.js ]; then
@@ -114,13 +121,13 @@ if [ -d /home/ubuntu/pay2pay/admin/apps/admin/public ]; then
   cp -r /home/ubuntu/pay2pay/admin/apps/admin/public /home/ubuntu/pay2pay/admin/ || true
 fi
 
-echo '=== 3. Deploying Backend API ==='
+echo '=== 4. Deploying Backend API ==='
 sudo unzip -q -o /home/ubuntu/backend_deploy.zip -d /home/ubuntu/pay2pay/backend/
 
-echo '=== 4. Setting Correct Ownership & Permissions ==='
+echo '=== 5. Setting Correct Ownership & Permissions ==='
 sudo chown -R ubuntu:ubuntu /home/ubuntu/pay2pay
 
-echo '=== 5. Restarting Production Systemd Services ==='
+echo '=== 6. Restarting Production Systemd Services ==='
 sudo systemctl restart pay2pay-backend
 sudo systemctl restart pay2pay-frontend
 sudo systemctl restart pay2pay-admin
@@ -128,10 +135,10 @@ sudo systemctl reload nginx || sudo systemctl restart nginx
 
 sleep 4
 
-echo '=== 6. Service Health Check ==='
-sudo systemctl status pay2pay-backend --no-pager
-sudo systemctl status pay2pay-frontend --no-pager
-sudo systemctl status pay2pay-admin --no-pager
+echo '=== 7. Service Health Check ==='
+sudo systemctl is-active pay2pay-backend
+sudo systemctl is-active pay2pay-frontend
+sudo systemctl is-active pay2pay-admin
 curl -s -o /dev/null -w 'Retailer (Port 3000) Status: %{http_code}\n' http://127.0.0.1:3000/retailer/login || true
 curl -s -o /dev/null -w 'Admin (Port 3003) Status: %{http_code}\n' http://127.0.0.1:3003/admin/login || true
 curl -s -o /dev/null -w 'Backend Docs (Port 8000) Status: %{http_code}\n' http://127.0.0.1:8000/docs || true
@@ -144,7 +151,7 @@ echo '=== Live Production Deployment Finished Successfully! ==='
         tmp_script_path = f.name
 
     subprocess.run(["scp", "-o", "StrictHostKeyChecking=no", "-i", KEY_PATH, tmp_script_path, f"{SERVER_HOST}:/tmp/do_deploy.sh"], check=True)
-    res = subprocess.run(["ssh", "-o", "StrictHostKeyChecking=no", "-i", KEY_PATH, SERVER_HOST, "bash /tmp/do_deploy.sh"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    res = subprocess.run(["ssh", "-n", "-o", "StrictHostKeyChecking=no", "-i", KEY_PATH, SERVER_HOST, "bash /tmp/do_deploy.sh"], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", errors="replace")
     print("STDOUT:\n", res.stdout)
     if res.stderr:
         print("STDERR:\n", res.stderr)
