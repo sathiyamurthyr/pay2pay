@@ -1,38 +1,82 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Fab,
   Box,
-  SwipeableDrawer,
+  Drawer,
   Typography,
   ButtonBase,
-  Backdrop,
   useTheme,
   alpha,
+  IconButton,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import SendRoundedIcon from "@mui/icons-material/SendRounded";
+import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
+import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import QrCodeScannerRoundedIcon from "@mui/icons-material/QrCodeScannerRounded";
 import FingerprintRoundedIcon from "@mui/icons-material/FingerprintRounded";
-import CreditCardOffRoundedIcon from "@mui/icons-material/CreditCardOffRounded";
+import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import PhoneIphoneRoundedIcon from "@mui/icons-material/PhoneIphoneRounded";
+import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
 import ElectricBoltRoundedIcon from "@mui/icons-material/ElectricBoltRounded";
 import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
 import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
+import SparklesIcon from "@mui/icons-material/AutoAwesome";
 
-// ─── Quick Action Config ────────────────────────────────────────────────────────
-const QUICK_ACTIONS = [
+// ─── Complete 11 Services for Quick Actions Bottom Sheet ───────────────────────
+export const QUICK_ACTIONS = [
+  {
+    id: "payout",
+    label: "Payout",
+    sublabel: "Initiate payout",
+    href: "/retailer/dmt",
+    icon: SendRoundedIcon,
+    accentColor: "#F59E0B",
+    glowColor: "rgba(245, 158, 11, 0.35)",
+    gradient: "linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.12) 100%)",
+    iconBg: "#F59E0B",
+    iconColor: "#0B0E14",
+    badge: "Fast",
+  },
+  {
+    id: "po-report",
+    label: "PO Report",
+    sublabel: "Purchase order report",
+    href: "/retailer/pos/settlement-report",
+    icon: AssessmentRoundedIcon,
+    accentColor: "#38BDF8",
+    glowColor: "rgba(56, 189, 248, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(2, 132, 199, 0.1) 100%)",
+    iconBg: "#38BDF8",
+    iconColor: "#0B0E14",
+  },
+  {
+    id: "txn-report",
+    label: "Transaction Report",
+    sublabel: "View transactions",
+    href: "/retailer/dmt/reports",
+    icon: ReceiptLongRoundedIcon,
+    accentColor: "#4ADE80",
+    glowColor: "rgba(74, 222, 128, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(74, 222, 128, 0.2) 0%, rgba(22, 163, 74, 0.1) 100%)",
+    iconBg: "#4ADE80",
+    iconColor: "#0B0E14",
+  },
   {
     id: "upi",
     label: "UPI",
     sublabel: "Collect payment",
     href: "/retailer/upi",
     icon: QrCodeScannerRoundedIcon,
-    color: "#7C3AED",
-    bg: "#EDE9FE",
-    darkBg: "#3B1F73",
+    accentColor: "#A855F7",
+    glowColor: "rgba(168, 85, 247, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(126, 34, 206, 0.1) 100%)",
+    iconBg: "#A855F7",
+    iconColor: "#FFFFFF",
   },
   {
     id: "aeps",
@@ -40,19 +84,23 @@ const QUICK_ACTIONS = [
     sublabel: "Biometric cash",
     href: "/retailer/aeps",
     icon: FingerprintRoundedIcon,
-    color: "#16A34A",
-    bg: "#DCFCE7",
-    darkBg: "#1A3D28",
+    accentColor: "#10B981",
+    glowColor: "rgba(16, 185, 129, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)",
+    iconBg: "#10B981",
+    iconColor: "#FFFFFF",
   },
   {
     id: "card-to-cash",
     label: "Card to Cash",
     sublabel: "Payout request",
     href: "/retailer/card-to-cash",
-    icon: CreditCardOffRoundedIcon,
-    color: "#D97706",
-    bg: "#FEF3C7",
-    darkBg: "#3D2E0A",
+    icon: CreditCardRoundedIcon,
+    accentColor: "#F97316",
+    glowColor: "rgba(249, 115, 22, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(194, 65, 12, 0.1) 100%)",
+    iconBg: "#F97316",
+    iconColor: "#FFFFFF",
   },
   {
     id: "recharge",
@@ -60,9 +108,23 @@ const QUICK_ACTIONS = [
     sublabel: "Mobile & DTH",
     href: "/retailer/recharge",
     icon: PhoneIphoneRoundedIcon,
-    color: "#2563EB",
-    bg: "#EFF6FF",
-    darkBg: "#1A2E5A",
+    accentColor: "#3B82F6",
+    glowColor: "rgba(59, 130, 246, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(29, 78, 216, 0.1) 100%)",
+    iconBg: "#3B82F6",
+    iconColor: "#FFFFFF",
+  },
+  {
+    id: "dmt",
+    label: "DMT",
+    sublabel: "Money transfer",
+    href: "/retailer/dmt",
+    icon: AccountBalanceWalletRoundedIcon,
+    accentColor: "#F59E0B",
+    glowColor: "rgba(245, 158, 11, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(180, 83, 9, 0.1) 100%)",
+    iconBg: "#F59E0B",
+    iconColor: "#0B0E14",
   },
   {
     id: "bbps",
@@ -70,9 +132,11 @@ const QUICK_ACTIONS = [
     sublabel: "Bill payment",
     href: "/retailer/bbps",
     icon: ElectricBoltRoundedIcon,
-    color: "#DC2626",
-    bg: "#FEE2E2",
-    darkBg: "#3D1414",
+    accentColor: "#EF4444",
+    glowColor: "rgba(239, 68, 68, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.1) 100%)",
+    iconBg: "#EF4444",
+    iconColor: "#FFFFFF",
   },
   {
     id: "pos",
@@ -80,9 +144,11 @@ const QUICK_ACTIONS = [
     sublabel: "POS terminal",
     href: "/retailer/pos",
     icon: PointOfSaleRoundedIcon,
-    color: "#0891B2",
-    bg: "#CFFAFE",
-    darkBg: "#0A2E36",
+    accentColor: "#06B6D4",
+    glowColor: "rgba(6, 182, 212, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(14, 116, 144, 0.1) 100%)",
+    iconBg: "#06B6D4",
+    iconColor: "#0B0E14",
   },
   {
     id: "qr-pay",
@@ -90,67 +156,76 @@ const QUICK_ACTIONS = [
     sublabel: "Scan & collect",
     href: "/retailer/upi",
     icon: QrCode2RoundedIcon,
-    color: "#9333EA",
-    bg: "#F3E8FF",
-    darkBg: "#2E1245",
+    accentColor: "#EC4899",
+    glowColor: "rgba(236, 72, 153, 0.3)",
+    gradient: "linear-gradient(135deg, rgba(236, 72, 153, 0.2) 0%, rgba(190, 24, 93, 0.1) 100%)",
+    iconBg: "#EC4899",
+    iconColor: "#FFFFFF",
   },
 ] as const;
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
 interface MobileQuickActionsFABProps {
-  /** Bottom offset so FAB floats above the bottom nav bar (default: 36) */
   bottomOffset?: number;
 }
 
-// ─── Component ─────────────────────────────────────────────────────────────────
 export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
-  bottomOffset = 36,
+  bottomOffset = 34,
 }) => {
   const router = useRouter();
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
+  const [open, setOpen] = useState(false);
 
-  const [open, setOpen] = React.useState(false);
+  const handleToggle = useCallback(() => {
+    setOpen((prev) => !prev);
+  }, []);
 
-  const handleOpen = useCallback(() => setOpen(true), []);
-  const handleClose = useCallback(() => setOpen(false), []);
+  const handleClose = useCallback(() => {
+    setOpen(false);
+  }, []);
 
   const handleAction = useCallback(
     (href: string) => {
       setOpen(false);
-      // Small delay lets the drawer animate shut before navigation
-      setTimeout(() => router.push(href), 220);
+      setTimeout(() => router.push(href), 150);
     },
     [router]
   );
 
-  const sheetBg = isDark ? "#1A1A2E" : "#FFFFFF";
-  const pillBg = isDark ? "rgba(255,255,255,0.08)" : "#F1F5F9";
+  // Close with escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && open) {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   return (
     <>
-      {/* ── Center-Docked FAB ─────────────────────────────────────────────── */}
+      {/* ── Floating Action Button (FAB) ────────────────────────────────── */}
       <Fab
         id="mobile-quick-actions-fab"
-        aria-label="Quick Actions"
-        onClick={handleOpen}
+        aria-label="Quick Actions Menu"
+        onClick={handleToggle}
         sx={{
           position: "fixed",
           bottom: bottomOffset,
           left: "50%",
           transform: "translateX(-50%)",
-          zIndex: 1400,
+          zIndex: 1450,
           display: { xs: "flex", md: "none" },
-          width: 56,
-          height: 56,
-          background: "linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)",
-          boxShadow: "0 6px 20px rgba(37,99,235,0.5), 0 2px 8px rgba(0,0,0,0.2)",
-          border: "3px solid white",
-          transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s",
+          width: 58,
+          height: 58,
+          background: "linear-gradient(135deg, #FCD34D 0%, #F59E0B 50%, #D97706 100%)",
+          color: "#0B0E14",
+          boxShadow: "0 8px 24px rgba(245, 158, 11, 0.45), 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.6)",
+          border: "2px solid rgba(255, 255, 255, 0.35)",
+          transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
           "&:hover": {
-            background: "linear-gradient(135deg, #1D4ED8 0%, #6D28D9 100%)",
-            transform: "translateX(-50%) scale(1.08)",
-            boxShadow: "0 8px 28px rgba(37,99,235,0.55), 0 3px 12px rgba(0,0,0,0.25)",
+            background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #B45309 100%)",
+            transform: "translateX(-50%) scale(1.06)",
+            boxShadow: "0 12px 32px rgba(245, 158, 11, 0.6)",
           },
           "&:active": {
             transform: "translateX(-50%) scale(0.94)",
@@ -163,215 +238,276 @@ export const MobileQuickActionsFAB: React.FC<MobileQuickActionsFABProps> = ({
             alignItems: "center",
             justifyContent: "center",
             transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-            transform: open ? "rotate(45deg)" : "rotate(0deg)",
+            transform: open ? "rotate(135deg)" : "rotate(0deg)",
           }}
         >
-          <AddRoundedIcon sx={{ fontSize: 28, color: "#FFFFFF" }} />
+          <AddRoundedIcon sx={{ fontSize: 32, color: "#0B0E14", strokeWidth: 1.5 }} />
         </Box>
       </Fab>
 
-      {/* ── Quick Actions Bottom Sheet ────────────────────────────────────── */}
-      <SwipeableDrawer
+      {/* ── Luxury Glassmorphism Bottom Sheet Modal ────────────────────── */}
+      <Drawer
         anchor="bottom"
         open={open}
-        onOpen={handleOpen}
         onClose={handleClose}
-        disableSwipeToOpen
-        swipeAreaWidth={32}
-        ModalProps={{ keepMounted: true }}
+        ModalProps={{
+          keepMounted: true,
+          disableScrollLock: false,
+        }}
         sx={{
           display: { xs: "block", md: "none" },
-          zIndex: 1350,
+          zIndex: 1400,
+          "& .MuiBackdrop-root": {
+            backgroundColor: "rgba(3, 7, 18, 0.75)",
+            backdropFilter: "blur(8px)",
+          },
           "& .MuiDrawer-paper": {
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            bgcolor: sheetBg,
-            overflow: "hidden",
-            pb: "env(safe-area-inset-bottom, 12px)",
-            maxHeight: "85vh",
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            backgroundColor: "rgba(11, 14, 20, 0.95)",
+            backdropFilter: "blur(24px)",
+            border: "1px solid rgba(245, 158, 11, 0.25)",
+            borderBottom: "none",
+            boxShadow: "0 -16px 48px rgba(0, 0, 0, 0.8), 0 0 32px rgba(245, 158, 11, 0.15)",
+            color: "#F8FAFC",
+            overflowX: "hidden",
+            overflowY: "auto",
+            maxHeight: "88vh",
+            pb: "calc(env(safe-area-inset-bottom, 16px) + 70px)",
           },
         }}
       >
-        {/* Drag Handle */}
-        <Box sx={{ display: "flex", justifyContent: "center", pt: 1.5, pb: 0.5 }}>
+        {/* Top Gold Gradient Bar */}
+        <Box
+          sx={{
+            height: 3,
+            width: "100%",
+            background: "linear-gradient(90deg, transparent 0%, #F59E0B 50%, transparent 100%)",
+          }}
+        />
+
+        {/* Drag Handle Bar */}
+        <Box sx={{ display: "flex", justifyContent: "center", pt: 1.5, pb: 1 }}>
           <Box
             sx={{
-              width: 36,
-              height: 4,
-              borderRadius: 2,
-              bgcolor: pillBg,
+              width: 44,
+              height: 5,
+              borderRadius: 3,
+              background: "linear-gradient(90deg, rgba(245, 158, 11, 0.5), rgba(252, 211, 77, 0.8), rgba(245, 158, 11, 0.5))",
+              boxShadow: "0 0 8px rgba(245, 158, 11, 0.4)",
             }}
           />
         </Box>
 
-        {/* Header */}
+        {/* Header with Title and Explicit Close Button */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             px: 2.5,
-            py: 1.5,
+            pt: 1,
+            pb: 1.5,
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         >
           <Box>
-            <Typography
-              variant="subtitle1"
-              sx={{
-                fontWeight: 800,
-                fontSize: "16px",
-                color: isDark ? "#F1F5F9" : "#111827",
-                lineHeight: 1.2,
-              }}
-            >
-              Quick Actions
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 900,
+                  fontSize: "17px",
+                  background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 60%, #FBBF24 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  letterSpacing: "-0.3px",
+                  lineHeight: 1.2,
+                }}
+              >
+                Quick Actions
+              </Typography>
+              <Box
+                sx={{
+                  px: 1.2,
+                  py: 0.2,
+                  borderRadius: "10px",
+                  bgcolor: "rgba(245, 158, 11, 0.15)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                }}
+              >
+                <SparklesIcon sx={{ fontSize: 11, color: "#FBBF24" }} />
+                <Typography sx={{ fontSize: "10px", fontWeight: 800, color: "#FDE68A" }}>
+                  11 Services
+                </Typography>
+              </Box>
+            </Box>
             <Typography
               variant="caption"
-              sx={{ color: isDark ? "#94A3B8" : "#6B7280", fontSize: "12px" }}
+              sx={{ color: "#94A3B8", fontSize: "12px", mt: 0.25, display: "block" }}
             >
               Select a service to get started
             </Typography>
           </Box>
-          <ButtonBase
+
+          {/* Explicit Close Button */}
+          <IconButton
             onClick={handleClose}
             aria-label="Close Quick Actions"
             sx={{
               width: 36,
               height: 36,
-              borderRadius: "50%",
-              bgcolor: pillBg,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.15s",
-              "&:hover": { bgcolor: isDark ? "rgba(255,255,255,0.14)" : "#E2E8F0" },
+              borderRadius: "12px",
+              bgcolor: "rgba(255, 255, 255, 0.06)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              color: "#CBD5E1",
+              transition: "all 0.2s",
+              "&:hover": {
+                bgcolor: "rgba(239, 68, 68, 0.2)",
+                borderColor: "rgba(239, 68, 68, 0.4)",
+                color: "#F87171",
+              },
             }}
           >
-            <CloseRoundedIcon sx={{ fontSize: 18, color: isDark ? "#94A3B8" : "#6B7280" }} />
-          </ButtonBase>
+            <CloseRoundedIcon sx={{ fontSize: 20 }} />
+          </IconButton>
         </Box>
 
-        {/* Action Grid – 4 columns */}
+        {/* ── 11 Services Responsive Mobile Grid ───────────────────────────── */}
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 0,
-            px: 1.5,
-            pb: 2.5,
-            // Last row: 3 items centred  → override with flex on overflow
+            gridTemplateColumns: { xs: "repeat(3, 1fr)", sm: "repeat(4, 1fr)" },
+            gap: 1.5,
+            p: 2,
           }}
         >
           {QUICK_ACTIONS.map((action) => {
             const Icon = action.icon;
             return (
-              <QuickActionItem
+              <ButtonBase
                 key={action.id}
-                icon={Icon}
-                label={action.label}
-                sublabel={action.sublabel}
-                color={action.color}
-                bg={isDark ? action.darkBg : action.bg}
                 onClick={() => handleAction(action.href)}
-                isDark={isDark}
-              />
+                aria-label={action.label}
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  p: 1.5,
+                  borderRadius: "18px",
+                  bgcolor: "rgba(15, 23, 42, 0.7)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  position: "relative",
+                  overflow: "hidden",
+                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  "&:hover, &:focus": {
+                    bgcolor: "rgba(30, 41, 59, 0.85)",
+                    borderColor: action.accentColor,
+                    transform: "translateY(-2px)",
+                    boxShadow: `0 6px 16px ${action.glowColor}`,
+                  },
+                  "&:active": {
+                    transform: "scale(0.95)",
+                  },
+                }}
+              >
+                {/* Subtle Card Gradient Glow on Top */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    background: `linear-gradient(90deg, transparent, ${action.accentColor}, transparent)`,
+                    opacity: 0.7,
+                  }}
+                />
+
+                {/* Badge if present */}
+                {"badge" in action && action.badge && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: 6,
+                      right: 6,
+                      px: 0.8,
+                      py: 0.1,
+                      borderRadius: "6px",
+                      bgcolor: "rgba(245, 158, 11, 0.2)",
+                      border: "1px solid rgba(245, 158, 11, 0.4)",
+                      color: "#FDE68A",
+                      fontSize: "8.5px",
+                      fontWeight: 900,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {action.badge}
+                  </Box>
+                )}
+
+                {/* Icon Container */}
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "14px",
+                    bgcolor: action.iconBg,
+                    color: action.iconColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: `0 4px 14px ${action.glowColor}`,
+                    mb: 1,
+                  }}
+                >
+                  <Icon sx={{ fontSize: 24, color: action.iconColor }} />
+                </Box>
+
+                {/* Service Name */}
+                <Typography
+                  sx={{
+                    fontSize: "12px",
+                    fontWeight: 800,
+                    color: "#FFFFFF",
+                    textAlign: "center",
+                    lineHeight: 1.2,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    width: "100%",
+                  }}
+                >
+                  {action.label}
+                </Typography>
+
+                {/* Subtitle / Description */}
+                <Typography
+                  sx={{
+                    fontSize: "10px",
+                    fontWeight: 500,
+                    color: "#94A3B8",
+                    textAlign: "center",
+                    lineHeight: 1.2,
+                    mt: 0.4,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    width: "100%",
+                  }}
+                >
+                  {action.sublabel}
+                </Typography>
+              </ButtonBase>
             );
           })}
         </Box>
-      </SwipeableDrawer>
+      </Drawer>
     </>
   );
 };
-
-// ─── Individual Quick Action Tile ───────────────────────────────────────────────
-interface QuickActionItemProps {
-  icon: React.ElementType;
-  label: string;
-  sublabel: string;
-  color: string;
-  bg: string;
-  onClick: () => void;
-  isDark: boolean;
-}
-
-const QuickActionItem: React.FC<QuickActionItemProps> = ({
-  icon: Icon,
-  label,
-  sublabel,
-  color,
-  bg,
-  onClick,
-  isDark,
-}) => (
-  <ButtonBase
-    onClick={onClick}
-    aria-label={label}
-    sx={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 0.75,
-      p: 1.25,
-      borderRadius: 3,
-      transition: "background 0.15s, transform 0.15s",
-      "&:active": { transform: "scale(0.94)", bgcolor: isDark ? "rgba(255,255,255,0.06)" : alpha(color, 0.06) },
-      "& .MuiTouchRipple-ripple .MuiTouchRipple-child": {
-        backgroundColor: alpha(color, 0.15),
-      },
-    }}
-  >
-    {/* Icon circle */}
-    <Box
-      sx={{
-        width: 52,
-        height: 52,
-        borderRadius: "16px",
-        bgcolor: bg,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: `0 2px 8px ${alpha(color, 0.2)}`,
-        transition: "transform 0.15s, box-shadow 0.15s",
-        ".MuiButtonBase-root:hover &": {
-          transform: "translateY(-2px)",
-          boxShadow: `0 4px 14px ${alpha(color, 0.3)}`,
-        },
-      }}
-    >
-      <Icon sx={{ fontSize: 26, color }} />
-    </Box>
-
-    {/* Label */}
-    <Box sx={{ textAlign: "center" }}>
-      <Typography
-        component="span"
-        sx={{
-          display: "block",
-          fontSize: "11px",
-          fontWeight: 800,
-          color: isDark ? "#F1F5F9" : "#111827",
-          lineHeight: 1.2,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </Typography>
-      <Typography
-        component="span"
-        sx={{
-          display: "block",
-          fontSize: "9.5px",
-          fontWeight: 500,
-          color: isDark ? "#94A3B8" : "#6B7280",
-          lineHeight: 1.2,
-          mt: 0.25,
-        }}
-      >
-        {sublabel}
-      </Typography>
-    </Box>
-  </ButtonBase>
-);
 
 export default MobileQuickActionsFAB;

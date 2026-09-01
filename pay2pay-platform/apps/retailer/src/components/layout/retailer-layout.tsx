@@ -942,10 +942,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease",
         }}
       >
-        <Toolbar sx={{ justifyContent: "space-between", px: { xs: 2, sm: 3 }, minHeight: "56px !important", height: 56 }}>
+        <Toolbar sx={{ justifyContent: "space-between", px: { xs: 1.5, sm: 3 }, minHeight: "56px !important", height: 56 }}>
           
           {/* Left: Menu Toggle + Page Title + Search Input */}
-          <Stack direction="row" spacing={1.75} sx={{ alignItems: "center" }}>
+          <Stack direction="row" spacing={{ xs: 1, sm: 1.75 }} sx={{ alignItems: "center" }}>
             <Tooltip title={desktopCollapsed ? "Expand Sidebar (260px)" : "Collapse Sidebar (72px)"}>
               <IconButton
                 edge="start"
@@ -953,15 +953,32 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 aria-label="toggle drawer"
                 onClick={handleDrawerToggle}
                 size="small"
-                sx={{ p: 0.75, color: "#60A5FA" }}
+                sx={{
+                  p: 0.75,
+                  color: "#F59E0B",
+                  "&:hover": {
+                    backgroundColor: "rgba(245, 158, 11, 0.15)",
+                  },
+                }}
               >
                 {desktopCollapsed ? <MenuOpenIcon sx={{ fontSize: 24 }} /> : <MenuIcon sx={{ fontSize: 24 }} />}
               </IconButton>
             </Tooltip>
 
-            {/* Page Title */}
-            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>
-              {activeMenuItem?.label || "Retailer Terminal"}
+            {/* Page Title with Premium Gold-Yellow Gradient */}
+            <Typography
+              variant="h6"
+              sx={{
+                fontSize: { xs: "17px", sm: "19px" },
+                fontWeight: 900,
+                background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 60%, #FBBF24 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                letterSpacing: "-0.4px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {activeMenuItem?.label || "Dashboard"}
             </Typography>
 
             {/* Universal Search Input Bar */}
@@ -978,19 +995,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 backgroundColor: "rgba(255, 255, 255, 0.05)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
                 cursor: "pointer",
-                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.25)" },
+                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(245, 158, 11, 0.4)" },
               }}
             >
-              <SearchIcon sx={{ color: "#60A5FA", fontSize: 18, mr: 0.75 }} />
+              <SearchIcon sx={{ color: "#F59E0B", fontSize: 18, mr: 0.75 }} />
               <Typography variant="caption" sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.70)", flex: 1, fontWeight: 700 }}>
                 Universal Search...
               </Typography>
-              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "rgba(255, 255, 255, 0.12)", color: "#FFFFFF" }} />
+              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FDE68A" }} />
             </Paper>
           </Stack>
 
-          {/* Right: Soundbox, Wallet Balance, Notifications, Profile Menu */}
-          <Stack direction="row" spacing={{ xs: 1, sm: 1.5 }} sx={{ alignItems: "center" }}>
+          {/* Right: Soundbox, Wallet Balance, Notifications, Theme, Profile */}
+          <Stack direction="row" spacing={{ xs: 0.75, sm: 1.5 }} sx={{ alignItems: "center" }}>
             {/* Live Soundbox Toggle Button */}
             <Tooltip title="Live Soundbox Voice Alerts">
               <Button
@@ -1011,27 +1028,26 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               </Button>
             </Tooltip>
 
-            {/* Prominent Wallet Balance Card Pill */}
+            {/* Compact Gold Glass Wallet Balance Indicator Pill */}
             <Paper
               elevation={0}
               sx={{
-                px: { xs: 1.4, sm: 2 },
-                py: 0.6,
+                px: { xs: 1, sm: 1.75 },
+                py: 0.5,
                 borderRadius: "14px",
-                bgcolor: "rgba(15, 23, 42, 0.85)",
-                border: "1px solid rgba(59, 130, 246, 0.4)",
+                bgcolor: "rgba(15, 23, 42, 0.9)",
+                border: "1px solid rgba(245, 158, 11, 0.35)",
                 display: "flex",
                 alignItems: "center",
-                gap: { xs: 1, sm: 1.5 },
+                gap: { xs: 0.75, sm: 1.2 },
                 flexShrink: 0,
-                height: { xs: 44, sm: 46 },
-                boxShadow: "0 4px 14px rgba(37, 99, 235, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+                height: { xs: 38, sm: 42 },
+                boxShadow: "0 4px 16px rgba(0,0,0,0.4), 0 0 12px rgba(245, 158, 11, 0.15)",
                 transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
                 "&:hover": {
-                  bgcolor: "rgba(30, 58, 138, 0.35)",
-                  borderColor: "rgba(96, 165, 250, 0.7)",
-                  boxShadow: "0 6px 20px rgba(37, 99, 235, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
-                  transform: "translateY(-1px)",
+                  bgcolor: "rgba(24, 34, 53, 0.95)",
+                  borderColor: "rgba(245, 158, 11, 0.6)",
+                  boxShadow: "0 6px 20px rgba(245, 158, 11, 0.25)",
                 },
               }}
             >
@@ -1042,43 +1058,40 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       window.location.href = "/retailer/wallet";
                     }
                   }}
-
                   sx={{
                     display: "flex",
                     alignItems: "center",
-                    gap: { xs: 1, sm: 1.5 },
+                    gap: { xs: 0.75, sm: 1.2 },
                     cursor: "pointer",
                   }}
                 >
                   <Box
                     sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "10px",
-                      bgcolor: "rgba(37, 99, 235, 0.25)",
-                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                      width: { xs: 26, sm: 28 },
+                      height: { xs: 26, sm: 28 },
+                      borderRadius: "8px",
+                      bgcolor: "rgba(245, 158, 11, 0.2)",
+                      border: "1px solid rgba(245, 158, 11, 0.4)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                     }}
                   >
-                    <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+                    <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: 16 }} />
                   </Box>
 
                   <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
                     <Typography
                       variant="caption"
                       sx={{
-                        color: "#FFFFFF",
-                        fontWeight: 900,
-                        fontSize: "11px",
-                        letterSpacing: "0.8px",
-                        lineHeight: 1.1,
+                        color: "#94A3B8",
+                        fontWeight: 800,
+                        fontSize: "9.5px",
+                        letterSpacing: "0.6px",
+                        lineHeight: 1,
                         textTransform: "uppercase",
-                        fontFamily: "'Inter', sans-serif",
                         display: { xs: "none", sm: "block" },
-                        opacity: 0.95,
                       }}
                     >
                       MAIN WALLET
@@ -1088,12 +1101,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       suppressHydrationWarning
                       sx={{
                         fontWeight: 900,
-                        color: "#FFD700",
-                        fontSize: { xs: "16px", sm: "18px" },
+                        background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        fontSize: { xs: "14px", sm: "16px" },
                         lineHeight: 1.15,
                         letterSpacing: "0.2px",
                         fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
-                        textShadow: "0 0 16px rgba(255, 215, 0, 0.45)",
+                        textShadow: "0 0 12px rgba(245, 158, 11, 0.35)",
                       }}
                     >
                       ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -1111,20 +1126,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   }}
                   disabled={isSyncing}
                   sx={{
-                    p: 0.5,
-                    ml: 0.5,
-                    color: "#94A3B8",
-                    borderRadius: "8px",
+                    p: 0.4,
+                    color: "#F59E0B",
+                    borderRadius: "6px",
                     "&:hover": {
-                      color: "#FFFFFF",
-                      bgcolor: "rgba(255, 255, 255, 0.15)",
+                      color: "#FDE68A",
+                      bgcolor: "rgba(245, 158, 11, 0.15)",
                     },
                   }}
                 >
                   <RefreshIcon
                     sx={{
-                      fontSize: 18,
-                      color: "#60A5FA",
+                      fontSize: 16,
                       animation: isSyncing ? "spin 1s linear infinite" : "none",
                     }}
                   />
@@ -1138,9 +1151,13 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 color="inherit"
                 onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
                 size="small"
-                sx={{ p: 0.75, color: effectiveTheme === "dark" ? "#94A3B8" : "#4B5563" }}
+                sx={{
+                  p: { xs: 0.5, sm: 0.75 },
+                  color: "#94A3B8",
+                  "&:hover": { color: "#F59E0B", bgcolor: "rgba(245, 158, 11, 0.1)" },
+                }}
               >
-                <PaletteIcon sx={{ fontSize: 20 }} />
+                <PaletteIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
               </IconButton>
             </Tooltip>
 
