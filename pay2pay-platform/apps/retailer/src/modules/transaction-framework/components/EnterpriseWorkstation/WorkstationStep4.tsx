@@ -652,12 +652,13 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         width: "100%",
         maxWidth: 1000,
         mx: "auto",
-        height: "100%",
+        minHeight: "100%",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center",
+        justifyContent: "flex-start",
         boxSizing: "border-box",
-        px: 1,
+        px: { xs: 0.5, sm: 1 },
+        pb: { xs: "140px", md: 4 },
         position: "relative",
       }}
     >
@@ -781,9 +782,9 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   </Typography>
                 </Stack>
 
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Account</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12px" }}>{displayBeneAccount}</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12px", wordBreak: "break-all" }}>{displayBeneAccount}</Typography>
                 </Stack>
 
                 <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
@@ -849,12 +850,12 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           >
             {/* VIEW 1: PIN ENTRY */}
             {viewState === "PIN_ENTRY" && (
-              <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <Box sx={{ width: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                 <Box sx={{ width: "100%" }}>
                   <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "19px", mb: 0.5 }}>
                     Operator PIN Authorization
                   </Typography>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px", mb: 2 }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px", mb: 1.5 }}>
                     Enter your secure 4-digit Operator PIN to authorize this transaction.
                   </Typography>
 
@@ -903,8 +904,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          gap: "14px",
-                          mb: 2,
+                          gap: { xs: "10px", sm: "14px" },
+                          mb: 1.5,
                           animation: isShaking ? "shake 0.4s ease-in-out" : "none",
                         }}
                       >
@@ -919,8 +920,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                               key={idx}
                               onClick={() => inputRefs.current[idx]?.focus()}
                               sx={{
-                                width: 60,
-                                height: 60,
+                                width: { xs: 52, sm: 60 },
+                                height: { xs: 52, sm: 60 },
                                 borderRadius: "12px",
                                 bgcolor: digit ? "rgba(37, 99, 235, 0.25)" : isFocusedBox ? "rgba(37, 99, 235, 0.15)" : "rgba(8, 17, 31, 0.9)",
                                 border: errorMessage
@@ -940,7 +941,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                                 alignItems: "center",
                                 justifyContent: "center",
                                 color: "#FFFFFF",
-                                fontSize: "30px",
+                                fontSize: { xs: "26px", sm: "30px" },
                                 fontWeight: 700,
                                 cursor: "pointer",
                                 position: "relative",
@@ -964,12 +965,95 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     );
                   })()}
 
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.40)", fontSize: "11px", textAlign: "center", mb: 2 }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.40)", fontSize: "11px", textAlign: "center", mb: 1.5 }}>
                     Forgot PIN? (Contact Supervisor)
                   </Typography>
+
+                  {/* ── MOBILE TOUCH-FRIENDLY NUMERIC DIALPAD (xs / sm only) ── */}
+                  <Box
+                    sx={{
+                      display: { xs: "grid", md: "none" },
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: 1,
+                      mb: 2,
+                      width: "100%",
+                      maxWidth: 320,
+                      mx: "auto",
+                    }}
+                  >
+                    {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+                      <Button
+                        key={num}
+                        variant="outlined"
+                        onClick={() => handleAddDigit(num)}
+                        sx={{
+                          height: 46,
+                          borderRadius: "10px",
+                          bgcolor: "rgba(255, 255, 255, 0.05)",
+                          borderColor: "rgba(255, 255, 255, 0.12)",
+                          color: "#FFFFFF",
+                          fontSize: "18px",
+                          fontWeight: 800,
+                          "&:active": { bgcolor: "rgba(37, 99, 235, 0.3)" },
+                          "&:hover": { bgcolor: "rgba(255, 255, 255, 0.1)", borderColor: "#60A5FA" },
+                        }}
+                      >
+                        {num}
+                      </Button>
+                    ))}
+                    <Button
+                      variant="outlined"
+                      onClick={() => setPinDigits(Array(pinLength).fill(""))}
+                      sx={{
+                        height: 46,
+                        borderRadius: "10px",
+                        bgcolor: "rgba(239, 68, 68, 0.1)",
+                        borderColor: "rgba(239, 68, 68, 0.25)",
+                        color: "#FCA5A5",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                        textTransform: "none",
+                        "&:hover": { bgcolor: "rgba(239, 68, 68, 0.2)" },
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={() => handleAddDigit("0")}
+                      sx={{
+                        height: 46,
+                        borderRadius: "10px",
+                        bgcolor: "rgba(255, 255, 255, 0.05)",
+                        borderColor: "rgba(255, 255, 255, 0.12)",
+                        color: "#FFFFFF",
+                        fontSize: "18px",
+                        fontWeight: 800,
+                        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.1)", borderColor: "#60A5FA" },
+                      }}
+                    >
+                      0
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={handleDeleteDigit}
+                      sx={{
+                        height: 46,
+                        borderRadius: "10px",
+                        bgcolor: "rgba(255, 255, 255, 0.05)",
+                        borderColor: "rgba(255, 255, 255, 0.12)",
+                        color: "#93C5FD",
+                        fontSize: "18px",
+                        fontWeight: 800,
+                        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.1)" },
+                      }}
+                    >
+                      ⌫
+                    </Button>
+                  </Box>
                 </Box>
 
-                <Stack spacing={1} sx={{ width: "100%" }}>
+                <Stack spacing={1} sx={{ width: "100%", mt: 1 }}>
                   {onBack && (
                     <Button
                       fullWidth
@@ -983,6 +1067,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                         fontSize: "12.5px",
                         color: "rgba(255, 255, 255, 0.70)",
                         borderColor: "rgba(255, 255, 255, 0.15)",
+                        textTransform: "none",
                         "&:hover": {
                           borderColor: "rgba(255, 255, 255, 0.3)",
                           bgcolor: "rgba(255, 255, 255, 0.05)",
