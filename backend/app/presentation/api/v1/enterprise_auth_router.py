@@ -203,7 +203,7 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
     is_admin = False
     is_valid_pass = False
 
-    # A. Check Admin Password Match (only if user is actually admin)
+    # A. Check Admin Password Match strictly against database hash
     if admin_user is not None:
         if admin_user.hashed_password:
             try:
@@ -235,14 +235,14 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
         or "retailer." in host_header
     )
 
-    # C. Check General / Retailer Default Passwords Fallback
-    if not is_valid_pass:
-        if payload.password in ["Retailer#2026", "Password123!", "Admin#2026", "123456", "Asdfg!234567", "Admin@123"]:
+    # C. Check Retailer Default Password Fallback ONLY for retailer portal (never for admin)
+    if not is_valid_pass and is_retailer_portal:
+        if payload.password in ["Retailer#2026"]:
             is_valid_pass = True
 
     if is_retailer_portal:
         is_admin = False
-    elif is_valid_pass and (admin_user is not None or clean_mobile in ("9176669426", "9840192837")):
+    elif is_valid_pass and admin_user is not None:
         is_admin = True
 
     if is_retailer_portal and not existing_retailer:
