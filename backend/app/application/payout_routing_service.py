@@ -224,7 +224,7 @@ class PayoutRoutingService:
         if fallback_gw:
             return fallback_gw.provider_code
 
-        return "WOWPE"
+        return "UTKALDIGITAL"
 
     @classmethod
     async def get_all_gateways(

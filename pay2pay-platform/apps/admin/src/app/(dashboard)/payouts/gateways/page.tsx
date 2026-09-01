@@ -52,34 +52,34 @@ interface RoutingPolicy {
 }
 
 export default function BankGatewaysPage() {
-  const [activePrimary, setActivePrimary] = useState<string>("WOWPE");
+  const [activePrimary, setActivePrimary] = useState<string>("UTKALDIGITAL");
   const [gateways, setGateways] = useState<GatewayConfig[]>([
-    {
-      id: "gw_wowpe",
-      provider_name: "WowPe Payout API",
-      provider_code: "WOWPE",
-      is_active: true,
-      is_primary: true,
-      priority_order: 1,
-      weight_percentage: 100,
-      api_endpoint: "https://api.wowpe.in/api/api/api-module/payout/payout",
-      user_id: "b206347b-3b5f-4a6c-a18c-efebfef348f8",
-      merchant_id: "b206347b-3b5f-4a6c-a18c-efebfef348f8",
-      masked_secret: "0a5254ca-••••••••••••0960",
-      last_known_balance: 0,
-    },
     {
       id: "gw_utkaldigital",
       provider_name: "Utkal Digital Payout API",
       provider_code: "UTKALDIGITAL",
       is_active: true,
-      is_primary: false,
-      priority_order: 2,
-      weight_percentage: 0,
+      is_primary: true,
+      priority_order: 1,
+      weight_percentage: 100,
       api_endpoint: "https://singleptxn.utkaldigital.co.in/ProcessRequest/transaction",
       user_id: "a9f9d5c1752e49e08a",
       merchant_id: "MAGNI",
       masked_secret: "99••••84",
+      last_known_balance: 0,
+    },
+    {
+      id: "gw_wowpe",
+      provider_name: "WowPe Payout API",
+      provider_code: "WOWPE",
+      is_active: true,
+      is_primary: false,
+      priority_order: 2,
+      weight_percentage: 0,
+      api_endpoint: "https://api.wowpe.in/api/api/api-module/payout/payout",
+      user_id: "b206347b-3b5f-4a6c-a18c-efebfef348f8",
+      merchant_id: "b206347b-3b5f-4a6c-a18c-efebfef348f8",
+      masked_secret: "0a5254ca-••••••••••••0960",
       last_known_balance: 0,
     },
     {
@@ -516,8 +516,8 @@ export default function BankGatewaysPage() {
             </div>
             <p className="mt-1 text-sm font-medium text-slate-500">
               Live multi-node payout switcher connected to{" "}
-              <span className="font-bold text-emerald-600">WowPe API</span> (
-              <span className="font-mono text-xs text-slate-600">api.wowpe.in</span>) and{" "}
+              <span className="font-bold text-purple-600">Utkal Digital API</span> (Primary Node),{" "}
+              <span className="font-bold text-emerald-600">WowPe API</span>, and{" "}
               <span className="font-bold text-sky-600">BulkPe API</span>.
             </p>
           </div>
@@ -582,6 +582,134 @@ export default function BankGatewaysPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Utkal Digital Gateway Card (Priority 1) */}
+          <div
+            className={`relative rounded-2xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-sm ${
+              activePrimary === "UTKALDIGITAL"
+                ? "bg-gradient-to-br from-purple-50/70 via-white to-purple-50/30 border-purple-500 shadow-md ring-4 ring-purple-500/10"
+                : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-md"
+            }`}
+            onClick={() => handleSwitchPrimary("UTKALDIGITAL")}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="h-12 w-12 rounded-xl bg-purple-50 border-2 border-purple-200 flex items-center justify-center font-black text-purple-700 text-xl font-mono shadow-xs">
+                  U
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-slate-900">Utkal Digital API</h3>
+                    {activePrimary === "UTKALDIGITAL" && (
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-600 text-white flex items-center gap-1 shadow-xs">
+                        <Zap className="h-3 w-3 fill-white" /> PRIMARY ACTIVE
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs font-medium text-slate-500 mt-0.5 font-mono">
+                    Auth: a9f9d5c1752e49e08a
+                  </p>
+                </div>
+              </div>
+
+              {/* Dedicated Refresh Button inside Card Header */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  refreshSingleBalance("UTKALDIGITAL");
+                }}
+                disabled={refreshingProvider === "UTKALDIGITAL"}
+                title="Call Utkal Digital Live Balance API"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-all cursor-pointer shadow-2xs"
+              >
+                <RefreshCw className={`h-3 w-3 ${refreshingProvider === "UTKALDIGITAL" ? "animate-spin text-purple-600" : "text-purple-700"}`} />
+                {refreshingProvider === "UTKALDIGITAL" ? "Checking API..." : "Refresh Balance"}
+              </button>
+            </div>
+
+            {/* Live Data Grid */}
+            <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 relative">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Avail Balance</span>
+                  {balances.UTKALDIGITAL?.latency_ms && (
+                    <span className="text-[10px] font-mono text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded font-bold">
+                      {balances.UTKALDIGITAL.latency_ms}ms
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className="text-2xl font-black text-purple-600 font-mono">
+                    ₹{Number(balances.UTKALDIGITAL?.avail_balance ?? balances.UTKALDIGITAL?.balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </p>
+                  {refreshingProvider === "UTKALDIGITAL" && (
+                    <span className="text-[10px] text-purple-600 font-bold animate-pulse">Syncing...</span>
+                  )}
+                </div>
+                <div className="text-[10px] font-mono text-slate-500 mt-1 truncate">
+                  Status: <strong className="text-slate-700">{balances.UTKALDIGITAL?.message || "Live API Node Online"}</strong>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live API Node</span>
+                  <p className="text-xs font-bold text-slate-800 font-mono truncate mt-1">singleptxn.utkaldigital.co.in</p>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                  <span>{balances.UTKALDIGITAL?.checked_at ? `Checked: ${balances.UTKALDIGITAL.checked_at}` : "Live Connected"}</span>
+                  <span className="inline-flex items-center gap-1 text-purple-600 font-bold">
+                    <span className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-ping"></span> Live Node
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Sub-balances from Utkal Response */}
+            {balances.UTKALDIGITAL && (
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] font-mono p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                <div className="p-1">
+                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Avail Bal</span>
+                  <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.UTKALDIGITAL.avail_balance ?? balances.UTKALDIGITAL.balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                </div>
+                <div className="p-1 border-x border-slate-200/60">
+                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Security Bal</span>
+                  <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.UTKALDIGITAL.security_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                </div>
+                <div className="p-1">
+                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Total Bal</span>
+                  <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.UTKALDIGITAL.total_balance ?? balances.UTKALDIGITAL.balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4">
+              <button
+                type="button"
+                disabled={activePrimary === "UTKALDIGITAL" || switching}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSwitchPrimary("UTKALDIGITAL");
+                }}
+                className={`w-full py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  activePrimary === "UTKALDIGITAL"
+                    ? "bg-purple-600 text-white shadow-md shadow-purple-600/20 cursor-default"
+                    : "bg-white hover:bg-purple-600 hover:text-white text-slate-700 border-2 border-slate-200 hover:border-purple-600"
+                }`}
+              >
+                {activePrimary === "UTKALDIGITAL" ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" /> Active Primary Gateway
+                  </>
+                ) : (
+                  <>
+                    <ArrowLeftRight className="h-4 w-4" /> Switch to Utkal Digital Primary
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
           {/* WowPe Gateway Card */}
           <div
             className={`relative rounded-2xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-sm ${
@@ -704,134 +832,6 @@ export default function BankGatewaysPage() {
                 ) : (
                   <>
                     <ArrowLeftRight className="h-4 w-4" /> Switch to WowPe Primary
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Utkal Digital Gateway Card */}
-          <div
-            className={`relative rounded-2xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-sm ${
-              activePrimary === "UTKALDIGITAL"
-                ? "bg-gradient-to-br from-purple-50/70 via-white to-purple-50/30 border-purple-500 shadow-md ring-4 ring-purple-500/10"
-                : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-md"
-            }`}
-            onClick={() => handleSwitchPrimary("UTKALDIGITAL")}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="h-12 w-12 rounded-xl bg-purple-50 border-2 border-purple-200 flex items-center justify-center font-black text-purple-700 text-xl font-mono shadow-xs">
-                  U
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-black text-slate-900">Utkal Digital API</h3>
-                    {activePrimary === "UTKALDIGITAL" && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-600 text-white flex items-center gap-1 shadow-xs">
-                        <Zap className="h-3 w-3 fill-white" /> PRIMARY ACTIVE
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5 font-mono">
-                    Auth: a9f9d5c1752e49e08a
-                  </p>
-                </div>
-              </div>
-
-              {/* Dedicated Refresh Button inside Card Header */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  refreshSingleBalance("UTKALDIGITAL");
-                }}
-                disabled={refreshingProvider === "UTKALDIGITAL"}
-                title="Call Utkal Digital Live Balance API"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-all cursor-pointer shadow-2xs"
-              >
-                <RefreshCw className={`h-3 w-3 ${refreshingProvider === "UTKALDIGITAL" ? "animate-spin text-purple-600" : "text-purple-700"}`} />
-                {refreshingProvider === "UTKALDIGITAL" ? "Checking API..." : "Refresh Balance"}
-              </button>
-            </div>
-
-            {/* Live Data Grid */}
-            <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 relative">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Avail Balance</span>
-                  {balances.UTKALDIGITAL?.latency_ms && (
-                    <span className="text-[10px] font-mono text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded font-bold">
-                      {balances.UTKALDIGITAL.latency_ms}ms
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <p className="text-2xl font-black text-purple-600 font-mono">
-                    ₹{Number(balances.UTKALDIGITAL?.avail_balance ?? balances.UTKALDIGITAL?.balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </p>
-                  {refreshingProvider === "UTKALDIGITAL" && (
-                    <span className="text-[10px] text-purple-600 font-bold animate-pulse">Syncing...</span>
-                  )}
-                </div>
-                <div className="text-[10px] font-mono text-slate-500 mt-1 truncate">
-                  Status: <strong className="text-slate-700">{balances.UTKALDIGITAL?.message || "Live API Node Online"}</strong>
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live API Node</span>
-                  <p className="text-xs font-bold text-slate-800 font-mono truncate mt-1">singleptxn.utkaldigital.co.in</p>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-500">
-                  <span>{balances.UTKALDIGITAL?.checked_at ? `Checked: ${balances.UTKALDIGITAL.checked_at}` : "Live Connected"}</span>
-                  <span className="inline-flex items-center gap-1 text-purple-600 font-bold">
-                    <span className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-ping"></span> Live Node
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Sub-balances from Utkal Response */}
-            {balances.UTKALDIGITAL && (
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] font-mono p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                <div className="p-1">
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Avail Bal</span>
-                  <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.UTKALDIGITAL.avail_balance ?? balances.UTKALDIGITAL.balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                </div>
-                <div className="p-1 border-x border-slate-200/60">
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Security Bal</span>
-                  <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.UTKALDIGITAL.security_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                </div>
-                <div className="p-1">
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Total Bal</span>
-                  <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.UTKALDIGITAL.total_balance ?? balances.UTKALDIGITAL.balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-4">
-              <button
-                type="button"
-                disabled={activePrimary === "UTKALDIGITAL" || switching}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSwitchPrimary("UTKALDIGITAL");
-                }}
-                className={`w-full py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  activePrimary === "UTKALDIGITAL"
-                    ? "bg-purple-600 text-white shadow-md shadow-purple-600/20 cursor-default"
-                    : "bg-white hover:bg-purple-600 hover:text-white text-slate-700 border-2 border-slate-200 hover:border-purple-600"
-                }`}
-              >
-                {activePrimary === "UTKALDIGITAL" ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" /> Active Primary Gateway
-                  </>
-                ) : (
-                  <>
-                    <ArrowLeftRight className="h-4 w-4" /> Switch to Utkal Digital Primary
                   </>
                 )}
               </button>
