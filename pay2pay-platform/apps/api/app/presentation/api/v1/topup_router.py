@@ -926,21 +926,43 @@ async def get_admin_topup_requests(
             if c.retailer_id not in email_map or c.primary_contact:
                 email_map[c.retailer_id] = c.email or ""
 
-    # Load active Admin Service + Vendor Wallets for dynamic real-time lookup
-    admin_wallets_res = await db.execute(
-        select(AdminServiceVendorWalletModel).where(AdminServiceVendorWalletModel.is_deleted == False)
-    )
-    admin_wallets = admin_wallets_res.scalars().all()
-    wallet_lookup: Dict[Tuple[str, str], AdminServiceVendorWalletModel] = {}
-    default_payout_wallet: Optional[AdminServiceVendorWalletModel] = None
-    for w in admin_wallets:
-        wallet_lookup[(w.service_code.upper(), w.vendor_code.upper())] = w
-        wallet_lookup[(w.service_name.upper(), w.vendor_name.upper())] = w
-        wallet_lookup[(w.service_code.upper(), w.vendor_name.upper())] = w
-        if w.service_code.upper() == "PAYOUT" and "UTKAL" in w.vendor_code.upper():
-            default_payout_wallet = w
-    if not default_payout_wallet and admin_wallets:
-        default_payout_wallet = admin_wallets[0]
+    # Load active Admin Service + Vendor Wallets via SP sp_get_admin_service_vendor_wallets with fallback
+    wallet_lookup: Dict[Tuple[str, str], Any] = {}
+    default_payout_wallet: Optional[Any] = None
+    try:
+        sp_wallets = await db.execute(
+            text("SELECT * FROM public.sp_get_admin_service_vendor_wallets(:tenant_id, NULL, NULL);"),
+            {"tenant_id": "00000000-0000-0000-0000-000000000001"}
+        )
+        for w in sp_wallets.mappings().all():
+            w_dict = dict(w)
+            s_code = (w_dict.get("service_code") or "").upper()
+            s_name = (w_dict.get("service_name") or "").upper()
+            v_code = (w_dict.get("vendor_code") or "").upper()
+            v_name = (w_dict.get("vendor_name") or "").upper()
+            wallet_lookup[(s_code, v_code)] = w_dict
+            wallet_lookup[(s_name, v_name)] = w_dict
+            wallet_lookup[(s_code, v_name)] = w_dict
+            if s_code == "PAYOUT" and "UTKAL" in (v_code + v_name):
+                default_payout_wallet = w_dict
+            if not default_payout_wallet:
+                default_payout_wallet = w_dict
+    except Exception as sp_err:
+        logger.warning(f"Failed to fetch admin wallets from SP: {sp_err}")
+        try:
+            admin_wallets_res = await db.execute(
+                select(AdminServiceVendorWalletModel).where(AdminServiceVendorWalletModel.is_deleted == False)
+            )
+            for w in admin_wallets_res.scalars().all():
+                wallet_lookup[(w.service_code.upper(), w.vendor_code.upper())] = w
+                wallet_lookup[(w.service_name.upper(), w.vendor_name.upper())] = w
+                wallet_lookup[(w.service_code.upper(), w.vendor_name.upper())] = w
+                if w.service_code.upper() == "PAYOUT" and "UTKAL" in w.vendor_code.upper():
+                    default_payout_wallet = w
+                if not default_payout_wallet:
+                    default_payout_wallet = w
+        except Exception as mod_err:
+            logger.warning(f"Failed to fetch admin wallets from model: {mod_err}")
 
     items = []
     for topup, retailer, wallet in rows:
@@ -975,9 +997,19 @@ async def get_admin_topup_requests(
                 req_vendor = meta.get("vendor")
 
         matched_w = wallet_lookup.get((req_service.upper(), req_vendor.upper())) or default_payout_wallet
-        admin_avail_bal = float(matched_w.available_balance) if matched_w else 0.0
-        admin_w_id = str(matched_w.public_id) if matched_w else None
-        admin_w_active = bool(matched_w.is_active) if matched_w else False
+        if matched_w:
+            if isinstance(matched_w, dict):
+                admin_avail_bal = float(matched_w.get("available_balance") or 0.0)
+                admin_w_id = str(matched_w.get("public_id") or matched_w.get("id") or "")
+                admin_w_active = bool(matched_w.get("is_active", True))
+            else:
+                admin_avail_bal = float(getattr(matched_w, "available_balance", 0.0) or 0.0)
+                admin_w_id = str(getattr(matched_w, "public_id", "") or getattr(matched_w, "id", ""))
+                admin_w_active = bool(getattr(matched_w, "is_active", True))
+        else:
+            admin_avail_bal = 0.0
+            admin_w_id = None
+            admin_w_active = False
 
         is_t1, is_date_eligible, date_block_reason = check_t1_approval_eligibility(topup)
         is_balance_eligible = (matched_w is not None and admin_w_active and admin_avail_bal >= received_val)

@@ -3997,9 +3997,11 @@ class AdminFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
     )
 
 
-class AdminServiceVendorWalletModel(BaseEntity, EnterpriseBaseMixin):
+class AdminServiceVendorWalletModel(BaseEntity):
     __tablename__ = "admin_service_vendor_wallet"
 
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False, default=uuid.UUID("00000000-0000-0000-0000-000000000001"), index=True)
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID, nullable=True, index=True)
     service_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     service_name: Mapped[str] = mapped_column(String(100), nullable=False)
     vendor_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -4009,6 +4011,12 @@ class AdminServiceVendorWalletModel(BaseEntity, EnterpriseBaseMixin):
     hold_balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="INR", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default="SYSTEM")
+    updated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default="SYSTEM")
+    version_no: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     __table_args__ = (
         Index("ix_admin_svc_vendor_lookup", "tenant_id", "service_code", "vendor_code", "is_active", "is_deleted"),
