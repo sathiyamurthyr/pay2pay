@@ -942,10 +942,17 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease",
         }}
       >
-        <Toolbar sx={{ justifyContent: "space-between", px: { xs: 1.5, sm: 3 }, minHeight: "56px !important", height: 56 }}>
-          
+        <Toolbar
+          sx={{
+            justifyContent: "space-between",
+            px: { xs: 1, sm: 2, md: 3 },
+            minHeight: "56px !important",
+            height: 56,
+            gap: { xs: 0.5, sm: 1 },
+          }}
+        >
           {/* Left: Menu Toggle + Page Title + Search Input */}
-          <Stack direction="row" spacing={{ xs: 1, sm: 1.75 }} sx={{ alignItems: "center" }}>
+          <Stack direction="row" spacing={{ xs: 0.5, sm: 1.5 }} sx={{ alignItems: "center", minWidth: 0, flexShrink: 1 }}>
             <Tooltip title={desktopCollapsed ? "Expand Sidebar (260px)" : "Collapse Sidebar (72px)"}>
               <IconButton
                 edge="start"
@@ -954,14 +961,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 onClick={handleDrawerToggle}
                 size="small"
                 sx={{
-                  p: 0.75,
+                  p: { xs: 0.5, sm: 0.75 },
                   color: "#F59E0B",
                   "&:hover": {
                     backgroundColor: "rgba(245, 158, 11, 0.15)",
                   },
                 }}
               >
-                {desktopCollapsed ? <MenuOpenIcon sx={{ fontSize: 24 }} /> : <MenuIcon sx={{ fontSize: 24 }} />}
+                {desktopCollapsed ? <MenuOpenIcon sx={{ fontSize: 22 }} /> : <MenuIcon sx={{ fontSize: 22 }} />}
               </IconButton>
             </Tooltip>
 
@@ -969,13 +976,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             <Typography
               variant="h6"
               sx={{
-                fontSize: { xs: "17px", sm: "19px" },
+                fontSize: { xs: "15px", sm: "18px" },
                 fontWeight: 900,
                 background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 60%, #FBBF24 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
-                letterSpacing: "-0.4px",
+                letterSpacing: "-0.3px",
                 whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: { xs: 80, sm: 160, md: "none" },
               }}
             >
               {activeMenuItem?.label || "Dashboard"}
@@ -1007,7 +1017,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           </Stack>
 
           {/* Right: Soundbox, Wallet Balance, Notifications, Theme, Profile */}
-          <Stack direction="row" spacing={{ xs: 0.75, sm: 1.5 }} sx={{ alignItems: "center" }}>
+          <Stack direction="row" spacing={{ xs: 0.5, sm: 1 }} sx={{ alignItems: "center", flexShrink: 0 }}>
             {/* Live Soundbox Toggle Button */}
             <Tooltip title="Live Soundbox Voice Alerts">
               <Button
@@ -1032,22 +1042,21 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             <Paper
               elevation={0}
               sx={{
-                px: { xs: 1, sm: 1.75 },
-                py: 0.5,
-                borderRadius: "14px",
+                px: { xs: 0.8, sm: 1.5 },
+                py: 0.3,
+                borderRadius: "10px",
                 bgcolor: "rgba(15, 23, 42, 0.9)",
                 border: "1px solid rgba(245, 158, 11, 0.35)",
                 display: "flex",
                 alignItems: "center",
-                gap: { xs: 0.75, sm: 1.2 },
+                gap: { xs: 0.5, sm: 0.8 },
                 flexShrink: 0,
-                height: { xs: 38, sm: 42 },
-                boxShadow: "0 4px 16px rgba(0,0,0,0.4), 0 0 12px rgba(245, 158, 11, 0.15)",
+                height: { xs: 32, sm: 38 },
+                boxShadow: "0 2px 10px rgba(0,0,0,0.4), 0 0 8px rgba(245, 158, 11, 0.12)",
                 transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
                 "&:hover": {
                   bgcolor: "rgba(24, 34, 53, 0.95)",
                   borderColor: "rgba(245, 158, 11, 0.6)",
-                  boxShadow: "0 6px 20px rgba(245, 158, 11, 0.25)",
                 },
               }}
             >
@@ -1061,15 +1070,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   sx={{
                     display: "flex",
                     alignItems: "center",
-                    gap: { xs: 0.75, sm: 1.2 },
+                    gap: { xs: 0.5, sm: 0.8 },
                     cursor: "pointer",
                   }}
                 >
                   <Box
                     sx={{
-                      width: { xs: 26, sm: 28 },
-                      height: { xs: 26, sm: 28 },
-                      borderRadius: "8px",
+                      width: { xs: 20, sm: 24 },
+                      height: { xs: 20, sm: 24 },
+                      borderRadius: "6px",
                       bgcolor: "rgba(245, 158, 11, 0.2)",
                       border: "1px solid rgba(245, 158, 11, 0.4)",
                       display: "flex",
@@ -1078,42 +1087,27 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       flexShrink: 0,
                     }}
                   >
-                    <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: 16 }} />
+                    <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: { xs: 12, sm: 14 } }} />
                   </Box>
 
-                  <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: "#94A3B8",
-                        fontWeight: 800,
-                        fontSize: "9.5px",
-                        letterSpacing: "0.6px",
-                        lineHeight: 1,
-                        textTransform: "uppercase",
-                        display: { xs: "none", sm: "block" },
-                      }}
-                    >
-                      MAIN WALLET
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      suppressHydrationWarning
-                      sx={{
-                        fontWeight: 900,
-                        background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        fontSize: { xs: "14px", sm: "16px" },
-                        lineHeight: 1.15,
-                        letterSpacing: "0.2px",
-                        fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
-                        textShadow: "0 0 12px rgba(245, 158, 11, 0.35)",
-                      }}
-                    >
-                      ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </Typography>
-                  </Box>
+                  <Typography
+                    variant="subtitle1"
+                    suppressHydrationWarning
+                    sx={{
+                      fontWeight: 900,
+                      background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      fontSize: { xs: "12px", sm: "14.5px" },
+                      lineHeight: 1.1,
+                      letterSpacing: "-0.2px",
+                      fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
+                      textShadow: "0 0 10px rgba(245, 158, 11, 0.3)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Typography>
                 </Box>
               </Tooltip>
 
@@ -1126,9 +1120,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   }}
                   disabled={isSyncing}
                   sx={{
-                    p: 0.4,
+                    p: 0.2,
                     color: "#F59E0B",
-                    borderRadius: "6px",
+                    borderRadius: "4px",
                     "&:hover": {
                       color: "#FDE68A",
                       bgcolor: "rgba(245, 158, 11, 0.15)",
@@ -1137,7 +1131,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 >
                   <RefreshIcon
                     sx={{
-                      fontSize: 16,
+                      fontSize: { xs: 13, sm: 15 },
                       animation: isSyncing ? "spin 1s linear infinite" : "none",
                     }}
                   />
@@ -1145,21 +1139,23 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               </Tooltip>
             </Paper>
 
-            {/* Header Theme Quick Switch Control */}
-            <Tooltip title="Theme (Auto / Light / Dark)">
-              <IconButton
-                color="inherit"
-                onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
-                size="small"
-                sx={{
-                  p: { xs: 0.5, sm: 0.75 },
-                  color: "#94A3B8",
-                  "&:hover": { color: "#F59E0B", bgcolor: "rgba(245, 158, 11, 0.1)" },
-                }}
-              >
-                <PaletteIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
-              </IconButton>
-            </Tooltip>
+            {/* Header Theme Quick Switch Control (Desktop only) */}
+            <Box sx={{ display: { xs: "none", md: "block" } }}>
+              <Tooltip title="Theme (Auto / Light / Dark)">
+                <IconButton
+                  color="inherit"
+                  onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
+                  size="small"
+                  sx={{
+                    p: 0.75,
+                    color: "#94A3B8",
+                    "&:hover": { color: "#F59E0B", bgcolor: "rgba(245, 158, 11, 0.1)" },
+                  }}
+                >
+                  <PaletteIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
 
             <Menu
               anchorEl={kpiThemeAnchor}
@@ -1233,39 +1229,42 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               })}
             </Menu>
 
-
             {/* Dynamic DB-Backed Notification Center */}
-            <NotificationCenter />
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <NotificationCenter />
+            </Box>
 
-            {/* Quick Lock Terminal Icon */}
-            <Tooltip title="Lock Terminal (Ctrl+L)">
-              <IconButton
-                onClick={lockSession}
-                size="small"
-                sx={{
-                  color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
-                  p: 0.75,
-                  "&:hover": {
-                    color: "#F59E0B",
-                    backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
-                  },
-                }}
-              >
-                <LockIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            </Tooltip>
+            {/* Quick Lock Terminal Icon (Desktop only on md+) */}
+            <Box sx={{ display: { xs: "none", md: "block" } }}>
+              <Tooltip title="Lock Terminal (Ctrl+L)">
+                <IconButton
+                  onClick={lockSession}
+                  size="small"
+                  sx={{
+                    color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
+                    p: 0.75,
+                    "&:hover": {
+                      color: "#F59E0B",
+                      backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
+                    },
+                  }}
+                >
+                  <LockIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
 
-            {/* User Profile Avatar Icon (Clicking this opens the full Retailer Profile Card!) */}
+            {/* User Profile Avatar Icon */}
             <Tooltip title="View Retailer Profile Info">
               <IconButton onClick={(e) => setProfileAnchor(e.currentTarget)} size="small" sx={{ p: 0.25 }}>
                 <Avatar
                   src={profileDetails.photo_url || undefined}
                   sx={{
                     bgcolor: "#1E3A8A",
-                    width: 36,
-                    height: 36,
+                    width: { xs: 30, sm: 34 },
+                    height: { xs: 30, sm: 34 },
                     fontWeight: 800,
-                    fontSize: "0.85rem",
+                    fontSize: { xs: "0.75rem", sm: "0.85rem" },
                     border: "2px solid #3B82F6",
                     boxShadow: "0 2px 6px rgba(30,58,138,0.25)",
                   }}
