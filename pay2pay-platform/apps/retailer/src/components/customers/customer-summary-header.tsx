@@ -67,8 +67,8 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
     <Paper
       elevation={0}
       sx={{
-        p: 2.25,
-        mb: 2.5,
+        p: { xs: 1.5, sm: 2 },
+        mb: 2,
         borderRadius: "14px",
         bgcolor: darkTheme ? "rgba(37, 99, 235, 0.12)" : "#F0F9FF",
         border: darkTheme
@@ -78,79 +78,85 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
         flexDirection: { xs: "column", sm: "row" },
         alignItems: { xs: "flex-start", sm: "center" },
         justifyContent: "space-between",
-        gap: 2,
+        gap: 1.5,
+        width: "100%",
+        maxWidth: "100%",
+        boxSizing: "border-box",
         boxShadow: darkTheme
           ? "0 4px 20px rgba(37, 99, 235, 0.15)"
           : "0 2px 10px rgba(2, 132, 199, 0.08)",
       }}
     >
       {/* LEFT: AVATAR & CUSTOMER DETAILS */}
-      <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.25, sm: 1.75 }, minWidth: 0, width: "100%" }}>
         <Avatar
           src={photoUrl}
           alt={name}
           sx={{
-            width: 52,
-            height: 52,
+            width: { xs: 42, sm: 50 },
+            height: { xs: 42, sm: 50 },
             bgcolor: "#2563EB",
             color: "#FFFFFF",
             fontWeight: 900,
-            fontSize: "18px",
+            fontSize: { xs: "15px", sm: "18px" },
             border: darkTheme
               ? "2px solid rgba(255, 255, 255, 0.25)"
               : "2px solid #0284C7",
             boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            flexShrink: 0,
           }}
         >
           {initials}
         </Avatar>
 
-        <Box>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", gap: 0.5 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
             <Typography
               sx={{
                 fontWeight: 900,
                 color: darkTheme ? "#FFFFFF" : "#0F172A",
-                fontSize: "17px",
+                fontSize: { xs: "15px", sm: "17px" },
                 letterSpacing: "-0.2px",
+                lineHeight: 1.2,
               }}
             >
               {name}
             </Typography>
             <Chip
-              icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 13 } }} />}
+              icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 12 } }} />}
               label={`KYC: ${kycStatus}`}
               size="small"
               sx={{
-                height: 22,
+                height: 20,
                 bgcolor: "rgba(34, 197, 94, 0.2)",
                 color: "#4ADE80",
                 fontWeight: 800,
-                fontSize: "10px",
+                fontSize: "9.5px",
                 border: "1px solid rgba(34, 197, 94, 0.4)",
               }}
             />
             <Chip
-              icon={<CheckCircleIcon sx={{ "&&": { color: "#38BDF8", fontSize: 13 } }} />}
+              icon={<CheckCircleIcon sx={{ "&&": { color: "#38BDF8", fontSize: 12 } }} />}
               label="VERIFIED"
               size="small"
               sx={{
-                height: 22,
+                height: 20,
                 bgcolor: "rgba(56, 189, 248, 0.2)",
                 color: "#38BDF8",
                 fontWeight: 800,
-                fontSize: "10px",
+                fontSize: "9.5px",
                 border: "1px solid rgba(56, 189, 248, 0.4)",
               }}
             />
-          </Stack>
+          </Box>
 
           <Typography
             sx={{
               color: darkTheme ? "rgba(255, 255, 255, 0.80)" : "#475569",
-              fontSize: "13px",
-              mt: 0.5,
+              fontSize: { xs: "11.5px", sm: "13px" },
+              mt: 0.3,
               fontWeight: 600,
+              lineHeight: 1.3,
             }}
           >
             <strong>+91 {mobile}</strong> · Customer ID:{" "}
@@ -159,16 +165,17 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             </span>
           </Typography>
         </Box>
-      </Stack>
+      </Box>
 
       {/* RIGHT: QUICK ACTIONS */}
       <Stack
         direction="row"
         spacing={1}
         sx={{
-          alignSelf: { xs: "stretch", sm: "center" },
+          width: { xs: "100%", sm: "auto" },
           justifyContent: { xs: "flex-start", sm: "flex-end" },
           flexWrap: "wrap",
+          gap: 1,
         }}
       >
         {onEditCustomer && (
@@ -176,17 +183,18 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             <Button
               size="small"
               variant="outlined"
-              startIcon={<EditIcon sx={{ fontSize: 14 }} />}
+              startIcon={<EditIcon sx={{ fontSize: 13 }} />}
               onClick={onEditCustomer}
               sx={{
-                height: 32,
-                px: 1.5,
+                height: 30,
+                px: 1.25,
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: 800,
                 color: darkTheme ? "#93C5FD" : "#0369A1",
                 borderColor: darkTheme ? "rgba(147, 197, 253, 0.4)" : "#BAE6FD",
                 bgcolor: darkTheme ? "rgba(37, 99, 235, 0.15)" : "#E0F2FE",
+                textTransform: "none",
                 "&:hover": {
                   bgcolor: darkTheme ? "rgba(37, 99, 235, 0.3)" : "#BAE6FD",
                   borderColor: "#93C5FD",
@@ -203,17 +211,18 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             <Button
               size="small"
               variant="outlined"
-              startIcon={<PersonIcon sx={{ fontSize: 14 }} />}
+              startIcon={<PersonIcon sx={{ fontSize: 13 }} />}
               onClick={onViewCustomerProfile}
               sx={{
-                height: 32,
-                px: 1.5,
+                height: 30,
+                px: 1.25,
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: 800,
                 color: darkTheme ? "#93C5FD" : "#0369A1",
                 borderColor: darkTheme ? "rgba(147, 197, 253, 0.4)" : "#BAE6FD",
                 bgcolor: darkTheme ? "rgba(37, 99, 235, 0.15)" : "#E0F2FE",
+                textTransform: "none",
                 "&:hover": {
                   bgcolor: darkTheme ? "rgba(37, 99, 235, 0.3)" : "#BAE6FD",
                   borderColor: "#93C5FD",
@@ -230,17 +239,18 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             <Button
               size="small"
               variant="outlined"
-              startIcon={<SwapHorizIcon sx={{ fontSize: 14 }} />}
+              startIcon={<SwapHorizIcon sx={{ fontSize: 13 }} />}
               onClick={onChangeCustomer}
               sx={{
-                height: 32,
-                px: 1.5,
+                height: 30,
+                px: 1.25,
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: 800,
                 color: darkTheme ? "#FCA5A5" : "#B91C1C",
                 borderColor: darkTheme ? "rgba(252, 165, 165, 0.4)" : "#FECACA",
                 bgcolor: darkTheme ? "rgba(239, 68, 68, 0.15)" : "#FEF2F2",
+                textTransform: "none",
                 "&:hover": {
                   bgcolor: darkTheme ? "rgba(239, 68, 68, 0.3)" : "#FEE2E2",
                   borderColor: "#FCA5A5",
@@ -255,3 +265,5 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
     </Paper>
   );
 };
+
+export default CustomerSummaryHeader;

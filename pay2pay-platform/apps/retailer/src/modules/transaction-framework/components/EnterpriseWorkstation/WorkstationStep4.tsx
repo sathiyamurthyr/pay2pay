@@ -685,10 +685,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
       {/* ── PROFESSIONAL PAGE HEADER ── */}
       <Box sx={{ mb: 1.5, textAlign: "left", width: "100%" }}>
-        <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "22px", letterSpacing: "-0.2px" }}>
+        <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: { xs: "17px", sm: "22px" }, letterSpacing: "-0.2px" }}>
           Transaction Authorization & Verification Portal
         </Typography>
-        <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>
+        <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: { xs: "12px", sm: "13px" } }}>
           Verify transaction details before securely authorizing this transfer.
         </Typography>
       </Box>
@@ -702,7 +702,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           backgroundImage: viewState === "SUCCESS_RECEIPT" ? "radial-gradient(circle at 50% 30%, rgba(74, 222, 128, 0.12), transparent 70%)" : "none",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
-          p: 2.5,
+          p: { xs: 1.5, sm: 2.5 },
           boxSizing: "border-box",
           overflow: "hidden",
           position: "relative",

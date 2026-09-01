@@ -95,23 +95,11 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "favorite">("all");
   const [sortBy, setSortBy] = useState<"recent" | "used" | "alphabetical">("recent");
-  const [visibleCount, setVisibleCount] = useState(30);
 
-  // Track which row is expanded for inline details
+  // Track which row/card is expanded for inline details
   const [expandedBeneficiaryId, setExpandedBeneficiaryId] = useState<string | null>(
     selectedBeneficiary?.id || null
   );
-
-  // Track unmasked account viewing
-  const [revealedAccounts, setRevealedAccounts] = useState<{ [id: string]: boolean }>({});
-
-  const toggleAccountVisibility = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setRevealedAccounts((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
 
   const toggleExpandRow = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -147,14 +135,15 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     setBeneficiaryLimitLoaded(false);
     setBeneficiaryLimitFailed(false);
 
-    apiClient.get(`/beneficiaries/${benId}/limits`)
+    apiClient
+      .get(`/beneficiaries/${benId}/limits`)
       .then((res) => {
         const data = res.data?.data || res.data;
         if (!isMounted || !data) return;
 
         const freshDailyRem = Number(data.daily_remaining ?? selectedBeneficiary.dailyRemaining ?? 50000);
         const freshMonthlyRem = Number(data.monthly_remaining ?? selectedBeneficiary.monthlyRemaining ?? 200000);
-        const isActive = Boolean(data.is_active ?? (selectedBeneficiary.status !== "INACTIVE"));
+        const isActive = Boolean(data.is_active ?? selectedBeneficiary.status !== "INACTIVE");
 
         setBeneficiaryDailyRem(freshDailyRem);
         setBeneficiaryMonthlyRem(freshMonthlyRem);
@@ -162,7 +151,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         setBeneficiaryLimitLoaded(true);
         setBeneficiaryLimitFailed(false);
       })
-      .catch((err) => {
+      .catch(() => {
         if (!isMounted) return;
         setBeneficiaryDailyRem(selectedBeneficiary.dailyRemaining ?? 50000);
         setBeneficiaryMonthlyRem(selectedBeneficiary.monthlyRemaining ?? 200000);
@@ -176,7 +165,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     };
   }, [selectedBeneficiary?.id]);
 
-  // Navigate to dedicated Add Beneficiary page (NO MODAL)
+  // Navigate to dedicated Add Beneficiary page
   const handleNavigateToAddBeneficiary = () => {
     if (typeof window !== "undefined") {
       sessionStorage.setItem("draftCustomerId", customer?.id || "");
@@ -185,10 +174,12 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     }
     useTransactionMemoryStore.getState().setSelectedCustomer(customer);
     useTransactionMemoryStore.getState().setReferrerUrl("/retailer/dmt");
-    router.push(`/retailer/beneficiaries/add?customerId=${customer?.id || ""}&customerMobile=${customer?.mobile || ""}`);
+    router.push(
+      `/retailer/beneficiaries/add?customerId=${customer?.id || ""}&customerMobile=${customer?.mobile || ""}`
+    );
   };
 
-  // Navigate to dedicated Remove Beneficiary page (NO MODAL)
+  // Navigate to dedicated Remove Beneficiary page
   const handleNavigateToRemoveBeneficiary = (b: BeneficiaryData, e: React.MouseEvent) => {
     e.stopPropagation();
     if (typeof window !== "undefined") {
@@ -210,7 +201,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const isModeDisabled = !modeInfo?.enabled;
 
   const retailerWallet = useRetailerStore((state) => state.wallet);
-  const currentWalletBalance = retailerWallet?.mainBalance ?? initialPricingResult.walletBalance ?? 235750.00;
+  const currentWalletBalance = retailerWallet?.mainBalance ?? initialPricingResult.walletBalance ?? 235750.0;
 
   const livePricingResult = useMemo(() => {
     return RuleEngineService.evaluatePricing({
@@ -220,8 +211,14 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
       dailyRemaining: initialPricingResult.dailyLimitRemaining,
       monthlyRemaining: initialPricingResult.monthlyLimitRemaining,
       beneficiaryBankName: selectedBeneficiary?.bankName || "Partner Bank",
-      beneficiaryDailyRemaining: beneficiaryLimitLoaded && beneficiaryDailyRem >= 0 ? beneficiaryDailyRem : initialPricingResult.dailyLimitRemaining,
-      beneficiaryMonthlyRemaining: beneficiaryLimitLoaded && beneficiaryMonthlyRem >= 0 ? beneficiaryMonthlyRem : initialPricingResult.monthlyLimitRemaining,
+      beneficiaryDailyRemaining:
+        beneficiaryLimitLoaded && beneficiaryDailyRem >= 0
+          ? beneficiaryDailyRem
+          : initialPricingResult.dailyLimitRemaining,
+      beneficiaryMonthlyRemaining:
+        beneficiaryLimitLoaded && beneficiaryMonthlyRem >= 0
+          ? beneficiaryMonthlyRem
+          : initialPricingResult.monthlyLimitRemaining,
       beneficiaryStatus: selectedBeneficiary?.status || "ACTIVE",
       isBeneficiaryActive: beneficiaryIsActive,
       limitLoadFailed: beneficiaryLimitFailed,
@@ -236,20 +233,30 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     beneficiaryMonthlyRem,
     beneficiaryIsActive,
     beneficiaryLimitFailed,
+    currentWalletBalance,
   ]);
 
   const pricingResult = {
     ...livePricingResult,
-    dailyLimitRemaining: beneficiaryLimitLoaded && beneficiaryDailyRem >= 0 ? beneficiaryDailyRem : initialPricingResult.dailyLimitRemaining,
-    monthlyLimitRemaining: beneficiaryLimitLoaded && beneficiaryMonthlyRem >= 0 ? beneficiaryMonthlyRem : initialPricingResult.monthlyLimitRemaining,
+    dailyLimitRemaining:
+      beneficiaryLimitLoaded && beneficiaryDailyRem >= 0
+        ? beneficiaryDailyRem
+        : initialPricingResult.dailyLimitRemaining,
+    monthlyLimitRemaining:
+      beneficiaryLimitLoaded && beneficiaryMonthlyRem >= 0
+        ? beneficiaryMonthlyRem
+        : initialPricingResult.monthlyLimitRemaining,
     isBeneficiaryLimitLoaded: beneficiaryLimitLoaded,
     isBeneficiaryLimitFailed: beneficiaryLimitFailed,
   };
 
   const fee = Number(pricingResult?.convenienceFee ?? 0);
   const gst = Number(pricingResult?.gstAmount ?? 0);
-  const totalDebit = amount > 0 ? Number(pricingResult?.totalDebit ?? pricingResult?.totalPayable ?? (amount + fee + gst)) : 0;
-  const hasLimitBreach = amount > 0 && (amount > (pricingResult?.dailyLimitRemaining ?? 0) || amount > (pricingResult?.monthlyLimitRemaining ?? 0));
+  const totalDebit =
+    amount > 0 ? Number(pricingResult?.totalDebit ?? pricingResult?.totalPayable ?? amount + fee + gst) : 0;
+  const hasLimitBreach =
+    amount > 0 &&
+    (amount > (pricingResult?.dailyLimitRemaining ?? 0) || amount > (pricingResult?.monthlyLimitRemaining ?? 0));
   const hasInsufficientWallet = amount > 0 && totalDebit > (pricingResult?.walletBalance ?? 0);
 
   const cleanBeneficiaries = useMemo(() => deduplicateBeneficiaries(beneficiaries), [beneficiaries]);
@@ -297,28 +304,30 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", lg: "1.45fr 1fr" },
-        gap: 2.5,
+        gridTemplateColumns: { xs: "100%", lg: "1.45fr 1fr" },
+        gap: { xs: 2, lg: 2.5 },
         alignItems: "start",
         width: "100%",
         maxWidth: "100%",
         boxSizing: "border-box",
-        minHeight: "75vh",
+        overflowX: "hidden",
       }}
     >
-      {/* ── LEFT PANEL: COMPACT ENTERPRISE BENEFICIARY TABLE CONSOLE ── */}
+      {/* ── LEFT PANEL: BENEFICIARY CONSOLE ── */}
       <Paper
         elevation={0}
         sx={{
-          p: 2.5,
+          p: { xs: 1.5, sm: 2.5 },
           borderRadius: "16px",
           bgcolor: "rgba(18, 27, 48, 0.85)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           display: "flex",
           flexDirection: "column",
-          minHeight: "75vh",
+          width: "100%",
+          maxWidth: "100%",
           boxSizing: "border-box",
+          overflowX: "hidden",
         }}
       >
         {/* Customer Header Component */}
@@ -333,13 +342,32 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         />
 
         {/* ── CONSOLE HEADER: TITLE & + ADD BENEFICIARY BUTTON ── */}
-        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5, flexWrap: "wrap", gap: 1 }}>
-          <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
-            <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "16px", letterSpacing: "-0.2px" }}>
+        <Stack
+          direction="row"
+          sx={{
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 1.5,
+            flexWrap: "wrap",
+            gap: 1,
+            width: "100%",
+          }}
+        >
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <Typography
+              sx={{
+                fontWeight: 900,
+                color: "#FFFFFF",
+                fontSize: { xs: "15px", sm: "16px" },
+                letterSpacing: "-0.2px",
+              }}
+            >
               Beneficiary Selection
             </Typography>
             <Chip
-              label={`${filteredBeneficiaries.length}${filteredBeneficiaries.length !== cleanBeneficiaries.length ? ` / ${cleanBeneficiaries.length}` : ""}`}
+              label={`${filteredBeneficiaries.length}${
+                filteredBeneficiaries.length !== cleanBeneficiaries.length ? ` / ${cleanBeneficiaries.length}` : ""
+              }`}
               size="small"
               sx={{
                 height: 22,
@@ -356,16 +384,17 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           <Button
             size="small"
             variant="contained"
-            startIcon={<PersonAddIcon sx={{ fontSize: 16 }} />}
+            startIcon={<PersonAddIcon sx={{ fontSize: 15 }} />}
             onClick={handleNavigateToAddBeneficiary}
             sx={{
               height: 32,
-              px: 2,
+              px: 1.75,
               borderRadius: "8px",
               fontWeight: 800,
-              fontSize: "12px",
+              fontSize: "11.5px",
               bgcolor: "#2563EB",
               color: "#FFFFFF",
+              textTransform: "none",
               "&:hover": { bgcolor: "#1D4ED8" },
             }}
           >
@@ -374,7 +403,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
         </Stack>
 
         {/* ── SEARCH & FILTER CONTROLS ── */}
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2, width: "100%" }}>
           <TextField
             fullWidth
             size="small"
@@ -399,7 +428,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   </InputAdornment>
                 ),
                 sx: {
-                  height: 36,
+                  height: 38,
                   borderRadius: "8px",
                   bgcolor: "rgba(255, 255, 255, 0.05)",
                   color: "#FFFFFF",
@@ -409,13 +438,15 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             }}
           />
 
-          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+          <Stack direction="row" spacing={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
             <Select
               size="small"
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}
               sx={{
-                height: 36,
+                flex: { xs: 1, sm: "none" },
+                minWidth: { xs: 0, sm: 140 },
+                height: 38,
                 fontSize: "12px",
                 fontWeight: 700,
                 color: "#FFFFFF",
@@ -433,7 +464,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
               sx={{
-                height: 36,
+                flex: { xs: 1, sm: "none" },
+                minWidth: { xs: 0, sm: 140 },
+                height: 38,
                 fontSize: "12px",
                 fontWeight: 700,
                 color: "#FFFFFF",
@@ -449,104 +482,35 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           </Stack>
         </Stack>
 
-        {/* ── BENEFICIARY LIST: COMPACT ENTERPRISE TABLE WITH INTERNAL SCROLL ── */}
+        {/* ── BENEFICIARY LIST CONTAINER (RESPONSIVE: CARDS ON MOBILE, TABLE ON DESKTOP) ── */}
         <Box
           sx={{
             flex: 1,
             width: "100%",
-            minHeight: "320px",
-            maxHeight: { xs: "500px", sm: "560px", md: "600px", lg: "calc(100vh - 280px)", xl: "calc(100vh - 250px)" },
+            maxWidth: "100%",
+            overflowX: "hidden",
+            minHeight: "280px",
+            maxHeight: { xs: "none", md: "560px", lg: "calc(100vh - 280px)" },
             overflowY: "auto",
-            overflowX: "auto",
-            pr: 0.5,
+            pr: { xs: 0, sm: 0.5 },
             pb: 1,
             position: "relative",
-            "&::-webkit-scrollbar": { width: "8px", height: "8px" },
-            "&::-webkit-scrollbar-track": { background: "rgba(255, 255, 255, 0.04)", borderRadius: "6px" },
-            "&::-webkit-scrollbar-thumb": { background: "rgba(96, 165, 250, 0.5)", borderRadius: "6px", border: "2px solid rgba(18, 27, 48, 0.8)" },
-            "&::-webkit-scrollbar-thumb:hover": { background: "rgba(96, 165, 250, 0.85)" },
+            boxSizing: "border-box",
           }}
         >
           {isLoading ? (
-            <TableContainer
-              component={Paper}
-              elevation={0}
-              sx={{
-                bgcolor: "transparent",
-                borderRadius: "10px",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                overflow: "hidden",
-              }}
-            >
-              <Box sx={{ p: 2, bgcolor: "rgba(37, 99, 235, 0.08)", borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", justifyContent: "center" }}>
-                  <CircularProgress size={20} sx={{ color: "#60A5FA" }} />
-                  <Typography sx={{ color: "#93C5FD", fontWeight: 800, fontSize: "13px" }}>
-                    Loading verified beneficiaries from core banking...
-                  </Typography>
-                </Stack>
-                <LinearProgress
-                  sx={{
-                    mt: 1.5,
-                    height: 3,
-                    borderRadius: 2,
-                    bgcolor: "rgba(255, 255, 255, 0.06)",
-                    "& .MuiLinearProgress-bar": {
-                      background: "linear-gradient(90deg, #2563EB, #60A5FA, #93C5FD)",
-                    },
-                  }}
-                />
-              </Box>
-              <Table size="small" aria-label="beneficiary loading skeleton" stickyHeader>
-                <TableHead>
-                  <TableRow sx={{ "& th": { bgcolor: "#131E38" } }}>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pl: 2 }}>Beneficiary</TableCell>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>Bank Account</TableCell>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>Monthly Limit</TableCell>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, textAlign: "center" }}>Verified</TableCell>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pr: 2, textAlign: "right" }}>Action</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {[1, 2, 3, 4, 5, 6].map((idx) => (
-                    <TableRow key={idx} sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
-                      <TableCell sx={{ py: 1.5, pl: 2 }}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                          <Skeleton variant="circular" width={28} height={28} sx={{ bgcolor: "rgba(255, 255, 255, 0.08)" }} />
-                          <Box>
-                            <Skeleton variant="text" width={110} height={18} sx={{ bgcolor: "rgba(255, 255, 255, 0.08)" }} />
-                            <Skeleton variant="text" width={70} height={14} sx={{ bgcolor: "rgba(255, 255, 255, 0.05)" }} />
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Skeleton variant="text" width={100} height={16} sx={{ bgcolor: "rgba(255, 255, 255, 0.08)" }} />
-                        <Skeleton variant="text" width={130} height={14} sx={{ bgcolor: "rgba(255, 255, 255, 0.05)" }} />
-                      </TableCell>
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Skeleton variant="text" width={80} height={16} sx={{ bgcolor: "rgba(255, 255, 255, 0.08)" }} />
-                        <Skeleton variant="text" width={60} height={12} sx={{ bgcolor: "rgba(255, 255, 255, 0.05)" }} />
-                      </TableCell>
-                      <TableCell sx={{ py: 1.5, textAlign: "center" }}>
-                        <Skeleton variant="rounded" width={72} height={22} sx={{ mx: "auto", borderRadius: "11px", bgcolor: "rgba(255, 255, 255, 0.08)" }} />
-                      </TableCell>
-                      <TableCell sx={{ py: 1.5, pr: 2, textAlign: "right" }}>
-                        <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
-                          <Skeleton variant="rounded" width={70} height={26} sx={{ borderRadius: "6px", bgcolor: "rgba(255, 255, 255, 0.08)" }} />
-                          <Skeleton variant="rounded" width={55} height={26} sx={{ borderRadius: "6px", bgcolor: "rgba(37, 99, 235, 0.2)" }} />
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box sx={{ p: 3, textAlign: "center" }}>
+              <CircularProgress size={28} sx={{ color: "#60A5FA", mb: 1.5 }} />
+              <Typography sx={{ color: "#93C5FD", fontWeight: 800, fontSize: "13px" }}>
+                Loading verified beneficiaries from core banking...
+              </Typography>
+            </Box>
           ) : filteredBeneficiaries.length === 0 ? (
             <Paper
               elevation={0}
               onClick={handleNavigateToAddBeneficiary}
               sx={{
-                p: 4,
+                p: { xs: 3, sm: 4 },
                 textAlign: "center",
                 bgcolor: "rgba(37, 99, 235, 0.06)",
                 borderRadius: "14px",
@@ -565,7 +529,9 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
               <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "16px", mb: 0.5 }}>
                 {searchTerm ? "No matching beneficiaries found." : "No beneficiaries found"}
               </Typography>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px", mb: 2.5, maxWidth: 400, mx: "auto" }}>
+              <Typography
+                sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px", mb: 2.5, maxWidth: 400, mx: "auto" }}
+              >
                 {searchTerm
                   ? "Try searching with a different name, bank or account number."
                   : "Add a beneficiary to make a payout."}
@@ -585,333 +551,485 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                   fontSize: "13px",
                   bgcolor: "#2563EB",
                   color: "#FFFFFF",
+                  textTransform: "none",
                 }}
               >
                 + Add Beneficiary
               </Button>
             </Paper>
           ) : (
-            <TableContainer
-              component={Paper}
-              elevation={0}
-              sx={{
-                bgcolor: "transparent",
-                borderRadius: "10px",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                overflow: "visible",
-              }}
-            >
-              <Table size="small" aria-label="beneficiary table" stickyHeader>
-                {/* ── TABLE HEAD (5 PRIMARY COLUMNS) ── */}
-                <TableHead>
-                  <TableRow sx={{ "& th": { bgcolor: "#131E38" } }}>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pl: 2 }}>
-                      Beneficiary
-                    </TableCell>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>
-                      Bank Account
-                    </TableCell>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>
-                      Monthly Limit
-                    </TableCell>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, textAlign: "center" }}>
-                      Verified
-                    </TableCell>
-                    <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pr: 2, textAlign: "right" }}>
-                      Action
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
+            <>
+              {/* ── 1. MOBILE BENEFICIARY CARD VIEW (xs / sm only) ── */}
+              <Box sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 1.5, width: "100%" }}>
+                {displayedBeneficiaries.map((b) => {
+                  const isSelected =
+                    selectedBeneficiary?.id === b.id ||
+                    (selectedBeneficiary?.accountNumber &&
+                      b.accountNumber &&
+                      selectedBeneficiary.accountNumber === b.accountNumber);
+                  const isExpanded = expandedBeneficiaryId === b.id;
+                  const rawAccount = b.accountNumber || b.maskedAccountNumber || "";
+                  const bAny = b as any;
 
-                <TableBody>
-                  {displayedBeneficiaries.map((b) => {
-                    const isSelected = selectedBeneficiary?.id === b.id || (selectedBeneficiary?.accountNumber && b.accountNumber && selectedBeneficiary.accountNumber === b.accountNumber);
-                    const isExpanded = expandedBeneficiaryId === b.id;
-                    const isAccountRevealed = true;
-                    const rawAccount = b.accountNumber || b.maskedAccountNumber || "";
-                    const maskedAcc = b.maskedAccountNumber || rawAccount;
-                    const bAny = b as any;
-
-                    return (
-                      <React.Fragment key={b.id}>
-                        {/* ── MAIN ROW ── */}
-                        <TableRow
-                          onClick={() => handleRowClick(b)}
-                          sx={{
-                            cursor: "pointer",
-                            transition: "all 120ms ease",
-                            bgcolor: isSelected
-                              ? "rgba(37, 99, 235, 0.20)"
-                              : isExpanded
-                              ? "rgba(255, 255, 255, 0.04)"
-                              : "transparent",
-                            borderLeft: isSelected ? "4px solid #2563EB" : "4px solid transparent",
-                            "&:hover": {
-                              bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                            },
-                          }}
-                        >
-                          {/* Column 1: Beneficiary Name + Favorite */}
-                          <TableCell sx={{ py: 1.25, pl: isSelected ? 1.5 : 2, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                              <Avatar
+                  return (
+                    <Paper
+                      key={b.id}
+                      elevation={0}
+                      onClick={() => handleRowClick(b)}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: "12px",
+                        bgcolor: isSelected ? "rgba(37, 99, 235, 0.18)" : "rgba(255, 255, 255, 0.04)",
+                        border: isSelected ? "1.5px solid #3B82F6" : "1px solid rgba(255, 255, 255, 0.08)",
+                        boxShadow: isSelected ? "0 4px 20px rgba(37, 99, 235, 0.25)" : "none",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {/* Top Row: Avatar + Name + Bank + Status */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, flex: 1 }}>
+                          <Avatar
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.12)",
+                              color: "#FFFFFF",
+                              fontWeight: 900,
+                              fontSize: "12px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {(b.name || "B").slice(0, 2).toUpperCase()}
+                          </Avatar>
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              <Typography
                                 sx={{
-                                  width: 28,
-                                  height: 28,
-                                  bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.10)",
-                                  color: "#FFFFFF",
-                                  fontWeight: 800,
-                                  fontSize: "11px",
+                                  fontWeight: 900,
+                                  color: isSelected ? "#93C5FD" : "#FFFFFF",
+                                  fontSize: "14px",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
                                 }}
                               >
-                                {(b.name || "Beneficiary").slice(0, 2).toUpperCase()}
-                              </Avatar>
-
-                              <Box>
-                                <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                                  <Typography sx={{ fontWeight: 800, color: isSelected ? "#93C5FD" : "#FFFFFF", fontSize: "13px", lineHeight: 1.2 }}>
-                                    {b.name}
-                                  </Typography>
-                                  {b.isFavorite && (
-                                    <StarIcon sx={{ color: "#FBBF24", fontSize: 14 }} />
-                                  )}
-                                </Stack>
-                              </Box>
-                            </Stack>
-                          </TableCell>
-
-                          {/* Column 2: Bank Account (Bank Name + Full Account Number) */}
-                          <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                            <Typography sx={{ color: "#60A5FA", fontSize: "12.5px", fontWeight: 800, lineHeight: 1.2 }}>
+                                {b.name}
+                              </Typography>
+                              {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 14 }} />}
+                            </Box>
+                            <Typography sx={{ color: "#60A5FA", fontSize: "11.5px", fontWeight: 700 }}>
                               {b.bankName}
                             </Typography>
-                            <Typography sx={{ color: "rgba(255, 255, 255, 0.90)", fontFamily: "monospace", fontSize: "12px", fontWeight: 700 }}>
-                              {rawAccount}
-                            </Typography>
-                          </TableCell>
+                          </Box>
+                        </Box>
 
-                          {/* Column 3: Monthly Limit */}
-                          <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                            <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "13px" }}>
-                              ₹{(b.monthlyLimit ?? 200000).toLocaleString()}
-                            </Typography>
-                            <Typography sx={{ color: "#4ADE80", fontSize: "10.5px", fontWeight: 700 }}>
-                              ₹{(b.monthlyRemaining ?? 200000).toLocaleString()} rem
-                            </Typography>
-                          </TableCell>
+                        <Chip
+                          icon={<CheckCircleIcon sx={{ "&&": { color: "#4ADE80", fontSize: 11 } }} />}
+                          label="Verified"
+                          size="small"
+                          sx={{
+                            height: 20,
+                            bgcolor: "rgba(74, 222, 128, 0.12)",
+                            color: "#4ADE80",
+                            fontWeight: 800,
+                            fontSize: "9.5px",
+                          }}
+                        />
+                      </Box>
 
-                          {/* Column 4: Verified Status */}
-                          <TableCell sx={{ py: 1.25, textAlign: "center", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                            {b.isVerified !== false ? (
-                              <Chip
-                                icon={<CheckCircleIcon sx={{ "&&": { color: "#4ADE80", fontSize: 13 } }} />}
-                                label="✓ Verified"
-                                size="small"
-                                sx={{
-                                  height: 22,
-                                  bgcolor: "rgba(74, 222, 128, 0.12)",
-                                  color: "#4ADE80",
-                                  fontWeight: 800,
-                                  fontSize: "10.5px",
-                                }}
-                              />
+                      {/* Middle Row: Account Number + Limits */}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          p: 1,
+                          borderRadius: "8px",
+                          bgcolor: "rgba(0, 0, 0, 0.25)",
+                          mb: 1,
+                        }}
+                      >
+                        <Box>
+                          <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>
+                            ACCOUNT NUMBER
+                          </Typography>
+                          <Typography
+                            sx={{
+                              color: "#FFFFFF",
+                              fontFamily: "monospace",
+                              fontSize: "12.5px",
+                              fontWeight: 800,
+                            }}
+                          >
+                            {rawAccount}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ textAlign: "right" }}>
+                          <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>
+                            MONTHLY REMAINING
+                          </Typography>
+                          <Typography
+                            sx={{
+                              color: "#34D399",
+                              fontFamily: "monospace",
+                              fontSize: "12.5px",
+                              fontWeight: 800,
+                            }}
+                          >
+                            ₹{(b.monthlyRemaining ?? 200000).toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* Bottom Action Controls */}
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <Button
+                          size="small"
+                          variant="text"
+                          onClick={(e) => toggleExpandRow(b.id, e)}
+                          endIcon={
+                            isExpanded ? (
+                              <KeyboardArrowUpIcon sx={{ fontSize: 15 }} />
                             ) : (
-                              <Chip
-                                label="● Pending"
-                                size="small"
-                                sx={{
-                                  height: 22,
-                                  bgcolor: "rgba(251, 191, 36, 0.12)",
-                                  color: "#FBBF24",
-                                  fontWeight: 800,
-                                  fontSize: "10.5px",
-                                }}
-                              />
-                            )}
-                          </TableCell>
+                              <KeyboardArrowDownIcon sx={{ fontSize: 15 }} />
+                            )
+                          }
+                          sx={{
+                            color: isExpanded ? "#60A5FA" : "#94A3B8",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            p: 0,
+                            textTransform: "none",
+                          }}
+                        >
+                          {isExpanded ? "Hide Details" : "View Details"}
+                        </Button>
 
-                          {/* Column 5: Action (View Details / Select) */}
-                          <TableCell sx={{ py: 1.25, pr: 2, textAlign: "right", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                            <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", alignItems: "center" }}>
-                              <Button
-                                size="small"
-                                variant="text"
-                                onClick={(e) => toggleExpandRow(b.id, e)}
-                                endIcon={isExpanded ? <KeyboardArrowUpIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
-                                sx={{
-                                  color: isExpanded ? "#60A5FA" : "rgba(255, 255, 255, 0.75)",
-                                  fontSize: "11px",
-                                  fontWeight: 700,
-                                  textTransform: "none",
-                                  p: 0.5,
-                                  minWidth: "auto",
-                                  "&:hover": { color: "#93C5FD", bgcolor: "rgba(255, 255, 255, 0.05)" },
-                                }}
-                              >
-                                View Details
-                              </Button>
+                        <Button
+                          size="small"
+                          variant={isSelected ? "contained" : "outlined"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(b);
+                          }}
+                          sx={{
+                            height: 28,
+                            px: 1.5,
+                            fontSize: "11px",
+                            fontWeight: 800,
+                            borderRadius: "6px",
+                            bgcolor: isSelected ? "#2563EB" : "transparent",
+                            borderColor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.2)",
+                            color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.8)",
+                            textTransform: "none",
+                          }}
+                        >
+                          {isSelected ? "Selected ✓" : "Select"}
+                        </Button>
+                      </Box>
 
-                              <Button
-                                size="small"
-                                variant={isSelected ? "contained" : "outlined"}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRowClick(b);
-                                }}
-                                sx={{
-                                  height: 26,
-                                  px: 1.25,
-                                  fontSize: "10.5px",
-                                  fontWeight: 800,
-                                  borderRadius: "6px",
-                                  bgcolor: isSelected ? "#2563EB" : "transparent",
-                                  borderColor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.2)",
-                                  color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.8)",
-                                  "&:hover": {
-                                    bgcolor: isSelected ? "#1D4ED8" : "rgba(37, 99, 235, 0.15)",
-                                    borderColor: "#2563EB",
-                                  },
-                                }}
-                              >
-                                {isSelected ? "Selected ✓" : "Select"}
-                              </Button>
-                            </Stack>
-                          </TableCell>
-                        </TableRow>
+                      {/* Collapsible Mobile Details */}
+                      <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                        <Box
+                          sx={{
+                            mt: 1.25,
+                            pt: 1.25,
+                            borderTop: "1px dashed rgba(255, 255, 255, 0.12)",
+                            display: "grid",
+                            gridTemplateColumns: "repeat(2, 1fr)",
+                            gap: 1,
+                          }}
+                        >
+                          <Box>
+                            <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>IFSC</Typography>
+                            <Typography sx={{ color: "#93C5FD", fontFamily: "monospace", fontSize: "11.5px", fontWeight: 700 }}>
+                              {b.ifsc}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>Branch</Typography>
+                            <Typography sx={{ color: "#FFFFFF", fontSize: "11.5px", fontWeight: 600 }}>
+                              {b.branchName || "Main Branch"}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>Daily Remaining</Typography>
+                            <Typography sx={{ color: "#34D399", fontSize: "11.5px", fontWeight: 700 }}>
+                              ₹{(b.todayRemaining ?? 24990).toLocaleString()}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700 }}>Relationship</Typography>
+                            <Typography sx={{ color: "#FBBF24", fontSize: "11.5px", fontWeight: 700 }}>
+                              {b.relationship || "Family"}
+                            </Typography>
+                          </Box>
 
-                        {/* ── INLINE EXPANDED ROW DETAILS (NO MODAL) ── */}
-                        <TableRow>
-                          <TableCell colSpan={5} sx={{ p: 0, borderBottom: isExpanded ? "1px solid rgba(255, 255, 255, 0.10)" : "none" }}>
-                            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                              <Box
-                                sx={{
-                                  p: 2,
-                                  bgcolor: "rgba(10, 17, 34, 0.95)",
-                                  borderTop: "1px dashed rgba(255, 255, 255, 0.10)",
-                                }}
-                              >
-                                <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5 }}>
-                                  Beneficiary Details
-                                </Typography>
+                          <Box sx={{ gridColumn: "span 2", mt: 0.5 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              startIcon={<DeleteIcon sx={{ fontSize: 13 }} />}
+                              onClick={(e) => handleNavigateToRemoveBeneficiary(b, e)}
+                              sx={{
+                                height: 26,
+                                px: 1.25,
+                                borderRadius: "6px",
+                                fontSize: "10.5px",
+                                fontWeight: 800,
+                                textTransform: "none",
+                                width: "100%",
+                              }}
+                            >
+                              Remove Beneficiary
+                            </Button>
+                          </Box>
+                        </Box>
+                      </Collapse>
+                    </Paper>
+                  );
+                })}
+              </Box>
 
-                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }, gap: 1.5, mb: 2 }}>
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Beneficiary Name</Typography>
-                                    <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "13px" }}>{b.name}</Typography>
-                                  </Box>
+              {/* ── 2. DESKTOP BENEFICIARY TABLE (md+ only) ── */}
+              <Box sx={{ display: { xs: "none", md: "block" } }}>
+                <TableContainer
+                  component={Paper}
+                  elevation={0}
+                  sx={{
+                    bgcolor: "transparent",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    overflow: "visible",
+                  }}
+                >
+                  <Table size="small" aria-label="beneficiary table" stickyHeader>
+                    <TableHead>
+                      <TableRow sx={{ "& th": { bgcolor: "#131E38" } }}>
+                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pl: 2 }}>
+                          Beneficiary
+                        </TableCell>
+                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>
+                          Bank Account
+                        </TableCell>
+                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1 }}>
+                          Monthly Limit
+                        </TableCell>
+                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, textAlign: "center" }}>
+                          Verified
+                        </TableCell>
+                        <TableCell sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "11px", fontWeight: 800, py: 1, pr: 2, textAlign: "right" }}>
+                          Action
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
 
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Bank</Typography>
-                                    <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "13px" }}>{b.bankName}</Typography>
-                                  </Box>
+                    <TableBody>
+                      {displayedBeneficiaries.map((b) => {
+                        const isSelected =
+                          selectedBeneficiary?.id === b.id ||
+                          (selectedBeneficiary?.accountNumber &&
+                            b.accountNumber &&
+                            selectedBeneficiary.accountNumber === b.accountNumber);
+                        const isExpanded = expandedBeneficiaryId === b.id;
+                        const rawAccount = b.accountNumber || b.maskedAccountNumber || "";
+                        const bAny = b as any;
 
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Account Number</Typography>
-                                    <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>
-                                      {rawAccount}
-                                    </Typography>
-                                  </Box>
-
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>IFSC</Typography>
-                                    <Typography sx={{ color: "#93C5FD", fontFamily: "monospace", fontWeight: 800, fontSize: "12.5px" }}>{b.ifsc}</Typography>
-                                  </Box>
-
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Branch</Typography>
-                                    <Typography sx={{ color: "#FFFFFF", fontWeight: 600, fontSize: "12.5px" }}>{b.branchName || "Main Branch"}</Typography>
-                                  </Box>
-
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Relationship</Typography>
-                                    <Typography sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "12.5px" }}>{b.relationship || "Family"}</Typography>
-                                  </Box>
-
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Risk Level</Typography>
-                                    <Typography sx={{ color: "#4ADE80", fontWeight: 800, fontSize: "12px" }}>{bAny.riskLevel || "Low Risk"}</Typography>
-                                  </Box>
-
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Status</Typography>
-                                    <Typography sx={{ color: b.status === "INACTIVE" ? "#F87171" : "#60A5FA", fontWeight: 800, fontSize: "12px" }}>
-                                      {b.status === "INACTIVE" ? "Inactive" : "Active"}
-                                    </Typography>
-                                  </Box>
-
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Verification</Typography>
-                                    <Typography sx={{ color: "#4ADE80", fontWeight: 800, fontSize: "12px" }}>
-                                      {b.isVerified !== false ? "Verified" : "Pending"}
-                                    </Typography>
-                                  </Box>
-
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Today's Remaining</Typography>
-                                    <Typography sx={{ color: "#34D399", fontWeight: 800, fontSize: "12.5px" }}>₹{(b.todayRemaining ?? 24990).toLocaleString()}</Typography>
-                                  </Box>
-
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Monthly Remaining</Typography>
-                                    <Typography sx={{ color: "#4ADE80", fontWeight: 800, fontSize: "12.5px" }}>₹{(b.monthlyRemaining ?? 200000).toLocaleString()}</Typography>
-                                  </Box>
-
-                                  <Box>
-                                    <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Total Transactions</Typography>
-                                    <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "12.5px" }}>{b.transferCount || 6}</Typography>
-                                  </Box>
-                                </Box>
-
-                                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1.5 }} />
-
-                                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    color="error"
-                                    startIcon={<DeleteIcon sx={{ fontSize: 14 }} />}
-                                    onClick={(e) => handleNavigateToRemoveBeneficiary(b, e)}
+                        return (
+                          <React.Fragment key={b.id}>
+                            <TableRow
+                              onClick={() => handleRowClick(b)}
+                              sx={{
+                                cursor: "pointer",
+                                transition: "all 120ms ease",
+                                bgcolor: isSelected
+                                  ? "rgba(37, 99, 235, 0.20)"
+                                  : isExpanded
+                                  ? "rgba(255, 255, 255, 0.04)"
+                                  : "transparent",
+                                borderLeft: isSelected ? "4px solid #2563EB" : "4px solid transparent",
+                                "&:hover": {
+                                  bgcolor: isSelected ? "rgba(37, 99, 235, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                                },
+                              }}
+                            >
+                              <TableCell sx={{ py: 1.25, pl: isSelected ? 1.5 : 2, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                                  <Avatar
                                     sx={{
+                                      width: 28,
                                       height: 28,
-                                      px: 1.5,
-                                      borderRadius: "6px",
+                                      bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.10)",
+                                      color: "#FFFFFF",
                                       fontWeight: 800,
                                       fontSize: "11px",
-                                      borderColor: "rgba(239, 68, 68, 0.4)",
-                                      color: "#FCA5A5",
-                                      "&:hover": { bgcolor: "rgba(239, 68, 68, 0.15)", borderColor: "#EF4444" },
                                     }}
                                   >
-                                    Remove Beneficiary
+                                    {(b.name || "Beneficiary").slice(0, 2).toUpperCase()}
+                                  </Avatar>
+                                  <Box>
+                                    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                                      <Typography sx={{ fontWeight: 800, color: isSelected ? "#93C5FD" : "#FFFFFF", fontSize: "13px", lineHeight: 1.2 }}>
+                                        {b.name}
+                                      </Typography>
+                                      {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 14 }} />}
+                                    </Stack>
+                                  </Box>
+                                </Stack>
+                              </TableCell>
+
+                              <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                                <Typography sx={{ color: "#60A5FA", fontSize: "12.5px", fontWeight: 800, lineHeight: 1.2 }}>
+                                  {b.bankName}
+                                </Typography>
+                                <Typography sx={{ color: "rgba(255, 255, 255, 0.90)", fontFamily: "monospace", fontSize: "12px", fontWeight: 700 }}>
+                                  {rawAccount}
+                                </Typography>
+                              </TableCell>
+
+                              <TableCell sx={{ py: 1.25, borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                                <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "13px" }}>
+                                  ₹{(b.monthlyLimit ?? 200000).toLocaleString()}
+                                </Typography>
+                                <Typography sx={{ color: "#4ADE80", fontSize: "10.5px", fontWeight: 700 }}>
+                                  ₹{(b.monthlyRemaining ?? 200000).toLocaleString()} rem
+                                </Typography>
+                              </TableCell>
+
+                              <TableCell sx={{ py: 1.25, textAlign: "center", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                                {b.isVerified !== false ? (
+                                  <Chip
+                                    icon={<CheckCircleIcon sx={{ "&&": { color: "#4ADE80", fontSize: 13 } }} />}
+                                    label="✓ Verified"
+                                    size="small"
+                                    sx={{
+                                      height: 22,
+                                      bgcolor: "rgba(74, 222, 128, 0.12)",
+                                      color: "#4ADE80",
+                                      fontWeight: 800,
+                                      fontSize: "10.5px",
+                                    }}
+                                  />
+                                ) : (
+                                  <Chip
+                                    label="● Pending"
+                                    size="small"
+                                    sx={{
+                                      height: 22,
+                                      bgcolor: "rgba(251, 191, 36, 0.12)",
+                                      color: "#FBBF24",
+                                      fontWeight: 800,
+                                      fontSize: "10.5px",
+                                    }}
+                                  />
+                                )}
+                              </TableCell>
+
+                              <TableCell sx={{ py: 1.25, pr: 2, textAlign: "right", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                                <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", alignItems: "center" }}>
+                                  <Button
+                                    size="small"
+                                    variant="text"
+                                    onClick={(e) => toggleExpandRow(b.id, e)}
+                                    endIcon={
+                                      isExpanded ? (
+                                        <KeyboardArrowUpIcon sx={{ fontSize: 16 }} />
+                                      ) : (
+                                        <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
+                                      )
+                                    }
+                                    sx={{
+                                      color: isExpanded ? "#60A5FA" : "rgba(255, 255, 255, 0.75)",
+                                      fontSize: "11px",
+                                      fontWeight: 700,
+                                      textTransform: "none",
+                                      p: 0.5,
+                                      minWidth: "auto",
+                                    }}
+                                  >
+                                    View Details
                                   </Button>
 
                                   <Button
                                     size="small"
-                                    variant="contained"
-                                    onClick={() => handleRowClick(b)}
+                                    variant={isSelected ? "contained" : "outlined"}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRowClick(b);
+                                    }}
                                     sx={{
-                                      height: 28,
-                                      px: 2,
-                                      borderRadius: "6px",
+                                      height: 26,
+                                      px: 1.25,
+                                      fontSize: "10.5px",
                                       fontWeight: 800,
-                                      fontSize: "11px",
-                                      bgcolor: "#2563EB",
-                                      color: "#FFFFFF",
+                                      borderRadius: "6px",
+                                      bgcolor: isSelected ? "#2563EB" : "transparent",
+                                      borderColor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.2)",
+                                      color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.8)",
+                                      textTransform: "none",
                                     }}
                                   >
-                                    Transfer to This Beneficiary →
+                                    {isSelected ? "Selected ✓" : "Select"}
                                   </Button>
                                 </Stack>
-                              </Box>
-                            </Collapse>
-                          </TableCell>
-                        </TableRow>
-                      </React.Fragment>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                              </TableCell>
+                            </TableRow>
+
+                            <TableRow>
+                              <TableCell colSpan={5} sx={{ p: 0, borderBottom: isExpanded ? "1px solid rgba(255, 255, 255, 0.10)" : "none" }}>
+                                <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                                  <Box sx={{ p: 2, bgcolor: "rgba(10, 17, 34, 0.95)", borderTop: "1px dashed rgba(255, 255, 255, 0.10)" }}>
+                                    <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5 }}>
+                                      Beneficiary Details
+                                    </Typography>
+                                    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5, mb: 2 }}>
+                                      <Box>
+                                        <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Beneficiary Name</Typography>
+                                        <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "13px" }}>{b.name}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Bank</Typography>
+                                        <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "13px" }}>{b.bankName}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "10.5px", fontWeight: 700 }}>Account Number</Typography>
+                                        <Typography sx={{ color: "#FFFFFF", fontFamily: "monospace", fontWeight: 800, fontSize: "13px" }}>{rawAccount}</Typography>
+                                      </Box>
+                                    </Box>
+                                    <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1.5 }} />
+                                    <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                                      <Button
+                                        size="small"
+                                        variant="outlined"
+                                        color="error"
+                                        startIcon={<DeleteIcon sx={{ fontSize: 14 }} />}
+                                        onClick={(e) => handleNavigateToRemoveBeneficiary(b, e)}
+                                        sx={{
+                                          height: 28,
+                                          px: 1.5,
+                                          borderRadius: "6px",
+                                          fontWeight: 800,
+                                          fontSize: "11px",
+                                          textTransform: "none",
+                                        }}
+                                      >
+                                        Remove Beneficiary
+                                      </Button>
+                                    </Stack>
+                                  </Box>
+                                </Collapse>
+                              </TableCell>
+                            </TableRow>
+                          </React.Fragment>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            </>
           )}
         </Box>
 
@@ -929,23 +1047,8 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           }}
         >
           <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "12px", fontWeight: 700 }}>
-            Showing <strong>{displayedBeneficiaries.length}</strong> of <strong>{cleanBeneficiaries.length}</strong> beneficiaries • ↕ Scroll table to view all
+            Showing <strong>{displayedBeneficiaries.length}</strong> of <strong>{cleanBeneficiaries.length}</strong> beneficiaries
           </Typography>
-          <Button
-            size="small"
-            variant="text"
-            startIcon={<PersonAddIcon sx={{ fontSize: 14 }} />}
-            onClick={handleNavigateToAddBeneficiary}
-            sx={{
-              fontSize: "11.5px",
-              fontWeight: 800,
-              color: "#60A5FA",
-              textTransform: "none",
-              "&:hover": { color: "#93C5FD", bgcolor: "rgba(37, 99, 235, 0.1)" },
-            }}
-          >
-            + Add Beneficiary
-          </Button>
         </Stack>
       </Paper>
 
@@ -953,22 +1056,32 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
       <Paper
         elevation={0}
         sx={{
-          p: 2.5,
+          p: { xs: 2, sm: 2.5 },
           borderRadius: "16px",
           bgcolor: "rgba(18, 27, 48, 0.85)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           display: "flex",
           flexDirection: "column",
-          minHeight: "75vh",
-          justifyContent: "space-between",
+          width: "100%",
+          maxWidth: "100%",
           boxSizing: "border-box",
+          overflowX: "hidden",
         }}
       >
         <Box>
           {/* ── TRANSACTION MODE SEGMENTED CONTROL ── */}
           <Box sx={{ mb: 2 }}>
-            <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1 }}>
+            <Typography
+              sx={{
+                color: "#60A5FA",
+                fontWeight: 800,
+                fontSize: "11px",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                mb: 1,
+              }}
+            >
               TRANSACTION MODE
             </Typography>
 
@@ -994,19 +1107,18 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                       height: 34,
                       borderRadius: "7px",
                       fontWeight: 800,
-                      fontSize: "11px",
+                      fontSize: { xs: "10px", sm: "11px" },
+                      p: 0.5,
                       color: isSelected ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)",
                       bgcolor: isSelected ? "#2563EB" : "transparent",
                       boxShadow: isSelected ? "0 2px 8px rgba(37, 99, 235, 0.4)" : "none",
+                      textTransform: "none",
                       "&:hover": {
                         bgcolor: isSelected ? "#2563EB" : "rgba(255, 255, 255, 0.1)",
                       },
-                      "&.Mui-disabled": {
-                        color: "rgba(255, 255, 255, 0.25)",
-                      },
                     }}
                   >
-                    {m.icon} {m.mode_name}
+                    {m.mode_name}
                   </Button>
                 );
               })}
@@ -1041,86 +1153,110 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
           {/* Financial Summary Table */}
           <Stack spacing={1}>
-            <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <Typography
+              sx={{
+                color: "#60A5FA",
+                fontWeight: 800,
+                fontSize: "11px",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
               FINANCIAL SUMMARY ({selectedMode})
             </Typography>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px" }}>Transfer Amount</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13.5px" }}>₹{Number(amount || 0).toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13.5px" }}>
+                ₹{Number(amount || 0).toLocaleString()}
+              </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "#4ADE80", fontWeight: 700, fontSize: "12.5px" }}>Beneficiary Receives</Typography>
-              <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "13.5px" }}>₹{Number(amount || 0).toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 900, color: "#4ADE80", fontSize: "13.5px" }}>
+                ₹{Number(amount || 0).toLocaleString()}
+              </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px" }}>Convenience Fee</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12.5px" }}>+ ₹{Number(fee || 0).toLocaleString(undefined, { minimumFractionDigits: (fee || 0) % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12.5px" }}>
+                + ₹
+                {Number(fee || 0).toLocaleString(undefined, {
+                  minimumFractionDigits: (fee || 0) % 1 !== 0 ? 2 : 0,
+                  maximumFractionDigits: 2,
+                })}
+              </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px" }}>GST ({pricingResult?.gstPercentage ?? 18}%)</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12.5px" }}>+ ₹{Number(gst || 0).toLocaleString(undefined, { minimumFractionDigits: (gst || 0) % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px" }}>
+                GST ({pricingResult?.gstPercentage ?? 18}%)
+              </Typography>
+              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12.5px" }}>
+                + ₹
+                {Number(gst || 0).toLocaleString(undefined, {
+                  minimumFractionDigits: (gst || 0) % 1 !== 0 ? 2 : 0,
+                  maximumFractionDigits: 2,
+                })}
+              </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px" }}>Total Debit from Wallet</Typography>
-              <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "14px" }}>₹{Number(totalDebit || 0).toLocaleString(undefined, { minimumFractionDigits: (totalDebit || 0) % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</Typography>
+              <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "14px" }}>
+                ₹
+                {Number(totalDebit || 0).toLocaleString(undefined, {
+                  minimumFractionDigits: (totalDebit || 0) % 1 !== 0 ? 2 : 0,
+                  maximumFractionDigits: 2,
+                })}
+              </Typography>
             </Stack>
           </Stack>
         </Box>
 
         {/* ── BOTTOM ACTIONS ── */}
-        <Stack spacing={1.5} sx={{ mt: 3 }}>
-          <Tooltip
-            title={
-              !selectedBeneficiary
-                ? "Please select a beneficiary from the left panel"
-                : amount <= 0
-                ? "Please enter a valid transfer amount"
-                : hasLimitBreach
-                ? "Transfer amount exceeds available limits"
-                : hasInsufficientWallet
-                ? `Wallet balance (₹${(pricingResult?.walletBalance ?? 0).toLocaleString()}) is insufficient. Please load your wallet to proceed with this transfer.`
-                : ""
-            }
+        <Stack spacing={1.5} sx={{ mt: 3, width: "100%" }}>
+          <Button
+            fullWidth
+            variant="contained"
+            disabled={!selectedBeneficiary || amount <= 0 || hasLimitBreach || hasInsufficientWallet || isModeDisabled}
+            onClick={onContinue}
+            endIcon={<ArrowForwardIcon />}
+            sx={{
+              height: 46,
+              borderRadius: "10px",
+              fontWeight: 900,
+              fontSize: "14px",
+              bgcolor: "#2563EB",
+              color: "#FFFFFF",
+              textTransform: "none",
+              boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
+              "&.Mui-disabled": {
+                bgcolor: "rgba(255, 255, 255, 0.12)",
+                color: "rgba(255, 255, 255, 0.4)",
+                cursor: "not-allowed",
+              },
+            }}
           >
-            <Box sx={{ width: "100%" }}>
-              <Button
-                fullWidth
-                variant="contained"
-                disabled={!selectedBeneficiary || amount <= 0 || hasLimitBreach || hasInsufficientWallet || isModeDisabled}
-                onClick={onContinue}
-                endIcon={<ArrowForwardIcon />}
-                sx={{
-                  height: 46,
-                  borderRadius: "10px",
-                  fontWeight: 900,
-                  fontSize: "14px",
-                  bgcolor: "#2563EB",
-                  color: "#FFFFFF",
-                  boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
-                  "&.Mui-disabled": {
-                    bgcolor: "rgba(255, 255, 255, 0.12)",
-                    color: "rgba(255, 255, 255, 0.4)",
-                    cursor: "not-allowed",
-                    pointerEvents: "auto",
-                  },
-                }}
-              >
-                Proceed to Authorization (Ctrl+Enter)
-              </Button>
-            </Box>
-          </Tooltip>
+            Proceed to Authorization
+          </Button>
 
           <Button
             fullWidth
             variant="outlined"
             onClick={onBack}
             startIcon={<ArrowBackIcon />}
-            sx={{ height: 36, borderRadius: "8px", fontWeight: 700, fontSize: "12px", color: "rgba(255, 255, 255, 0.8)", borderColor: "rgba(255, 255, 255, 0.2)" }}
+            sx={{
+              height: 38,
+              borderRadius: "8px",
+              fontWeight: 700,
+              fontSize: "12px",
+              color: "rgba(255, 255, 255, 0.8)",
+              borderColor: "rgba(255, 255, 255, 0.2)",
+              textTransform: "none",
+            }}
           >
             Back to Customer
           </Button>
@@ -1129,3 +1265,5 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     </Box>
   );
 };
+
+export default WorkstationStep2;
