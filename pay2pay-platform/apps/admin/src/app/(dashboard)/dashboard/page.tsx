@@ -5,7 +5,7 @@ import { RetailerVerificationDashboard } from "@/components/admin/verification/R
 
 export default function AdminDashboardPage() {
   return (
-    <div className="space-y-6">
+    <div className="w-full bg-white min-h-screen">
       <RetailerVerificationDashboard />
     </div>
   );
