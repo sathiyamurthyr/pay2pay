@@ -52,35 +52,35 @@ interface RoutingPolicy {
 }
 
 export default function BankGatewaysPage() {
-  const [activePrimary, setActivePrimary] = useState<string>("UTKALDIGITAL");
+  const [activePrimary, setActivePrimary] = useState<string>("URBANRUPEE");
   const [gateways, setGateways] = useState<GatewayConfig[]>([
+    {
+      id: "gw_urbanrupee",
+      provider_name: "UrbanRupee Payout API",
+      provider_code: "URBANRUPEE",
+      is_active: true,
+      is_primary: true,
+      priority_order: 1,
+      weight_percentage: 100,
+      api_endpoint: "https://payout.urbanrupee.in/api/payout",
+      user_id: "UR6877",
+      merchant_id: "UR6877",
+      masked_secret: "pk_69••••••••••••9e8e",
+      last_known_balance: 0,
+    },
     {
       id: "gw_utkaldigital",
       provider_name: "Utkal Digital Payout API",
       provider_code: "UTKALDIGITAL",
       is_active: true,
-      is_primary: true,
-      priority_order: 1,
-      weight_percentage: 100,
+      is_primary: false,
+      priority_order: 2,
+      weight_percentage: 0,
       api_endpoint: "https://singleptxn.utkaldigital.co.in/ProcessRequest/transaction",
       user_id: "a9f9d5c1752e49e08a",
       merchant_id: "MAGNI",
       masked_secret: "99••••84",
-      last_known_balance: 0,
-    },
-    {
-      id: "gw_wowpe",
-      provider_name: "WowPe Payout API",
-      provider_code: "WOWPE",
-      is_active: true,
-      is_primary: false,
-      priority_order: 2,
-      weight_percentage: 0,
-      api_endpoint: "https://api.wowpe.in/api/api/api-module/payout/payout",
-      user_id: "b206347b-3b5f-4a6c-a18c-efebfef348f8",
-      merchant_id: "b206347b-3b5f-4a6c-a18c-efebfef348f8",
-      masked_secret: "0a5254ca-••••••••••••0960",
-      last_known_balance: 0,
+      last_known_balance: 261.50,
     },
     {
       id: "gw_bulkpe",
@@ -143,9 +143,10 @@ export default function BankGatewaysPage() {
             [providerCode]: {
               success: gwData.success,
               balance: gwData.balance,
-              currentAccBalance: gwData.currentAccBalance ?? 0,
-              payinBalane: gwData.payinBalane ?? 0,
-              feeBalance: gwData.feeBalance ?? 0,
+              currentAccBalance: gwData.currentAccBalance ?? gwData.balance ?? 0,
+              avail_balance: gwData.avail_balance ?? gwData.balance ?? 0,
+              security_balance: gwData.security_balance ?? 0,
+              total_balance: gwData.total_balance ?? gwData.balance ?? 0,
               message: gwData.message || "Balance fetched successfully",
               latency_ms: gwData.latency_ms || 120,
               checked_at: new Date().toLocaleTimeString(),
@@ -159,38 +160,25 @@ export default function BankGatewaysPage() {
           return;
         }
       } catch (backendErr) {
-        // Fallback to direct client-side fetch if backend is unreachable
+        // Fallback to direct provider endpoint
       }
 
-      if (providerCode === "WOWPE") {
+      if (providerCode === "URBANRUPEE") {
         const startTime = performance.now();
-        const res = await fetch("https://api.wowpe.in/api/api/api-module/payout/balance", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-          },
-          body: JSON.stringify({
-            clientId: "b206347b-3b5f-4a6c-a18c-efebfef348f8",
-            secretKey: "0a5254ca-c69e-40d2-8a81-58dfb4740960",
-          }),
-        });
-
+        const res = await api.get("/api/v1/payout/urbanrupee/balance");
         const latency = Math.round(performance.now() - startTime);
-        const data = await res.json();
-        const isSuccess = data.statusCode === 1 || data.statusCode === "1";
-        const balValue = typeof data.balance === "number" ? data.balance : Number(data.balance || 0);
+        const data = res.data;
+        const isSuccess = data.status === "SUCCESS" || data.status === true || data.http_status === 200;
+        const balValue = Number(data.balance ?? 0);
 
         setBalances((prev) => ({
           ...prev,
-          WOWPE: {
+          URBANRUPEE: {
             success: isSuccess,
             balance: balValue,
-            currentAccBalance: data.currentAccBalance ?? 0,
-            payinBalane: data.payinBalane ?? 0,
-            feeBalance: data.feeBalance ?? 0,
-            message: data.message || (isSuccess ? "Balance fetched successfully" : "Live API Connected"),
-            statusCode: data.statusCode,
+            currentAccBalance: balValue,
+            avail_balance: balValue,
+            message: data.message || "UrbanRupee Live Node Connected",
             latency_ms: latency,
             checked_at: new Date().toLocaleTimeString(),
           },
@@ -198,7 +186,7 @@ export default function BankGatewaysPage() {
 
         setNotification({
           type: isSuccess ? "success" : "warning",
-          message: `[WowPe API] Live Balance: ₹${balValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })} • ${data.message || `Response received in ${latency}ms`}`,
+          message: `[UrbanRupee API] Live Balance: ₹${balValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })} • ${data.message || "Online"} (${latency}ms)`,
         });
       } else if (providerCode === "UTKALDIGITAL") {
         const startTime = performance.now();
@@ -268,9 +256,7 @@ export default function BankGatewaysPage() {
             formatted[code] = {
               success: info.success,
               balance: info.balance ?? 0,
-              currentAccBalance: info.currentAccBalance ?? 0,
-              payinBalane: info.payinBalane ?? 0,
-              feeBalance: info.feeBalance ?? 0,
+              currentAccBalance: info.currentAccBalance ?? info.balance ?? 0,
               avail_balance: info.avail_balance ?? info.balance ?? 0,
               security_balance: info.security_balance ?? 0,
               total_balance: info.total_balance ?? info.balance ?? 0,
@@ -287,11 +273,11 @@ export default function BankGatewaysPage() {
           return;
         }
       } catch (err) {
-        // Fallback to direct client-side calls
+        // Fallback to individual calls
       }
 
       await Promise.all([
-        refreshSingleBalance("WOWPE"),
+        refreshSingleBalance("URBANRUPEE"),
         refreshSingleBalance("UTKALDIGITAL"),
         refreshSingleBalance("BULKPE")
       ]);
@@ -316,14 +302,18 @@ export default function BankGatewaysPage() {
           setActivePrimary(data.active_primary_provider);
         }
         if (data.gateways && Array.isArray(data.gateways) && data.gateways.length > 0) {
-          setGateways(data.gateways);
+          // Filter out any inactive/deleted gateways (like WowPe)
+          const validGateways = data.gateways.filter((g: any) => g.provider_code !== "WOWPE" && g.is_active !== false);
+          if (validGateways.length > 0) {
+            setGateways(validGateways);
+          }
         }
         if (data.routing_policy) {
           setPolicy(data.routing_policy);
         }
       }
     } catch (err) {
-      // Keep state initialized
+      // Keep initialized state
     } finally {
       setLoading(false);
     }
@@ -358,23 +348,40 @@ export default function BankGatewaysPage() {
           type: "success",
           message: `Successfully switched Active Primary Payout Gateway to ${providerCode}!`,
         });
+
+        fetchLiveBalances();
+      } else {
+        setNotification({
+          type: "error",
+          message: res.data?.detail || "Failed to switch gateway priority.",
+        });
       }
     } catch (err: any) {
-      // Optimistic update
-      setActivePrimary(providerCode);
-      setGateways((prev) =>
-        prev.map((g) => ({
-          ...g,
-          is_primary: g.provider_code === providerCode,
-          priority_order: g.provider_code === providerCode ? 1 : 2,
-        }))
-      );
       setNotification({
-        type: "success",
-        message: `Primary gateway switched to ${providerCode}.`,
+        type: "error",
+        message: err.response?.data?.detail || "Error switching gateway priority.",
       });
     } finally {
       setSwitching(false);
+      setTimeout(() => setNotification(null), 5000);
+    }
+  };
+
+  const handleSavePolicy = async () => {
+    try {
+      const res = await api.put("/api/v1/admin/payout-routing/policy", policy);
+      if (res.data?.status === "SUCCESS") {
+        setNotification({
+          type: "success",
+          message: "Routing & Failover policy saved successfully.",
+        });
+      }
+    } catch (err: any) {
+      setNotification({
+        type: "error",
+        message: err.response?.data?.detail || "Failed to update routing policy.",
+      });
+    } finally {
       setTimeout(() => setNotification(null), 5000);
     }
   };
@@ -399,26 +406,19 @@ export default function BankGatewaysPage() {
           return;
         }
       } catch (e) {
-        // Fallback to direct call
+        // Fallback
       }
 
-      if (providerCode === "WOWPE") {
+      if (providerCode === "URBANRUPEE") {
         const startTime = performance.now();
-        const res = await fetch("https://api.wowpe.in/api/api/api-module/payout/balance", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientId: "b206347b-3b5f-4a6c-a18c-efebfef348f8",
-            secretKey: "0a5254ca-c69e-40d2-8a81-58dfb4740960",
-          }),
-        });
+        const res = await api.get("/api/v1/payout/urbanrupee/balance");
         const latency = Math.round(performance.now() - startTime);
-        const data = await res.json();
+        const data = res.data;
 
         setTestResult({
-          provider: "WOWPE",
-          success: data.statusCode === 1,
-          message: `Endpoint: https://api.wowpe.in • HTTP 200 OK (${latency}ms) • Server Message: "${data.message}"`,
+          provider: "URBANRUPEE",
+          success: data.status === "SUCCESS" || data.status === true || data.http_status === 200,
+          message: `Endpoint: https://payout.urbanrupee.in • HTTP 200 OK (${latency}ms) • Live Available Balance: ₹${Number(data.balance ?? 0).toFixed(2)}`,
           details: data,
         });
       } else if (providerCode === "UTKALDIGITAL") {
@@ -460,37 +460,47 @@ export default function BankGatewaysPage() {
       api_key: "",
       api_secret: "",
       priority_order: gw.priority_order || 1,
-      is_active: gw.is_active,
+      is_active: gw.is_active ?? true,
     });
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEditGateway = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!editingGateway) return;
 
     try {
       setSavingEdit(true);
-      const updatedList = gateways.map((g) =>
-        g.provider_code === editingGateway.provider_code
-          ? {
-              ...g,
-              api_endpoint: editFormData.api_endpoint,
-              user_id: editFormData.user_id,
-              merchant_id: editFormData.merchant_id,
-              priority_order: Number(editFormData.priority_order),
-              is_active: editFormData.is_active,
-              masked_secret: editFormData.api_secret
-                ? `${editFormData.api_secret.substring(0, 4)}••••••••••••${editFormData.api_secret.slice(-4)}`
-                : g.masked_secret,
-            }
-          : g
-      );
+      const payload: any = {
+        api_endpoint: editFormData.api_endpoint,
+        user_id: editFormData.user_id,
+        merchant_id: editFormData.merchant_id,
+        priority_order: Number(editFormData.priority_order),
+        is_active: editFormData.is_active,
+      };
 
-      setGateways(updatedList);
+      if (editFormData.api_key.trim()) payload.api_key = editFormData.api_key.trim();
+      if (editFormData.api_secret.trim()) payload.api_secret = editFormData.api_secret.trim();
+
+      const res = await api.put(`/api/v1/admin/payout-routing/gateways/${editingGateway.provider_code}`, payload);
+
+      if (res.data?.status === "SUCCESS") {
+        setNotification({
+          type: "success",
+          message: `Configuration for ${editingGateway.provider_name} updated successfully.`,
+        });
+        setEditingGateway(null);
+        fetchConfig();
+      } else {
+        setNotification({
+          type: "error",
+          message: res.data?.detail || "Failed to update gateway credentials.",
+        });
+      }
+    } catch (err: any) {
       setNotification({
-        type: "success",
-        message: `Gateway ${editingGateway.provider_name} settings updated successfully!`,
+        type: "error",
+        message: err.response?.data?.detail || "Error saving gateway settings.",
       });
-      setEditingGateway(null);
     } finally {
       setSavingEdit(false);
       setTimeout(() => setNotification(null), 5000);
@@ -516,9 +526,9 @@ export default function BankGatewaysPage() {
             </div>
             <p className="mt-1 text-sm font-medium text-slate-500">
               Live multi-node payout switcher connected to{" "}
-              <span className="font-bold text-purple-600">Utkal Digital API</span> (Primary Node),{" "}
-              <span className="font-bold text-emerald-600">WowPe API</span>, and{" "}
-              <span className="font-bold text-sky-600">BulkPe API</span>.
+              <span className="font-bold text-emerald-600">UrbanRupee API</span> (Priority 1),{" "}
+              <span className="font-bold text-purple-600">Utkal Digital API</span> (Priority 2), and{" "}
+              <span className="font-bold text-sky-600">BulkPe API</span> (Priority 3).
             </p>
           </div>
         </div>
@@ -582,7 +592,117 @@ export default function BankGatewaysPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Utkal Digital Gateway Card (Priority 1) */}
+          {/* 1. UrbanRupee Gateway Card (Priority 1 Primary) */}
+          <div
+            className={`relative rounded-2xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-sm ${
+              activePrimary === "URBANRUPEE"
+                ? "bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/30 border-emerald-500 shadow-md ring-4 ring-emerald-500/10"
+                : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-md"
+            }`}
+            onClick={() => handleSwitchPrimary("URBANRUPEE")}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="h-12 w-12 rounded-xl bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center font-black text-emerald-700 text-xl font-mono shadow-xs">
+                  UR
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-slate-900">UrbanRupee Payout API</h3>
+                    {activePrimary === "URBANRUPEE" && (
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-600 text-white flex items-center gap-1 shadow-xs">
+                        <Zap className="h-3 w-3 fill-white" /> PRIMARY ACTIVE
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs font-medium text-slate-500 mt-0.5 font-mono">
+                    Merchant: UR6877
+                  </p>
+                </div>
+              </div>
+
+              {/* Dedicated Refresh Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  refreshSingleBalance("URBANRUPEE");
+                }}
+                disabled={refreshingProvider === "URBANRUPEE"}
+                title="Call UrbanRupee Live Balance API"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-all cursor-pointer shadow-2xs"
+              >
+                <RefreshCw className={`h-3 w-3 ${refreshingProvider === "URBANRUPEE" ? "animate-spin text-emerald-600" : "text-emerald-700"}`} />
+                {refreshingProvider === "URBANRUPEE" ? "Checking..." : "Refresh Balance"}
+              </button>
+            </div>
+
+            {/* Live Data Grid */}
+            <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 relative">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live Balance</span>
+                  {balances.URBANRUPEE?.latency_ms && (
+                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded font-bold">
+                      {balances.URBANRUPEE.latency_ms}ms
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className="text-2xl font-black text-emerald-600 font-mono">
+                    ₹{Number(balances.URBANRUPEE?.avail_balance ?? balances.URBANRUPEE?.balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </p>
+                  {refreshingProvider === "URBANRUPEE" && (
+                    <span className="text-[10px] text-emerald-600 font-bold animate-pulse">Syncing...</span>
+                  )}
+                </div>
+                <div className="text-[10px] font-mono text-slate-500 mt-1 truncate">
+                  Status: <strong className="text-slate-700">{balances.URBANRUPEE?.message || "Live API Node Online"}</strong>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live API Node</span>
+                  <p className="text-xs font-bold text-slate-800 font-mono truncate mt-1">payout.urbanrupee.in</p>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                  <span>{balances.URBANRUPEE?.checked_at ? `Checked: ${balances.URBANRUPEE.checked_at}` : "Live Connected"}</span>
+                  <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Node
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <button
+                type="button"
+                disabled={activePrimary === "URBANRUPEE" || switching}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSwitchPrimary("URBANRUPEE");
+                }}
+                className={`w-full py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  activePrimary === "URBANRUPEE"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 cursor-default"
+                    : "bg-white hover:bg-emerald-600 hover:text-white text-slate-700 border-2 border-slate-200 hover:border-emerald-600"
+                }`}
+              >
+                {activePrimary === "URBANRUPEE" ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" /> Active Primary Gateway (Priority #1)
+                  </>
+                ) : (
+                  <>
+                    <ArrowLeftRight className="h-4 w-4" /> Switch to UrbanRupee Primary
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Utkal Digital Gateway Card (Priority 2 Secondary) */}
           <div
             className={`relative rounded-2xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-sm ${
               activePrimary === "UTKALDIGITAL"
@@ -594,7 +714,7 @@ export default function BankGatewaysPage() {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3.5">
                 <div className="h-12 w-12 rounded-xl bg-purple-50 border-2 border-purple-200 flex items-center justify-center font-black text-purple-700 text-xl font-mono shadow-xs">
-                  U
+                  UD
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -611,7 +731,7 @@ export default function BankGatewaysPage() {
                 </div>
               </div>
 
-              {/* Dedicated Refresh Button inside Card Header */}
+              {/* Dedicated Refresh Button */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -623,7 +743,7 @@ export default function BankGatewaysPage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-all cursor-pointer shadow-2xs"
               >
                 <RefreshCw className={`h-3 w-3 ${refreshingProvider === "UTKALDIGITAL" ? "animate-spin text-purple-600" : "text-purple-700"}`} />
-                {refreshingProvider === "UTKALDIGITAL" ? "Checking API..." : "Refresh Balance"}
+                {refreshingProvider === "UTKALDIGITAL" ? "Checking..." : "Refresh Balance"}
               </button>
             </div>
 
@@ -665,7 +785,7 @@ export default function BankGatewaysPage() {
               </div>
             </div>
 
-            {/* Additional Sub-balances from Utkal Response */}
+            {/* Sub-balances */}
             {balances.UTKALDIGITAL && (
               <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] font-mono p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
                 <div className="p-1">
@@ -699,7 +819,7 @@ export default function BankGatewaysPage() {
               >
                 {activePrimary === "UTKALDIGITAL" ? (
                   <>
-                    <CheckCircle2 className="h-4 w-4" /> Active Primary Gateway
+                    <CheckCircle2 className="h-4 w-4" /> Active Primary Gateway (Priority #2)
                   </>
                 ) : (
                   <>
@@ -710,135 +830,7 @@ export default function BankGatewaysPage() {
             </div>
           </div>
 
-          {/* WowPe Gateway Card */}
-          <div
-            className={`relative rounded-2xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-sm ${
-              activePrimary === "WOWPE"
-                ? "bg-gradient-to-br from-emerald-50/60 via-white to-emerald-50/30 border-emerald-500 shadow-md ring-4 ring-emerald-500/10"
-                : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-md"
-            }`}
-            onClick={() => handleSwitchPrimary("WOWPE")}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="h-12 w-12 rounded-xl bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center font-black text-emerald-700 text-xl font-mono shadow-xs">
-                  W
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-black text-slate-900">WowPe Payout API</h3>
-                    {activePrimary === "WOWPE" && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-600 text-white flex items-center gap-1 shadow-xs">
-                        <Zap className="h-3 w-3 fill-white" /> PRIMARY ACTIVE
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5 font-mono">
-                    Client: b206347b-3b5f-4a6c-a18c-efebfef348f8
-                  </p>
-                </div>
-              </div>
-
-              {/* Dedicated Refresh Button inside Card Header */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  refreshSingleBalance("WOWPE");
-                }}
-                disabled={refreshingProvider === "WOWPE"}
-                title="Call WowPe Live Balance API"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-all cursor-pointer shadow-2xs"
-              >
-                <RefreshCw className={`h-3 w-3 ${refreshingProvider === "WOWPE" ? "animate-spin text-emerald-600" : "text-emerald-700"}`} />
-                {refreshingProvider === "WOWPE" ? "Checking API..." : "Refresh Balance"}
-              </button>
-            </div>
-
-            {/* Live Data Grid */}
-            <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 relative">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live Account Balance</span>
-                  {balances.WOWPE?.latency_ms && (
-                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded font-bold">
-                      {balances.WOWPE.latency_ms}ms
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <p className="text-2xl font-black text-emerald-600 font-mono">
-                    ₹{Number(balances.WOWPE?.balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </p>
-                  {refreshingProvider === "WOWPE" && (
-                    <span className="text-[10px] text-emerald-600 font-bold animate-pulse">Syncing...</span>
-                  )}
-                </div>
-                <div className="text-[10px] font-mono text-slate-500 mt-1 truncate">
-                  Status: <strong className="text-slate-700">{balances.WOWPE?.message || "Connected to api.wowpe.in"}</strong>
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live API Node</span>
-                  <p className="text-xs font-bold text-slate-800 font-mono truncate mt-1">api.wowpe.in/payout</p>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-500">
-                  <span>{balances.WOWPE?.checked_at ? `Checked: ${balances.WOWPE.checked_at}` : "Live Connected"}</span>
-                  <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Node
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Sub-balances from WowPe Response */}
-            {balances.WOWPE && (
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px] font-mono p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                <div className="p-1">
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Current Acc</span>
-                  <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.WOWPE.currentAccBalance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                </div>
-                <div className="p-1 border-x border-slate-200/60">
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Payin Bal</span>
-                  <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.WOWPE.payinBalane || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                </div>
-                <div className="p-1">
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Fee Bal</span>
-                  <strong className="text-slate-800 text-xs mt-0.5 block">₹{Number(balances.WOWPE.feeBalance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-4">
-              <button
-                type="button"
-                disabled={activePrimary === "WOWPE" || switching}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSwitchPrimary("WOWPE");
-                }}
-                className={`w-full py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  activePrimary === "WOWPE"
-                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 cursor-default"
-                    : "bg-white hover:bg-emerald-600 hover:text-white text-slate-700 border-2 border-slate-200 hover:border-emerald-600"
-                }`}
-              >
-                {activePrimary === "WOWPE" ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" /> Active Primary Gateway
-                  </>
-                ) : (
-                  <>
-                    <ArrowLeftRight className="h-4 w-4" /> Switch to WowPe Primary
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* BulkPe Gateway Card */}
+          {/* 3. BulkPe Gateway Card (Priority 3 Standby) */}
           <div
             className={`relative rounded-2xl p-6 border-2 transition-all duration-200 cursor-pointer shadow-sm ${
               activePrimary === "BULKPE"
@@ -850,7 +842,7 @@ export default function BankGatewaysPage() {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3.5">
                 <div className="h-12 w-12 rounded-xl bg-sky-50 border-2 border-sky-200 flex items-center justify-center font-black text-sky-700 text-xl font-mono shadow-xs">
-                  B
+                  BP
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -867,7 +859,7 @@ export default function BankGatewaysPage() {
                 </div>
               </div>
 
-              {/* Dedicated Refresh Button inside BulkPe Header */}
+              {/* Dedicated Refresh Button */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -922,7 +914,7 @@ export default function BankGatewaysPage() {
               >
                 {activePrimary === "BULKPE" ? (
                   <>
-                    <CheckCircle2 className="h-4 w-4" /> Active Primary Gateway
+                    <CheckCircle2 className="h-4 w-4" /> Active Primary Gateway (Priority #3)
                   </>
                 ) : (
                   <>
@@ -1000,7 +992,7 @@ export default function BankGatewaysPage() {
                       <div className="flex items-center gap-3">
                         <div
                           className={`h-9 w-9 rounded-lg flex items-center justify-center font-black text-xs border ${
-                            g.provider_code === "WOWPE"
+                            g.provider_code === "URBANRUPEE"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : g.provider_code === "UTKALDIGITAL"
                               ? "bg-purple-50 text-purple-700 border-purple-200"
@@ -1036,13 +1028,13 @@ export default function BankGatewaysPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 font-mono text-[11px] text-slate-500">
-                      <div>{g.provider_code === "UTKALDIGITAL" ? "Authcode:" : "User:"} <span className="text-slate-800 font-semibold">{g.user_id}</span></div>
-                      <div>{g.provider_code === "UTKALDIGITAL" ? "Mpin:" : "Secret:"} <span className="text-slate-800 font-semibold">{g.masked_secret || "••••••••••••"}</span></div>
+                      <div>{g.provider_code === "UTKALDIGITAL" ? "Authcode:" : "Merchant/User:"} <span className="text-slate-800 font-semibold">{g.user_id || g.merchant_id}</span></div>
+                      <div>{g.provider_code === "UTKALDIGITAL" ? "Mpin:" : "Secret/Token:"} <span className="text-slate-800 font-semibold">{g.masked_secret || "••••••••••••"}</span></div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5">
                         <span className={`font-mono font-black text-sm ${
-                          g.provider_code === "WOWPE"
+                          g.provider_code === "URBANRUPEE"
                             ? "text-emerald-600"
                             : g.provider_code === "UTKALDIGITAL"
                             ? "text-purple-600"
@@ -1099,121 +1091,144 @@ export default function BankGatewaysPage() {
 
       {/* Edit Gateway Modal */}
       {editingGateway && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-scale-up">
+            <div className="p-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600">
-                  <Settings2 className="h-5 w-5" />
+                <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-bold text-indigo-600 text-sm">
+                  {editingGateway.provider_code.substring(0, 2)}
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">Configure {editingGateway.provider_name}</h3>
-                  <p className="text-xs text-slate-500 font-mono">Provider Code: {editingGateway.provider_code}</p>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Configure {editingGateway.provider_name}
+                  </h3>
+                  <span className="text-xs font-mono text-slate-500">
+                    Provider Code: {editingGateway.provider_code}
+                  </span>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setEditingGateway(null)}
-                className="text-slate-400 hover:text-slate-700 text-sm font-bold p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold p-1 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <form onSubmit={handleSaveEditGateway} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase font-mono mb-1">API Base Endpoint</label>
-                <input
-                  type="text"
-                  value={editFormData.api_endpoint}
-                  onChange={(e) => setEditFormData({ ...editFormData, api_endpoint: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs font-mono focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
-                />
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Live API Base Endpoint
+                </label>
+                <div className="relative">
+                  <Globe className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.api_endpoint}
+                    onChange={(e) => setEditFormData({ ...editFormData, api_endpoint: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    placeholder="https://api.gateway.in/payout"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase font-mono mb-1">
-                    {editingGateway.provider_code === "UTKALDIGITAL" ? "Authcode" : "User ID / Client ID"}
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    User / Client ID
                   </label>
                   <input
                     type="text"
                     value={editFormData.user_id}
                     onChange={(e) => setEditFormData({ ...editFormData, user_id: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs font-mono focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    placeholder="CLIENT_OR_AUTH_ID"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase font-mono mb-1">
-                    {editingGateway.provider_code === "UTKALDIGITAL" ? "Bank / Service Code" : "Merchant / Node ID"}
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Merchant Code
                   </label>
                   <input
                     type="text"
                     value={editFormData.merchant_id}
                     onChange={(e) => setEditFormData({ ...editFormData, merchant_id: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs font-mono focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    placeholder="MERCHANT_CODE"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase font-mono mb-1">
-                  {editingGateway.provider_code === "UTKALDIGITAL"
-                    ? "Mpin (Leave blank to keep existing)"
-                    : "API Secret Key (Leave blank to keep existing)"}
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Update API Secret / Token / MPIN (Optional)
                 </label>
-                <input
-                  type="password"
-                  placeholder="••••••••••••••••••••••••"
-                  value={editFormData.api_secret}
-                  onChange={(e) => setEditFormData({ ...editFormData, api_secret: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs font-mono focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
-                />
+                <div className="relative">
+                  <Key className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    value={editFormData.api_secret}
+                    onChange={(e) => setEditFormData({ ...editFormData, api_secret: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    placeholder="Leave blank to keep existing secret"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase font-mono mb-1">Priority Order</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Priority Order
+                  </label>
                   <input
                     type="number"
                     min={1}
                     max={10}
                     value={editFormData.priority_order}
-                    onChange={(e) => setEditFormData({ ...editFormData, priority_order: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs font-mono focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                    onChange={(e) => setEditFormData({ ...editFormData, priority_order: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   />
                 </div>
-                <div className="flex items-center pt-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
+                <div className="flex items-center gap-3 pt-6">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={editFormData.is_active}
                       onChange={(e) => setEditFormData({ ...editFormData, is_active: e.target.checked })}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="h-4 w-4 text-indigo-600 rounded focus:ring-indigo-500 border-slate-300 cursor-pointer"
                     />
-                    <span className="text-xs font-bold text-slate-800">Active & Enabled</span>
+                    Enable Gateway Node
                   </label>
                 </div>
               </div>
-            </div>
 
-            <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setEditingGateway(null)}
-                className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={savingEdit}
-                onClick={handleSaveEdit}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer"
-              >
-                {savingEdit ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                Save Changes
-              </button>
-            </div>
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5 text-xs text-slate-500">
+                <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+                <span>
+                  Credentials are encrypted and stored in the enterprise vault. Changes take effect on next API dispatch.
+                </span>
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingGateway(null)}
+                  className="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-indigo-600/20 cursor-pointer flex items-center gap-2"
+                >
+                  {savingEdit ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  Save Credentials
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
