@@ -4004,6 +4004,7 @@ class AdminFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "admin_favorite_menu"
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    user_ref_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     menu_href: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     menu_label: Mapped[str] = mapped_column(String(150), nullable=False)
     menu_category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -4015,6 +4016,28 @@ class AdminFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
         Index("ix_admin_fav_user_tenant", "tenant_id", "user_id", "is_active", "is_deleted"),
         {"extend_existing": True}
     )
+
+
+class UserFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "user_favorite_menu"
+
+    user_ref_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    user_role: Mapped[str] = mapped_column(String(50), default="RETAILER", nullable=False)
+    menu_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    menu_href: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    menu_label: Mapped[str] = mapped_column(String(150), nullable=False)
+    menu_category: Mapped[Optional[str]] = mapped_column(String(100), default="General", nullable=True)
+    icon_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    badge_text: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        Index("ix_user_fav_tenant_user_ref_orm", "tenant_id", "user_ref_id", "is_active", "is_deleted"),
+        {"extend_existing": True}
+    )
+
 
 
 class AdminServiceVendorWalletModel(BaseEntity):

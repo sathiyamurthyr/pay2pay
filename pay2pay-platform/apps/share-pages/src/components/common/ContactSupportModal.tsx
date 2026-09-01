@@ -83,7 +83,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
           // Fallback dynamic structure if server offline
           setData({
             company: {
-              company_name: "Pay2Pay Financial Technologies Pvt. Ltd.",
+              company_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
               company_logo_url: "/logo.png",
               support_email: "support@pay2pay.com",
               support_phone: "+91 1800 292 982",
@@ -228,7 +228,7 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-blue-400" />
                         <h3 className="text-sm font-extrabold text-white">
-                          {company?.company_name || "Pay2Pay Financial Technologies Pvt. Ltd."}
+                          {company?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED"}
                         </h3>
                       </div>
                       <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-400">

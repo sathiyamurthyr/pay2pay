@@ -48,18 +48,17 @@ class PayoutCallbackService:
             "path": "/api/v1/payout/callback",
             "description": "Auto-detects payload format across all integrated providers."
         },
+        "urbanrupee": {
+            "name": "UrbanRupee Payout Gateway",
+            "path": "/api/v1/payout/callback/urbanrupee",
+            "webhook_path": "/api/v1/payout/webhook/urbanrupee",
+            "description": "UrbanRupee official instant payout webhook callback listener."
+        },
         "bulkpe": {
             "name": "BulkPe Payout Gateway",
             "path": "/api/v1/payout/callback/bulkpe",
             "webhook_path": "/api/v1/payout/webhook/bulkpe",
             "description": "BulkPe webhook receiver for real-time IMPS/NEFT/RTGS settlement updates."
-        },
-        "wowpe": {
-            "name": "WowPe Payout Gateway",
-            "path": "/api/v1/payout/callback/wowpe",
-            "webhook_path": "/api/v1/payout/webhook/wowpe",
-            "legacy_path": "/api/PayoutAPI/Payoutnotify",
-            "description": "WowPe official instant payout webhook callback listener."
         },
         "cashfree": {
             "name": "Cashfree Payouts",
@@ -171,8 +170,24 @@ class PayoutCallbackService:
         utr = None
         message = None
 
-        # 1. BulkPe Format
-        if v == "bulkpe" or "data" in merged and ("vendor_tx_id" in merged.get("data", {}) or "bulkpe" in str(merged).lower()):
+        # 1. UrbanRupee Format
+        if v in ("urbanrupee", "urban_rupee", "ur") or "client_txn_id" in merged or ("transaction_id" in merged and "orderid" in merged):
+            ref_id = merged.get("client_txn_id") or merged.get("orderid") or merged.get("order_id")
+            vendor_tx_id = merged.get("transaction_id") or merged.get("id")
+            raw_st = str(merged.get("current_status") or merged.get("status") or "").lower()
+            if raw_st == "success":
+                raw_status = "SUCCESS"
+            elif raw_st in ("failed", "failure", "rejected"):
+                raw_status = "FAILED"
+            elif raw_st in ("pending", "processing", "initiated", "accepted"):
+                raw_status = "PENDING"
+            else:
+                raw_status = merged.get("status")
+            utr = merged.get("utr")
+            message = merged.get("message")
+
+        # 2. BulkPe Format
+        elif v == "bulkpe" or "data" in merged and ("vendor_tx_id" in merged.get("data", {}) or "bulkpe" in str(merged).lower()):
             data = merged.get("data", {}) if isinstance(merged.get("data"), dict) else {}
             vendor_tx_id = merged.get("vendor_tx_id") or data.get("vendor_tx_id") or merged.get("reference_id")
             ref_id = merged.get("client_order_id") or merged.get("order_id") or data.get("reference_id") or merged.get("reference_number")
@@ -180,7 +195,7 @@ class PayoutCallbackService:
             utr = merged.get("utr") or data.get("utr") or merged.get("bank_reference")
             message = merged.get("message") or data.get("message")
 
-        # 2. WowPe Format
+        # 3. WowPe Format (Legacy compatibility)
         elif v == "wowpe" or "statusCode" in merged or "clientOrderId" in merged:
             ref_id = merged.get("clientOrderId") or merged.get("client_order_id") or merged.get("orderId")
             vendor_tx_id = merged.get("orderId") or merged.get("order_id")

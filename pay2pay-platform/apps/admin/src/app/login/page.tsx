@@ -433,7 +433,7 @@ export default function AdminLoginPage() {
 
         {/* ── Enterprise Footer / Legal ── */}
         <footer className="w-full mt-6 text-center text-[11px] 2xl:text-xs text-slate-500 space-y-1">
-          <p>© 2026 Pay2Pay Financial Technologies Ltd. All rights reserved.</p>
+          <p>© 2021 SUPER REX PRODUCTS PRIVATE LIMITED · Pay2Pay Admin Portal</p>
           <p className="text-slate-600 text-[10px]">
             Restricted System · Unauthorized access attempts are monitored and logged.
           </p>

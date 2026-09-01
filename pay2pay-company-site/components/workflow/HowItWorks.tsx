@@ -9,30 +9,30 @@ import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
 const simplifiedSteps = [
   {
     number: "01",
-    title: "Register",
-    subtitle: "Partner Onboarding",
-    description: "Submit online application with basic mobile and business details in minutes.",
+    title: "Register Counter",
+    subtitle: "Digital Onboarding",
+    description: "Submit online application with verified mobile number, Aadhaar and shop details in minutes.",
     icon: FilePlus,
   },
   {
     number: "02",
-    title: "Verify",
-    subtitle: "Paperless KYC",
-    description: "Automated Aadhaar, PAN, and penny-drop bank account validation within 24 hours.",
+    title: "Automated KYC",
+    subtitle: "Paperless Verification",
+    description: "Instant Aadhaar OTP, PAN verification, and bank penny-drop validation with automated compliance checks.",
     icon: FileCheck,
   },
   {
     number: "03",
-    title: "Activate",
-    subtitle: "Virtual Accounts",
-    description: "Auto-provision dedicated virtual accounts for 24x7 wallet top-ups via IMPS/NEFT/UPI.",
+    title: "Virtual Account Setup",
+    subtitle: "Instant VAN Top-Up",
+    description: "Dedicated Virtual Account Number (VAN) auto-provisioned for 24x7 automated wallet funding.",
     icon: Wallet2,
   },
   {
     number: "04",
-    title: "Transact",
-    subtitle: "Instant Settlement",
-    description: "Process DMT, AEPS, and BBPS transactions with instant commission crediting to your wallet.",
+    title: "Transact & Earn",
+    subtitle: "Real-Time Margin",
+    description: "Process DMT, AEPS, and BBPS transactions with instant commission crediting to your merchant balance.",
     icon: CreditCard,
   },
 ];
@@ -43,10 +43,11 @@ export const HowItWorks: React.FC = () => {
       <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24">
         {/* Section Header */}
         <Pay2PayPageHeader
-          eyebrow="Workflow Preview"
+          eyebrow="Structured Lifecycle"
           titlePrefix="How"
           highlightedTitle="Pay2Pay Works"
-          description="From partner onboarding to secure transaction processing, Pay2Pay provides a structured digital workflow."
+          highlightColor="blue"
+          description="From paperless merchant onboarding to real-time transaction clearing, Pay2Pay provides an automated digital flow."
         />
 
         {/* Visual & Summary Card */}
@@ -64,9 +65,9 @@ export const HowItWorks: React.FC = () => {
                 />
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none rounded-2xl" />
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700/80">
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/85 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-700/80 shadow-lg">
                 <span className="text-blue-400 font-bold">Fast-Track Onboarding</span>
-                <span>Live in 24 Hours</span>
+                <span className="text-slate-400">Live in 24 Hours</span>
               </div>
             </div>
 
@@ -137,8 +138,10 @@ export const HowItWorks: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center text-xs text-slate-500 font-medium">
-                  <span className="group-hover:text-slate-300 transition-colors">Step 0{step.number} Completion →</span>
+                <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center text-xs text-slate-400 font-medium">
+                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                    <CheckCircle2 size={13} /> 100% Automated
+                  </span>
                 </div>
               </div>
             );

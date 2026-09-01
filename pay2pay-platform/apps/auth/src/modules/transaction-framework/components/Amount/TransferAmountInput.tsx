@@ -74,18 +74,29 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
     <Box sx={{ width: "100%" }}>
       {/* Header Label + Shortcut Pill */}
       <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-        <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        <Typography
+          sx={{
+            fontWeight: 900,
+            fontSize: "11px",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
           TRANSFER AMOUNT
         </Typography>
 
         <Chip
-          icon={<KeyboardIcon sx={{ "&&": { fontSize: 13, color: "#60A5FA" } }} />}
+          icon={<KeyboardIcon sx={{ "&&": { fontSize: 13, color: "#FBBF24" } }} />}
           label="Ctrl+Shift+A"
           size="small"
           sx={{
-            bgcolor: "rgba(255, 255, 255, 0.08)",
-            color: "rgba(255, 255, 255, 0.8)",
-            fontWeight: 700,
+            bgcolor: "rgba(245, 158, 11, 0.12)",
+            color: "#FDE68A",
+            border: "1px solid rgba(245, 158, 11, 0.25)",
+            fontWeight: 800,
             fontSize: "10px",
             height: 22,
           }}
@@ -106,7 +117,7 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
           input: {
             startAdornment: (
               <InputAdornment position="start" sx={{ mr: 1 }}>
-                <Typography sx={{ color: "#2563EB", fontWeight: 900, fontSize: "32px" }}>
+                <Typography sx={{ color: "#F59E0B", fontWeight: 900, fontSize: "32px", textShadow: "0 0 10px rgba(245, 158, 11, 0.4)" }}>
                   ₹
                 </Typography>
               </InputAdornment>
@@ -117,17 +128,18 @@ export const TransferAmountInput: React.FC<TransferAmountInputProps> = ({
               fontWeight: 700,
               color: "#FFFFFF",
               borderRadius: "14px",
-              bgcolor: "rgba(8, 17, 31, 0.90)",
+              bgcolor: "rgba(8, 11, 17, 0.92)",
+              backdropFilter: "blur(12px)",
               px: 2,
               display: "flex",
               alignItems: "center",
-              "& fieldset": { borderColor: "rgba(255, 255, 255, 0.15)", borderWidth: "1px" },
-              "&:hover fieldset": { borderColor: "#3B82F6" },
+              "& fieldset": { borderColor: "rgba(245, 158, 11, 0.3)", borderWidth: "1px" },
+              "&:hover fieldset": { borderColor: "#F59E0B" },
               "&.Mui-focused": {
-                boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.45)",
+                boxShadow: "0 0 24px rgba(245, 158, 11, 0.4), inset 0 0 8px rgba(245, 158, 11, 0.1)",
                 borderRadius: "14px",
               },
-              "&.Mui-focused fieldset": { borderColor: "#2563EB", borderWidth: "2px" },
+              "&.Mui-focused fieldset": { borderColor: "#F59E0B", borderWidth: "2px" },
               "& input": {
                 textAlign: "left", // Left Aligned
                 color: "#FFFFFF",

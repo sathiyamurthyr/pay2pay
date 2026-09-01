@@ -2,8 +2,8 @@ import { SiteConfig } from "@/types/site";
 
 export const siteConfig: SiteConfig = {
   company: {
-    legalName: "Pay2Pay Financial Technologies Private Limited",
-    brandName: "PAY2PAY",
+    legalName: "SUPER REX PRODUCTS PRIVATE LIMITED",
+    brandName: "Pay2Pay",
     tagline: "Enterprise Digital Payments & Retailer Services Platform",
     cin: "U72900TN2024PTC168920",
     gstin: "33AAACP1234F1Z5",
@@ -358,7 +358,7 @@ export const siteConfig: SiteConfig = {
         "Real-Time Virtual Account Wallet",
       ],
       ctaLabel: "Retailer Login",
-      getUrl: () => "/retailer/login",
+      getUrl: () => "https://retailer.pay2pay.in/retailer/login",
       highlighted: true,
     },
     {
@@ -465,7 +465,7 @@ export const siteConfig: SiteConfig = {
         {
           heading: "5. Limitation of Liability",
           content:
-            "In no event shall Pay2Pay Financial Technologies Private Limited be liable for indirect, incidental, or consequential damages arising from the use or inability to use the platform services.",
+            "In no event shall SUPER REX PRODUCTS PRIVATE LIMITED be liable for indirect, incidental, or consequential damages arising from the use or inability to use the platform services.",
         },
       ],
     },

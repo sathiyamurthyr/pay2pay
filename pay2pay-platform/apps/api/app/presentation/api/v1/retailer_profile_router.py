@@ -632,7 +632,7 @@ async def get_retailer_profile(
 
     # 14. Build Dynamic COMPANY Contact & Support Info
     company_data = {
-        "company_name": "Pay2Pay Financial Technologies Private Limited",
+        "company_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
         "brand_name": "Pay2Pay Enterprise Network",
         "cin": "U72900TN2024PTC168920",
         "gstin": "33AAACP1234F1Z5",

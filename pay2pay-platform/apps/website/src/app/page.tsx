@@ -28,7 +28,7 @@ export default function WebsiteHomePage() {
       </main>
 
       <footer className="max-w-7xl mx-auto w-full text-center text-xs text-slate-500 py-4 border-t border-slate-900">
-        © 2026 Pay2Pay Financial Technologies Pvt. Ltd. All rights reserved.
+        © 2021 SUPER REX PRODUCTS PRIVATE LIMITED · Pay2Pay Retailer Portal
       </footer>
     </div>
   );

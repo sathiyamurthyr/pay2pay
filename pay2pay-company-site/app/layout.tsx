@@ -24,9 +24,9 @@ export const metadata: Metadata = {
     "Virtual Accounts",
     "Enterprise Payouts",
   ],
-  authors: [{ name: "Pay2Pay Financial Technologies Private Limited" }],
-  creator: "Pay2Pay Financial Technologies",
-  publisher: "Pay2Pay Financial Technologies",
+  authors: [{ name: "SUPER REX PRODUCTS PRIVATE LIMITED" }],
+  creator: "Pay2Pay",
+  publisher: "SUPER REX PRODUCTS PRIVATE LIMITED",
   robots: {
     index: true,
     follow: true,

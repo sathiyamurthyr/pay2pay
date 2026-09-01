@@ -87,7 +87,8 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
 
   inFlightHeaderWalletPromise = (async () => {
     try {
-      let activeRetailerId = "";
+      let userRefId: any = null;
+      let userTypeRefId: any = 2;
       if (typeof window !== "undefined") {
         try {
           const userStr =
@@ -97,36 +98,31 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
             localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
-            const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
-            if (["SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN"].includes(role)) {
-              return;
-            }
-            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || "";
+            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
+            userTypeRefId = u.user_type_ref_id || 2;
           }
         } catch {}
-        if (!activeRetailerId) {
-          activeRetailerId =
-            localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            localStorage.getItem("pay2pay_reg_id") ||
-            "";
-        }
       }
-      const queryParam = activeRetailerId ? `?retailer_id=${activeRetailerId}` : "";
+
+      const qParams = new URLSearchParams();
+      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
+      if (userRefId) {
+        qParams.set("user_ref_id", String(userRefId));
+      }
+
       const res = await fetch(
-        `/api/v1/payout/dashboard/retailer/header-wallet${queryParam}`
+        `/api/v1/payout/dashboard/retailer/header-wallet?${qParams.toString()}`
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       cachedHeaderWalletData = data;
       lastHeaderWalletFetchTime = Date.now();
 
-      // Automatically sync into useRetailerStore so entire layout and pages are live
+      // Sync into useRetailerStore (in-memory cache only, no localStorage)
       if (typeof window !== "undefined") {
         const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
         const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
         const rInfo = data.retailer_info || data;
-        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
         if (rInfo.retailer_code || data.retailer_code) {
           localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code);
         }
@@ -166,6 +162,65 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const { openContactSupportModal } = useContactSupportModal();
   const { lockSession } = useSessionSecurity();
 
+  // ── P0 Session Security Check ──────────────────────────────
+  const checkSessionToken = useCallback(() => {
+    if (typeof document === "undefined") return false;
+    const cookies = document.cookie.split("; ");
+    const tokenCookie = cookies.find((row) =>
+      row.startsWith("p2p_access_token=") ||
+      row.startsWith("pay2pay_access_token=") ||
+      row.startsWith("pay2pay_auth_token=")
+    );
+    if (tokenCookie && tokenCookie.split("=")[1]?.trim().length > 10) {
+      return true;
+    }
+    if (typeof localStorage !== "undefined") {
+      const lsToken =
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("access_token");
+      if (lsToken && lsToken.trim().length > 10) return true;
+    }
+    return false;
+  }, []);
+
+  const [isAuthenticatedSession, setIsAuthenticatedSession] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return checkSessionToken();
+  });
+
+  const verifyAndEnforceSession = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const isValid = checkSessionToken();
+    if (!isValid) {
+      setIsAuthenticatedSession(false);
+      const isAuthPage =
+        pathname.includes("/login") ||
+        pathname.includes("/register") ||
+        pathname.includes("/reset-password");
+      if (!isAuthPage) {
+        window.location.replace(`/retailer/login?redirect=${encodeURIComponent(pathname)}`);
+      }
+    } else {
+      setIsAuthenticatedSession(true);
+    }
+  }, [pathname, checkSessionToken]);
+
+  useEffect(() => {
+    verifyAndEnforceSession();
+
+    const handlePageShow = () => {
+      verifyAndEnforceSession();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("focus", handlePageShow);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("focus", handlePageShow);
+    };
+  }, [verifyAndEnforceSession]);
+
   const [lockedModalItem, setLockedModalItem] = useState<{ label: string; path: string } | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
@@ -195,6 +250,16 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const hasInitializedRef = useRef(false);
 
   const fetchProfileDetails = useCallback(async (force = false) => {
+    if (typeof window !== "undefined") {
+      const token =
+        localStorage.getItem("p2p_access_token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("pay2pay_access_token") ||
+        localStorage.getItem("pay2pay_auth_token") ||
+        localStorage.getItem("retailer_token");
+      if (!token) return;
+    }
+
     setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
     try {
       const data = await getCachedHeaderWalletData(force);
@@ -202,16 +267,31 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       if (rInfo.approval_status && typeof setApprovalStatus === "function") {
         setApprovalStatus(rInfo.approval_status as any);
       }
-      const activeCode = rInfo.retailer_code || rInfo.retailer_id || rInfo.registration_id || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_mobile") || "" : "");
+      const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
+      let resolvedCode = rInfo.retailer_code && !isUuid(rInfo.retailer_code) ? rInfo.retailer_code : null;
+      if (!resolvedCode) {
+        resolvedCode = rInfo.retailer_id && !isUuid(rInfo.retailer_id) ? rInfo.retailer_id : null;
+      }
+      if (!resolvedCode && typeof window !== "undefined") {
+        const lsCode = localStorage.getItem("p2p_retailer_code") || localStorage.getItem("retailer_code");
+        if (lsCode && !isUuid(lsCode)) resolvedCode = lsCode;
+      }
+      if (!resolvedCode) {
+        resolvedCode = "RET-ACTIVE";
+      }
+
+      const storedOwner = typeof window !== "undefined" ? (localStorage.getItem("p2p_user_name") || localStorage.getItem("p2p_owner_name") || localStorage.getItem("pay2pay_user_name")) : "";
+      const storedStore = typeof window !== "undefined" ? (localStorage.getItem("p2p_store_name") || localStorage.getItem("pay2pay_store_name")) : "";
+
       setProfileDetails((prev) => ({
         ...prev,
-        owner_name: rInfo.owner_name || "",
-        retailer_name: rInfo.retailer_name || rInfo.company_name || rInfo.store_name || "Retailer Store",
-        retailer_code: rInfo.retailer_code || activeCode || "",
-        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || (activeCode ? `/api/v1/retailer/profile/photo-image?retailer_id=${encodeURIComponent(activeCode)}` : undefined),
+        owner_name: rInfo.owner_name || storedOwner || "Merchant Owner",
+        retailer_name: (rInfo.retailer_name && rInfo.retailer_name !== "Retailer Store") ? rInfo.retailer_name : (rInfo.company_name || rInfo.store_name || storedStore || "Merchant Store"),
+        retailer_code: resolvedCode,
+        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || `/api/v1/retailer/profile/photo-image?user_type_ref_id=2&user_ref_id=${userRefId}`,
         approval_status: rInfo.approval_status || "ACTIVE",
         kyc_status: rInfo.kyc_status || "VERIFIED",
-        location: rInfo.location || "",
+        location: rInfo.location || "India",
         last_login_at: data.quick_stats?.last_login_at || data.last_login_at || null,
         plan_name: rInfo.plan_name || "Merchant Portal",
         loading: false,
@@ -224,6 +304,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [setApprovalStatus]);
 
   useEffect(() => {
+    if (!isAuthenticatedSession) return;
     fetchProfileDetails(true);
     syncBalance();
 
@@ -249,7 +330,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => {
       window.removeEventListener("p2p_wallet_update", handleWalletUpdate);
     };
-  }, [fetchProfileDetails, syncBalance]);
+  }, [isAuthenticatedSession, fetchProfileDetails, syncBalance]);
 
   const formatLastLogin = (isoString?: string | null) => {
     if (!isoString) return "Not available";
@@ -410,19 +491,32 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
           <Box
-            component="img"
-            src="/branding/pay2pay-logo.png"
-            alt="PAY2PAY"
             sx={{
-              width: 48,
-              height: 48,
-              borderRadius: "10px",
-              objectFit: "cover",
-              border: "1.5px solid rgba(212, 175, 55, 0.4)",
-              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.4)",
+              width: 46,
+              height: 46,
+              borderRadius: "12px",
+              p: "3px",
+              bgcolor: "rgba(11, 15, 25, 0.9)",
+              border: "1.5px solid rgba(245, 158, 11, 0.4)",
+              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.5), 0 0 12px rgba(245, 158, 11, 0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               flexShrink: 0,
+              overflow: "hidden",
             }}
-          />
+          >
+            <Box
+              component="img"
+              src="/branding/pay2pay-logo.png"
+              alt="PAY2PAY"
+              sx={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
           {!isCollapsed && (
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="h6" sx={{ fontWeight: 900, color: "#F8FAFC", fontSize: "22px", lineHeight: 1.1, whiteSpace: "nowrap" }}>
@@ -792,6 +886,48 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const activeTheme = THEME_CONFIGS[kpiTheme] || THEME_CONFIGS["classic-blue"];
 
+  if (!isAuthenticatedSession && typeof window !== "undefined") {
+    const isAuthPage =
+      pathname.includes("/login") ||
+      pathname.includes("/register") ||
+      pathname.includes("/reset-password");
+    if (!isAuthPage) {
+      return (
+        <Box
+          sx={{
+            width: "100vw",
+            height: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "#0B0F19",
+            color: "#FFFFFF",
+            gap: 2,
+          }}
+        >
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              border: "3px solid rgba(59, 130, 246, 0.2)",
+              borderTopColor: "#3B82F6",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+              "@keyframes spin": {
+                "0%": { transform: "rotate(0deg)" },
+                "100%": { transform: "rotate(360deg)" },
+              },
+            }}
+          />
+          <Typography variant="body2" sx={{ fontWeight: 600, color: "#94A3B8" }}>
+            Verifying secure session...
+          </Typography>
+        </Box>
+      );
+    }
+  }
+
   return (
     <Box
       sx={{
@@ -819,10 +955,17 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease",
         }}
       >
-        <Toolbar sx={{ justifyContent: "space-between", px: { xs: 2, sm: 3 }, minHeight: "56px !important", height: 56 }}>
-          
+        <Toolbar
+          sx={{
+            justifyContent: "space-between",
+            px: { xs: 1, sm: 2, md: 3 },
+            minHeight: "56px !important",
+            height: 56,
+            gap: { xs: 0.5, sm: 1 },
+          }}
+        >
           {/* Left: Menu Toggle + Page Title + Search Input */}
-          <Stack direction="row" spacing={1.75} sx={{ alignItems: "center" }}>
+          <Stack direction="row" spacing={{ xs: 0.5, sm: 1.5 }} sx={{ alignItems: "center", minWidth: 0, flexShrink: 1 }}>
             <Tooltip title={desktopCollapsed ? "Expand Sidebar (260px)" : "Collapse Sidebar (72px)"}>
               <IconButton
                 edge="start"
@@ -830,15 +973,35 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 aria-label="toggle drawer"
                 onClick={handleDrawerToggle}
                 size="small"
-                sx={{ p: 0.75, color: "#60A5FA" }}
+                sx={{
+                  p: { xs: 0.5, sm: 0.75 },
+                  color: "#F59E0B",
+                  "&:hover": {
+                    backgroundColor: "rgba(245, 158, 11, 0.15)",
+                  },
+                }}
               >
-                {desktopCollapsed ? <MenuOpenIcon sx={{ fontSize: 24 }} /> : <MenuIcon sx={{ fontSize: 24 }} />}
+                {desktopCollapsed ? <MenuOpenIcon sx={{ fontSize: 22 }} /> : <MenuIcon sx={{ fontSize: 22 }} />}
               </IconButton>
             </Tooltip>
 
-            {/* Page Title */}
-            <Typography variant="h6" sx={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>
-              {activeMenuItem?.label || "Retailer Terminal"}
+            {/* Page Title with Premium Gold-Yellow Gradient */}
+            <Typography
+              variant="h6"
+              sx={{
+                fontSize: { xs: "15px", sm: "18px" },
+                fontWeight: 900,
+                background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 60%, #FBBF24 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                letterSpacing: "-0.3px",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: { xs: 80, sm: 160, md: "none" },
+              }}
+            >
+              {activeMenuItem?.label || "Dashboard"}
             </Typography>
 
             {/* Universal Search Input Bar */}
@@ -855,19 +1018,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 backgroundColor: "rgba(255, 255, 255, 0.05)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
                 cursor: "pointer",
-                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.25)" },
+                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(245, 158, 11, 0.4)" },
               }}
             >
-              <SearchIcon sx={{ color: "#60A5FA", fontSize: 18, mr: 0.75 }} />
+              <SearchIcon sx={{ color: "#F59E0B", fontSize: 18, mr: 0.75 }} />
               <Typography variant="caption" sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.70)", flex: 1, fontWeight: 700 }}>
                 Universal Search...
               </Typography>
-              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "rgba(255, 255, 255, 0.12)", color: "#FFFFFF" }} />
+              <Chip label="Ctrl+K" size="small" sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800, bgcolor: "rgba(245, 158, 11, 0.2)", color: "#FDE68A" }} />
             </Paper>
           </Stack>
 
-          {/* Right: Soundbox, Wallet Balance, Notifications, Profile Menu */}
-          <Stack direction="row" spacing={{ xs: 1, sm: 1.5 }} sx={{ alignItems: "center" }}>
+          {/* Right: Soundbox, Wallet Balance, Notifications, Theme, Profile */}
+          <Stack direction="row" spacing={{ xs: 0.5, sm: 1 }} sx={{ alignItems: "center", flexShrink: 0 }}>
             {/* Live Soundbox Toggle Button */}
             <Tooltip title="Live Soundbox Voice Alerts">
               <Button
@@ -888,27 +1051,25 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               </Button>
             </Tooltip>
 
-            {/* Prominent Wallet Balance Card Pill */}
+            {/* Compact Gold Glass Wallet Balance Indicator Pill */}
             <Paper
               elevation={0}
               sx={{
-                px: { xs: 1.4, sm: 2 },
-                py: 0.6,
-                borderRadius: "14px",
-                bgcolor: "rgba(15, 23, 42, 0.85)",
-                border: "1px solid rgba(59, 130, 246, 0.4)",
+                px: { xs: 0.8, sm: 1.5 },
+                py: 0.3,
+                borderRadius: "10px",
+                bgcolor: "rgba(15, 23, 42, 0.9)",
+                border: "1px solid rgba(245, 158, 11, 0.35)",
                 display: "flex",
                 alignItems: "center",
-                gap: { xs: 1, sm: 1.5 },
+                gap: { xs: 0.5, sm: 0.8 },
                 flexShrink: 0,
-                height: { xs: 44, sm: 46 },
-                boxShadow: "0 4px 14px rgba(37, 99, 235, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+                height: { xs: 32, sm: 38 },
+                boxShadow: "0 2px 10px rgba(0,0,0,0.4), 0 0 8px rgba(245, 158, 11, 0.12)",
                 transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
                 "&:hover": {
-                  bgcolor: "rgba(30, 58, 138, 0.35)",
-                  borderColor: "rgba(96, 165, 250, 0.7)",
-                  boxShadow: "0 6px 20px rgba(37, 99, 235, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
-                  transform: "translateY(-1px)",
+                  bgcolor: "rgba(24, 34, 53, 0.95)",
+                  borderColor: "rgba(245, 158, 11, 0.6)",
                 },
               }}
             >
@@ -919,63 +1080,47 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       window.location.href = "/retailer/wallet";
                     }
                   }}
-
                   sx={{
                     display: "flex",
                     alignItems: "center",
-                    gap: { xs: 1, sm: 1.5 },
+                    gap: { xs: 0.5, sm: 0.8 },
                     cursor: "pointer",
                   }}
                 >
                   <Box
                     sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "10px",
-                      bgcolor: "rgba(37, 99, 235, 0.25)",
-                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                      width: { xs: 20, sm: 24 },
+                      height: { xs: 20, sm: 24 },
+                      borderRadius: "6px",
+                      bgcolor: "rgba(245, 158, 11, 0.2)",
+                      border: "1px solid rgba(245, 158, 11, 0.4)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                     }}
                   >
-                    <AccountBalanceWalletIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+                    <AccountBalanceWalletIcon sx={{ color: "#FBBF24", fontSize: { xs: 12, sm: 14 } }} />
                   </Box>
 
-                  <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: "#FFFFFF",
-                        fontWeight: 900,
-                        fontSize: "11px",
-                        letterSpacing: "0.8px",
-                        lineHeight: 1.1,
-                        textTransform: "uppercase",
-                        fontFamily: "'Inter', sans-serif",
-                        display: { xs: "none", sm: "block" },
-                        opacity: 0.95,
-                      }}
-                    >
-                      MAIN WALLET
-                    </Typography>
-                    <Typography
-                      variant="subtitle1"
-                      suppressHydrationWarning
-                      sx={{
-                        fontWeight: 900,
-                        color: "#FFD700",
-                        fontSize: { xs: "16px", sm: "18px" },
-                        lineHeight: 1.15,
-                        letterSpacing: "0.2px",
-                        fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
-                        textShadow: "0 0 16px rgba(255, 215, 0, 0.45)",
-                      }}
-                    >
-                      ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </Typography>
-                  </Box>
+                  <Typography
+                    variant="subtitle1"
+                    suppressHydrationWarning
+                    sx={{
+                      fontWeight: 900,
+                      background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      fontSize: { xs: "12px", sm: "14.5px" },
+                      lineHeight: 1.1,
+                      letterSpacing: "-0.2px",
+                      fontFamily: "var(--font-geist-mono), 'Inter', monospace, sans-serif",
+                      textShadow: "0 0 10px rgba(245, 158, 11, 0.3)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Typography>
                 </Box>
               </Tooltip>
 
@@ -988,20 +1133,18 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   }}
                   disabled={isSyncing}
                   sx={{
-                    p: 0.5,
-                    ml: 0.5,
-                    color: "#94A3B8",
-                    borderRadius: "8px",
+                    p: 0.2,
+                    color: "#F59E0B",
+                    borderRadius: "4px",
                     "&:hover": {
-                      color: "#FFFFFF",
-                      bgcolor: "rgba(255, 255, 255, 0.15)",
+                      color: "#FDE68A",
+                      bgcolor: "rgba(245, 158, 11, 0.15)",
                     },
                   }}
                 >
                   <RefreshIcon
                     sx={{
-                      fontSize: 18,
-                      color: "#60A5FA",
+                      fontSize: { xs: 13, sm: 15 },
                       animation: isSyncing ? "spin 1s linear infinite" : "none",
                     }}
                   />
@@ -1009,17 +1152,23 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               </Tooltip>
             </Paper>
 
-            {/* Header Theme Quick Switch Control */}
-            <Tooltip title="Theme (Auto / Light / Dark)">
-              <IconButton
-                color="inherit"
-                onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
-                size="small"
-                sx={{ p: 0.75, color: effectiveTheme === "dark" ? "#94A3B8" : "#4B5563" }}
-              >
-                <PaletteIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            </Tooltip>
+            {/* Header Theme Quick Switch Control (Desktop only) */}
+            <Box sx={{ display: { xs: "none", md: "block" } }}>
+              <Tooltip title="Theme (Auto / Light / Dark)">
+                <IconButton
+                  color="inherit"
+                  onClick={(e) => setKpiThemeAnchor(e.currentTarget)}
+                  size="small"
+                  sx={{
+                    p: 0.75,
+                    color: "#94A3B8",
+                    "&:hover": { color: "#F59E0B", bgcolor: "rgba(245, 158, 11, 0.1)" },
+                  }}
+                >
+                  <PaletteIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
 
             <Menu
               anchorEl={kpiThemeAnchor}
@@ -1093,39 +1242,42 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               })}
             </Menu>
 
-
             {/* Dynamic DB-Backed Notification Center */}
-            <NotificationCenter />
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <NotificationCenter />
+            </Box>
 
-            {/* Quick Lock Terminal Icon */}
-            <Tooltip title="Lock Terminal (Ctrl+L)">
-              <IconButton
-                onClick={lockSession}
-                size="small"
-                sx={{
-                  color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
-                  p: 0.75,
-                  "&:hover": {
-                    color: "#F59E0B",
-                    backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
-                  },
-                }}
-              >
-                <LockIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            </Tooltip>
+            {/* Quick Lock Terminal Icon (Desktop only on md+) */}
+            <Box sx={{ display: { xs: "none", md: "block" } }}>
+              <Tooltip title="Lock Terminal (Ctrl+L)">
+                <IconButton
+                  onClick={lockSession}
+                  size="small"
+                  sx={{
+                    color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B",
+                    p: 0.75,
+                    "&:hover": {
+                      color: "#F59E0B",
+                      backgroundColor: effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
+                    },
+                  }}
+                >
+                  <LockIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
 
-            {/* User Profile Avatar Icon (Clicking this opens the full Retailer Profile Card!) */}
+            {/* User Profile Avatar Icon */}
             <Tooltip title="View Retailer Profile Info">
               <IconButton onClick={(e) => setProfileAnchor(e.currentTarget)} size="small" sx={{ p: 0.25 }}>
                 <Avatar
                   src={profileDetails.photo_url || undefined}
                   sx={{
                     bgcolor: "#1E3A8A",
-                    width: 36,
-                    height: 36,
+                    width: { xs: 30, sm: 34 },
+                    height: { xs: 30, sm: 34 },
                     fontWeight: 800,
-                    fontSize: "0.85rem",
+                    fontSize: { xs: "0.75rem", sm: "0.85rem" },
                     border: "2px solid #3B82F6",
                     boxShadow: "0 2px 6px rgba(30,58,138,0.25)",
                   }}
@@ -1173,11 +1325,15 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     flexShrink: 0,
                   }}
                 >
-                  {(profileDetails.owner_name || outlet.ownerName || user?.full_name || "R").charAt(0).toUpperCase()}
+                  {(profileDetails.retailer_name || profileDetails.owner_name || "S").charAt(0).toUpperCase()}
                 </Avatar>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontSize: "16px", fontWeight: 800, color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", lineHeight: 1.2 }}>
-                    {profileDetails.owner_name || outlet.ownerName || user?.full_name || "Retailer Agent"}
+                    {(profileDetails.retailer_name && profileDetails.retailer_name !== "Retailer Store" && profileDetails.retailer_name !== "System Admin User")
+                      ? profileDetails.retailer_name
+                      : (profileDetails.owner_name && profileDetails.owner_name !== "System Admin User")
+                      ? profileDetails.owner_name
+                      : (outlet.name && outlet.name !== "Retailer Store" ? outlet.name : "Pay2Pay Store")}
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
                     {profileDetails.plan_name && (
@@ -1233,7 +1389,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Retailer ID</Typography>
                   <Chip
-                    label={profileDetails.retailer_code || outlet.code || "RET-0CFE2B"}
+                    label={
+                      (profileDetails.retailer_code && !profileDetails.retailer_code.includes("-000") && !profileDetails.retailer_code.startsWith("1072b5d2") && profileDetails.retailer_code.length <= 15)
+                        ? profileDetails.retailer_code
+                        : (outlet.code || profileDetails.retailer_code || "—")
+                    }
                     size="small"
                     sx={{
                       backgroundColor: effectiveTheme === "dark" ? "rgba(59, 130, 246, 0.15)" : "#EFF6FF",
@@ -1249,7 +1409,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Merchant Outlet</Typography>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {profileDetails.retailer_name || outlet.name || "Pay2Pay Verified Merchant"}
+                    {(profileDetails.retailer_name && profileDetails.retailer_name !== "Retailer Store") ? profileDetails.retailer_name : (outlet.name && outlet.name !== "Retailer Store" ? outlet.name : "Sathus Pay Store")}
                   </Typography>
                 </Box>
 
@@ -1438,17 +1598,17 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           width: { xs: "100%", lg: `calc(100% - ${activeDrawerWidth}px)` },
           maxWidth: "100vw",
           overflowX: "hidden",
-          overflowY: pathname === "/retailer/dmt" ? "hidden" : "auto",
+          overflowY: "auto",
           mt: "56px",
-          pb: pathname === "/retailer/dmt" ? 0 : { xs: "80px", md: 0 },
+          pb: { xs: "80px", md: 0 },
           minHeight: "calc(100vh - 56px)",
-          maxHeight: pathname === "/retailer/dmt" ? "calc(100vh - 56px)" : "none",
+          maxHeight: "none",
           display: "flex",
           flexDirection: "column",
           transition: "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflow: pathname === "/retailer/dmt" ? "hidden" : "visible" }}>
+        <Box sx={{ flex: 1, width: "100%", maxWidth: "100%", overflow: "visible" }}>
           {/* Account Verification Warning Banner for Unapproved Retailer */}
           {!isApproved && (
             <Paper
@@ -1531,7 +1691,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
               <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "12px" }}>
-                © 2026 Pay2Pay FinTech Platform. All Rights Reserved.
+                © 2021 SUPER REX PRODUCTS PRIVATE LIMITED · Pay2Pay Retailer Portal
               </Typography>
               <Chip label="v2.4.0-ENT" size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 800 }} />
             </Stack>

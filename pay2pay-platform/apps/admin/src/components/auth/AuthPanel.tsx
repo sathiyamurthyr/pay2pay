@@ -66,7 +66,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "Privacy Policy",
     terms: "Terms of Service",
     refundPolicy: "Refund Policy",
-    rbiFooter: "© 2026 Pay2Pay Financial Technologies · RBI Licensed PPI Portal",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 Days",
     days90: "90 Days",
     forever: "Forever"
@@ -100,7 +100,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "गोपनीयता नीति",
     terms: "सेवा की शर्तें",
     refundPolicy: "रिफंड नीति",
-    rbiFooter: "© 2026 Pay2Pay फिनटेक · आरबीआई लाइसेंस प्राप्त पीपीआई",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 दिन",
     days90: "90 दिन",
     forever: "हमेशा"
@@ -134,7 +134,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "தனியுரிமைக் கொள்கை",
     terms: "சேவை விதிகள்",
     refundPolicy: "பணத்தைத் திரும்பப்பெறும் கொள்கை",
-    rbiFooter: "© 2026 Pay2Pay நிதித் தொழில்நுட்பம் · ஆர்பிஐ உரிமம்",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 நாட்கள்",
     days90: "90 நாட்கள்",
     forever: "எப்போதும்"
@@ -168,7 +168,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "గోప్యతా విధానం",
     terms: "సేవా నిబంధనలు",
     refundPolicy: "రీఫండ్ పాలసీ",
-    rbiFooter: "© 2026 Pay2Pay ఫైనాన్షియల్ · ఆర్బీఐ లైసెన్స్ పీపీఐ",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 రోజులు",
     days90: "90 రోజులు",
     forever: "ఎల్లప్పుడూ"
@@ -191,28 +191,22 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 }) => {
   const router = useRouter();
 
-  const normalizedRole: "RETAILER" | "SD" | "DIST" | "ADMIN" =
-    portalRole === "ADMIN"
-      ? "ADMIN"
-      : portalRole === "RETAILER"
+  const normalizedRole: "RETAILER" | "SD" | "DIST" =
+    portalRole === "RETAILER"
       ? "RETAILER"
       : portalRole === "SD" || portalRole === "SUPER_DISTRIBUTOR"
       ? "SD"
       : "DIST";
 
   const portalTitle =
-    normalizedRole === "ADMIN"
-      ? "Pay2Pay Admin Portal"
-      : normalizedRole === "RETAILER"
+    normalizedRole === "RETAILER"
       ? "Pay2Pay Retailer Portal"
       : normalizedRole === "SD"
       ? "Pay2Pay SD Portal"
       : "Pay2Pay Distributor Portal";
 
   const portalSubtitle =
-    normalizedRole === "ADMIN"
-      ? "Access your Pay2Pay Enterprise Administrator Workspace"
-      : normalizedRole === "RETAILER"
+    normalizedRole === "RETAILER"
       ? "Access your Pay2Pay Retailer Business Workstation"
       : normalizedRole === "SD"
       ? "Access your Pay2Pay Super Distributor Workspace"
@@ -226,9 +220,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       : "/dist/onboarding";
 
   const portalDashboardUrl =
-    normalizedRole === "ADMIN"
-      ? "/dashboard"
-      : normalizedRole === "RETAILER"
+    normalizedRole === "RETAILER"
       ? "/retailer/dashboard"
       : normalizedRole === "SD"
       ? "/sd/dashboard"
@@ -352,8 +344,19 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     }
   };
 
-  const handleAuthSuccessRedirect = async (token?: string, userData?: any, customRedirect?: string, destination?: string) => {
-    // 1. Synchronously persist credentials & role in both Cookies (for Middleware/SSR) and LocalStorage (for Client Context)
+  const handleAuthSuccessRedirect = async (
+    token?: string,
+    userData?: any,
+    customRedirect?: string,
+    destination?: string,
+    approveStatus?: boolean,
+    activeStatus?: boolean,
+    statusMessage?: string
+  ) => {
+    // 1. Authoritative check:
+    const isBothTrue = approveStatus === true && activeStatus === true;
+
+    // 2. Synchronously persist credentials & session in Cookies and LocalStorage
     if (typeof window !== "undefined") {
       const role = portalRole || "RETAILER";
       const validToken =
@@ -366,8 +369,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         mobile_number: mobileNumber,
         role: role,
         roles: [role],
-        approval_status: destination === "ACCOUNT_UNDER_REVIEW" ? "UNDER_REVIEW" : "APPROVED",
-        status: destination === "ACCOUNT_UNDER_REVIEW" ? "UNDER_REVIEW" : "ACTIVE"
+        approve_status: approveStatus,
+        active_status: activeStatus,
+        approval_status: isBothTrue ? "APPROVED" : "UNDER_REVIEW",
+        status: isBothTrue ? "ACTIVE" : "UNDER_REVIEW"
       };
 
       if (!normalizedUser.roles || !Array.isArray(normalizedUser.roles)) {
@@ -380,10 +385,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `p2p_destination=${destination || "DASHBOARD"}; path=/; max-age=2592000; SameSite=Lax`;
-      document.cookie = `p2p_account_access=ALLOWED; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_destination=${isBothTrue ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW"}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; max-age=2592000; SameSite=Lax`;
 
-      // LocalStorage keys for instant client-side hydration & useAuth
+      // LocalStorage keys for client session hydration
       localStorage.setItem("pay2pay_user_role", role);
       localStorage.setItem("p2p_user_role", role);
       localStorage.setItem("pay2pay_active_role", role);
@@ -395,38 +400,37 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       localStorage.setItem("user_info", JSON.stringify(normalizedUser));
       localStorage.setItem("p2p_session_start_time", String(Date.now()));
       localStorage.setItem("p2p_session_last_active", String(Date.now()));
-      localStorage.setItem("p2p_retailer_approval_status", destination === "ACCOUNT_UNDER_REVIEW" ? "UNDER_REVIEW" : "APPROVED");
-      localStorage.setItem("pay2pay_onboarding_status", destination === "ACCOUNT_UNDER_REVIEW" ? "UNDER_REVIEW" : "APPROVED");
-      localStorage.setItem("p2p_account_access", "ALLOWED");
       localStorage.removeItem("p2p_session_locked");
       localStorage.removeItem("p2p_session_locked_at");
 
-      const rCode = normalizedUser.retailer_code || normalizedUser.code || normalizedUser.retailer_id || normalizedUser.id || mobileNumber || "";
+      const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
+      let rCode = normalizedUser.retailer_code || normalizedUser.code;
+      if (!rCode || isUuid(rCode)) {
+        rCode = normalizedUser.retailer_id || normalizedUser.public_id || normalizedUser.id || "";
+      }
       if (rCode) {
         localStorage.setItem("p2p_active_retailer_id", rCode);
         localStorage.setItem("p2p_retailer_code", rCode);
       }
     }
 
-    // 2. Resolve destination target
-    const queryParamRedirect = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null;
-    let target = customRedirect || queryParamRedirect || portalDashboardUrl;
-
-    if (destination === "ACCOUNT_UNDER_REVIEW") {
-      target = customRedirect || "/retailer/account-under-review";
+    // 3. Strict Authoritative Routing Rule:
+    let target = "/retailer/dashboard";
+    if (destination === "APPLICATION_REJECTED") {
+      target = "/application-rejected";
+      setSuccessMsg("✓ Application Rejected.");
     } else if (destination === "ONBOARDING") {
       target = customRedirect || "/register";
-    } else if (destination === "APPLICATION_REJECTED") {
-      target = "/application-rejected";
-    } else if (destination === "ACCOUNT_RESTRICTED") {
-      target = "/retailer/account-restricted";
-    } else if (queryParamRedirect && !queryParamRedirect.includes("/login")) {
-      target = queryParamRedirect;
+      setSuccessMsg("✓ Redirecting to registration...");
+    } else if (isBothTrue) {
+      target = "/retailer/dashboard";
+      setSuccessMsg("✓ Authentication Successful! Redirecting to dashboard...");
+    } else {
+      target = "/retailer/account-under-review";
+      setSuccessMsg(statusMessage || "✓ Authentication successful. Redirecting to verification status...");
     }
 
-    setSuccessMsg("✓ Authentication Successful! Redirecting to dashboard...");
-
-    // 3. Navigate with window.location.href to guarantee full cookie delivery to middleware & Next.js server
+    // 4. Navigate with window.location.href to guarantee full cookie delivery
     if (typeof window !== "undefined") {
       window.location.href = target;
     } else {
@@ -461,21 +465,33 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           mobile_number: mobileNumber,
           password,
           captcha_code: captchaInput,
-          telemetry
+          telemetry,
+          portal_role: portalRole || "RETAILER"
         })
       });
 
       const data = await res.json();
       setLoading(false);
 
-      if (res.ok && data.status === "SUCCESS") {
+      if (res.ok && (data.status === "SUCCESS" || data.success === true)) {
         setFailedAttempts(0);
         setIsLocked(false);
         setLockTimer(0);
         setShowConfetti(true);
         soundSystem.playLoginSuccess();
-        setSuccessMsg("✓ Authentication Successful! Redirecting...");
-        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user);
+        const approveStatus = data.approve_status !== undefined ? data.approve_status : data.data?.approve_status;
+        const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
+        const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
+        const redirectUrl = data.data?.redirect_url || (destination === "DASHBOARD" ? "/retailer/dashboard" : "/retailer/account-under-review");
+        await handleAuthSuccessRedirect(
+          data.data?.access_token,
+          data.data?.user,
+          redirectUrl,
+          destination,
+          approveStatus,
+          activeStatus,
+          data.message
+        );
       } else {
         const errText = (data.detail && data.detail !== "Not Found")
           ? data.detail
@@ -505,7 +521,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       });
       const data = await res.json().catch(() => ({}));
       setLoading(false);
-      if (res.ok && data.status === "SUCCESS") {
+      if (res.ok && (data.status === "SUCCESS" || data.success === true)) {
         setOtpSent(true);
         const masked = data.data?.masked_mobile || `******${mobileNumber.slice(-4)}`;
         soundSystem.playNotificationSound();
@@ -547,35 +563,37 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       const data = await res.json().catch(() => ({}));
       setLoading(false);
 
-      if (res.ok && data.status === "SUCCESS") {
+      if (res.ok && (data.status === "SUCCESS" || data.success === true)) {
         setShowConfetti(true);
         soundSystem.playLoginSuccess();
         const flow = data.data?.flow;
-        const destination = data.data?.destination;
+        const approveStatus = data.approve_status !== undefined ? data.approve_status : data.data?.approve_status;
+        const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
+        const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
         const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";
-        const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? "/register" : "/retailer/dashboard");
+        const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? "/register" : approveStatus && activeStatus ? "/retailer/dashboard" : "/retailer/account-under-review");
 
-        if (destination === "ACCOUNT_UNDER_REVIEW") {
-          setSuccessMsg("✓ Mobile verified successfully. Loading your dashboard...");
-          if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
-            localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
-          }
-        } else if (isNewOnboarding) {
+        if (isNewOnboarding) {
           setSuccessMsg("✓ Mobile verified successfully. Taking you to onboarding...");
           if (data.data?.registration_id) {
             localStorage.setItem("pay2pay_reg_id", data.data.registration_id);
             localStorage.setItem("pay2pay_reg_mobile", mobileNumber);
           }
-        } else {
+        } else if (approveStatus && activeStatus) {
           setSuccessMsg("✓ Mobile verified successfully. Signing you in...");
-          if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_retailer_approval_status", "APPROVED");
-            localStorage.setItem("pay2pay_onboarding_status", "APPROVED");
-          }
+        } else {
+          setSuccessMsg(`✓ ${data.message || "Your account is under review. Loading status..."}`);
         }
         setErrorMsg("");
-        await handleAuthSuccessRedirect(data.data?.access_token, data.data?.user, redirectUrl, destination);
+        await handleAuthSuccessRedirect(
+          data.data?.access_token,
+          data.data?.user,
+          redirectUrl,
+          destination,
+          approveStatus,
+          activeStatus,
+          data.message
+        );
       } else {
         const errText = (data.detail && data.detail !== "Not Found") ? data.detail : (data.message || "Invalid OTP code. Please check the OTP and try again.");
         triggerError(errText);
@@ -698,10 +716,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         </div>
 
         {/* ─── Main Auth Card ─── */}
-        <motion.div
-          variants={glassPanelVariants}
-          initial="hidden"
-          animate="visible"
+        <div
           className={`my-auto w-full rounded-[28px] transition-all duration-300 relative backdrop-blur-2xl ${
             darkMode
               ? "bg-slate-900/90 border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] text-white"
@@ -1178,7 +1193,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
               {t.registerAccount}
             </Link>
           </div>
-        </motion.div>
+        </div>
 
         {/* ── Footer Links ── */}
         <div className={`mt-5 text-center space-y-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
@@ -1189,7 +1204,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             <span>·</span>
             <a href="#" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.refundPolicy}</a>
           </div>
-          <p className={`text-[11px] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{t.rbiFooter}</p>
+          <p className={`text-[11px] whitespace-pre-line leading-relaxed ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{t.rbiFooter}</p>
         </div>
 
       </div>

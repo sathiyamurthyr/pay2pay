@@ -93,17 +93,19 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
       sx={{
         width: "100%",
         minHeight: "calc(100vh - 56px)",
-        bgcolor: "#0B132B",
+        bgcolor: "#080B11",
         color: "#FFFFFF",
         overflowY: "auto",
+        overflowX: "hidden",
         display: "flex",
         flexDirection: "column",
-        p: 1.5,
-        pb: 8,
+        p: { xs: 1, sm: 2 },
+        pb: { xs: "100px", md: 6 },
+        boxSizing: "border-box",
       }}
     >
       {/* WORKSTATION BODY */}
-      <Box sx={{ flex: 1, width: "100%", pb: 4 }}>
+      <Box sx={{ flex: 1, width: "100%", pb: { xs: 2, md: 4 } }}>
         {currentStep === 1 && (
           <WorkstationStep1
             customer={customer}

@@ -92,7 +92,7 @@ const MOCK_COMPANIES: Company[] = [
     public_id: "comp_hq_001",
     company_code: "PAY2PAY_HQ",
     company_name: "Pay2Pay Enterprise HQ",
-    legal_name: "Pay2Pay Financial Technologies Services Private Limited",
+    legal_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
     tenant_code: "PLATFORM_HQ",
     company_type: "PRIVATE_LIMITED",
     gst_number: "33AAAAB1234C1Z5",

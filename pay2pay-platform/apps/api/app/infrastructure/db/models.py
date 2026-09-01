@@ -6,7 +6,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB, UUID
 JSONB = JSON
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, foreign
 
 from app.domain.entities.base import BaseEntity, EnterpriseBaseMixin, Base
 
@@ -1887,7 +1887,12 @@ class PayoutRequestModel(BaseEntity, EnterpriseBaseMixin):
     requested_by: Mapped[str] = mapped_column(String(255), nullable=False)
     approved_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    transactions: Mapped[List["PayoutTransactionModel"]] = relationship("PayoutTransactionModel", back_populates="payout", cascade="all, delete-orphan")
+    transactions: Mapped[List["PayoutTransactionModel"]] = relationship(
+        "PayoutTransactionModel",
+        back_populates="payout",
+        primaryjoin="PayoutRequestModel.public_id == foreign(PayoutTransactionModel.payout_id)",
+        cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "payout_number", name="uq_tenant_payout_number"),
@@ -1907,10 +1912,21 @@ class PayoutBatchModel(BaseEntity, EnterpriseBaseMixin):
 class PayoutTransactionModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "payout_transaction"
 
+    payout_transaction_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, Identity(always=True))
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    retailer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    customer_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+    beneficiary_master_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
+
+    retailer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    beneficiary_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+
     transaction_number: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    payout_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("payout_request.public_id", ondelete="CASCADE"), nullable=False, index=True)
+    payout_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     user_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
-    user_type_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("user_type.user_type_ref_id"), nullable=True, index=True)
+    user_type_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True, index=True)
     user_type: Mapped[Optional[str]] = mapped_column(String(50), default="RETAILER", nullable=True)
     gateway_reference: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     bank_reference: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
@@ -1950,7 +1966,11 @@ class PayoutTransactionModel(BaseEntity, EnterpriseBaseMixin):
     vendor_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     vendor_name: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
-    payout: Mapped["PayoutRequestModel"] = relationship("PayoutRequestModel", back_populates="transactions")
+    payout: Mapped[Optional["PayoutRequestModel"]] = relationship(
+        "PayoutRequestModel",
+        back_populates="transactions",
+        primaryjoin="foreign(PayoutTransactionModel.payout_id) == PayoutRequestModel.public_id"
+    )
 
 
 class PayoutBankRequestModel(BaseEntity, EnterpriseBaseMixin):
@@ -3984,6 +4004,7 @@ class AdminFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
     __tablename__ = "admin_favorite_menu"
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    user_ref_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     menu_href: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     menu_label: Mapped[str] = mapped_column(String(150), nullable=False)
     menu_category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -3995,6 +4016,28 @@ class AdminFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
         Index("ix_admin_fav_user_tenant", "tenant_id", "user_id", "is_active", "is_deleted"),
         {"extend_existing": True}
     )
+
+
+class UserFavoriteMenuModel(BaseEntity, EnterpriseBaseMixin):
+    __tablename__ = "user_favorite_menu"
+
+    user_ref_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    user_role: Mapped[str] = mapped_column(String(50), default="RETAILER", nullable=False)
+    menu_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    menu_href: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    menu_label: Mapped[str] = mapped_column(String(150), nullable=False)
+    menu_category: Mapped[Optional[str]] = mapped_column(String(100), default="General", nullable=True)
+    icon_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    badge_text: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        Index("ix_user_fav_tenant_user_ref_orm", "tenant_id", "user_ref_id", "is_active", "is_deleted"),
+        {"extend_existing": True}
+    )
+
 
 
 class AdminServiceVendorWalletModel(BaseEntity):

@@ -181,7 +181,7 @@ export default function AccountUnderReviewPage() {
 
       {/* Footer */}
       <footer className="max-w-6xl w-full mx-auto pt-6 border-t border-slate-700/80 text-center text-xs text-slate-300 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <p className="text-slate-300 font-medium">© 2026 Pay2Pay Financial Technologies Pvt Ltd. All rights reserved.</p>
+        <p className="text-slate-300 font-medium">© 2021 SUPER REX PRODUCTS PRIVATE LIMITED · Pay2Pay Retailer Portal</p>
         <div className="flex items-center gap-4 text-yellow-300 font-semibold">
           <span className="text-slate-200">Support: <strong className="text-yellow-300">support@pay2pay.in</strong></span>
           <span className="text-slate-500">·</span>

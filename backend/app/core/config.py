@@ -70,8 +70,11 @@ class Settings(BaseSettings):
     CASHFREE_CLIENT_SECRET: str = Field(default="")
     CASHFREE_BASE_URL: str = Field(default="https://api.cashfree.com/verification")
     CASHFREE_API_VERSION: str = Field(default="2025-01-01")
-    PLATFORM_TENANT_CODE: str = "PLATFORM"
-    DEFAULT_COMPANY_CODE: str = "HQ_COMP"
+
+    # ── UrbanRupee Production Payout API Credentials ─────────────────────────
+    URBANRUPEE_BASE_URL: str = Field(default="https://payout.urbanrupee.in")
+    URBANRUPEE_USER_ID: str = Field(default="UR6877")
+    URBANRUPEE_API_TOKEN: str = Field(default="pk_6955bdbab906ece296070e22307eac099ac90a75a19fcbfa0ab4f798848a9e8e")
 
     # ── Backblaze B2 Storage ──────────────────────────────────────────────────
     # These are overridden by .env (which is populated by secrets_bootstrap.py)
@@ -99,7 +102,7 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = Field(default="Pay2Pay Enterprise")
 
     # ── Support Metadata Configuration ──────────────────────────────────────
-    COMPANY_NAME: str = Field(default="Pay2Pay Financial Technologies Pvt. Ltd.")
+    COMPANY_NAME: str = Field(default="SUPER REX PRODUCTS PRIVATE LIMITED")
     COMPANY_LOGO_URL: str = Field(default="/logo.png")
     SUPPORT_EMAIL: str = Field(default="support@pay2pay.com")
     SUPPORT_PHONE: str = Field(default="+91 1800 292 982")

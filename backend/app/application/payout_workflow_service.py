@@ -125,10 +125,14 @@ class PayoutWorkflowService:
         )
         existing = (await db.execute(stmt)).scalar_one_or_none()
         if existing:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Customer with mobile number {mobile} already exists for this tenant/company."
-            )
+            return {
+                "public_id": str(existing.public_id),
+                "customer_number": existing.customer_number,
+                "full_name": existing.full_name,
+                "mobile_number": existing.mobile_number,
+                "kyc_status": existing.kyc_status,
+                "message": "Customer record retrieved successfully"
+            }
 
         cust_num = f"CUST{random.randint(100000, 999999)}"
         full_name = f"{req_data.get('first_name', '')} {req_data.get('last_name', '')}".strip()

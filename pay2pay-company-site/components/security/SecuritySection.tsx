@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ShieldCheck, Key, Shield, FileSpreadsheet, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Key, Shield, FileSpreadsheet, ArrowRight, CheckCircle2, Lock } from "lucide-react";
 import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
 
 const securityHighlights = [
@@ -35,13 +35,14 @@ const securityHighlights = [
 
 export const SecuritySection: React.FC = () => {
   return (
-    <section id="security" className="py-20 lg:py-28 2xl:py-36 relative bg-[#060D18]/70 border-y border-slate-800/70">
+    <section id="security" className="py-20 lg:py-28 2xl:py-36 relative bg-[#050C18]/80 border-y border-slate-800/70">
       <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24">
         {/* Section Header */}
         <Pay2PayPageHeader
-          eyebrow="Security Preview"
-          titlePrefix="Security Built Into"
+          eyebrow="Security & Governance"
+          titlePrefix="Bank-Grade Security Built Into"
           highlightedTitle="Every Layer"
+          highlightColor="blue"
           description="Engineered with strict enterprise defense controls, end-to-end data encryption, and resilient session safeguards protecting every partner workspace and transaction."
         />
 
@@ -60,9 +61,11 @@ export const SecuritySection: React.FC = () => {
                 />
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none rounded-2xl" />
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700/80">
-                <span className="text-blue-400 font-bold">Zero-Trust Architecture</span>
-                <span>Bank-Grade Safeguards</span>
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/85 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-700/80 shadow-lg">
+                <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <Lock size={13} /> Zero-Trust Architecture
+                </span>
+                <span className="text-slate-400">Bank-Grade Safeguards</span>
               </div>
             </div>
 
@@ -95,7 +98,7 @@ export const SecuritySection: React.FC = () => {
                   href="/security"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all hover:scale-105"
                 >
-                  <span>Explore Security</span>
+                  <span>Explore Security Architecture</span>
                   <ArrowRight size={15} />
                 </Link>
               </div>

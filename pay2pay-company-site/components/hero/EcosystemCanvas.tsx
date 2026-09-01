@@ -12,25 +12,34 @@ export const EcosystemCanvas: React.FC = () => {
     if (!ctx) return;
 
     let animationFrameId: number;
-    let width = (canvas.width = canvas.parentElement?.clientWidth || 600);
-    let height = (canvas.height = canvas.parentElement?.clientHeight || 450);
+    let dpr = window.devicePixelRatio || 1;
+    let cssWidth = canvas.parentElement?.clientWidth || 600;
+    let cssHeight = canvas.parentElement?.clientHeight || 450;
 
-    const handleResize = () => {
+    const resize = () => {
       if (!canvas.parentElement) return;
-      width = canvas.width = canvas.parentElement.clientWidth;
-      height = canvas.height = canvas.parentElement.clientHeight;
+      dpr = window.devicePixelRatio || 1;
+      cssWidth = canvas.parentElement.clientWidth;
+      cssHeight = canvas.parentElement.clientHeight;
+
+      canvas.width = Math.floor(cssWidth * dpr);
+      canvas.height = Math.floor(cssHeight * dpr);
+      canvas.style.width = `${cssWidth}px`;
+      canvas.style.height = `${cssHeight}px`;
+      ctx.scale(dpr, dpr);
     };
 
-    window.addEventListener("resize", handleResize);
+    resize();
+    window.addEventListener("resize", resize);
 
     // Node definitions for fintech ecosystem
     const nodes = [
       { id: "core", label: "Pay2Pay Core", x: 0.5, y: 0.48, color: "#3B82F6", size: 14, isCenter: true },
       { id: "cust", label: "Customer", x: 0.16, y: 0.28, color: "#60A5FA", size: 8, isCenter: false },
-      { id: "ret", label: "Retailer", x: 0.26, y: 0.68, color: "#FBBF24", size: 10, isCenter: false },
+      { id: "ret", label: "Retailer", x: 0.24, y: 0.70, color: "#FBBF24", size: 10, isCenter: false },
       { id: "dit_role", label: "Distributor", x: 0.44, y: 0.86, color: "#818CF8", size: 8, isCenter: false },
       { id: "sd", label: "Super Distributor", x: 0.70, y: 0.86, color: "#F59E0B", size: 8, isCenter: false },
-      { id: "dit_ops", label: "DIT", x: 0.84, y: 0.60, color: "#06B6D4", size: 8, isCenter: false },
+      { id: "dit_ops", label: "DIT", x: 0.84, y: 0.62, color: "#06B6D4", size: 8, isCenter: false },
       { id: "partners", label: "Banking & Service Partners", x: 0.78, y: 0.26, color: "#34D399", size: 10, isCenter: false },
     ];
 
@@ -65,23 +74,48 @@ export const EcosystemCanvas: React.FC = () => {
 
     const render = () => {
       time += 0.02;
-      ctx.clearRect(0, 0, width, height);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
 
-      // Draw background ambient glow
-      const grad = ctx.createRadialGradient(width * 0.5, height * 0.5, 10, width * 0.5, height * 0.5, width * 0.45);
-      grad.addColorStop(0, "rgba(37, 99, 235, 0.12)");
-      grad.addColorStop(1, "rgba(5, 11, 20, 0)");
+      // Ambient radial glow background
+      const grad = ctx.createRadialGradient(
+        cssWidth * 0.5,
+        cssHeight * 0.5,
+        10,
+        cssWidth * 0.5,
+        cssHeight * 0.5,
+        cssWidth * 0.45
+      );
+      grad.addColorStop(0, "rgba(37, 99, 235, 0.15)");
+      grad.addColorStop(0.5, "rgba(30, 58, 138, 0.06)");
+      grad.addColorStop(1, "rgba(3, 7, 18, 0)");
       ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, height);
+      ctx.fillRect(0, 0, cssWidth, cssHeight);
 
-      // Calculate actual node coordinates with slight floating motion
+      // Subtle grid mesh
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for (let x = 0; x < cssWidth; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, cssHeight);
+        ctx.stroke();
+      }
+      for (let y = 0; y < cssHeight; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(cssWidth, y);
+        ctx.stroke();
+      }
+
+      // Calculate actual node coordinates with smooth floating motion
       const computedNodes = nodes.map((node, i) => {
         const floatX = Math.sin(time + i * 1.5) * 3;
         const floatY = Math.cos(time + i * 1.2) * 3;
         return {
           ...node,
-          actualX: node.x * width + floatX,
-          actualY: node.y * height + floatY,
+          actualX: node.x * cssWidth + floatX,
+          actualY: node.y * cssHeight + floatY,
         };
       });
 
@@ -93,7 +127,7 @@ export const EcosystemCanvas: React.FC = () => {
         ctx.beginPath();
         ctx.moveTo(start.actualX, start.actualY);
         ctx.lineTo(end.actualX, end.actualY);
-        ctx.strokeStyle = "rgba(59, 130, 246, 0.18)";
+        ctx.strokeStyle = "rgba(59, 130, 246, 0.22)";
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
         ctx.stroke();
@@ -111,23 +145,30 @@ export const EcosystemCanvas: React.FC = () => {
         const curY = start.actualY + (end.actualY - start.actualY) * p.progress;
 
         ctx.beginPath();
-        ctx.arc(curX, curY, 3, 0, Math.PI * 2);
+        ctx.arc(curX, curY, 3.5, 0, Math.PI * 2);
         ctx.fillStyle = p.color;
         ctx.shadowColor = p.color;
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 10;
         ctx.fill();
         ctx.shadowBlur = 0;
       });
 
       // Draw nodes
       computedNodes.forEach((node) => {
-        // Outer pulsing ring for center
+        // Outer pulsing ring for center node
         if (node.isCenter) {
           const pulse = (Math.sin(time * 2) + 1) / 2;
           ctx.beginPath();
           ctx.arc(node.actualX, node.actualY, node.size + 8 + pulse * 6, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(59, 130, 246, ${0.4 - pulse * 0.25})`;
+          ctx.strokeStyle = `rgba(59, 130, 246, ${0.45 - pulse * 0.25})`;
           ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Second wider faint pulse
+          ctx.beginPath();
+          ctx.arc(node.actualX, node.actualY, node.size + 16 + pulse * 10, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(59, 130, 246, ${0.2 - pulse * 0.15})`;
+          ctx.lineWidth = 1;
           ctx.stroke();
         }
 
@@ -136,7 +177,7 @@ export const EcosystemCanvas: React.FC = () => {
         ctx.arc(node.actualX, node.actualY, node.size, 0, Math.PI * 2);
         ctx.fillStyle = node.color;
         ctx.shadowColor = node.color;
-        ctx.shadowBlur = node.isCenter ? 18 : 10;
+        ctx.shadowBlur = node.isCenter ? 20 : 12;
         ctx.fill();
         ctx.shadowBlur = 0;
 
@@ -160,23 +201,24 @@ export const EcosystemCanvas: React.FC = () => {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", resize);
     };
   }, []);
 
   return (
-    <div className="relative w-full h-[280px] sm:h-[340px] lg:h-[380px] xl:h-[420px] 2xl:h-[480px] 3xl:h-[560px] 4k:h-[640px] max-h-[660px] rounded-3xl glass-panel p-2 overflow-hidden flex items-center justify-center shadow-xl shadow-blue-950/40 border border-slate-700/60">
+    <div className="relative w-full h-[300px] sm:h-[360px] lg:h-[400px] xl:h-[440px] 2xl:h-[500px] 3xl:h-[580px] max-h-[660px] rounded-3xl glass-panel p-2 overflow-hidden flex items-center justify-center shadow-2xl shadow-blue-950/40 border border-slate-700/60 group">
       <canvas ref={canvasRef} className="w-full h-full block" />
       {/* Overlay Status Badge */}
-      <div className="absolute top-3.5 left-3.5 inline-flex items-center gap-2 px-3 py-1 2xl:px-4 2xl:py-1.5 rounded-full bg-blue-950/80 border border-blue-800/60 backdrop-blur-md">
+      <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3.5 py-1.5 2xl:px-4 2xl:py-2 rounded-full bg-slate-900/90 border border-blue-800/60 backdrop-blur-md shadow-lg shadow-black/40">
         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         <span className="text-[10px] sm:text-[11px] 2xl:text-xs font-bold text-slate-200 tracking-wide">
           Multi-Rail Interoperability
         </span>
       </div>
-      <div className="absolute bottom-3.5 right-3.5 text-[10px] 2xl:text-xs font-medium text-slate-500 bg-slate-950/70 px-2 py-0.5 2xl:px-3 2xl:py-1 rounded-md border border-slate-800/60">
+      <div className="absolute bottom-4 right-4 text-[10px] 2xl:text-xs font-medium text-slate-400 bg-slate-950/80 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg border border-slate-800/80 shadow-md">
         Encrypted Core Network
       </div>
     </div>
   );
 };
+

@@ -163,23 +163,33 @@ app.include_router(upload.router, prefix=settings.API_V1_STR)
 app.include_router(verification.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_services.router, prefix=settings.API_V1_STR)
 app.include_router(payout_workflow.router, prefix=settings.API_V1_STR)
+app.include_router(payout_workflow.router, prefix="/api")
+app.include_router(payout_workflow.router, prefix="")
+app.include_router(payout_workflow.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(ekyc.router, prefix=settings.API_V1_STR)
 app.include_router(epic014_beneficiary_router.router, prefix=settings.API_V1_STR)
 app.include_router(customer_mpin.router, prefix=settings.API_V1_STR)
 from app.presentation.api.v1 import reverse_penny_drop_router
 from app.presentation.api.v1 import bulkpe_payout_router
+from app.presentation.api.v1 import urbanrupee_payout_router
 from app.presentation.api.v1 import wowpe_payout_router
 from app.presentation.api.v1 import utkaldigital_payout_router
 from app.presentation.api.v1 import admin_payout_routing_router
 from app.presentation.api.v1 import admin_error_management_router
 from app.presentation.api.v1 import enterprise_auth_router
 from app.presentation.api.v1 import transaction_router
+from app.presentation.api.v1 import payout_callback_router
 app.include_router(beneficiary_verification.router, prefix=settings.API_V1_STR)
 app.include_router(reverse_penny_drop_router.router, prefix=settings.API_V1_STR)
+app.include_router(urbanrupee_payout_router.router, prefix=settings.API_V1_STR)
 app.include_router(bulkpe_payout_router.router, prefix=settings.API_V1_STR)
 app.include_router(wowpe_payout_router.router, prefix=settings.API_V1_STR)
 app.include_router(wowpe_payout_router.notify_router)
 app.include_router(utkaldigital_payout_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_payout_routing_router.router, prefix=settings.API_V1_STR)
+app.include_router(payout_callback_router.router, prefix=settings.API_V1_STR)
+app.include_router(payout_callback_router.router, prefix="/api")
+app.include_router(payout_callback_router.router, prefix="")
 from app.presentation.api.v1 import transaction_report_router
 app.include_router(transaction_report_router.router, prefix=settings.API_V1_STR)
 app.include_router(transaction_report_router.router, prefix="/api")
@@ -306,6 +316,14 @@ app.include_router(admin_favorites_router.router, prefix="/v1")
 app.include_router(admin_favorites_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(admin_favorites_router.router, prefix="/api")
 app.include_router(admin_favorites_router.router, prefix="")
+
+from app.presentation.api.v1 import user_favorites_router
+app.include_router(user_favorites_router.router, prefix=settings.API_V1_STR)
+app.include_router(user_favorites_router.router, prefix="/v1")
+app.include_router(user_favorites_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(user_favorites_router.router, prefix="/api")
+app.include_router(user_favorites_router.router, prefix="")
+
 
 from app.presentation.api.v1 import admin_operation_wallets_router
 app.include_router(admin_operation_wallets_router.router, prefix=settings.API_V1_STR)

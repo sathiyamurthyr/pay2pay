@@ -25,7 +25,7 @@ export interface NotificationSettings {
 const DEFAULT_SETTINGS: NotificationSettings = {
   soundEnabled: true,
   vibrationEnabled: true,
-  voiceEnabled: true,
+  voiceEnabled: false, // Voice announcements disabled by default
   categories: {
     SUCCESS: true,
     INFO: true,
@@ -41,10 +41,16 @@ class NotificationEngine {
 
   constructor() {
     if (typeof window !== "undefined") {
+      try {
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+      } catch {}
       const saved = localStorage.getItem("pay2pay_notification_settings");
       if (saved) {
         try {
-          this.settings = JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          this.settings = { ...DEFAULT_SETTINGS, ...parsed, voiceEnabled: false };
         } catch {
           this.settings = DEFAULT_SETTINGS;
         }

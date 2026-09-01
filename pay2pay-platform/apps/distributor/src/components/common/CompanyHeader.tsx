@@ -18,7 +18,7 @@ export interface CompanyHeaderProps {
 
 export const CompanyHeader: React.FC<CompanyHeaderProps> = ({
   logoUrl = "/branding/logo.png",
-  companyName = "Pay2Pay Fintech",
+  companyName = "SUPER REX PRODUCTS PRIVATE LIMITED",
   legalName,
   title,
   subtitle,

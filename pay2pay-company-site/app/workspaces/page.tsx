@@ -31,7 +31,7 @@ const workspacesList = [
     subtitle: "Point of Sale & Assisted Banking Counter",
     description:
       "Dedicated terminal for retail shop owners to provide walk-in customers with money transfers, cash withdrawals, bill payments, and recharge services.",
-    route: "/retailer/login",
+    route: "https://retailer.pay2pay.in/retailer/login",
     highlighted: true,
     features: [
       "Domestic Money Transfer (DMT) workstation with instant IMPS/NEFT",
@@ -221,17 +221,31 @@ export default function WorkspacesPage() {
 
                 {/* Actions */}
                 <div className="space-y-3 pt-4 border-t border-slate-800/80">
-                  <Link
-                    href={workspace.route}
-                    className={`w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg active:scale-95 ${
-                      workspace.highlighted
-                        ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/35 hover:shadow-blue-600/50"
-                        : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600"
-                    }`}
-                  >
-                    <LogIn size={15} />
-                    <span>{workspace.ctaLabel}</span>
-                  </Link>
+                  {workspace.route.startsWith("http") ? (
+                    <a
+                      href={workspace.route}
+                      className={`w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg active:scale-95 ${
+                        workspace.highlighted
+                          ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/35 hover:shadow-blue-600/50"
+                          : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600"
+                      }`}
+                    >
+                      <LogIn size={15} />
+                      <span>{workspace.ctaLabel}</span>
+                    </a>
+                  ) : (
+                    <Link
+                      href={workspace.route}
+                      className={`w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg active:scale-95 ${
+                        workspace.highlighted
+                          ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/35 hover:shadow-blue-600/50"
+                          : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600"
+                      }`}
+                    >
+                      <LogIn size={15} />
+                      <span>{workspace.ctaLabel}</span>
+                    </Link>
+                  )}
 
                   <div className="text-center">
                     <Link

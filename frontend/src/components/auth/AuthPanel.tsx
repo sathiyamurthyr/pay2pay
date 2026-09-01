@@ -66,7 +66,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "Privacy Policy",
     terms: "Terms of Service",
     refundPolicy: "Refund Policy",
-    rbiFooter: "© 2026 Pay2Pay Financial Technologies · RBI Licensed PPI Portal",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 Days",
     days90: "90 Days",
     forever: "Forever"
@@ -100,7 +100,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "गोपनीयता नीति",
     terms: "सेवा की शर्तें",
     refundPolicy: "रिफंड नीति",
-    rbiFooter: "© 2026 Pay2Pay फिनटेक · आरबीआई लाइसेंस प्राप्त पीपीआई",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 दिन",
     days90: "90 दिन",
     forever: "हमेशा"
@@ -134,7 +134,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "தனியுரிமைக் கொள்கை",
     terms: "சேவை விதிகள்",
     refundPolicy: "பணத்தைத் திரும்பப்பெறும் கொள்கை",
-    rbiFooter: "© 2026 Pay2Pay நிதித் தொழில்நுட்பம் · ஆர்பிஐ உரிமம்",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 நாட்கள்",
     days90: "90 நாட்கள்",
     forever: "எப்போதும்"
@@ -168,7 +168,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "గోప్యతా విధానం",
     terms: "సేవా నిబంధనలు",
     refundPolicy: "రీఫండ్ పాలసీ",
-    rbiFooter: "© 2026 Pay2Pay ఫైనాన్షియల్ · ఆర్బీఐ లైసెన్స్ పీపీఐ",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 రోజులు",
     days90: "90 రోజులు",
     forever: "ఎల్లప్పుడూ"
@@ -1204,7 +1204,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
             <span>·</span>
             <a href="#" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.refundPolicy}</a>
           </div>
-          <p className={`text-[11px] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{t.rbiFooter}</p>
+          <p className={`text-[11px] whitespace-pre-line leading-relaxed ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{t.rbiFooter}</p>
         </div>
 
       </div>

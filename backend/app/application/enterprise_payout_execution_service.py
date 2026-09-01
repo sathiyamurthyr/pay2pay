@@ -705,11 +705,12 @@ class EnterprisePayoutExecutionService:
         logger.info(f"STEP 7 PASSED: Database TX committed for {tx_number}. Pre-Call consistency achieved.")
 
         # =========================================================================
-        # STEP 8: Call Vendor API (WowPe / BulkPe / Utkal Digital Dynamic Routing)
+        # STEP 8: Call Vendor API (UrbanRupee / Utkal Digital / BulkPe Dynamic Routing)
         # =========================================================================
-        from app.application.wowpe_client import WowPeApiClient
-        from app.application.bulkpe_client import BulkPeApiClient
+        from app.application.urbanrupee_client import UrbanRupeeApiClient
         from app.application.utkaldigital_client import UtkalDigitalApiClient
+        from app.application.bulkpe_client import BulkPeApiClient
+        from app.application.wowpe_client import WowPeApiClient
         from app.application.payout_routing_service import PayoutRoutingService
 
         active_provider = await PayoutRoutingService.get_active_primary_provider(db, tenant_id)
@@ -767,6 +768,46 @@ class EnterprisePayoutExecutionService:
                 bank_name=bank_name,
                 sender_name=cust_name
             )
+        elif active_provider == "URBANRUPEE":
+            vendor_url = "https://payout.urbanrupee.in/api/payout/initiate"
+            await ErrorManagementService.log_vendor_api(
+                db=db,
+                vendor_name="UrbanRupee",
+                vendor_url=vendor_url,
+                http_method="POST",
+                headers={"Content-Type": "application/json"},
+                request_json=vendor_payload,
+                response_json={},
+                http_status=0,
+                correlation_id=f"CORR-{tx_number}"
+            )
+            vendor_resp = await UrbanRupeeApiClient.initiate_payout(
+                merchant_ref=tx_number,
+                account_number=acc_num,
+                ifsc_code=ifsc,
+                account_holder=acc_holder,
+                amount=amount,
+                mobile=cust_mobile,
+                mode=mode
+            )
+            if vendor_resp.get("status") == "FAILED" and policy.auto_failover_enabled:
+                logger.warning(f"[PAYOUT FAILOVER] UrbanRupee returned failure: {vendor_resp.get('message')}. Failing over to Utkal Digital.")
+                utkal_resp = await UtkalDigitalApiClient.initiate_payout(
+                    merchant_ref=f"FO-{tx_number}",
+                    account_number=acc_num,
+                    ifsc_code=ifsc,
+                    account_holder=acc_holder,
+                    amount=amount,
+                    sender_mobile=cust_mobile,
+                    sender_name=cust_name,
+                    bank_name=bank_name,
+                    bank_code="MAGNI",
+                    service_id="27"
+                )
+                if utkal_resp.get("status") in ("SUCCESS", "PENDING"):
+                    vendor_resp = utkal_resp
+                    executed_vendor = "UtkalDigital"
+                    vendor_url = "https://singleptxn.utkaldigital.co.in/ProcessRequest/transaction"
         elif active_provider == "UTKALDIGITAL":
             vendor_url = "https://singleptxn.utkaldigital.co.in/ProcessRequest/transaction"
             await ErrorManagementService.log_vendor_api(
@@ -793,20 +834,20 @@ class EnterprisePayoutExecutionService:
                 service_id="27"
             )
             if vendor_resp.get("status") == "FAILED" and policy.auto_failover_enabled:
-                logger.warning(f"[PAYOUT FAILOVER] Utkal Digital returned failure: {vendor_resp.get('message')}. Failing over to WowPe.")
-                wowpe_resp = await WowPeApiClient.initiate_payout(
+                logger.warning(f"[PAYOUT FAILOVER] Utkal Digital returned failure: {vendor_resp.get('message')}. Failing over to UrbanRupee.")
+                ur_resp = await UrbanRupeeApiClient.initiate_payout(
                     merchant_ref=f"FO-{tx_number}",
                     account_number=acc_num,
                     ifsc_code=ifsc,
                     account_holder=acc_holder,
                     amount=amount,
-                    mode=mode,
-                    mobile=cust_mobile
+                    mobile=cust_mobile,
+                    mode=mode
                 )
-                if wowpe_resp.get("status") in ("SUCCESS", "PENDING"):
-                    vendor_resp = wowpe_resp
-                    executed_vendor = "WowPe"
-                    vendor_url = "https://api.wowpe.in/api/api/api-module/payout/payout"
+                if ur_resp.get("status") in ("SUCCESS", "PENDING"):
+                    vendor_resp = ur_resp
+                    executed_vendor = "UrbanRupee"
+                    vendor_url = "https://payout.urbanrupee.in/api/payout/initiate"
         elif active_provider == "WOWPE":
             vendor_url = "https://api.wowpe.in/api/api/api-module/payout/payout"
             await ErrorManagementService.log_vendor_api(

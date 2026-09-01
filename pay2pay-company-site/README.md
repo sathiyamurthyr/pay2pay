@@ -1,6 +1,6 @@
 # Pay2Pay Corporate Website (`pay2pay-company-site`)
 
-Production-ready, single-page enterprise fintech public landing website for **Pay2Pay Financial Technologies Private Limited**.
+Production-ready, single-page enterprise fintech public landing website for **SUPER REX PRODUCTS PRIVATE LIMITED**.
 
 ## 🚀 Features
 

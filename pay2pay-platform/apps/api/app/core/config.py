@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = Field(default="Pay2Pay Enterprise")
 
     # ── Support Metadata Configuration ──────────────────────────────────────
-    COMPANY_NAME: str = Field(default="Pay2Pay Financial Technologies Pvt. Ltd.")
+    COMPANY_NAME: str = Field(default="SUPER REX PRODUCTS PRIVATE LIMITED")
     COMPANY_LOGO_URL: str = Field(default="/logo.png")
     SUPPORT_EMAIL: str = Field(default="support@pay2pay.com")
     SUPPORT_PHONE: str = Field(default="+91 1800 292 982")

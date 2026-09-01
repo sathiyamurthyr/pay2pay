@@ -201,33 +201,37 @@ export function renderReceiptToCanvas(
   const logoSize = 54;
   drawPay2PayLogo(ctx, logoX, logoY, logoSize);
 
-  // Company Name
+  // Brand Name & Company Name
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
   ctx.fillStyle = "#0F172A";
   ctx.font = `900 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  ctx.fillText(data.companyName || "AUTHORIZED PAYMENT NETWORK", logoX + logoSize + 14, logoY + 2);
+  ctx.fillText("Pay2Pay Enterprise", logoX + logoSize + 14, logoY);
+
+  ctx.fillStyle = "#334155";
+  ctx.font = `800 12.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.fillText(data.companyName || "SUPER REX PRODUCTS PRIVATE LIMITED", logoX + logoSize + 14, logoY + 22);
 
   // Subtitle / Tagline
   ctx.fillStyle = "#2563EB";
-  ctx.font = `700 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = `700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.fillText(
     data.companyTagline || "Enterprise Domestic Money Transfer (DMT) · Authorized Payment Network",
     logoX + logoSize + 14,
-    logoY + 24
+    logoY + 38
   );
 
   // Certified Badges
   ctx.fillStyle = "#64748B";
-  ctx.font = `600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = `600 9.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   ctx.fillText(
     "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
     logoX + logoSize + 14,
-    logoY + 40
+    logoY + 53
   );
 
   // Top Divider
-  let curY = logoY + logoSize + 18;
+  let curY = logoY + logoSize + 22;
   ctx.strokeStyle = "#E2E8F0";
   ctx.lineWidth = 1;
   ctx.beginPath();

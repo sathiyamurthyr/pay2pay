@@ -344,7 +344,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     });
 
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-    const stepsCopy = BANKING_GRADE_STEPS_TEMPLATE.map((s) => ({ ...s, status: "PENDING" as const }));
+    const stepsCopy: ProgressStep[] = BANKING_GRADE_STEPS_TEMPLATE.map((s) => ({ ...s, status: "PENDING" }));
     setTimelineSteps(stepsCopy);
 
     const markStep = async (index: number, id: string, subTitle?: string, processingDelay = 80, completedDelay = 100) => {
@@ -373,7 +373,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
 
     // Step 4: Checking Wallet Balance (s4)
     const storeWalletState = useRetailerStore.getState().wallet;
-    const currentLiveBal = storeWalletState?.mainBalance ?? storeWalletState?.availableBalance ?? (useRetailerStore.getState() as any).walletBalance ?? walletBalance ?? 0;
+    const currentLiveBal = storeWalletState?.mainBalance ?? (storeWalletState as any)?.availableBalance ?? (useRetailerStore.getState() as any).walletBalance ?? walletBalance ?? 0;
     await markStep(3, "s4", `Available Balance: ₹${currentLiveBal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 70, 90);
 
     // Step 5: Checking Transaction Limits (s5)
@@ -416,8 +416,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("p2p_wallet_update"));
       }
-    } else if (finResult.walletBalance !== undefined && finResult.walletBalance !== null) {
-      useRetailerStore.getState().setWalletBalance(finResult.walletBalance);
+    } else if ((finResult as any).walletBalance !== undefined && (finResult as any).walletBalance !== null) {
+      useRetailerStore.getState().setWalletBalance((finResult as any).walletBalance);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("p2p_wallet_update"));
       }
@@ -608,7 +608,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   });
 
   const receiptImagePayload: ReceiptDataForImage = {
-    companyName: "PAY2PAY DIGITAL SERVICES PRIVATE LIMITED",
+    companyName: "SUPER REX PRODUCTS PRIVATE LIMITED",
     companyTagline: "Enterprise Domestic Money Transfer (DMT) · Authorized Payment Network",
     receiptToken: liveToken,
     transactionId: activeTxId || liveFinResult?.transactionId || "TXN-85472190",
@@ -650,19 +650,36 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     <Box
       sx={{
         width: "100%",
-        maxWidth: 1000,
+        maxWidth: 1040,
         mx: "auto",
-        height: "100%",
+        minHeight: "100%",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center",
         boxSizing: "border-box",
-        px: 1,
+        px: { xs: 1.5, sm: 2 },
+        pb: { xs: "140px", sm: "120px", md: 6 },
         position: "relative",
       }}
     >
-      {/* GLOBAL PRINT CSS ENFORCEMENT (@media print) */}
+      {/* GLOBAL KEYFRAME & PRINT CSS ENFORCEMENT */}
       <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-8px); }
+          40%, 80% { transform: translateX(8px); }
+        }
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        @keyframes pulseGlow {
+          0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.2); }
+          50% { box-shadow: 0 0 25px rgba(245, 158, 11, 0.45); }
+        }
+        @keyframes floatToast {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
         @media print {
           body * {
             visibility: hidden;
@@ -683,26 +700,195 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
         }
       `}</style>
 
-      {/* ── PROFESSIONAL PAGE HEADER ── */}
-      <Box sx={{ mb: 1.5, textAlign: "left", width: "100%" }}>
-        <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "22px", letterSpacing: "-0.2px" }}>
-          Transaction Authorization & Verification Portal
-        </Typography>
-        <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "13px" }}>
-          Verify transaction details before securely authorizing this transfer.
-        </Typography>
+      {/* ── 1. PREMIUM MOBILE & DESKTOP TOP HEADER ── */}
+      <Box
+        sx={{
+          mb: 2.5,
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: "18px",
+          bgcolor: "rgba(11, 15, 25, 0.85)",
+          backdropFilter: "blur(24px)",
+          border: "1px solid rgba(245, 158, 11, 0.25)",
+          boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(245, 158, 11, 0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+        }}
+      >
+        {/* Left: Hamburger + Title */}
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+          <IconButton
+            size="small"
+            aria-label="Menu"
+            sx={{
+              color: "rgba(255, 255, 255, 0.85)",
+              bgcolor: "rgba(255, 255, 255, 0.06)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "10px",
+              p: 0.75,
+              transition: "all 0.15s ease",
+              "&:hover": {
+                bgcolor: "rgba(245, 158, 11, 0.15)",
+                borderColor: "rgba(245, 158, 11, 0.4)",
+                color: "#FDE68A",
+              },
+            }}
+          >
+            <Box component="span" sx={{ fontSize: 18, lineHeight: 1 }}>☰</Box>
+          </IconButton>
+          <Box>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              <Typography
+                sx={{
+                  fontWeight: 900,
+                  fontSize: { xs: "16px", sm: "18px" },
+                  letterSpacing: "-0.3px",
+                  background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                DMT
+              </Typography>
+              <Chip
+                label="DirectSwitch"
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: "9px",
+                  fontWeight: 800,
+                  bgcolor: "rgba(59, 130, 246, 0.15)",
+                  color: "#60A5FA",
+                  border: "1px solid rgba(59, 130, 246, 0.3)",
+                }}
+              />
+            </Stack>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: { xs: "10.5px", sm: "11.5px" }, fontWeight: 600 }}>
+              Transaction Authorization
+            </Typography>
+          </Box>
+        </Stack>
+
+        {/* Right: Wallet Balance Pill + Refresh + Notification + Avatar */}
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          {/* Gold Glass Wallet Pill */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              px: { xs: 1.5, sm: 2 },
+              py: 0.75,
+              borderRadius: "999px",
+              bgcolor: "rgba(245, 158, 11, 0.1)",
+              border: "1px solid rgba(245, 158, 11, 0.4)",
+              boxShadow: "0 0 16px rgba(245, 158, 11, 0.2)",
+              animation: "pulseGlow 3s infinite ease-in-out",
+            }}
+          >
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "10px", fontWeight: 700, display: { xs: "none", sm: "inline" } }}>
+              WALLET:
+            </Typography>
+            <Typography
+              sx={{
+                fontWeight: 900,
+                fontSize: { xs: "12.5px", sm: "14px" },
+                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              ₹{(animatedWallet ?? currentWalletBalance ?? 0).toLocaleString()}
+            </Typography>
+          </Box>
+
+          {/* Sync / Refresh Button */}
+          <IconButton
+            size="small"
+            aria-label="Refresh Balance"
+            onClick={() => useRetailerStore.getState().syncBalance?.()}
+            sx={{
+              color: "#FBBF24",
+              bgcolor: "rgba(245, 158, 11, 0.12)",
+              border: "1px solid rgba(245, 158, 11, 0.3)",
+              borderRadius: "10px",
+              p: 0.75,
+              transition: "all 0.15s ease",
+              "&:hover": {
+                bgcolor: "rgba(245, 158, 11, 0.25)",
+                transform: "rotate(45deg)",
+              },
+            }}
+          >
+            <SyncIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+
+          {/* Notification Bell */}
+          <IconButton
+            size="small"
+            aria-label="Notifications"
+            sx={{
+              color: "rgba(255, 255, 255, 0.75)",
+              bgcolor: "rgba(255, 255, 255, 0.06)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "10px",
+              p: 0.75,
+              position: "relative",
+              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)", color: "#FFFFFF" },
+            }}
+          >
+            <Box component="span" sx={{ fontSize: 14 }}>🔔</Box>
+            <Box
+              sx={{
+                position: "absolute",
+                top: 4,
+                right: 4,
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                bgcolor: "#F59E0B",
+                boxShadow: "0 0 6px #F59E0B",
+              }}
+            />
+          </IconButton>
+
+          {/* Profile Avatar */}
+          <Box
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              bgcolor: "rgba(245, 158, 11, 0.18)",
+              border: "1.5px solid rgba(245, 158, 11, 0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 900,
+              fontSize: "12px",
+              color: "#FDE68A",
+              boxShadow: "0 0 12px rgba(245, 158, 11, 0.3)",
+            }}
+          >
+            {(customer?.name || "S")[0].toUpperCase()}
+          </Box>
+        </Stack>
       </Box>
 
+      {/* ── 2. MAIN WORKSTATION GLASS CARD ── */}
       <Paper
         elevation={0}
         sx={{
           width: "100%",
-          borderRadius: "16px",
-          bgcolor: viewState === "SUCCESS_RECEIPT" ? "rgba(18, 27, 48, 0.95)" : "rgba(18, 27, 48, 0.85)",
-          backgroundImage: viewState === "SUCCESS_RECEIPT" ? "radial-gradient(circle at 50% 30%, rgba(74, 222, 128, 0.12), transparent 70%)" : "none",
-          backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255, 255, 255, 0.12)",
-          p: 2.5,
+          borderRadius: "24px",
+          bgcolor: viewState === "SUCCESS_RECEIPT" ? "rgba(10, 15, 26, 0.95)" : "rgba(11, 15, 25, 0.85)",
+          backgroundImage: viewState === "SUCCESS_RECEIPT"
+            ? "radial-gradient(circle at 50% 20%, rgba(34, 197, 94, 0.15), transparent 70%)"
+            : "radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.06), transparent 60%)",
+          backdropFilter: "blur(24px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.8)",
+          p: { xs: 2, sm: 3 },
           boxSizing: "border-box",
           overflow: "hidden",
           position: "relative",
@@ -735,14 +921,16 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             alignItems: "stretch",
           }}
         >
-          {/* ── LEFT PANEL (50%): TRANSACTION SUMMARY & LIVE BALANCES ── */}
+          {/* ── LEFT PANEL: TRANSACTION SUMMARY & LIVE BALANCES ── */}
           <Paper
             elevation={0}
             sx={{
-              p: 2,
-              borderRadius: "14px",
-              bgcolor: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              p: { xs: 2, sm: 2.5 },
+              borderRadius: "18px",
+              bgcolor: "rgba(15, 23, 42, 0.65)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(245, 158, 11, 0.18)",
+              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -750,96 +938,206 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             }}
           >
             <Box>
-              <Typography sx={{ color: "#60A5FA", fontWeight: 800, fontSize: "11.5px", letterSpacing: "0.08em", textTransform: "uppercase", mb: 1.5 }}>
-                TRANSACTION SUMMARY & LIVE BALANCES
-              </Typography>
+              {/* Card Title */}
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    bgcolor: "#F59E0B",
+                    boxShadow: "0 0 8px #F59E0B",
+                  }}
+                />
+                <Typography
+                  sx={{
+                    fontWeight: 900,
+                    fontSize: "12px",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}
+                >
+                  TRANSACTION SUMMARY & LIVE BALANCES
+                </Typography>
+              </Stack>
 
-              <Stack spacing={1}>
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Customer</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
+              {/* Data Items List */}
+              <Stack spacing={1.25}>
+                {/* 1. Customer */}
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Customer</Typography>
+                  <Typography
+                    sx={{
+                      fontWeight: 900,
+                      fontSize: "13.5px",
+                      background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                    }}
+                  >
                     {customer?.name || "Sathya Moorthy"}
                   </Typography>
                 </Stack>
 
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Beneficiary</Typography>
+                {/* 2. Beneficiary */}
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Beneficiary</Typography>
                   <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "13px" }}>
                     {displayBeneName}
                   </Typography>
                 </Stack>
 
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Transaction Mode</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>{modeDisplay}</Typography>
+                {/* 3. Transaction Mode */}
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Transaction Mode</Typography>
+                  <Box
+                    sx={{
+                      px: 1.5,
+                      py: 0.25,
+                      borderRadius: "999px",
+                      bgcolor: "rgba(59, 130, 246, 0.15)",
+                      border: "1px solid rgba(59, 130, 246, 0.35)",
+                      color: "#60A5FA",
+                      fontSize: "11px",
+                      fontWeight: 900,
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {modeDisplay}
+                  </Box>
                 </Stack>
 
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Bank</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12px" }}>
+                {/* 4. Bank */}
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Bank</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12.5px" }}>
                     {displayBeneBank}
                   </Typography>
                 </Stack>
 
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Account</Typography>
-                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12px" }}>{displayBeneAccount}</Typography>
+                {/* 5. Account */}
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "12px", fontWeight: 600 }}>Account</Typography>
+                  <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontFamily: "monospace", fontSize: "12.5px", letterSpacing: "0.05em" }}>
+                    {displayBeneAccount}
+                  </Typography>
                 </Stack>
 
-                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
+                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
 
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Wallet Balance</Typography>
-                  <Typography sx={{ fontWeight: 900, color: viewState === "SUCCESS_RECEIPT" ? "#4ADE80" : "#FBBF24", fontSize: "13.5px" }}>
+                {/* 6. Wallet Balance (Gold) */}
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px", fontWeight: 600 }}>Wallet Balance</Typography>
+                  <Typography
+                    sx={{
+                      fontWeight: 900,
+                      fontSize: "14px",
+                      color: viewState === "SUCCESS_RECEIPT" ? "#4ADE80" : "#FBBF24",
+                      textShadow: "0 0 10px rgba(245, 158, 11, 0.3)",
+                    }}
+                  >
                     ₹{(animatedWallet ?? currentWalletBalance ?? 0).toLocaleString()}
                   </Typography>
                 </Stack>
 
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Monthly Remaining Limit</Typography>
-                  <Typography sx={{ fontWeight: 900, color: viewState === "SUCCESS_RECEIPT" ? "#60A5FA" : "#93C5FD", fontSize: "13.5px" }}>
+                {/* 7. Monthly Remaining Limit (Blue) */}
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px", fontWeight: 600 }}>Monthly Remaining Limit</Typography>
+                  <Typography sx={{ fontWeight: 900, color: "#60A5FA", fontSize: "13.5px" }}>
                     ₹{(animatedLimit ?? beneficiary?.monthlyRemaining ?? 0).toLocaleString()}
                   </Typography>
                 </Stack>
 
-                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.25 }} />
+                <Divider sx={{ borderColor: "rgba(245, 158, 11, 0.2)", my: 0.5 }} />
 
-                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "12px" }}>TOTAL AMOUNT PAID</Typography>
-                  <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "16px" }}>₹{(totalAmountPaid ?? 0).toLocaleString()}</Typography>
+                {/* 8. TOTAL AMOUNT PAID (Large Gold Gradient) */}
+                <Stack
+                  direction="row"
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    p: 1.25,
+                    borderRadius: "12px",
+                    bgcolor: "rgba(245, 158, 11, 0.06)",
+                    border: "1px solid rgba(245, 158, 11, 0.25)",
+                  }}
+                >
+                  <Box>
+                    <Typography sx={{ color: "rgba(255, 255, 255, 0.8)", fontWeight: 800, fontSize: "11px", letterSpacing: "0.05em" }}>
+                      TOTAL AMOUNT PAID
+                    </Typography>
+                    <Typography sx={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "9.5px" }}>
+                      Includes charges & GST
+                    </Typography>
+                  </Box>
+                  <Typography
+                    sx={{
+                      fontWeight: 900,
+                      fontSize: "19px",
+                      background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      filter: "drop-shadow(0 2px 8px rgba(245, 158, 11, 0.4))",
+                    }}
+                  >
+                    ₹{(totalAmountPaid ?? 0).toLocaleString()}
+                  </Typography>
                 </Stack>
               </Stack>
             </Box>
 
-            {/* Compact Ready Banner */}
-            <Paper
-              elevation={0}
+            {/* ── 3. LIVE EXECUTION STATUS BANNER ── */}
+            <Box
               sx={{
-                p: 1,
-                mt: 1.5,
-                borderRadius: "8px",
-                bgcolor: viewState === "SUCCESS_RECEIPT" ? "rgba(74, 222, 128, 0.2)" : "rgba(74, 222, 128, 0.15)",
-                border: "1px solid rgba(74, 222, 128, 0.3)",
-                color: "#4ADE80",
-                fontWeight: 800,
-                fontSize: "12px",
-                textAlign: "center",
+                mt: 2,
+                p: 1.25,
+                borderRadius: "12px",
+                bgcolor: viewState === "SUCCESS_RECEIPT" ? "rgba(34, 197, 94, 0.15)" : "rgba(16, 185, 129, 0.1)",
+                border: "1px solid rgba(16, 185, 129, 0.35)",
+                boxShadow: "0 0 20px rgba(16, 185, 129, 0.12)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 1.25,
               }}
             >
-              {viewState === "SUCCESS_RECEIPT"
-                ? `🟢 SETTLED SUCCESSFULLY · UTR: ${utr}`
-                : `🟢 Ready to Execute · Mode : ${transactionMode} · ETA : 1.2 sec · Route : HDFC DirectSwitch`}
-            </Paper>
+              {/* Animated Status Pulse Indicator */}
+              <Box sx={{ position: "relative", width: 10, height: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    bgcolor: "#10B981",
+                    opacity: 0.75,
+                    animation: "ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite",
+                  }}
+                />
+                <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#34D399" }} />
+              </Box>
+
+              <Typography sx={{ color: "#34D399", fontWeight: 800, fontSize: "11.5px", textAlign: "center" }}>
+                {viewState === "SUCCESS_RECEIPT"
+                  ? `SETTLED SUCCESSFULLY · UTR: ${utr}`
+                  : `Ready to Execute · Mode: ${transactionMode} · ETA: 1.2 sec · Route: HDFC DirectSwitch`}
+              </Typography>
+            </Box>
           </Paper>
 
-          {/* ── RIGHT PANEL (50%): OPERATOR PIN / LIVE TIMELINE / RECEIPT & VERIFICATION PORTAL ── */}
+          {/* ── RIGHT PANEL: OPERATOR PIN AUTHORIZATION & NUMERIC KEYPAD ── */}
           <Paper
             elevation={0}
             sx={{
-              p: 2,
-              borderRadius: "14px",
-              bgcolor: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              p: { xs: 2, sm: 2.5 },
+              borderRadius: "18px",
+              bgcolor: "rgba(15, 23, 42, 0.7)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.4)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -847,51 +1145,69 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
               overflow: "hidden",
             }}
           >
-            {/* VIEW 1: PIN ENTRY */}
+            {/* VIEW 1: OPERATOR PIN ENTRY */}
             {viewState === "PIN_ENTRY" && (
               <Box sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                 <Box sx={{ width: "100%" }}>
-                  <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "19px", mb: 0.5 }}>
-                    Operator PIN Authorization
-                  </Typography>
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12.5px", mb: 2 }}>
-                    Enter your secure 4-digit Operator PIN to authorize this transaction.
-                  </Typography>
-
-                  {/* Error Callout */}
-                  {errorMessage && (
-                    <Paper
-                      elevation={0}
+                  {/* Heading & Description */}
+                  <Box sx={{ textAlign: "center", mb: 2 }}>
+                    <Typography
                       sx={{
-                        p: 1,
+                        fontWeight: 900,
+                        fontSize: { xs: "18px", sm: "20px" },
+                        mb: 0.5,
+                        background: "linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #94A3B8 100%)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                      }}
+                    >
+                      Operator PIN Authorization
+                    </Typography>
+                    <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px", maxWidth: 360, mx: "auto" }}>
+                      Enter your secure 4-digit Operator PIN to authorize this transaction.
+                    </Typography>
+                  </Box>
+
+                  {/* Error Toast / Alert */}
+                  {errorMessage && (
+                    <Box
+                      sx={{
+                        p: 1.25,
                         mb: 2,
-                        borderRadius: "8px",
+                        borderRadius: "12px",
                         bgcolor: "rgba(239, 68, 68, 0.15)",
-                        border: "1px solid #EF4444",
-                        color: "#EF4444",
-                        fontWeight: 800,
-                        fontSize: "11.5px",
+                        border: "1px solid rgba(239, 68, 68, 0.5)",
+                        boxShadow: "0 0 20px rgba(239, 68, 68, 0.25)",
+                        color: "#FCA5A5",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
+                        animation: "shake 0.4s ease-in-out",
                       }}
                     >
-                      <Typography sx={{ fontSize: "11.5px", fontWeight: 800 }}>{errorMessage}</Typography>
-                      {isLocked && (
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                        <Box component="span" sx={{ fontSize: 16 }}>⚠️</Box>
+                        <Typography sx={{ fontSize: "11.5px", fontWeight: 800 }}>{errorMessage}</Typography>
+                      </Stack>
+                      {isLocked ? (
                         <Button
                           size="small"
                           variant="contained"
                           color="error"
                           onClick={() => setSupervisorModalOpen(true)}
-                          sx={{ height: 24, fontSize: "9.5px", fontWeight: 900 }}
+                          sx={{ height: 24, fontSize: "9.5px", fontWeight: 900, borderRadius: "6px" }}
                         >
                           Supervisor Override
                         </Button>
+                      ) : (
+                        <IconButton size="small" onClick={() => setErrorMessage(null)} sx={{ color: "rgba(255,255,255,0.6)", p: 0.5 }}>
+                          ✕
+                        </IconButton>
                       )}
-                    </Paper>
+                    </Box>
                   )}
 
-                  {/* 4-DIGIT PIN INPUT CONTAINER WITH VISUAL ACTIVE FOCUS RING */}
+                  {/* 4 LARGE GLOWING PIN INPUT BOXES */}
                   {(() => {
                     const activeInputIdx = pinDigits.findIndex((d) => d === "");
                     const currentFocusIdx = activeInputIdx !== -1 ? activeInputIdx : pinLength - 1;
@@ -903,8 +1219,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          gap: "14px",
-                          mb: 2,
+                          gap: { xs: "10px", sm: "14px" },
+                          my: 2,
                           animation: isShaking ? "shake 0.4s ease-in-out" : "none",
                         }}
                       >
@@ -919,34 +1235,41 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                               key={idx}
                               onClick={() => inputRefs.current[idx]?.focus()}
                               sx={{
-                                width: 60,
-                                height: 60,
-                                borderRadius: "12px",
-                                bgcolor: digit ? "rgba(37, 99, 235, 0.25)" : isFocusedBox ? "rgba(37, 99, 235, 0.15)" : "rgba(8, 17, 31, 0.9)",
+                                width: { xs: 54, sm: 60 },
+                                height: { xs: 54, sm: 60 },
+                                borderRadius: "16px",
+                                bgcolor: digit
+                                  ? "rgba(245, 158, 11, 0.18)"
+                                  : isFocusedBox
+                                  ? "rgba(245, 158, 11, 0.1)"
+                                  : "rgba(15, 23, 42, 0.9)",
                                 border: errorMessage
                                   ? "2px solid #EF4444"
                                   : isFocusedBox
-                                  ? "2px solid #60A5FA"
+                                  ? "2px solid #F59E0B"
                                   : digit
-                                  ? "2px solid #2563EB"
-                                  : "1px solid rgba(255, 255, 255, 0.18)",
+                                  ? "2px solid rgba(245, 158, 11, 0.7)"
+                                  : "1px solid rgba(255, 255, 255, 0.15)",
                                 boxShadow: errorMessage
-                                  ? "0 0 16px rgba(239, 68, 68, 0.6)"
+                                  ? "0 0 24px rgba(239, 68, 68, 0.6)"
                                   : isFocusedBox
-                                  ? "0 0 16px rgba(96, 165, 250, 0.7)"
+                                  ? "0 0 24px rgba(245, 158, 11, 0.5)"
+                                  : digit
+                                  ? "0 0 16px rgba(245, 158, 11, 0.3)"
                                   : "none",
-                                transition: "all 0.15s ease-in-out",
+                                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                color: "#FFFFFF",
-                                fontSize: "30px",
-                                fontWeight: 700,
+                                color: "#FDE68A",
+                                fontSize: digit ? "30px" : "20px",
+                                fontWeight: 900,
                                 cursor: "pointer",
                                 position: "relative",
+                                transform: isFocusedBox ? "scale(1.06)" : "scale(1)",
                               }}
                             >
-                              {displayChar || (isFocusedBox && <Box sx={{ width: 2, height: 24, bgcolor: "#60A5FA", animation: "blink 1s infinite" }} />)}
+                              {displayChar || (isFocusedBox && <Box sx={{ width: 2.5, height: 24, bgcolor: "#F59E0B", borderRadius: "1px", animation: "blink 1s infinite", boxShadow: "0 0 8px #F59E0B" }} />)}
                               <input
                                 ref={(el) => {
                                   inputRefs.current[idx] = el;
@@ -964,35 +1287,152 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                     );
                   })()}
 
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.40)", fontSize: "11px", textAlign: "center", mb: 2 }}>
-                    Forgot PIN? (Contact Supervisor)
-                  </Typography>
-                </Box>
-
-                <Stack spacing={1} sx={{ width: "100%" }}>
-                  {onBack && (
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      onClick={onBack}
-                      startIcon={<ArrowBackIcon />}
+                  {/* Forgot PIN Link */}
+                  <Box sx={{ textAlign: "center", mb: 2 }}>
+                    <Typography
+                      onClick={() => setSupervisorModalOpen(true)}
                       sx={{
-                        height: 42,
-                        borderRadius: "10px",
+                        color: "rgba(245, 158, 11, 0.8)",
+                        fontSize: "11.5px",
                         fontWeight: 700,
-                        fontSize: "12.5px",
-                        color: "rgba(255, 255, 255, 0.70)",
-                        borderColor: "rgba(255, 255, 255, 0.15)",
-                        "&:hover": {
-                          borderColor: "rgba(255, 255, 255, 0.3)",
-                          bgcolor: "rgba(255, 255, 255, 0.05)",
-                        },
+                        cursor: "pointer",
+                        display: "inline-block",
+                        transition: "all 0.15s ease",
+                        "&:hover": { color: "#FBBF24", textDecoration: "underline" },
                       }}
                     >
-                      Back
-                    </Button>
-                  )}
-                </Stack>
+                      Forgot PIN? (Contact Supervisor)
+                    </Typography>
+                  </Box>
+
+                  {/* ── 4. NUMERIC KEYPAD (MOBILE ON-SCREEN KEYPAD) ── */}
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: { xs: 1, sm: 1.25 },
+                      maxWidth: 340,
+                      mx: "auto",
+                      mb: 2,
+                    }}
+                  >
+                    {[
+                      { digit: "1", sub: "" },
+                      { digit: "2", sub: "ABC" },
+                      { digit: "3", sub: "DEF" },
+                      { digit: "4", sub: "GHI" },
+                      { digit: "5", sub: "JKL" },
+                      { digit: "6", sub: "MNO" },
+                      { digit: "7", sub: "PQRS" },
+                      { digit: "8", sub: "TUV" },
+                      { digit: "9", sub: "WXYZ" },
+                      { digit: "CLEAR", sub: "" },
+                      { digit: "0", sub: "+" },
+                      { digit: "BACK", sub: "" },
+                    ].map((btn, bIdx) => {
+                      const isClear = btn.digit === "CLEAR";
+                      const isBack = btn.digit === "BACK";
+
+                      return (
+                        <Button
+                          key={bIdx}
+                          onClick={() => {
+                            if (isClear) {
+                              setPinDigits(Array(pinLength).fill(""));
+                              setRevealedIndex(null);
+                              inputRefs.current[0]?.focus();
+                            } else if (isBack) {
+                              handleDeleteDigit();
+                            } else {
+                              handleAddDigit(btn.digit);
+                            }
+                          }}
+                          disabled={isLocked}
+                          sx={{
+                            height: { xs: 54, sm: 58 },
+                            borderRadius: "16px",
+                            bgcolor: isClear
+                              ? "rgba(239, 68, 68, 0.08)"
+                              : isBack
+                              ? "rgba(245, 158, 11, 0.08)"
+                              : "rgba(20, 29, 47, 0.7)",
+                            border: isClear
+                              ? "1px solid rgba(239, 68, 68, 0.3)"
+                              : isBack
+                              ? "1px solid rgba(245, 158, 11, 0.3)"
+                              : "1px solid rgba(255, 255, 255, 0.1)",
+                            backdropFilter: "blur(12px)",
+                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                            color: isClear ? "#EF4444" : isBack ? "#FDE68A" : "#FFFFFF",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            p: 0,
+                            minWidth: 0,
+                            transition: "all 0.12s cubic-bezier(0.4, 0, 0.2, 1)",
+                            "&:hover": {
+                              bgcolor: "rgba(245, 158, 11, 0.18)",
+                              borderColor: "rgba(245, 158, 11, 0.5)",
+                              transform: "translateY(-1px)",
+                              boxShadow: "0 6px 16px rgba(245, 158, 11, 0.25)",
+                            },
+                            "&:active": {
+                              bgcolor: "rgba(245, 158, 11, 0.35)",
+                              borderColor: "#F59E0B",
+                              transform: "scale(0.95)",
+                              boxShadow: "0 0 16px rgba(245, 158, 11, 0.4)",
+                            },
+                          }}
+                        >
+                          {isClear ? (
+                            <Typography sx={{ fontSize: "12px", fontWeight: 900, color: "#EF4444" }}>Clear</Typography>
+                          ) : isBack ? (
+                            <Typography sx={{ fontSize: "20px", fontWeight: 900 }}>⌫</Typography>
+                          ) : (
+                            <>
+                              <Typography sx={{ fontSize: "20px", fontWeight: 900, lineHeight: 1 }}>{btn.digit}</Typography>
+                              {btn.sub && (
+                                <Typography sx={{ fontSize: "8.5px", fontWeight: 700, color: "rgba(255, 255, 255, 0.4)", letterSpacing: "0.1em", mt: 0.25 }}>
+                                  {btn.sub}
+                                </Typography>
+                              )}
+                            </>
+                          )}
+                        </Button>
+                      );
+                    })}
+                  </Box>
+                </Box>
+
+                {/* Back Button */}
+                {onBack && (
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={onBack}
+                    startIcon={<ArrowBackIcon />}
+                    sx={{
+                      height: 44,
+                      borderRadius: "14px",
+                      fontWeight: 800,
+                      fontSize: "13px",
+                      color: "rgba(255, 255, 255, 0.8)",
+                      borderColor: "rgba(255, 255, 255, 0.18)",
+                      bgcolor: "rgba(255, 255, 255, 0.03)",
+                      backdropFilter: "blur(8px)",
+                      transition: "all 0.15s ease",
+                      "&:hover": {
+                        borderColor: "rgba(245, 158, 11, 0.5)",
+                        bgcolor: "rgba(245, 158, 11, 0.1)",
+                        color: "#FDE68A",
+                        transform: "translateY(-1px)",
+                      },
+                    }}
+                  >
+                    Back to Amount Selection
+                  </Button>
+                )}
               </Box>
             )}
 
@@ -1722,31 +2162,75 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
               <Box
                 sx={{
-                  width: 46,
-                  height: 46,
+                  width: 48,
+                  height: 48,
                   borderRadius: "12px",
-                  background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+                  bgcolor: "#FFFFFF",
+                  border: "1.5px solid #CBD5E1",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "#FFFFFF",
-                  fontWeight: 900,
-                  fontSize: "15px",
-                  boxShadow: "0 4px 12px rgba(37, 99, 235, 0.35)",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
                   flexShrink: 0,
+                  p: 0.5,
+                  overflow: "hidden",
                 }}
               >
-                P2P
+                <Box
+                  component="img"
+                  src="/branding/logo.png"
+                  alt="Pay2Pay"
+                  onError={(e: any) => {
+                    e.currentTarget.style.display = "none";
+                    if (e.currentTarget.nextSibling) {
+                      e.currentTarget.nextSibling.style.display = "flex";
+                    }
+                  }}
+                  sx={{ width: "100%", height: "100%", objectFit: "contain" }}
+                />
+                <Box
+                  sx={{
+                    display: "none",
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "8px",
+                    background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#FFFFFF",
+                    fontWeight: 900,
+                    fontSize: "14px",
+                  }}
+                >
+                  P2P
+                </Box>
               </Box>
 
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontWeight: 900, fontSize: "13.5px", color: "#0F172A", letterSpacing: "-0.2px", lineHeight: 1.2 }}>
-                  PAY2PAY DIGITAL SERVICES PRIVATE LIMITED
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                  <Typography sx={{ fontWeight: 900, fontSize: "16px", color: "#0F172A", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
+                    Pay2Pay
+                  </Typography>
+                  <Chip
+                    label="Official"
+                    size="small"
+                    sx={{
+                      height: 18,
+                      fontSize: "9px",
+                      fontWeight: 800,
+                      bgcolor: "rgba(37, 99, 235, 0.12)",
+                      color: "#1D4ED8",
+                      border: "1px solid rgba(37, 99, 235, 0.25)",
+                    }}
+                  />
+                </Stack>
+                <Typography sx={{ fontWeight: 800, fontSize: "12px", color: "#334155", mt: 0.25 }}>
+                  SUPER REX PRODUCTS PRIVATE LIMITED
                 </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: "11px", color: "#2563EB", mt: 0.25 }}>
+                <Typography sx={{ fontWeight: 700, fontSize: "10.5px", color: "#2563EB" }}>
                   Enterprise Domestic Money Transfer (DMT) · Authorized Network
                 </Typography>
-                <Typography sx={{ fontSize: "9.5px", color: "#64748B" }}>
+                <Typography sx={{ fontSize: "9px", color: "#64748B" }}>
                   NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted
                 </Typography>
               </Box>
@@ -2168,6 +2652,256 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
           </Stack>
         </DialogContent>
       </Dialog>
+
+      {/* ── 5. COMPACT FLOATING GLASS VALIDATION TOAST (ABOVE BOTTOM NAV) ── */}
+      {errorMessage && (
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: { xs: "calc(78px + env(safe-area-inset-bottom, 16px))", sm: "30px" },
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "calc(100% - 32px)",
+            maxWidth: 440,
+            zIndex: 50,
+            animation: "floatToast 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+        >
+          <Paper
+            elevation={0}
+            sx={{
+              p: 1.5,
+              borderRadius: "16px",
+              bgcolor: "rgba(26, 10, 15, 0.95)",
+              backdropFilter: "blur(24px)",
+              border: "1px solid rgba(239, 68, 68, 0.6)",
+              boxShadow: "0 12px 35px rgba(0, 0, 0, 0.75), 0 0 20px rgba(239, 68, 68, 0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1.5,
+            }}
+          >
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0 }}>
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "10px",
+                  bgcolor: "rgba(239, 68, 68, 0.2)",
+                  border: "1px solid rgba(239, 68, 68, 0.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "15px",
+                  color: "#EF4444",
+                  flexShrink: 0,
+                  boxShadow: "0 0 10px rgba(239, 68, 68, 0.3)",
+                }}
+              >
+                ⚠️
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#FCA5A5", lineHeight: 1.2, letterSpacing: "0.02em" }}>
+                  {attemptsLeft <= 1 ? "Security Alert · Final Attempt" : "Validation Alert · 2 Issues"}
+                </Typography>
+                <Typography sx={{ fontSize: "12px", color: "#FFFFFF", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", mt: 0.25 }}>
+                  {errorMessage}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <IconButton
+              size="small"
+              aria-label="Dismiss error"
+              onClick={() => setErrorMessage(null)}
+              sx={{
+                color: "rgba(255, 255, 255, 0.7)",
+                p: 0.6,
+                borderRadius: "8px",
+                bgcolor: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                "&:hover": { bgcolor: "rgba(255, 255, 255, 0.2)", color: "#FFFFFF" },
+              }}
+            >
+              ✕
+            </IconButton>
+          </Paper>
+        </Box>
+      )}
+
+      {/* ── 6. MOBILE BOTTOM NAVIGATION & ELEVATED GOLD FAB DOCK ── */}
+      <Box
+        sx={{
+          display: { xs: "block", md: "none" },
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 40,
+          bgcolor: "rgba(8, 11, 17, 0.95)",
+          backdropFilter: "blur(24px)",
+          borderTop: "1px solid rgba(245, 158, 11, 0.25)",
+          boxShadow: "0 -10px 30px rgba(0, 0, 0, 0.75)",
+          px: 1,
+          pt: 1,
+          pb: "calc(10px + env(safe-area-inset-bottom, 0px))",
+        }}
+      >
+        <Box
+          sx={{
+            maxWidth: 440,
+            mx: "auto",
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            alignItems: "center",
+            position: "relative",
+          }}
+        >
+          {/* 1. Dashboard */}
+          <Box
+            onClick={() => {
+              if (onAuthorize) onAuthorize();
+            }}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              py: 0.5,
+              opacity: 0.6,
+              transition: "all 0.15s ease",
+              "&:hover": { opacity: 1, color: "#FDE68A" },
+            }}
+          >
+            <Box component="span" sx={{ fontSize: 18 }}>🏠</Box>
+            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#94A3B8", mt: 0.25 }}>
+              Dashboard
+            </Typography>
+          </Box>
+
+          {/* 2. Transfer (ACTIVE WITH GOLD GLOW) */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              py: 0.5,
+              position: "relative",
+            }}
+          >
+            {/* Gold Active Top Indicator */}
+            <Box
+              sx={{
+                position: "absolute",
+                top: -8,
+                width: 28,
+                height: 3,
+                borderRadius: "999px",
+                background: "linear-gradient(90deg, #FDE68A, #F59E0B)",
+                boxShadow: "0 0 10px #F59E0B",
+              }}
+            />
+            <Box component="span" sx={{ fontSize: 18, filter: "drop-shadow(0 0 6px rgba(245, 158, 11, 0.7))" }}>
+              ⇄
+            </Box>
+            <Typography
+              sx={{
+                fontSize: "10px",
+                fontWeight: 900,
+                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                mt: 0.25,
+              }}
+            >
+              Transfer
+            </Typography>
+          </Box>
+
+          {/* 3. Central Elevated Gold FAB (+) */}
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <Box
+              onClick={() => {
+                if (onAuthorize) onAuthorize();
+              }}
+              aria-label="New Transfer"
+              sx={{
+                position: "absolute",
+                top: -22,
+                width: 52,
+                height: 52,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
+                border: "3px solid #080B11",
+                boxShadow: "0 0 24px rgba(245, 158, 11, 0.55), 0 8px 16px rgba(0, 0, 0, 0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#080B11",
+                fontWeight: 900,
+                fontSize: "26px",
+                cursor: "pointer",
+                animation: "pulseGlow 3s infinite ease-in-out",
+                transition: "all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                "&:hover": {
+                  transform: "scale(1.1)",
+                  boxShadow: "0 0 32px rgba(245, 158, 11, 0.75)",
+                },
+                "&:active": {
+                  transform: "scale(0.94)",
+                },
+              }}
+            >
+              +
+            </Box>
+          </Box>
+
+          {/* 4. Wallet */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              py: 0.5,
+              opacity: 0.6,
+              transition: "all 0.15s ease",
+              "&:hover": { opacity: 1, color: "#FDE68A" },
+            }}
+          >
+            <Box component="span" sx={{ fontSize: 18 }}>💳</Box>
+            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#94A3B8", mt: 0.25 }}>
+              Wallet
+            </Typography>
+          </Box>
+
+          {/* 5. Alerts / Profile */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              py: 0.5,
+              opacity: 0.6,
+              transition: "all 0.15s ease",
+              "&:hover": { opacity: 1, color: "#FDE68A" },
+            }}
+          >
+            <Box component="span" sx={{ fontSize: 18 }}>👤</Box>
+            <Typography sx={{ fontSize: "9.5px", fontWeight: 700, color: "#94A3B8", mt: 0.25 }}>
+              Profile
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 };
+

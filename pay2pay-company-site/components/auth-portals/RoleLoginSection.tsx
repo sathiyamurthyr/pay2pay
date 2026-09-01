@@ -9,21 +9,25 @@ import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
 const workspacePreviews = [
   {
     id: "retailer",
-    role: "Retailer Workspace",
+    role: "Retailer Portal",
     badge: "Merchant POS",
-    description: "Assisted DMT, AEPS biometric cash, and BBPS utility collection workstation.",
-    route: "/retailer/login",
+    description: "Counter-assisted DMT, AEPS biometric cash, and BBPS utility collection workstation.",
+    route: "https://retailer.pay2pay.in/retailer/login",
     icon: Store,
     highlighted: true,
+    accentColor: "blue",
+    buttonClasses: "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/25",
   },
   {
     id: "distributor",
-    role: "Distributor Workspace",
+    role: "Distributor Portal",
     badge: "Network Hub",
     description: "Retailer onboarding, real-time liquidity top-ups, and network commission tracking.",
     route: "/distributor/login",
     icon: Users,
     highlighted: false,
+    accentColor: "indigo",
+    buttonClasses: "bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600",
   },
   {
     id: "super-distributor",
@@ -33,15 +37,19 @@ const workspacePreviews = [
     route: "/super-distributor/login",
     icon: Network,
     highlighted: false,
+    accentColor: "amber",
+    buttonClasses: "bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600",
   },
   {
     id: "dit",
-    role: "DIT Workspace",
-    badge: "Operations",
+    role: "DIT Operations",
+    badge: "Technical Ops",
     description: "Technical gateway connectivity, switch latency telemetry, and service diagnostics.",
     route: "/dit/login",
     icon: Layers,
     highlighted: false,
+    accentColor: "cyan",
+    buttonClasses: "bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600",
   },
   {
     id: "admin",
@@ -51,6 +59,8 @@ const workspacePreviews = [
     route: "/company-admin/login",
     icon: ShieldCheck,
     highlighted: false,
+    accentColor: "purple",
+    buttonClasses: "bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600",
   },
 ];
 
@@ -60,9 +70,10 @@ export const RoleLoginSection: React.FC = () => {
       <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24">
         {/* Section Header */}
         <Pay2PayPageHeader
-          eyebrow="Role-Based Portals"
-          titlePrefix="One Platform."
-          highlightedTitle="Multiple Workspaces."
+          eyebrow="Role-Segregated Workspaces"
+          titlePrefix="One Unified Platform."
+          highlightedTitle="Multiple Portals."
+          highlightColor="blue"
           description="Dedicated, role-segregated operational dashboards connecting authorized partners with banking systems across India."
         />
 
@@ -81,9 +92,9 @@ export const RoleLoginSection: React.FC = () => {
                 />
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none rounded-2xl" />
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700/80">
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/85 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-700/80 shadow-lg">
                 <span className="text-blue-400 font-bold">Role-Segregated Workstations</span>
-                <span>Encrypted Session Control</span>
+                <span className="text-slate-400">Encrypted Session Control</span>
               </div>
             </div>
 
@@ -118,7 +129,7 @@ export const RoleLoginSection: React.FC = () => {
                 key={ws.id}
                 className={`rounded-2xl p-6 flex flex-col justify-between relative transition-all duration-300 ${
                   ws.highlighted
-                    ? "bg-gradient-to-b from-[#0F1E3A] to-[#081120] border-2 border-blue-500/80 shadow-xl shadow-blue-500/15"
+                    ? "bg-gradient-to-b from-[#0F1E3A] to-[#081120] border-2 border-blue-500/80 shadow-xl shadow-blue-500/20"
                     : "glass-panel bg-[#081220]/80 hover:border-slate-600 shadow-md"
                 }`}
               >
@@ -145,17 +156,23 @@ export const RoleLoginSection: React.FC = () => {
                 </div>
 
                 <div className="pt-4 border-t border-slate-800/80">
-                  <Link
-                    href={ws.route}
-                    className={`w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all ${
-                      ws.highlighted
-                        ? "bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/30"
-                        : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
-                    }`}
-                  >
-                    <span>Launch Portal</span>
-                    <ArrowRight size={13} />
-                  </Link>
+                  {ws.route.startsWith("http") ? (
+                    <a
+                      href={ws.route}
+                      className={`w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all ${ws.buttonClasses}`}
+                    >
+                      <span>Launch Portal</span>
+                      <ArrowRight size={13} />
+                    </a>
+                  ) : (
+                    <Link
+                      href={ws.route}
+                      className={`w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all ${ws.buttonClasses}`}
+                    >
+                      <span>Launch Portal</span>
+                      <ArrowRight size={13} />
+                    </Link>
+                  )}
                 </div>
               </div>
             );

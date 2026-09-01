@@ -184,75 +184,189 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
 
         <form onSubmit={handleSearch} autoComplete="off" autoCorrect="off" autoCapitalize="off">
           <Stack spacing={1.5}>
-            <TextField
-              fullWidth
-              autoFocus
-              suppressHydrationWarning
-              inputRef={searchInputRef}
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by Mobile, Customer Code, Aadhaar, Name"
-              autoComplete="off"
-              slotProps={{
-                htmlInput: {
-                  suppressHydrationWarning: true,
-                  readOnly: isReadOnly,
-                  onFocus: () => {
-                    setIsReadOnly(false);
-                    setIsFocused(true);
-                  },
-                  onBlur: () => {
-                    setIsReadOnly(true);
-                    setIsFocused(false);
-                  },
-                  autoComplete: "off",
-                  name: "disable_autofill_cust_search",
-                  id: "disable_autofill_cust_search_id",
-                  autoCorrect: "off",
-                  autoCapitalize: "off",
-                  spellCheck: "false",
-                  "data-lpignore": "true",
-                  "data-1p-ignore": "true",
-                  "data-bwignore": "true",
-                  "aria-autocomplete": "none",
-                },
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: isFocused ? "#F59E0B" : "#94A3B8", fontSize: 20, transition: "color 0.2s" }} />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchInput ? (
-                    <InputAdornment position="end">
-                      <IconButton
-                        size="small"
-                        onClick={handleClear}
+            {/* Live entering count calculations */}
+            {(() => {
+              const trimmedInput = searchInput.trim();
+              const digitsOnly = searchInput.replace(/\D/g, "");
+              const isNumeric = searchInput.length > 0 && /^\d+$/.test(trimmedInput);
+              const inputLength = searchInput.length;
+
+              let countLabel = "";
+              let countType: "mobile" | "aadhaar" | "generic_num" | "text" | "empty" = "empty";
+              let isComplete = false;
+
+              if (inputLength > 0) {
+                if (isNumeric) {
+                  if (digitsOnly.length <= 10) {
+                    countType = "mobile";
+                    countLabel = `${digitsOnly.length}/10`;
+                    isComplete = digitsOnly.length === 10;
+                  } else if (digitsOnly.length <= 12) {
+                    countType = "aadhaar";
+                    countLabel = `${digitsOnly.length}/12`;
+                    isComplete = digitsOnly.length === 12;
+                  } else {
+                    countType = "generic_num";
+                    countLabel = `${digitsOnly.length} digits`;
+                    isComplete = false;
+                  }
+                } else {
+                  countType = "text";
+                  countLabel = `${inputLength} chars`;
+                  isComplete = inputLength >= 3;
+                }
+              }
+
+              return (
+                <Box>
+                  <TextField
+                    fullWidth
+                    autoFocus
+                    suppressHydrationWarning
+                    inputRef={searchInputRef}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="Search by Mobile, Customer Code, Aadhaar, Name"
+                    autoComplete="off"
+                    slotProps={{
+                      htmlInput: {
+                        suppressHydrationWarning: true,
+                        readOnly: isReadOnly,
+                        onFocus: () => {
+                          setIsReadOnly(false);
+                          setIsFocused(true);
+                        },
+                        onBlur: () => {
+                          setIsReadOnly(true);
+                          setIsFocused(false);
+                        },
+                        autoComplete: "off",
+                        name: "disable_autofill_cust_search",
+                        id: "disable_autofill_cust_search_id",
+                        autoCorrect: "off",
+                        autoCapitalize: "off",
+                        spellCheck: "false",
+                        "data-lpignore": "true",
+                        "data-1p-ignore": "true",
+                        "data-bwignore": "true",
+                        "aria-autocomplete": "none",
+                      },
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon sx={{ color: isFocused ? "#F59E0B" : "#94A3B8", fontSize: 20, transition: "color 0.2s" }} />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                            {/* Live Entering Count Badge */}
+                            {inputLength > 0 && (
+                              <Chip
+                                label={
+                                  countType === "mobile" && isComplete
+                                    ? "✔ 10/10 Mobile"
+                                    : countType === "aadhaar" && isComplete
+                                    ? "✔ 12/12 Aadhaar"
+                                    : countLabel
+                                }
+                                size="small"
+                                sx={{
+                                  height: 24,
+                                  fontSize: "11px",
+                                  fontWeight: 900,
+                                  fontFamily: "monospace",
+                                  letterSpacing: "0.02em",
+                                  bgcolor: isComplete
+                                    ? "rgba(34, 197, 94, 0.2)"
+                                    : "rgba(251, 191, 36, 0.15)",
+                                  color: isComplete ? "#4ADE80" : "#FDE047",
+                                  border: isComplete
+                                    ? "1px solid rgba(74, 222, 128, 0.5)"
+                                    : "1px solid rgba(251, 191, 36, 0.4)",
+                                  boxShadow: isComplete ? "0 0 10px rgba(34, 197, 94, 0.35)" : "none",
+                                  transition: "all 0.2s ease-in-out",
+                                }}
+                              />
+                            )}
+                            {searchInput && (
+                              <IconButton
+                                size="small"
+                                onClick={handleClear}
+                                sx={{
+                                  p: 0.5,
+                                  color: "#94A3B8",
+                                  "&:hover": { color: "#FDE68A", bgcolor: "rgba(245, 158, 11, 0.15)" },
+                                }}
+                              >
+                                <CloseRoundedIcon sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            )}
+                          </InputAdornment>
+                        ),
+                        sx: {
+                          height: { xs: 48, sm: 52 },
+                          fontSize: "14px",
+                          color: "#FFFFFF",
+                          bgcolor: "rgba(8, 11, 17, 0.85)",
+                          borderRadius: "12px",
+                          border: isFocused ? "1px solid #F59E0B" : "1px solid rgba(245, 158, 11, 0.25)",
+                          boxShadow: isFocused ? "0 0 16px rgba(245, 158, 11, 0.25), inset 0 0 8px rgba(245, 158, 11, 0.05)" : "none",
+                          transition: "all 0.2s ease-in-out",
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            border: "none",
+                          },
+                        },
+                      },
+                    }}
+                  />
+
+                  {/* Live Entering Count Status Helper Strip */}
+                  {inputLength > 0 && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mt: 0.75,
+                        px: 1,
+                      }}
+                    >
+                      <Typography
                         sx={{
-                          p: 0.5,
-                          color: "#94A3B8",
-                          "&:hover": { color: "#FDE68A", bgcolor: "rgba(245, 158, 11, 0.15)" },
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: isComplete ? "#4ADE80" : "#FDE047",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 0.5,
                         }}
                       >
-                        <CloseRoundedIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </InputAdornment>
-                  ) : null,
-                  sx: {
-                    height: { xs: 48, sm: 52 },
-                    fontSize: "14px",
-                    color: "#FFFFFF",
-                    bgcolor: "rgba(8, 11, 17, 0.85)",
-                    borderRadius: "12px",
-                    border: isFocused ? "1px solid #F59E0B" : "1px solid rgba(245, 158, 11, 0.25)",
-                    boxShadow: isFocused ? "0 0 16px rgba(245, 158, 11, 0.25), inset 0 0 8px rgba(245, 158, 11, 0.05)" : "none",
-                    transition: "all 0.2s ease-in-out",
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      border: "none",
-                    },
-                  },
-                },
-              }}
-            />
+                        {countType === "mobile" && (
+                          isComplete
+                            ? "✔ 10-Digit Mobile Number Ready to Search"
+                            : `📱 Entering Mobile Number: ${digitsOnly.length}/10 digits (${10 - digitsOnly.length} remaining)`
+                        )}
+                        {countType === "aadhaar" && (
+                          isComplete
+                            ? "✔ 12-Digit Aadhaar Number Complete"
+                            : `🪪 Entering Aadhaar Number: ${digitsOnly.length}/12 digits`
+                        )}
+                        {countType === "generic_num" && (
+                          `🔢 Number Entered: ${digitsOnly.length} digits`
+                        )}
+                        {countType === "text" && (
+                          `👤 Query Entered: ${inputLength} characters`
+                        )}
+                      </Typography>
+
+                      <Typography sx={{ fontSize: "10.5px", color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}>
+                        Press Enter ↵ to Search
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              );
+            })()}
 
             <Stack direction="row" spacing={1.25} sx={{ width: "100%" }}>
               {/* PRIMARY GOLD-YELLOW GRADIENT SEARCH BUTTON */}
@@ -493,10 +607,12 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   <Typography
                     sx={{
                       fontWeight: 900,
-                      color: "#FFFFFF",
-                      fontSize: { xs: "17px", sm: "20px" },
+                      fontSize: { xs: "18px", sm: "22px" },
                       lineHeight: 1.2,
                       letterSpacing: "-0.3px",
+                      background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
                     }}
                   >
                     {customer.name}
@@ -594,9 +710,11 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               <Typography
                 sx={{
                   fontWeight: 900,
-                  color: "#FBBF24",
                   fontSize: "18px",
                   fontFamily: "var(--font-geist-mono), monospace",
+                  background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
                   textShadow: "0 0 10px rgba(245, 158, 11, 0.3)",
                 }}
               >

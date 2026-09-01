@@ -1734,7 +1734,7 @@ class ProgressiveOnboardingService:
 
         # Company metadata & FAQs loaded dynamically from configuration
         company_info = {
-            "company_name": getattr(settings, "COMPANY_NAME", "Pay2Pay Financial Technologies Pvt. Ltd."),
+            "company_name": getattr(settings, "COMPANY_NAME", "SUPER REX PRODUCTS PRIVATE LIMITED"),
             "company_logo_url": getattr(settings, "COMPANY_LOGO_URL", "/logo.png"),
             "support_email": getattr(settings, "SUPPORT_EMAIL", "support@pay2pay.com"),
             "support_phone": getattr(settings, "SUPPORT_PHONE", "+91 1800 292 982"),

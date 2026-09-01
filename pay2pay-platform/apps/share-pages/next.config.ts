@@ -2,19 +2,54 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  devIndicators: {
+    appIsrStatus: false,
+    buildActivity: false,
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
   experimental: {
     webpackBuildWorker: false,
   },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+          },
+          {
+            key: "Pragma",
+            value: "no-cache",
+          },
+          {
+            key: "Expires",
+            value: "0",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
-    const rawUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-    const cleanUrl = rawUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
     return [
       {
         source: "/api/v1/:path*",
-        destination: `${cleanUrl}/api/v1/:path*`,
+        destination: "http://127.0.0.1:8000/api/v1/:path*",
+      },
+      {
+        source: "/uploads/:path*",
+        destination: "http://127.0.0.1:8000/uploads/:path*",
       },
     ];
   },

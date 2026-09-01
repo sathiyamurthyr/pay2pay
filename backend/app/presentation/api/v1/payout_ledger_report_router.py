@@ -894,7 +894,7 @@ async def fetch_payout_report_dataset(
     comp_sql = """
         SELECT 
             COALESCE(c.display_name, c.company_name, c.legal_name, 'Pay2Pay') AS company_name,
-            COALESCE(c.legal_name, c.company_name, 'Pay2Pay Technologies Private Limited') AS legal_name,
+            COALESCE(c.legal_name, c.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS legal_name,
             COALESCE(c.company_code, 'P2P') AS company_code,
             COALESCE(cb.logo_url, '/branding/logo.png') AS logo_url
         FROM public.company c
@@ -913,7 +913,7 @@ async def fetch_payout_report_dataset(
     comp_row = (await db.execute(text(comp_sql), comp_p)).fetchone()
     company_meta = dict(comp_row._mapping) if comp_row else {
         "company_name": "Pay2Pay Fintech",
-        "legal_name": "Pay2Pay Technologies Private Limited",
+        "legal_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
         "company_code": "PAY2PAY",
         "logo_url": "/branding/pay2pay-logo.png"
     }

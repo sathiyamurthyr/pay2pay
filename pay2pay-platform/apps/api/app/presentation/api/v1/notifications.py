@@ -3,10 +3,10 @@ from typing import List, Optional
 import uuid
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, desc, func, update
+from sqlalchemy import select, and_, or_, desc, func, update, text
 
 from app.core.database import get_db
-from app.application.dependencies import get_current_token_payload
+from app.application.dependencies import get_current_token_payload, get_optional_token_payload
 from app.infrastructure.db.models import UserNotificationAlertModel
 from app.application.services import NotificationService
 from app.application.dtos import (
@@ -28,15 +28,16 @@ router = APIRouter(prefix="/notifications", tags=["EPIC-020: Notification & Enga
 
 @router.get("/recent", summary="Fetch Recent Alerts & Notifications for Authenticated User")
 async def get_recent_notifications(
-    limit: int = Query(10, ge=1, le=50),
+    limit: int = Query(15, ge=1, le=50),
     unread_only: bool = Query(False),
     user_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
-    payload: dict = Depends(get_current_token_payload),
+    payload: dict = Depends(get_optional_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns database-backed notifications for the authenticated user, scoped by tenant & user isolation.
+    Returns database-backed notifications via PostgreSQL Stored Procedure sp_get_live_notifications.
+    Scoped by tenant & user isolation with automatic graceful fallback.
     """
     u_id_str = user_id or payload.get("sub")
     t_id_str = tenant_id or payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8")
@@ -63,57 +64,72 @@ async def get_recent_notifications(
     except Exception:
         t_uuid = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
 
-    # Query items for this user OR fallback to guest/system notifications
-    filters = [
-        or_(
-            UserNotificationAlertModel.user_id == u_uuid,
-            UserNotificationAlertModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000001"),
-            UserNotificationAlertModel.user_id == uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e"),
-        ),
-        UserNotificationAlertModel.tenant_id == t_uuid
-    ]
-    if unread_only:
-        filters.append(UserNotificationAlertModel.is_read == False)
+    formatted_data = []
 
-    # Count unread items
-    unread_stmt = select(func.count()).select_from(UserNotificationAlertModel).where(
-        and_(
+    # 1. Execute PostgreSQL Stored Procedure: sp_get_live_notifications
+    try:
+        sp_result = await db.execute(
+            text("SELECT id, notification_type, title, message, amount, reference_number, status, is_read, created_at FROM sp_get_live_notifications(:uid, :tid, :lim, :unread)"),
+            {"uid": u_uuid, "tid": t_uuid, "lim": limit, "unread": unread_only}
+        )
+        sp_rows = sp_result.fetchall()
+
+        for row in sp_rows:
+            c_iso = row[8].isoformat() if row[8] else datetime.now(timezone.utc).isoformat()
+            formatted_data.append({
+                "id": str(row[0]),
+                "type": row[1],
+                "title": row[2],
+                "message": row[3],
+                "amount": float(row[4]) if row[4] is not None else None,
+                "reference": row[5] or None,
+                "status": row[6],
+                "is_read": bool(row[7]),
+                "created_at": c_iso
+            })
+    except Exception as sp_err:
+        print("[notifications.py] SP execution failed, falling back to ORM:", sp_err)
+
+    # 2. Fallback to ORM query if SP didn't return or errored
+    if not formatted_data:
+        filters = [
             or_(
                 UserNotificationAlertModel.user_id == u_uuid,
                 UserNotificationAlertModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000001"),
                 UserNotificationAlertModel.user_id == uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e"),
             ),
             UserNotificationAlertModel.tenant_id == t_uuid,
-            UserNotificationAlertModel.is_read == False
-        )
-    )
-    try:
-        unread_count = (await db.execute(unread_stmt)).scalar() or 0
-    except Exception:
-        unread_count = 0
+            UserNotificationAlertModel.is_deleted == False
+        ]
+        if unread_only:
+            filters.append(UserNotificationAlertModel.is_read == False)
 
-    # Count total matching items
-    try:
-        total_stmt = select(func.count()).select_from(UserNotificationAlertModel).where(and_(*filters))
-        total_count = (await db.execute(total_stmt)).scalar() or 0
-    except Exception:
-        total_count = 0
+        try:
+            stmt = (
+                select(UserNotificationAlertModel)
+                .where(and_(*filters))
+                .order_by(desc(UserNotificationAlertModel.created_date))
+                .limit(limit)
+            )
+            orm_results = (await db.execute(stmt)).scalars().all()
+            for item in orm_results:
+                created_iso = item.created_date.isoformat() if item.created_date else datetime.now(timezone.utc).isoformat()
+                formatted_data.append({
+                    "id": str(item.public_id),
+                    "type": item.notification_type,
+                    "title": item.title,
+                    "message": item.message,
+                    "amount": float(item.amount) if item.amount is not None else None,
+                    "reference": item.reference_number,
+                    "status": item.status,
+                    "is_read": bool(item.is_read),
+                    "created_at": created_iso
+                })
+        except Exception as orm_err:
+            print("[notifications.py] ORM query error:", orm_err)
 
-    # Query newest items first
-    try:
-        stmt = (
-            select(UserNotificationAlertModel)
-            .where(and_(*filters))
-            .order_by(desc(UserNotificationAlertModel.created_date))
-            .limit(limit)
-        )
-        results = (await db.execute(stmt)).scalars().all()
-    except Exception as query_err:
-        print("[notifications.py] Query error:", query_err)
-        results = []
-
-    # If no notifications exist yet in database, seed initial live notifications
-    if not results:
+    # 3. If database has 0 notifications, seed live starter notifications
+    if not formatted_data:
         default_items = [
             UserNotificationAlertModel(
                 user_id=u_uuid,
@@ -150,33 +166,29 @@ async def get_recent_notifications(
         try:
             db.add_all(default_items)
             await db.commit()
-            results = default_items
-            unread_count = len(default_items)
-            total_count = len(default_items)
+            for item in default_items:
+                c_iso = datetime.now(timezone.utc).isoformat()
+                formatted_data.append({
+                    "id": str(item.public_id),
+                    "type": item.notification_type,
+                    "title": item.title,
+                    "message": item.message,
+                    "amount": float(item.amount) if item.amount is not None else None,
+                    "reference": item.reference_number,
+                    "status": item.status,
+                    "is_read": bool(item.is_read),
+                    "created_at": c_iso
+                })
         except Exception:
             await db.rollback()
 
-    formatted_data = []
-    for item in results:
-        created_iso = datetime.now(timezone.utc).isoformat()
-        if hasattr(item, "created_date") and item.created_date:
-            created_iso = item.created_date.isoformat()
-        formatted_data.append({
-            "id": str(item.public_id) if hasattr(item, "public_id") else str(uuid.uuid4()),
-            "type": item.notification_type,
-            "title": item.title,
-            "message": item.message,
-            "amount": float(item.amount) if item.amount is not None else None,
-            "reference": item.reference_number,
-            "status": item.status,
-            "is_read": bool(item.is_read),
-            "created_at": created_iso
-        })
+    unread_count = len([x for x in formatted_data if not x.get("is_read")])
 
     return {
+        "status": "SUCCESS",
         "data": formatted_data,
-        "total": total_count or len(formatted_data),
-        "unread_count": unread_count or len([x for x in formatted_data if not x["is_read"]])
+        "total": len(formatted_data),
+        "unread_count": unread_count
     }
 
 
@@ -187,7 +199,7 @@ async def get_recent_notifications(
 async def mark_all_notifications_read(
     user_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),
-    payload: dict = Depends(get_current_token_payload),
+    payload: dict = Depends(get_optional_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     u_id_str = user_id or payload.get("sub")
@@ -207,22 +219,37 @@ async def mark_all_notifications_read(
     if not u_uuid or str(u_uuid) == "00000000-0000-0000-0000-000000000000":
         u_uuid = uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e")
 
-    stmt = (
-        update(UserNotificationAlertModel)
-        .where(
-            and_(
-                or_(
-                    UserNotificationAlertModel.user_id == u_uuid,
-                    UserNotificationAlertModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000001"),
-                    UserNotificationAlertModel.user_id == uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e"),
-                ),
-                UserNotificationAlertModel.is_read == False
-            )
+    try:
+        t_uuid = uuid.UUID(str(tenant_id or payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8")))
+    except Exception:
+        t_uuid = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+
+    # Call Stored Procedure: sp_mark_all_notifications_read
+    try:
+        res = await db.execute(
+            text("SELECT sp_mark_all_notifications_read(:uid, :tid)"),
+            {"uid": u_uuid, "tid": t_uuid}
         )
-        .values(is_read=True)
-    )
-    await db.execute(stmt)
-    await db.commit()
+        await db.commit()
+    except Exception as sp_err:
+        print("[notifications.py] SP mark_all_notifications_read error:", sp_err)
+        # Fallback ORM
+        stmt = (
+            update(UserNotificationAlertModel)
+            .where(
+                and_(
+                    or_(
+                        UserNotificationAlertModel.user_id == u_uuid,
+                        UserNotificationAlertModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                        UserNotificationAlertModel.user_id == uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e"),
+                    ),
+                    UserNotificationAlertModel.is_read == False
+                )
+            )
+            .values(is_read=True, updated_date=func.now())
+        )
+        await db.execute(stmt)
+        await db.commit()
 
     return {"status": "SUCCESS", "message": "All notifications marked as read."}
 
@@ -232,7 +259,7 @@ async def mark_all_notifications_read(
 @router.post("/{notification_id}/read", summary="Mark Single Notification as Read (POST)")
 async def mark_single_notification_read(
     notification_id: str,
-    payload: dict = Depends(get_current_token_payload),
+    payload: dict = Depends(get_optional_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -240,17 +267,27 @@ async def mark_single_notification_read(
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid notification ID format.")
 
-    stmt = select(UserNotificationAlertModel).where(
-        (UserNotificationAlertModel.public_id == notif_uuid) |
-        (UserNotificationAlertModel.public_id == str(notif_uuid))
-    )
-    item = (await db.execute(stmt)).scalars().first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Notification not found.")
+    # Call Stored Procedure: sp_mark_single_notification_read
+    try:
+        await db.execute(
+            text("SELECT sp_mark_single_notification_read(:nid)"),
+            {"nid": notif_uuid}
+        )
+        await db.commit()
+    except Exception as sp_err:
+        print("[notifications.py] SP mark_single_notification_read error:", sp_err)
+        stmt = select(UserNotificationAlertModel).where(
+            (UserNotificationAlertModel.public_id == notif_uuid) |
+            (UserNotificationAlertModel.public_id == str(notif_uuid))
+        )
+        item = (await db.execute(stmt)).scalars().first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Notification not found.")
+        item.is_read = True
+        await db.commit()
 
-    item.is_read = True
-    await db.commit()
     return {"status": "SUCCESS", "message": "Notification marked as read.", "id": notification_id}
+
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────────

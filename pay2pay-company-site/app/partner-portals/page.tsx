@@ -32,7 +32,7 @@ const portalCards = [
     tagline: "Point of Sale & Assisted Banking Counter",
     description:
       "Designed for retail merchants and shop owners across India to provide assisted domestic money transfers, AEPS biometric cash withdrawals, BBPS bill payments, and mobile top-ups.",
-    targetUrl: "/retailer/login",
+    targetUrl: "https://retailer.pay2pay.in/retailer/login",
     registerUrl: "/contact?topic=retailer-onboarding",
     canRegister: true,
     features: [
@@ -201,17 +201,31 @@ export default function PartnerPortalsPage() {
 
                   {/* Col 2: Action Box (Span 5) */}
                   <div className="lg:col-span-5 flex flex-col justify-center items-stretch sm:items-end gap-3 border-t lg:border-t-0 lg:border-l border-slate-800/80 pt-6 lg:pt-0 lg:pl-8">
-                    <Link
-                      href={portal.targetUrl}
-                      className={`w-full sm:w-64 inline-flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-bold text-sm transition-all shadow-lg active:scale-95 text-center ${
-                        portal.highlighted
-                          ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/35 hover:shadow-blue-600/50"
-                          : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600"
-                      }`}
-                    >
-                      <LogIn size={16} />
-                      <span>Login to {portal.name}</span>
-                    </Link>
+                    {portal.targetUrl.startsWith("http") ? (
+                      <a
+                        href={portal.targetUrl}
+                        className={`w-full sm:w-64 inline-flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-bold text-sm transition-all shadow-lg active:scale-95 text-center ${
+                          portal.highlighted
+                            ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/35 hover:shadow-blue-600/50"
+                            : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600"
+                        }`}
+                      >
+                        <LogIn size={16} />
+                        <span>Login to {portal.name}</span>
+                      </a>
+                    ) : (
+                      <Link
+                        href={portal.targetUrl}
+                        className={`w-full sm:w-64 inline-flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl font-bold text-sm transition-all shadow-lg active:scale-95 text-center ${
+                          portal.highlighted
+                            ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/35 hover:shadow-blue-600/50"
+                            : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600"
+                        }`}
+                      >
+                        <LogIn size={16} />
+                        <span>Login to {portal.name}</span>
+                      </Link>
+                    )}
 
                     {portal.canRegister && (
                       <Link

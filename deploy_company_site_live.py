@@ -304,11 +304,12 @@ server {
     }
 
     location /_next/static/ {
-        proxy_pass http://pay2pay_frontend/_next/static/;
+        proxy_pass http://pay2pay_company_site/_next/static/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         expires 365d;
         access_log off;
+        add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
     location / {

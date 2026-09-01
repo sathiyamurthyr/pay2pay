@@ -100,11 +100,12 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
         display: "flex",
         flexDirection: "column",
         p: { xs: 1, sm: 2 },
-        pb: { xs: 12, md: 6 },
+        pb: { xs: "100px", md: 6 },
+        boxSizing: "border-box",
       }}
     >
       {/* WORKSTATION BODY */}
-      <Box sx={{ flex: 1, width: "100%", pb: 4 }}>
+      <Box sx={{ flex: 1, width: "100%", pb: { xs: 2, md: 4 } }}>
         {currentStep === 1 && (
           <WorkstationStep1
             customer={customer}

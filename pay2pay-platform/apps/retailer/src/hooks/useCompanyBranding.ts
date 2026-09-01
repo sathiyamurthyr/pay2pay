@@ -18,9 +18,9 @@ export interface CompanyBrandingData {
 
 const DEFAULT_BRANDING: CompanyBrandingData = {
   company_code: "PAY2PAY",
-  company_name: "Pay2Pay Fintech",
-  legal_name: "Pay2Pay Technologies Private Limited",
-  display_name: "Pay2Pay Fintech",
+  company_name: "Pay2Pay",
+  legal_name: "SUPER REX PRODUCTS PRIVATE LIMITED",
+  display_name: "Pay2Pay",
   logo_url: "/branding/logo.png",
   favicon_url: "/branding/favicon.png",
   primary_colour: "#2563EB",

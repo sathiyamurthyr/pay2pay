@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import "./globals.css";
 import Providers from "./providers";
 
@@ -34,9 +33,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
       <body className="antialiased min-h-screen bg-slate-950 text-slate-100" suppressHydrationWarning style={{ overflowX: "hidden", maxWidth: "100vw" }}>
-        <Script
+        <script
           id="form-input-sanitizer"
-          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -47,7 +45,7 @@ export default function RootLayout({
                     return;
                   }
                   if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                    const isPasswordType = el.type === 'password';
+                    var isPasswordType = el.type === 'password';
                     if (!isPasswordType) {
                       el.setAttribute('autocomplete', 'off');
                       el.setAttribute('autocorrect', 'off');
@@ -59,7 +57,7 @@ export default function RootLayout({
                       el.setAttribute('data-bwignore', 'true');
                       el.setAttribute('data-bitwarden-watching', 'false');
                       
-                      const nameOrPlaceholder = (el.name || el.placeholder || el.id || '').toLowerCase();
+                      var nameOrPlaceholder = (el.name || el.placeholder || el.id || '').toLowerCase();
                       if (nameOrPlaceholder.includes('mobile') || nameOrPlaceholder.includes('phone') || nameOrPlaceholder.includes('aadhaar') || nameOrPlaceholder.includes('account') || nameOrPlaceholder.includes('amount') || nameOrPlaceholder.includes('pincode') || nameOrPlaceholder.includes('pin') || nameOrPlaceholder.includes('otp')) {
                         if (!el.hasAttribute('inputmode')) {
                           el.setAttribute('inputmode', 'numeric');

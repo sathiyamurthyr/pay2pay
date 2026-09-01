@@ -134,10 +134,10 @@ export const NexusEnterpriseBankingView: React.FC = () => {
               boxShadow: "0 0 12px rgba(37, 99, 235, 0.5)",
             }}
           >
-            N
+            P
           </Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 900, fontSize: "16px", letterSpacing: "0.5px" }}>
-            NEXUS <span style={{ color: "#38BDF8", fontWeight: 400 }}>BANK</span>
+            Pay2Pay <span style={{ color: "#38BDF8", fontWeight: 400 }}>Retailer Portal</span>
           </Typography>
         </Stack>
 
@@ -724,7 +724,7 @@ export const NexusEnterpriseBankingView: React.FC = () => {
         }}
       >
         <Typography variant="caption" sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)" }}>
-          © 2024 Nexus Enterprise Banking | Last Login: 14:02 UTC
+          © 2021 SUPER REX PRODUCTS PRIVATE LIMITED | Pay2Pay Retailer Portal
         </Typography>
       </Box>
     </Box>

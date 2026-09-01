@@ -625,7 +625,7 @@ export default function RetailerProfilePage() {
                     </Box>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
-                        {profile.company?.company_name || "Pay2Pay Financial Technologies Private Limited"}
+                        {profile.company?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED"}
                       </Typography>
                       <Typography variant="caption" sx={{ color: "#94A3B8" }}>
                         Corporate Headquarters & Official Merchant Support Helpdesk
@@ -1341,7 +1341,7 @@ export default function RetailerProfilePage() {
                 />
               </Stack>
               <Stack spacing={1.5}>
-                <DataRow label="Company Legal Name" value={profile.company?.company_name || "Pay2Pay Financial Technologies Private Limited"} />
+                <DataRow label="Company Legal Name" value={profile.company?.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED"} />
                 <DataRow label="Brand / Network" value={profile.company?.brand_name || "Pay2Pay Enterprise Network"} />
                 <DataRow
                   label="Corporate Identity Number (CIN)"

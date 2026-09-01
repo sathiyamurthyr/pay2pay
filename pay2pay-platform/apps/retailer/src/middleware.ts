@@ -96,6 +96,17 @@ export function middleware(request: NextRequest) {
     return res;
   };
 
+  // 0. Static media & branding files (Always allow direct fetch)
+  const isStaticOrMedia =
+    pathname.startsWith("/branding") ||
+    pathname.startsWith("/images") ||
+    pathname.startsWith("/uploads") ||
+    pathname.match(/\.(png|jpg|jpeg|gif|svg|webp|ico|webmanifest|mp4)$/i);
+
+  if (isStaticOrMedia) {
+    return NextResponse.next();
+  }
+
   // 1. Explicit Public Routes (Always accessible without authentication)
   const isLoginRoute =
     pathname === "/retailer/login" ||
@@ -169,6 +180,6 @@ export const config = {
     /*
      * Universal Matcher: Protect ALL routes except static files, images, icons, and API routes.
      */
-    "/((?!api|_next/static|_next/image|favicon\\.ico|favicon\\.png|apple-touch-icon\\.png|icon\\.png|uploads).*)",
+    "/((?!api|_next/static|_next/image|branding|images|favicon.*|apple-touch-icon.*|icon.*|site\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|mp4)$|uploads).*)",
   ],
 };

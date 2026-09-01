@@ -54,7 +54,7 @@ export default function RetailerLoginPage() {
 
           {/* Launch Button */}
           <a
-            href={process.env.NEXT_PUBLIC_RETAILER_PORTAL_URL || "https://retailer.pay2pay.in"}
+            href={process.env.NEXT_PUBLIC_RETAILER_PORTAL_URL || "https://retailer.pay2pay.in/retailer/login"}
             className="w-full inline-flex items-center justify-center gap-2.5 py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 active:scale-95 transition-all mb-4"
           >
             <Lock size={16} />

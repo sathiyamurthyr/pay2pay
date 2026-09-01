@@ -353,18 +353,52 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   // recent-activity auto-fetch REMOVED — was firing on every layout mount with no consumer.
   // Activity data is loaded on-demand from the dashboard page when the user requests it.
 
+  // ── DB-Backed User Favorites (PostgreSQL Stored Procedures & DB APIs) ──
   useEffect(() => {
+    let isSubscribed = true;
+
+    // 1. Instant optimistic restore from local cache
     try {
       const saved = localStorage.getItem("p2p_sidebar_favorites");
       if (saved) {
-        setFavorites(JSON.parse(saved));
-      } else {
-        setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setFavorites(parsed);
+        }
       }
-    } catch {
-      setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
-    }
-  }, []);
+    } catch {}
+
+    // 2. Fetch authoritative user favorite menus from DB via Stored Procedure
+    const fetchDbFavorites = async () => {
+      try {
+        const userRefId =
+          localStorage.getItem("user_ref_id") ||
+          (user as any)?.user_ref_id ||
+          (user as any)?.mobile_number ||
+          (user as any)?.phone ||
+          (user as any)?.mobile ||
+          "9176669426";
+
+        const res = await retailerApi.getFavoriteMenus(userRefId);
+        if (res && res.favorites && Array.isArray(res.favorites) && isSubscribed) {
+          const hrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
+          if (hrefs.length > 0) {
+            setFavorites(hrefs);
+            try {
+              localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(hrefs));
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.warn("Notice: Using local favorite menus fallback:", err);
+      }
+    };
+
+    fetchDbFavorites();
+    return () => {
+      isSubscribed = false;
+    };
+  }, [user]);
 
   // Global Lock Screen Keyboard Shortcut (Ctrl+L / Cmd+L)
   useEffect(() => {
@@ -378,16 +412,49 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [lockSession]);
 
-  const toggleFavorite = (path: string, e: React.MouseEvent) => {
+  const toggleFavorite = (path: string, e: React.MouseEvent, itemLabel?: string, itemCategory?: string) => {
     e.stopPropagation();
     e.preventDefault();
-    setFavorites((prev) => {
-      const updated = prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path];
-      try {
-        localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
+    const isCurrentlyFav = favorites.includes(path);
+    const updated = isCurrentlyFav ? favorites.filter((p) => p !== path) : [...favorites, path];
+
+    // Optimistic UI state update
+    setFavorites(updated);
+    try {
+      localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(updated));
+    } catch {}
+
+    // Asynchronously persist to PostgreSQL DB via Stored Procedure
+    const userRefId =
+      localStorage.getItem("user_ref_id") ||
+      (user as any)?.user_ref_id ||
+      (user as any)?.mobile_number ||
+      (user as any)?.phone ||
+      (user as any)?.mobile ||
+      "9176669426";
+
+    retailerApi
+      .toggleFavoriteMenu({
+        user_ref_id: userRefId,
+        menu_href: path,
+        menu_label: itemLabel || path,
+        menu_category: itemCategory || "General",
+        user_role: "RETAILER",
+      })
+      .then((res: any) => {
+        if (res && res.favorites && Array.isArray(res.favorites)) {
+          const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
+          if (dbHrefs.length > 0) {
+            setFavorites(dbHrefs);
+            try {
+              localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
+            } catch {}
+          }
+        }
+      })
+      .catch((err: any) => {
+        console.warn("Notice: DB favorite sync:", err);
+      });
   };
 
   // Auto-close mobile drawer on route change
@@ -491,19 +558,32 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.8 }}>
           <Box
-            component="img"
-            src="/branding/pay2pay-logo.png"
-            alt="PAY2PAY"
             sx={{
-              width: 48,
-              height: 48,
-              borderRadius: "10px",
-              objectFit: "cover",
-              border: "1.5px solid rgba(212, 175, 55, 0.4)",
-              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.4)",
+              width: 46,
+              height: 46,
+              borderRadius: "12px",
+              p: "3px",
+              bgcolor: "rgba(11, 15, 25, 0.9)",
+              border: "1.5px solid rgba(245, 158, 11, 0.4)",
+              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.5), 0 0 12px rgba(245, 158, 11, 0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               flexShrink: 0,
+              overflow: "hidden",
             }}
-          />
+          >
+            <Box
+              component="img"
+              src="/branding/pay2pay-logo.png"
+              alt="PAY2PAY"
+              sx={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
           {!isCollapsed && (
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="h6" sx={{ fontWeight: 900, color: "#F8FAFC", fontSize: "22px", lineHeight: 1.1, whiteSpace: "nowrap" }}>
@@ -801,7 +881,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             <IconButton
                               size="small"
                               className="fav-star"
-                              onClick={(e) => toggleFavorite(item.path, e)}
+                              onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
                               sx={{
                                 p: 0.3,
                                 color: isFav ? "#FFD54F" : "rgba(255, 255, 255, 0.4)",
@@ -1320,7 +1400,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                       ? profileDetails.retailer_name
                       : (profileDetails.owner_name && profileDetails.owner_name !== "System Admin User")
                       ? profileDetails.owner_name
-                      : (outlet.name && outlet.name !== "Retailer Store" ? outlet.name : "Sathus Pay Store")}
+                      : (outlet.name && outlet.name !== "Retailer Store" ? outlet.name : "Pay2Pay Store")}
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
                     {profileDetails.plan_name && (
@@ -1678,7 +1758,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
               <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "12px" }}>
-                © 2026 Pay2Pay FinTech Platform. All Rights Reserved.
+                © 2021 SUPER REX PRODUCTS PRIVATE LIMITED · Pay2Pay Retailer Portal
               </Typography>
               <Chip label="v2.4.0-ENT" size="small" sx={{ height: 20, fontSize: "0.65rem", fontWeight: 800 }} />
             </Stack>

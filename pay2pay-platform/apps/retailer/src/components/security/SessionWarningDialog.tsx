@@ -32,18 +32,32 @@ export const SessionWarningDialog: React.FC = () => {
         paper: {
           sx: {
             borderRadius: "24px",
-            bgcolor: "rgba(15, 23, 42, 0.98)",
-            backdropFilter: "blur(24px)",
-            border: "2px solid #F59E0B",
-            boxShadow: "0 24px 64px rgba(245, 158, 11, 0.35)",
+            bgcolor: "rgba(11, 15, 25, 0.95)",
+            backdropFilter: "blur(28px)",
+            border: "1px solid rgba(245, 158, 11, 0.35)",
+            boxShadow: "0 30px 80px rgba(0, 0, 0, 0.85), 0 0 30px rgba(245, 158, 11, 0.15)",
             p: 3,
+            position: "relative",
+            overflow: "hidden",
           },
         },
       }}
     >
       <DialogContent sx={{ p: 0, textAlign: "center" }}>
+        {/* Specular Top Sheen Highlight Line */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "2px",
+            background: "linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.8), transparent)",
+          }}
+        />
+
         {/* Animated Warning Icon & Timer Ring */}
-        <Box sx={{ position: "relative", display: "inline-flex", mb: 2 }}>
+        <Box sx={{ position: "relative", display: "inline-flex", mb: 2, mt: 1 }}>
           <CircularProgress
             variant="determinate"
             value={progressPct}
@@ -64,7 +78,7 @@ export const SessionWarningDialog: React.FC = () => {
               flexDirection: "column",
             }}
           >
-            <Typography variant="h1" sx={{ fontSize: "36px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1 }}>
+            <Typography variant="h1" sx={{ fontSize: "36px", fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
               {remainingWarningSeconds}
             </Typography>
             <Typography variant="caption" sx={{ fontSize: "11px", color: "#FBBF24", fontWeight: 800, textTransform: "uppercase" }}>
@@ -73,7 +87,17 @@ export const SessionWarningDialog: React.FC = () => {
           </Box>
         </Box>
 
-        <Typography variant="h3" sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "20px", mb: 1 }}>
+        <Typography
+          variant="h3"
+          sx={{
+            fontWeight: 900,
+            fontSize: "20px",
+            mb: 1,
+            background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
           Inactivity Security Warning
         </Typography>
 

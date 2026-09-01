@@ -66,7 +66,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "Privacy Policy",
     terms: "Terms of Service",
     refundPolicy: "Refund Policy",
-    rbiFooter: "© 2026 Pay2Pay Financial Technologies · RBI Licensed PPI Portal",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 Days",
     days90: "90 Days",
     forever: "Forever"
@@ -100,7 +100,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "गोपनीयता नीति",
     terms: "सेवा की शर्तें",
     refundPolicy: "रिफंड नीति",
-    rbiFooter: "© 2026 Pay2Pay फिनटेक · आरबीआई लाइसेंस प्राप्त पीपीआई",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 दिन",
     days90: "90 दिन",
     forever: "हमेशा"
@@ -134,7 +134,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "தனியுரிமைக் கொள்கை",
     terms: "சேவை விதிகள்",
     refundPolicy: "பணத்தைத் திரும்பப்பெறும் கொள்கை",
-    rbiFooter: "© 2026 Pay2Pay நிதித் தொழில்நுட்பம் · ஆர்பிஐ உரிமம்",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 நாட்கள்",
     days90: "90 நாட்கள்",
     forever: "எப்போதும்"
@@ -168,7 +168,7 @@ const TRANSLATIONS: Record<LanguageKey, Record<string, string>> = {
     privacyPolicy: "గోప్యతా విధానం",
     terms: "సేవా నిబంధనలు",
     refundPolicy: "రీఫండ్ పాలసీ",
-    rbiFooter: "© 2026 Pay2Pay ఫైనాన్షియల్ · ఆర్బీఐ లైసెన్స్ పీపీఐ",
+    rbiFooter: "© 2021 SUPER REX PRODUCTS PRIVATE LIMITED\nPay2Pay Retailer Portal",
     days30: "30 రోజులు",
     days90: "90 రోజులు",
     forever: "ఎల్లప్పుడూ"
@@ -632,12 +632,21 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
           darkMode ? "border-slate-800" : "border-slate-200"
         }`}>
           <div className="flex items-center gap-3">
-            <BlurImage
-              src="/branding/pay2pay-logo.png"
-              alt="Pay2Pay"
-              blurhash={KNOWN_BLURHASHES.PAY2PAY_LOGO}
-              className="w-10 h-10 rounded-xl object-contain border border-amber-500/30 shadow-md"
-            />
+            <div className={`w-10 h-10 rounded-xl p-1 flex items-center justify-center border shadow-md shrink-0 ${
+              darkMode ? "bg-slate-900 border-slate-700/80" : "bg-white border-slate-200"
+            }`}>
+              <img
+                src="/branding/pay2pay-logo.png"
+                alt="Pay2Pay Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src.indexOf("pay2pay-logo.png") !== -1) {
+                    target.src = "/logo.png";
+                  }
+                }}
+              />
+            </div>
             <div>
               <h1 className={`text-sm font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
                 Pay2Pay
@@ -676,15 +685,34 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
         {/* ─── Desktop Top Bar ─── */}
         <div className="hidden lg:flex items-center justify-between mb-4 2xl:mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/20 border border-blue-500/30">
-              <Shield className="w-4 h-4 text-blue-500" />
-            </div>
-            <span className={`text-[11px] font-black uppercase tracking-widest ${
-              darkMode ? "text-slate-400" : "text-slate-500"
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl p-1 flex items-center justify-center border shadow-md shrink-0 ${
+              darkMode ? "bg-slate-900 border-slate-700/80" : "bg-white border-slate-200"
             }`}>
-              {portalTitle}
-            </span>
+              <img
+                src="/branding/pay2pay-logo.png"
+                alt="Pay2Pay Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src.indexOf("pay2pay-logo.png") !== -1) {
+                    target.src = "/logo.png";
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <span className={`text-xs font-black tracking-wide block leading-none ${
+                darkMode ? "text-white" : "text-slate-900"
+              }`}>
+                Pay2Pay
+              </span>
+              <span className={`text-[10px] font-semibold tracking-wider uppercase block mt-0.5 ${
+                darkMode ? "text-slate-400" : "text-slate-500"
+              }`}>
+                {portalTitle}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -730,15 +758,23 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
 
           {/* ── Card Header ── */}
           <div className="text-center mb-5">
-            {/* Blue P2P Logo Mark matching left section */}
+            {/* Pay2Pay Brand Logo Mark */}
             <div className="flex items-center justify-center gap-2.5 mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
-                <div className={`w-full h-full rounded-[14px] flex items-center justify-center ${
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-blue-500/25">
+                <div className={`w-full h-full rounded-[14px] flex items-center justify-center overflow-hidden p-1.5 ${
                   darkMode ? "bg-slate-900" : "bg-white"
                 }`}>
-                  <span className="text-sm font-black tracking-tighter bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-                    P2P
-                  </span>
+                  <img
+                    src="/branding/pay2pay-logo.png"
+                    alt="Pay2Pay Logo"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (target.src.indexOf("pay2pay-logo.png") !== -1) {
+                        target.src = "/logo.png";
+                      }
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -1073,7 +1109,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                     <label className={`block text-xs font-bold mb-3 text-center ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
                       {t.enterOtp} <span className="text-red-500">*</span>
                     </label>
-                    <div className="flex items-center justify-center gap-2.5">
+                    <div className="flex items-center justify-center gap-1.5 xs:gap-2 sm:gap-2.5">
                       {otpDigits.map((digit, idx) => (
                         <input
                           key={idx}
@@ -1084,7 +1120,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                           value={digit}
                           onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
                           onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                          className={`w-11 h-12 text-center font-black text-xl rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
+                          className={`w-9 h-11 xs:w-10 xs:h-12 sm:w-11 sm:h-12 text-center font-black text-lg xs:text-xl rounded-xl border-2 transition-all focus:outline-none focus:ring-0 ${
                             digit
                               ? darkMode
                                 ? "border-blue-500 bg-blue-500/10 text-cyan-300"
@@ -1198,13 +1234,13 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         {/* ── Footer Links ── */}
         <div className={`mt-5 text-center space-y-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
           <div className="flex items-center justify-center gap-3 text-xs font-medium">
-            <a href="#" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.privacyPolicy}</a>
+            <Link href="/privacy" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.privacyPolicy}</Link>
             <span>·</span>
-            <a href="#" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.terms}</a>
+            <Link href="/terms" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.terms}</Link>
             <span>·</span>
-            <a href="#" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.refundPolicy}</a>
+            <Link href="/refund-policy" className={`hover:underline transition-colors ${darkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>{t.refundPolicy}</Link>
           </div>
-          <p className={`text-[11px] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{t.rbiFooter}</p>
+          <p className={`text-[11px] whitespace-pre-line leading-relaxed ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{t.rbiFooter}</p>
         </div>
 
       </div>

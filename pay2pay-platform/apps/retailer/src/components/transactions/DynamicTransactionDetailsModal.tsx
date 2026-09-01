@@ -276,8 +276,8 @@ export const DynamicTransactionDetailsModal: React.FC<DynamicTransactionDetailsM
   const audit = details?.audit;
 
   const companyLogo = details?.company?.logo || details?.company?.logo_url || branding.logo_url || "/branding/logo.png";
-  const companyName = details?.company?.name || details?.company?.company_name || branding.company_name || "Pay2Pay Fintech";
-  const companyLegalName = details?.company?.legal_name || branding.legal_name || "Pay2Pay Technologies Private Limited";
+  const companyName = details?.company?.name || details?.company?.company_name || branding.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED";
+  const companyLegalName = details?.company?.legal_name || branding.legal_name || "SUPER REX PRODUCTS PRIVATE LIMITED";
 
   const serviceRaw = (txn?.service || "PAYOUT").toUpperCase();
   const serviceStyle = SERVICE_COLORS[serviceRaw] || {

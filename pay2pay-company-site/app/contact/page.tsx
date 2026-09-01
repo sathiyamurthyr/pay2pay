@@ -88,8 +88,9 @@ export default function ContactPage() {
                 <MapPin size={24} />
               </div>
               <div>
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Registered Headquarters</div>
-                <div className="text-xs font-medium text-slate-200 mt-1 leading-relaxed">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Corporate Entity & Headquarters</div>
+                <div className="text-sm font-bold text-white mt-1">SUPER REX PRODUCTS PRIVATE LIMITED</div>
+                <div className="text-xs font-medium text-slate-300 mt-1 leading-relaxed">
                   {siteConfig.company.headquarters}
                 </div>
                 <div className="text-[11px] text-slate-400 font-mono mt-2 pt-2 border-t border-slate-800">

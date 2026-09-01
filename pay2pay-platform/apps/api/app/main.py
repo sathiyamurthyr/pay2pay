@@ -163,6 +163,9 @@ app.include_router(upload.router, prefix=settings.API_V1_STR)
 app.include_router(verification.router, prefix=settings.API_V1_STR)
 app.include_router(retailer_services.router, prefix=settings.API_V1_STR)
 app.include_router(payout_workflow.router, prefix=settings.API_V1_STR)
+app.include_router(payout_workflow.router, prefix="/api")
+app.include_router(payout_workflow.router, prefix="")
+app.include_router(payout_workflow.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(ekyc.router, prefix=settings.API_V1_STR)
 app.include_router(epic014_beneficiary_router.router, prefix=settings.API_V1_STR)
 app.include_router(customer_mpin.router, prefix=settings.API_V1_STR)
@@ -306,6 +309,14 @@ app.include_router(admin_favorites_router.router, prefix="/v1")
 app.include_router(admin_favorites_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(admin_favorites_router.router, prefix="/api")
 app.include_router(admin_favorites_router.router, prefix="")
+
+from app.presentation.api.v1 import user_favorites_router
+app.include_router(user_favorites_router.router, prefix=settings.API_V1_STR)
+app.include_router(user_favorites_router.router, prefix="/v1")
+app.include_router(user_favorites_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(user_favorites_router.router, prefix="/api")
+app.include_router(user_favorites_router.router, prefix="")
+
 
 from app.presentation.api.v1 import admin_operation_wallets_router
 app.include_router(admin_operation_wallets_router.router, prefix=settings.API_V1_STR)

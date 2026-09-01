@@ -73,8 +73,8 @@ class EmailService:
               </div>
             </div>
             <div class="footer">
-              &copy; 2026 Pay2Pay Financial Technologies. All rights reserved.<br>
-              RBI Authorized Payments Platform
+              &copy; 2021 SUPER REX PRODUCTS PRIVATE LIMITED. All rights reserved.<br>
+              Pay2Pay Retailer Portal
             </div>
           </div>
         </body>
@@ -218,7 +218,7 @@ class EmailService:
               </p>
             </div>
             <div class="footer">
-              &copy; 2026 Pay2Pay Financial Technologies. All rights reserved.
+              &copy; 2021 SUPER REX PRODUCTS PRIVATE LIMITED. All rights reserved.
             </div>
           </div>
         </body>
@@ -388,7 +388,7 @@ class EmailService:
               </div>
             </div>
             <div class="footer">
-              &copy; 2026 Pay2Pay Financial Technologies Pvt. Ltd. All rights reserved.<br>
+              &copy; 2026 SUPER REX PRODUCTS PRIVATE LIMITED All rights reserved.<br>
               Need help? Contact support at <a href="mailto:support@pay2pay.in" style="color: #38bdf8; text-decoration: none;">support@pay2pay.in</a>
             </div>
           </div>

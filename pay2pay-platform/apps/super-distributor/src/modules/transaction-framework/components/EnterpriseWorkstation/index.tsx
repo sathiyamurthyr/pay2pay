@@ -19,9 +19,11 @@ export interface EnterpriseWorkstationProps {
   onSelectCustomer: (cust: CustomerData) => void;
   onSelectBeneficiary: (b: BeneficiaryData) => void;
   onSearchCustomer: (q: string) => void;
+  onResetCustomer?: () => void;
   isSearching?: boolean;
   hasSearched?: boolean;
   pricingResult?: PricingEvaluationResult;
+  isLoadingBeneficiaries?: boolean;
 }
 
 export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> = ({
@@ -35,13 +37,22 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
   onSelectCustomer,
   onSelectBeneficiary,
   onSearchCustomer,
+  onResetCustomer,
   isSearching = false,
   hasSearched = false,
   pricingResult: propsPricingResult,
+  isLoadingBeneficiaries = false,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [selectedMode, setSelectedMode] = useState<"IMPS" | "NEFT" | "RTGS" | "UPI">("IMPS");
   const retailerWallet = useRetailerStore((state) => state.wallet);
+
+  // Safely fallback to Step 1 only if customer is completely reset while on later steps
+  useEffect(() => {
+    if (!customer && currentStep > 1) {
+      setCurrentStep(1);
+    }
+  }, [customer, currentStep]);
 
   // Dynamic Rule Engine Evaluation with Transaction Mode
   const pricingResult =
@@ -82,17 +93,19 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
       sx={{
         width: "100%",
         minHeight: "calc(100vh - 56px)",
-        bgcolor: "#0B132B",
+        bgcolor: "#080B11",
         color: "#FFFFFF",
         overflowY: "auto",
+        overflowX: "hidden",
         display: "flex",
         flexDirection: "column",
-        p: 1.5,
-        pb: 8,
+        p: { xs: 1, sm: 2 },
+        pb: { xs: "100px", md: 6 },
+        boxSizing: "border-box",
       }}
     >
       {/* WORKSTATION BODY */}
-      <Box sx={{ flex: 1, width: "100%", pb: 4 }}>
+      <Box sx={{ flex: 1, width: "100%", pb: { xs: 2, md: 4 } }}>
         {currentStep === 1 && (
           <WorkstationStep1
             customer={customer}
@@ -102,6 +115,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
               setCurrentStep(2);
             }}
             onContinue={() => setCurrentStep(2)}
+            onResetCustomer={onResetCustomer}
             isSearching={isSearching}
             hasSearched={hasSearched}
           />
@@ -120,6 +134,7 @@ export const EnterpriseWorkstationModule: React.FC<EnterpriseWorkstationProps> =
             onModeChange={(mode) => setSelectedMode(mode)}
             onBack={() => setCurrentStep(1)}
             onContinue={() => setCurrentStep(3)}
+            isLoading={isLoadingBeneficiaries}
           />
         )}
 

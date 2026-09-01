@@ -3,19 +3,20 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CheckCircle2, Zap, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, Zap, ShieldCheck, Activity } from "lucide-react";
 import { Pay2PayPageHeader } from "@/components/ui/Pay2PayPageHeader";
 
 export const BusinessOverview: React.FC = () => {
   return (
-    <section id="overview" className="py-20 lg:py-28 2xl:py-36 relative bg-[#060D18]/70 border-y border-slate-800/60">
+    <section id="overview" className="py-20 lg:py-28 2xl:py-36 relative bg-[#040A16]/70 border-y border-slate-800/60">
       <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24">
         {/* Section Header */}
         <Pay2PayPageHeader
-          eyebrow="Business Snapshot"
-          titlePrefix="One Platform."
-          highlightedTitle="Connected Financial Services."
-          description="Pay2Pay brings supported financial and utility services together through a connected partner ecosystem designed for efficient, secure and transparent operations."
+          eyebrow="Business Architecture"
+          titlePrefix="One Unified Platform."
+          highlightedTitle="Connected Financial Rails."
+          highlightColor="blue"
+          description="Pay2Pay brings supported digital banking and utility services together through a connected partner ecosystem designed for high efficiency, strict compliance, and instant settlements."
         />
 
         {/* Visual & Summary Card */}
@@ -34,9 +35,11 @@ export const BusinessOverview: React.FC = () => {
                 />
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none rounded-2xl" />
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700/80">
-                <span className="text-blue-400 font-bold">Pay2Pay Core Mesh</span>
-                <span>High-Speed Transaction Rails</span>
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-700/80 shadow-lg">
+                <span className="text-blue-400 font-bold flex items-center gap-1.5">
+                  <Activity size={13} className="text-emerald-400 animate-pulse" /> Pay2Pay Core Mesh
+                </span>
+                <span className="text-slate-400">High-Speed Transaction Rails</span>
               </div>
             </div>
 
@@ -50,19 +53,19 @@ export const BusinessOverview: React.FC = () => {
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200">
+                <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200 hover:border-slate-700 transition-colors">
                   <Zap size={16} className="text-blue-400 shrink-0" />
                   <span>Sub-Second Response Latency</span>
                 </div>
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200">
+                <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200 hover:border-slate-700 transition-colors">
                   <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
                   <span>Bank-Grade Data Encryption</span>
                 </div>
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200">
+                <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200 hover:border-slate-700 transition-colors">
                   <CheckCircle2 size={16} className="text-amber-400 shrink-0" />
                   <span>Automated Wallet Settlements</span>
                 </div>
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200">
+                <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-200 hover:border-slate-700 transition-colors">
                   <CheckCircle2 size={16} className="text-indigo-400 shrink-0" />
                   <span>24x7 Dedicated RM Support</span>
                 </div>
@@ -71,7 +74,7 @@ export const BusinessOverview: React.FC = () => {
               <div className="pt-2">
                 <Link
                   href="/about"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all hover:scale-105"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all hover:scale-105 active:scale-95"
                 >
                   <span>Learn About Pay2Pay</span>
                   <ArrowRight size={15} />
@@ -84,3 +87,4 @@ export const BusinessOverview: React.FC = () => {
     </section>
   );
 };
+

@@ -17,17 +17,18 @@ const ecosystemFlow = [
 
 export const RetailerEcosystem: React.FC = () => {
   return (
-    <section id="ecosystem" className="py-20 lg:py-28 2xl:py-36 relative bg-[#060D18]/80 border-y border-slate-800/70 overflow-hidden">
+    <section id="ecosystem" className="py-20 lg:py-28 2xl:py-36 relative bg-[#050B16]/80 border-y border-slate-800/70 overflow-hidden">
       {/* Background radial glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-blue-600/10 blur-[140px] pointer-events-none -z-10" />
 
       <div className="max-w-[1920px] 2xl:max-w-[2200px] 3xl:max-w-[2600px] 4k:max-w-[3200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-24">
         {/* Section Header */}
         <Pay2PayPageHeader
-          eyebrow="Ecosystem Preview"
-          titlePrefix="Connected Partner"
-          highlightedTitle="Ecosystem"
-          description="A structured partner network connecting customers, retailers, distributors and service partners through Pay2Pay."
+          eyebrow="Ecosystem Architecture"
+          titlePrefix="Connected Multi-Tier"
+          highlightedTitle="Partner Network"
+          highlightColor="blue"
+          description="A structured partner network connecting walk-in customers, retailers, distributors and clearing switches through Pay2Pay."
         />
 
         {/* Visual & Summary Card */}
@@ -45,9 +46,9 @@ export const RetailerEcosystem: React.FC = () => {
                 />
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none rounded-2xl" />
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700/80">
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300 font-mono bg-slate-900/85 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-700/80 shadow-lg">
                 <span className="text-blue-400 font-bold">Multi-Tier Network</span>
-                <span>Transparent Value Distribution</span>
+                <span className="text-slate-400">Automated Commission Split</span>
               </div>
             </div>
 
@@ -101,7 +102,7 @@ export const RetailerEcosystem: React.FC = () => {
                 key={node.step}
                 className="glass-panel p-5 rounded-2xl flex flex-col items-center text-center justify-between hover:border-blue-500/40 transition-all group"
               >
-                <div className="w-10 h-10 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-400 flex items-center justify-center mb-3 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-400 flex items-center justify-center mb-3 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-md">
                   <IconComp size={20} />
                 </div>
                 <span className="font-mono text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">

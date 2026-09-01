@@ -125,7 +125,8 @@ function RegistrationLayoutContent({ children }: { children: React.ReactNode }) 
 
       {/* Footer */}
       <div className="relative z-10 mt-6 text-center text-xs font-semibold text-slate-500">
-        <p>© 2026 Pay2Pay Financial Technologies · Enterprise Registration Portal</p>
+        <p>© 2021 SUPER REX PRODUCTS PRIVATE LIMITED</p>
+        <p>Pay2Pay Retailer Portal</p>
       </div>
     </div>
   );

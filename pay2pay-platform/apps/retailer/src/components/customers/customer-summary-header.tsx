@@ -115,10 +115,13 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             <Typography
               sx={{
                 fontWeight: 900,
-                color: darkTheme ? "#FFFFFF" : "#0F172A",
-                fontSize: { xs: "15px", sm: "17.5px" },
+                fontSize: { xs: "15px", sm: "18px" },
                 letterSpacing: "-0.2px",
                 lineHeight: 1.2,
+                background: darkTheme ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
+                WebkitBackgroundClip: darkTheme ? "text" : "unset",
+                WebkitTextFillColor: darkTheme ? "transparent" : "inherit",
+                color: darkTheme ? "inherit" : "#0F172A",
               }}
             >
               {name}

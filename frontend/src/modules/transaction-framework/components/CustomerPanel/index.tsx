@@ -37,6 +37,7 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
         {/* Left: Avatar + Customer Name + Business Customer Code + Mobile */}
         <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
           <Avatar
+            src={customer.photo_url || customer.photo_avatar || undefined}
             sx={{
               bgcolor: "#2563EB",
               color: "#FFFFFF",
@@ -45,6 +46,7 @@ export const CustomerPanel: React.FC<{ customer: CustomerData | null }> = ({ cus
               fontWeight: 800,
               fontSize: "18px",
               boxShadow: "0 4px 12px rgba(37, 99, 235, 0.35)",
+              border: customer.photo_url ? "2px solid rgba(255, 255, 255, 0.3)" : "none",
             }}
           >
             {customer.name.charAt(0)}

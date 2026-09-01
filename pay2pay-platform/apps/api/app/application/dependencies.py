@@ -69,6 +69,21 @@ async def get_current_token_payload(
     return payload
 
 
+async def get_optional_token_payload(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """
+    Returns the decoded token payload if present and valid, or an empty dict otherwise.
+    Safe for non-strict or fallback endpoints like notification polling.
+    """
+    try:
+        return await get_current_token_payload(request, credentials, db)
+    except Exception:
+        return {}
+
+
 async def get_current_tenant_id(
     payload: dict = Depends(get_current_token_payload)
 ) -> uuid.UUID:
@@ -82,6 +97,28 @@ async def get_current_tenant_id(
         return uuid.UUID(tenant_id_str)
     except (ValueError, TypeError):
         return uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+
+
+async def get_optional_tenant_id(
+    payload: dict = Depends(get_optional_token_payload)
+) -> uuid.UUID:
+    tenant_id_str = payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8") if payload else "547aa7bb-a790-4fe2-bd5b-27214ed176c8"
+    try:
+        return uuid.UUID(tenant_id_str)
+    except (ValueError, TypeError):
+        return uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+
+
+async def get_optional_current_user(
+    payload: dict = Depends(get_optional_token_payload),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[AdminUserModel]:
+    if not payload or not payload.get("sub"):
+        return None
+    try:
+        return await get_current_user(payload, db)
+    except Exception:
+        return None
 
 
 async def get_current_user(

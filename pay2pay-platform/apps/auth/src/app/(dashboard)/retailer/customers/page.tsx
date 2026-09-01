@@ -35,13 +35,15 @@ import { CustomerDetailsDrawer } from "@/components/customers/customer-details-d
 import { MpinSetupCard } from "@/components/customers/mpin-setup-card";
 import { isNormalizedMatch, formatShortCustomerId } from "@/lib/utils";
 import { retailerApi } from "@/services/retailer-api";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES & ENUMS
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface CustomerRecord {
-  id: string;
+  id: string;      // Display-formatted ID (e.g. CUST-9176669426) — for UI only
+  rawId?: string;  // Raw UUID / public_id from backend — used for API lookups (e.g. beneficiaries)
   name: string;
   mobile: string;
   email: string;
@@ -146,6 +148,9 @@ function CustomersContent() {
         if (!isCancelled && res.status === "SUCCESS" && Array.isArray(res.data) && res.data.length > 0) {
           const mapped: CustomerRecord[] = res.data.map((c: any) => ({
             id: formatShortCustomerId(c.customer_number || c.public_id || c.id),
+            // rawId: preserve the authoritative UUID for API lookups (beneficiaries, limits, etc.)
+            // Priority: public_id (UUID) > customer_number (raw) — never the formatted display id
+            rawId: c.public_id || c.id || c.customer_number || "",
             name: c.full_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Verified Customer",
             mobile: c.mobile_number ? (c.mobile_number.startsWith("+91") ? c.mobile_number : `+91 ${c.mobile_number}`) : "",
             email: c.email || "",
@@ -297,63 +302,69 @@ function CustomersContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans pb-24 transition-colors">
+    <div className="min-h-screen bg-[#080B11] text-slate-100 font-sans pb-32 transition-colors">
       
       {/* ─────────────────────────────────────────────────────────────────────
-          1. TOP APP BAR
+          1. TOP LUXURY GLASS APP BAR
       ───────────────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-30 bg-[#0A0F1D]/90 backdrop-blur-xl border-b border-amber-400/20 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           
           {/* Left: Hamburger & Title */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/retailer-dashboard")}
               aria-label="Open Navigation Menu"
-              className="p-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:ring-2 focus:ring-blue-600 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="p-2 rounded-xl text-amber-300 bg-amber-400/10 border border-amber-400/30 hover:bg-amber-400/20 transition-colors focus:ring-2 focus:ring-amber-400 focus:outline-none min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               <Menu className="w-5 h-5 stroke-[2.5]" />
             </button>
 
             <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white">
-                Customer Directory
+              <h1 className="text-base sm:text-xl font-black tracking-tight bg-gradient-to-r from-[#FEF08A] via-[#FBBF24] to-[#F59E0B] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+                Customers
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hidden sm:inline-block">
-                Retailer Pro
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/15 text-amber-300 border border-amber-400/30 hidden sm:inline-block">
+                Directory
               </span>
             </div>
           </div>
 
-          {/* Right: Universal Search, Notifications, Profile */}
-          <div className="flex items-center gap-2">
+          {/* Right: Wallet Balance Pill, Refresh, Notifications, Profile */}
+          <div className="flex items-center gap-2.5">
+            {/* Gold Wallet Pill */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/10 border border-amber-400/30 shadow-[0_0_12px_rgba(251,191,36,0.15)] font-mono font-black text-xs sm:text-sm text-amber-300">
+              <span className="text-amber-400 text-xs">₹</span>
+              <span className="bg-gradient-to-r from-[#FEF08A] to-[#FBBF24] bg-clip-text text-transparent">
+                49,357.52
+              </span>
+            </div>
+
             <button
-              onClick={() => setUniversalSearchOpen(true)}
-              aria-label="Universal Search"
-              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 min-h-[44px] px-3 font-semibold text-xs border border-slate-200 dark:border-slate-800"
+              onClick={handleRefresh}
+              aria-label="Refresh Balances"
+              className={`p-2 rounded-xl text-amber-300 bg-white/5 border border-white/10 hover:bg-amber-400/15 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
+                isLoading ? "animate-spin" : ""
+              }`}
             >
-              <Search className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span className="hidden md:inline">Universal Search...</span>
-              <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-slate-800 rounded border border-slate-300 dark:border-slate-700">
-                Ctrl+K
-              </kbd>
+              <RefreshCw className="w-4 h-4" />
             </button>
 
             <button
               aria-label="View Notifications"
               onClick={() => router.push("/retailer/notifications")}
-              className="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="relative p-2 rounded-xl text-amber-300 bg-white/5 border border-white/10 hover:bg-amber-400/15 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900" />
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-slate-900" />
             </button>
 
             <button
               aria-label="View Profile"
               onClick={() => router.push("/retailer/profile")}
-              className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs border border-white/20 hover:scale-105 transition-transform"
+              className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 font-black text-xs flex items-center justify-center shadow-lg border border-amber-300/40 hover:scale-105 transition-transform"
             >
-              R
+              S
             </button>
           </div>
         </div>
@@ -858,6 +869,11 @@ function CustomersContent() {
 
       {/* Universal Search Dialog Trigger */}
       <UniversalSearchDialog open={universalSearchOpen} onClose={() => setUniversalSearchOpen(false)} />
+
+      {/* ── Fixed Mobile Bottom Navigation with Floating (+) Button ── */}
+      <div className="md:hidden">
+        <MobileBottomNav />
+      </div>
 
     </div>
   );

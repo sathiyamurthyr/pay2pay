@@ -487,9 +487,9 @@ async def get_transaction_report(
         where_clauses.append("COALESCE(t.company_ref_id, ret.company_ref_id, 1) = :company_ref_id")
         count_params["company_ref_id"] = company_ref_id
 
-    if effective_retailer_ref_id is not None:
+    if effective_user_ref_id is not None:
         where_clauses.append("t.user_ref_id = :user_ref_id")
-        count_params["user_ref_id"] = effective_retailer_ref_id
+        count_params["user_ref_id"] = effective_user_ref_id
 
     if rm_ref_id is not None:
         where_clauses.append("COALESCE(t.regional_manager_ref_id, ret.regional_manager_ref_id) = :rm_ref_id")
@@ -497,6 +497,7 @@ async def get_transaction_report(
 
     if effective_user_type_ref_id is not None:
         where_clauses.append("t.user_type_ref_id = :user_type_ref_id")
+        count_params["user_type_ref_id"] = effective_user_type_ref_id
         count_params["user_type_ref_id"] = effective_user_type_ref_id
     elif effective_user_type_code is not None:
         where_clauses.append("UPPER(COALESCE(t.user_type, 'RETAILER')) = :user_type_val")
@@ -760,7 +761,7 @@ async def get_transaction_dynamic_details(
             r.retailer_code,
             COALESCE(t.retailer_name, r.store_name, r.owner_name) AS resolved_retailer_name,
             COALESCE(c.display_name, c.company_name, c.legal_name, 'Pay2Pay') AS resolved_company_name,
-            COALESCE(c.legal_name, c.company_name, 'Pay2Pay Technologies Private Limited') AS resolved_legal_name,
+            COALESCE(c.legal_name, c.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS resolved_legal_name,
             COALESCE(c.company_code, 'P2P') AS resolved_company_code,
             COALESCE(cb.logo_url, '/branding/logo.png') AS resolved_logo_url,
             COALESCE(t.dist_name, d.business_name, d.owner_name) AS resolved_dist_name,
@@ -791,7 +792,7 @@ async def get_transaction_dynamic_details(
                 r.retailer_code,
                 COALESCE(r.store_name, r.owner_name) AS resolved_retailer_name,
                 COALESCE(comp.display_name, comp.company_name, comp.legal_name, 'Pay2Pay') AS resolved_company_name,
-                COALESCE(comp.legal_name, comp.company_name, 'Pay2Pay Technologies Private Limited') AS resolved_legal_name,
+                COALESCE(comp.legal_name, comp.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS resolved_legal_name,
                 COALESCE(comp.company_code, 'P2P') AS resolved_company_code,
                 COALESCE(cb.logo_url, '/branding/logo.png') AS resolved_logo_url,
                 COALESCE(b.full_name, bm.account_holder_name, bba.account_holder_name) as beneficiary_name,
@@ -907,7 +908,7 @@ async def get_transaction_dynamic_details(
                 r.retailer_code,
                 COALESCE(r.store_name, r.owner_name) AS resolved_retailer_name,
                 COALESCE(comp.display_name, comp.company_name, comp.legal_name, 'Pay2Pay') AS resolved_company_name,
-                COALESCE(comp.legal_name, comp.company_name, 'Pay2Pay Technologies Private Limited') AS resolved_legal_name,
+                COALESCE(comp.legal_name, comp.company_name, 'SUPER REX PRODUCTS PRIVATE LIMITED') AS resolved_legal_name,
                 COALESCE(comp.company_code, 'P2P') AS resolved_company_code,
                 COALESCE(cb.logo_url, '/branding/logo.png') AS resolved_logo_url
             FROM public.payout_transaction pt
@@ -972,7 +973,7 @@ async def get_transaction_dynamic_details(
                     "company_ref_id": d_map.get("company_ref_id"),
                     "resolved_retailer_name": "Retailer",
                     "resolved_company_name": "Pay2Pay",
-                    "resolved_legal_name": "Pay2Pay Technologies Private Limited",
+                    "resolved_legal_name": "SUPER REX PRODUCTS PRIVATE LIMITED",
                     "resolved_company_code": "P2P",
                     "resolved_logo_url": "/branding/logo.png",
                 }]
@@ -1419,7 +1420,7 @@ async def get_transaction_dynamic_details(
         "logo": company_logo_val,
         "company_name": company_name_val,
         "logo_url": company_logo_val,
-        "legal_name": primary.get("resolved_legal_name") or "Pay2Pay Technologies Private Limited",
+        "legal_name": primary.get("resolved_legal_name") or "SUPER REX PRODUCTS PRIVATE LIMITED",
         "company_code": primary.get("resolved_company_code") or "P2P",
     }
 
