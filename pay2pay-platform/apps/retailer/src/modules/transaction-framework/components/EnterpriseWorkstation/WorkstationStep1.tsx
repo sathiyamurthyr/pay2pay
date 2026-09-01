@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useRetailerStore } from "@/stores/use-retailer-store";
@@ -15,11 +17,17 @@ import {
   CircularProgress,
   Skeleton,
   Tooltip,
+  IconButton,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ShieldIcon from "@mui/icons-material/Shield";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
+import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
+import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
+import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import { CustomerData } from "../../hooks/useCustomer";
 
 export interface WorkstationStep1Props {
@@ -50,6 +58,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   const [searchInput, setSearchInput] = useState("");
   const [localHasSearched, setLocalHasSearched] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const wallet = useRetailerStore((state) => state.wallet);
@@ -68,6 +77,15 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
     if (searchInput.trim()) {
       setLocalHasSearched(true);
       onSearchCustomer(searchInput.trim());
+    }
+  };
+
+  const handleClear = () => {
+    setSearchInput("");
+    setLocalHasSearched(false);
+    if (onResetCustomer) onResetCustomer();
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
     }
   };
 
@@ -91,15 +109,11 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   // Keyboard Shortcuts (F2 -> New Customer, Ctrl+N -> New Customer, Esc -> Clear Search)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "F2") {
-        e.preventDefault();
-        handleNavigateToRegister();
-      } else if (e.ctrlKey && (e.key === "n" || e.key === "N")) {
+      if (e.key === "F2" || (e.ctrlKey && (e.key === "n" || e.key === "N"))) {
         e.preventDefault();
         handleNavigateToRegister();
       } else if (e.key === "Escape") {
-        setSearchInput("");
-        setLocalHasSearched(false);
+        handleClear();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -109,32 +123,64 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   const showEmptyState = !isSearching && !customer && (Boolean(error) || hasSearched || localHasSearched);
 
   return (
-    <Box sx={{ maxWidth: 900, mx: "auto", pt: { xs: 1, sm: 2 }, px: { xs: 0.5, sm: 1.5 } }}>
-      {/* 1. SEARCH CONSOLE WITH RESPONSIVE ACTION BUTTONS */}
+    <Box sx={{ maxWidth: 920, mx: "auto", pt: { xs: 1, sm: 2 }, px: { xs: 0.5, sm: 1.5 } }}>
+      {/* ── 1. CUSTOMER SEARCH & IDENTIFICATION (GLASSMORPHISM CARD) ── */}
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2, sm: 2.5 },
-          borderRadius: "18px",
-          bgcolor: "rgba(15, 23, 42, 0.85)",
-          backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+          p: { xs: 2, sm: 2.75 },
+          borderRadius: { xs: "18px", sm: "22px" },
+          bgcolor: "rgba(11, 15, 25, 0.85)",
+          backdropFilter: "blur(24px)",
+          border: "1px solid rgba(245, 158, 11, 0.2)",
+          boxShadow: "0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(245, 158, 11, 0.08)",
           mb: 2.5,
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <Typography
+        {/* Subtle top gold glow accent */}
+        <Box
           sx={{
-            color: "#60A5FA",
-            fontWeight: 800,
-            fontSize: "11.5px",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            mb: 1.25,
+            position: "absolute",
+            top: 0,
+            left: "15%",
+            right: "15%",
+            height: "1px",
+            background: "linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.6) 50%, transparent 100%)",
+            boxShadow: "0 0 10px rgba(245, 158, 11, 0.5)",
           }}
-        >
-          CUSTOMER SEARCH &amp; IDENTIFICATION
-        </Typography>
+        />
+
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1.5 }}>
+          <Box
+            sx={{
+              width: 24,
+              height: 24,
+              borderRadius: "6px",
+              bgcolor: "rgba(245, 158, 11, 0.15)",
+              border: "1px solid rgba(245, 158, 11, 0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <SearchIcon sx={{ color: "#F59E0B", fontSize: 15 }} />
+          </Box>
+          <Typography
+            sx={{
+              fontWeight: 900,
+              fontSize: { xs: "12px", sm: "13px" },
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            CUSTOMER SEARCH &amp; IDENTIFICATION
+          </Typography>
+        </Stack>
 
         <form onSubmit={handleSearch} autoComplete="off" autoCorrect="off" autoCapitalize="off">
           <Stack spacing={1.5}>
@@ -145,14 +191,20 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               inputRef={searchInputRef}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by Mobile, Customer Code, Aadhaar, PAN..."
+              placeholder="Search by Mobile, Customer Code, Aadhaar, Name"
               autoComplete="off"
               slotProps={{
                 htmlInput: {
                   suppressHydrationWarning: true,
                   readOnly: isReadOnly,
-                  onFocus: () => setIsReadOnly(false),
-                  onBlur: () => setIsReadOnly(true),
+                  onFocus: () => {
+                    setIsReadOnly(false);
+                    setIsFocused(true);
+                  },
+                  onBlur: () => {
+                    setIsReadOnly(true);
+                    setIsFocused(false);
+                  },
                   autoComplete: "off",
                   name: "disable_autofill_cust_search",
                   id: "disable_autofill_cust_search_id",
@@ -167,22 +219,43 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: "#60A5FA", fontSize: 20 }} />
+                      <SearchIcon sx={{ color: isFocused ? "#F59E0B" : "#94A3B8", fontSize: 20, transition: "color 0.2s" }} />
                     </InputAdornment>
                   ),
+                  endAdornment: searchInput ? (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={handleClear}
+                        sx={{
+                          p: 0.5,
+                          color: "#94A3B8",
+                          "&:hover": { color: "#FDE68A", bgcolor: "rgba(245, 158, 11, 0.15)" },
+                        }}
+                      >
+                        <CloseRoundedIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
                   sx: {
-                    height: { xs: 46, sm: 50 },
+                    height: { xs: 48, sm: 52 },
                     fontSize: "14px",
                     color: "#FFFFFF",
-                    bgcolor: "rgba(8, 17, 31, 0.9)",
-                    borderRadius: "10px",
+                    bgcolor: "rgba(8, 11, 17, 0.85)",
+                    borderRadius: "12px",
+                    border: isFocused ? "1px solid #F59E0B" : "1px solid rgba(245, 158, 11, 0.25)",
+                    boxShadow: isFocused ? "0 0 16px rgba(245, 158, 11, 0.25), inset 0 0 8px rgba(245, 158, 11, 0.05)" : "none",
+                    transition: "all 0.2s ease-in-out",
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      border: "none",
+                    },
                   },
                 },
               }}
             />
 
             <Stack direction="row" spacing={1.25} sx={{ width: "100%" }}>
-              {/* PRIMARY SEARCH BUTTON */}
+              {/* PRIMARY GOLD-YELLOW GRADIENT SEARCH BUTTON */}
               <Button
                 type="submit"
                 variant="contained"
@@ -190,46 +263,65 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 startIcon={isSearching ? <CircularProgress size={16} color="inherit" /> : <SearchIcon sx={{ fontSize: 18 }} />}
                 sx={{
                   flex: 1,
-                  height: { xs: 44, sm: 48 },
-                  borderRadius: "10px",
-                  fontWeight: 800,
-                  fontSize: { xs: "13px", sm: "14px" },
-                  bgcolor: "#2563EB",
-                  color: "#FFFFFF",
+                  height: { xs: 46, sm: 50 },
+                  borderRadius: "12px",
+                  fontWeight: 900,
+                  fontSize: { xs: "13.5px", sm: "14.5px" },
+                  background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+                  color: "#080B11",
                   whiteSpace: "nowrap",
-                  boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)",
+                  boxShadow: "0 4px 20px rgba(245, 158, 11, 0.4)",
                   textTransform: "none",
+                  letterSpacing: "-0.2px",
+                  transition: "all 0.2s ease-in-out",
                   "&:hover": {
-                    bgcolor: "#1D4ED8",
+                    background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+                    boxShadow: "0 6px 24px rgba(245, 158, 11, 0.5)",
+                    transform: "translateY(-1px)",
+                  },
+                  "&:active": {
+                    transform: "translateY(1px)",
+                  },
+                  "&.Mui-disabled": {
+                    background: "rgba(255, 255, 255, 0.06)",
+                    color: "rgba(255, 255, 255, 0.3)",
+                    boxShadow: "none",
                   },
                 }}
               >
                 {isSearching ? "Searching..." : "Search"}
               </Button>
 
-              {/* PERSISTENT "NEW CUSTOMER" QUICK ACTION BUTTON */}
+              {/* SECONDARY DARK GLASS "+ NEW CUSTOMER" BUTTON */}
               {canCreateCustomer && (
                 <Tooltip title="Register New Customer (F2 / Ctrl+N)" arrow>
                   <Button
                     variant="outlined"
                     onClick={handleNavigateToRegister}
-                    startIcon={<PersonAddIcon sx={{ fontSize: 18 }} />}
+                    startIcon={<PersonAddIcon sx={{ fontSize: 18, color: "#FBBF24" }} />}
                     aria-label="Register new customer"
                     sx={{
                       flex: 1,
-                      height: { xs: 44, sm: 48 },
-                      borderRadius: "10px",
+                      height: { xs: 46, sm: 50 },
+                      borderRadius: "12px",
                       fontWeight: 800,
-                      fontSize: { xs: "13px", sm: "14px" },
-                      color: "#60A5FA",
-                      borderColor: "rgba(96, 165, 250, 0.4)",
-                      bgcolor: "rgba(37, 99, 235, 0.12)",
-                      boxShadow: "0 4px 14px rgba(37, 99, 235, 0.12)",
+                      fontSize: { xs: "13.5px", sm: "14.5px" },
+                      color: "#FDE68A",
+                      borderColor: "rgba(245, 158, 11, 0.35)",
+                      bgcolor: "rgba(245, 158, 11, 0.08)",
+                      boxShadow: "0 4px 14px rgba(245, 158, 11, 0.08)",
                       whiteSpace: "nowrap",
                       textTransform: "none",
+                      letterSpacing: "-0.2px",
+                      transition: "all 0.2s ease-in-out",
                       "&:hover": {
-                        bgcolor: "rgba(37, 99, 235, 0.22)",
-                        borderColor: "#60A5FA",
+                        bgcolor: "rgba(245, 158, 11, 0.18)",
+                        borderColor: "#F59E0B",
+                        boxShadow: "0 0 16px rgba(245, 158, 11, 0.25)",
+                        transform: "translateY(-1px)",
+                      },
+                      "&:active": {
+                        transform: "translateY(1px)",
                       },
                     }}
                   >
@@ -242,49 +334,72 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
         </form>
       </Paper>
 
-      {/* 2. LOADING STATE SKELETON */}
+      {/* ── 2. LOADING STATE SKELETON ── */}
       {isSearching && (
         <Paper
           elevation={0}
           sx={{
             p: 3,
-            borderRadius: "18px",
-            bgcolor: "rgba(18, 27, 48, 0.5)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: "22px",
+            bgcolor: "rgba(11, 15, 25, 0.7)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(245, 158, 11, 0.2)",
           }}
         >
           <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 2 }}>
-            <Skeleton variant="circular" width={52} height={52} sx={{ bgcolor: "rgba(255, 255, 255, 0.1)" }} />
+            <Skeleton variant="circular" width={56} height={56} sx={{ bgcolor: "rgba(245, 158, 11, 0.15)" }} />
             <Box sx={{ flex: 1 }}>
-              <Skeleton variant="text" width="40%" height={28} sx={{ bgcolor: "rgba(255, 255, 255, 0.1)" }} />
-              <Skeleton variant="text" width="60%" height={18} sx={{ bgcolor: "rgba(255, 255, 255, 0.1)" }} />
+              <Skeleton variant="text" width="45%" height={28} sx={{ bgcolor: "rgba(255, 255, 255, 0.1)" }} />
+              <Skeleton variant="text" width="65%" height={20} sx={{ bgcolor: "rgba(255, 255, 255, 0.08)" }} />
             </Box>
           </Stack>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 1.25 }}>
+            <Skeleton variant="rounded" height={60} sx={{ bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: "12px" }} />
+            <Skeleton variant="rounded" height={60} sx={{ bgcolor: "rgba(255, 255, 255, 0.05)", borderRadius: "12px" }} />
+          </Box>
         </Paper>
       )}
 
-      {/* 3. CENTERED "CUSTOMER NOT FOUND" EMPTY-STATE CARD */}
+      {/* ── 3. CENTERED "CUSTOMER NOT FOUND" EMPTY-STATE CARD ── */}
       {showEmptyState && (
         <Paper
           elevation={0}
           onClick={handleNavigateToRegister}
           sx={{
             p: { xs: 3, sm: 4 },
-            borderRadius: "18px",
-            bgcolor: "rgba(37, 99, 235, 0.06)",
-            border: "2px dashed rgba(37, 99, 235, 0.35)",
+            borderRadius: "22px",
+            bgcolor: "rgba(245, 158, 11, 0.04)",
+            backdropFilter: "blur(20px)",
+            border: "2px dashed rgba(245, 158, 11, 0.35)",
             textAlign: "center",
             cursor: "pointer",
             transition: "all 0.2s ease-in-out",
             "&:hover": {
-              bgcolor: "rgba(37, 99, 235, 0.12)",
-              borderColor: "#2563EB",
+              bgcolor: "rgba(245, 158, 11, 0.09)",
+              borderColor: "#F59E0B",
               transform: "translateY(-2px)",
+              boxShadow: "0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 158, 11, 0.15)",
             },
           }}
         >
-          <PersonAddIcon sx={{ fontSize: 52, color: "#2563EB", mb: 1 }} />
-          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "18px", mb: 0.5 }}>
+          <Box
+            sx={{
+              width: 60,
+              height: 60,
+              borderRadius: "50%",
+              bgcolor: "rgba(245, 158, 11, 0.15)",
+              border: "1px solid rgba(245, 158, 11, 0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mx: "auto",
+              mb: 1.5,
+              boxShadow: "0 0 20px rgba(245, 158, 11, 0.2)",
+            }}
+          >
+            <PersonAddIcon sx={{ fontSize: 32, color: "#FBBF24" }} />
+          </Box>
+          <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "19px", mb: 0.5 }}>
             Customer Not Found
           </Typography>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px", mb: 2.5, maxWidth: 460, mx: "auto" }}>
@@ -292,21 +407,24 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
           </Typography>
           <Button
             variant="contained"
-            color="primary"
-            startIcon={<PersonAddIcon />}
+            startIcon={<PersonAddIcon sx={{ color: "#080B11" }} />}
             onClick={(e) => {
               e.stopPropagation();
               handleNavigateToRegister();
             }}
             sx={{
-              height: 44,
-              px: 3,
-              borderRadius: "10px",
-              fontWeight: 800,
-              fontSize: "13.5px",
-              bgcolor: "#2563EB",
-              boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
+              height: 46,
+              px: 3.5,
+              borderRadius: "12px",
+              fontWeight: 900,
+              fontSize: "14px",
+              background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+              color: "#080B11",
+              boxShadow: "0 4px 20px rgba(245, 158, 11, 0.4)",
               textTransform: "none",
+              "&:hover": {
+                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+              },
             }}
           >
             + Add New Customer
@@ -314,19 +432,34 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
         </Paper>
       )}
 
-      {/* 4. EXISTING CUSTOMER DETAILS CARD (CLEAN RESPONSIVE LAYOUT) */}
+      {/* ── 4. CUSTOMER PROFILE CARD (LUXURY FINTECH GLASSMORPHISM) ── */}
       {!isSearching && customer && (
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 2, sm: 3 },
-            borderRadius: "20px",
-            bgcolor: "rgba(15, 23, 42, 0.9)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(59, 130, 246, 0.35)",
-            boxShadow: "0 12px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(37, 99, 235, 0.15)",
+            p: { xs: 2.25, sm: 3 },
+            borderRadius: { xs: "20px", sm: "24px" },
+            bgcolor: "rgba(11, 15, 25, 0.9)",
+            backdropFilter: "blur(24px)",
+            border: "1px solid rgba(245, 158, 11, 0.25)",
+            boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(245, 158, 11, 0.1)",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
+          {/* Subtle top gold glow line */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: "10%",
+              right: "10%",
+              height: "1px",
+              background: "linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.8) 50%, transparent 100%)",
+              boxShadow: "0 0 12px rgba(245, 158, 11, 0.6)",
+            }}
+          />
+
           {/* Customer Header Info */}
           <Box
             sx={{
@@ -335,19 +468,20 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               alignItems: { xs: "flex-start", sm: "center" },
               justifyContent: "space-between",
               gap: 1.5,
-              mb: 2,
+              mb: 2.25,
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1, minWidth: 0 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.75, flex: 1, minWidth: 0 }}>
               <Avatar
                 sx={{
-                  width: { xs: 46, sm: 54 },
-                  height: { xs: 46, sm: 54 },
-                  bgcolor: "#2563EB",
-                  color: "#FFFFFF",
-                  fontSize: { xs: "18px", sm: "22px" },
+                  width: { xs: 50, sm: 58 },
+                  height: { xs: 50, sm: 58 },
+                  background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
+                  color: "#FDE68A",
+                  fontSize: { xs: "20px", sm: "24px" },
                   fontWeight: 900,
-                  boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
+                  border: "2px solid #F59E0B",
+                  boxShadow: "0 0 15px rgba(245, 158, 11, 0.35)",
                   flexShrink: 0,
                 }}
               >
@@ -355,52 +489,85 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               </Avatar>
 
               <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, flexWrap: "wrap" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, flexWrap: "wrap", mb: 0.5 }}>
                   <Typography
                     sx={{
                       fontWeight: 900,
                       color: "#FFFFFF",
-                      fontSize: { xs: "16px", sm: "19px" },
+                      fontSize: { xs: "17px", sm: "20px" },
                       lineHeight: 1.2,
+                      letterSpacing: "-0.3px",
                     }}
                   >
                     {customer.name}
                   </Typography>
+
+                  {/* VERIFIED GREEN GLASS BADGE */}
                   <Chip
-                    icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 13 } }} />}
+                    icon={
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          bgcolor: "#4ADE80",
+                          boxShadow: "0 0 6px #4ADE80",
+                          ml: 0.5,
+                          mr: -0.25,
+                        }}
+                      />
+                    }
                     label={customer.kycStatus || "VERIFIED"}
                     size="small"
                     sx={{
-                      bgcolor: "rgba(34, 197, 94, 0.18)",
+                      bgcolor: "rgba(34, 197, 94, 0.15)",
+                      border: "1px solid rgba(74, 222, 128, 0.4)",
                       color: "#4ADE80",
                       fontWeight: 800,
                       fontSize: "10px",
-                      height: 20,
+                      height: 22,
+                      boxShadow: "0 0 10px rgba(34, 197, 94, 0.15)",
                     }}
                   />
+
+                  {/* MPIN ACTIVE / NOT CREATED BADGE */}
                   {customer.mpin_enabled === false ? (
                     <Chip
                       label="MPIN NOT CREATED"
                       size="small"
                       sx={{
-                        bgcolor: "rgba(245, 158, 11, 0.2)",
+                        bgcolor: "rgba(245, 158, 11, 0.15)",
+                        border: "1px solid rgba(245, 158, 11, 0.4)",
                         color: "#FBBF24",
                         fontWeight: 800,
                         fontSize: "9.5px",
-                        height: 20,
-                        border: "1px solid rgba(245, 158, 11, 0.4)",
+                        height: 22,
                       }}
                     />
                   ) : (
                     <Chip
+                      icon={
+                        <Box
+                          sx={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            bgcolor: "#34D399",
+                            boxShadow: "0 0 6px #34D399",
+                            ml: 0.5,
+                            mr: -0.25,
+                          }}
+                        />
+                      }
                       label="MPIN ACTIVE"
                       size="small"
                       sx={{
-                        bgcolor: "rgba(16, 185, 129, 0.2)",
+                        bgcolor: "rgba(16, 185, 129, 0.15)",
+                        border: "1px solid rgba(52, 211, 153, 0.4)",
                         color: "#34D399",
                         fontWeight: 800,
                         fontSize: "9.5px",
-                        height: 20,
+                        height: 22,
                       }}
                     />
                   )}
@@ -411,29 +578,36 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                     color: "#94A3B8",
                     fontSize: "12px",
                     fontWeight: 500,
-                    mt: 0.4,
                     lineHeight: 1.3,
                   }}
                 >
-                  Customer Code: <strong style={{ color: "#60A5FA" }}>{customer.customerCode}</strong> · Mobile: <strong style={{ color: "#F8FAFC" }}>{customer.mobile}</strong>
+                  Customer Code: <strong style={{ color: "#FDE68A", fontFamily: "monospace" }}>{customer.customerCode || `CUST-${customer.mobile}`}</strong> · Mobile: <strong style={{ color: "#F8FAFC" }}>{customer.mobile}</strong>
                 </Typography>
               </Box>
             </Box>
 
-            {/* Wallet Balance on Desktop */}
+            {/* Desktop Wallet Balance */}
             <Box sx={{ display: { xs: "none", sm: "block" }, textAlign: "right" }}>
               <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.5px" }}>
                 WALLET BALANCE
               </Typography>
-              <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "18px", fontFamily: "var(--font-geist-mono), monospace" }}>
+              <Typography
+                sx={{
+                  fontWeight: 900,
+                  color: "#FBBF24",
+                  fontSize: "18px",
+                  fontFamily: "var(--font-geist-mono), monospace",
+                  textShadow: "0 0 10px rgba(245, 158, 11, 0.3)",
+                }}
+              >
                 ₹{(wallet?.mainBalance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Typography>
             </Box>
           </Box>
 
-          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 2 }} />
+          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 2 }} />
 
-          {/* 2x2 Grid on Mobile / 4-Col on Desktop */}
+          {/* ── CUSTOMER LIMIT INFORMATION (RESPONSIVE 2x2 MOBILE / 4-COL DESKTOP GRID) ── */}
           <Box
             sx={{
               display: "grid",
@@ -441,124 +615,190 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               gap: 1.25,
             }}
           >
+            {/* 1. DAILY REMAINING */}
             <Box
               sx={{
-                p: 1.25,
-                borderRadius: "12px",
-                bgcolor: "rgba(255, 255, 255, 0.04)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                p: 1.5,
+                borderRadius: "14px",
+                bgcolor: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(245, 158, 11, 0.2)",
+                boxShadow: "inset 0 0 12px rgba(245, 158, 11, 0.05)",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  bgcolor: "rgba(245, 158, 11, 0.06)",
+                  borderColor: "rgba(245, 158, 11, 0.4)",
+                  transform: "translateY(-1px)",
+                },
               }}
             >
-              <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700, letterSpacing: "0.4px" }}>
-                DAILY REMAINING
-              </Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "14px", mt: 0.3, fontFamily: "var(--font-geist-mono), monospace" }}>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
+                <AccountBalanceWalletRoundedIcon sx={{ fontSize: 15, color: "#F59E0B" }} />
+                <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  DAILY REMAINING
+                </Typography>
+              </Stack>
+              <Typography
+                sx={{
+                  fontWeight: 900,
+                  fontSize: { xs: "16px", sm: "18px" },
+                  fontFamily: "var(--font-geist-mono), monospace",
+                  background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  textShadow: "0 0 10px rgba(245, 158, 11, 0.3)",
+                }}
+              >
                 ₹{Number(customer.dailyLimitRemaining ?? 25000).toLocaleString()}
               </Typography>
             </Box>
 
+            {/* 2. MONTHLY REMAINING */}
             <Box
               sx={{
-                p: 1.25,
-                borderRadius: "12px",
-                bgcolor: "rgba(255, 255, 255, 0.04)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                p: 1.5,
+                borderRadius: "14px",
+                bgcolor: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(74, 222, 128, 0.2)",
+                boxShadow: "inset 0 0 12px rgba(74, 222, 128, 0.05)",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  bgcolor: "rgba(34, 197, 94, 0.06)",
+                  borderColor: "rgba(74, 222, 128, 0.4)",
+                  transform: "translateY(-1px)",
+                },
               }}
             >
-              <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700, letterSpacing: "0.4px" }}>
-                MONTHLY REMAINING
-              </Typography>
-              <Typography sx={{ fontWeight: 800, color: "#34D399", fontSize: "14px", mt: 0.3, fontFamily: "var(--font-geist-mono), monospace" }}>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
+                <AccountBalanceRoundedIcon sx={{ fontSize: 15, color: "#4ADE80" }} />
+                <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  MONTHLY REMAINING
+                </Typography>
+              </Stack>
+              <Typography
+                sx={{
+                  fontWeight: 900,
+                  fontSize: { xs: "16px", sm: "18px" },
+                  color: "#4ADE80",
+                  fontFamily: "var(--font-geist-mono), monospace",
+                  textShadow: "0 0 10px rgba(74, 222, 128, 0.3)",
+                }}
+              >
                 ₹{Number(customer.monthlyLimitRemaining ?? 200000).toLocaleString()}
               </Typography>
             </Box>
 
+            {/* 3. CATEGORY */}
             <Box
               sx={{
-                p: 1.25,
-                borderRadius: "12px",
-                bgcolor: "rgba(255, 255, 255, 0.04)",
+                p: 1.5,
+                borderRadius: "14px",
+                bgcolor: "rgba(255, 255, 255, 0.03)",
                 border: "1px solid rgba(255, 255, 255, 0.08)",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  bgcolor: "rgba(255, 255, 255, 0.06)",
+                  borderColor: "rgba(255, 255, 255, 0.15)",
+                  transform: "translateY(-1px)",
+                },
               }}
             >
-              <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700, letterSpacing: "0.4px" }}>
-                CATEGORY
-              </Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "14px", mt: 0.3 }}>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
+                <CategoryRoundedIcon sx={{ fontSize: 15, color: "#94A3B8" }} />
+                <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  CATEGORY
+                </Typography>
+              </Stack>
+              <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: { xs: "15px", sm: "16px" } }}>
                 {customer.category || "REGULAR"}
               </Typography>
             </Box>
 
+            {/* 4. KYC LEVEL */}
             <Box
               sx={{
-                p: 1.25,
-                borderRadius: "12px",
-                bgcolor: "rgba(255, 255, 255, 0.04)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                p: 1.5,
+                borderRadius: "14px",
+                bgcolor: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(245, 158, 11, 0.2)",
+                boxShadow: "inset 0 0 12px rgba(245, 158, 11, 0.05)",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  bgcolor: "rgba(245, 158, 11, 0.06)",
+                  borderColor: "rgba(245, 158, 11, 0.4)",
+                  transform: "translateY(-1px)",
+                },
               }}
             >
-              <Typography sx={{ color: "#94A3B8", fontSize: "9.5px", fontWeight: 700, letterSpacing: "0.4px" }}>
-                KYC LEVEL
-              </Typography>
-              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "14px", mt: 0.3 }}>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
+                <VerifiedUserRoundedIcon sx={{ fontSize: 15, color: "#FBBF24" }} />
+                <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  KYC LEVEL
+                </Typography>
+              </Stack>
+              <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: { xs: "14px", sm: "15px" } }}>
                 {customer.kycLevel || "FULL_KYC"}
               </Typography>
             </Box>
           </Box>
 
-          {/* Action Buttons */}
+          {/* ── ACTION BUTTONS (PRIMARY GOLD CTA & SECONDARY DARK GLASS) ── */}
           <Stack
             direction={{ xs: "column-reverse", sm: "row" }}
             spacing={1.25}
-            sx={{ mt: 2.5, width: "100%", justifyContent: "flex-end" }}
+            sx={{ mt: 2.75, width: "100%", justifyContent: "flex-end" }}
           >
+            {/* SECONDARY ACTION */}
             <Button
               variant="outlined"
-              fullWidth={false}
-              onClick={() => {
-                setSearchInput("");
-                setLocalHasSearched(false);
-                if (onResetCustomer) onResetCustomer();
-              }}
+              onClick={handleClear}
               sx={{
                 width: { xs: "100%", sm: "auto" },
-                height: { xs: 44, sm: 48 },
-                px: 2.5,
-                borderRadius: "10px",
-                fontWeight: 700,
+                height: { xs: 46, sm: 50 },
+                px: 2.75,
+                borderRadius: "12px",
+                fontWeight: 800,
                 fontSize: "13.5px",
-                color: "#94A3B8",
-                borderColor: "rgba(255, 255, 255, 0.2)",
+                color: "#E2E8F0",
+                borderColor: "rgba(245, 158, 11, 0.3)",
+                bgcolor: "rgba(255, 255, 255, 0.03)",
                 textTransform: "none",
+                letterSpacing: "-0.2px",
+                transition: "all 0.2s ease-in-out",
                 "&:hover": {
-                  borderColor: "#FFFFFF",
-                  color: "#FFFFFF",
-                  bgcolor: "rgba(255, 255, 255, 0.05)",
+                  borderColor: "#F59E0B",
+                  color: "#FDE68A",
+                  bgcolor: "rgba(245, 158, 11, 0.08)",
+                  boxShadow: "0 0 14px rgba(245, 158, 11, 0.15)",
                 },
               }}
             >
               Search Another Customer
             </Button>
 
+            {/* PRIMARY ACTION */}
             {customer.mpin_enabled === false ? (
               <Button
                 variant="contained"
                 onClick={() => {
                   window.location.href = `/customers/create-pin?customer_id=${customer.id}`;
                 }}
-                startIcon={<ShieldIcon />}
+                startIcon={<ShieldIcon sx={{ color: "#080B11" }} />}
                 sx={{
                   width: { xs: "100%", sm: "auto" },
-                  height: { xs: 44, sm: 48 },
-                  px: 3,
-                  borderRadius: "10px",
+                  height: { xs: 48, sm: 52 },
+                  px: 3.5,
+                  borderRadius: "12px",
                   fontWeight: 900,
-                  fontSize: "14px",
-                  bgcolor: "#F59E0B",
-                  color: "#0F172A",
+                  fontSize: "14.5px",
+                  background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+                  color: "#080B11",
                   textTransform: "none",
-                  "&:hover": { bgcolor: "#D97706" },
-                  boxShadow: "0 4px 16px rgba(245, 158, 11, 0.35)",
+                  letterSpacing: "-0.2px",
+                  boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45)",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+                    boxShadow: "0 8px 28px rgba(245, 158, 11, 0.55)",
+                  },
                 }}
               >
                 🔒 Create Required MPIN
@@ -567,22 +807,42 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               <Button
                 variant="contained"
                 onClick={onContinue}
-                endIcon={<ArrowForwardIcon />}
+                endIcon={
+                  <ArrowForwardIcon
+                    className="arrow-icon"
+                    sx={{
+                      color: "#080B11",
+                      transition: "transform 0.2s ease-in-out",
+                    }}
+                  />
+                }
                 sx={{
                   width: { xs: "100%", sm: "auto" },
-                  height: { xs: 44, sm: 48 },
-                  px: 3,
-                  borderRadius: "10px",
+                  height: { xs: 48, sm: 52 },
+                  px: 3.5,
+                  borderRadius: "12px",
                   fontWeight: 900,
-                  fontSize: "14px",
-                  bgcolor: "#2563EB",
-                  color: "#FFFFFF",
+                  fontSize: "14.5px",
+                  background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+                  color: "#080B11",
                   textTransform: "none",
-                  "&:hover": { bgcolor: "#1D4ED8" },
-                  boxShadow: "0 4px 16px rgba(37, 99, 235, 0.35)",
+                  letterSpacing: "-0.2px",
+                  boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45), 0 0 12px rgba(245, 158, 11, 0.3)",
+                  transition: "all 0.2s ease-in-out",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+                    boxShadow: "0 8px 30px rgba(245, 158, 11, 0.6), 0 0 16px rgba(245, 158, 11, 0.4)",
+                    transform: "translateY(-1px)",
+                    "& .arrow-icon": {
+                      transform: "translateX(5px)",
+                    },
+                  },
+                  "&:active": {
+                    transform: "translateY(1px)",
+                  },
                 }}
               >
-                Continue to Beneficiary Selection
+                Continue to Beneficiary Selection →
               </Button>
             )}
           </Stack>

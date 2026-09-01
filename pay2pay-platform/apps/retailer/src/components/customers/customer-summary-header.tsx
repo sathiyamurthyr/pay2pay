@@ -69,10 +69,11 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
       sx={{
         p: { xs: 1.5, sm: 2 },
         mb: 2,
-        borderRadius: "14px",
-        bgcolor: darkTheme ? "rgba(37, 99, 235, 0.12)" : "#F0F9FF",
+        borderRadius: "16px",
+        bgcolor: darkTheme ? "rgba(11, 15, 25, 0.88)" : "#F0F9FF",
+        backdropFilter: "blur(20px)",
         border: darkTheme
-          ? "1px solid rgba(96, 165, 250, 0.3)"
+          ? "1px solid rgba(245, 158, 11, 0.25)"
           : "1px solid #BAE6FD",
         display: "flex",
         flexDirection: { xs: "column", sm: "row" },
@@ -83,7 +84,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
         maxWidth: "100%",
         boxSizing: "border-box",
         boxShadow: darkTheme
-          ? "0 4px 20px rgba(37, 99, 235, 0.15)"
+          ? "0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.08)"
           : "0 2px 10px rgba(2, 132, 199, 0.08)",
       }}
     >
@@ -93,16 +94,16 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
           src={photoUrl}
           alt={name}
           sx={{
-            width: { xs: 42, sm: 50 },
-            height: { xs: 42, sm: 50 },
-            bgcolor: "#2563EB",
-            color: "#FFFFFF",
+            width: { xs: 44, sm: 52 },
+            height: { xs: 44, sm: 52 },
+            background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
+            color: "#FDE68A",
             fontWeight: 900,
-            fontSize: { xs: "15px", sm: "18px" },
+            fontSize: { xs: "16px", sm: "19px" },
             border: darkTheme
-              ? "2px solid rgba(255, 255, 255, 0.25)"
+              ? "2px solid #F59E0B"
               : "2px solid #0284C7",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            boxShadow: darkTheme ? "0 0 12px rgba(245, 158, 11, 0.35)" : "0 2px 8px rgba(0,0,0,0.2)",
             flexShrink: 0,
           }}
         >
@@ -115,7 +116,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
               sx={{
                 fontWeight: 900,
                 color: darkTheme ? "#FFFFFF" : "#0F172A",
-                fontSize: { xs: "15px", sm: "17px" },
+                fontSize: { xs: "15px", sm: "17.5px" },
                 letterSpacing: "-0.2px",
                 lineHeight: 1.2,
               }}
@@ -128,11 +129,11 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
               size="small"
               sx={{
                 height: 20,
-                bgcolor: "rgba(34, 197, 94, 0.2)",
+                bgcolor: "rgba(34, 197, 94, 0.15)",
                 color: "#4ADE80",
                 fontWeight: 800,
                 fontSize: "9.5px",
-                border: "1px solid rgba(34, 197, 94, 0.4)",
+                border: "1px solid rgba(74, 222, 128, 0.4)",
               }}
             />
             <Chip
@@ -141,7 +142,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
               size="small"
               sx={{
                 height: 20,
-                bgcolor: "rgba(56, 189, 248, 0.2)",
+                bgcolor: "rgba(56, 189, 248, 0.15)",
                 color: "#38BDF8",
                 fontWeight: 800,
                 fontSize: "9.5px",
@@ -160,7 +161,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
             }}
           >
             <strong>+91 {mobile}</strong> · Customer ID:{" "}
-            <span style={{ color: darkTheme ? "#60A5FA" : "#0284C7", fontWeight: 800 }}>
+            <span style={{ color: darkTheme ? "#FDE68A" : "#0284C7", fontFamily: "monospace", fontWeight: 800 }}>
               {customerCode}
             </span>
           </Typography>
@@ -191,13 +192,13 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: 800,
-                color: darkTheme ? "#93C5FD" : "#0369A1",
-                borderColor: darkTheme ? "rgba(147, 197, 253, 0.4)" : "#BAE6FD",
-                bgcolor: darkTheme ? "rgba(37, 99, 235, 0.15)" : "#E0F2FE",
+                color: darkTheme ? "#FDE68A" : "#0369A1",
+                borderColor: darkTheme ? "rgba(245, 158, 11, 0.35)" : "#BAE6FD",
+                bgcolor: darkTheme ? "rgba(245, 158, 11, 0.08)" : "#E0F2FE",
                 textTransform: "none",
                 "&:hover": {
-                  bgcolor: darkTheme ? "rgba(37, 99, 235, 0.3)" : "#BAE6FD",
-                  borderColor: "#93C5FD",
+                  bgcolor: darkTheme ? "rgba(245, 158, 11, 0.18)" : "#BAE6FD",
+                  borderColor: "#F59E0B",
                 },
               }}
             >

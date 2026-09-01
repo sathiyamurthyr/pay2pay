@@ -1225,22 +1225,30 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             onClick={onContinue}
             endIcon={<ArrowForwardIcon />}
             sx={{
-              height: 46,
-              borderRadius: "10px",
+              height: 48,
+              borderRadius: "12px",
               fontWeight: 900,
-              fontSize: "14px",
-              bgcolor: "#2563EB",
-              color: "#FFFFFF",
+              fontSize: "14.5px",
+              background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+              color: "#080B11",
               textTransform: "none",
-              boxShadow: "0 4px 16px rgba(37, 99, 235, 0.4)",
+              letterSpacing: "-0.2px",
+              boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45)",
+              transition: "all 0.2s ease-in-out",
+              "&:hover": {
+                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+                boxShadow: "0 8px 30px rgba(245, 158, 11, 0.6)",
+                transform: "translateY(-1px)",
+              },
               "&.Mui-disabled": {
-                bgcolor: "rgba(255, 255, 255, 0.12)",
-                color: "rgba(255, 255, 255, 0.4)",
+                background: "rgba(255, 255, 255, 0.08)",
+                color: "rgba(255, 255, 255, 0.35)",
+                boxShadow: "none",
                 cursor: "not-allowed",
               },
             }}
           >
-            Proceed to Authorization
+            Proceed to Authorization →
           </Button>
 
           <Button
@@ -1249,13 +1257,19 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             onClick={onBack}
             startIcon={<ArrowBackIcon />}
             sx={{
-              height: 38,
-              borderRadius: "8px",
+              height: 42,
+              borderRadius: "10px",
               fontWeight: 700,
-              fontSize: "12px",
+              fontSize: "13px",
               color: "rgba(255, 255, 255, 0.8)",
-              borderColor: "rgba(255, 255, 255, 0.2)",
+              borderColor: "rgba(245, 158, 11, 0.25)",
+              bgcolor: "rgba(255, 255, 255, 0.02)",
               textTransform: "none",
+              "&:hover": {
+                borderColor: "#F59E0B",
+                color: "#FDE68A",
+                bgcolor: "rgba(245, 158, 11, 0.08)",
+              },
             }}
           >
             Back to Customer
