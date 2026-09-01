@@ -89,10 +89,22 @@ class LiveVendorAdapter(BasePayoutVendorAdapter):
         remarks: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
-        v_upper = (vendor_name or "UTKALDIGITAL").upper()
+        v_upper = (vendor_name or "URBANRUPEE").upper()
         logger.info(f"[LIVE VENDOR DISPATCH] Calling live vendor '{v_upper}' for ref {merchant_ref} (Amount: ₹{amount})")
 
-        if v_upper in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
+        if v_upper in ("URBANRUPEE", "URBAN_RUPEE", "UR"):
+            from app.application.urbanrupee_client import UrbanRupeeApiClient
+            return await UrbanRupeeApiClient.initiate_payout(
+                merchant_ref=merchant_ref,
+                account_number=account_number,
+                ifsc_code=ifsc_code,
+                account_holder=account_holder,
+                amount=amount,
+                mobile=mobile or "9876543210",
+                mode=mode
+            )
+
+        elif v_upper in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
             from app.application.utkaldigital_client import UtkalDigitalApiClient
             return await UtkalDigitalApiClient.initiate_payout(
                 merchant_ref=merchant_ref,
@@ -138,8 +150,13 @@ class LiveVendorAdapter(BasePayoutVendorAdapter):
         merchant_ref: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
-        v_upper = (vendor_name or "UTKALDIGITAL").upper()
-        if v_upper in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
+        v_upper = (vendor_name or "URBANRUPEE").upper()
+        if v_upper in ("URBANRUPEE", "URBAN_RUPEE", "UR"):
+            from app.application.urbanrupee_client import UrbanRupeeApiClient
+            return await UrbanRupeeApiClient.check_status(
+                merchant_ref=merchant_ref or reference_id
+            )
+        elif v_upper in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
             from app.application.utkaldigital_client import UtkalDigitalApiClient
             return await UtkalDigitalApiClient.check_payout_status(
                 request_id=merchant_ref or reference_id
@@ -161,8 +178,18 @@ class LiveVendorAdapter(BasePayoutVendorAdapter):
         vendor_name: str,
         **kwargs
     ) -> Dict[str, Any]:
-        v_upper = (vendor_name or "UTKALDIGITAL").upper()
-        if v_upper in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
+        v_upper = (vendor_name or "URBANRUPEE").upper()
+        if v_upper in ("URBANRUPEE", "URBAN_RUPEE", "UR"):
+            from app.application.urbanrupee_client import UrbanRupeeApiClient
+            res = await UrbanRupeeApiClient.check_balance()
+            return {
+                "success": res.get("status") == "SUCCESS",
+                "status": res.get("status", "SUCCESS"),
+                "vendor_name": "UrbanRupee",
+                "balance": res.get("balance", 0.0),
+                "message": res.get("message", "Success")
+            }
+        elif v_upper in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
             from app.application.utkaldigital_client import UtkalDigitalApiClient
             return await UtkalDigitalApiClient.check_balance()
         elif v_upper == "WOWPE":

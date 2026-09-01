@@ -26,7 +26,7 @@ router = APIRouter(prefix="/admin/payout-routing", tags=["Admin Payout Routing &
 
 
 class PrimarySwitchRequest(BaseModel):
-    provider_code: str = Field(..., description="Provider code to make primary: WOWPE, BULKPE, or UTKALDIGITAL")
+    provider_code: str = Field(..., description="Provider code to make primary: URBANRUPEE, UTKALDIGITAL, or BULKPE")
     reason: Optional[str] = Field("Admin manual priority switch", description="Audit reason for switch")
     tenant_id: Optional[str] = Field(None, description="Optional tenant UUID")
 
@@ -54,7 +54,7 @@ class RoutingPolicyUpdateRequest(BaseModel):
 
 
 class TestConnectionRequest(BaseModel):
-    provider_code: str = Field(..., description="Provider code to test: WOWPE, BULKPE, or UTKALDIGITAL")
+    provider_code: str = Field(..., description="Provider code to test: URBANRUPEE, UTKALDIGITAL, BULKPE, or WOWPE")
 
 
 @router.get("/config")
@@ -124,12 +124,14 @@ async def switch_primary_gateway(
     Updates DB priorities and logs administrative audit.
     """
     code = req.provider_code.strip().upper()
-    if code == "UTKAL":
+    if code in ("UR", "URBAN_RUPEE"):
+        code = "URBANRUPEE"
+    elif code == "UTKAL":
         code = "UTKALDIGITAL"
-    if code not in ("WOWPE", "BULKPE", "UTKALDIGITAL"):
+    if code not in ("URBANRUPEE", "UTKALDIGITAL", "BULKPE", "WOWPE"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid provider code '{req.provider_code}'. Supported providers: WOWPE, BULKPE, UTKALDIGITAL."
+            detail=f"Invalid provider code '{req.provider_code}'. Supported providers: URBANRUPEE, UTKALDIGITAL, BULKPE."
         )
 
     tid = uuid.UUID(req.tenant_id) if req.tenant_id and len(req.tenant_id) == 36 else None
@@ -212,7 +214,11 @@ async def test_gateway_connection(
     Tests live connectivity and credential authorization for the specified gateway.
     """
     code = req.provider_code.strip().upper()
-    if code not in ("WOWPE", "BULKPE", "UTKALDIGITAL", "UTKAL"):
+    if code in ("UR", "URBAN_RUPEE"):
+        code = "URBANRUPEE"
+    elif code == "UTKAL":
+        code = "UTKALDIGITAL"
+    if code not in ("URBANRUPEE", "UTKALDIGITAL", "BULKPE", "WOWPE"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown provider code: {code}"

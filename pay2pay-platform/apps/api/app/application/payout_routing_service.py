@@ -16,9 +16,10 @@ from app.infrastructure.db.payout_routing_models import (
     PayoutGatewayConfigModel,
     PayoutRoutingPolicyModel
 )
-from app.application.wowpe_client import WowPeApiClient
+from app.application.urbanrupee_client import UrbanRupeeApiClient
 from app.application.bulkpe_client import BulkPeApiClient
 from app.application.utkaldigital_client import UtkalDigitalApiClient
+from app.application.wowpe_client import WowPeApiClient
 
 logger = logging.getLogger("payout_routing_service")
 
@@ -34,7 +35,7 @@ class PayoutRoutingService:
         db: AsyncSession,
         tenant_id: Optional[uuid.UUID] = None
     ) -> PayoutRoutingPolicyModel:
-        """Seeds default WowPe, BulkPe & Utkal Digital gateway records and routing policy if not present."""
+        """Seeds default UrbanRupee (Priority 1), Utkal Digital & BulkPe gateway records and routing policy."""
         tid = tenant_id or DEFAULT_TENANT_ID
 
         # 1. Ensure Policy Record
@@ -48,7 +49,7 @@ class PayoutRoutingService:
                 public_id=uuid.uuid4(),
                 tenant_id=tid,
                 routing_mode="PRIORITY",
-                active_primary_provider="WOWPE",
+                active_primary_provider="URBANRUPEE",
                 auto_failover_enabled=True,
                 failover_threshold_failures=3,
                 updated_by="SYSTEM",
@@ -58,22 +59,25 @@ class PayoutRoutingService:
             )
             db.add(policy)
             await db.flush()
+        elif policy.active_primary_provider == "WOWPE":
+            policy.active_primary_provider = "URBANRUPEE"
+            policy.updated_at = datetime.now(timezone.utc)
 
-        # 2. Ensure WowPe Gateway Record
-        stmt_wowpe = select(PayoutGatewayConfigModel).where(
-            PayoutGatewayConfigModel.provider_code == "WOWPE",
+        # 2. Ensure UrbanRupee Gateway Record (Priority 1, Default)
+        stmt_urbanrupee = select(PayoutGatewayConfigModel).where(
+            PayoutGatewayConfigModel.provider_code == "URBANRUPEE",
             PayoutGatewayConfigModel.is_deleted == False
         )
-        wowpe_gw = (await db.execute(stmt_wowpe)).scalars().first()
-        if not wowpe_gw:
-            wowpe_gw = PayoutGatewayConfigModel(
+        urbanrupee_gw = (await db.execute(stmt_urbanrupee)).scalars().first()
+        if not urbanrupee_gw:
+            urbanrupee_gw = PayoutGatewayConfigModel(
                 public_id=uuid.uuid4(),
                 tenant_id=tid,
-                provider_code="WOWPE",
-                provider_name="WowPe Payout Gateway",
-                base_url="https://api.wowpe.in",
-                client_id="40c86a1c-pay2pay-prod-client-id",
-                secret_key="e91650d0-pay2pay-prod-secret-key",
+                provider_code="URBANRUPEE",
+                provider_name="UrbanRupee Payout API",
+                base_url="https://payout.urbanrupee.in",
+                client_id="UR6877",
+                secret_key="pk_6955bdbab906ece296070e22307eac099ac90a75a19fcbfa0ab4f798848a9e8e",
                 status="ACTIVE",
                 priority=1,
                 is_default=True,
@@ -84,52 +88,17 @@ class PayoutRoutingService:
                 supports_account_validation=True,
                 daily_limit=10000000.0,
                 current_day_volume=0.0,
-                success_rate=99.85,
-                last_balance=85450.0,
+                success_rate=99.95,
+                last_balance=0.0,
                 last_balance_checked_at=datetime.now(timezone.utc),
                 last_health_check_at=datetime.now(timezone.utc),
-                notes="Primary integrated banking payout gateway via WowPe API",
+                notes="Primary integrated high-speed banking payout gateway via UrbanRupee API",
                 is_active=True,
                 is_deleted=False
             )
-            db.add(wowpe_gw)
+            db.add(urbanrupee_gw)
 
-        # 3. Ensure BulkPe Gateway Record
-        stmt_bulkpe = select(PayoutGatewayConfigModel).where(
-            PayoutGatewayConfigModel.provider_code == "BULKPE",
-            PayoutGatewayConfigModel.is_deleted == False
-        )
-        bulkpe_gw = (await db.execute(stmt_bulkpe)).scalars().first()
-        if not bulkpe_gw:
-            bulkpe_gw = PayoutGatewayConfigModel(
-                public_id=uuid.uuid4(),
-                tenant_id=tid,
-                provider_code="BULKPE",
-                provider_name="BulkPe Payout Gateway",
-                base_url="https://api.bulkpe.in/client",
-                client_id="bulkpe_client_id_live",
-                secret_key="aWSVQNyt+z3IiJHV+YX9UnA/Tp2Lio1Fuz/4pRpKs1+y6g+OYnhmnEwIVGe7UfKHJE3dhbACEhLlnB6IdZQ1bw==",
-                status="ACTIVE",
-                priority=2,
-                is_default=False,
-                supports_imps=True,
-                supports_neft=True,
-                supports_rtgs=True,
-                supports_upi=True,
-                supports_account_validation=True,
-                daily_limit=5000000.0,
-                current_day_volume=0.0,
-                success_rate=99.60,
-                last_balance=45200.0,
-                last_balance_checked_at=datetime.now(timezone.utc),
-                last_health_check_at=datetime.now(timezone.utc),
-                notes="Secondary / Fallback integrated payout gateway via BulkPe API",
-                is_active=True,
-                is_deleted=False
-            )
-            db.add(bulkpe_gw)
-
-        # 4. Ensure Utkal Digital Gateway Record
+        # 3. Ensure Utkal Digital Gateway Record (Priority 2)
         stmt_utkal = select(PayoutGatewayConfigModel).where(
             PayoutGatewayConfigModel.provider_code == "UTKALDIGITAL",
             PayoutGatewayConfigModel.is_deleted == False
@@ -145,7 +114,7 @@ class PayoutRoutingService:
                 client_id="a9f9d5c1752e49e08a",
                 secret_key="995184",
                 status="ACTIVE",
-                priority=3,
+                priority=2,
                 is_default=False,
                 supports_imps=True,
                 supports_neft=True,
@@ -158,11 +127,46 @@ class PayoutRoutingService:
                 last_balance=0.0,
                 last_balance_checked_at=datetime.now(timezone.utc),
                 last_health_check_at=datetime.now(timezone.utc),
-                notes="Integrated Utkal Digital Payout Gateway with live balance & status check",
+                notes="Secondary integrated Utkal Digital Payout Gateway with live balance & status check",
                 is_active=True,
                 is_deleted=False
             )
             db.add(utkal_gw)
+
+        # 4. Ensure BulkPe Gateway Record (Priority 3)
+        stmt_bulkpe = select(PayoutGatewayConfigModel).where(
+            PayoutGatewayConfigModel.provider_code == "BULKPE",
+            PayoutGatewayConfigModel.is_deleted == False
+        )
+        bulkpe_gw = (await db.execute(stmt_bulkpe)).scalars().first()
+        if not bulkpe_gw:
+            bulkpe_gw = PayoutGatewayConfigModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tid,
+                provider_code="BULKPE",
+                provider_name="BulkPe Payout Gateway",
+                base_url="https://api.bulkpe.in/client",
+                client_id="bulkpe_client_id_live",
+                secret_key="aWSVQNyt+z3IiJHV+YX9UnA/Tp2Lio1Fuz/4pRpKs1+y6g+OYnhmnEwIVGe7UfKHJE3dhbACEhLlnB6IdZQ1bw==",
+                status="ACTIVE",
+                priority=3,
+                is_default=False,
+                supports_imps=True,
+                supports_neft=True,
+                supports_rtgs=True,
+                supports_upi=True,
+                supports_account_validation=True,
+                daily_limit=5000000.0,
+                current_day_volume=0.0,
+                success_rate=99.60,
+                last_balance=45200.0,
+                last_balance_checked_at=datetime.now(timezone.utc),
+                last_health_check_at=datetime.now(timezone.utc),
+                notes="Tertiary / Fallback integrated payout gateway via BulkPe API",
+                is_active=True,
+                is_deleted=False
+            )
+            db.add(bulkpe_gw)
 
         await db.commit()
         return policy
@@ -200,7 +204,7 @@ class PayoutRoutingService:
         tenant_id: Optional[uuid.UUID] = None
     ) -> str:
         """
-        Determines the active primary payout provider (e.g. 'WOWPE', 'BULKPE', or 'UTKALDIGITAL')
+        Determines the active primary payout provider (e.g. 'URBANRUPEE', 'UTKALDIGITAL', or 'BULKPE')
         based on active Admin policy and gateway status.
         """
         policy = await cls.get_routing_policy(db, tenant_id)
@@ -224,7 +228,7 @@ class PayoutRoutingService:
         if fallback_gw:
             return fallback_gw.provider_code
 
-        return "UTKALDIGITAL"
+        return "URBANRUPEE"
 
     @classmethod
     async def get_all_gateways(
@@ -246,14 +250,16 @@ class PayoutRoutingService:
         tenant_id: Optional[uuid.UUID] = None
     ) -> Dict[str, Any]:
         """
-        Switches the primary active payout provider (WOWPE / BULKPE / UTKALDIGITAL).
+        Switches the primary active payout provider (URBANRUPEE / UTKALDIGITAL / BULKPE).
         Updates priorities and routing policy in DB atomically.
         """
         prov_code = (new_provider or provider_code or "").strip().upper()
-        if prov_code == "UTKAL":
+        if prov_code in ("UR", "URBAN_RUPEE"):
+            prov_code = "URBANRUPEE"
+        elif prov_code == "UTKAL":
             prov_code = "UTKALDIGITAL"
-        if prov_code not in ["WOWPE", "BULKPE", "UTKALDIGITAL"]:
-            raise ValueError("Provider must be 'WOWPE', 'BULKPE', or 'UTKALDIGITAL'")
+        if prov_code not in ["URBANRUPEE", "UTKALDIGITAL", "BULKPE", "WOWPE"]:
+            raise ValueError("Provider must be 'URBANRUPEE', 'UTKALDIGITAL', or 'BULKPE'")
 
         policy = await cls.get_routing_policy(db, tenant_id)
         prev_primary = policy.active_primary_provider
@@ -351,54 +357,33 @@ class PayoutRoutingService:
 
     @classmethod
     async def fetch_live_balances(cls, db: AsyncSession, tenant_id: Optional[uuid.UUID] = None) -> Dict[str, Any]:
-        """Fetches real-time live balances from WowPe, BulkPe and Utkal Digital vendor APIs."""
+        """Fetches real-time live balances from UrbanRupee, Utkal Digital, BulkPe vendor APIs."""
         gateways = await cls.list_gateway_configs(db, tenant_id)
         balances = {}
 
         for gw in gateways:
-            if gw.provider_code == "WOWPE":
-                res = await WowPeApiClient.check_balance(
-                    client_id=gw.client_id,
-                    secret_key=gw.secret_key,
-                    base_url=gw.base_url
+            if gw.provider_code == "URBANRUPEE":
+                res = await UrbanRupeeApiClient.check_balance(
+                    base_url=gw.base_url,
+                    user_id=gw.client_id,
+                    api_token=gw.secret_key
                 )
                 bal = res.get("balance", 0.0)
                 gw.last_balance = bal
                 gw.last_balance_checked_at = datetime.now(timezone.utc)
                 gw.last_health_check_at = datetime.now(timezone.utc)
-                payload_data = res.get("response_payload") or {}
-                balances["WOWPE"] = {
-                    "provider_code": "WOWPE",
+                balances["URBANRUPEE"] = {
+                    "provider_code": "URBANRUPEE",
                     "provider_name": gw.provider_name,
                     "balance": bal,
-                    "currentAccBalance": payload_data.get("currentAccBalance", 0),
-                    "payinBalane": payload_data.get("payinBalane", 0),
-                    "feeBalance": payload_data.get("feeBalance", 0),
-                    "message": res.get("message") or "Successfully fetched live balance",
-                    "latency_ms": round(res.get("latency_ms", 0)),
-                    "success": res.get("success", False),
-                    "status": "ONLINE" if res.get("success") else "DEGRADED",
-                    "currency": "INR",
-                    "checked_at": gw.last_balance_checked_at.isoformat()
-                }
-
-            elif gw.provider_code == "BULKPE":
-                bal = 0.0  # BulkPe API balance standby
-                gw.last_balance = bal
-                gw.last_balance_checked_at = datetime.now(timezone.utc)
-                gw.last_health_check_at = datetime.now(timezone.utc)
-                balances["BULKPE"] = {
-                    "provider_code": "BULKPE",
-                    "provider_name": gw.provider_name,
-                    "balance": bal,
-                    "currentAccBalance": 0,
+                    "currentAccBalance": bal,
                     "payinBalane": 0,
                     "feeBalance": 0,
-                    "message": "Standby Gateway (Ready)",
-                    "latency_ms": 10,
-                    "success": True,
-                    "status": "ONLINE",
-                    "currency": "INR",
+                    "message": res.get("message") or "UrbanRupee Live Balance Connected",
+                    "latency_ms": 15,
+                    "success": res.get("status") == "SUCCESS",
+                    "status": "ONLINE" if res.get("status") == "SUCCESS" else "DEGRADED",
+                    "currency": res.get("currency", "INR"),
                     "checked_at": gw.last_balance_checked_at.isoformat()
                 }
 
@@ -427,6 +412,51 @@ class PayoutRoutingService:
                     "checked_at": gw.last_balance_checked_at.isoformat()
                 }
 
+            elif gw.provider_code == "BULKPE":
+                bal = 0.0  # BulkPe API balance standby
+                gw.last_balance = bal
+                gw.last_balance_checked_at = datetime.now(timezone.utc)
+                gw.last_health_check_at = datetime.now(timezone.utc)
+                balances["BULKPE"] = {
+                    "provider_code": "BULKPE",
+                    "provider_name": gw.provider_name,
+                    "balance": bal,
+                    "currentAccBalance": 0,
+                    "payinBalane": 0,
+                    "feeBalance": 0,
+                    "message": "Standby Gateway (Ready)",
+                    "latency_ms": 10,
+                    "success": True,
+                    "status": "ONLINE",
+                    "currency": "INR",
+                    "checked_at": gw.last_balance_checked_at.isoformat()
+                }
+
+            elif gw.provider_code == "WOWPE":
+                res = await WowPeApiClient.check_balance(
+                    client_id=gw.client_id,
+                    secret_key=gw.secret_key,
+                    base_url=gw.base_url
+                )
+                bal = res.get("balance", 0.0)
+                gw.last_balance = bal
+                gw.last_balance_checked_at = datetime.now(timezone.utc)
+                gw.last_health_check_at = datetime.now(timezone.utc)
+                payload_data = res.get("response_payload") or {}
+                balances["WOWPE"] = {
+                    "provider_code": "WOWPE",
+                    "provider_name": gw.provider_name,
+                    "balance": bal,
+                    "currentAccBalance": payload_data.get("currentAccBalance", 0),
+                    "payinBalane": payload_data.get("payinBalane", 0),
+                    "feeBalance": payload_data.get("feeBalance", 0),
+                    "message": res.get("message") or "Legacy Gateway",
+                    "latency_ms": round(res.get("latency_ms", 0)),
+                    "success": res.get("success", False),
+                    "status": "INACTIVE",
+                    "currency": "INR",
+                    "checked_at": gw.last_balance_checked_at.isoformat()
+                }
+
         await db.commit()
         return balances
-
