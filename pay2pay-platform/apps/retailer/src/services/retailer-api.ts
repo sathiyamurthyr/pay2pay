@@ -1488,7 +1488,8 @@ export const retailerApi = {
 
   getFavoriteMenus: async (userRefId?: string) => {
     try {
-      const uRef = userRefId || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || "9176669426" : "9176669426");
+      const uRef = userRefId || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef) return { status: "SUCCESS", favorites: [] };
       const res = await apiClient.get("/favorites/menus", {
         params: { user_ref_id: uRef }
       });
@@ -1517,7 +1518,8 @@ export const retailerApi = {
     user_role?: string;
   }) => {
     try {
-      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || "9176669426" : "9176669426");
+      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef) return { status: "ERROR", message: "User session not found" };
       const res = await apiClient.post("/favorites/menus", {
         ...payload,
         user_ref_id: uRef
@@ -1538,7 +1540,8 @@ export const retailerApi = {
     user_role?: string;
   }) => {
     try {
-      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || "9176669426" : "9176669426");
+      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef) return { status: "ERROR", message: "User session not found" };
       const res = await apiClient.post("/favorites/toggle", {
         ...payload,
         user_ref_id: uRef
@@ -1555,7 +1558,8 @@ export const retailerApi = {
     menu_href: string;
   }) => {
     try {
-      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || "9176669426" : "9176669426");
+      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef) return { status: "ERROR", message: "User session not found" };
       const res = await apiClient.post("/favorites/remove", {
         ...payload,
         user_ref_id: uRef
@@ -1572,7 +1576,8 @@ export const retailerApi = {
     menu_hrefs: string[];
   }) => {
     try {
-      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || "9176669426" : "9176669426");
+      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef) return { status: "ERROR", message: "User session not found" };
       const res = await apiClient.post("/favorites/reorder", {
         ...payload,
         user_ref_id: uRef

@@ -946,10 +946,10 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                     </Typography>
                   </Stack>
                   <Typography sx={{ fontSize: "14px", fontWeight: 900, color: "#FFFFFF" }}>
-                    {customer?.name || "Sathiya Murthy"}
+                     {customer?.name || "Customer"}
                   </Typography>
                   <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.7)", mt: 0.25, fontFamily: "monospace" }}>
-                    {customer?.mobile || "9176669426"}
+                    {customer?.mobile || "—"}
                   </Typography>
                 </Paper>
 

@@ -587,10 +587,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       if (uStr) savedUserInfo = JSON.parse(uStr);
     } catch {}
   }
-  const displayRetailerName = savedUserInfo?.full_name || savedUserInfo?.name || activeRetailer?.ownerName || activeRetailer?.name || "Sathiya Murthy";
-  const rawMobile = String(savedUserInfo?.mobile_number || savedUserInfo?.mobile || activeRetailer?.mobile || "9176669426");
-  const displayRetailerMobile = rawMobile.startsWith("+91") ? rawMobile : `+91 ${rawMobile.replace(/^(\+91|91)/, "")}`;
-  const displayRetailerCode = savedUserInfo?.retailer_code || activeRetailer?.code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : "") || "RET-9176669426";
+  const displayRetailerName = savedUserInfo?.full_name || savedUserInfo?.name || activeRetailer?.ownerName || activeRetailer?.name || "";
+  const rawMobile = String(savedUserInfo?.mobile_number || savedUserInfo?.mobile || activeRetailer?.mobile || "");
+  const displayRetailerMobile = rawMobile ? (rawMobile.startsWith("+91") ? rawMobile : `+91 ${rawMobile.replace(/^(\+91|91)/, "")}`) : "";
+  const displayRetailerCode = savedUserInfo?.retailer_code || activeRetailer?.code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : "") || "";
 
   const displayBeneName = beneficiary?.name || "Beneficiary Account";
   const displayBeneBank = beneficiary?.bankName || "Partner Bank";

@@ -377,7 +377,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
           (user as any)?.mobile_number ||
           (user as any)?.phone ||
           (user as any)?.mobile ||
-          "9176669426";
+          null;
+        if (!userRefId) return;
 
         const res = await retailerApi.getFavoriteMenus(userRefId);
         if (res && res.favorites && Array.isArray(res.favorites) && isSubscribed) {
@@ -431,7 +432,8 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       (user as any)?.mobile_number ||
       (user as any)?.phone ||
       (user as any)?.mobile ||
-      "9176669426";
+      null;
+    if (!userRefId) return;
 
     retailerApi
       .toggleFavoriteMenu({

@@ -214,9 +214,9 @@ export const SessionLockScreenOverlay: React.FC = () => {
     } catch {}
   }
 
-  const companyName = walletData?.company_name || savedUserInfo?.company_name || "Sathus Pay Store";
-  const retailerName = walletData?.owner_name || walletData?.retailer_name || savedUserInfo?.full_name || savedUserInfo?.name || "Sathiya Murthy";
-  const retailerCode = walletData?.retailer_code || savedUserInfo?.retailer_code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : null) || "P2P-R404667";
+  const companyName = walletData?.company_name || savedUserInfo?.company_name || "";
+  const retailerName = walletData?.owner_name || walletData?.retailer_name || savedUserInfo?.full_name || savedUserInfo?.name || "";
+  const retailerCode = walletData?.retailer_code || savedUserInfo?.retailer_code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : null) || "";
   const currentWallpaper = CURATED_4K_WALLPAPERS[currentWallpaperIndex] || CURATED_4K_WALLPAPERS[0];
 
   // Handle PIN Unlock Submission
