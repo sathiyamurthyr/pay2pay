@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Check for valid session cookie
+      // Check for valid session cookie or localStorage token
       const cookies = document.cookie.split("; ");
       const tokenCookie = cookies.find((row) =>
         row.startsWith("p2p_access_token=") ||
@@ -67,13 +67,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         row.startsWith("pay2pay_auth_token=")
       );
 
-      const tokenValue = tokenCookie ? tokenCookie.split("=")[1] : null;
+      const tokenValue = tokenCookie
+        ? tokenCookie.split("=")[1]
+        : (localStorage.getItem("p2p_access_token") || localStorage.getItem("pay2pay_access_token") || localStorage.getItem("pay2pay_auth_token"));
 
       if (!tokenValue || tokenValue.trim().length < 10) {
-        // No valid session cookie found: wipe any stale in-memory & local state
+        // No valid session cookie or token found: wipe any stale in-memory & local state
         setUser(null);
         setLoading(false);
         return;
+      }
+
+      // Ensure cookie sync if loaded from localStorage
+      if (!tokenCookie && tokenValue) {
+        document.cookie = `p2p_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `pay2pay_access_token=${tokenValue}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_user_role=ADMIN; path=/; max-age=2592000; SameSite=Lax`;
       }
 
       // Load transient user profile details
@@ -82,10 +91,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (storedUser) {
           const parsed = JSON.parse(storedUser);
           if (!parsed.roles || !Array.isArray(parsed.roles)) {
-            parsed.roles = [parsed.role || "RETAILER"];
+            parsed.roles = [parsed.role || "ADMIN"];
           }
           setUser(parsed);
-          const isRet = parsed.roles.includes("RETAILER") && !parsed.roles.includes("PLATFORM_ADMIN") && !parsed.roles.includes("ADMIN");
+          const isRet = parsed.roles.includes("RETAILER") && !parsed.roles.includes("PLATFORM_ADMIN") && !parsed.roles.includes("ADMIN") && !parsed.roles.includes("SUPER_ADMIN");
           setActiveRole(isRet ? "RETAILER" : "PLATFORM_ADMIN");
         } else {
           // Construct minimal profile from active session
@@ -94,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: "admin@pay2pay.in",
             full_name: "Platform Administrator",
             tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8",
-            roles: ["PLATFORM_ADMIN", "ADMIN"],
+            roles: ["PLATFORM_ADMIN", "ADMIN", "SUPER_ADMIN"],
             approval_status: "APPROVED",
             status: "ACTIVE",
             is_approved: true,
