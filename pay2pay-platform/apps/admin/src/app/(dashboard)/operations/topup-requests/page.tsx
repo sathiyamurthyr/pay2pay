@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "@/lib/api";
 import {
   ArrowLeftRight,
@@ -34,7 +34,12 @@ import {
   ShieldAlert,
   ArrowUpRight,
   Lock,
-  Building2
+  Building2,
+  CheckSquare,
+  Square,
+  MinusSquare,
+  ListChecks,
+  AlertTriangle,
 } from "lucide-react";
 
 interface AdminOperationWallet {
@@ -168,7 +173,7 @@ export default function AdminTopupRequestsPage() {
   const [fundSuccessMsg, setFundSuccessMsg] = useState<string | null>(null);
 
   // Filters & Pagination
-  const [search, setSearch] = useState<string>("" );
+  const [search, setSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [datePreset, setDatePreset] = useState<string>("ALL");
   const [customStartDate, setCustomStartDate] = useState<string>("");
@@ -177,6 +182,21 @@ export default function AdminTopupRequestsPage() {
   const [pageSize, setPageSize] = useState<number>(15);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
+
+  // Multi-Select Operations State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkApproveModal, setShowBulkApproveModal] = useState<boolean>(false);
+  const [showBulkRejectModal, setShowBulkRejectModal] = useState<boolean>(false);
+  const [bulkAdminNotes, setBulkAdminNotes] = useState<string>("Bulk approval verified against payment proof & Admin wallet");
+  const [bulkRejectionReason, setBulkRejectionReason] = useState<string>("Invalid UTR / Reference Number");
+  const [bulkProcessing, setBulkProcessing] = useState<boolean>(false);
+  const [bulkProgress, setBulkProgress] = useState<{
+    current: number;
+    total: number;
+    successCount: number;
+    failCount: number;
+    errors: string[];
+  }>({ current: 0, total: 0, successCount: 0, failCount: 0, errors: [] });
 
   // Drawer & Action Modals
   const [selectedRequest, setSelectedRequest] = useState<TopupItem | null>(null);
@@ -281,6 +301,74 @@ export default function AdminTopupRequestsPage() {
     fetchRequests();
   }, [fetchRequests]);
 
+  // Derived Multi-Select collections
+  const selectedItems = useMemo(() => {
+    return requests.filter((r) => selectedIds.has(r.id));
+  }, [requests, selectedIds]);
+
+  const selectedPendingItems = useMemo(() => {
+    return selectedItems.filter((r) => r.status === "PENDING" || r.status === "UNDER_REVIEW");
+  }, [selectedItems]);
+
+  const selectedEligibleItems = useMemo(() => {
+    return selectedPendingItems.filter((r) => r.can_approve === true);
+  }, [selectedPendingItems]);
+
+  const selectedIneligibleItems = useMemo(() => {
+    return selectedPendingItems.filter((r) => r.can_approve === false);
+  }, [selectedPendingItems]);
+
+  const selectedTotalAmount = useMemo(() => {
+    return selectedItems.reduce((sum, r) => sum + (r.requested_amount || 0), 0);
+  }, [selectedItems]);
+
+  const selectedEligibleAmount = useMemo(() => {
+    return selectedEligibleItems.reduce((sum, r) => {
+      const amt = r.received_amount !== undefined && r.received_amount !== null
+        ? r.received_amount
+        : (r.approved_amount !== undefined && r.approved_amount !== null ? r.approved_amount : r.requested_amount);
+      return sum + amt;
+    }, 0);
+  }, [selectedEligibleItems]);
+
+  const isAllSelected = requests.length > 0 && requests.every((r) => selectedIds.has(r.id));
+  const isSomeSelected = selectedIds.size > 0 && !isAllSelected;
+
+  // Toggle selection functions
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(requests.map((r) => r.id)));
+    }
+  };
+
+  const toggleSelectAllPending = () => {
+    const pendingOnPage = requests.filter((r) => r.status === "PENDING" || r.status === "UNDER_REVIEW");
+    const newSet = new Set(selectedIds);
+    const allPendingSelected = pendingOnPage.length > 0 && pendingOnPage.every((r) => newSet.has(r.id));
+    if (allPendingSelected) {
+      pendingOnPage.forEach((r) => newSet.delete(r.id));
+    } else {
+      pendingOnPage.forEach((r) => newSet.add(r.id));
+    }
+    setSelectedIds(newSet);
+  };
+
+  const toggleSelectItem = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -347,6 +435,7 @@ export default function AdminTopupRequestsPage() {
     (w) => w.service_code.toUpperCase() === "PAYOUT" && w.vendor_name.toUpperCase().includes("UTKAL")
   ) || adminWallets.find((w) => w.service_code.toUpperCase() === "PAYOUT") || adminWallets[0];
 
+  // Single Approve
   const handleApprove = async () => {
     if (!selectedRequest) return;
     if (selectedRequest.can_approve === false) {
@@ -364,7 +453,6 @@ export default function AdminTopupRequestsPage() {
         return;
       }
 
-      // Execute PUT / POST to approve
       const res = await api.put(`/api/v1/topup/requests/${selectedRequest.id}/approve`, {
         approved_amount: amount,
         received_amount: amount,
@@ -411,6 +499,7 @@ export default function AdminTopupRequestsPage() {
     }
   };
 
+  // Single Reject
   const handleReject = async () => {
     if (!selectedRequest) return;
     if (!rejectionReason.trim()) {
@@ -452,8 +541,112 @@ export default function AdminTopupRequestsPage() {
     }
   };
 
-  const exportToCSV = () => {
-    if (!requests || requests.length === 0) return;
+  // ── MULTI-SELECT BATCH APPROVE EXECUTION ──
+  const handleExecuteBulkApprove = async () => {
+    if (selectedEligibleItems.length === 0) return;
+    setBulkProcessing(true);
+    const total = selectedEligibleItems.length;
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    setBulkProgress({ current: 0, total, successCount: 0, failCount: 0, errors: [] });
+
+    for (let i = 0; i < total; i++) {
+      const item = selectedEligibleItems[i];
+      const approveAmount = item.received_amount !== undefined && item.received_amount !== null
+        ? item.received_amount
+        : (item.approved_amount !== undefined && item.approved_amount !== null ? item.approved_amount : item.requested_amount);
+
+      try {
+        const res = await api.put(`/api/v1/topup/requests/${item.id}/approve`, {
+          approved_amount: approveAmount,
+          received_amount: approveAmount,
+          admin_notes: bulkAdminNotes.trim() || undefined,
+        });
+
+        if (res.data?.success) {
+          successCount++;
+        } else {
+          failCount++;
+          errors.push(`${item.topup_request_id}: ${res.data?.message || "Approval failed"}`);
+        }
+      } catch (err: any) {
+        failCount++;
+        const msg = err.response?.data?.detail || err.message || "Error processing request";
+        errors.push(`${item.topup_request_id}: ${msg}`);
+      }
+
+      setBulkProgress({
+        current: i + 1,
+        total,
+        successCount,
+        failCount,
+        errors,
+      });
+    }
+
+    setBulkProcessing(false);
+    fetchRequests();
+    fetchMetrics();
+    fetchAdminWallets();
+    clearSelection();
+  };
+
+  // ── MULTI-SELECT BATCH REJECT EXECUTION ──
+  const handleExecuteBulkReject = async () => {
+    if (selectedPendingItems.length === 0) return;
+    if (!bulkRejectionReason.trim()) {
+      alert("A rejection reason is required for bulk rejection.");
+      return;
+    }
+    setBulkProcessing(true);
+    const total = selectedPendingItems.length;
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    setBulkProgress({ current: 0, total, successCount: 0, failCount: 0, errors: [] });
+
+    for (let i = 0; i < total; i++) {
+      const item = selectedPendingItems[i];
+      try {
+        const res = await api.post(`/api/v1/topup/requests/${item.id}/reject`, {
+          rejection_reason: bulkRejectionReason.trim(),
+          admin_notes: bulkAdminNotes.trim() || undefined,
+        });
+
+        if (res.data?.success) {
+          successCount++;
+        } else {
+          failCount++;
+          errors.push(`${item.topup_request_id}: ${res.data?.message || "Rejection failed"}`);
+        }
+      } catch (err: any) {
+        failCount++;
+        const msg = err.response?.data?.detail || err.message || "Error processing rejection";
+        errors.push(`${item.topup_request_id}: ${msg}`);
+      }
+
+      setBulkProgress({
+        current: i + 1,
+        total,
+        successCount,
+        failCount,
+        errors,
+      });
+    }
+
+    setBulkProcessing(false);
+    fetchRequests();
+    fetchMetrics();
+    clearSelection();
+  };
+
+  const exportToCSV = (onlySelected = false) => {
+    const exportData = onlySelected ? selectedItems : requests;
+    if (!exportData || exportData.length === 0) return;
+
     const headers = [
       "Request ID",
       "Retailer Code",
@@ -477,7 +670,7 @@ export default function AdminTopupRequestsPage() {
       "Transaction Reference",
     ];
 
-    const rows = requests.map((r) => {
+    const rows = exportData.map((r) => {
       const rMdrPct = r.mdr_percentage !== undefined && r.mdr_percentage !== null
         ? r.mdr_percentage
         : (r.requested_amount > 0
@@ -525,7 +718,7 @@ export default function AdminTopupRequestsPage() {
   };
 
   return (
-    <div className="space-y-5 pb-12 font-sans min-h-screen bg-slate-50 text-slate-900">
+    <div className="space-y-5 pb-24 font-sans min-h-screen bg-slate-50 text-slate-900">
       {/* ── Top Header Cockpit ── */}
       <div className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6 shadow-xs relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -546,9 +739,13 @@ export default function AdminTopupRequestsPage() {
                   <ShieldAlert className="h-3.5 w-3.5 text-blue-600" />
                   Service + Vendor Wallet
                 </span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 font-bold flex items-center gap-1.5">
+                  <ListChecks className="h-3.5 w-3.5 text-purple-600" />
+                  Multi-Select Operations
+                </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1 max-w-3xl leading-relaxed">
-                Approve POS machine top-up requests with strict enforcement of <strong>POS Approval Date Rule</strong> (Instant vs T+1) and <strong>Admin Service/Vendor Wallet Balance</strong>.
+                Approve POS machine top-up requests with multi-select bulk operations, enforcing <strong>POS Approval Date Rule</strong> (Instant vs T+1) and <strong>Admin Service/Vendor Wallet Balance</strong>.
               </p>
             </div>
           </div>
@@ -562,7 +759,7 @@ export default function AdminTopupRequestsPage() {
                 fetchRequests();
               }}
               disabled={loading || metricsLoading || walletsLoading}
-              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl transition-all shadow-xs active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl transition-all shadow-xs active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading || metricsLoading || walletsLoading ? "animate-spin text-amber-600" : "text-slate-500"}`} />
               Refresh Data
@@ -570,9 +767,9 @@ export default function AdminTopupRequestsPage() {
 
             {/* Export CSV */}
             <button
-              onClick={exportToCSV}
+              onClick={() => exportToCSV(false)}
               disabled={requests.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               <Download className="h-3.5 w-3.5" />
               Export CSV
@@ -609,7 +806,7 @@ export default function AdminTopupRequestsPage() {
           {payoutUtkalWallet && (
             <button
               onClick={() => openFundModalForWallet(payoutUtkalWallet)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-95"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
             >
               <PlusCircle className="h-4 w-4" />
               + Add Fund to Admin Wallet
@@ -657,7 +854,7 @@ export default function AdminTopupRequestsPage() {
                   </div>
                   <button
                     onClick={() => openFundModalForWallet(w)}
-                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-700/80 hover:bg-slate-600 text-amber-300 border border-slate-600 transition-colors"
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-700/80 hover:bg-slate-600 text-amber-300 border border-slate-600 transition-colors cursor-pointer"
                   >
                     + Add Fund
                   </button>
@@ -790,7 +987,7 @@ export default function AdminTopupRequestsPage() {
         </div>
       </div>
 
-      {/* ── Filters & Search Control Bar ── */}
+      {/* ── Filters & Multi-Select Quick Operations Bar ── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
           {/* Search Box */}
@@ -809,7 +1006,7 @@ export default function AdminTopupRequestsPage() {
             {search && (
               <button
                 onClick={() => setSearch("")}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -831,7 +1028,7 @@ export default function AdminTopupRequestsPage() {
                     setStatusFilter(st.id);
                     setPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                     statusFilter === st.id
                       ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-extrabold"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
@@ -866,7 +1063,7 @@ export default function AdminTopupRequestsPage() {
                     setDatePreset(preset.id);
                     setPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                     datePreset === preset.id
                       ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-extrabold"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
@@ -878,6 +1075,52 @@ export default function AdminTopupRequestsPage() {
             </div>
           </div>
         </div>
+
+        {/* Multi-Select Toolbar Strip */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleSelectAll}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 font-bold text-slate-700 transition-colors cursor-pointer"
+            >
+              {isAllSelected ? (
+                <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+              ) : isSomeSelected ? (
+                <MinusSquare className="w-3.5 h-3.5 text-blue-600" />
+              ) : (
+                <Square className="w-3.5 h-3.5 text-slate-400" />
+              )}
+              <span>{isAllSelected ? "Deselect Page" : "Select Page"}</span>
+            </button>
+
+            <button
+              onClick={toggleSelectAllPending}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 font-bold text-amber-800 transition-colors cursor-pointer"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
+              <span>Select Pending on Page</span>
+            </button>
+
+            {selectedIds.size > 0 && (
+              <button
+                onClick={clearSelection}
+                className="text-slate-500 hover:text-slate-800 font-medium underline px-1 cursor-pointer"
+              >
+                Clear ({selectedIds.size})
+              </button>
+            )}
+          </div>
+
+          <div className="text-xs text-slate-500">
+            {selectedIds.size > 0 ? (
+              <span className="font-bold text-blue-700">
+                {selectedIds.size} request{selectedIds.size > 1 ? "s" : ""} selected • ₹{selectedTotalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+            ) : (
+              <span>Showing {requests.length} of {totalCount.toLocaleString()} records</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ── Table & Data View ── */}
@@ -886,6 +1129,16 @@ export default function AdminTopupRequestsPage() {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50/90 text-slate-700 uppercase font-black text-[11px] tracking-wider border-b border-slate-200">
               <tr>
+                {/* Multi-select Header Checkbox */}
+                <th className="py-3.5 px-3 w-10 text-center sticky left-0 bg-slate-50/95 z-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(el) => { if (el) el.indeterminate = isSomeSelected; }}
+                    onChange={toggleSelectAll}
+                    className="rounded text-blue-600 focus:ring-0 cursor-pointer h-4 w-4"
+                  />
+                </th>
                 <th className="py-3.5 px-4 font-black">REQUEST ID</th>
                 <th className="py-3.5 px-4 font-black">RETAILER</th>
                 <th className="py-3.5 px-4 font-black">SERVICE / VENDOR</th>
@@ -907,7 +1160,7 @@ export default function AdminTopupRequestsPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={12} className="py-20 text-center text-slate-500">
+                  <td colSpan={13} className="py-20 text-center text-slate-500">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-amber-500" />
                     <p className="font-bold text-sm text-slate-800">Loading live topup requests...</p>
                     <p className="text-xs text-slate-400 mt-1">Directly querying PostgreSQL database with dual-rule governance</p>
@@ -915,7 +1168,7 @@ export default function AdminTopupRequestsPage() {
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-20 text-center text-slate-500">
+                  <td colSpan={13} className="py-20 text-center text-slate-500">
                     <AlertCircle className="h-10 w-10 text-slate-400 mx-auto mb-2" />
                     <p className="font-bold text-base text-slate-800">No topup requests found</p>
                     <p className="text-xs text-slate-400 mt-1">Try adjusting your search query or status filters.</p>
@@ -927,6 +1180,7 @@ export default function AdminTopupRequestsPage() {
                   const isApproved = item.status === "APPROVED";
                   const isPending = item.status === "PENDING" || item.status === "UNDER_REVIEW";
                   const isRejected = item.status === "REJECTED";
+                  const isSelected = selectedIds.has(item.id);
                   const totalDeductions = (item.charges || item.mdr_charge || 0) + (item.gst_amount || 0);
                   const displayReceived = item.received_amount !== undefined && item.received_amount !== null
                     ? item.received_amount
@@ -947,9 +1201,28 @@ export default function AdminTopupRequestsPage() {
                       key={item.id}
                       onClick={() => openDrawer(item)}
                       className={`cursor-pointer transition-colors group ${
-                        selectedRequest?.id === item.id ? "bg-amber-50/50" : "hover:bg-slate-50/80"
+                        isSelected
+                          ? "bg-blue-50/80 hover:bg-blue-50"
+                          : selectedRequest?.id === item.id
+                          ? "bg-amber-50/50"
+                          : "hover:bg-slate-50/80"
                       }`}
                     >
+                      {/* Row Checkbox */}
+                      <td
+                        className={`py-3.5 px-3 text-center sticky left-0 z-10 ${
+                          isSelected ? "bg-blue-50/90" : "bg-white group-hover:bg-slate-50"
+                        }`}
+                        onClick={(e) => toggleSelectItem(item.id, e)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => toggleSelectItem(item.id, e as any)}
+                          className="rounded text-blue-600 focus:ring-0 cursor-pointer h-4 w-4"
+                        />
+                      </td>
+
                       {/* Request ID */}
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
@@ -959,7 +1232,7 @@ export default function AdminTopupRequestsPage() {
                               e.stopPropagation();
                               copyToClipboard(item.topup_request_id, item.id);
                             }}
-                            className="text-slate-400 hover:text-slate-600 transition-colors"
+                            className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                             title="Copy Request ID"
                           >
                             {copiedId === item.id ? (
@@ -1107,7 +1380,7 @@ export default function AdminTopupRequestsPage() {
                         {item.slip_url ? (
                           <button
                             onClick={() => openDrawer(item)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200 transition-all shadow-xs"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200 transition-all shadow-xs cursor-pointer"
                           >
                             <FileImage className="h-3.5 w-3.5 text-amber-600" />
                             Slip
@@ -1141,14 +1414,14 @@ export default function AdminTopupRequestsPage() {
                       <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => openDrawer(item)}
-                          className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-xs ${
+                          className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-xs cursor-pointer ${
                             isPending
                               ? "bg-amber-500 hover:bg-amber-600 text-slate-950 font-black shadow-amber-500/20"
                               : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
                           }`}
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          {isPending ? "Review" : "View"}
+                          <span>Review</span>
                         </button>
                       </td>
                     </tr>
@@ -1159,28 +1432,43 @@ export default function AdminTopupRequestsPage() {
           </table>
         </div>
 
-        {/* ── Pagination ── */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-slate-50/90 border-t border-slate-200 text-xs text-slate-600 font-medium">
-          <div>
-            Showing <strong className="text-slate-900">{requests.length}</strong> of{" "}
-            <strong className="text-slate-900">{totalCount}</strong> topup requests
+        {/* ── Pagination Footer ── */}
+        <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
+          <div className="text-xs text-slate-500 flex items-center gap-2">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              {[15, 30, 50, 100].map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+            <span className="ml-2">
+              Showing {requests.length > 0 ? (page - 1) * pageSize + 1 : 0} to{" "}
+              {Math.min(page * pageSize, totalCount)} of {totalCount} records
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors shadow-xs"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="font-bold text-slate-800 px-2">
+            <span className="text-xs font-bold text-slate-700 px-2">
               Page {page} of {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors shadow-xs"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs cursor-pointer"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -1188,210 +1476,507 @@ export default function AdminTopupRequestsPage() {
         </div>
       </div>
 
-      {/* ── RIGHT-SIDE INSPECTION & APPROVAL DRAWER ── */}
-      {drawerOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fadeIn"
-            onClick={() => setDrawerOpen(false)}
-          />
+      {/* ─────────────────────────────────────────────────────────────
+          FLOATING BOTTOM MULTI-SELECT BULK ACTIONS DOCK
+      ───────────────────────────────────────────────────────────── */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-6 duration-200 max-w-4xl w-[92%]">
+          <div className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl p-3.5 sm:px-5 sm:py-4 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-3.5">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="h-9 w-9 rounded-xl bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-blue-400 shrink-0 font-black text-sm">
+                {selectedIds.size}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-white tracking-wide">
+                    {selectedIds.size} Request{selectedIds.size > 1 ? "s" : ""} Selected
+                  </span>
+                  <span className="text-xs font-bold text-emerald-400 font-mono">
+                    (₹{selectedTotalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-slate-300 mt-0.5">
+                  <span className="text-emerald-300 font-bold">
+                    ✓ {selectedEligibleItems.length} Eligible
+                  </span>
+                  {selectedIneligibleItems.length > 0 && (
+                    <span className="text-amber-300 font-bold">
+                      • {selectedIneligibleItems.length} Blocked
+                    </span>
+                  )}
+                  {selectedItems.length - selectedPendingItems.length > 0 && (
+                    <span className="text-slate-400">
+                      • {selectedItems.length - selectedPendingItems.length} Processed
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
 
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col border-l border-slate-200 text-xs animate-slideLeft">
+            <div className="flex flex-wrap items-center justify-end gap-2.5 w-full md:w-auto">
+              {/* Bulk Approve Button */}
+              <button
+                onClick={() => {
+                  setBulkAdminNotes("Bulk approval verified against payment proofs & Admin wallet");
+                  setShowBulkApproveModal(true);
+                }}
+                disabled={selectedEligibleItems.length === 0}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                title={selectedEligibleItems.length === 0 ? "No eligible pending requests selected" : "Bulk approve eligible requests"}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Bulk Approve ({selectedEligibleItems.length})</span>
+              </button>
+
+              {/* Bulk Reject Button */}
+              <button
+                onClick={() => {
+                  setBulkRejectionReason(REJECTION_PRESETS[0]);
+                  setShowBulkRejectModal(true);
+                }}
+                disabled={selectedPendingItems.length === 0}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                title="Bulk reject selected pending requests"
+              >
+                <XCircle className="h-4 w-4" />
+                <span>Bulk Reject ({selectedPendingItems.length})</span>
+              </button>
+
+              {/* Export Selected CSV */}
+              <button
+                onClick={() => exportToCSV(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Export</span>
+              </button>
+
+              {/* Clear Selection */}
+              <button
+                onClick={clearSelection}
+                className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title="Deselect All"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          BULK APPROVAL CONFIRMATION MODAL
+      ───────────────────────────────────────────────────────────── */}
+      {showBulkApproveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !bulkProcessing && setShowBulkApproveModal(false)} />
+          <div className="relative z-10 w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Bulk Approve Top-up Requests</h3>
+                  <p className="text-xs text-slate-500 font-medium">{selectedEligibleItems.length} requests ready for immediate credit</p>
+                </div>
+              </div>
+              {!bulkProcessing && (
+                <button
+                  onClick={() => setShowBulkApproveModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            {/* Financial Overview */}
+            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Eligible Requests Count:</span>
+                <span className="font-bold text-slate-900 text-sm">{selectedEligibleItems.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Total Credit Volume (Received Amount):</span>
+                <span className="font-mono font-black text-emerald-800 text-base">
+                  ₹{selectedEligibleAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-emerald-200/80">
+                <span className="text-slate-600">Primary Admin Operation Wallet:</span>
+                <span className="font-mono font-bold text-slate-900">
+                  {payoutUtkalWallet?.service_name || "Payout"} ({payoutUtkalWallet?.vendor_name || "Utkal"}) • ₹{(payoutUtkalWallet?.available_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            {/* Ineligible notices if any */}
+            {selectedIneligibleItems.length > 0 && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span>{selectedIneligibleItems.length} Selected Request{selectedIneligibleItems.length > 1 ? "s" : ""} will be SKIPPED:</span>
+                </div>
+                <p className="text-[11px] text-amber-800 pl-5">
+                  Blocked by policy (e.g. POS T+1 calendar rule or low Admin balance). Only the {selectedEligibleItems.length} eligible requests will be approved.
+                </p>
+              </div>
+            )}
+
+            {/* Admin Notes Input */}
+            <div className="space-y-1.5 text-xs">
+              <label className="block text-slate-700 font-bold">Admin Audit Notes</label>
+              <textarea
+                value={bulkAdminNotes}
+                onChange={(e) => setBulkAdminNotes(e.target.value)}
+                disabled={bulkProcessing}
+                placeholder="Audit remarks for bulk settlement..."
+                className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 h-16 resize-none"
+              />
+            </div>
+
+            {/* Progress Display during batch run */}
+            {bulkProcessing && (
+              <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-slate-700 flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                    Processing {bulkProgress.current} of {bulkProgress.total}...
+                  </span>
+                  <span className="text-emerald-700 font-mono">
+                    {Math.round((bulkProgress.current / bulkProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-emerald-600 h-2 transition-all duration-200"
+                    style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Summary Results when finished */}
+            {!bulkProcessing && bulkProgress.total > 0 && (
+              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-xs">
+                <span className="font-bold text-slate-800">Results: </span>
+                <span className="text-emerald-700 font-bold">{bulkProgress.successCount} Approved</span>
+                {bulkProgress.failCount > 0 && (
+                  <span className="text-rose-700 font-bold ml-2">• {bulkProgress.failCount} Failed</span>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowBulkApproveModal(false)}
+                disabled={bulkProcessing}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteBulkApprove}
+                disabled={bulkProcessing || selectedEligibleItems.length === 0}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              >
+                {bulkProcessing ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Executing Bulk Approval...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Execute Bulk Approval ({selectedEligibleItems.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          BULK REJECTION CONFIRMATION MODAL
+      ───────────────────────────────────────────────────────────── */}
+      {showBulkRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !bulkProcessing && setShowBulkRejectModal(false)} />
+          <div className="relative z-10 w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                  <XCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Bulk Reject Top-up Requests</h3>
+                  <p className="text-xs text-slate-500 font-medium">{selectedPendingItems.length} pending requests to reject</p>
+                </div>
+              </div>
+              {!bulkProcessing && (
+                <button
+                  onClick={() => setShowBulkRejectModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Select Rejection Preset</label>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {REJECTION_PRESETS.map((reason) => (
+                    <button
+                      key={reason}
+                      onClick={() => setBulkRejectionReason(reason)}
+                      disabled={bulkProcessing}
+                      className={`w-full text-left p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                        bulkRejectionReason === reason
+                          ? "bg-rose-50 border-rose-400 text-rose-800 font-bold"
+                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Rejection Reason / Notes *</label>
+                <textarea
+                  value={bulkRejectionReason}
+                  onChange={(e) => setBulkRejectionReason(e.target.value)}
+                  disabled={bulkProcessing}
+                  placeholder="Provide reason for bulk rejection..."
+                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-rose-500 h-16 resize-none"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium">
+                ⚠️ Zero wallet deduction will occur. Requests will be marked REJECTED immediately.
+              </div>
+            </div>
+
+            {/* Progress Display */}
+            {bulkProcessing && (
+              <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-slate-700 flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-rose-600" />
+                    Rejecting {bulkProgress.current} of {bulkProgress.total}...
+                  </span>
+                  <span className="text-rose-700 font-mono">
+                    {Math.round((bulkProgress.current / bulkProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-rose-600 h-2 transition-all duration-200"
+                    style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowBulkRejectModal(false)}
+                disabled={bulkProcessing}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteBulkReject}
+                disabled={bulkProcessing || selectedPendingItems.length === 0 || !bulkRejectionReason.trim()}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              >
+                {bulkProcessing ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Processing Bulk Rejection...</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-4 w-4" />
+                    <span>Confirm Bulk Rejection ({selectedPendingItems.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Single Request Detailed Slide-Over Drawer ── */}
+      {drawerOpen && selectedRequest && (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-2xl bg-white shadow-2xl border-l border-slate-200 flex flex-col">
               {/* Drawer Header */}
               <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center font-black">
+                  <div className="h-10 w-10 rounded-xl bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center font-bold">
                     <ArrowLeftRight className="h-5 w-5" />
                   </div>
                   <div>
-                    <h2 className="text-base font-black text-slate-900">Topup Request Verification</h2>
-                    <p className="text-[11px] text-slate-500 font-mono">{selectedRequest.topup_request_id}</p>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-black text-slate-900 font-mono">
+                        {selectedRequest.topup_request_id}
+                      </h2>
+                      <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border ${
+                        selectedRequest.status === "PENDING"
+                          ? "bg-amber-50 text-amber-800 border-amber-200"
+                          : selectedRequest.status === "APPROVED"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : "bg-rose-50 text-rose-800 border-rose-200"
+                      }`}>
+                        {selectedRequest.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Submitted on {new Date(selectedRequest.submitted_at).toLocaleString("en-IN")}
+                    </p>
                   </div>
                 </div>
 
                 <button
                   onClick={() => setDrawerOpen(false)}
-                  className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-200 transition-colors"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Drawer Scrollable Content */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Feedback Alerts */}
-                {actionSuccessMsg && (
-                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-xs flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>{actionSuccessMsg}</span>
-                  </div>
-                )}
-                {actionErrorMsg && (
-                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 font-bold text-xs flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
-                    <span>{actionErrorMsg}</span>
-                  </div>
-                )}
+              {/* Action Banners */}
+              {actionSuccessMsg && (
+                <div className="p-4 bg-emerald-50 border-b border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>{actionSuccessMsg}</span>
+                </div>
+              )}
+              {actionErrorMsg && (
+                <div className="p-4 bg-rose-50 border-b border-rose-200 text-rose-900 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>{actionErrorMsg}</span>
+                </div>
+              )}
 
-                {/* ── 2-RULE GOVERNANCE & APPROVAL ELIGIBILITY CHECKCARD ── */}
-                <div className="rounded-2xl bg-slate-900 text-white p-5 border border-slate-700 space-y-4 shadow-md">
-                  <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-                    <div className="flex items-center gap-2">
-                      <ShieldAlert className="h-4 w-4 text-amber-400" />
-                      <span className="font-black text-xs uppercase tracking-wider text-amber-300">
-                        Dual Approval Governance
-                      </span>
-                    </div>
-                    <span
-                      id="approval_eligibility"
-                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
-                        selectedRequest.status !== "PENDING"
-                          ? "bg-slate-800 text-slate-300 border-slate-600"
-                          : selectedRequest.can_approve
-                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                          : "bg-rose-500/20 text-rose-300 border-rose-500/30"
-                      }`}
-                    >
-                      {selectedRequest.status !== "PENDING"
-                        ? selectedRequest.status
-                        : selectedRequest.can_approve
-                        ? "ELIGIBLE TO APPROVE"
-                        : "APPROVAL LOCKED"}
+              {/* Drawer Content */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                {/* Dual Governance Compliance Badge */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+                      <ShieldAlert className="h-4 w-4 text-blue-600" />
+                      Approval Governance Verification
                     </span>
+                    {selectedRequest.status === "PENDING" && (
+                      selectedRequest.can_approve ? (
+                        <span className="px-2.5 py-1 text-xs font-black rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          Ready for Approval
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 text-xs font-black rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                          <Lock className="h-3.5 w-3.5 text-amber-700" />
+                          Approval Blocked
+                        </span>
+                      )
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Condition 1: POS Date Eligibility */}
-                    <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400 font-bold">1. POS Approval Date</span>
-                        {selectedRequest.is_date_eligible !== false ? (
-                          <span className="text-emerald-400 font-black flex items-center gap-1">
-                            <Check className="h-3 w-3" /> PASS
-                          </span>
-                        ) : (
-                          <span className="text-amber-400 font-black flex items-center gap-1">
-                            <Lock className="h-3 w-3" /> LOCKED
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs font-bold text-white">
-                        {isPosT1Mode(selectedRequest) ? "POS T+1 Settlement Rule" : "POS Instant Rule"}
-                      </div>
-                      <p className="text-[10px] text-slate-400 leading-normal">
-                        {isPosT1Mode(selectedRequest)
-                          ? "Strictly locked on same-day (T+0). Unlocks on calendar date T+1 (tomorrow)."
-                          : "Eligible for same-day immediate approval."}
-                      </p>
-                    </div>
-
-                    {/* Condition 2: Admin Service + Vendor Wallet Balance */}
-                    <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400 font-bold">2. Admin Wallet Balance</span>
-                        {selectedRequest.is_balance_eligible !== false ? (
-                          <span className="text-emerald-400 font-black flex items-center gap-1">
-                            <Check className="h-3 w-3" /> SUFFICIENT
-                          </span>
-                        ) : (
-                          <span className="text-rose-400 font-black flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" /> LOW BALANCE
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs font-bold text-white font-mono flex items-center justify-between">
-                        <span>Avail: ₹{(selectedRequest.admin_available_balance ?? payoutUtkalWallet?.available_balance ?? 0).toLocaleString("en-IN")}</span>
-                        <span className="text-[10px] text-amber-400 font-sans">{selectedRequest.service || "Payout"} · {selectedRequest.vendor || "Utkal"}</span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 leading-normal">
-                        {selectedRequest.is_balance_eligible !== false
-                          ? `Wallet balance is sufficient to settle ₹${(parseFloat(customApprovedAmount) || selectedRequest.requested_amount).toLocaleString("en-IN")}.`
-                          : `Admin balance is low. Shortfall: ₹${(selectedRequest.shortfall_amount || 0).toLocaleString("en-IN")}. Please add funds to continue.`}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Low Balance Alert Banner */}
-                  {selectedRequest.status === "PENDING" && selectedRequest.is_balance_eligible === false && (
-                    <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs pt-1">
+                    {/* Condition 1: POS Approval Date */}
+                    <div className="p-2.5 rounded-xl bg-white/80 border border-blue-200/60 flex items-start gap-2">
+                      {selectedRequest.is_date_eligible !== false ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <Lock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      )}
                       <div>
-                        <div className="font-black text-rose-100 flex items-center gap-1.5">
-                          <AlertCircle className="h-4 w-4 text-rose-400" />
-                          Admin balance is low. Please add funds to continue the approval.
-                        </div>
-                        <div className="text-[11px] text-rose-300 mt-0.5">
-                          Available: ₹{(selectedRequest.admin_available_balance ?? 0).toLocaleString("en-IN")} | Required: ₹{(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN")} | Shortfall: ₹{(selectedRequest.shortfall_amount || 0).toLocaleString("en-IN")}
-                        </div>
+                        <span className="font-bold text-slate-800 block">1. POS Approval Date:</span>
+                        <span className="text-[11px] text-slate-600">
+                          Mode: <strong>{selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}</strong>
+                        </span>
+                        {selectedRequest.is_date_eligible === false && (
+                          <span className="text-[11px] text-amber-800 block font-semibold mt-0.5">
+                            POS T1 requests can be approved from the next day (T+1).
+                          </span>
+                        )}
                       </div>
-                      <button
-                        onClick={() => {
-                          if (payoutUtkalWallet) openFundModalForWallet(payoutUtkalWallet);
-                        }}
-                        className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-lg shadow-sm whitespace-nowrap self-start sm:self-auto"
-                      >
-                        + Add Fund
-                      </button>
                     </div>
-                  )}
 
-                  {/* POS T1 Date Lock Banner */}
-                  {selectedRequest.status === "PENDING" && selectedRequest.is_date_eligible === false && (
-                    <div className="p-3 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs">
-                      <div className="font-black text-amber-100 flex items-center gap-1.5">
-                        <Lock className="h-4 w-4 text-amber-400" />
-                        POS T1 Settlement Lock
-                      </div>
-                      <div className="text-[11px] text-amber-300 mt-0.5">
-                        {selectedRequest.approval_block_reason || "POS T1 requests can be approved from T+1 only."}
+                    {/* Condition 2: Admin Service/Vendor Wallet */}
+                    <div className="p-2.5 rounded-xl bg-white/80 border border-blue-200/60 flex items-start gap-2">
+                      {selectedRequest.is_balance_eligible !== false ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <span className="font-bold text-slate-800 block">2. Admin Wallet Balance:</span>
+                        <span className="text-[11px] text-slate-600">
+                          {selectedRequest.service || "Payout"} ({selectedRequest.vendor || "Utkal"}) • Avail: <strong>₹{(selectedRequest.admin_available_balance ?? payoutUtkalWallet?.available_balance ?? 0).toLocaleString("en-IN")}</strong>
+                        </span>
+                        {selectedRequest.is_balance_eligible === false && (
+                          <span className="text-[11px] text-rose-700 block font-semibold mt-0.5">
+                            Low balance. Shortfall: ₹{(selectedRequest.shortfall_amount || 0).toLocaleString("en-IN")}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                {/* Slip Proof Viewer */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                      <FileImage className="h-4 w-4 text-amber-600" />
-                      Uploaded Payment Slip
+                {/* Slip Image Viewer */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <FileImage className="h-4 w-4 text-slate-500" />
+                      Payment Proof Slip
                     </span>
                     {selectedRequest.slip_url && (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => setZoomLevel((z) => Math.min(3, z + 0.25))}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          className="p-1 rounded hover:bg-slate-100 text-slate-600 cursor-pointer"
                           title="Zoom In"
                         >
-                          <ZoomIn className="h-3.5 w-3.5" />
+                          <ZoomIn className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.25))}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          className="p-1 rounded hover:bg-slate-100 text-slate-600 cursor-pointer"
                           title="Zoom Out"
                         >
-                          <ZoomOut className="h-3.5 w-3.5" />
+                          <ZoomOut className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setRotation((r) => (r + 90) % 360)}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
-                          title="Rotate 90°"
+                          className="p-1 rounded hover:bg-slate-100 text-slate-600 cursor-pointer"
+                          title="Rotate"
                         >
-                          <RotateCcw className="h-3.5 w-3.5" />
+                          <RotateCcw className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setFullscreenImage(selectedRequest.slip_url || null)}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          className="p-1 rounded hover:bg-slate-100 text-slate-600 cursor-pointer"
                           title="Fullscreen"
                         >
-                          <Maximize2 className="h-3.5 w-3.5" />
+                          <Maximize2 className="h-4 w-4" />
                         </button>
                       </div>
                     )}
                   </div>
 
                   {selectedRequest.slip_url ? (
-                    <div className="relative rounded-2xl border border-slate-200 bg-slate-900 p-2 overflow-hidden flex items-center justify-center min-h-[260px] max-h-[360px]">
+                    <div className="bg-slate-900 rounded-2xl p-2 flex items-center justify-center overflow-hidden min-h-[220px] max-h-[340px] relative border border-slate-800">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={selectedRequest.slip_url}
@@ -1508,7 +2093,7 @@ export default function AdminTopupRequestsPage() {
               <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-4">
                 <button
                   onClick={() => setDrawerOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all shadow-xs"
+                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all shadow-xs cursor-pointer"
                 >
                   Close
                 </button>
@@ -1517,7 +2102,7 @@ export default function AdminTopupRequestsPage() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setShowRejectModal(true)}
-                      className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs"
+                      className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       <XCircle className="h-4 w-4 text-rose-600" />
                       Reject
@@ -1530,7 +2115,7 @@ export default function AdminTopupRequestsPage() {
                             onClick={() => {
                               if (payoutUtkalWallet) openFundModalForWallet(payoutUtkalWallet);
                             }}
-                            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition-all flex items-center gap-1.5"
+                            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
                           >
                             <PlusCircle className="h-4 w-4" />
                             Add Fund
@@ -1549,7 +2134,7 @@ export default function AdminTopupRequestsPage() {
                     ) : (
                       <button
                         onClick={() => setShowApproveModal(true)}
-                        className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                        className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
                       >
                         <CheckCircle2 className="h-4 w-4" />
                         Approve (₹{(parseFloat(customApprovedAmount) || selectedRequest.requested_amount).toLocaleString("en-IN")})
@@ -1563,7 +2148,7 @@ export default function AdminTopupRequestsPage() {
         </div>
       )}
 
-      {/* ── Approval Confirmation Modal ── */}
+      {/* ── Single Approval Confirmation Modal ── */}
       {showApproveModal && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowApproveModal(false)} />
@@ -1633,14 +2218,14 @@ export default function AdminTopupRequestsPage() {
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setShowApproveModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleApprove}
                 disabled={approving || selectedRequest.can_approve === false}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
                 {approving && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 Confirm &amp; Credit Received Amount
@@ -1650,7 +2235,7 @@ export default function AdminTopupRequestsPage() {
         </div>
       )}
 
-      {/* ── Rejection Modal ── */}
+      {/* ── Single Rejection Modal ── */}
       {showRejectModal && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
@@ -1673,7 +2258,7 @@ export default function AdminTopupRequestsPage() {
                     <button
                       key={reason}
                       onClick={() => setRejectionReason(reason)}
-                      className={`w-full text-left p-2 rounded-xl border text-xs font-medium transition-all ${
+                      className={`w-full text-left p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
                         rejectionReason === reason
                           ? "bg-rose-50 border-rose-400 text-rose-800 font-bold"
                           : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
@@ -1703,14 +2288,14 @@ export default function AdminTopupRequestsPage() {
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReject}
                 disabled={rejecting || !rejectionReason.trim()}
-                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
                 {rejecting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 Reject Request
@@ -1776,7 +2361,7 @@ export default function AdminTopupRequestsPage() {
                   <button
                     key={val}
                     onClick={() => setFundAmount(val)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200"
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200 cursor-pointer"
                   >
                     +₹{parseInt(val).toLocaleString("en-IN")}
                   </button>
@@ -1797,14 +2382,14 @@ export default function AdminTopupRequestsPage() {
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setShowAddFundModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddFund}
                 disabled={addingFund || !fundAmount}
-                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
                 {addingFund && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 Add ₹{(parseFloat(fundAmount) || 0).toLocaleString("en-IN")}
@@ -1822,7 +2407,7 @@ export default function AdminTopupRequestsPage() {
         >
           <button
             onClick={() => setFullscreenImage(null)}
-            className="absolute top-6 right-6 p-3 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors shadow-2xl"
+            className="absolute top-6 right-6 p-3 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors shadow-2xl cursor-pointer"
           >
             <X className="h-6 w-6" />
           </button>
