@@ -250,6 +250,8 @@ class PayoutRoutingService:
         Updates priorities and routing policy in DB atomically.
         """
         prov_code = (new_provider or provider_code or "").strip().upper()
+        if prov_code == "UTKAL":
+            prov_code = "UTKALDIGITAL"
         if prov_code not in ["WOWPE", "BULKPE", "UTKALDIGITAL"]:
             raise ValueError("Provider must be 'WOWPE', 'BULKPE', or 'UTKALDIGITAL'")
 

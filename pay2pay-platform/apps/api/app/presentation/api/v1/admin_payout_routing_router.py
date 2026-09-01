@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Admin Payout Gateway Routing & Switcher Controller Router
 Provides APIs for Admins to:
@@ -123,6 +124,8 @@ async def switch_primary_gateway(
     Updates DB priorities and logs administrative audit.
     """
     code = req.provider_code.strip().upper()
+    if code == "UTKAL":
+        code = "UTKALDIGITAL"
     if code not in ("WOWPE", "BULKPE", "UTKALDIGITAL"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
