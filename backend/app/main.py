@@ -350,6 +350,14 @@ app.include_router(urbanrupee_payout_router.router, prefix="")
 app.include_router(urbanrupee_payout_router.router, prefix=f"{settings.API_V1_STR}/payouts")
 app.include_router(urbanrupee_payout_router.router, prefix="/payouts")
 
+import app.infrastructure.db.recharge_models as _recharge_models
+from app.presentation.api.v1 import recharge_router
+app.include_router(recharge_router.router, prefix=settings.API_V1_STR)
+app.include_router(recharge_router.router, prefix="/v1")
+app.include_router(recharge_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(recharge_router.router, prefix="/api")
+app.include_router(recharge_router.router, prefix="")
+
 
 @app.get("/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health", tags=["Health"])
