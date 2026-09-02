@@ -627,6 +627,36 @@ class BulkPePayoutEngine:
                 bank_name=target_bank,
                 sender_name=getattr(customer, "full_name", "Customer")
             )
+        elif active_provider in ("URBANRUPEE", "URBAN_RUPEE", "UR"):
+            from app.application.urbanrupee_client import UrbanRupeeApiClient
+            api_res = await UrbanRupeeApiClient.initiate_payout(
+                merchant_ref=merchant_ref,
+                account_number=acc_num,
+                ifsc_code=ifsc,
+                account_holder=acc_holder,
+                amount=amount,
+                mobile=cust_mobile,
+                mode=mode
+            )
+            print(f"\n[DIAGNOSTIC] UrbanRupeeApiClient returned for acc {acc_num}: {api_res}\n")
+            executed_vendor = "UrbanRupee"
+            if api_res.get("status") == "FAILED" and policy.auto_failover_enabled:
+                from app.application.utkaldigital_client import UtkalDigitalApiClient
+                utkal_res = await UtkalDigitalApiClient.initiate_payout(
+                    merchant_ref=f"FO-{merchant_ref}",
+                    account_number=acc_num,
+                    ifsc_code=ifsc,
+                    account_holder=acc_holder,
+                    amount=amount,
+                    sender_mobile=cust_mobile,
+                    sender_name=getattr(customer, "full_name", "Customer"),
+                    bank_name=target_bank,
+                    bank_code="SBIN" if "SBIN" in str(ifsc).upper() else "MAGNI",
+                    service_id="27"
+                )
+                if utkal_res.get("status") in ("SUCCESS", "PENDING"):
+                    api_res = utkal_res
+                    executed_vendor = "UtkalDigital"
         elif active_provider in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
             from app.application.utkaldigital_client import UtkalDigitalApiClient
             api_res = await UtkalDigitalApiClient.initiate_payout(
