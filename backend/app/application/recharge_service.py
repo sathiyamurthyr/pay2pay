@@ -372,6 +372,49 @@ class RechargeService:
         }
 
     @staticmethod
+    async def get_transaction(
+        session: AsyncSession,
+        reference: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Fetch full transaction and ledger details by transaction_id, reference_id, or operator_ref.
+        """
+        query = text("""
+            SELECT t.*, r.owner_name, r.store_name, r.mobile_number as retailer_mobile
+            FROM public.recharge_transactions t
+            LEFT JOIN public.retailer r ON t.retailer_id = r.public_id
+            WHERE t.transaction_id = :ref OR t.reference_id = :ref OR t.operator_ref = :ref
+            LIMIT 1
+        """)
+        res = await session.execute(query, {"ref": reference})
+        row = res.mappings().first()
+        if not row:
+            return None
+        return dict(row)
+
+    @staticmethod
+    async def reverse_transaction(
+        session: AsyncSession,
+        transaction_id: str,
+        reason: str
+    ) -> Dict[str, Any]:
+        """
+        Refund / reverse a recharge transaction via SP sp_recharge_reverse_transaction.
+        """
+        # Find transaction ID or public ID
+        query = text("SELECT public_id FROM public.recharge_transactions WHERE transaction_id = :txn_id OR reference_id = :txn_id LIMIT 1")
+        res = await session.execute(query, {"txn_id": transaction_id})
+        pub_id = res.scalar()
+        if not pub_id:
+            return {"success": False, "error_message": "Transaction not found."}
+
+        sp_rev = text("SELECT * FROM public.sp_recharge_reverse_transaction(:p_id, :reason)")
+        rev_res = await session.execute(sp_rev, {"p_id": pub_id, "reason": reason})
+        data = dict(rev_res.mappings().first())
+        await session.commit()
+        return data
+
+    @staticmethod
     async def get_receipt(
         session: AsyncSession,
         transaction_id: str
@@ -379,15 +422,4 @@ class RechargeService:
         """
         Fetch full receipt metadata for PDF/Print and WhatsApp sharing.
         """
-        query = text("""
-            SELECT t.*, r.owner_name, r.store_name, r.mobile_number as retailer_mobile
-            FROM public.recharge_transactions t
-            LEFT JOIN public.retailer r ON t.retailer_id = r.public_id
-            WHERE t.transaction_id = :txn_id OR t.reference_id = :txn_id
-            LIMIT 1
-        """)
-        res = await session.execute(query, {"txn_id": transaction_id})
-        row = res.mappings().first()
-        if not row:
-            return None
-        return dict(row)
+        return await RechargeService.get_transaction(session, transaction_id)

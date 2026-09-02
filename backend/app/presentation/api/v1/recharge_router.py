@@ -287,22 +287,95 @@ async def get_admin_report(
     }
 
 
-@router.get("/receipt/{transaction_id}", response_model=Dict[str, Any])
-async def get_recharge_receipt(
-    transaction_id: str,
+# ---------------------------------------------------------------------
+# Route Aliases & Direct Endpoints Matching Spec
+# ---------------------------------------------------------------------
+@router.post("/initiate", response_model=Dict[str, Any])
+async def initiate_recharge(
+    body: RechargeConfirmRequest,
+    request: Request,
+    payload: dict = Depends(get_current_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Fetch transaction receipt data for printing, PDF generation, or WhatsApp sharing.
+    Alias endpoint for initiating mobile recharge.
     """
-    receipt = await RechargeService.get_receipt(db, transaction_id)
-    if not receipt:
+    return await confirm_recharge(body, request, payload, db)
+
+
+@router.get("/status/{transaction_reference}", response_model=Dict[str, Any])
+@router.get("/transaction/{transaction_reference}", response_model=Dict[str, Any])
+async def get_transaction_status(
+    transaction_reference: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Fetch status and details of a recharge transaction by reference.
+    """
+    txn = await RechargeService.get_transaction(db, transaction_reference)
+    if not txn:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Recharge receipt not found."
+            detail="Recharge transaction not found."
         )
-
     return {
         "success": True,
-        "data": receipt
+        "data": txn
+    }
+
+
+@router.get("/retailer-report", response_model=Dict[str, Any])
+async def get_retailer_report_alias(
+    request: Request,
+    status_filter: Optional[str] = Query(None, alias="status"),
+    mobile_number: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    payload: dict = Depends(get_current_token_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Alias for /reports/retailer
+    """
+    return await get_retailer_report(request, status_filter, mobile_number, start_date, end_date, page, page_size, payload, db)
+
+
+@router.get("/admin-report", response_model=Dict[str, Any])
+async def get_admin_report_alias(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    operator_code: Optional[str] = Query(None),
+    retailer_code: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Alias for /reports/admin
+    """
+    return await get_admin_report(status_filter, operator_code, retailer_code, start_date, end_date, page, page_size, current_user, db)
+
+
+class RechargeRefundRequest(BaseModel):
+    transaction_id: str
+    reason: str = "Admin requested reversal"
+
+
+@router.post("/refund", response_model=Dict[str, Any])
+async def refund_recharge(
+    body: RechargeRefundRequest,
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Authorized refund / reversal of a recharge transaction via SP sp_recharge_reverse_transaction.
+    """
+    res = await RechargeService.reverse_transaction(db, body.transaction_id, body.reason)
+    return {
+        "success": res.get("success", True),
+        "data": res
     }
