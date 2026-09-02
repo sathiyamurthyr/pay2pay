@@ -1,6 +1,0 @@
-1:"$Sreact.fragment"
-2:I[61722,["/_next/static/chunks/10un8k6wjmhhd.js","/_next/static/chunks/3aiu8uhh9ykx9.js","/_next/static/chunks/3dgrqbex-3-b2.js","/_next/static/chunks/081f9uqhut_q2.js","/_next/static/chunks/0b39sfkav7tdp.js","/_next/static/chunks/1ntn7efqc-iiw.js","/_next/static/chunks/3wgkeprt020w4.js","/_next/static/chunks/1h-eqh8s9v18o.js","/_next/static/chunks/2pvyirnuo_vkk.js"],"AadhaarEkycWizard"]
-3:I[897367,["/_next/static/chunks/10un8k6wjmhhd.js","/_next/static/chunks/3aiu8uhh9ykx9.js","/_next/static/chunks/3dgrqbex-3-b2.js","/_next/static/chunks/081f9uqhut_q2.js","/_next/static/chunks/0b39sfkav7tdp.js","/_next/static/chunks/1ntn7efqc-iiw.js"],"OutletBoundary"]
-4:"$Sreact.suspense"
-0:{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"p-4 sm:p-6 min-h-screen bg-slate-50/50 dark:bg-slate-950","children":["$","$L2",null,{}]}],[["$","script","script-0",{"src":"/_next/static/chunks/1h-eqh8s9v18o.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/2pvyirnuo_vkk.js","async":true}]],["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"clEZJ4pbFzWARUP91Z3Ut"}
-5:null
