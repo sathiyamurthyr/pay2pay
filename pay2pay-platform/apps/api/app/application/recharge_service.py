@@ -428,7 +428,7 @@ class RechargeService:
         Finds transaction by request_id (reference_id/transaction_id) or vendor_trans_id.
         """
         query = text("""
-            SELECT public_id, transaction_id, reference_id, status, recharge_amount
+            SELECT public_id, transaction_id, reference_id, status, recharge_amount, vendor_name
             FROM public.recharge_transactions
             WHERE (:req_id IS NOT NULL AND (reference_id = :req_id OR transaction_id = :req_id))
                OR (:v_id IS NOT NULL AND vendor_transaction_id = :v_id)
@@ -442,9 +442,10 @@ class RechargeService:
 
         current_status = txn["status"]
         pub_id = txn["public_id"]
+        v_name = txn["vendor_name"] or "TELECOM_VENDOR"
         normalized_status = status_str.strip().lower()
 
-        if normalized_status == "success":
+        if normalized_status in ("success", "1", "ok"):
             if current_status not in ("SUCCESS", "REVERSED", "REFUNDED"):
                 sp_fin = text("""
                     SELECT * FROM public.sp_recharge_finalize_transaction(
@@ -453,7 +454,7 @@ class RechargeService:
                 """)
                 await session.execute(sp_fin, {
                     "p_id": pub_id,
-                    "v_name": "UTKALDIGITAL",
+                    "v_name": v_name,
                     "v_ref": request_id or txn["reference_id"],
                     "v_txnid": vendor_trans_id or "",
                     "op_ref": op_ref_id or "",
@@ -463,7 +464,7 @@ class RechargeService:
             else:
                 return {"success": True, "message": f"Transaction already in state {current_status}."}
 
-        elif normalized_status in ("reverse", "failed", "reversed"):
+        elif normalized_status in ("reverse", "failed", "reversed", "failure", "0"):
             if current_status not in ("REVERSED", "REFUNDED", "FAILED"):
                 sp_rev = text("""
                     SELECT * FROM public.sp_recharge_reverse_transaction(

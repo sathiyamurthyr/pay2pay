@@ -382,16 +382,26 @@ async def refund_recharge(
 
 
 # ---------------------------------------------------------------------
-# Utkal Digital Webhook Callback Endpoint
+# Common Universal Recharge Webhook Callback Endpoint
 # ---------------------------------------------------------------------
-class UtkalCallbackPayload(BaseModel):
-    Status: str
+class CommonRechargeCallbackPayload(BaseModel):
+    Status: Optional[str] = None
+    status: Optional[str] = None
     Description: Optional[str] = None
+    description: Optional[str] = None
     CustomerId: Optional[str] = None
+    customer_id: Optional[str] = None
     Amount: Optional[str] = None
+    amount: Optional[str] = None
     OpRefId: Optional[str] = None
+    op_ref_id: Optional[str] = None
+    operator_ref: Optional[str] = None
     TransId: Optional[str] = None
+    trans_id: Optional[str] = None
+    vendor_txn_id: Optional[str] = None
     RequestId: Optional[str] = None
+    request_id: Optional[str] = None
+    reference_id: Optional[str] = None
     TxnDate: Optional[str] = None
     Balance: Optional[str] = None
     ServiceName: Optional[str] = None
@@ -399,40 +409,83 @@ class UtkalCallbackPayload(BaseModel):
     ReverseDate: Optional[str] = None
 
 
+@router.post("/callback", response_model=Dict[str, Any])
 @router.post("/callback/utkal", response_model=Dict[str, Any])
-async def utkal_recharge_callback(
-    body: UtkalCallbackPayload,
+async def common_recharge_callback(
     request: Request,
+    body: Optional[CommonRechargeCallbackPayload] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Asynchronous Webhook Callback Receiver for Utkal Digital Recharge Gateway.
-    Processes POST callbacks for Pending -> Success or Pending -> Reversed/Failed.
+    Universal Asynchronous Webhook Callback Receiver for Telecom Recharge Gateways.
+    Endpoint: POST /api/v1/recharge/callback
     """
+    raw_data: Dict[str, Any] = {}
+    try:
+        raw_data = await request.json()
+    except Exception:
+        pass
+
+    # Extract fields supporting both standard and vendor-specific key variations
+    status_val = (
+        (body.Status if body and body.Status else None) or
+        (body.status if body and body.status else None) or
+        raw_data.get("Status") or raw_data.get("status") or ""
+    )
+    request_id = (
+        (body.RequestId if body and body.RequestId else None) or
+        (body.request_id if body and body.request_id else None) or
+        (body.reference_id if body and body.reference_id else None) or
+        raw_data.get("RequestId") or raw_data.get("request_id") or raw_data.get("reference_id")
+    )
+    trans_id = (
+        (body.TransId if body and body.TransId else None) or
+        (body.trans_id if body and body.trans_id else None) or
+        (body.vendor_txn_id if body and body.vendor_txn_id else None) or
+        raw_data.get("TransId") or raw_data.get("trans_id") or raw_data.get("vendor_txn_id")
+    )
+    op_ref_id = (
+        (body.OpRefId if body and body.OpRefId else None) or
+        (body.op_ref_id if body and body.op_ref_id else None) or
+        (body.operator_ref if body and body.operator_ref else None) or
+        raw_data.get("OpRefId") or raw_data.get("op_ref_id") or raw_data.get("operator_ref")
+    )
+    desc = (
+        (body.Description if body and body.Description else None) or
+        (body.description if body and body.description else None) or
+        raw_data.get("Description") or raw_data.get("description") or raw_data.get("message") or ""
+    )
+
     logger.info(
-        f"[UTKAL-CALLBACK] Received webhook notification: "
-        f"RequestId={body.RequestId}, TransId={body.TransId}, Status={body.Status}, OpRefId={body.OpRefId}, Desc={body.Description}"
+        f"[RECHARGE-COMMON-CALLBACK] Webhook notification received: "
+        f"RequestId={request_id}, TransId={trans_id}, Status={status_val}, OpRefId={op_ref_id}, Desc={desc}"
     )
 
     try:
         result = await RechargeService.process_vendor_callback(
             session=db,
-            request_id=body.RequestId,
-            vendor_trans_id=body.TransId,
-            status_str=body.Status,
-            op_ref_id=body.OpRefId,
-            description=body.Description
+            request_id=str(request_id) if request_id else None,
+            vendor_trans_id=str(trans_id) if trans_id else None,
+            status_str=str(status_val),
+            op_ref_id=str(op_ref_id) if op_ref_id else None,
+            description=str(desc) if desc else None
         )
         return {
+            "status": "SUCCESS" if result.get("success") else "FAILED",
             "Status": "Success" if result.get("success") else "Failed",
+            "message": result.get("message", "Callback processed successfully"),
             "Description": result.get("message", "Callback processed successfully"),
-            "RequestId": body.RequestId
+            "request_id": request_id,
+            "RequestId": request_id
         }
     except Exception as e:
-        logger.error(f"[UTKAL-CALLBACK] Error handling callback: {str(e)}", exc_info=True)
+        logger.error(f"[RECHARGE-COMMON-CALLBACK] Error handling callback: {str(e)}", exc_info=True)
         return {
+            "status": "FAILED",
             "Status": "Failed",
+            "message": f"Internal callback error: {str(e)}",
             "Description": f"Internal callback error: {str(e)}",
-            "RequestId": body.RequestId
+            "request_id": request_id,
+            "RequestId": request_id
         }
 
