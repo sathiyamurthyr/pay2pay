@@ -51,11 +51,17 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
       return;
     }
 
+    const targetId = verif.public_id || verif.id || verif.registration_id;
+    if (!targetId) {
+      setErrorMsg("Invalid verification ID.");
+      return;
+    }
+
     setErrorMsg("");
     setSubmitting(true);
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/admin/verification/requests/${verif.id}/action`, {
+      const res = await fetch(`${getApiBaseUrl()}/admin/verification/requests/${targetId}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -75,10 +81,9 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
       } else {
         setErrorMsg(data.detail || data.message || "Failed to process verification decision.");
       }
-    } catch {
+    } catch (err: any) {
       setSubmitting(false);
-      onRefresh();
-      onClose();
+      setErrorMsg(err?.message || "Network or server communication error. Please try again.");
     }
   };
 

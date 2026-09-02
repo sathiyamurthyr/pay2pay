@@ -29,6 +29,7 @@ export const RetailerVerificationDashboard: React.FC = () => {
   const [unreadNotifs, setUnreadNotifs] = useState<number>(0);
   const [selectedVerificationId, setSelectedVerificationId] = useState<string | null>(null);
   const [detailData, setDetailData] = useState<any>(null);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -47,30 +48,13 @@ export const RetailerVerificationDashboard: React.FC = () => {
       setRequests(data.items || []);
       setTotalCount(data.total || 0);
       setUnreadNotifs(data.unread_notifications || 0);
+      if (data.status_counts) {
+        setStatusCounts(data.status_counts);
+      }
     } catch {
       setLoading(false);
-      setRequests([
-        {
-          verification_id: "VER-1001",
-          registration_id: "REG-7013914767",
-          retailer_name: "Sathiya Murthy",
-          shop_name: "Sri Venkateswara Telecom",
-          mobile_number: "7013914767",
-          email: "retailer@pay2pay.in",
-          verification_status: activeTab,
-          account_status: "ONBOARDING",
-          retailer_status: "UNDER_REVIEW",
-          is_business: false,
-          pan_number: "ABCPE1234F",
-          state: "Tamil Nadu",
-          district: "Chennai",
-          risk_score: 15,
-          risk_category: "LOW",
-          priority: "NORMAL",
-          submitted_at: "2026-08-09T10:30:00Z"
-        }
-      ]);
-      setTotalCount(1);
+      setRequests([]);
+      setTotalCount(0);
     }
   };
 
@@ -85,45 +69,17 @@ export const RetailerVerificationDashboard: React.FC = () => {
       const data = await res.json();
       setDetailData(data);
     } catch {
-      setDetailData({
-        verification: {
-          id,
-          registration_id: "REG-7013914767",
-          retailer_name: "Sathiya Murthy",
-          mobile_number: "7013914767",
-          email: "retailer@pay2pay.in",
-          shop_name: "Sri Venkateswara Telecom",
-          verification_status: activeTab,
-          account_status: "ONBOARDING",
-          retailer_status: "UNDER_REVIEW",
-          is_business: false,
-          pan_number: "ABCPE1234F",
-          risk_score: 15,
-          risk_category: "LOW",
-          priority: "NORMAL",
-          submitted_at: "2026-08-09T10:30:00Z"
-        },
-        verifications_summary: {
-          pan: { number: "ABCPE1234F", holder_name: "SATHIYA MURTHY", status: "VERIFIED" },
-          gst: { status: "SKIPPED" },
-          aadhaar: { status: "VERIFIED" },
-          bank: { ifsc: "HDFC0001234", penny_drop: "VERIFIED" }
-        },
-        shop_details: { name: "Sri Venkateswara Telecom", category: "Recharge & FinTech", annual_turnover: "₹50 Lakhs - ₹1 Crore" },
-        address: { street: "100 GST Road", city: "Chennai", district: "Chengalpattu", state: "Tamil Nadu", pincode: "600045", latitude: 12.9249, longitude: 80.1000 },
-        history: [],
-        audits: []
-      });
+      setDetailData(null);
     }
   };
 
   const tabs = [
-    { id: "PENDING", label: "Pending", count: activeTab === "PENDING" ? totalCount : 0 },
-    { id: "UNDER_REVIEW", label: "Under Review", count: activeTab === "UNDER_REVIEW" ? totalCount : 0 },
-    { id: "APPROVED", label: "Approved", count: activeTab === "APPROVED" ? totalCount : 0 },
-    { id: "REJECTED", label: "Rejected", count: activeTab === "REJECTED" ? totalCount : 0 },
-    { id: "ON_HOLD", label: "On Hold", count: activeTab === "ON_HOLD" ? totalCount : 0 },
-    { id: "NEED_INFO", label: "Need More Info", count: activeTab === "NEED_INFO" ? totalCount : 0 }
+    { id: "PENDING", label: "Pending", count: statusCounts["PENDING"] ?? (activeTab === "PENDING" ? totalCount : 0) },
+    { id: "UNDER_REVIEW", label: "Under Review", count: statusCounts["UNDER_REVIEW"] ?? (activeTab === "UNDER_REVIEW" ? totalCount : 0) },
+    { id: "APPROVED", label: "Approved", count: statusCounts["APPROVED"] ?? (activeTab === "APPROVED" ? totalCount : 0) },
+    { id: "REJECTED", label: "Rejected", count: statusCounts["REJECTED"] ?? (activeTab === "REJECTED" ? totalCount : 0) },
+    { id: "ON_HOLD", label: "On Hold", count: statusCounts["ON_HOLD"] ?? (activeTab === "ON_HOLD" ? totalCount : 0) },
+    { id: "NEED_INFO", label: "Need More Info", count: statusCounts["NEED_INFO"] ?? (activeTab === "NEED_INFO" ? totalCount : 0) }
   ];
 
   return (

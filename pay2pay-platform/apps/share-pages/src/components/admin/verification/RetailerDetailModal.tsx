@@ -51,11 +51,17 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
       return;
     }
 
+    const targetId = verif.public_id || verif.id || verif.registration_id;
+    if (!targetId) {
+      setErrorMsg("Invalid verification ID.");
+      return;
+    }
+
     setErrorMsg("");
     setSubmitting(true);
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/admin/verification/requests/${verif.id}/action`, {
+      const res = await fetch(`${getApiBaseUrl()}/admin/verification/requests/${targetId}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -75,76 +81,75 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
       } else {
         setErrorMsg(data.detail || data.message || "Failed to process verification decision.");
       }
-    } catch {
+    } catch (err: any) {
       setSubmitting(false);
-      onRefresh();
-      onClose();
+      setErrorMsg(err?.message || "Network or server communication error. Please try again.");
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      <div className="relative w-full max-w-4xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Modal Top Bar */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-950/50">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 font-extrabold">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 font-extrabold">
               {verif.is_business ? <Building2 className="w-5 h-5" /> : <User className="w-5 h-5" />}
             </div>
             <div>
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
                 {verif.retailer_name}
                 <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase border ${
                   verif.verification_status === "APPROVED"
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                     : verif.verification_status === "REJECTED"
-                    ? "bg-red-500/10 border-red-500/30 text-red-400"
-                    : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                    ? "bg-rose-50 border-rose-200 text-rose-700"
+                    : "bg-amber-50 border-amber-200 text-amber-800"
                 }`}>
                   {verif.verification_status}
                 </span>
               </h2>
-              <p className="text-xs font-semibold text-slate-400">
-                Reg ID: <span className="text-blue-400 font-mono">{verif.registration_id}</span> · Mobile: <span className="text-white">+91 {verif.mobile_number}</span>
+              <p className="text-xs font-semibold text-slate-500">
+                Reg ID: <span className="text-blue-600 font-mono font-bold">{verif.registration_id}</span> · Mobile: <span className="text-slate-800 font-bold">+91 {verif.mobile_number}</span>
               </p>
             </div>
           </div>
 
-          <button onClick={onClose} className="p-2 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Action Decision Buttons Bar */}
-        <div className="p-4 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+        <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActionType("APPROVE")}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-emerald-600/20"
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Approve Retailer</span>
             </button>
             <button
               onClick={() => setActionType("ON_HOLD")}
-              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-amber-600/20"
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
             >
               <AlertTriangle className="w-4 h-4" />
               <span>Put On Hold</span>
             </button>
             <button
               onClick={() => setActionType("REJECT")}
-              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-red-600/20"
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
             >
               <XCircle className="w-4 h-4" />
               <span>Reject Application</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
             <span>Risk Score:</span>
-            <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-emerald-400 font-mono">{verif.risk_score}/100 ({verif.risk_category})</span>
+            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-black">{verif.risk_score}/100 ({verif.risk_category})</span>
           </div>
         </div>
 
@@ -153,56 +158,56 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
           
           {/* Grid 1: Verification Checks Checklist */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
               <p className="text-[10px] font-bold text-slate-500 uppercase">PAN Check</p>
-              <p className="font-black text-white">{verifSummary.pan?.number || "N/A"}</p>
-              <p className="text-[10px] text-emerald-400 font-extrabold flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> NSDL VERIFIED
+              <p className="font-black text-slate-900">{verifSummary.pan?.number || "N/A"}</p>
+              <p className="text-[10px] text-emerald-700 font-extrabold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> NSDL VERIFIED
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
               <p className="text-[10px] font-bold text-slate-500 uppercase">GSTIN Check</p>
-              <p className="font-black text-white">{verifSummary.gst?.number || "N/A"}</p>
-              <p className="text-[10px] text-purple-400 font-extrabold flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> {verif.is_business ? "GST VERIFIED" : "SKIPPED"}
+              <p className="font-black text-slate-900">{verifSummary.gst?.number || "N/A"}</p>
+              <p className="text-[10px] text-purple-700 font-extrabold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-purple-600" /> {verif.is_business ? "GST VERIFIED" : "SKIPPED"}
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
               <p className="text-[10px] font-bold text-slate-500 uppercase">Aadhaar eKYC</p>
-              <p className="font-black text-white">UIDAI OTP</p>
-              <p className="text-[10px] text-emerald-400 font-extrabold flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> AUTH SUCCESS
+              <p className="font-black text-slate-900">UIDAI OTP</p>
+              <p className="text-[10px] text-emerald-700 font-extrabold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> AUTH SUCCESS
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
               <p className="text-[10px] font-bold text-slate-500 uppercase">Bank Sync</p>
-              <p className="font-black text-white">{verifSummary.bank?.ifsc || "HDFC0001234"}</p>
-              <p className="text-[10px] text-emerald-400 font-extrabold flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> PENNY DROP OK
+              <p className="font-black text-slate-900">{verifSummary.bank?.ifsc || "HDFC0001234"}</p>
+              <p className="text-[10px] text-emerald-700 font-extrabold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> PENNY DROP OK
               </p>
             </div>
           </div>
 
           {/* Grid 2: Shop & Location Details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-              <h3 className="font-black text-white uppercase text-[11px] text-slate-400 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-blue-400" /> Shop Profile
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <h3 className="font-black uppercase text-[11px] text-slate-600 flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-blue-600" /> Shop Profile
               </h3>
-              <p className="text-sm font-black text-white">{shop.name || verif.shop_name}</p>
-              <p className="text-slate-400 font-semibold">Category: {shop.category}</p>
-              <p className="text-slate-400 font-semibold">Annual Turnover: {shop.annual_turnover}</p>
+              <p className="text-sm font-black text-slate-900">{shop.name || verif.shop_name}</p>
+              <p className="text-slate-600 font-semibold">Category: {shop.category}</p>
+              <p className="text-slate-600 font-semibold">Annual Turnover: {shop.annual_turnover}</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-              <h3 className="font-black text-white uppercase text-[11px] text-slate-400 flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-blue-400" /> Location & Address
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <h3 className="font-black uppercase text-[11px] text-slate-600 flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-blue-600" /> Location & Address
               </h3>
-              <p className="font-extrabold text-white">{addr.street}, {addr.city}, {addr.state} - {addr.pincode}</p>
-              <p className="text-slate-400 font-mono text-[11px]">
+              <p className="font-extrabold text-slate-900">{addr.street}, {addr.city}, {addr.state} - {addr.pincode}</p>
+              <p className="text-slate-500 font-mono text-[11px]">
                 GPS: {addr.latitude}°N, {addr.longitude}°E
               </p>
             </div>
@@ -211,10 +216,10 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
           {/* Grid 3: Media & Document Previews */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-black text-white uppercase text-[11px] text-slate-400 flex items-center gap-1.5">
-                <FileText className="w-4 h-4 text-blue-400" /> Compliance Media & Document Previews
+              <h3 className="font-black uppercase text-[11px] text-slate-600 flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-blue-600" /> Compliance Media & Document Previews
               </h3>
-              <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase">
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-black uppercase">
                 Verified Storage Stream
               </span>
             </div>
@@ -229,24 +234,24 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                 { title: "GSTIN Certificate", url: media.gst_proof_url, type: "GST_CERT", category: "Tax Certificate" },
                 { title: "Live Video KYC", url: media.video_url, type: "VIDEO", isVideo: true, category: "100% Liveness Match" },
               ].filter(doc => !!doc.url).map((doc, idx) => {
-                const isPdf = doc.url.toLowerCase().endsWith(".pdf");
-                const isVid = doc.isVideo || doc.url.toLowerCase().endsWith(".mp4") || doc.url.toLowerCase().endsWith(".webm");
+                const isPdf = doc.url.toLowerCase().includes(".pdf");
+                const isVid = doc.isVideo || doc.url.toLowerCase().includes(".mp4") || doc.url.toLowerCase().includes(".webm");
 
                 return (
                   <div
                     key={idx}
                     onClick={() => setViewingDoc(doc)}
-                    className="p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-blue-500/50 cursor-pointer group transition-all"
+                    className="p-3 rounded-2xl bg-slate-50 border border-slate-200 hover:border-blue-500 hover:shadow-xs cursor-pointer group transition-all"
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <p className="font-bold text-white text-[11px] truncate group-hover:text-blue-400">{doc.title}</p>
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-slate-400">
+                      <p className="font-bold text-slate-800 text-[11px] truncate group-hover:text-blue-600">{doc.title}</p>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
                         {isPdf ? "PDF" : isVid ? "MP4" : "IMG"}
                       </span>
                     </div>
-                    <div className="aspect-video rounded-xl bg-slate-900 flex items-center justify-center text-slate-500 overflow-hidden relative border border-slate-800/80">
+                    <div className="aspect-video rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 overflow-hidden relative border border-slate-200">
                       {isVid ? (
-                        <div className="relative w-full h-full flex items-center justify-center bg-slate-950">
+                        <div className="relative w-full h-full flex items-center justify-center bg-slate-900">
                           <video src={doc.url} muted preload="metadata" className="w-full h-full object-cover opacity-70" />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
@@ -255,9 +260,9 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                           </div>
                         </div>
                       ) : isPdf ? (
-                        <div className="flex flex-col items-center justify-center gap-1 text-slate-400">
-                          <FileText className="w-6 h-6 text-red-400" />
-                          <span className="text-[10px] font-bold text-slate-300">PDF Document</span>
+                        <div className="flex flex-col items-center justify-center gap-1 text-slate-500">
+                          <FileText className="w-6 h-6 text-rose-500" />
+                          <span className="text-[10px] font-bold text-slate-600">PDF Document</span>
                         </div>
                       ) : (
                         <BlurImage
@@ -268,7 +273,7 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                           imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       )}
-                      <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-extrabold text-[10px] backdrop-blur-[1px] transition-opacity">
+                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-black text-[10px] backdrop-blur-[1px] transition-opacity">
                         Click to Inspect
                       </div>
                     </div>
@@ -279,21 +284,21 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
           </div>
 
           {/* Timeline & Audit History */}
-          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-            <h3 className="font-black text-white uppercase text-[11px] text-slate-400 flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-blue-400" /> Verification Audit & Decision Trail
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <h3 className="font-black uppercase text-[11px] text-slate-600 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-blue-600" /> Verification Audit & Decision Trail
             </h3>
             <div className="space-y-2">
               {history.length === 0 ? (
-                <p className="text-slate-500 italic">No previous status changes recorded.</p>
+                <p className="text-slate-400 italic">No previous status changes recorded.</p>
               ) : (
                 history.map((h: any, idx: number) => (
-                  <div key={idx} className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-slate-300">
+                  <div key={idx} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-slate-700">
                     <div>
-                      <span className="font-bold text-white">{h.previous_status} → {h.new_status}</span>
-                      <p className="text-[11px] text-slate-400">Remarks: "{h.remarks}"</p>
+                      <span className="font-bold text-slate-900">{h.previous_status} → {h.new_status}</span>
+                      <p className="text-[11px] text-slate-500">Remarks: "{h.remarks}"</p>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-mono">{h.timestamp}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">{h.timestamp}</span>
                   </div>
                 ))
               )}
@@ -306,27 +311,27 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
 
       {/* Action Decision Mandatory Remarks Modal */}
       {actionType && (
-        <div className="fixed inset-0 z-60 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                Confirm Decision: <span className="text-blue-400">{actionType}</span>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                Confirm Decision: <span className="text-blue-600">{actionType}</span>
               </h3>
-              <button onClick={() => setActionType(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setActionType(null)} className="text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {errorMsg && (
-              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold flex items-center gap-2">
+              <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">
-                Mandatory Admin Comments / Remarks <span className="text-red-500">*</span>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Mandatory Admin Comments / Remarks <span className="text-rose-500">*</span>
               </label>
               <textarea
                 value={remarks}
@@ -336,14 +341,14 @@ export const RetailerDetailModal: React.FC<RetailerDetailModalProps> = ({ detail
                 }}
                 rows={4}
                 placeholder="Enter detailed compliance review comments..."
-                className="w-full p-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-blue-600"
+                className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
 
             <button
               onClick={handleExecuteAction}
               disabled={submitting || remarks.trim().length < 5}
-              className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md shadow-blue-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {submitting ? (
                 <>
