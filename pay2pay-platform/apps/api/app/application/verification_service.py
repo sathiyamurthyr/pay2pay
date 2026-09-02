@@ -198,11 +198,21 @@ class VerificationService:
         )
         unread_notifications = notif_q.scalar() or 0
 
+        # Aggregate status counts for all tabs
+        status_counts_q = await db.execute(
+            select(
+                RetailerVerificationModel.verification_status,
+                func.count(RetailerVerificationModel.id)
+            ).group_by(RetailerVerificationModel.verification_status)
+        )
+        status_counts = {row[0]: row[1] for row in status_counts_q.all()}
+
         return {
             "total": total,
             "page": page,
             "page_size": page_size,
             "unread_notifications": unread_notifications,
+            "status_counts": status_counts,
             "items": [
                 {
                     "verification_id": str(item.public_id),
@@ -232,62 +242,74 @@ class VerificationService:
     @staticmethod
     async def get_verification_detail(db: AsyncSession, verification_id: str) -> Dict[str, Any]:
         """Comprehensive Retailer 360 Verification Details."""
+        clean_id = str(verification_id).strip()
         conds = []
-        if str(verification_id).isdigit():
-            conds.append(RetailerVerificationModel.id == int(verification_id))
+        if clean_id.isdigit():
+            conds.append(RetailerVerificationModel.id == int(clean_id))
         
         try:
-            u = uuid.UUID(str(verification_id))
+            u = uuid.UUID(clean_id)
             conds.append(RetailerVerificationModel.public_id == u)
         except Exception:
             pass
 
-        clean_id = str(verification_id).strip()
         conds.append(RetailerVerificationModel.registration_id == clean_id)
         conds.append(RetailerVerificationModel.retailer_id == clean_id)
         conds.append(RetailerVerificationModel.mobile_number == clean_id)
         conds.append(RetailerVerificationModel.mobile_number == f"+91{clean_id}")
-        conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_id}%"))
+        if len(clean_id) >= 10:
+            conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_id}%"))
 
         q = await db.execute(
             select(RetailerVerificationModel).where(or_(*conds)).order_by(desc(RetailerVerificationModel.created_date))
         )
         verif = q.scalars().first()
         
-        # Fallback: Check RetailerModel or RegistrationDraftModel if not in RetailerVerificationModel
+        # Fallback: Check RegistrationDraftModel if not in RetailerVerificationModel
         if not verif:
+            draft_conds = [
+                RegistrationDraftModel.registration_id == clean_id,
+                RegistrationDraftModel.mobile_number == clean_id,
+                RegistrationDraftModel.mobile_number == f"+91{clean_id}"
+            ]
+            if clean_id.isdigit():
+                draft_conds.append(RegistrationDraftModel.id == int(clean_id))
+            try:
+                u_draft = uuid.UUID(clean_id)
+                draft_conds.append(RegistrationDraftModel.public_id == u_draft)
+            except Exception:
+                pass
+            if len(clean_id) >= 10:
+                draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_id}%"))
+
             r_draft_q = await db.execute(
-                select(RegistrationDraftModel).where(
-                    or_(
-                        RegistrationDraftModel.registration_id == clean_id,
-                        RegistrationDraftModel.mobile_number == clean_id,
-                        RegistrationDraftModel.mobile_number == f"+91{clean_id}",
-                        RegistrationDraftModel.mobile_number.like(f"%{clean_id}%"),
-                        RegistrationDraftModel.id == int(clean_id) if clean_id.isdigit() else False
-                    )
-                )
+                select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.created_date))
             )
             draft_rec = r_draft_q.scalars().first()
             if draft_rec:
+                draft_data = draft_rec.draft_data or {}
                 verif = RetailerVerificationModel(
-                    id=draft_rec.id,
+                    tenant_id=DEFAULT_TENANT_ID,
                     public_id=draft_rec.public_id if hasattr(draft_rec, "public_id") and draft_rec.public_id else uuid.uuid4(),
                     registration_id=draft_rec.registration_id,
-                    retailer_id=draft_rec.registration_id,
-                    retailer_name=draft_rec.draft_data.get("full_name") or draft_rec.draft_data.get("owner_name") or "Retailer Partner",
+                    retailer_id=f"RET-{draft_rec.registration_id[-6:]}" if draft_rec.registration_id else f"RET-{draft_rec.mobile_number[-6:]}",
+                    retailer_name=draft_data.get("full_name") or draft_data.get("owner_name") or "Retailer Partner",
                     mobile_number=draft_rec.mobile_number,
-                    email=draft_rec.draft_data.get("email") or "retailer@pay2pay.in",
-                    shop_name=draft_rec.draft_data.get("shop_name") or "Retailer Store",
-                    verification_status=draft_rec.status or "PENDING",
+                    email=draft_data.get("email") or "retailer@pay2pay.in",
+                    shop_name=draft_data.get("shop_name") or "Retailer Store",
+                    verification_status="PENDING",
                     account_status="ACTIVE" if draft_rec.status == "KYC_APPROVED" else "ONBOARDING",
                     retailer_status="ACTIVE" if draft_rec.status == "KYC_APPROVED" else "PENDING",
                     is_business=False,
-                    pan_number=draft_rec.draft_data.get("pan_number"),
-                    gst_number=draft_rec.draft_data.get("gst_number"),
+                    pan_number=draft_data.get("pan_number"),
+                    gst_number=draft_data.get("gst_number"),
                     risk_score=15,
-                    risk_category="LOW_RISK",
-                    priority="NORMAL"
+                    risk_category="LOW",
+                    priority="NORMAL",
+                    submitted_at=draft_rec.created_date or datetime.now(timezone.utc)
                 )
+                db.add(verif)
+                await db.flush()
 
         if not verif:
             return {"status": "ERROR", "message": "Verification request not found."}
@@ -471,30 +493,79 @@ class VerificationService:
             return {"status": "ERROR", "message": "Mandatory comments/remarks required for all verification decisions."}
 
         action_clean = action.upper()
+        clean_id = str(verification_id).strip()
 
         conds = []
-        if str(verification_id).isdigit():
-            conds.append(RetailerVerificationModel.id == int(verification_id))
+        if clean_id.isdigit():
+            conds.append(RetailerVerificationModel.id == int(clean_id))
         
         try:
-            u = uuid.UUID(str(verification_id))
+            u = uuid.UUID(clean_id)
             conds.append(RetailerVerificationModel.public_id == u)
         except Exception:
             pass
 
-        clean_id = str(verification_id).strip()
         conds.append(RetailerVerificationModel.registration_id == clean_id)
         conds.append(RetailerVerificationModel.retailer_id == clean_id)
         conds.append(RetailerVerificationModel.mobile_number == clean_id)
         conds.append(RetailerVerificationModel.mobile_number == f"+91{clean_id}")
-        conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_id}%"))
+        if len(clean_id) >= 10:
+            conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_id}%"))
 
         q = await db.execute(
             select(RetailerVerificationModel).where(or_(*conds)).order_by(desc(RetailerVerificationModel.created_date))
         )
-        verif = q.scalar_one_or_none()
+        verif = q.scalars().first()
+
+        # Fallback if not found in RetailerVerificationModel, check RegistrationDraftModel
         if not verif:
-            return {"status": "ERROR", "message": "Verification request not found."}
+            draft_conds = [
+                RegistrationDraftModel.registration_id == clean_id,
+                RegistrationDraftModel.mobile_number == clean_id,
+                RegistrationDraftModel.mobile_number == f"+91{clean_id}"
+            ]
+            if clean_id.isdigit():
+                draft_conds.append(RegistrationDraftModel.id == int(clean_id))
+            try:
+                u_draft = uuid.UUID(clean_id)
+                draft_conds.append(RegistrationDraftModel.public_id == u_draft)
+            except Exception:
+                pass
+            if len(clean_id) >= 10:
+                draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_id}%"))
+
+            r_draft_q = await db.execute(
+                select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.created_date))
+            )
+            draft_rec = r_draft_q.scalars().first()
+
+            if draft_rec:
+                draft_data = draft_rec.draft_data or {}
+                verif = RetailerVerificationModel(
+                    tenant_id=DEFAULT_TENANT_ID,
+                    public_id=draft_rec.public_id if hasattr(draft_rec, "public_id") and draft_rec.public_id else uuid.uuid4(),
+                    registration_id=draft_rec.registration_id,
+                    retailer_id=f"RET-{draft_rec.registration_id[-6:]}" if draft_rec.registration_id else f"RET-{draft_rec.mobile_number[-6:]}",
+                    retailer_name=draft_data.get("full_name") or draft_data.get("owner_name") or "Retailer Partner",
+                    mobile_number=draft_rec.mobile_number,
+                    email=draft_data.get("email") or "retailer@pay2pay.in",
+                    shop_name=draft_data.get("shop_name") or "Retailer Store",
+                    verification_status="PENDING",
+                    account_status="ONBOARDING",
+                    retailer_status="UNDER_REVIEW",
+                    is_business=False,
+                    pan_number=draft_data.get("pan_number"),
+                    gst_number=draft_data.get("gst_number"),
+                    risk_score=15,
+                    risk_category="LOW",
+                    priority="NORMAL",
+                    submitted_at=draft_rec.created_date or datetime.now(timezone.utc)
+                )
+                db.add(verif)
+                await db.flush()
+
+        if not verif:
+            return {"status": "ERROR", "message": f"Verification request for identifier '{verification_id}' not found."}
 
         prev_v_status = verif.verification_status
         prev_a_status = verif.account_status
@@ -506,8 +577,27 @@ class VerificationService:
             try:
                 await db.execute(
                     update(RegistrationDraftModel)
-                    .where(RegistrationDraftModel.registration_id == verif.registration_id)
+                    .where(
+                        or_(
+                            RegistrationDraftModel.registration_id == verif.registration_id,
+                            RegistrationDraftModel.mobile_number == verif.mobile_number
+                        )
+                    )
                     .values(status="KYC_APPROVED")
+                )
+            except Exception:
+                pass
+            try:
+                from app.infrastructure.db.models import RetailerModel
+                await db.execute(
+                    update(RetailerModel)
+                    .where(
+                        or_(
+                            RetailerModel.retailer_code == verif.retailer_id,
+                            RetailerModel.retailer_code == verif.registration_id
+                        )
+                    )
+                    .values(status="ACTIVE")
                 )
             except Exception:
                 pass
@@ -515,6 +605,19 @@ class VerificationService:
             verif.verification_status = "REJECTED"
             verif.account_status = "ONBOARDING"
             verif.retailer_status = "REJECTED"
+            try:
+                await db.execute(
+                    update(RegistrationDraftModel)
+                    .where(
+                        or_(
+                            RegistrationDraftModel.registration_id == verif.registration_id,
+                            RegistrationDraftModel.mobile_number == verif.mobile_number
+                        )
+                    )
+                    .values(status="REJECTED")
+                )
+            except Exception:
+                pass
         elif action_clean in ("ON_HOLD", "HOLD"):
             verif.verification_status = "ON_HOLD"
             verif.account_status = "ONBOARDING"
@@ -573,6 +676,7 @@ class VerificationService:
         return {
             "status": "SUCCESS",
             "verification_id": str(verif.id),
+            "public_id": str(verif.public_id),
             "verification_status": verif.verification_status,
             "account_status": verif.account_status,
             "retailer_status": verif.retailer_status,
@@ -583,16 +687,25 @@ class VerificationService:
     async def get_retailer_status(db: AsyncSession, identifier: str) -> Dict[str, Any]:
         """Fetches current verification status for Retailer Dashboard adaptation."""
 
+        clean_id = str(identifier).strip()
+        conds = [
+            RetailerVerificationModel.mobile_number == clean_id,
+            RetailerVerificationModel.mobile_number == f"+91{clean_id}",
+            RetailerVerificationModel.registration_id == clean_id,
+            RetailerVerificationModel.retailer_id == clean_id
+        ]
+        if clean_id.isdigit():
+            conds.append(RetailerVerificationModel.id == int(clean_id))
+        try:
+            u = uuid.UUID(clean_id)
+            conds.append(RetailerVerificationModel.public_id == u)
+        except Exception:
+            pass
+
         q = await db.execute(
-            select(RetailerVerificationModel).where(
-                or_(
-                    RetailerVerificationModel.mobile_number == identifier,
-                    RetailerVerificationModel.registration_id == identifier,
-                    RetailerVerificationModel.retailer_id == identifier
-                )
-            )
+            select(RetailerVerificationModel).where(or_(*conds)).order_by(desc(RetailerVerificationModel.created_date))
         )
-        verif = q.scalar_one_or_none()
+        verif = q.scalars().first()
         if not verif:
             return {
                 "verification_status": "PENDING",
@@ -619,6 +732,8 @@ class VerificationService:
                 VerificationStatusHistoryModel.verification_id == str(verif.id)
             ).order_by(desc(VerificationStatusHistoryModel.timestamp)).limit(1)
         )
+        latest_hist = hist_q.scalars().first()
+
         # Fetch connected company details
         company_name = "Platform HQ Enterprise Ltd"
         company_code = "HQ_COMP"

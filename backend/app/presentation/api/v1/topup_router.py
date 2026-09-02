@@ -20,6 +20,7 @@ import uuid
 import hashlib
 import asyncio
 import logging
+import json
 from decimal import Decimal
 from datetime import datetime, timezone, timedelta
 from datetime import date as datetime_date
@@ -98,10 +99,26 @@ def validate_topup_approval_date(
             return False, "Future-dated topup requests cannot be approved."
         return True, None
 
+
+def check_t1_approval_eligibility(topup: TopupRequestModel) -> Tuple[bool, bool, Optional[str]]:
+    """
+    Strict Financial Settlement Governance:
+    Evaluates whether a topup request is a POS T+1 mode and enforces that T+1 requests
+    CANNOT be approved on the current (T+0) day.
+    Returns: (is_pos_t1, can_approve, approval_block_reason)
+    """
+    payment_method = getattr(topup, "payment_method", "") or getattr(topup, "payment_mode", "") or ""
+    t1_flag = is_pos_t1(payment_method)
+    submitted_at = getattr(topup, "payment_date", None) or getattr(topup, "submitted_at", None) or getattr(topup, "created_date", None)
+    status_val = getattr(topup, "status", "PENDING") or "PENDING"
+    can_approve, reason = validate_topup_approval_date(payment_method, submitted_at, status_val)
+    return t1_flag, can_approve, reason
+
+
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update, func, or_, and_, desc, case
+from sqlalchemy import select, update, func, or_, and_, desc, case, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -1036,14 +1053,26 @@ async def get_admin_topup_requests(
                 admin_avail_bal = float(matched_w.get("available_balance") or 0.0)
                 admin_w_id = str(matched_w.get("public_id") or matched_w.get("id") or "")
                 admin_w_active = bool(matched_w.get("is_active", True))
+                matched_service = matched_w.get("service_name") or req_service
+                matched_service_code = matched_w.get("service_code") or req_service.upper()
+                matched_vendor = matched_w.get("vendor_name") or req_vendor
+                matched_vendor_code = matched_w.get("vendor_code") or req_vendor.upper()
             else:
                 admin_avail_bal = float(getattr(matched_w, "available_balance", 0.0) or 0.0)
                 admin_w_id = str(getattr(matched_w, "public_id", "") or getattr(matched_w, "id", ""))
                 admin_w_active = bool(getattr(matched_w, "is_active", True))
+                matched_service = getattr(matched_w, "service_name", None) or req_service
+                matched_service_code = getattr(matched_w, "service_code", None) or req_service.upper()
+                matched_vendor = getattr(matched_w, "vendor_name", None) or req_vendor
+                matched_vendor_code = getattr(matched_w, "vendor_code", None) or req_vendor.upper()
         else:
             admin_avail_bal = 0.0
             admin_w_id = None
             admin_w_active = False
+            matched_service = req_service
+            matched_service_code = req_service.upper()
+            matched_vendor = req_vendor
+            matched_vendor_code = req_vendor.upper()
 
         is_t1, is_date_eligible, date_block_reason = check_t1_approval_eligibility(topup)
         is_balance_eligible = (matched_w is not None and admin_w_active and admin_avail_bal >= received_val)
@@ -1051,7 +1080,7 @@ async def get_admin_topup_requests(
 
         if not is_date_eligible:
             can_app = False
-            block_reason = date_block_reason
+            block_reason = date_block_reason or "POS T1 requests can be approved from the next day (T+1)."
         elif matched_w is None:
             can_app = False
             block_reason = "Admin wallet configuration is not available for this Service and Vendor. Approval cannot continue."
@@ -1063,7 +1092,10 @@ async def get_admin_topup_requests(
             block_reason = "Admin balance is low. Please add funds to continue the approval."
         else:
             can_app = True
-            block_reason = ""
+            block_reason = None
+
+        req_cal_date = get_business_calendar_date(topup.submitted_at or topup.payment_date or topup.created_date)
+        curr_cal_date = get_business_calendar_date(datetime.now(timezone.utc))
 
         items.append({
             "id": str(topup.public_id),
@@ -1080,10 +1112,10 @@ async def get_admin_topup_requests(
             "payment_reference": topup.payment_reference,
             "payment_method": topup.payment_method or "POS - Instant",
             "payment_mode": topup.payment_method or "POS - Instant",
-            "service": matched_w.service_name if matched_w else req_service,
-            "service_code": matched_w.service_code if matched_w else req_service.upper(),
-            "vendor": matched_w.vendor_name if matched_w else req_vendor,
-            "vendor_code": matched_w.vendor_code if matched_w else req_vendor.upper(),
+            "service": matched_service,
+            "service_code": matched_service_code,
+            "vendor": matched_vendor,
+            "vendor_code": matched_vendor_code,
             "admin_wallet_id": admin_w_id,
             "admin_available_balance": admin_avail_bal,
             "is_pos_t1": is_t1,
@@ -1094,6 +1126,8 @@ async def get_admin_topup_requests(
             "can_approve": can_app if topup.status.upper() in ("PENDING", "UNDER_REVIEW") else False,
             "approval_block_reason": block_reason,
             "shortfall_amount": shortfall,
+            "request_date": req_cal_date.isoformat(),
+            "current_business_date": curr_cal_date.isoformat(),
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -1217,6 +1251,9 @@ async def get_topup_request_detail(
     can_app = sp_val.get("can_approve", True) if topup.status.upper() in ("PENDING", "UNDER_REVIEW") else False
     block_reason = sp_val.get("block_reason", "")
 
+    req_cal_date = get_business_calendar_date(topup.submitted_at or topup.payment_date or topup.created_date)
+    curr_cal_date = get_business_calendar_date(datetime.now(timezone.utc))
+
     return {
         "success": True,
         "data": {
@@ -1245,8 +1282,10 @@ async def get_topup_request_detail(
             "is_balance_eligible": sp_val.get("balance_eligible", True),
             "is_wallet_eligible": sp_val.get("wallet_eligible", True),
             "can_approve": can_app,
-            "approval_block_reason": block_reason,
+            "approval_block_reason": block_reason if (block_reason and not can_app) else None,
             "shortfall_amount": float(sp_val.get("shortfall_amount", 0.0)),
+            "request_date": req_cal_date.isoformat(),
+            "current_business_date": curr_cal_date.isoformat(),
             "payment_date": topup.payment_date.isoformat() if topup.payment_date else None,
             "slip_id": topup.slip_id,
             "slip_url": _resolve_slip_url(topup.slip_url, topup.slip_id),
@@ -1373,7 +1412,17 @@ async def approve_topup_request(
         err_text = str(sp_err)
         await db.rollback()
         # Parse clean user-facing error message
-        clean_msg = err_text.split("CONTEXT:")[0].replace("ERROR:", "").replace("RAISE EXCEPTION", "").strip()
+        clean_msg = err_text
+        if "RaiseError'>" in clean_msg:
+            clean_msg = clean_msg.split("RaiseError'>:")[-1].split("[SQL:")[0].strip()
+        elif "ERROR:" in clean_msg:
+            clean_msg = clean_msg.split("ERROR:")[-1].split("CONTEXT:")[0].split("[SQL:")[0].strip()
+        else:
+            clean_msg = clean_msg.split("CONTEXT:")[0].split("[SQL:")[0].replace("RAISE EXCEPTION", "").strip()
+
+        if "POS T1 requests can be approved" in clean_msg:
+            clean_msg = "POS T1 requests can be approved from the next day (T+1)."
+
         if any(marker in err_text for marker in [
             "Admin balance is low",
             "Admin balance is no longer sufficient",
