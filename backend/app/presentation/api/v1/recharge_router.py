@@ -379,3 +379,60 @@ async def refund_recharge(
         "success": res.get("success", True),
         "data": res
     }
+
+
+# ---------------------------------------------------------------------
+# Utkal Digital Webhook Callback Endpoint
+# ---------------------------------------------------------------------
+class UtkalCallbackPayload(BaseModel):
+    Status: str
+    Description: Optional[str] = None
+    CustomerId: Optional[str] = None
+    Amount: Optional[str] = None
+    OpRefId: Optional[str] = None
+    TransId: Optional[str] = None
+    RequestId: Optional[str] = None
+    TxnDate: Optional[str] = None
+    Balance: Optional[str] = None
+    ServiceName: Optional[str] = None
+    ServiceId: Optional[str] = None
+    ReverseDate: Optional[str] = None
+
+
+@router.post("/callback/utkal", response_model=Dict[str, Any])
+async def utkal_recharge_callback(
+    body: UtkalCallbackPayload,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Asynchronous Webhook Callback Receiver for Utkal Digital Recharge Gateway.
+    Processes POST callbacks for Pending -> Success or Pending -> Reversed/Failed.
+    """
+    logger.info(
+        f"[UTKAL-CALLBACK] Received webhook notification: "
+        f"RequestId={body.RequestId}, TransId={body.TransId}, Status={body.Status}, OpRefId={body.OpRefId}, Desc={body.Description}"
+    )
+
+    try:
+        result = await RechargeService.process_vendor_callback(
+            session=db,
+            request_id=body.RequestId,
+            vendor_trans_id=body.TransId,
+            status_str=body.Status,
+            op_ref_id=body.OpRefId,
+            description=body.Description
+        )
+        return {
+            "Status": "Success" if result.get("success") else "Failed",
+            "Description": result.get("message", "Callback processed successfully"),
+            "RequestId": body.RequestId
+        }
+    except Exception as e:
+        logger.error(f"[UTKAL-CALLBACK] Error handling callback: {str(e)}", exc_info=True)
+        return {
+            "Status": "Failed",
+            "Description": f"Internal callback error: {str(e)}",
+            "RequestId": body.RequestId
+        }
+

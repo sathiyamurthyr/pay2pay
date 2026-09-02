@@ -415,6 +415,73 @@ class RechargeService:
         return data
 
     @staticmethod
+    async def process_vendor_callback(
+        session: AsyncSession,
+        request_id: Optional[str],
+        vendor_trans_id: Optional[str],
+        status_str: str,
+        op_ref_id: Optional[str] = None,
+        description: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Process asynchronous telecom vendor callback (e.g. Utkal Digital POST callback).
+        Finds transaction by request_id (reference_id/transaction_id) or vendor_trans_id.
+        """
+        query = text("""
+            SELECT public_id, transaction_id, reference_id, status, recharge_amount
+            FROM public.recharge_transactions
+            WHERE (:req_id IS NOT NULL AND (reference_id = :req_id OR transaction_id = :req_id))
+               OR (:v_id IS NOT NULL AND vendor_transaction_id = :v_id)
+            LIMIT 1
+        """)
+        res = await session.execute(query, {"req_id": request_id, "v_id": vendor_trans_id})
+        txn = res.mappings().first()
+        if not txn:
+            logger.warning(f"Recharge callback received for unknown transaction. RequestId={request_id}, TransId={vendor_trans_id}")
+            return {"success": False, "message": "Transaction not found."}
+
+        current_status = txn["status"]
+        pub_id = txn["public_id"]
+        normalized_status = status_str.strip().lower()
+
+        if normalized_status == "success":
+            if current_status not in ("SUCCESS", "REVERSED", "REFUNDED"):
+                sp_fin = text("""
+                    SELECT * FROM public.sp_recharge_finalize_transaction(
+                        :p_id, 'SUCCESS', :v_name, :v_ref, :v_txnid, :op_ref, NULL
+                    )
+                """)
+                await session.execute(sp_fin, {
+                    "p_id": pub_id,
+                    "v_name": "UTKALDIGITAL",
+                    "v_ref": request_id or txn["reference_id"],
+                    "v_txnid": vendor_trans_id or "",
+                    "op_ref": op_ref_id or "",
+                })
+                await session.commit()
+                return {"success": True, "message": "Transaction finalized as SUCCESS via callback."}
+            else:
+                return {"success": True, "message": f"Transaction already in state {current_status}."}
+
+        elif normalized_status in ("reverse", "failed", "reversed"):
+            if current_status not in ("REVERSED", "REFUNDED", "FAILED"):
+                sp_rev = text("""
+                    SELECT * FROM public.sp_recharge_reverse_transaction(
+                        :p_id, :reason
+                    )
+                """)
+                await session.execute(sp_rev, {
+                    "p_id": pub_id,
+                    "reason": description or "Reversed by vendor callback notification."
+                })
+                await session.commit()
+                return {"success": True, "message": "Transaction reversed & refunded via callback."}
+            else:
+                return {"success": True, "message": f"Transaction already in state {current_status}."}
+
+        return {"success": True, "message": f"Unhandled callback status: {status_str}"}
+
+    @staticmethod
     async def get_receipt(
         session: AsyncSession,
         transaction_id: str
