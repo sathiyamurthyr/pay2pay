@@ -181,13 +181,18 @@ export default function NewCustomerWorkspacePage() {
   };
 
   useEffect(() => {
-    retailerApi.aadhaar.chargePreview("CUSTOMER_VERIFICATION")
-      .then((data) => {
-        if (data) setChargePreview(data);
-      })
-      .catch((err) => {
+    const fetchChargePreview = async () => {
+      try {
+        const previewFn = retailerApi.aadhaarKyc?.chargePreview || retailerApi.aadhaar?.chargePreview;
+        if (previewFn) {
+          const data = await previewFn("CUSTOMER_VERIFICATION");
+          if (data) setChargePreview(data);
+        }
+      } catch (err) {
         console.warn("Using fallback charge preview", err);
-      });
+      }
+    };
+    fetchChargePreview();
   }, []);
 
   useEffect(() => {

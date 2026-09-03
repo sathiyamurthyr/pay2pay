@@ -1682,6 +1682,47 @@ export const retailerApi = {
       return res.data?.data || res.data;
     },
   },
+
+  aadhaar: {
+    chargePreview: async (verificationContext: "ONBOARDING" | "CUSTOMER_VERIFICATION" = "CUSTOMER_VERIFICATION") => {
+      const res = await apiClient.get("/api/v1/payout-workflow/aadhaar/charge-preview", {
+        params: { verification_context: verificationContext },
+      });
+      return res.data?.data || res.data;
+    },
+    generateOtp: async (payload: {
+      aadhaar_number: string;
+      customer_id?: string | null;
+      retailer_id?: string | null;
+      verification_context?: "ONBOARDING" | "CUSTOMER_VERIFICATION";
+    }) => {
+      const res = await apiClient.post("/api/v1/payout-workflow/aadhaar-otp/generate", {
+        ...payload,
+        verification_context: payload.verification_context || "CUSTOMER_VERIFICATION",
+      });
+      return res.data?.data || res.data;
+    },
+    verifyOtp: async (payload: {
+      ref_id: string;
+      otp_code: string;
+      customer_id?: string | null;
+      aadhaar_number?: string | null;
+      retailer_id?: string | null;
+      verification_context?: "ONBOARDING" | "CUSTOMER_VERIFICATION";
+    }) => {
+      const res = await apiClient.post("/api/v1/payout-workflow/aadhaar-otp/verify", {
+        ...payload,
+        verification_context: payload.verification_context || "CUSTOMER_VERIFICATION",
+      });
+      return res.data?.data || res.data;
+    },
+    searchCustomer: async (query: string) => {
+      const res = await apiClient.get("/api/v1/payout-workflow/customers/search", {
+        params: { query },
+      });
+      return res.data?.data || res.data;
+    },
+  },
 };
 
 function round2(val: number) {
