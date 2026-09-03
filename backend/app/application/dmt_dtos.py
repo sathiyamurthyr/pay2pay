@@ -23,6 +23,10 @@ class DmtChargeCalculateResponse(BaseModel):
     net_beneficiary_credit: float
     retailer_commission: float
     distributor_commission: float
+    payout_amount: Optional[float] = None
+    gst: Optional[float] = None
+    total_charge: Optional[float] = None
+    total_wallet_debit: Optional[float] = None
 
 
 # ── Transfer Initiation ───────────────────────────────────────────────────────

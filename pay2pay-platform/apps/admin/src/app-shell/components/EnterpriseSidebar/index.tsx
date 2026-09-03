@@ -314,7 +314,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         ) : (
                           <IconButton
                             size="small"
-                            onClick={(e) => toggleFavorite(item.path, e)}
+                            onClick={(e) => toggleFavorite(item.path, e, item.label, "Favorites")}
                             sx={{ p: 0.5, color: isFav ? "#FFD54F" : "rgba(255,255,255,0.5)" }}
                           >
                             <StarIcon sx={{ fontSize: 18 }} />
@@ -412,20 +412,36 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                       {!isCollapsed && (
                         locked ? (
                           <LockIcon sx={{ fontSize: 14, color: "rgba(245, 158, 11, 0.6)", flexShrink: 0 }} />
-                        ) : item.badge ? (
-                          <Chip
-                            label={item.badge}
-                            size="small"
-                            sx={{
-                              bgcolor: "rgba(59, 130, 246, 0.25)",
-                              color: "#60A5FA",
-                              fontWeight: 800,
-                              fontSize: "12px",
-                              height: 22,
-                              flexShrink: 0,
-                            }}
-                          />
-                        ) : null
+                        ) : (
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            {item.badge && (
+                              <Chip
+                                label={item.badge}
+                                size="small"
+                                sx={{
+                                  bgcolor: "rgba(59, 130, 246, 0.25)",
+                                  color: "#60A5FA",
+                                  fontWeight: 800,
+                                  fontSize: "12px",
+                                  height: 22,
+                                  flexShrink: 0,
+                                }}
+                              />
+                            )}
+                            <IconButton
+                              size="small"
+                              onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
+                              sx={{
+                                p: 0.5,
+                                color: favorites.includes(item.path) ? "#FFD54F" : "rgba(255, 255, 255, 0.25)",
+                                "&:hover": { color: "#FFD54F" },
+                              }}
+                              title={favorites.includes(item.path) ? "Remove from Favorites" : "Add to Favorites"}
+                            >
+                              <StarIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Stack>
+                        )
                       )}
                     </Box>
                   </Tooltip>

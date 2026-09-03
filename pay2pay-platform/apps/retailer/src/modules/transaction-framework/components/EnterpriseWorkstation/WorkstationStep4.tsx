@@ -387,8 +387,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     await markStep(6, "s7", currentTxnId ? `Status: INITIATED · Txn: ${currentTxnId}` : "Status: INITIATED — Routing via Bank DirectSwitch", 70, 90);
 
     // Step 8: Debiting Retailer Wallet (s8)
-    const gstCalc = Math.round(charges * 0.18);
-    const netDebitCalc = amount + charges + gstCalc;
+    const gstCalc = 3.00;
+    const netDebitCalc = totalPayable || (amount + (charges || 22.00) + gstCalc);
     await markStep(7, "s8", `ACID Balance Reservation: ₹${netDebitCalc.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 70, 90);
 
     // Step 9: Posting Double Entry Ledger (s9)
@@ -560,8 +560,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentPin, isLocked, viewState, supervisorModalOpen]);
 
-  const gst = Math.round(charges * 0.18);
-  const totalAmountPaid = amount + charges + gst;
+  const gst = 3.00;
+  const totalAmountPaid = totalPayable || (amount + (charges || 22.00) + gst);
 
   const modeIcons: Record<string, string> = {
     IMPS: "⚡ IMPS",

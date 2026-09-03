@@ -230,11 +230,18 @@ class CentralTransactionService:
             tds_amount = float(tds_val)
             net_amount = float((amount_d + comm_val + vc_val + oth_val + gst_val).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
         else:
-            charges = 0.0
-            gst_amount = 0.0
-            commission = 0.0
-            tds_amount = 0.0
-            net_amount = float(amount_d)
+            if service_type == "PAYOUT":
+                charges = 22.0
+                gst_amount = 3.0
+                commission = 22.0
+                tds_amount = 0.0
+                net_amount = float(amount_d + Decimal("25.00"))
+            else:
+                charges = 0.0
+                gst_amount = 0.0
+                commission = 0.0
+                tds_amount = 0.0
+                net_amount = float(amount_d)
 
         # =====================================================================
         # 3. Dynamic Reference Generation

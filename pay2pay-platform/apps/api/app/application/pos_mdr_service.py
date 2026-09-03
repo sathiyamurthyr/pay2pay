@@ -250,28 +250,32 @@ class PosMdrService:
                 detail="Configured GST rate cannot be negative."
             )
 
-        # 1. MDR Charge Calculation
+        # Configured percentage represents the TOTAL charge inclusive of 18% GST
+        gst_rate = Decimal("18.00")
+        divisor = Decimal("1.18")
+
+        # 1. Total Charge Calculation (Admin-configured percentage inclusive of 18% GST)
         if mdr_type == "PERCENTAGE":
-            raw_mdr_charge = (amt_dec * mdr_val) / Decimal("100")
+            raw_total_charge = (amt_dec * mdr_val) / Decimal("100")
         else:
-            raw_mdr_charge = mdr_val
+            raw_total_charge = mdr_val
 
-        # 2. GST Calculation on MDR Charge
-        raw_gst = (raw_mdr_charge * gst_rate) / Decimal("100")
+        # 2. MDR Amount = Total Charge / 1.18
+        raw_mdr = raw_total_charge / divisor
 
-        # 3. Charges = MDR Charge
-        raw_charges = raw_mdr_charge
+        # 3. GST Amount = MDR Amount * 18%
+        raw_gst = raw_mdr * Decimal("0.18")
 
-        # 4. Received Amount = Transaction Amount - (Charges + GST)
-        raw_received_amount = amt_dec - (raw_charges + raw_gst)
+        # 4. Net Settlement Amount = Transaction Amount - Total Charge
+        raw_received_amount = amt_dec - raw_total_charge
 
         # Quantize to 2 decimal places with standard financial rounding
         two_places = Decimal("0.01")
         quant_amt = amt_dec.quantize(two_places, rounding=ROUND_HALF_UP)
-        quant_mdr = raw_mdr_charge.quantize(two_places, rounding=ROUND_HALF_UP)
+        quant_charges = raw_total_charge.quantize(two_places, rounding=ROUND_HALF_UP)
+        quant_mdr = raw_mdr.quantize(two_places, rounding=ROUND_HALF_UP)
         quant_gst = raw_gst.quantize(two_places, rounding=ROUND_HALF_UP)
-        quant_charges = raw_charges.quantize(two_places, rounding=ROUND_HALF_UP)
-        quant_received = raw_received_amount.quantize(two_places, rounding=ROUND_HALF_UP)
+        quant_received = (quant_amt - quant_charges).quantize(two_places, rounding=ROUND_HALF_UP)
 
         return {
             "payment_mode": mdr_config.payment_mode,

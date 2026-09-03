@@ -103,11 +103,11 @@ class DmtService:
 
     @staticmethod
     def calculate_charges(req: DmtChargeCalculateRequest) -> DmtChargeCalculateResponse:
-        # Standard DMT Charge: 1% of transfer amount, minimum ₹10, maximum ₹50
-        raw_charge = req.transfer_amount * 0.01
-        charge = max(10.0, min(50.0, raw_charge))
-        gst = 0.00
-        total_debit = req.transfer_amount + charge
+        # Default Payout / DMT Charge: Base ₹22.00, GST ₹3.00, Total Fee ₹25.00
+        charge = 22.00
+        gst = 3.00
+        total_fee = charge + gst
+        total_debit = req.transfer_amount + total_fee
         net_credit = req.transfer_amount
 
         # Commission distribution
@@ -123,6 +123,10 @@ class DmtService:
             net_beneficiary_credit=net_credit,
             retailer_commission=retailer_comm,
             distributor_commission=distributor_comm,
+            payout_amount=req.transfer_amount,
+            gst=gst,
+            total_charge=total_fee,
+            total_wallet_debit=total_debit,
         )
 
     # ── Transfer Initiation ───────────────────────────────────────────────────

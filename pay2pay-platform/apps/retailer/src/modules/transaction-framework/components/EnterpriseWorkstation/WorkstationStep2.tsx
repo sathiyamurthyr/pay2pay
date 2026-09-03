@@ -32,6 +32,7 @@ import { retailerApi } from "@/services/retailer-api";
 
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -44,7 +45,6 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import CheckIcon from "@mui/icons-material/Check";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData, deduplicateBeneficiaries } from "../../hooks/useBeneficiary";
@@ -205,6 +205,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
 
   const livePricingResult = useMemo(() => {
     return RuleEngineService.evaluatePricing({
+      service: "DMT",
       amount,
       transactionMode: selectedMode,
       walletBalance: currentWalletBalance,
@@ -253,13 +254,36 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
   const fee = Number(pricingResult?.convenienceFee ?? 0);
   const gst = Number(pricingResult?.gstAmount ?? 0);
   const totalDebit =
-    amount > 0 ? Number(pricingResult?.totalDebit ?? pricingResult?.totalPayable ?? amount + fee + gst) : 0;
+    amount > 0 ? Number(pricingResult?.totalPayable ?? amount + fee + gst) : 0;
   const hasLimitBreach =
     amount > 0 &&
     (amount > (pricingResult?.dailyLimitRemaining ?? 0) || amount > (pricingResult?.monthlyLimitRemaining ?? 0));
   const hasInsufficientWallet = amount > 0 && totalDebit > (pricingResult?.walletBalance ?? 0);
 
-  const cleanBeneficiaries = useMemo(() => deduplicateBeneficiaries(beneficiaries), [beneficiaries]);
+  const [localBeneficiaries, setLocalBeneficiaries] = useState<BeneficiaryData[]>(beneficiaries);
+  useEffect(() => {
+    setLocalBeneficiaries(beneficiaries);
+  }, [beneficiaries]);
+
+  const handleToggleBeneficiaryFavorite = async (bId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setLocalBeneficiaries((prev) =>
+      prev.map((b) => (b.id === bId ? { ...b, isFavorite: !b.isFavorite } : b))
+    );
+    try {
+      await retailerApi.toggleBeneficiaryFavorite(bId);
+    } catch (err) {
+      console.error("Failed to toggle beneficiary favorite in DB:", err);
+      setLocalBeneficiaries((prev) =>
+        prev.map((b) => (b.id === bId ? { ...b, isFavorite: !b.isFavorite } : b))
+      );
+    }
+  };
+
+  const cleanBeneficiaries = useMemo(() => deduplicateBeneficiaries(localBeneficiaries), [localBeneficiaries]);
 
   // Filter and Sort Beneficiaries
   const filteredBeneficiaries = useMemo(() => {
@@ -640,7 +664,18 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                               >
                                 {b.name}
                               </Typography>
-                              {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 14 }} />}
+                              <IconButton
+                                size="small"
+                                onClick={(e) => handleToggleBeneficiaryFavorite(b.id, e)}
+                                sx={{ p: 0.25 }}
+                                title={b.isFavorite ? "Remove from Favorites" : "Mark as Favorite"}
+                              >
+                                {b.isFavorite ? (
+                                  <StarIcon sx={{ color: "#FBBF24", fontSize: 16 }} />
+                                ) : (
+                                  <StarBorderIcon sx={{ color: "rgba(255, 255, 255, 0.3)", fontSize: 16, "&:hover": { color: "#FBBF24" } }} />
+                                )}
+                              </IconButton>
                             </Box>
                             <Typography sx={{ color: "#60A5FA", fontSize: "11.5px", fontWeight: 700 }}>
                               {b.bankName}
@@ -898,7 +933,18 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                                       <Typography sx={{ fontWeight: 800, color: isSelected ? "#FDE68A" : "#FFFFFF", fontSize: "13px", lineHeight: 1.2 }}>
                                         {b.name}
                                       </Typography>
-                                      {b.isFavorite && <StarIcon sx={{ color: "#FBBF24", fontSize: 14 }} />}
+                                      <IconButton
+                                size="small"
+                                onClick={(e) => handleToggleBeneficiaryFavorite(b.id, e)}
+                                sx={{ p: 0.25 }}
+                                title={b.isFavorite ? "Remove from Favorites" : "Mark as Favorite"}
+                              >
+                                {b.isFavorite ? (
+                                  <StarIcon sx={{ color: "#FBBF24", fontSize: 16 }} />
+                                ) : (
+                                  <StarBorderIcon sx={{ color: "rgba(255, 255, 255, 0.3)", fontSize: 16, "&:hover": { color: "#FBBF24" } }} />
+                                )}
+                              </IconButton>
                                     </Stack>
                                   </Box>
                                 </Stack>

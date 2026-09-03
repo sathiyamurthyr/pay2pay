@@ -102,64 +102,34 @@ let currentConfig: DynamicPricingConfig = {
   status: "ACTIVE",
   slabs: [
     {
-      id: "SLAB-0-4999",
+      id: "SLAB-0-500000",
       minAmount: 0,
-      maxAmount: 4999,
-      fee: 10,
+      maxAmount: 500000,
+      fee: 22,
       feeType: "FIXED",
-      gstEnabled: false,
+      gstEnabled: true,
       gstPercentage: 0.0,
       tdsEnabled: false,
       tdsPercentage: 0.0,
-      commission: 15,
+      commission: 0,
       commissionType: "FIXED",
       settlementFee: 0,
       priority: 1,
     },
     {
-      id: "SLAB-5000-9999",
-      minAmount: 5000,
-      maxAmount: 9999,
-      fee: 15,
+      id: "SLAB-500001-1000000",
+      minAmount: 500001,
+      maxAmount: 1000000,
+      fee: 22,
       feeType: "FIXED",
-      gstEnabled: false,
+      gstEnabled: true,
       gstPercentage: 0.0,
       tdsEnabled: false,
       tdsPercentage: 0.0,
-      commission: 17.5,
+      commission: 0,
       commissionType: "FIXED",
       settlementFee: 0,
       priority: 2,
-    },
-    {
-      id: "SLAB-10000-49999",
-      minAmount: 10000,
-      maxAmount: 49999,
-      fee: 20,
-      feeType: "FIXED",
-      gstEnabled: false,
-      gstPercentage: 0.0,
-      tdsEnabled: false,
-      tdsPercentage: 0.0,
-      commission: 35,
-      commissionType: "FIXED",
-      settlementFee: 0,
-      priority: 3,
-    },
-    {
-      id: "SLAB-50000-99999",
-      minAmount: 50000,
-      maxAmount: 99999,
-      fee: 25,
-      feeType: "FIXED",
-      gstEnabled: false,
-      gstPercentage: 0.0,
-      tdsEnabled: false,
-      tdsPercentage: 0.0,
-      commission: 175,
-      commissionType: "FIXED",
-      settlementFee: 0,
-      priority: 4,
     },
   ],
 };
@@ -298,7 +268,11 @@ export class RuleEngineService {
         ? Number(((amount * matchingSlab.fee * modeMultiplier) / 100).toFixed(2))
         : Number((matchingSlab.fee * modeMultiplier).toFixed(2));
 
-    const gstAmount = matchingSlab.gstEnabled ? Number(((convenienceFee * matchingSlab.gstPercentage) / 100).toFixed(2)) : 0;
+    const gstAmount = matchingSlab.gstEnabled
+      ? matchingSlab.gstPercentage > 0
+        ? Number(((convenienceFee * matchingSlab.gstPercentage) / 100).toFixed(2))
+        : 3.0
+      : 0;
     const tdsAmount = matchingSlab.tdsEnabled ? Number(((convenienceFee * matchingSlab.tdsPercentage) / 100).toFixed(2)) : 0;
 
     const commission =

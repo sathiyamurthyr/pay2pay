@@ -353,17 +353,55 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   // recent-activity auto-fetch REMOVED — was firing on every layout mount with no consumer.
   // Activity data is loaded on-demand from the dashboard page when the user requests it.
 
+  // Load favorite menus from local cache + PostgreSQL DB via Stored Procedure sp_get_user_favorite_menus
   useEffect(() => {
+    let isSubscribed = true;
     try {
       const saved = localStorage.getItem("p2p_sidebar_favorites");
       if (saved) {
-        setFavorites(JSON.parse(saved));
-      } else {
-        setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setFavorites(parsed);
+        }
       }
-    } catch {
-      setFavorites(["/retailer-dashboard", "/retailer/dmt", "/retailer/wallet"]);
-    }
+    } catch {}
+
+    const fetchDbFavorites = async () => {
+      try {
+        const userRefId =
+          (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") : null) ||
+          (() => {
+            try {
+              const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+              if (raw) {
+                const u = JSON.parse(raw);
+                return u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+              }
+            } catch {}
+            return null;
+          })();
+
+        if (!userRefId) return;
+
+        const res = await retailerApi.getFavoriteMenus(String(userRefId));
+        if (res && res.favorites && Array.isArray(res.favorites) && isSubscribed) {
+          const hrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
+          if (hrefs.length > 0) {
+            setFavorites(hrefs);
+            try {
+              localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(hrefs));
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.warn("Notice: DB favorites fetch fallback:", err);
+      }
+    };
+
+    fetchDbFavorites();
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
 
   // Global Lock Screen Keyboard Shortcut (Ctrl+L / Cmd+L)
@@ -378,16 +416,56 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [lockSession]);
 
-  const toggleFavorite = (path: string, e: React.MouseEvent) => {
+  const toggleFavorite = (path: string, e: React.MouseEvent, itemLabel?: string, itemCategory?: string) => {
     e.stopPropagation();
     e.preventDefault();
-    setFavorites((prev) => {
-      const updated = prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path];
-      try {
-        localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
+    const isCurrentlyFav = favorites.includes(path);
+    const updated = isCurrentlyFav ? favorites.filter((p) => p !== path) : [...favorites, path];
+
+    // Optimistic UI state update
+    setFavorites(updated);
+    try {
+      localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(updated));
+    } catch {}
+
+    // Asynchronously persist to PostgreSQL DB via Stored Procedure sp_toggle_user_favorite_menu
+    const userRefId =
+      (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") : null) ||
+      (() => {
+        try {
+          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            return u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+          }
+        } catch {}
+        return null;
+      })();
+
+    if (!userRefId) return;
+
+    retailerApi
+      .toggleFavoriteMenu({
+        user_ref_id: String(userRefId),
+        menu_href: path,
+        menu_label: itemLabel || path,
+        menu_category: itemCategory || "General",
+        user_role: "RETAILER",
+      })
+      .then((res: any) => {
+        if (res && res.favorites && Array.isArray(res.favorites) && res.favorites.length > 0) {
+          const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
+          if (dbHrefs.length > 0) {
+            setFavorites(dbHrefs);
+            try {
+              localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
+            } catch {}
+          }
+        }
+      })
+      .catch((err: any) => {
+        console.warn("Notice: DB favorite sync:", err);
+      });
   };
 
   // Auto-close mobile drawer on route change
@@ -676,7 +754,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             <IconButton
                               size="small"
                               className="fav-star"
-                              onClick={(e) => toggleFavorite(item.path, e)}
+                              onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
                               sx={{ p: 0.3, color: "#FFD54F" }}
                             >
                               <StarIcon sx={{ fontSize: 16 }} />
@@ -814,7 +892,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                             <IconButton
                               size="small"
                               className="fav-star"
-                              onClick={(e) => toggleFavorite(item.path, e)}
+                              onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
                               sx={{
                                 p: 0.3,
                                 color: isFav ? "#FFD54F" : "rgba(255, 255, 255, 0.4)",
