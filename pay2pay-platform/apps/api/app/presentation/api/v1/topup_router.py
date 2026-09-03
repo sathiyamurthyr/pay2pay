@@ -994,9 +994,9 @@ async def get_admin_topup_requests(
             wallet_lookup[(s_code, v_code)] = w_dict
             wallet_lookup[(s_name, v_name)] = w_dict
             wallet_lookup[(s_code, v_name)] = w_dict
-            if s_code == "PAYOUT" and "UTKAL" in (v_code + v_name):
+            if s_code == "PAYOUT" and ("URBAN" in (v_code + v_name)):
                 default_payout_wallet = w_dict
-            if not default_payout_wallet:
+            elif s_code == "PAYOUT" and not default_payout_wallet:
                 default_payout_wallet = w_dict
     except Exception as sp_err:
         logger.warning(f"Failed to fetch admin wallets from SP: {sp_err}")
@@ -1008,9 +1008,9 @@ async def get_admin_topup_requests(
                 wallet_lookup[(w.service_code.upper(), w.vendor_code.upper())] = w
                 wallet_lookup[(w.service_name.upper(), w.vendor_name.upper())] = w
                 wallet_lookup[(w.service_code.upper(), w.vendor_name.upper())] = w
-                if w.service_code.upper() == "PAYOUT" and "UTKAL" in w.vendor_code.upper():
+                if w.service_code.upper() == "PAYOUT" and "URBAN" in (w.vendor_code + w.vendor_name).upper():
                     default_payout_wallet = w
-                if not default_payout_wallet:
+                elif w.service_code.upper() == "PAYOUT" and not default_payout_wallet:
                     default_payout_wallet = w
         except Exception as mod_err:
             logger.warning(f"Failed to fetch admin wallets from model: {mod_err}")
@@ -1034,9 +1034,9 @@ async def get_admin_topup_requests(
             base_mdr = float(topup.charges) if not topup.gst_amount else float(topup.charges) - float(topup.gst_amount)
             mdr_pct = round((max(0.0, base_mdr) / float(topup.requested_amount)) * 100, 2)
 
-        # Dynamic Service & Vendor Resolution
+        # Dynamic Service & Vendor Resolution (Defaults to Priority 1 UrbanRupee Payout)
         req_service = "Payout"
-        req_vendor = "Utkal"
+        req_vendor = "UrbanRupee"
         if meta and isinstance(meta, dict):
             if meta.get("service_name"):
                 req_service = meta.get("service_name")
@@ -1272,8 +1272,8 @@ async def get_topup_request_detail(
             "payment_mode": topup.payment_method or "POS - Instant",
             "service": sp_val.get("service", "Payout"),
             "service_code": sp_val.get("service_code", "PAYOUT"),
-            "vendor": sp_val.get("vendor", "Utkal"),
-            "vendor_code": sp_val.get("vendor_code", "UTKAL"),
+            "vendor": sp_val.get("vendor", "UrbanRupee"),
+            "vendor_code": sp_val.get("vendor_code", "URBANRUPEE"),
             "admin_wallet_id": sp_val.get("admin_wallet_id"),
             "admin_available_balance": float(sp_val.get("admin_available_balance", 0.0)),
             "is_pos_t1": is_t1,
@@ -1453,28 +1453,44 @@ async def approve_topup_request(
     # 6. Admin Service + Vendor Wallet Balance Verification and Deduction
     meta = topup_record.metadata_json or {}
     req_service = meta.get("service_name") or meta.get("service") or "Payout"
-    req_vendor = meta.get("vendor_name") or meta.get("vendor") or "Utkal"
+    req_vendor = meta.get("vendor_name") or meta.get("vendor") or "UrbanRupee"
 
     admin_w_stmt = select(AdminServiceVendorWalletModel).where(
         AdminServiceVendorWalletModel.is_deleted == False,
         func.upper(AdminServiceVendorWalletModel.service_code) == req_service.upper(),
         or_(
             func.upper(AdminServiceVendorWalletModel.vendor_code) == req_vendor.upper(),
-            func.upper(AdminServiceVendorWalletModel.vendor_name) == req_vendor.upper()
+            func.upper(AdminServiceVendorWalletModel.vendor_name) == req_vendor.upper(),
+            func.upper(AdminServiceVendorWalletModel.vendor_code).like(f"%{req_vendor.upper()}%"),
+            func.upper(AdminServiceVendorWalletModel.vendor_name).like(f"%{req_vendor.upper()}%")
         )
     ).with_for_update()
     admin_w_res = await db.execute(admin_w_stmt)
     admin_wallet = admin_w_res.scalars().first()
 
     if not admin_wallet:
-        # Fallback to Payout + Utkal
+        # Fallback 1: Priority 1 Payout Provider (UrbanRupee)
         fallback_stmt = select(AdminServiceVendorWalletModel).where(
             AdminServiceVendorWalletModel.is_deleted == False,
+            AdminServiceVendorWalletModel.is_active == True,
             func.upper(AdminServiceVendorWalletModel.service_code) == "PAYOUT",
-            AdminServiceVendorWalletModel.vendor_code == "UTKAL"
+            or_(
+                AdminServiceVendorWalletModel.vendor_code == "URBANRUPEE",
+                AdminServiceVendorWalletModel.vendor_name.ilike("%UrbanRupee%")
+            )
         ).with_for_update()
         fallback_res = await db.execute(fallback_stmt)
         admin_wallet = fallback_res.scalars().first()
+
+    if not admin_wallet:
+        # Fallback 2: Any active Payout wallet
+        fallback_stmt2 = select(AdminServiceVendorWalletModel).where(
+            AdminServiceVendorWalletModel.is_deleted == False,
+            AdminServiceVendorWalletModel.is_active == True,
+            func.upper(AdminServiceVendorWalletModel.service_code) == "PAYOUT"
+        ).order_by(AdminServiceVendorWalletModel.available_balance.desc()).with_for_update()
+        fallback_res2 = await db.execute(fallback_stmt2)
+        admin_wallet = fallback_res2.scalars().first()
 
     if not admin_wallet:
         raise HTTPException(

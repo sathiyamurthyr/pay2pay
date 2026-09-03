@@ -5,7 +5,7 @@ import uuid
 from typing import Optional, List, Dict, Any, Tuple
 from fastapi import APIRouter, Depends, Body, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import text, select
+from sqlalchemy import text, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -69,7 +69,19 @@ async def get_admin_operation_wallets(
     # ORM Fallback
     stmt = select(AdminServiceVendorWalletModel).where(
         AdminServiceVendorWalletModel.is_deleted == False
-    ).order_by(AdminServiceVendorWalletModel.service_code.asc(), AdminServiceVendorWalletModel.id.asc())
+    ).order_by(
+        case(
+            (
+                (AdminServiceVendorWalletModel.service_code.ilike("%PAYOUT%")) &
+                (AdminServiceVendorWalletModel.vendor_code.ilike("%URBAN%")),
+                1
+            ),
+            (AdminServiceVendorWalletModel.service_code.ilike("%PAYOUT%"), 2),
+            else_=3
+        ).asc(),
+        AdminServiceVendorWalletModel.service_code.asc(),
+        AdminServiceVendorWalletModel.id.asc()
+    )
 
     if service:
         stmt = stmt.where(
