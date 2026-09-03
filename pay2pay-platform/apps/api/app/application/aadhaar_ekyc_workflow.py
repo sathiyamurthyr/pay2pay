@@ -208,6 +208,7 @@ class AadhaarEkycWorkflowService:
         aadhaar_hash = compute_aadhaar_hash(clean_aadhaar)
 
         try:
+            from sqlalchemy import text
             stmt = select(
                 AadhaarVerificationModel.id,
                 AadhaarVerificationModel.masked_aadhaar,
@@ -221,8 +222,29 @@ class AadhaarEkycWorkflowService:
             existing_ver = result.first()
 
             if existing_ver:
-                # If verifying for the same customer, permit re-verification / update
+                # 1. If verifying for the same customer, permit re-verification / update
                 if customer_id and existing_ver.customer_id and str(existing_ver.customer_id) == str(customer_id):
+                    return None
+
+                # 2. If record is a DEMO/dummy record, purge it immediately and permit verification
+                if existing_ver.full_name and "DEMO" in existing_ver.full_name.upper():
+                    await db.execute(text(f"DELETE FROM aadhaar_verification WHERE id = {existing_ver.id}"))
+                    await db.commit()
+                    return None
+
+                # 3. If customer_id is set, verify the customer actually exists in CustomerModel
+                if existing_ver.customer_id:
+                    cust_exists_stmt = select(CustomerModel).where(CustomerModel.public_id == existing_ver.customer_id)
+                    actual_cust = (await db.execute(cust_exists_stmt)).scalar_one_or_none()
+                    if not actual_cust:
+                        # Orphaned verification record with deleted customer — purge and allow
+                        await db.execute(text(f"DELETE FROM aadhaar_verification WHERE id = {existing_ver.id}"))
+                        await db.commit()
+                        return None
+                else:
+                    # Verification record has no associated customer — purge and allow
+                    await db.execute(text(f"DELETE FROM aadhaar_verification WHERE id = {existing_ver.id}"))
+                    await db.commit()
                     return None
 
                 cust_label = existing_ver.full_name or (f"Customer ({existing_ver.customer_id})" if existing_ver.customer_id else "an existing Customer profile")
