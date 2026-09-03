@@ -34,8 +34,11 @@ import LanguageIcon from "@mui/icons-material/Language";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import { useRouter } from "next/navigation";
+import { NotificationCenter } from "@/app-shell/components/NotificationCenter";
 
 export const NexusEnterpriseBankingView: React.FC = () => {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [filterBeneficiary, setFilterBeneficiary] = useState("all");
   const [activeQuickTab, setActiveQuickTab] = useState("Quick");
@@ -173,21 +176,7 @@ export const NexusEnterpriseBankingView: React.FC = () => {
             <SearchIcon sx={{ fontSize: 18 }} />
           </IconButton>
 
-          <IconButton size="small" sx={{ color: "rgba(255, 255, 255, 0.7)", position: "relative" }}>
-            <NotificationsNoneIcon sx={{ fontSize: 18 }} />
-            <Box
-              sx={{
-                position: "absolute",
-                top: 4,
-                right: 4,
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                bgcolor: "#EF4444",
-                border: "2px solid #050B14",
-              }}
-            />
-          </IconButton>
+          <NotificationCenter />
 
           <Box sx={{ position: "relative" }}>
             <Avatar

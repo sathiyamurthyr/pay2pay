@@ -60,7 +60,8 @@ export default function NotificationsPage() {
       if (filterStatus) params.status = filterStatus;
       if (filterChannel) params.channel = filterChannel;
       const res = await api.get("/api/v1/notifications/", { params });
-      setNotifications(res.data || []);
+      const items = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
+      setNotifications(items);
     } catch (err) {
       console.error("Failed to fetch notifications", err);
     } finally {

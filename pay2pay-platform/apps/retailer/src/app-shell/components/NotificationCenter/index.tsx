@@ -567,6 +567,42 @@ export const NotificationCenter: React.FC<{
             })
           )}
         </Box>
+
+        {/* Footer: View All Notifications */}
+        <Box
+          sx={{
+            p: 1.2,
+            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+            bgcolor: "rgba(15, 23, 42, 0.95)",
+            textAlign: "center",
+          }}
+        >
+          <Button
+            fullWidth
+            size="small"
+            onClick={() => {
+              handleClose();
+              window.location.href = "/retailer/notifications";
+            }}
+            sx={{
+              color: "#FBBF24",
+              fontWeight: 800,
+              fontSize: "12px",
+              textTransform: "none",
+              borderRadius: "8px",
+              py: 0.8,
+              bgcolor: "rgba(251, 191, 36, 0.08)",
+              border: "1px solid rgba(251, 191, 36, 0.25)",
+              "&:hover": {
+                bgcolor: "rgba(251, 191, 36, 0.18)",
+                borderColor: "#FACC15",
+                color: "#FEF08A",
+              },
+            }}
+          >
+            View All Notifications & Soundbox Settings →
+          </Button>
+        </Box>
       </Menu>
     </>
   );
