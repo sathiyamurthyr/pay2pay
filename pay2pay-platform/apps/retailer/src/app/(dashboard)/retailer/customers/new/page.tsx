@@ -102,19 +102,14 @@ export default function NewCustomerWorkspacePage() {
   const [showDebitConfirmModal, setShowDebitConfirmModal] = useState(false);
   const [chargePreview, setChargePreview] = useState<{
     service_charge?: number;
+    tax_rate?: number;
     cgst?: number;
     sgst?: number;
+    tax_amount?: number;
     total_amount?: number;
     is_chargeable?: boolean;
     message?: string;
-  } | null>({
-    service_charge: 3.0,
-    cgst: 0.27,
-    sgst: 0.27,
-    total_amount: 3.54,
-    is_chargeable: true,
-    message: "Aadhaar verification charge will be debited upon OTP dispatch.",
-  });
+  } | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
 
@@ -391,10 +386,13 @@ export default function NewCustomerWorkspacePage() {
       if (res && res.status === "SUCCESS") {
         setShowDebitConfirmModal(false);
         setAadhaarOtpSent(true);
-        setAadhaarRefId(res.data?.ref_id || res.data?.ref_number || "REF-12345");
+        setAadhaarRefId(res.data?.ref_id || res.data?.ref_number || res.ref_id || "");
+        const totalCharged = chargePreview?.total_amount != null
+          ? chargePreview.total_amount
+          : res.data?.total_debit || 0;
         notificationEngine.notify(
           "OTP_RECEIVED",
-          `Aadhaar eKYC OTP Dispatched via UIDAI. Wallet debited: ₹${(chargePreview?.total_amount ?? 3.54).toFixed(2)}`
+          `Aadhaar eKYC OTP Dispatched via UIDAI.${totalCharged > 0 ? ` Wallet debited: ₹${totalCharged.toFixed(2)}` : ""}`
         );
         refreshBalances();
       } else {
@@ -423,7 +421,7 @@ export default function NewCustomerWorkspacePage() {
     setAadhaarError("");
     try {
       const res = await retailerApi.verifyAadhaarOtp({
-        customer_id: existingCustomer?.public_id || createdCustomer?.public_id || "NEW-CUST",
+        customer_id: existingCustomer?.public_id || createdCustomer?.public_id || undefined,
         ref_number: aadhaarRefId,
         otp_code: cleanOtp,
         masked_aadhaar: `XXXX-XXXX-${aadhaarNumber.slice(-4)}`,
@@ -436,11 +434,11 @@ export default function NewCustomerWorkspacePage() {
         setAadhaarProfile(profile);
 
         const updatedCust = {
-          public_id: profile.customer_id || createdCustomer?.public_id || `cust-${Date.now()}`,
-          id: profile.customer_number || createdCustomer?.customer_number || `CUST-${mobileNumber}`,
-          customer_number: profile.customer_number || createdCustomer?.customer_number || `CUST-${mobileNumber}`,
-          full_name: profile.full_name || `${firstName} ${lastName}`.trim() || "Verified Customer",
-          name: profile.full_name || `${firstName} ${lastName}`.trim() || "Verified Customer",
+          public_id: profile.customer_id || createdCustomer?.public_id,
+          id: profile.customer_number || createdCustomer?.customer_number,
+          customer_number: profile.customer_number || createdCustomer?.customer_number,
+          full_name: profile.full_name || `${firstName} ${lastName}`.trim(),
+          name: profile.full_name || `${firstName} ${lastName}`.trim(),
           mobile: mobileNumber,
           mobile_number: mobileNumber,
           photo_url: profile.photo_url || profile.photo_avatar || profile.photo_base64 || "",
@@ -451,10 +449,10 @@ export default function NewCustomerWorkspacePage() {
           care_of: profile.care_of || "",
           address: profile.full_address || profile.address || "",
           full_address: profile.full_address || profile.address || "",
-          kyc_status: "VERIFIED",
+          kyc_status: profile.kyc_status || (profile.verification_status === "VERIFIED" ? "APPROVED" : "PENDING"),
           aadhaar_verified: true,
-          monthly_limit: 200000,
-          risk_score: 15,
+          monthly_limit: profile.monthly_limit ?? (createdCustomer?.monthly_limit ?? 200000),
+          risk_score: profile.risk_score ?? (createdCustomer?.risk_score ?? 0),
         };
         setCreatedCustomer(updatedCust);
 
@@ -504,10 +502,12 @@ export default function NewCustomerWorkspacePage() {
   const isFormValid = mobileNumber.length === 10 && firstName.trim() !== "" && lastName.trim() !== "" && !lookupLoading && !existingCustomer;
   const completionPercentage = Math.round(((activeStep + 1) / STEPS.length) * 100);
 
-  const mainBalanceFormatted = Number(wallet?.mainBalance ?? 49357.52).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const mainBalanceFormatted = wallet?.mainBalance != null
+    ? Number(wallet.mainBalance).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : "0.00";
 
   return (
     <Box
@@ -1887,16 +1887,16 @@ export default function NewCustomerWorkspacePage() {
                     eKYC Service Fee
                   </Typography>
                   <Typography sx={{ fontWeight: 700, fontSize: "13px", color: "#FFFFFF" }}>
-                    ₹{(chargePreview?.service_charge ?? 3.0).toFixed(2)}
+                    ₹{(chargePreview?.service_charge ?? 0).toFixed(2)}
                   </Typography>
                 </Stack>
 
                 <Stack direction="row" justifyContent="space-between">
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "13px" }}>
-                    GST (18%)
+                    GST {chargePreview?.tax_rate ? `(${Math.round(chargePreview.tax_rate * 100)}%)` : "(18%)"}
                   </Typography>
                   <Typography sx={{ fontWeight: 700, fontSize: "13px", color: "#FFFFFF" }}>
-                    ₹{((chargePreview?.cgst ?? 0.27) + (chargePreview?.sgst ?? 0.27)).toFixed(2)}
+                    ₹{((chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0)).toFixed(2)}
                   </Typography>
                 </Stack>
 
@@ -1907,7 +1907,7 @@ export default function NewCustomerWorkspacePage() {
                     Total Wallet Debit
                   </Typography>
                   <Typography sx={{ color: "#F59E0B", fontSize: "17px", fontWeight: 900 }}>
-                    ₹{(chargePreview?.total_amount ?? 3.54).toFixed(2)}
+                    ₹{(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}
                   </Typography>
                 </Stack>
               </Stack>

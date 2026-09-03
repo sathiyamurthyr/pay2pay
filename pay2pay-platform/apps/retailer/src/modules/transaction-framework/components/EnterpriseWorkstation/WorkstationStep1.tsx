@@ -630,36 +630,49 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                     {customer.name}
                   </Typography>
 
-                  {/* VERIFIED GREEN GLASS BADGE */}
-                  <Chip
-                    icon={
-                      <Box
+                  {/* KYC STATUS BADGE (DYNAMIC) */}
+                  {(() => {
+                    const rawStatus = (customer.kycStatus || customer.kyc_status || "").toUpperCase();
+                    const isApproved = rawStatus === "APPROVED" || rawStatus === "VERIFIED";
+                    const isPending = rawStatus === "PENDING" || rawStatus === "UNDER_REVIEW";
+                    const isRejected = rawStatus === "REJECTED" || rawStatus === "FAILED";
+                    
+                    const label = isApproved ? "VERIFIED" : isPending ? "KYC PENDING" : isRejected ? "REJECTED" : rawStatus || "UNVERIFIED";
+                    const color = isApproved ? "#4ADE80" : isPending ? "#FBBF24" : isRejected ? "#F87171" : "#94A3B8";
+                    const bgcolor = isApproved ? "rgba(34, 197, 94, 0.15)" : isPending ? "rgba(245, 158, 11, 0.15)" : isRejected ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 255, 255, 0.08)";
+                    const border = isApproved ? "1px solid rgba(74, 222, 128, 0.4)" : isPending ? "1px solid rgba(245, 158, 11, 0.4)" : isRejected ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid rgba(255, 255, 255, 0.15)";
+
+                    return (
+                      <Chip
+                        icon={
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              bgcolor: color,
+                              boxShadow: `0 0 6px ${color}`,
+                              ml: 0.5,
+                              mr: -0.25,
+                            }}
+                          />
+                        }
+                        label={label}
+                        size="small"
                         sx={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          bgcolor: "#4ADE80",
-                          boxShadow: "0 0 6px #4ADE80",
-                          ml: 0.5,
-                          mr: -0.25,
+                          bgcolor,
+                          border,
+                          color,
+                          fontWeight: 800,
+                          fontSize: "10px",
+                          height: 22,
                         }}
                       />
-                    }
-                    label={customer.kycStatus || "VERIFIED"}
-                    size="small"
-                    sx={{
-                      bgcolor: "rgba(34, 197, 94, 0.15)",
-                      border: "1px solid rgba(74, 222, 128, 0.4)",
-                      color: "#4ADE80",
-                      fontWeight: 800,
-                      fontSize: "10px",
-                      height: 22,
-                      boxShadow: "0 0 10px rgba(34, 197, 94, 0.15)",
-                    }}
-                  />
+                    );
+                  })()}
 
-                  {/* AADHAAR VERIFIED / NOT VERIFIED BADGE */}
-                  {customer.aadhaar_verified || customer.aadhaarVerificationStatus === "VERIFIED" ? (
+                  {/* AADHAAR VERIFIED / NOT VERIFIED BADGE (DYNAMIC) */}
+                  {Boolean(customer.aadhaar_verified || customer.aadhaarVerificationStatus === "VERIFIED") ? (
                     <Chip
                       icon={
                         <Box
@@ -701,21 +714,8 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                     />
                   )}
 
-                  {/* MPIN ACTIVE / NOT CREATED BADGE */}
-                  {customer.mpin_enabled === false ? (
-                    <Chip
-                      label="MPIN NOT CREATED"
-                      size="small"
-                      sx={{
-                        bgcolor: "rgba(245, 158, 11, 0.15)",
-                        border: "1px solid rgba(245, 158, 11, 0.4)",
-                        color: "#FBBF24",
-                        fontWeight: 800,
-                        fontSize: "9.5px",
-                        height: 22,
-                      }}
-                    />
-                  ) : (
+                  {/* MPIN BADGE (DYNAMIC) */}
+                  {customer.mpin_enabled ? (
                     <Chip
                       icon={
                         <Box
@@ -736,6 +736,19 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                         bgcolor: "rgba(16, 185, 129, 0.15)",
                         border: "1px solid rgba(52, 211, 153, 0.4)",
                         color: "#34D399",
+                        fontWeight: 800,
+                        fontSize: "9.5px",
+                        height: 22,
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      label="MPIN NOT CREATED"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(245, 158, 11, 0.15)",
+                        border: "1px solid rgba(245, 158, 11, 0.4)",
+                        color: "#FBBF24",
                         fontWeight: 800,
                         fontSize: "9.5px",
                         height: 22,
@@ -856,7 +869,11 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   textShadow: "0 0 10px rgba(74, 222, 128, 0.3)",
                 }}
               >
-                ₹{Number(customer.monthlyLimitRemaining ?? 200000).toLocaleString()}
+                {customer.monthlyLimitRemaining !== undefined && customer.monthlyLimitRemaining !== null
+                  ? `₹${Number(customer.monthlyLimitRemaining).toLocaleString()}`
+                  : customer.monthly_remaining !== undefined && customer.monthly_remaining !== null
+                  ? `₹${Number(customer.monthly_remaining).toLocaleString()}`
+                  : "—"}
               </Typography>
             </Box>
 
@@ -882,7 +899,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 </Typography>
               </Stack>
               <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: { xs: "15px", sm: "16px" } }}>
-                {customer.category || "REGULAR"}
+                {customer.category || customer.customer_category || "REGULAR"}
               </Typography>
             </Box>
 
@@ -909,7 +926,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 </Typography>
               </Stack>
               <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: { xs: "14px", sm: "15px" } }}>
-                {customer.kycLevel || "FULL_KYC"}
+                {customer.kycLevel || customer.kyc_level || (customer.aadhaar_verified ? "FULL_KYC" : "MINIMUM_KYC")}
               </Typography>
             </Box>
           </Box>

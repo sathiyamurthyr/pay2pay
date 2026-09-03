@@ -101,13 +101,68 @@ class AadhaarEkycWorkflowService:
     """
 
     @classmethod
-    def get_charge_preview(cls, verification_context: str = CONTEXT_CUSTOMER_VERIFICATION) -> Dict[str, Any]:
+    async def get_dynamic_pricing(cls, db: Optional[AsyncSession] = None, tenant_id: Optional[uuid.UUID] = None) -> Dict[str, float]:
+        """
+        Dynamically calculates Aadhaar verification pricing from database configurations:
+        - Checks gst_configuration table for active CGST and SGST rates
+        - Checks retailer_charge_configuration for service_fee or fixed_amount
+        - Fallbacks to environment variables or reasonable defaults if tables are empty
+        """
+        base_fee = float(os.getenv("AADHAAR_VERIFICATION_FEE", "5.00"))
+        cgst_pct = 0.09
+        sgst_pct = 0.09
+
+        if db is not None:
+            try:
+                # 1. Fetch dynamic GST from gst_configuration
+                from sqlalchemy import text
+                gst_query = await db.execute(text(
+                    "SELECT cgst_pct, sgst_pct, igst_pct FROM gst_configuration WHERE is_active = true ORDER BY id DESC LIMIT 1"
+                ))
+                gst_row = gst_query.fetchone()
+                if gst_row:
+                    cgst_pct = (float(gst_row[0]) / 100.0) if gst_row[0] is not None else 0.09
+                    sgst_pct = (float(gst_row[1]) / 100.0) if gst_row[1] is not None else 0.09
+            except Exception as e:
+                logger.warning(f"Could not load dynamic GST from gst_configuration: {e}")
+
+            try:
+                # 2. Fetch dynamic charge from retailer_charge_configuration if available
+                charge_query = await db.execute(text(
+                    "SELECT service_fee, fixed_amount FROM retailer_charge_configuration WHERE is_active = true ORDER BY id DESC LIMIT 1"
+                ))
+                charge_row = charge_query.fetchone()
+                if charge_row:
+                    if charge_row[0] is not None and float(charge_row[0]) > 0:
+                        base_fee = float(charge_row[0])
+                    elif charge_row[1] is not None and float(charge_row[1]) > 0:
+                        base_fee = float(charge_row[1])
+            except Exception as e:
+                logger.warning(f"Could not load dynamic fee from retailer_charge_configuration: {e}")
+
+        cgst = round(base_fee * cgst_pct, 2)
+        sgst = round(base_fee * sgst_pct, 2)
+        gst_total = round(cgst + sgst, 2)
+        total_debit = round(base_fee + gst_total, 2)
+        gst_rate = round(cgst_pct + sgst_pct, 4)
+
+        return {
+            "fee_base": base_fee,
+            "gst_rate": gst_rate,
+            "cgst": cgst,
+            "sgst": sgst,
+            "gst_total": gst_total,
+            "total_debit": total_debit,
+        }
+
+    @classmethod
+    async def get_charge_preview(cls, db: Optional[AsyncSession] = None, verification_context: str = CONTEXT_CUSTOMER_VERIFICATION) -> Dict[str, Any]:
         """
         Returns dynamic charge preview for the given verification context.
         Frontend must ONLY display values returned by this method — never hardcode.
         
         ONBOARDING / ONBOARDING_VERIFICATION: Returns zero charges (free).
-        CUSTOMER_VERIFICATION / RETAILER_SERVICE_VERIFICATION: Returns ₹5 + GST breakdown.
+        CUSTOMER_VERIFICATION / RETAILER_SERVICE_VERIFICATION: Returns dynamically calculated fee + GST breakdown.
         """
         norm_context = (verification_context or CONTEXT_CUSTOMER_VERIFICATION).strip().upper()
         if norm_context in (CONTEXT_ONBOARDING, "ONBOARDING_VERIFICATION"):
@@ -125,20 +180,21 @@ class AadhaarEkycWorkflowService:
                 "service_name": SERVICE_NAME,
                 "message": "Aadhaar verification is FREE during customer onboarding. No wallet debit."
             }
-        # CUSTOMER_VERIFICATION — paid flow
+        
+        pricing = await cls.get_dynamic_pricing(db)
         return {
             "verification_context": CONTEXT_CUSTOMER_VERIFICATION,
             "is_chargeable": True,
-            "service_charge": AADHAAR_FEE_BASE,
-            "tax_rate": AADHAAR_GST_RATE,
-            "cgst": AADHAAR_CGST,
-            "sgst": AADHAAR_SGST,
-            "tax_amount": AADHAAR_GST_TOTAL,
-            "total_amount": AADHAAR_TOTAL_DEBIT,
+            "service_charge": pricing["fee_base"],
+            "tax_rate": pricing["gst_rate"],
+            "cgst": pricing["cgst"],
+            "sgst": pricing["sgst"],
+            "tax_amount": pricing["gst_total"],
+            "total_amount": pricing["total_debit"],
             "currency": "INR",
             "hsn_sac": HSN_SAC_CODE,
             "service_name": SERVICE_NAME,
-            "message": f"Aadhaar verification requires a service charge of ₹{AADHAAR_FEE_BASE:.2f} + applicable GST (₹{AADHAAR_GST_TOTAL:.2f}). Total: ₹{AADHAAR_TOTAL_DEBIT:.2f}."
+            "message": f"Aadhaar verification requires a service charge of ₹{pricing['fee_base']:.2f} + applicable GST (₹{pricing['gst_total']:.2f}). Total: ₹{pricing['total_debit']:.2f}."
         }
 
     @classmethod
@@ -217,12 +273,13 @@ class AadhaarEkycWorkflowService:
                 detail=f"Aadhaar number {masked_aadhaar} is already registered & verified under Customer profile {dup_cust}. Duplicate Aadhaar registration is strictly prohibited by law."
             )
 
-        # Determine charge amounts based on verification context
+        # Determine charge amounts dynamically based on verification context
         norm_context = (verification_context or CONTEXT_CUSTOMER_VERIFICATION).strip().upper()
         is_paid = norm_context not in (CONTEXT_ONBOARDING, "ONBOARDING_VERIFICATION")
-        fee_base = AADHAAR_FEE_BASE if is_paid else 0.0
-        gst_total = AADHAAR_GST_TOTAL if is_paid else 0.0
-        total_debit = AADHAAR_TOTAL_DEBIT if is_paid else 0.0
+        pricing = await cls.get_dynamic_pricing(db, tenant_id)
+        fee_base = pricing["fee_base"] if is_paid else 0.0
+        gst_total = pricing["gst_total"] if is_paid else 0.0
+        total_debit = pricing["total_debit"] if is_paid else 0.0
 
         ref_id = f"CF-AADHAAR-{int(time.time() * 1000)}"
         from app.core.transaction_id_generator import generate_transaction_number
@@ -780,7 +837,8 @@ class AadhaarEkycWorkflowService:
             quarter_k = (now_utc.month - 1) // 3 + 1
             year_k = now_utc.year
 
-            masked_aadhaar = ekyc_profile.get("masked_aadhaar") or "XXXX-XXXX-4748"
+            clean_aadhaar = (fee_session.get("clean_aadhaar") if fee_session else None) or ekyc_profile.get("clean_aadhaar") or ekyc_profile.get("aadhaar_number") or ""
+            masked_aadhaar = ekyc_profile.get("masked_aadhaar") or (f"XXXX-XXXX-{clean_aadhaar[-4:]}" if len(clean_aadhaar) >= 4 else "XXXX-XXXX-XXXX")
 
             # 1. Create CustomerModel (Tenant -> Retailer -> Customer)
             cust_obj = CustomerModel(
@@ -818,15 +876,15 @@ class AadhaarEkycWorkflowService:
             await db.flush()
 
             # 2. Create CustomerAddressModel (Aadhaar Verified Address)
-            house_s = ekyc_profile.get("house", "")
-            street_s = ekyc_profile.get("street", "")
-            landmark_s = ekyc_profile.get("landmark", "")
-            city_s = ekyc_profile.get("city", "") or "CHENNAI"
-            dist_s = ekyc_profile.get("district", "") or "CHENNAI"
-            state_s = ekyc_profile.get("state", "") or "TAMIL NADU"
-            pincode_s = str(ekyc_profile.get("pincode", "")) or "600001"
+            house_s = ekyc_profile.get("house") or ekyc_profile.get("care_of") or ""
+            street_s = ekyc_profile.get("street") or ekyc_profile.get("locality") or ""
+            landmark_s = ekyc_profile.get("landmark") or ""
+            city_s = ekyc_profile.get("city") or ekyc_profile.get("vtc") or ekyc_profile.get("subdistrict") or ""
+            dist_s = ekyc_profile.get("district") or city_s or ""
+            state_s = ekyc_profile.get("state") or ""
+            pincode_s = str(ekyc_profile.get("pincode") or ekyc_profile.get("pin") or "").strip()
 
-            line1 = f"{house_s}, {street_s}".strip(", ") or ekyc_profile.get("full_address", "Verified eKYC Address")
+            line1 = f"{house_s}, {street_s}".strip(", ") or ekyc_profile.get("full_address") or "Verified eKYC Address"
             line2 = f"{landmark_s}".strip()
 
             addr_obj = CustomerAddressModel(
@@ -851,8 +909,7 @@ class AadhaarEkycWorkflowService:
             db.add(addr_obj)
 
             # 3. Create CustomerIdentityModel (Masked Aadhaar + Hash)
-            clean_aadhaar = fee_session.get("clean_aadhaar", "225992647489") if fee_session else "225992647489"
-            aadhaar_hash = compute_aadhaar_hash(clean_aadhaar)
+            aadhaar_hash = compute_aadhaar_hash(clean_aadhaar) if clean_aadhaar else hashlib.sha256(f"PAY2PAY_{c_mobile}".encode("utf-8")).hexdigest()
             id_obj = CustomerIdentityModel(
                 public_id=uuid.uuid4(),
                 tenant_id=tenant_id,

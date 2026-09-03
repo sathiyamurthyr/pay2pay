@@ -204,7 +204,7 @@ async def get_aadhaar_charge_preview(
     Frontend must display ONLY these values — never hardcode charges.
     """
     from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
-    preview = AadhaarEkycWorkflowService.get_charge_preview(verification_context)
+    preview = await AadhaarEkycWorkflowService.get_charge_preview(db=db, verification_context=verification_context)
     return {"status": "SUCCESS", "data": preview}
 
 
