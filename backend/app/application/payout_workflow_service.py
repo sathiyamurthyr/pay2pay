@@ -20,6 +20,9 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
+import logging
+
+logger = logging.getLogger("payout_workflow_service")
 
 from app.core.config import settings
 from app.infrastructure.adapters.whatsapp_service import whatsapp_service
