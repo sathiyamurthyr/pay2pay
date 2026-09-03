@@ -68,7 +68,7 @@ class PosMdrConfigurationModel(BaseEntity, EnterpriseBaseMixin):
     payment_mode: Mapped[str] = mapped_column(String(50), nullable=False, index=True) # POS - Instant, POS+T1, POS+T2
     mdr: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False) # Rate value, e.g. 0.5000 or 50.00
     mdr_type: Mapped[str] = mapped_column(String(20), nullable=False, default="PERCENTAGE") # PERCENTAGE, FIXED
-    gst_rate: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=18.00) # GST percentage on MDR charge
+    gst_rate: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=0.00) # GST percentage on MDR charge (default 0.00)
 
     # Effective Date Range
     effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
