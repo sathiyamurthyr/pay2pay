@@ -35,6 +35,8 @@ const DEFAULT_MOCK_CUSTOMER: Customer = {
   initials: "RK",
   mobile: "+91 98765 43210",
   aadhaarMasked: "XXXX-XXXX-8821",
+  aadhaarVerificationStatus: "PENDING",
+  aadhaarVerified: false,
   verified: true,
   riskLevel: "Low",
   customerSince: "2023-01-14T00:00:00Z",
@@ -205,7 +207,11 @@ export function CustomerIdentificationStep({
               {/* CUSTOMER RESULT CARD & STATS */}
               {customer && (
                 <>
-                  <CustomerResultCard customer={customer} onChangeCustomer={handleChangeCustomer} />
+                  <CustomerResultCard
+                    customer={customer}
+                    onChangeCustomer={handleChangeCustomer}
+                    returnTo="/retailer/dmt"
+                  />
                   <StatGrid limits={customer.limits} lastTransaction={customer.lastTransaction} />
                 </>
               )}

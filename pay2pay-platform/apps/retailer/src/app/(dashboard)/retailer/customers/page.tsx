@@ -25,6 +25,7 @@ import {
   Menu,
   Bell,
   KeyRound,
+  Fingerprint,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@mui/material";
 
@@ -217,6 +218,17 @@ function CustomersContent() {
     setSelectedCustomer(formatted);
     setReferrerUrl("/retailer/customers");
     router.push("/retailer/dmt");
+  };
+
+  const handleVerifyAadhaar = (cust: any) => {
+    const cleanMobile = (cust.mobile || "").replace(/\D/g, "").slice(-10);
+    const params = new URLSearchParams({
+      customer_id: cust.id || cust.public_id || "",
+      mobile: cleanMobile,
+      name: cust.name || "",
+      return_to: "/retailer/customers",
+    });
+    router.push(`/retailer/customers/aadhaar-verify?${params.toString()}`);
   };
 
   // ── Filter & Search Logic (With Phone Normalization) ──
@@ -689,6 +701,7 @@ function CustomersContent() {
                         onStartPayout={(c) => handleSelectCustomerForPayout(c)}
                         onViewProfile={(c) => setSelectedProfileCustomer(c)}
                         onChangeMpin={(c) => setSelectedChangePinCustomer(c)}
+                        onVerifyAadhaar={(c) => handleVerifyAadhaar(c)}
                         onToggleFavourite={(id, e) => toggleFavourite(id, e)}
                         onToggleMenu={(id, e) => {
                           e.stopPropagation();
@@ -706,6 +719,20 @@ function CustomersContent() {
                             transition={{ duration: 0.15 }}
                             className="absolute right-4 bottom-14 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden text-xs font-bold py-1 card-action-menu"
                           >
+                            {cust.aadhaarStatus !== "VERIFIED" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuId(null);
+                                  handleVerifyAadhaar(cust);
+                                }}
+                                className="w-full px-4 py-2.5 hover:bg-orange-50 dark:hover:bg-orange-950/50 text-orange-600 dark:text-orange-400 flex items-center gap-2 text-left"
+                              >
+                                <Fingerprint className="w-4 h-4" />
+                                <span>Verify Aadhaar</span>
+                              </button>
+                            )}
+
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

@@ -26,6 +26,12 @@ export interface CustomerData {
   kycLevel?: string;
   photo_url?: string;
   photo_avatar?: string;
+  aadhaar_verified?: boolean;
+  aadhaarVerificationStatus?: "VERIFIED" | "PENDING" | "FAILED" | "NOT_VERIFIED";
+  aadhaar_verification_status?: string;
+  aadhaarMasked?: string;
+  aadhaar_masked?: string;
+  full_address?: string;
   beneficiaries?: any[];
 }
 
@@ -91,6 +97,12 @@ export function useCustomer() {
           walletBalance: Number(currentWalletBal),
           relationshipManager: c.relationship_manager || c.rm_name || "Account Manager",
           mpin_enabled: c.mpin_enabled !== false,
+          aadhaar_verified: Boolean(c.aadhaar_verified || c.aadhaar_verification_status === "VERIFIED"),
+          aadhaarVerificationStatus: (c.aadhaar_verified || c.aadhaar_verification_status === "VERIFIED" ? "VERIFIED" : (c.aadhaar_verification_status || "NOT_VERIFIED")) as any,
+          aadhaar_verification_status: c.aadhaar_verified || c.aadhaar_verification_status === "VERIFIED" ? "VERIFIED" : (c.aadhaar_verification_status || "NOT_VERIFIED"),
+          aadhaarMasked: c.aadhaar_masked || "",
+          aadhaar_masked: c.aadhaar_masked || "",
+          full_address: c.full_address || "",
           beneficiaries: c.beneficiaries || [],
         };
         setSelectedCustomer(custData);

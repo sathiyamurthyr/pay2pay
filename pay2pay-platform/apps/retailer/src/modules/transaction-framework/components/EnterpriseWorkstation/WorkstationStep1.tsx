@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
@@ -28,6 +28,7 @@ import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceW
 import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
 import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
+import SecurityIcon from "@mui/icons-material/Security";
 import { CustomerData } from "../../hooks/useCustomer";
 
 export interface WorkstationStep1Props {
@@ -60,8 +61,19 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const wallet = useRetailerStore((state) => state.wallet);
+
+  // Auto-populate & search customer if mobile is passed in URL query (e.g. returning from Aadhaar verification)
+  useEffect(() => {
+    const mobileParam = searchParams.get("mobile");
+    if (mobileParam && !customer && !isSearching) {
+      setSearchInput(mobileParam);
+      setLocalHasSearched(true);
+      onSearchCustomer(mobileParam);
+    }
+  }, [searchParams, customer, isSearching, onSearchCustomer]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -646,6 +658,49 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                     }}
                   />
 
+                  {/* AADHAAR VERIFIED / NOT VERIFIED BADGE */}
+                  {customer.aadhaar_verified || customer.aadhaarVerificationStatus === "VERIFIED" ? (
+                    <Chip
+                      icon={
+                        <Box
+                          sx={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            bgcolor: "#38BDF8",
+                            boxShadow: "0 0 6px #38BDF8",
+                            ml: 0.5,
+                            mr: -0.25,
+                          }}
+                        />
+                      }
+                      label="✓ Aadhaar Verified"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(14, 165, 233, 0.15)",
+                        border: "1px solid rgba(56, 189, 248, 0.4)",
+                        color: "#38BDF8",
+                        fontWeight: 800,
+                        fontSize: "9.5px",
+                        height: 22,
+                        boxShadow: "0 0 10px rgba(14, 165, 233, 0.2)",
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      label="Aadhaar Not Verified"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(239, 68, 68, 0.15)",
+                        border: "1px solid rgba(239, 68, 68, 0.4)",
+                        color: "#F87171",
+                        fontWeight: 800,
+                        fontSize: "9.5px",
+                        height: 22,
+                      }}
+                    />
+                  )}
+
                   {/* MPIN ACTIVE / NOT CREATED BADGE */}
                   {customer.mpin_enabled === false ? (
                     <Chip
@@ -893,8 +948,49 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               Search Another Customer
             </Button>
 
-            {/* PRIMARY ACTION */}
-            {customer.mpin_enabled === false ? (
+            {/* PRIMARY ACTION — AADHAAR VERIFICATION GUARD (Requirements 17, 19, 21) */}
+            {!(customer.aadhaar_verified || customer.aadhaarVerificationStatus === "VERIFIED") ? (
+              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "center", gap: 2, width: { xs: "100%", sm: "auto" } }}>
+                <Typography sx={{ color: "#F87171", fontSize: "13px", fontWeight: 700, textAlign: { xs: "center", sm: "right" } }}>
+                  Aadhaar verification is required before money transfer.
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    const custId = customer.id || customer.public_id || "";
+                    const mobile = customer.mobile || customer.mobile_number || "";
+                    const name = customer.name || customer.fullName || "";
+                    const params = new URLSearchParams({
+                      customer_id: custId,
+                      mobile: mobile,
+                      name: name,
+                      return_to: "/retailer/dmt",
+                    });
+                    router.push(`/retailer/customers/aadhaar-verify?${params.toString()}`);
+                  }}
+                  startIcon={<SecurityIcon sx={{ color: "#FFFFFF" }} />}
+                  sx={{
+                    width: { xs: "100%", sm: "auto" },
+                    height: { xs: 48, sm: 52 },
+                    px: 3.5,
+                    borderRadius: "12px",
+                    fontWeight: 900,
+                    fontSize: "14.5px",
+                    background: "linear-gradient(135deg, #EF4444 0%, #DC2626 50%, #B91C1C 100%)",
+                    color: "#FFFFFF",
+                    textTransform: "none",
+                    letterSpacing: "-0.2px",
+                    boxShadow: "0 6px 24px rgba(239, 68, 68, 0.45)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #F87171 0%, #DC2626 50%, #991B1B 100%)",
+                      boxShadow: "0 8px 28px rgba(239, 68, 68, 0.6)",
+                    },
+                  }}
+                >
+                  Verify Aadhaar
+                </Button>
+              </Box>
+            ) : customer.mpin_enabled === false ? (
               <Button
                 variant="contained"
                 onClick={() => {

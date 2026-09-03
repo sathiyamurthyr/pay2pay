@@ -473,6 +473,14 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       const data = await res.json();
       setLoading(false);
 
+      if (data.status === "PASSWORD_SETUP_REQUIRED" || data.code === "PASSWORD_SETUP_REQUIRED") {
+        setErrorMsg(data.message || "Your account requires a password setup before you can continue.");
+        setTimeout(() => {
+          window.location.href = data.redirect_url || `/forgot-password?setup=true&mobile=${mobileNumber}`;
+        }, 1800);
+        return;
+      }
+
       if (res.ok && (data.status === "SUCCESS" || data.success === true)) {
         setFailedAttempts(0);
         setIsLocked(false);

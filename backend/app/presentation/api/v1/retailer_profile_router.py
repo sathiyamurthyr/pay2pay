@@ -1078,11 +1078,6 @@ async def change_password(
         if verify_password(req.current_password, draft.draft_data["password_hash"]):
             is_valid_current = True
 
-    # Fallback for initial account default password verification
-    if not is_valid_current:
-        if req.current_password in ["Retailer#2026", "Password123!", "Admin#2026", "123456", "Asdfg!234567"]:
-            is_valid_current = True
-
     if not is_valid_current:
         raise HTTPException(status_code=400, detail="Current password is incorrect. Please verify and try again.")
 

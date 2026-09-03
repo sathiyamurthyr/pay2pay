@@ -29,8 +29,9 @@ class VerifyEmailOtpPayload(BaseModel):
 
 class CreateCredentialsPayload(BaseModel):
     registration_id: str
-    password: str = Field(..., example="Retailer#2026")
-    mpin: str = Field(..., example="1234")
+    password: str = Field(..., example="P@ssword2026!")
+    confirm_password: Optional[str] = Field(None, example="P@ssword2026!")
+    mpin: str = Field(..., example="8592")
 
 class VerifyPanPayload(BaseModel):
     registration_id: str
@@ -171,7 +172,9 @@ async def verify_email_otp(payload: VerifyEmailOtpPayload, db: AsyncSession = De
 
 @router.post("/create-credentials")
 async def create_credentials(payload: CreateCredentialsPayload, db: AsyncSession = Depends(get_db)):
-    res = await ProgressiveOnboardingService.create_credentials(db, payload.registration_id, payload.password, payload.mpin)
+    res = await ProgressiveOnboardingService.create_credentials(
+        db, payload.registration_id, payload.password, payload.mpin, payload.confirm_password
+    )
     if res.get("status") == "ERROR":
         raise HTTPException(status_code=400, detail=res["message"])
     return res

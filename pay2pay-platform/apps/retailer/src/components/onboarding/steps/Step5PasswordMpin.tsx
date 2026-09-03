@@ -10,8 +10,10 @@ interface Step5Props {
 
 export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSuccess }) => {
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [mpin, setMpin] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showMpin, setShowMpin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -22,6 +24,9 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
   const hasLower = /[a-z]/.test(password);
   const hasNum = /[0-9]/.test(password);
   const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
+
+  const isWeak = ["1234", "123456", "12345678", "12341234", "password", "Password123!", "Retailer#2026", "Admin#2026"].includes(password);
 
   const score = [hasMinLen, hasUpper, hasLower, hasNum, hasSpecial].filter(Boolean).length;
   const strengthLabel = score <= 2 ? "Weak" : score === 3 ? "Medium" : score === 4 ? "Strong" : "Very Strong";
@@ -29,12 +34,24 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hasMinLen) {
-      setErrorMsg("Password must be at least 8 characters long.");
+    if (!hasMinLen || !hasUpper || !hasLower || !hasNum || !hasSpecial) {
+      setErrorMsg("Password must meet all complexity requirements (8+ chars, uppercase, lowercase, number, special character).");
+      return;
+    }
+    if (isWeak) {
+      setErrorMsg("This password is too common or predictable. Please choose a unique, secure password.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg("Password and Confirm Password do not match.");
       return;
     }
     if (mpin.length !== 4) {
       setErrorMsg("MPIN must be exactly 4 numeric digits.");
+      return;
+    }
+    if (["1234", "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999", "4321"].includes(mpin)) {
+      setErrorMsg("MPIN cannot be an obvious repeating or sequential pattern like 1234.");
       return;
     }
 
@@ -45,7 +62,7 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
       const res = await fetch("/api/v1/onboarding/create-credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: registrationId, password, mpin })
+        body: JSON.stringify({ registration_id: registrationId, password, confirm_password: confirmPassword, mpin })
       });
       const data = await res.json();
       setLoading(false);
@@ -53,7 +70,7 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
       if (res.ok && data.status === "SUCCESS") {
         onSuccess();
       } else {
-        setErrorMsg(data.detail || "Failed to save credentials.");
+        setErrorMsg(data.detail || data.message || "Failed to save credentials.");
       }
     } catch {
       setLoading(false);
@@ -68,7 +85,7 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
           Create Account Security Credentials
         </h2>
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
-          Set up a strong password and a 4-digit quick transaction MPIN.
+          Set up your secure login password and a 4-digit transaction MPIN.
         </p>
       </div>
 
@@ -122,6 +139,40 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
           </div>
         </div>
 
+        {/* Confirm Password */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Confirm Password <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setErrorMsg("");
+              }}
+              placeholder="••••••••••••"
+              required
+              className="w-full pl-11 pr-11 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none cursor-pointer"
+            >
+              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {confirmPassword && (
+            <p className={`text-[11px] font-bold mt-1 flex items-center gap-1 ${passwordsMatch ? "text-emerald-500" : "text-red-500"}`}>
+              {passwordsMatch ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+              {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+            </p>
+          )}
+        </div>
+
         {/* Live Rules Checklist */}
         <div className="grid grid-cols-2 gap-1.5 p-3 rounded-2xl bg-slate-100/60 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-[11px] font-bold">
           <div className={`flex items-center gap-1 ${hasMinLen ? "text-emerald-500" : "text-slate-400"}`}>
@@ -133,8 +184,8 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
           <div className={`flex items-center gap-1 ${hasLower ? "text-emerald-500" : "text-slate-400"}`}>
             <CheckCircle2 className="w-3.5 h-3.5" /> Lowercase Letter
           </div>
-          <div className={`flex items-center gap-1 ${hasNum ? "text-emerald-500" : "text-slate-400"}`}>
-            <CheckCircle2 className="w-3.5 h-3.5" /> Numeric Number
+          <div className={`flex items-center gap-1 ${hasNum && hasSpecial ? "text-emerald-500" : "text-slate-400"}`}>
+            <CheckCircle2 className="w-3.5 h-3.5" /> Number & Special Char
           </div>
         </div>
 
@@ -152,7 +203,7 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
                 setMpin(e.target.value.replace(/\D/g, "").slice(0, 4));
                 setErrorMsg("");
               }}
-              placeholder="1234"
+              placeholder="••••"
               required
               className="w-full pl-11 pr-11 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-black tracking-widest text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
@@ -171,7 +222,7 @@ export const Step5PasswordMpin: React.FC<Step5Props> = ({ registrationId, onSucc
 
         <button
           type="submit"
-          disabled={loading || !hasMinLen || mpin.length !== 4}
+          disabled={loading || !hasMinLen || !passwordsMatch || mpin.length !== 4 || isWeak}
           className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-extrabold shadow-lg shadow-blue-600/25 hover:from-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {loading ? (

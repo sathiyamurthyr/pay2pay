@@ -189,8 +189,8 @@ class AuthService:
                 (AuthUserModel.mobile_number == clean_mob) | (AuthUserModel.email == identifier),
                 AuthUserModel.is_deleted == False
             )
-            auth_user = (await db.execute(a_stmt)).scalars().first()
-            if auth_user and auth_user.password_hash and verify_password(req.password, auth_user.password_hash):
+            from app.presentation.api.v1.enterprise_auth_router import is_insecure_or_missing_hash
+            if auth_user and not is_insecure_or_missing_hash(auth_user.password_hash) and verify_password(req.password, auth_user.password_hash):
                 ret_obj = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == auth_user.user_id))).scalars().first()
                 r_code = ret_obj.retailer_code if ret_obj else "RET-08A9A0"
                 r_name = ret_obj.owner_name if (ret_obj and ret_obj.owner_name) else auth_user.full_name
@@ -2536,11 +2536,42 @@ class RetailerManagementService:
                         created_by="Self-Onboarding Registration"
                     )
                     db.add(history_obj)
+
+                    # Create or link AuthUserModel with credentials from onboarding draft
+                    from app.infrastructure.db.auth_models import AuthUserModel
+                    clean_mob = clean_mobile[-10:] if len(clean_mobile) >= 10 else clean_mobile
+                    auth_chk = (await db.execute(select(AuthUserModel).where(AuthUserModel.mobile_number.in_([clean_mob, f"+91{clean_mob}", f"91{clean_mob}"])))).scalars().first()
+                    pass_hash = draft_rec.draft_data.get("password_hash") if draft_rec and draft_rec.draft_data else None
+                    if not auth_chk:
+                        new_auth = AuthUserModel(
+                            user_id=new_ret_id,
+                            mobile_number=clean_mob,
+                            full_name=v.retailer_name or (pan.pan_holder_name if pan else "Retailer Partner"),
+                            email=v.email or f"{clean_mob}@pay2pay.in",
+                            password_hash=pass_hash or "",
+                            role="RETAILER",
+                            account_status="ACTIVE" if ret_status == "ACTIVE" else "PENDING_APPROVAL",
+                            tenant_id=use_tenant,
+                            company_id=use_tenant
+                        )
+                        db.add(new_auth)
+                    else:
+                        if pass_hash and (not auth_chk.password_hash or auth_chk.password_hash in ["1234", "123456", "password"]):
+                            auth_chk.password_hash = pass_hash
+                        if ret_status == "ACTIVE":
+                            auth_chk.account_status = "ACTIVE"
+
                     synced_count += 1
                 else:
                     if existing_ret.status == "PENDING_APPROVAL" and ret_status == "ACTIVE":
                         existing_ret.status = "ACTIVE"
                         synced_count += 1
+                    # Ensure AuthUserModel exists and is active
+                    from app.infrastructure.db.auth_models import AuthUserModel
+                    clean_mob = clean_mobile[-10:] if len(clean_mobile) >= 10 else clean_mobile
+                    auth_chk = (await db.execute(select(AuthUserModel).where(AuthUserModel.mobile_number.in_([clean_mob, f"+91{clean_mob}", f"91{clean_mob}"])))).scalars().first()
+                    if auth_chk and ret_status == "ACTIVE":
+                        auth_chk.account_status = "ACTIVE"
 
             if synced_count > 0:
                 await db.commit()

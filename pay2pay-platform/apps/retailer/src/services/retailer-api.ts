@@ -848,11 +848,11 @@ export const retailerApi = {
     try {
       const cleanPayload = {
         ref_id: payload.ref_id || `CF-AADHAAR-${Date.now()}`,
-        mobile_number: payload.mobile_number || "7013914767",
-        mpin: payload.mpin || "1234",
+        mobile_number: payload.mobile_number || "",
+        mpin: payload.mpin || "",
         first_name: payload.first_name || "Customer",
         last_name: payload.last_name || "",
-        retailer_id: payload.retailer_id || "RET-8849"
+        retailer_id: payload.retailer_id || ""
       };
       const res = await apiClient.post("/payout-workflow/customer/finalize-onboarding", cleanPayload);
       return res.data;
@@ -1587,6 +1587,66 @@ export const retailerApi = {
       console.error("Reorder favorite error:", err);
       return { status: "ERROR", message: err.message };
     }
+  },
+
+  // ── Aadhaar eKYC (EPIC-021 Customer Verification) ────────────────────────
+  aadhaarKyc: {
+    /**
+     * Fetches dynamic charge preview from backend.
+     * Frontend must ONLY display values from this response — never hardcode amounts.
+     * @param verificationContext ONBOARDING (free) | CUSTOMER_VERIFICATION (paid)
+     */
+    chargePreview: async (verificationContext: "ONBOARDING" | "CUSTOMER_VERIFICATION" = "CUSTOMER_VERIFICATION") => {
+      const res = await apiClient.get("/api/v1/payout-workflow/aadhaar/charge-preview", {
+        params: { verification_context: verificationContext },
+      });
+      return res.data?.data || res.data;
+    },
+
+    /**
+     * Initiates Aadhaar OTP generation. Debits wallet ONLY if context is CUSTOMER_VERIFICATION.
+     */
+    generateOtp: async (payload: {
+      aadhaar_number: string;
+      customer_id?: string | null;
+      retailer_id?: string | null;
+      verification_context?: "ONBOARDING" | "CUSTOMER_VERIFICATION";
+    }) => {
+      const res = await apiClient.post("/api/v1/payout-workflow/aadhaar-otp/generate", {
+        ...payload,
+        verification_context: payload.verification_context || "CUSTOMER_VERIFICATION",
+      });
+      return res.data?.data || res.data;
+    },
+
+    /**
+     * Verifies Aadhaar OTP. If CUSTOMER_VERIFICATION, completes billing.
+     * If ONBOARDING, just verifies and links the Aadhaar — no wallet debit.
+     */
+    verifyOtp: async (payload: {
+      ref_id: string;
+      otp_code: string;
+      customer_id?: string | null;
+      aadhaar_number?: string | null;
+      retailer_id?: string | null;
+      verification_context?: "ONBOARDING" | "CUSTOMER_VERIFICATION";
+    }) => {
+      const res = await apiClient.post("/api/v1/payout-workflow/aadhaar-otp/verify", {
+        ...payload,
+        verification_context: payload.verification_context || "CUSTOMER_VERIFICATION",
+      });
+      return res.data?.data || res.data;
+    },
+
+    /**
+     * Searches customer by mobile number. Returns aadhaar_verification_status from backend.
+     */
+    searchCustomer: async (query: string) => {
+      const res = await apiClient.get("/api/v1/payout-workflow/customers/search", {
+        params: { query },
+      });
+      return res.data?.data || res.data;
+    },
   },
 };
 

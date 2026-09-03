@@ -22,11 +22,30 @@ from app.infrastructure.db.auth_models import (
 from app.infrastructure.db.models import RetailerModel, RetailerContactModel, AdminUserModel, RetailerWalletModel, CompanyModel
 from app.infrastructure.db.registration_models import RegistrationDraftModel, RegistrationAadhaarModel
 from app.infrastructure.db.verification_models import RetailerVerificationModel
-from app.core.security import verify_password, create_access_token, decode_access_token
+from app.core.security import verify_password, hash_password, create_access_token, decode_access_token
 
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 DEFAULT_COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
 MASTER_OTP_SET = {"778899", "123456", "999999", "000000", "112233", "123123", "654321"}
+
+INSECURE_PRESET_PASSWORDS = {
+    "1234", "123456", "12345678", "password", "defaultpassword",
+    "temporarypassword", "retailer#2026", "admin#2026", "pay2pay@2026", "asdfg!234567"
+}
+
+def is_insecure_or_missing_hash(stored_hash: Optional[str]) -> bool:
+    if not stored_hash or not str(stored_hash).strip():
+        return True
+    val = str(stored_hash).strip()
+    if val.lower() in INSECURE_PRESET_PASSWORDS:
+        return True
+    for p in ["1234", "123456", "password", "defaultPassword", "temporaryPassword"]:
+        try:
+            if verify_password(p, val):
+                return True
+        except Exception:
+            pass
+    return False
 
 router = APIRouter(prefix="/auth/enterprise", tags=["Enterprise Authentication"])
 
@@ -231,16 +250,6 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
         or "retailer." in host_header
     )
 
-    # C. Check General / Retailer Default Passwords Fallback
-    if not is_valid_pass:
-        if payload.password in ["Retailer#2026", "Password123!", "Admin#2026", "123456", "Asdfg!234567"]:
-            is_valid_pass = True
-
-    if is_retailer_portal:
-        is_admin = False
-    elif is_valid_pass and (admin_user is not None or clean_mobile in ("9176669426", "9840192837")):
-        is_admin = True
-
     if is_retailer_portal and not existing_retailer:
         if admin_user and admin_user.phone:
             a_mob = re.sub(r"\D", "", str(admin_user.phone))[-10:]
@@ -261,6 +270,106 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
                 r_sathus = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == "RET-10928", RetailerModel.is_deleted == False))).scalars().first()
             if r_sathus:
                 existing_retailer = r_sathus
+
+    is_admin = False
+    is_valid_pass = False
+
+    # A. Check Admin Password Match strictly against database hash (for admin portal logins)
+    if admin_user is not None and not is_retailer_portal:
+        if admin_user.hashed_password:
+            try:
+                if verify_password(payload.password, admin_user.hashed_password):
+                    is_valid_pass = True
+                    is_admin = True
+            except Exception:
+                pass
+
+    # B. Retailer Portal / Retailer Authentication
+    if not is_admin:
+        # 1. Link or migrate credentials from registration draft if auth_user record is missing
+        if not auth_user:
+            if existing_retailer:
+                auth_user_by_id = (await db.execute(select(AuthUserModel).where(AuthUserModel.user_id == existing_retailer.public_id))).scalars().first()
+                if auth_user_by_id:
+                    auth_user = auth_user_by_id
+
+            if not auth_user:
+                try:
+                    d_stmt = select(RegistrationDraftModel).where(
+                        RegistrationDraftModel.mobile_number.in_(mobile_variants)
+                    ).order_by(RegistrationDraftModel.created_date.desc())
+                    draft_rec = (await db.execute(d_stmt)).scalars().first()
+                    if draft_rec and draft_rec.draft_data and draft_rec.draft_data.get("password_hash"):
+                        d_hash = draft_rec.draft_data.get("password_hash")
+                        if not is_insecure_or_missing_hash(d_hash):
+                            u_id = existing_retailer.public_id if existing_retailer else (
+                                draft_rec.public_id if draft_rec.public_id else uuid.uuid4()
+                            )
+                            auth_user = AuthUserModel(
+                                user_id=u_id,
+                                mobile_number=clean_mobile,
+                                full_name=existing_retailer.owner_name if existing_retailer else (draft_rec.draft_data.get("owner_name") or "Retailer Partner"),
+                                email=f"{clean_mobile}@pay2pay.in",
+                                password_hash=d_hash,
+                                role="RETAILER",
+                                account_status="ACTIVE" if (existing_retailer and existing_retailer.status == "ACTIVE") else "PENDING_APPROVAL",
+                                tenant_id=(existing_retailer.tenant_id if existing_retailer else DEFAULT_TENANT_ID),
+                                company_id=(existing_retailer.company_id if existing_retailer else DEFAULT_COMPANY_ID)
+                            )
+                            db.add(auth_user)
+                            await db.commit()
+                            await db.refresh(auth_user)
+                except Exception as e:
+                    logger.warning(f"Draft password migration check: {e}")
+
+        # 2. Check if retailer account exists in retailer or auth_users
+        if not existing_retailer and not auth_user:
+            try:
+                failed_attempt = await EnterpriseAuthService.record_failed_attempt(
+                    db=db,
+                    mobile_number=clean_mobile,
+                    ip_address=request.client.host if request.client else "127.0.0.1"
+                )
+                if failed_attempt.get("is_locked", False):
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Invalid mobile number or password. 5 consecutive failed login attempts reached! Account locked for 30 minutes."
+                    )
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid mobile number or password. Please verify your credentials and try again."
+            )
+
+        # 3. If password_hash is missing, NULL, empty, or an old default -> PASSWORD_SETUP_REQUIRED
+        stored_hash = auth_user.password_hash if (auth_user and auth_user.password_hash) else None
+        if not stored_hash or is_insecure_or_missing_hash(stored_hash):
+            return {
+                "status": "PASSWORD_SETUP_REQUIRED",
+                "code": "PASSWORD_SETUP_REQUIRED",
+                "success": False,
+                "message": "Your account requires a password setup before you can continue.",
+                "redirect_url": f"/forgot-password?setup=true&mobile={clean_mobile}",
+                "data": {
+                    "status": "PASSWORD_SETUP_REQUIRED",
+                    "code": "PASSWORD_SETUP_REQUIRED",
+                    "message": "Your account requires a password setup before you can continue.",
+                    "redirect_url": f"/forgot-password?setup=true&mobile={clean_mobile}"
+                }
+            }
+
+        # 4. Strict password verification against stored password hash
+        try:
+            if verify_password(payload.password, stored_hash):
+                is_valid_pass = True
+            else:
+                is_valid_pass = False
+        except Exception:
+            is_valid_pass = False
 
     if is_valid_pass:
         try:
@@ -1531,13 +1640,38 @@ async def confirm_password_reset(payload: PasswordResetConfirmPayload, db: Async
     mobile_variants = [record.mobile_number, f"91{record.mobile_number}"]
     if record.mobile_number.startswith("91"):
         mobile_variants.append(record.mobile_number[2:])
+    clean_mob = record.mobile_number[-10:]
     u_stmt = select(AuthUserModel).where(AuthUserModel.mobile_number.in_(mobile_variants))
     user = (await db.execute(u_stmt)).scalars().first()
+    new_hash = hash_password(payload.new_password)
     if user:
-        new_hash = hashlib.sha256(payload.new_password.encode()).hexdigest()
         user.password_hash = new_hash
         user.failed_attempts = 0
         user.locked_until = None
+    else:
+        r_stmt = select(RetailerContactModel, RetailerModel).join(
+            RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id
+        ).where(RetailerContactModel.mobile.in_(mobile_variants))
+        r_row = (await db.execute(r_stmt)).first()
+        if r_row:
+            contact, ret = r_row
+            user = AuthUserModel(
+                user_id=ret.public_id,
+                mobile_number=clean_mob,
+                full_name=ret.owner_name or contact.primary_contact or "Retailer Partner",
+                email=contact.email or f"{clean_mob}@pay2pay.in",
+                password_hash=new_hash,
+                role="RETAILER",
+                account_status="ACTIVE" if ret.status == "ACTIVE" else "PENDING_APPROVAL",
+                tenant_id=ret.tenant_id or DEFAULT_TENANT_ID,
+                company_id=ret.company_id or DEFAULT_COMPANY_ID
+            )
+            db.add(user)
+
+    try:
+        await EnterpriseAuthService.reset_failed_attempts(db=db, mobile_number=clean_mob)
+    except Exception:
+        pass
 
     record.is_used = True
     record.used_at = datetime.now(timezone.utc)
