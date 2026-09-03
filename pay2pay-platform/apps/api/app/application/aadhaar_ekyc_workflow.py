@@ -711,6 +711,12 @@ class AadhaarEkycWorkflowService:
         fee_session = _pending_fee_sessions.get(ref_id)
         ekyc_profile = _pending_verified_profiles.get(ref_id) or {}
 
+        if not ekyc_profile or not ekyc_profile.get("full_name"):
+            raise HTTPException(
+                status_code=400,
+                detail="Customer cannot be registered or stored in database without genuine Aadhaar eKYC verification."
+            )
+
         clean_mobile = "".join(filter(str.isdigit, mobile_number))
         if len(clean_mobile) < 10:
             raise HTTPException(status_code=400, detail="Valid 10-digit mobile number required")
