@@ -43,6 +43,7 @@ import SpeedIcon from "@mui/icons-material/Speed";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { retailerApi } from "@/services/retailer-api";
@@ -1815,146 +1816,308 @@ export default function NewCustomerWorkspacePage() {
           </Paper>
         )}
 
-        {/* ── AADHAAR WALLET DEBIT CONFIRMATION MODAL ── */}
+        {/* ── AADHAAR WALLET DEBIT CONFIRMATION MODAL (ENTERPRISE FINTECH REDESIGN) ── */}
         <Dialog
           open={showDebitConfirmModal}
           onClose={() => !aadhaarLoading && setShowDebitConfirmModal(false)}
           slotProps={{
             backdrop: {
               sx: {
-                bgcolor: "rgba(0, 0, 0, 0.75)",
-                backdropFilter: "blur(8px)",
+                bgcolor: "rgba(3, 7, 18, 0.82)",
+                backdropFilter: "blur(12px)",
               },
             },
           }}
           PaperProps={{
             sx: {
-              bgcolor: "#0B0F19",
-              borderRadius: "20px",
-              border: "1px solid rgba(245, 158, 11, 0.35)",
-              boxShadow: "0 24px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(245, 158, 11, 0.15)",
+              bgcolor: "rgba(11, 15, 25, 0.96)",
+              backgroundImage: "linear-gradient(180deg, rgba(23, 31, 50, 0.75) 0%, rgba(10, 14, 23, 0.98) 100%)",
+              backdropFilter: "blur(24px)",
+              borderRadius: { xs: "20px", sm: "24px" },
+              border: "1px solid rgba(245, 158, 11, 0.28)",
+              boxShadow: "0 28px 75px rgba(0, 0, 0, 0.92), 0 0 35px rgba(245, 158, 11, 0.12)",
               color: "#FFFFFF",
               maxWidth: 440,
               width: "100%",
-              p: 3,
+              p: { xs: 2.5, sm: 3 },
+              position: "relative",
+              overflow: "hidden",
             },
           }}
         >
-          <Stack spacing={2.5}>
-            {/* Header */}
-            <Stack direction="row" alignItems="center" spacing={1.5}>
+          {/* Subtle Top Gold Highlight Glow Line */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: "10%",
+              right: "10%",
+              height: "2px",
+              background: "linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.9) 50%, transparent 100%)",
+              boxShadow: "0 0 14px rgba(245, 158, 11, 0.6)",
+            }}
+          />
+
+          <Stack spacing={2.25}>
+            {/* Header: Icon, Title, Subtitle, and Security Indicator */}
+            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1.5}>
+              <Stack direction="row" alignItems="center" spacing={1.75}>
+                <Box
+                  sx={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: "14px",
+                    bgcolor: "rgba(245, 158, 11, 0.12)",
+                    border: "1.5px solid rgba(245, 158, 11, 0.35)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#F59E0B",
+                    boxShadow: "0 0 16px rgba(245, 158, 11, 0.2)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <ShieldIcon sx={{ fontSize: 24, color: "#FBBF24" }} />
+                </Box>
+                <Box>
+                  <Typography
+                    sx={{
+                      fontWeight: 900,
+                      fontSize: { xs: "16.5px", sm: "17.5px" },
+                      color: "#FFFFFF",
+                      letterSpacing: "-0.3px",
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    Confirm Aadhaar Verification
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: "rgba(255, 255, 255, 0.6)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      mt: 0.35,
+                    }}
+                  >
+                    UIDAI Offline eKYC via Cashfree
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {/* Subtle Verification/Security Indicator */}
               <Box
                 sx={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "12px",
-                  bgcolor: "rgba(245, 158, 11, 0.15)",
-                  border: "1.5px solid rgba(245, 158, 11, 0.4)",
-                  display: "flex",
+                  display: { xs: "none", sm: "flex" },
                   alignItems: "center",
-                  justifyContent: "center",
-                  color: "#F59E0B",
+                  gap: 0.6,
+                  bgcolor: "rgba(34, 197, 94, 0.12)",
+                  border: "1px solid rgba(74, 222, 128, 0.3)",
+                  borderRadius: "20px",
+                  px: 1,
+                  py: 0.35,
                 }}
               >
-                <ShieldIcon sx={{ fontSize: 24 }} />
-              </Box>
-              <Box>
-                <Typography sx={{ fontWeight: 900, fontSize: "17px", color: "#FDE68A" }}>
-                  Confirm Aadhaar Verification
-                </Typography>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>
-                  UIDAI Offline eKYC via Cashfree
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: "#4ADE80",
+                    boxShadow: "0 0 6px #4ADE80",
+                  }}
+                />
+                <Typography
+                  sx={{
+                    fontSize: "9.5px",
+                    fontWeight: 800,
+                    color: "#4ADE80",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  UIDAI COMPLIANT
                 </Typography>
               </Box>
             </Stack>
 
-            {/* Charge Breakdown Card */}
+            {/* Fee Breakdown Card (Polished Financial Summary) */}
             <Box
               sx={{
-                bgcolor: "rgba(15, 23, 42, 0.8)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "14px",
+                bgcolor: "rgba(15, 23, 42, 0.65)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "16px",
                 p: 2,
               }}
             >
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", mb: 1.5 }}>
-                Verification Fee Breakdown
+              <Typography
+                sx={{
+                  color: "#94A3B8",
+                  fontSize: "10.5px",
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  mb: 1.5,
+                }}
+              >
+                VERIFICATION FEE
               </Typography>
 
-              <Stack spacing={1}>
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "13px" }}>
+              <Stack spacing={1.2}>
+                {/* eKYC Service Fee */}
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "13px", fontWeight: 500 }}>
                     eKYC Service Fee
                   </Typography>
-                  <Typography sx={{ fontWeight: 700, fontSize: "13px", color: "#FFFFFF" }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: "13.5px",
+                      color: "#FFFFFF",
+                      fontFamily: "var(--font-geist-mono), monospace",
+                    }}
+                  >
                     ₹{(chargePreview?.service_charge ?? 0).toFixed(2)}
                   </Typography>
                 </Stack>
 
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "13px" }}>
-                    GST {chargePreview?.tax_rate ? `(${Math.round(chargePreview.tax_rate * 100)}%)` : "(18%)"}
+                {/* GST Rate & Amount */}
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "13px", fontWeight: 500 }}>
+                    GST ({chargePreview?.tax_rate ? Math.round(chargePreview.tax_rate * 100) : 18}%)
                   </Typography>
-                  <Typography sx={{ fontWeight: 700, fontSize: "13px", color: "#FFFFFF" }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: "13.5px",
+                      color: "#FFFFFF",
+                      fontFamily: "var(--font-geist-mono), monospace",
+                    }}
+                  >
                     ₹{((chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0)).toFixed(2)}
                   </Typography>
                 </Stack>
 
-                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 0.5 }} />
+                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
 
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography sx={{ color: "#FDE68A", fontSize: "14px", fontWeight: 800 }}>
+                {/* Total Wallet Debit (Strongest Visual Element) */}
+                <Box
+                  sx={{
+                    p: 1.25,
+                    borderRadius: "12px",
+                    bgcolor: "rgba(245, 158, 11, 0.08)",
+                    border: "1px solid rgba(245, 158, 11, 0.22)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography sx={{ color: "#FDE68A", fontSize: "13.5px", fontWeight: 800 }}>
                     Total Wallet Debit
                   </Typography>
-                  <Typography sx={{ color: "#F59E0B", fontSize: "17px", fontWeight: 900 }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 900,
+                      fontSize: { xs: "18px", sm: "20px" },
+                      fontFamily: "var(--font-geist-mono), monospace",
+                      background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      letterSpacing: "-0.4px",
+                    }}
+                  >
                     ₹{(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}
                   </Typography>
-                </Stack>
+                </Box>
               </Stack>
             </Box>
 
-            {/* Warning Banner */}
+            {/* Available Wallet Balance Indicator Card */}
             <Box
               sx={{
                 p: 1.5,
-                borderRadius: "12px",
-                bgcolor: "rgba(245, 158, 11, 0.1)",
-                border: "1px solid rgba(245, 158, 11, 0.3)",
+                borderRadius: "14px",
+                bgcolor: "rgba(255, 255, 255, 0.02)",
+                border: "1px solid rgba(255, 255, 255, 0.07)",
                 display: "flex",
-                gap: 1.5,
-                alignItems: "flex-start",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12.5px", lineHeight: 1.5 }}>
-                ⚠️ Verification charge of <strong>₹{(chargePreview?.total_amount ?? 3.54).toFixed(2)}</strong> will be debited from your retailer main wallet upon OTP dispatch. Auto-refund is guaranteed if verification fails.
+              <Stack direction="row" spacing={1} alignItems="center">
+                <AccountBalanceWalletIcon sx={{ fontSize: 18, color: "#94A3B8" }} />
+                <Typography
+                  sx={{
+                    color: "#94A3B8",
+                    fontSize: "11.5px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Available Wallet Balance
+                </Typography>
+              </Stack>
+              <Typography
+                sx={{
+                  color: "#4ADE80",
+                  fontSize: { xs: "14px", sm: "15px" },
+                  fontWeight: 900,
+                  fontFamily: "var(--font-geist-mono), monospace",
+                }}
+              >
+                ₹{mainBalanceFormatted}
               </Typography>
             </Box>
 
-            {/* Wallet Balance Check */}
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 0.5 }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "12px" }}>
-                Available Wallet Balance:
+            {/* Compact Professional Information Notice Banner */}
+            <Box
+              sx={{
+                p: 1.35,
+                borderRadius: "12px",
+                bgcolor: "rgba(245, 158, 11, 0.06)",
+                border: "1px solid rgba(245, 158, 11, 0.2)",
+                display: "flex",
+                gap: 1.25,
+                alignItems: "flex-start",
+              }}
+            >
+              <InfoOutlinedIcon sx={{ fontSize: 18, color: "#F59E0B", mt: 0.15, flexShrink: 0 }} />
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", lineHeight: 1.5 }}>
+                Verification charge of{" "}
+                <strong style={{ color: "#FDE68A" }}>
+                  ₹{(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}
+                </strong>{" "}
+                will be debited from your retailer main wallet upon OTP dispatch.
+                <Box component="span" sx={{ display: "block", color: "#4ADE80", fontWeight: 700, mt: 0.35 }}>
+                  ✓ Auto-refund is guaranteed if verification fails.
+                </Box>
               </Typography>
-              <Typography sx={{ color: "#4ADE80", fontSize: "13px", fontWeight: 800 }}>
-                ₹{mainBalanceFormatted}
-              </Typography>
-            </Stack>
+            </Box>
 
-            {/* Action Buttons */}
-            <Stack direction="row" spacing={1.5} sx={{ pt: 1 }}>
+            {/* Two-Button Modern Footer */}
+            <Stack direction="row" spacing={1.5} sx={{ pt: 0.5 }}>
               <Button
                 variant="outlined"
                 fullWidth
                 disabled={aadhaarLoading}
                 onClick={() => setShowDebitConfirmModal(false)}
                 sx={{
-                  height: 46,
+                  height: 48,
                   borderRadius: "12px",
-                  borderColor: "rgba(255, 255, 255, 0.2)",
-                  color: "rgba(255, 255, 255, 0.7)",
+                  borderColor: "rgba(255, 255, 255, 0.16)",
+                  bgcolor: "rgba(255, 255, 255, 0.03)",
+                  color: "rgba(255, 255, 255, 0.75)",
                   textTransform: "none",
-                  fontWeight: 700,
-                  "&:hover": { borderColor: "rgba(255, 255, 255, 0.4)", color: "#FFFFFF" },
+                  fontWeight: 800,
+                  fontSize: "14px",
+                  letterSpacing: "-0.2px",
+                  transition: "all 0.2s ease-in-out",
+                  "&:hover": {
+                    borderColor: "rgba(255, 255, 255, 0.3)",
+                    bgcolor: "rgba(255, 255, 255, 0.07)",
+                    color: "#FFFFFF",
+                    transform: "translateY(-1px)",
+                  },
+                  "&:active": { transform: "translateY(0)" },
                 }}
               >
                 Cancel
@@ -1966,20 +2129,28 @@ export default function NewCustomerWorkspacePage() {
                 disabled={aadhaarLoading}
                 onClick={handleConfirmAndSendAadhaarOtp}
                 sx={{
-                  height: 46,
+                  height: 48,
                   borderRadius: "12px",
                   fontWeight: 900,
                   fontSize: "13.5px",
+                  letterSpacing: "-0.2px",
                   background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
                   color: "#080B11",
                   textTransform: "none",
-                  boxShadow: "0 4px 16px rgba(245, 158, 11, 0.4)",
+                  boxShadow: "0 4px 18px rgba(245, 158, 11, 0.35)",
+                  transition: "all 0.2s ease-in-out",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+                    boxShadow: "0 6px 24px rgba(245, 158, 11, 0.5)",
+                    transform: "translateY(-1px)",
+                  },
+                  "&:active": { transform: "translateY(0)" },
                 }}
               >
                 {aadhaarLoading ? (
                   <CircularProgress size={20} sx={{ color: "#080B11" }} />
                 ) : (
-                  `Confirm & Debit ₹${(chargePreview?.total_amount ?? 3.54).toFixed(2)}`
+                  `Confirm & Debit ₹${(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}`
                 )}
               </Button>
             </Stack>
