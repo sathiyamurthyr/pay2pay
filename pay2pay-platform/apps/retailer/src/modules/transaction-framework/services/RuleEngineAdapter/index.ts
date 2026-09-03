@@ -105,9 +105,9 @@ let currentConfig: DynamicPricingConfig = {
       id: "SLAB-0-500000",
       minAmount: 0,
       maxAmount: 500000,
-      fee: 20,
+      fee: 22,
       feeType: "FIXED",
-      gstEnabled: false,
+      gstEnabled: true,
       gstPercentage: 0.0,
       tdsEnabled: false,
       tdsPercentage: 0.0,
@@ -120,9 +120,9 @@ let currentConfig: DynamicPricingConfig = {
       id: "SLAB-500001-1000000",
       minAmount: 500001,
       maxAmount: 1000000,
-      fee: 75,
+      fee: 22,
       feeType: "FIXED",
-      gstEnabled: false,
+      gstEnabled: true,
       gstPercentage: 0.0,
       tdsEnabled: false,
       tdsPercentage: 0.0,
@@ -268,7 +268,11 @@ export class RuleEngineService {
         ? Number(((amount * matchingSlab.fee * modeMultiplier) / 100).toFixed(2))
         : Number((matchingSlab.fee * modeMultiplier).toFixed(2));
 
-    const gstAmount = matchingSlab.gstEnabled ? Number(((convenienceFee * matchingSlab.gstPercentage) / 100).toFixed(2)) : 0;
+    const gstAmount = matchingSlab.gstEnabled
+      ? matchingSlab.gstPercentage > 0
+        ? Number(((convenienceFee * matchingSlab.gstPercentage) / 100).toFixed(2))
+        : 3.0
+      : 0;
     const tdsAmount = matchingSlab.tdsEnabled ? Number(((convenienceFee * matchingSlab.tdsPercentage) / 100).toFixed(2)) : 0;
 
     const commission =

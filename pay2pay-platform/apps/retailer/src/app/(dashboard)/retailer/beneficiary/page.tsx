@@ -1827,6 +1827,16 @@ function BeneficiaryWorkspaceContent() {
                 setSelectedBeneficiary(b);
                 setSavedBenModalOpen(false);
               }}
+              onToggleFavorite={async (bId) => {
+                try {
+                  await retailerApi.toggleBeneficiaryFavorite(bId);
+                  setBeneficiaries((prev: any[]) =>
+                    prev.map((b) => (b.id === bId ? { ...b, isFavorite: !b.isFavorite } : b))
+                  );
+                } catch (e) {
+                  console.error("Failed to toggle beneficiary favorite in DB:", e);
+                }
+              }}
               onOpenDrawer={(b) => setSelectedBeneficiary(b)}
               onDeleteRequest={(b) => {
                 setTargetDeleteBen(b);

@@ -1486,6 +1486,16 @@ export const retailerApi = {
 
   // ─── FAVORITE MENUS (PostgreSQL Stored Procedures & DB APIs) ───────────────
 
+  toggleBeneficiaryFavorite: async (beneficiaryId: string) => {
+    try {
+      const res = await apiClient.post(`/beneficiaries/${beneficiaryId}/toggle-favorite`);
+      return res.data;
+    } catch (err: any) {
+      console.error("Failed to toggle beneficiary favorite:", err);
+      throw err;
+    }
+  },
+
   getFavoriteMenus: async (userRefId?: string) => {
     try {
       const uRef = userRefId || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || "9176669426" : "9176669426");

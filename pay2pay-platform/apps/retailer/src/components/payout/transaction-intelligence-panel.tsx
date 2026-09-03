@@ -90,12 +90,12 @@ export function TransactionIntelligencePanel({
   const numAmount = Number(amount) || 0;
   const amountInWords = numberToWordsIndian(numAmount);
 
-  // Charge structure
-  const serviceCharge = numAmount <= 1000 ? 5 : numAmount <= 25000 ? 10 : 15;
-  const gst = Math.round(serviceCharge * 0.18 * 100) / 100;
+  // Charge structure: Base ₹22.00, GST ₹3.00, Total Payout Fee ₹25.00
+  const serviceCharge = 22;
+  const gst = 3;
   const totalCustomerCharge = serviceCharge + gst;
   const retailerCommission = Math.round(numAmount * 0.0015 * 100) / 100; // 0.15% commission
-  const netWalletDebit = numAmount + serviceCharge;
+  const netWalletDebit = numAmount + totalCustomerCharge;
   const walletAfter = walletBalance - netWalletDebit;
 
   // Limits

@@ -829,3 +829,81 @@ async def remove_beneficiary_endpoint(
             "deleted_at": now_utc.isoformat()
         }
     )
+
+
+@router.post("/{beneficiary_id}/toggle-favorite", response_model=APIResponse)
+@router.post("/{beneficiary_id}/toggle-favourite", response_model=APIResponse)
+@router.patch("/{beneficiary_id}/favorite", response_model=APIResponse)
+async def toggle_beneficiary_favorite(
+    beneficiary_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Toggles the is_favourite state for a beneficiary in the database.
+    Executes PostgreSQL Stored Procedure `public.sp_toggle_beneficiary_favorite(beneficiary_id)`.
+    """
+    target_uuid = None
+    try:
+        target_uuid = uuid.UUID(beneficiary_id)
+    except Exception:
+        pass
+
+    if target_uuid:
+        try:
+            sp_res = await db.execute(
+                text("SELECT public_id, is_favourite, status FROM public.sp_toggle_beneficiary_favorite(:pid);"),
+                {"pid": target_uuid}
+            )
+            row = sp_res.first()
+            if row and row.status == "SUCCESS":
+                await db.commit()
+                return APIResponse(
+                    message="Beneficiary favorite state toggled successfully via Stored Procedure",
+                    data={
+                        "beneficiary_id": str(row.public_id),
+                        "is_favorite": row.is_favourite,
+                        "is_favourite": row.is_favourite,
+                        "source": "STORED_PROCEDURE"
+                    }
+                )
+        except Exception as sp_err:
+            print(f"[BENEFICIARY FAVORITE SP NOTICE] {sp_err}. Falling back to atomic SQL.")
+
+    # Fallback atomic update
+    is_fav = False
+    if target_uuid:
+        b_stmt = select(BeneficiaryModel).where(BeneficiaryModel.public_id == target_uuid)
+        b_obj = (await db.execute(b_stmt)).scalars().first()
+        if b_obj:
+            b_obj.is_favourite = not (b_obj.is_favourite or False)
+            b_obj.updated_date = _now()
+            is_fav = b_obj.is_favourite
+        
+        bm_stmt = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.public_id == target_uuid)
+        bm_obj = (await db.execute(bm_stmt)).scalars().first()
+        if bm_obj:
+            bm_obj.is_favourite = is_fav
+            bm_obj.updated_at = _now()
+    else:
+        # String/code match
+        await db.execute(
+            text("UPDATE beneficiary SET is_favourite = NOT COALESCE(is_favourite, false), updated_date = NOW() WHERE beneficiary_code = :code OR id::text = :code"),
+            {"code": beneficiary_id}
+        )
+        await db.execute(
+            text("UPDATE beneficiary_master SET is_favourite = NOT COALESCE(is_favourite, false), updated_at = NOW() WHERE beneficiary_code = :code OR id::text = :code"),
+            {"code": beneficiary_id}
+        )
+
+    await db.commit()
+
+    return APIResponse(
+        message="Beneficiary favorite state updated successfully",
+        data={
+            "beneficiary_id": str(beneficiary_id),
+            "is_favorite": is_fav,
+            "is_favourite": is_fav,
+            "source": "DATABASE"
+        }
+    )
+

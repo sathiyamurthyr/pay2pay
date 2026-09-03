@@ -435,5 +435,30 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
     return null;
   };
 
-  return { beneficiaries, setBeneficiaries, selectedBeneficiary, setSelectedBeneficiary, deleteBeneficiary, fetchBeneficiaryLimits, isLoading, error };
+  const toggleFavoriteBeneficiary = async (beneficiaryId: string) => {
+    if (!beneficiaryId) return;
+    // Optimistic toggle in local state
+    setBeneficiaries((prev) =>
+      prev.map((b) => (b.id === beneficiaryId || b.beneficiaryCode === beneficiaryId ? { ...b, isFavorite: !b.isFavorite } : b))
+    );
+    if (selectedBeneficiary?.id === beneficiaryId || selectedBeneficiary?.beneficiaryCode === beneficiaryId) {
+      setSelectedBeneficiary((prev) => (prev ? { ...prev, isFavorite: !prev.isFavorite } : prev));
+    }
+    try {
+      const res = await retailerApi.toggleBeneficiaryFavorite(beneficiaryId);
+      return res;
+    } catch (err) {
+      console.error("Failed to toggle beneficiary favorite in DB:", err);
+      // Revert optimistic toggle on failure
+      setBeneficiaries((prev) =>
+        prev.map((b) => (b.id === beneficiaryId || b.beneficiaryCode === beneficiaryId ? { ...b, isFavorite: !b.isFavorite } : b))
+      );
+      if (selectedBeneficiary?.id === beneficiaryId || selectedBeneficiary?.beneficiaryCode === beneficiaryId) {
+        setSelectedBeneficiary((prev) => (prev ? { ...prev, isFavorite: !prev.isFavorite } : prev));
+      }
+      throw err;
+    }
+  };
+
+  return { beneficiaries, setBeneficiaries, selectedBeneficiary, setSelectedBeneficiary, deleteBeneficiary, fetchBeneficiaryLimits, toggleFavoriteBeneficiary, toggleFavorite: toggleFavoriteBeneficiary, isLoading, error };
 }

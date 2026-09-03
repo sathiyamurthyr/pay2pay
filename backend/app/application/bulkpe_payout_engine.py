@@ -327,10 +327,10 @@ class BulkPePayoutEngine:
             total_debit = float((amount_d + comm_val + vc_val + oth_val + gst_val).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
             company_commission = float(comm_val)
         else:
-            retailer_charge = 0.0
-            retailer_gst = 0.0
-            total_debit = float(amount_d)
-            company_commission = 0.0
+            retailer_charge = 22.0
+            retailer_gst = 3.0
+            total_debit = float(amount_d + Decimal("25.00"))
+            company_commission = 22.0
 
         # ----------------------------------------------------
         # 3. ACID WALLET DEBIT & JOURNAL RECORDING

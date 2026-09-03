@@ -1484,11 +1484,33 @@ export const retailerApi = {
     }
   },
 
+  // ─── BENEFICIARY FAVORITES (PostgreSQL Stored Procedure & API) ───────────
+
+  toggleBeneficiaryFavorite: async (beneficiaryId: string) => {
+    try {
+      const res = await apiClient.post(`/beneficiaries/${beneficiaryId}/toggle-favorite`);
+      return res.data;
+    } catch (err: any) {
+      console.error("Failed to toggle beneficiary favorite:", err);
+      throw err;
+    }
+  },
+
   // ─── FAVORITE MENUS (PostgreSQL Stored Procedures & DB APIs) ───────────────
 
   getFavoriteMenus: async (userRefId?: string) => {
     try {
-      const uRef = userRefId || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      let uRef = userRefId || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef && typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+            if (uRef) localStorage.setItem("user_ref_id", String(uRef));
+          }
+        } catch {}
+      }
       if (!uRef) return { status: "SUCCESS", favorites: [] };
       const res = await apiClient.get("/favorites/menus", {
         params: { user_ref_id: uRef }
@@ -1496,15 +1518,7 @@ export const retailerApi = {
       return res.data;
     } catch (err: any) {
       console.warn("Favorites fetch notice:", err);
-      // Return safe defaults
-      return {
-        status: "SUCCESS",
-        favorites: [
-          { menu_href: "/retailer-dashboard", menu_label: "Dashboard", menu_category: "Core Banking", icon_name: "Dashboard" },
-          { menu_href: "/retailer/dmt", menu_label: "Money Transfer (DMT)", menu_category: "Transfers", icon_name: "Send" },
-          { menu_href: "/retailer/wallet", menu_label: "Retailer Wallet", menu_category: "Finance", icon_name: "AccountBalanceWallet" },
-        ]
-      };
+      return { status: "SUCCESS", favorites: [] };
     }
   },
 
@@ -1518,7 +1532,17 @@ export const retailerApi = {
     user_role?: string;
   }) => {
     try {
-      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      let uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef && typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+            if (uRef) localStorage.setItem("user_ref_id", String(uRef));
+          }
+        } catch {}
+      }
       if (!uRef) return { status: "ERROR", message: "User session not found" };
       const res = await apiClient.post("/favorites/menus", {
         ...payload,
@@ -1540,7 +1564,17 @@ export const retailerApi = {
     user_role?: string;
   }) => {
     try {
-      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      let uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef && typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+            if (uRef) localStorage.setItem("user_ref_id", String(uRef));
+          }
+        } catch {}
+      }
       if (!uRef) return { status: "ERROR", message: "User session not found" };
       const res = await apiClient.post("/favorites/toggle", {
         ...payload,

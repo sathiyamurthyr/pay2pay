@@ -9,8 +9,10 @@ export interface AmountPanelProps {
   totalPayable: number;
 }
 
-export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange, charges, totalPayable }) => {
-  const gst = Math.round(charges * 0.18);
+export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange, charges = 22, totalPayable = amount + 25 }) => {
+  const effectiveCharges = charges || 22;
+  const gst = 3.00;
+  const effectiveTotal = totalPayable || (amount + effectiveCharges + gst);
 
   return (
     <Paper
@@ -48,34 +50,33 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
           slotProps={{
             input: {
               sx: {
-                height: 56, // 56px height
-                fontSize: "24px", // 24px bold input text
-                fontWeight: 900,
-                color: "#FFFFFF",
+                height: 56,
                 borderRadius: "12px",
-                bgcolor: "rgba(8, 17, 31, 0.85)",
-                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.15)" },
-                "&:hover fieldset": { borderColor: "#3B82F6" },
+                bgcolor: "rgba(255, 255, 255, 0.05)",
+                color: "#FFFFFF",
+                fontSize: "24px",
+                fontWeight: 700,
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                "&:hover": { borderColor: "#3B82F6" },
+                "&.Mui-focused": { borderColor: "#60A5FA", boxShadow: "0 0 12px rgba(96, 165, 250, 0.3)" },
               },
             },
           }}
         />
 
-        <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap", gap: 1.5, flexShrink: 0 }}>
+        {/* Preset Chips */}
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
           {[1000, 2000, 5000, 10000, 25000].map((quickVal) => (
             <Chip
               key={quickVal}
-              label={`+₹${quickVal.toLocaleString()}`}
+              label={`₹${quickVal.toLocaleString()}`}
               onClick={() => onAmountChange(quickVal)}
               sx={{
-                height: 56,
-                px: 2,
-                borderRadius: "12px",
-                fontWeight: 800,
-                fontSize: "16px",
                 bgcolor: amount === quickVal ? "#2563EB" : "rgba(255, 255, 255, 0.08)",
-                color: amount === quickVal ? "#FFFFFF" : "rgba(255, 255, 255, 0.90)",
-                border: amount === quickVal ? "1px solid #3B82F6" : "1px solid rgba(255, 255, 255, 0.12)",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                fontSize: "14px",
+                borderRadius: "8px",
                 cursor: "pointer",
                 "&:hover": { bgcolor: amount === quickVal ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", transform: "translateY(-2px)" },
                 "&:active": { transform: "scale(0.98)" },
@@ -108,16 +109,16 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
 
         <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
-            RETAILER SURCHARGE
+            PAYOUT SERVICE CHARGE
           </Typography>
           <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "18px" }}>
-            + ₹{charges.toLocaleString()}
+            + ₹{effectiveCharges.toLocaleString()}
           </Typography>
         </Box>
 
         <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
-            GST (0%)
+            GST
           </Typography>
           <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "18px" }}>
             + ₹{gst.toLocaleString()}
@@ -129,7 +130,7 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
             TOTAL WALLET DEBIT
           </Typography>
           <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "24px" }}>
-            ₹{totalPayable.toLocaleString()}
+            ₹{effectiveTotal.toLocaleString()}
           </Typography>
         </Box>
       </Box>

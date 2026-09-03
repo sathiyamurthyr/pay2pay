@@ -649,7 +649,9 @@ class PayoutWorkflowService:
 
         limit_info = await PayoutWorkflowService.get_customer_monthly_limit(db, tenant_id, customer_id)
         
-        charges = 10.0 if amount <= 25000 else 15.0
+        service_charge = 22.00
+        gst_amount = 3.00
+        charges = service_charge + gst_amount  # Total Fee: ₹25.00
         net_debit = amount + charges
 
         is_wallet_valid = wallet_balance >= net_debit
@@ -670,6 +672,9 @@ class PayoutWorkflowService:
             "status": status,
             "amount": amount,
             "charges": charges,
+            "service_charge": service_charge,
+            "gst": gst_amount,
+            "gst_amount": gst_amount,
             "net_debit": net_debit,
             "wallet_balance": wallet_balance,
             "wallet_remaining_after": wallet_balance - net_debit if is_wallet_valid else wallet_balance,
@@ -901,8 +906,9 @@ class PayoutWorkflowService:
         ret_name = getattr(ret_obj, "store_name", None) or getattr(ret_obj, "legal_name", None) or "Retailer"
         comp_id = getattr(ret_obj, "company_id", None)
 
-        charge_ex_gst = float(charges)
-        gst_val = 0.00
+        charge_ex_gst = float(val_res.get("service_charge", 22.00))
+        gst_val = float(val_res.get("gst_amount", val_res.get("gst", 3.00)))
+        charges = charge_ex_gst + gst_val
 
         # 1. Primary Workflow Transaction Model (payout_workflow_transactions)
         payout = PayoutWorkflowTransactionModel(
