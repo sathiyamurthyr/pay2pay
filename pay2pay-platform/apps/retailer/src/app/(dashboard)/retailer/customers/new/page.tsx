@@ -89,6 +89,10 @@ export default function NewCustomerWorkspacePage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [canResend, setCanResend] = useState(true);
+  const [otpChannel, setOtpChannel] = useState<"WHATSAPP" | "SMS">("WHATSAPP");
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
   const [aadhaarVerified, setAadhaarVerified] = useState(false);
   const [aadhaarLoading, setAadhaarLoading] = useState(false);
@@ -102,6 +106,23 @@ export default function NewCustomerWorkspacePage() {
 
   // Auto-Save Draft Timestamp
   const [lastSaved, setLastSaved] = useState<string>("Just now");
+
+  // OTP Countdown Timer
+  useEffect(() => {
+    let timer: any;
+    if (resendTimer > 0) {
+      timer = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendTimer]);
 
   // Initial Health Check on page load
   useEffect(() => {
@@ -216,6 +237,31 @@ export default function NewCustomerWorkspacePage() {
     }
   };
 
+  const handleResendMobileOtp = async (channel: "WHATSAPP" | "SMS" = "WHATSAPP") => {
+    if (!canResend && resendTimer > 0) return;
+    setOtpLoading(true);
+    setOtpError("");
+    setOtpChannel(channel);
+    try {
+      const res = await retailerApi.generateMobileOtp(mobileNumber, channel);
+      setOtpLoading(false);
+      if (res && (res.status === "SUCCESS" || res.data)) {
+        setCanResend(false);
+        setResendTimer(30);
+        notificationEngine.notify("OTP_RECEIVED", `OTP Resent via ${channel === "WHATSAPP" ? "WhatsApp" : "SMS"} to +91 ${mobileNumber}`);
+      } else {
+        const errMsg = res?.detail || res?.error || res?.message || "Failed to resend OTP code";
+        setOtpError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+      }
+    } catch (err: any) {
+      setOtpLoading(false);
+      const errMsg = err?.response?.data?.detail || err?.message || "Failed to resend OTP";
+      setOtpError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+    }
+  };
+
   const handleSendMobileOtp = async () => {
     if (mobileNumber.length !== 10) return;
     setOtpLoading(true);
@@ -245,36 +291,53 @@ export default function NewCustomerWorkspacePage() {
       setOtpLoading(false);
       if (res && (res.status === "SUCCESS" || res.data)) {
         setOtpSent(true);
+        setCanResend(false);
+        setResendTimer(30);
         setActiveStep(1);
         notificationEngine.notify("OTP_RECEIVED", `WhatsApp OTP Dispatched to +91 ${mobileNumber}`);
       } else {
-        setActiveStep(1);
+        const errMsg = res?.detail || res?.error || res?.message || "Failed to dispatch WhatsApp OTP. Please check mobile number.";
+        setOtpError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
       }
-    } catch {
+    } catch (err: any) {
       setOtpLoading(false);
-      setActiveStep(1);
+      const errMsg = err?.response?.data?.detail || err?.message || "Failed to dispatch WhatsApp OTP";
+      setOtpError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
   const handleVerifyMobileOtp = async () => {
-    if (otpValue.length < 4) {
-      setOtpError("Please enter complete 6-digit OTP code");
+    const cleanOtp = otpValue.replace(/\D/g, "").slice(0, 6);
+    if (cleanOtp.length !== 6) {
+      setOtpError("Please enter the complete 6-digit OTP code received on WhatsApp");
       return;
     }
     setOtpLoading(true);
     setOtpError("");
 
     try {
-      const res = await retailerApi.verifyMobileOtp(mobileNumber, otpValue);
+      const res = await retailerApi.verifyMobileOtp(mobileNumber, cleanOtp);
       setOtpLoading(false);
       if (res && res.status === "SUCCESS") {
+        setOtpVerified(true);
+        setOtpError("");
+        notificationEngine.notify(
+          "CUSTOMER_VERIFIED",
+          `✓ WhatsApp OTP Verified Successfully! Proceeding to Step 2 — Aadhaar eKYC`
+        );
         setActiveStep(2);
       } else {
-        setActiveStep(2);
+        const errMsg = res?.detail || res?.error || res?.message || "Invalid WhatsApp OTP code. Please check your WhatsApp message and try again.";
+        setOtpError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
       }
-    } catch {
+    } catch (err: any) {
       setOtpLoading(false);
-      setActiveStep(2);
+      const errMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Invalid OTP code. Please try again.";
+      setOtpError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
@@ -291,12 +354,17 @@ export default function NewCustomerWorkspacePage() {
       if (res && res.status === "SUCCESS") {
         setAadhaarOtpSent(true);
         setAadhaarRefId(res.data?.ref_id || res.data?.ref_number || "REF-12345");
+        notificationEngine.notify("OTP_RECEIVED", "Aadhaar eKYC OTP Dispatched via UIDAI");
       } else {
-        setAadhaarOtpSent(true);
+        const errMsg = res?.detail || res?.error || res?.message || "Failed to generate Aadhaar OTP";
+        setAadhaarError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
       }
-    } catch {
+    } catch (err: any) {
       setAadhaarLoading(false);
-      setAadhaarOtpSent(true);
+      const errMsg = err?.response?.data?.detail || err?.message || "Failed to generate Aadhaar OTP";
+      setAadhaarError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
@@ -315,13 +383,18 @@ export default function NewCustomerWorkspacePage() {
       setAadhaarLoading(false);
       if (res && res.status === "SUCCESS") {
         setAadhaarVerified(true);
+        notificationEngine.notify("CUSTOMER_VERIFIED", "Aadhaar eKYC Verified Successfully!");
         setActiveStep(3);
       } else {
-        setActiveStep(3);
+        const errMsg = res?.detail || res?.error || res?.message || "Invalid Aadhaar OTP code";
+        setAadhaarError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
       }
-    } catch {
+    } catch (err: any) {
       setAadhaarLoading(false);
-      setActiveStep(3);
+      const errMsg = err?.response?.data?.detail || err?.message || "Failed to verify Aadhaar OTP";
+      setAadhaarError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
@@ -1268,16 +1341,69 @@ export default function NewCustomerWorkspacePage() {
 
             {/* STEP 1: MOBILE OTP */}
             {activeStep === 1 && (
-              <Stack spacing={2}>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px" }}>
-                  OTP dispatched via WhatsApp to <strong>+91 {mobileNumber}</strong>.
-                </Typography>
+              <Stack spacing={2.5}>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: "14px",
+                    bgcolor: "rgba(34, 197, 94, 0.08)",
+                    border: "1px solid rgba(34, 197, 94, 0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Box>
+                    <Typography sx={{ color: "#4ADE80", fontSize: "13.5px", fontWeight: 800, display: "flex", alignItems: "center", gap: 1 }}>
+                      <span>📲</span> WhatsApp OTP Active
+                    </Typography>
+                    <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "12.5px", mt: 0.5 }}>
+                      6-digit verification code dispatched to <strong>+91 {mobileNumber}</strong>
+                    </Typography>
+                  </Box>
+                  <Chip
+                    label={canResend ? "Code Sent" : `Resend in ${resendTimer}s`}
+                    size="small"
+                    sx={{
+                      bgcolor: canResend ? "rgba(34, 197, 94, 0.2)" : "rgba(255, 255, 255, 0.1)",
+                      color: canResend ? "#4ADE80" : "rgba(255, 255, 255, 0.6)",
+                      fontWeight: 700,
+                      fontSize: "11px",
+                    }}
+                  />
+                </Box>
+
+                {otpError && (
+                  <Alert
+                    severity="error"
+                    sx={{
+                      bgcolor: "rgba(239, 68, 68, 0.15)",
+                      color: "#FCA5A5",
+                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                      borderRadius: "12px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {otpError}
+                  </Alert>
+                )}
 
                 <TextField
                   fullWidth
                   value={otpValue}
-                  onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="Enter 6-digit OTP (e.g. 123456)"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setOtpValue(val);
+                    if (otpError) setOtpError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && otpValue.length === 6 && !otpLoading) {
+                      handleVerifyMobileOtp();
+                    }
+                  }}
+                  placeholder="Enter 6-digit OTP"
+                  autoFocus
                   slotProps={{
                     input: {
                       sx: {
@@ -1285,10 +1411,10 @@ export default function NewCustomerWorkspacePage() {
                         color: "#FFF",
                         borderRadius: "12px",
                         border: "1px solid rgba(245, 158, 11, 0.4)",
-                        fontSize: "16px",
+                        fontSize: "22px",
                         fontWeight: 900,
                         fontFamily: "monospace",
-                        letterSpacing: "0.2em",
+                        letterSpacing: "0.25em",
                         textAlign: "center",
                       },
                     },
@@ -1297,19 +1423,60 @@ export default function NewCustomerWorkspacePage() {
 
                 <Button
                   variant="contained"
-                  disabled={otpValue.length < 4 || otpLoading}
+                  disabled={otpValue.length !== 6 || otpLoading}
                   onClick={handleVerifyMobileOtp}
                   sx={{
                     height: 50,
                     borderRadius: "12px",
                     fontWeight: 900,
+                    fontSize: "14.5px",
                     background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
                     color: "#080B11",
                     textTransform: "none",
+                    boxShadow: "0 6px 20px rgba(245, 158, 11, 0.4)",
+                    "&.Mui-disabled": {
+                      bgcolor: "rgba(255, 255, 255, 0.08)",
+                      color: "rgba(255, 255, 255, 0.3)",
+                    },
                   }}
                 >
-                  Verify Mobile OTP →
+                  {otpLoading ? (
+                    <CircularProgress size={22} sx={{ color: "#080B11" }} />
+                  ) : (
+                    "Verify WhatsApp OTP & Proceed →"
+                  )}
                 </Button>
+
+                {/* Resend Actions */}
+                <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="center" sx={{ pt: 0.5 }}>
+                  <Button
+                    size="small"
+                    disabled={!canResend || otpLoading}
+                    onClick={() => handleResendMobileOtp("WHATSAPP")}
+                    sx={{
+                      color: canResend ? "#FDE68A" : "rgba(255, 255, 255, 0.4)",
+                      fontSize: "12px",
+                      textTransform: "none",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {canResend ? "🔄 Resend WhatsApp OTP" : `Resend in ${resendTimer}s`}
+                  </Button>
+
+                  <Button
+                    size="small"
+                    disabled={!canResend || otpLoading}
+                    onClick={() => handleResendMobileOtp("SMS")}
+                    sx={{
+                      color: canResend ? "rgba(255, 255, 255, 0.8)" : "rgba(255, 255, 255, 0.3)",
+                      fontSize: "12px",
+                      textTransform: "none",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Send via SMS instead
+                  </Button>
+                </Stack>
               </Stack>
             )}
 
@@ -1320,10 +1487,29 @@ export default function NewCustomerWorkspacePage() {
                   Real-time Aadhaar eKYC via Cashfree APIs.
                 </Typography>
 
+                {aadhaarError && (
+                  <Alert
+                    severity="error"
+                    sx={{
+                      bgcolor: "rgba(239, 68, 68, 0.15)",
+                      color: "#FCA5A5",
+                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                      borderRadius: "12px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {aadhaarError}
+                  </Alert>
+                )}
+
                 <TextField
                   fullWidth
                   value={aadhaarNumber}
-                  onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                  onChange={(e) => {
+                    setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12));
+                    if (aadhaarError) setAadhaarError("");
+                  }}
                   placeholder="Enter 12-Digit Aadhaar Number"
                   slotProps={{
                     input: {
@@ -1361,7 +1547,10 @@ export default function NewCustomerWorkspacePage() {
                     <TextField
                       fullWidth
                       value={aadhaarOtp}
-                      onChange={(e) => setAadhaarOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onChange={(e) => {
+                        setAadhaarOtp(e.target.value.replace(/\D/g, "").slice(0, 6));
+                        if (aadhaarError) setAadhaarError("");
+                      }}
                       placeholder="Enter 6-Digit Aadhaar OTP"
                       slotProps={{
                         input: {

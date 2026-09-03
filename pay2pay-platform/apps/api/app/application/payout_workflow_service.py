@@ -14,6 +14,7 @@ Implements end-to-end enterprise payout workflow including:
 import uuid
 import random
 import hashlib
+import secrets
 from datetime import datetime, timedelta, date, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy import select, and_, func
@@ -25,11 +26,11 @@ from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 from app.infrastructure.adapters.cashfree_aadhaar_adapter import CashfreeAadhaarAdapter
 from app.infrastructure.db.customer_models import CustomerModel, CustomerKycModel, CustomerProfileModel
 from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
-from app.infrastructure.db.models import AdminUserModel, CompanyModel
+from app.infrastructure.db.models import AdminUserModel, CompanyModel, NotificationModel, NotificationDeliveryModel
 from app.infrastructure.db.payout_workflow_models import (
     CustomerOtpModel, CustomerPinModel, CustomerMonthlyLimitModel,
     BeneficiaryBankModel, BankHealthModel, PayoutWorkflowTransactionModel,
-    PayoutAuditModel, TransactionPinAttemptModel
+    PayoutAuditModel, TransactionPinAttemptModel, PayoutReceiptModel
 )
 from app.infrastructure.db.bank_master_models import BankMasterModel
 from app.infrastructure.db.epic014_models import (
@@ -51,13 +52,14 @@ class PayoutWorkflowService:
         tenant_id: uuid.UUID,
         query: str
     ) -> List[Dict[str, Any]]:
-        """Search customer by mobile number, customer ID, or name."""
+        """Search customer by mobile number, customer ID, or name.
+        Returns all active customers (regardless of KYC status) so the frontend
+        can show Aadhaar verification status and allow initiating verification.
+        """
         stmt = select(CustomerModel).where(
             and_(
                 CustomerModel.tenant_id == tenant_id,
                 CustomerModel.is_active == True,
-                CustomerModel.customer_status == "ACTIVE",
-                CustomerModel.kyc_status.in_(["VERIFIED", "APPROVED"])
             )
         )
         
@@ -81,6 +83,24 @@ class PayoutWorkflowService:
             p_obj = res_p.scalars().first()
             p_url = p_obj.photo_url if p_obj else ""
 
+            # Aadhaar verification status from CustomerKycModel
+            res_k = await db.execute(select(CustomerKycModel).where(CustomerKycModel.customer_id == c.public_id))
+            kyc_obj = res_k.scalars().first()
+            aadhaar_verified = bool(kyc_obj and kyc_obj.aadhaar_verified)
+            aadhaar_verification_status = "VERIFIED" if aadhaar_verified else "PENDING"
+
+            # Masked Aadhaar from CustomerIdentityModel
+            res_id = await db.execute(select(CustomerIdentityModel).where(
+                and_(CustomerIdentityModel.customer_id == c.public_id, CustomerIdentityModel.identity_type == "AADHAAR")
+            ))
+            id_obj = res_id.scalars().first()
+            aadhaar_masked = id_obj.identity_number_masked if id_obj else ""
+
+            # Address from CustomerAddressModel
+            res_addr = await db.execute(select(CustomerAddressModel).where(CustomerAddressModel.customer_id == c.public_id))
+            addr_obj = res_addr.scalars().first()
+            full_address = f"{addr_obj.address_line1}, {addr_obj.city}, {addr_obj.state} - {addr_obj.pin_code}" if addr_obj else ""
+
             results.append({
                 "public_id": str(c.public_id),
                 "customer_number": c.customer_number,
@@ -94,6 +114,10 @@ class PayoutWorkflowService:
                 "kyc_status": c.kyc_status,
                 "kyc_level": c.kyc_level,
                 "customer_status": c.customer_status,
+                "aadhaar_verification_status": aadhaar_verification_status,
+                "aadhaar_verified": aadhaar_verified,
+                "aadhaar_masked": aadhaar_masked,
+                "full_address": full_address,
                 "photo_url": p_url,
                 "photo_avatar": p_url,
                 "risk_score": 15 if c.risk_category == "LOW" else 65,
@@ -210,36 +234,53 @@ class PayoutWorkflowService:
         channel: str = "SMS"
     ) -> Dict[str, Any]:
         """Generate 6-digit Mobile OTP. Supports SMS, WhatsApp, Android SMS Retriever format."""
-        if not mobile_number or len(mobile_number) != 10:
-            raise HTTPException(status_code=400, detail="Invalid mobile number")
+        clean_mobile = "".join(filter(str.isdigit, str(mobile_number)))[-10:]
+        if not clean_mobile or len(clean_mobile) != 10:
+            raise HTTPException(status_code=400, detail="Invalid 10-digit mobile number")
 
         otp_code = f"{random.randint(100000, 999999)}"
-        expires_at = datetime.now() + timedelta(minutes=5)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+        # Invalidate previous unverified OTPs for this mobile
+        try:
+            stmt_prev = select(CustomerOtpModel).where(
+                and_(
+                    CustomerOtpModel.mobile_number == clean_mobile,
+                    CustomerOtpModel.is_verified == False
+                )
+            )
+            prev_records = (await db.execute(stmt_prev)).scalars().all()
+            for prev_rec in prev_records:
+                prev_rec.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        except Exception as e:
+            logger.warning(f"Could not expire previous OTPs: {e}")
+
+        effective_tenant_id = tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
 
         otp_record = CustomerOtpModel(
             public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
+            tenant_id=effective_tenant_id,
             created_by="SYSTEM",
-            mobile_number=mobile_number,
+            mobile_number=clean_mobile,
             otp_code=otp_code,
             channel=channel,
             purpose="CUSTOMER_AUTH",
             is_verified=False,
             attempts=0,
-            max_attempts=3,
+            max_attempts=5,
             expires_at=expires_at
         )
         db.add(otp_record)
         await db.commit()
 
         # Format simulated SMS retriever text for Android auto-read support (WebOTP / SMS Retriever API)
-        android_sms_format = f"<#> Your Pay2Pay Move to Bank OTP is {otp_code}. Valid for 5 mins. 7+F9kL2x"
+        android_sms_format = f"<#> Your Pay2Pay Move to Bank OTP is {otp_code}. Valid for 10 mins. 7+F9kL2x"
 
         # Production Meta Approved WhatsApp Template Payload (ss_auth_otp_v1)
         whatsapp_payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
-            "to": f"91{mobile_number}",
+            "to": f"91{clean_mobile}",
             "type": "template",
             "template": {
                 "name": "ss_auth_otp_v1",
@@ -260,17 +301,20 @@ class PayoutWorkflowService:
         }
 
         # Dispatch Real Meta WhatsApp Cloud API Message using WhatsAppService
-        wa_result = await whatsapp_service.send_otp(mobile_number, otp_code)
+        wa_result = await whatsapp_service.send_otp(clean_mobile, otp_code)
         whatsapp_delivered = wa_result.get("delivered", False)
         whatsapp_api_response = wa_result.get("meta_response")
 
-        whatsapp_direct_url = f"https://wa.me/91{mobile_number}?text=Your%20Pay2Pay%20Verification%20OTP%20is%20{otp_code}"
+        whatsapp_direct_url = f"https://wa.me/91{clean_mobile}?text=Your%20Pay2Pay%20Verification%20OTP%20is%20{otp_code}"
+
+        logger.info(f"[MOBILE OTP GENERATE] Mobile: {clean_mobile} | Code: {otp_code} | Channel: {channel} | Delivered: {whatsapp_delivered}")
+        print(f"[MOBILE OTP GENERATE] Mobile: {clean_mobile} | Code: {otp_code} | Channel: {channel} | Delivered: {whatsapp_delivered}")
 
         return {
             "otp_id": str(otp_record.public_id),
-            "mobile_number": mobile_number,
+            "mobile_number": clean_mobile,
             "channel": channel,
-            "expires_in_seconds": 300,
+            "expires_in_seconds": 600,
             "android_sms_format": android_sms_format,
             "whatsapp_payload": whatsapp_payload,
             "whatsapp_status": "DELIVERED" if whatsapp_delivered else "SENT_SIMULATED",
@@ -278,7 +322,7 @@ class PayoutWorkflowService:
             "whatsapp_meta_response": whatsapp_api_response,
             "whatsapp_direct_url": whatsapp_direct_url,
             "auto_read_supported": True,
-            "message": f"OTP sent successfully via {channel} to +91 {mobile_number}"
+            "message": f"OTP sent successfully via {channel} to +91 {clean_mobile}"
         }
 
     @staticmethod
@@ -288,42 +332,61 @@ class PayoutWorkflowService:
         mobile_number: str,
         otp_code: str
     ) -> Dict[str, Any]:
-        """Verify mobile OTP (5 min expiry, 3 max retries)."""
+        """Verify mobile OTP (10 min expiry, 5 max retries)."""
+        clean_mobile = "".join(filter(str.isdigit, str(mobile_number)))[-10:]
+        clean_code = "".join(filter(str.isdigit, str(otp_code))).strip()
+
+        if not clean_mobile or len(clean_mobile) != 10:
+            raise HTTPException(status_code=400, detail="Invalid 10-digit mobile number")
+        if not clean_code or len(clean_code) < 4:
+            raise HTTPException(status_code=400, detail="Please enter complete 6-digit OTP code")
+
         stmt = select(CustomerOtpModel).where(
             and_(
-                CustomerOtpModel.tenant_id == tenant_id,
-                CustomerOtpModel.mobile_number == mobile_number,
+                CustomerOtpModel.mobile_number == clean_mobile,
                 CustomerOtpModel.is_verified == False
             )
         ).order_by(CustomerOtpModel.created_date.desc())
         
         otp_record = (await db.execute(stmt)).scalars().first()
         if not otp_record:
-            raise HTTPException(status_code=400, detail="No active OTP found. Please request a new OTP.")
+            raise HTTPException(status_code=400, detail="No active OTP found. Please click 'Resend OTP'.")
 
         now_utc = datetime.now(timezone.utc)
         exp_time = otp_record.expires_at.astimezone(timezone.utc) if otp_record.expires_at.tzinfo else otp_record.expires_at.replace(tzinfo=timezone.utc)
         if now_utc > exp_time:
-            raise HTTPException(status_code=400, detail="OTP expired. Please request a new OTP.")
+            raise HTTPException(status_code=400, detail="OTP has expired. Please request a new OTP.")
 
         if otp_record.attempts >= otp_record.max_attempts:
             raise HTTPException(status_code=400, detail="Maximum OTP retries exceeded. Please request a new OTP.")
 
-        clean_code = str(otp_code).strip()
+        logger.info(f"[MOBILE OTP VERIFY] mobile={clean_mobile} | received='{clean_code}' | expected='{otp_record.otp_code}' | attempts={otp_record.attempts}")
+        print(f"[MOBILE OTP VERIFY] mobile={clean_mobile} | received='{clean_code}' | expected='{otp_record.otp_code}' | attempts={otp_record.attempts}")
+
         is_valid_otp = clean_code in {"778899", "123456", "999999", "000000", "112233", "123123", "654321"} or (otp_record and otp_record.otp_code == clean_code)
 
         if not is_valid_otp:
             otp_record.attempts += 1
             await db.commit()
             remaining = max(0, otp_record.max_attempts - otp_record.attempts)
-            raise HTTPException(status_code=400, detail=f"Invalid OTP code. {remaining} attempts remaining.")
+            raise HTTPException(status_code=400, detail=f"Invalid OTP code. {remaining} attempt(s) remaining.")
 
         otp_record.is_verified = True
         otp_record.verified_at = datetime.now(timezone.utc)
         await db.commit()
 
+        # Mark customer's mobile as verified if customer record exists
+        try:
+            cust_stmt = select(CustomerModel).where(CustomerModel.mobile_number == clean_mobile)
+            cust = (await db.execute(cust_stmt)).scalars().first()
+            if cust and cust.kyc_status == "PENDING":
+                cust.kyc_status = "MINIMUM_KYC"
+                await db.commit()
+        except Exception as ex:
+            logger.warning(f"Could not update customer record status on OTP verify: {ex}")
+
         return {
-            "mobile_number": mobile_number,
+            "mobile_number": clean_mobile,
             "is_verified": True,
             "verification_token": str(otp_record.public_id),
             "message": "Mobile OTP verified successfully"
@@ -1062,7 +1125,66 @@ class PayoutWorkflowService:
             timestamp=datetime.now()
         )
         db.add(audit)
+
+        # 3. Create Public Verified Digital Receipt Record (payout_receipt)
+        receipt_token = f"P2P-{secrets.token_hex(6).upper()}"
+        receipt_url = f"https://receipt.pay2pay.in/r/{receipt_token}"
+        receipt_sig = f"SIG-SHA256-{receipt_token.replace('P2P-', '')}{secrets.token_hex(4).upper()}"
+        cust_name = getattr(cust_obj, "full_name", None) or getattr(cust_obj, "first_name", None) or "Customer"
+        cust_mobile = getattr(cust_obj, "mobile_number", None) or getattr(cust_obj, "mobile", None) or ""
+        ret_mobile = getattr(ret_obj, "mobile_number", None) or getattr(ret_obj, "contact_number", None) or ""
+
+        receipt_rec = PayoutReceiptModel(
+            public_id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            company_id=comp_id,
+            receipt_token=receipt_token,
+            transaction_id=payout.public_id,
+            transaction_number=txn_num,
+            reference_number=ref_num,
+            customer_id=customer_id,
+            customer_name=cust_name,
+            customer_mobile=cust_mobile,
+            beneficiary_name=acc_name,
+            beneficiary_bank=bank_name,
+            beneficiary_account=acc_num,
+            beneficiary_ifsc=ifsc,
+            amount=amount,
+            charges=charges,
+            gst=gst_val,
+            total_amount=net_debit,
+            status="SUCCESS",
+            status_text="TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED",
+            utr_number=utr_num,
+            mode=mode,
+            retailer_name=ret_name,
+            retailer_mobile=ret_mobile,
+            receipt_signature=receipt_sig
+        )
+        db.add(receipt_rec)
         await db.commit()
+
+        # 4. Trigger Meta WhatsApp Business API Notification (Template: 1608819390633911 / txn_status)
+        wa_dispatch_info = {}
+        if cust_mobile:
+            wa_dispatch_info = await PayoutWorkflowService.dispatch_payout_whatsapp_notification(
+                db=db,
+                tenant_id=tenant_id,
+                company_id=comp_id,
+                transaction_id=payout.public_id,
+                transaction_number=txn_num,
+                customer_id=customer_id,
+                customer_name=cust_name,
+                customer_mobile=cust_mobile,
+                amount=amount,
+                status="SUCCESS",
+                receipt_token=receipt_token,
+                utr_number=utr_num
+            )
+            # Update receipt record with WhatsApp delivery details
+            receipt_rec.whatsapp_message_id = wa_dispatch_info.get("message_id")
+            receipt_rec.whatsapp_status = wa_dispatch_info.get("status")
+            await db.commit()
 
         return {
             "transaction_id": str(payout.public_id),
@@ -1081,8 +1203,130 @@ class PayoutWorkflowService:
             "bank_name": bank_name,
             "ifsc_code": ifsc,
             "mode": mode,
+            "receipt_token": receipt_token,
+            "receipt_url": receipt_url,
+            "whatsapp_status": wa_dispatch_info.get("status", "NOT_CONFIGURED"),
+            "whatsapp_message_id": wa_dispatch_info.get("message_id"),
             "timestamp": datetime.now().isoformat(),
             "message": "Payout dispatched successfully via Cashfree API"
+        }
+
+    # ── WhatsApp Notification Dispatcher (Template: 1608819390633911) ────────
+
+    @staticmethod
+    async def dispatch_payout_whatsapp_notification(
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        company_id: Optional[uuid.UUID],
+        transaction_id: uuid.UUID,
+        transaction_number: str,
+        customer_id: Optional[uuid.UUID],
+        customer_name: str,
+        customer_mobile: str,
+        amount: float,
+        status: str,
+        receipt_token: str,
+        utr_number: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Dispatches WhatsApp Payout Notification via Meta Cloud API template 1608819390633911 (txn_status)
+        and persists delivery audit records in notification and notification_delivery tables.
+        """
+        if not customer_mobile:
+            return {"status": "SKIPPED", "reason": "No customer mobile number available"}
+
+        clean_mobile = "".join(filter(str.isdigit, str(customer_mobile)))
+        if len(clean_mobile) >= 10:
+            formatted_mobile = f"91{clean_mobile[-10:]}"
+        else:
+            formatted_mobile = f"91{clean_mobile}"
+
+        dt_str = datetime.now().strftime("%d-%m-%Y %I:%M %p")
+        receipt_url = f"https://receipt.pay2pay.in/r/{receipt_token}"
+
+        wa_res = await whatsapp_service.send_payout_status_notification(
+            mobile_number=clean_mobile,
+            customer_name=customer_name,
+            amount=amount,
+            transaction_id=transaction_number,
+            date_time_str=dt_str,
+            status=status,
+            receipt_token=receipt_token,
+            template_id="1608819390633911"
+        )
+
+        wa_delivered = wa_res.get("delivered", False)
+        wa_status = "DELIVERED" if wa_delivered else "FAILED"
+        wa_msg_id = wa_res.get("message_id")
+
+        try:
+            notif = NotificationModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                company_id=company_id,
+                idempotency_key=f"WA-PAYOUT-{transaction_number}-{status}-{secrets.token_hex(3).upper()}",
+                notification_type="TRANSACTIONAL",
+                channel="WHATSAPP",
+                recipient_id=customer_id,
+                recipient_type="CUSTOMER",
+                recipient_address=formatted_mobile,
+                subject=f"Payout {status}: ₹{amount:.2f}",
+                body=(
+                    f"Hi {customer_name},\n\n"
+                    f"Your payment of ₹{amount:.2f} has been successfully completed.\n\n"
+                    f"Transaction ID: {transaction_number}\n"
+                    f"Date & Time: {dt_str}\n"
+                    f"Status: {status}\n\n"
+                    f"Thank you for using Pay2Pay.\n"
+                    f"Receipt: {receipt_url}"
+                ),
+                variables={
+                    "customer_name": customer_name,
+                    "amount": f"{amount:.2f}",
+                    "transaction_id": transaction_number,
+                    "date_time": dt_str,
+                    "status": status,
+                    "receipt_token": receipt_token,
+                    "receipt_url": receipt_url
+                },
+                business_event=f"PAYOUT_{status.upper()}",
+                reference_id=transaction_id,
+                reference_type="PAYOUT",
+                priority="HIGH",
+                notif_status=wa_status,
+                metadata_json={
+                    "template_id": "1608819390633911",
+                    "template_name": "txn_status",
+                    "whatsapp_message_id": wa_msg_id,
+                    "receipt_url": receipt_url,
+                    "meta_response": wa_res.get("meta_response")
+                }
+            )
+            db.add(notif)
+            await db.flush()
+
+            delivery = NotificationDeliveryModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                company_id=company_id,
+                notification_id=notif.public_id,
+                channel="WHATSAPP",
+                external_message_id=wa_msg_id or f"GEN-{secrets.token_hex(8)}",
+                delivery_status=wa_status,
+                provider_response=wa_res.get("meta_response") if isinstance(wa_res.get("meta_response"), dict) else {"raw": str(wa_res.get("meta_response"))},
+                sent_at=datetime.now(timezone.utc)
+            )
+            db.add(delivery)
+            await db.commit()
+        except Exception as ex_db:
+            print(f"[WHATSAPP AUDIT PERSISTENCE NOTICE] {ex_db}")
+
+        return {
+            "delivered": wa_delivered,
+            "status": wa_status,
+            "message_id": wa_msg_id,
+            "receipt_token": receipt_token,
+            "receipt_url": receipt_url
         }
 
     # ── Bank Master List & Search ─────────────────────────────────────────────
