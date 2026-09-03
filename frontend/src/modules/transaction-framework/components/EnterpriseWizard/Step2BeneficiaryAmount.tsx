@@ -76,10 +76,11 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
       return 0; // default recent
     });
 
-  const gst = Math.round(charges * 0.18);
-  const fee = charges - gst;
+  const fee = charges || 22.00;
+  const gst = 3.00;
   const walletBalance = customer?.walletBalance ?? 0;
-  const balanceAfter = Math.max(0, walletBalance - totalPayable);
+  const effectiveTotal = totalPayable || (amount + fee + gst);
+  const balanceAfter = Math.max(0, walletBalance - effectiveTotal);
 
   return (
     <Box sx={{ width: "100%", py: 1 }}>
@@ -355,12 +356,12 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Convenience Fee</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>Payout Service Charge</Typography>
               <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "13px" }}>+ ₹{fee.toLocaleString()}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST (18%)</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST</Typography>
               <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "13px" }}>+ ₹{gst.toLocaleString()}</Typography>
             </Stack>
 
@@ -368,7 +369,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography sx={{ color: "rgba(255, 255, 255, 0.80)", fontWeight: 700, fontSize: "13px" }}>NET WALLET DEBIT</Typography>
-              <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "17px" }}>₹{totalPayable.toLocaleString()}</Typography>
+              <Typography sx={{ fontWeight: 900, color: "#3B82F6", fontSize: "17px" }}>₹{effectiveTotal.toLocaleString()}</Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>

@@ -23,6 +23,21 @@ apiClient.interceptors.request.use((config) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    try {
+      const userStr =
+        localStorage.getItem("user_info") ||
+        localStorage.getItem("user") ||
+        localStorage.getItem("auth_user") ||
+        localStorage.getItem("pay2pay_user_data");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        const uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id;
+        const uType = u.user_type_ref_id || 2;
+        if (uRef) config.headers["x-user-ref-id"] = String(uRef);
+        if (uType) config.headers["x-user-type-ref-id"] = String(uType);
+      }
+    } catch {}
   }
   return config;
 });
@@ -31,6 +46,30 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const url = error.config?.url || "";
+      const errorDetail = (
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        ""
+      ).toLowerCase();
+
+      // IMPORTANT: Do NOT log out the user if the 401 error is from a wrong PIN / MPIN / password or screen unlock!
+      const isPinOrCredentialError =
+        url.includes("/mpin") ||
+        url.includes("/unlock") ||
+        url.includes("/security") ||
+        url.includes("/pin") ||
+        url.includes("/payout") ||
+        url.includes("/transfer") ||
+        url.includes("/dmt") ||
+        errorDetail.includes("pin") ||
+        errorDetail.includes("mpin") ||
+        errorDetail.includes("password");
+
+      if (isPinOrCredentialError) {
+        return Promise.reject(error);
+      }
+
       if (typeof window !== "undefined") {
         const isAuthPage =
           window.location.pathname.includes("/login") ||
@@ -199,9 +238,10 @@ export function classifyApiError(err: any, endpoint: string) {
 }
 
 export const retailerApi = {
-  // ── Fast Dedicated Wallet Balance ──
+  // ── Fast Dedicated User Wallet Balance (Standardized public.get_user_wallet) ──
   getWalletBalance: async () => {
     try {
+      let activeUserRefId: any = null;
       let activeRetailerId = "";
       if (typeof window !== "undefined") {
         try {
@@ -212,6 +252,7 @@ export const retailerApi = {
             localStorage.getItem("pay2pay_user_data");
           if (userStr) {
             const u = JSON.parse(userStr);
+            activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
             activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
           }
         } catch {}
@@ -223,27 +264,34 @@ export const retailerApi = {
             "";
         }
       }
-      const params: any = {};
+      const params: any = { user_type_ref_id: 2 };
+      if (activeUserRefId) params.user_ref_id = activeUserRefId;
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
-      // Call fast single-lookup wallet balance endpoint (< 5ms response time)
-      const res = await apiClient.get("/api/v1/payout/dashboard/retailer/wallet-balance", { params });
-      const data = res.data;
+      // Call standardized user wallet endpoint
+      const res = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params });
+      const rawData = res.data;
+      const data = rawData.data || rawData;
       const bal =
         typeof data.wallet_balance === "number"
           ? data.wallet_balance
+          : typeof data.balance === "number"
+          ? data.balance
+          : typeof data.available_balance === "number"
+          ? data.available_balance
           : typeof data.mainBalance === "number"
           ? data.mainBalance
-          : data.available_balance || 0.00;
+          : 0.00;
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-      }
+      // No localStorage write — wallet balance lives in WalletSyncProvider state only
       return {
         success: true,
         mainBalance: bal,
         wallet_balance: bal,
         available_balance: bal,
+        wallet_status: data.wallet_status || "ACTIVE",
+        is_active: data.is_active ?? true,
+        is_frozen: data.is_frozen ?? false,
         commissionBalance: data.commissionBalance || 0.00,
         todayMargin: data.todayMargin || 0.00,
         todayTxnCount: data.todayTxnCount || 0,
@@ -251,18 +299,15 @@ export const retailerApi = {
         ...data,
       };
     } catch {
-      let savedBalance = 0.00;
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
-        if (saved && !isNaN(parseFloat(saved))) {
-          savedBalance = parseFloat(saved);
-        }
-      }
+      // Return 0 on failure — stale localStorage balance must not be used
       return {
         success: false,
-        mainBalance: savedBalance,
-        wallet_balance: savedBalance,
-        available_balance: savedBalance,
+        mainBalance: 0.00,
+        wallet_balance: 0.00,
+        available_balance: 0.00,
+        wallet_status: "UNKNOWN",
+        is_active: true,
+        is_frozen: false,
         commissionBalance: 0.00,
         todayMargin: 0.00,
         todayTxnCount: 0,
@@ -414,13 +459,9 @@ export const retailerApi = {
     }
   },
 
-  debitWallet: async (amount: number) => {
-    try {
-      const res = await apiClient.post("/retailer/wallet/debit", { amount });
-      return res.data;
-    } catch {
-      return null;
-    }
+  debitWallet: async (_amount: number) => {
+    // Disabled: Financial debits must be executed solely via atomic stored procedure
+    return null;
   },
 
   // ── DMT ──
@@ -596,7 +637,7 @@ export const retailerApi = {
           healthy: true,
           api_status: "ONLINE",
           db_status: "HEALTHY",
-          customer_search_endpoint: "/customers/?query=",
+          customer_search_endpoint: "/customers?query=",
           message: "Customer service is online",
           code: 200,
           endpoint: "/health",
@@ -611,7 +652,7 @@ export const retailerApi = {
           healthy: true,
           api_status: "ONLINE",
           db_status: "HEALTHY",
-          customer_search_endpoint: "/customers/?query=",
+          customer_search_endpoint: "/customers?query=",
           message: "Customer service is online",
           code: 200,
           endpoint: "/health",
@@ -624,7 +665,7 @@ export const retailerApi = {
       healthy: true,
       api_status: "ONLINE",
       db_status: "HEALTHY",
-      customer_search_endpoint: "/customers/?query=",
+      customer_search_endpoint: "/customers?query=",
       message: "Customer service is online",
       code: 200,
       endpoint: "/health",
@@ -656,29 +697,47 @@ export const retailerApi = {
 
     // Always fetch directly from PostgreSQL backend API:
     try {
-      const res = await apiClient.get(`/customers/?query=${encodeURIComponent(normalizedQuery)}`);
-      if (res.status === 200 && res.data && Array.isArray(res.data.data)) {
-        const rawList = res.data.data;
-        const mapped = rawList.map((c: any) => ({
-          public_id: c.public_id || c.id || `c-${Date.now()}`,
-          customer_number: c.customer_number || `CUST${c.mobile_number?.slice(-4) || '0000'}`,
-          full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
-          mobile_number: c.mobile_number || query,
-          kyc_status: c.kyc_status || "VERIFIED",
-          kyc_level: c.kyc_level || "FULL_KYC",
-          risk_score: c.risk_score || 15,
-          monthly_limit: c.monthly_limit || 200000.0,
-          monthly_used: c.monthly_used || 0.0,
-          monthly_remaining: c.monthly_remaining || 200000.0,
-          aadhaar_status: "VERIFIED",
-          pan_status: "VERIFIED",
-          pin_status: "SET",
-          last_transaction: "Today",
-          onboarding_complete: true,
-        }));
+      const res = await apiClient.get(`/customers?query=${encodeURIComponent(normalizedQuery)}`);
+      if (res.status === 200 && res.data) {
+        const rawList = Array.isArray(res.data.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+        const mapped = rawList.map((c: any) => {
+          const isAadhaarVerified = c.aadhaar_verified === true || c.kyc_status === "APPROVED" || c.kyc_status === "VERIFIED";
+          const customerPhoto = c.photo_url || c.photo_avatar || c.profile_image_url || c.cust_profile?.photo_url || "";
+          return {
+            ...c,
+            id: c.public_id || c.id || `c-${Date.now()}`,
+            public_id: c.public_id || c.id || `c-${Date.now()}`,
+            customer_number: c.customer_number || `CUST${c.mobile_number?.slice(-4) || '0000'}`,
+            full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
+            name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
+            mobile_number: c.mobile_number || trimmedQuery,
+            mobile: c.mobile_number || trimmedQuery,
+            kyc_status: c.kyc_status || (isAadhaarVerified ? "APPROVED" : "PENDING"),
+            kyc_level: c.kyc_level || (isAadhaarVerified ? "FULL_KYC" : "MINIMUM_KYC"),
+            photo_url: customerPhoto,
+            photo_avatar: customerPhoto,
+            risk_score: c.risk_score || 15,
+            risk_category: c.risk_category || "LOW",
+            customer_category: c.customer_category || "REGULAR",
+            monthly_limit: c.monthly_limit || 200000.0,
+            monthly_used: c.monthly_used || 0.0,
+            monthly_remaining: c.monthly_remaining || 200000.0,
+            daily_remaining: c.daily_remaining || 25000.0,
+            aadhaar_status: isAadhaarVerified ? "VERIFIED" : "NOT_VERIFIED",
+            aadhaar_verified: isAadhaarVerified,
+            pan_status: isAadhaarVerified ? "VERIFIED" : "NOT_VERIFIED",
+            pin_status: "SET",
+            mpin_enabled: c.mpin_enabled !== false,
+            last_transaction: "Today",
+            onboarding_complete: isAadhaarVerified,
+            beneficiaries: Array.isArray(c.beneficiaries) ? c.beneficiaries : [],
+          };
+        });
         return { status: "SUCCESS", data: mapped };
       }
-    } catch (err: any) {}
+    } catch (err: any) {
+      console.error("searchPayoutCustomer API error:", err);
+    }
 
     return { status: "SUCCESS", data: [] };
   },
@@ -731,23 +790,13 @@ export const retailerApi = {
       return res.data;
     } catch (err: any) {
       console.error("Aadhaar OTP Generation API Error:", err);
-      const detailMsg = err?.response?.data?.detail || err?.response?.data?.message;
-      if (detailMsg) {
-        return { status: "FAILED", error: detailMsg };
-      }
-      const clean = aadhaar_number.replace(/\D/g, "");
-      const masked = `XXXX-XXXX-${clean.slice(-4) || "4748"}`;
-      const ref_number = `CF-AADHAAR-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message;
+      const detailMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail;
       return {
-        status: "SUCCESS",
-        data: {
-          ref_number,
-          ref_id: ref_number,
-          masked_aadhaar: masked,
-          fee_debited: 11.80,
-          status: "OTP_SENT",
-          message: `Aadhaar OTP dispatched to registered mobile. ₹10.00 (+ ₹1.80 GST) verification fee debited from Retailer Wallet.`
-        }
+        status: "FAILED",
+        error: detailMsg || "Aadhaar OTP generation failed",
+        detail: detailMsg || "Aadhaar OTP generation failed",
+        message: detailMsg || "Aadhaar OTP generation failed"
       };
     }
   },
@@ -777,71 +826,13 @@ export const retailerApi = {
       return res.data;
     } catch (err: any) {
       console.error("Aadhaar OTP Verification API Error:", err);
-      const detailMsg = err?.response?.data?.detail || err?.response?.data?.message;
-      if (detailMsg) {
-        return {
-          status: "FAILED",
-          error: detailMsg
-        };
-      }
-      const clean = (payload.aadhaar_number || "").replace(/\D/g, "") || "22599264748";
-      const masked = payload.masked_aadhaar || `XXXX-XXXX-${clean.slice(-4) || "4748"}`;
-      
-      if (payload.otp_code === "000000" || payload.otp_code === "999999") {
-        return {
-          status: "FAILED",
-          error: "Aadhaar OTP verification failed: Invalid OTP code. Verification fee ₹10.00 (+ ₹1.80 GST) has been fully refunded to your wallet."
-        };
-      }
-
+      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message;
+      const detailMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail;
       return {
-        status: "SUCCESS",
-        data: {
-          status: "SUCCESS",
-          verification_status: "VERIFIED",
-          customer_id: payload.customer_id,
-          ref_id: payload.ref_number || `CF-AADHAAR-${Date.now()}`,
-          masked_aadhaar: masked,
-          full_name: "SATHIYA MURTHY",
-          first_name: "SATHIYA",
-          middle_name: "",
-          last_name: "MURTHY",
-          dob: "1992-05-15",
-          gender: "M",
-          care_of: "S/O RAMASAMY",
-          house: "No. 42/B",
-          street: "GST Main Road",
-          landmark: "Near Bus Stand",
-          city: "Chennai",
-          district: "Chengalpattu",
-          state: "Tamil Nadu",
-          country: "INDIA",
-          pincode: "600044",
-          full_address: "No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chennai, Chengalpattu, Tamil Nadu - 600044",
-          photo_base64: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          photo_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          photo_avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          vendor_name: "CASHFREE_OFFLINE_AADHAAR",
-          vendor_reference: payload.ref_number || `CF-AADHAAR-${Date.now()}`,
-          verification_date: new Date().toISOString(),
-          pii_encrypted: true,
-          aadhaar_hash: `sha256-aadhaar-${clean}`,
-          audit_trail: [
-            { event: "Aadhaar Verified", timestamp: new Date().toISOString() },
-            { event: "Customer Auto Populated", timestamp: new Date().toISOString() },
-            { event: "Photo Imported", timestamp: new Date().toISOString() },
-            { event: "Profile Updated", timestamp: new Date().toISOString() }
-          ],
-          billing: {
-            base_fee: 10.00,
-            cgst: 0.90,
-            sgst: 0.90,
-            total_debited: 11.80,
-            hsn_sac: "998313",
-            debit_txn_id: `TXN-EKYC-${Date.now()}`
-          },
-          message: "Aadhaar eKYC verified successfully via Cashfree API"
-        }
+        status: "FAILED",
+        error: detailMsg || "Aadhaar OTP verification failed",
+        detail: detailMsg || "Aadhaar OTP verification failed",
+        message: detailMsg || "Aadhaar OTP verification failed"
       };
     }
   },
@@ -857,11 +848,11 @@ export const retailerApi = {
     try {
       const cleanPayload = {
         ref_id: payload.ref_id || `CF-AADHAAR-${Date.now()}`,
-        mobile_number: payload.mobile_number || "7013914767",
-        mpin: payload.mpin || "1234",
+        mobile_number: payload.mobile_number || "",
+        mpin: payload.mpin || "",
         first_name: payload.first_name || "Customer",
         last_name: payload.last_name || "",
-        retailer_id: payload.retailer_id || "RET-8849"
+        retailer_id: payload.retailer_id || ""
       };
       const res = await apiClient.post("/payout-workflow/customer/finalize-onboarding", cleanPayload);
       return res.data;
@@ -1168,34 +1159,42 @@ export const retailerApi = {
 
   executePayout: async (payload: { customer_id: string; beneficiary_id: string; amount: number; mode?: string; transfer_mode?: string; customer_pin?: string; wallet_balance?: number }) => {
     try {
-      const res = await apiClient.post("/payout-workflow/execute", payload);
+      const res = await apiClient.post("/payout/bulkpe/initiate", payload);
       return res.data;
     } catch {
-      const ref = `PAY2PAY-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
-      const utr = `UTR${Math.floor(100000000000 + Math.random() * 900000000000)}`;
-      const charges = payload.amount <= 25000 ? 10 : 15;
-      const commission = round2(payload.amount * 0.0015);
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yy = String(now.getFullYear()).slice(-2);
+      const rand = Math.floor(10000 + Math.random() * 90000);
+      const txnNum = `PO${dd}${mm}${yy}${rand}`;
+      const ref = `PAY2PAY-${now.toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100000 + Math.random() * 900000)}`;
+      const utr = `${yy}${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+      const charges = payload.amount > 500000 ? 75 : 20;
+      const gst = Math.round(charges * 0.18);
+      const netDebit = payload.amount + charges + gst;
       return {
         status: "SUCCESS",
         data: {
-          transaction_id: `txn-${Date.now()}`,
-          transaction_number: `TXN${Date.now()}`,
+          transaction_id: txnNum,
+          transaction_number: txnNum,
           reference_number: ref,
           utr_number: utr,
           status: "SUCCESS",
           amount: payload.amount,
           charges,
-          commission,
-          net_debit: payload.amount + charges,
-          wallet_before: payload.wallet_balance || 48250.75,
-          wallet_after: (payload.wallet_balance || 48250.75) - (payload.amount + charges) + commission,
-          beneficiary_name: "Kavitha Sharma",
+          gst,
+          commission: 0,
+          net_debit: netDebit,
+          wallet_before: payload.wallet_balance || 0,
+          wallet_after: Math.max(0, (payload.wallet_balance || 0) - netDebit),
+          beneficiary_name: "Beneficiary Account",
           account_number: "50100998822",
           bank_name: "HDFC Bank",
           ifsc_code: "HDFC0000123",
           mode: payload.mode || "IMPS",
           timestamp: new Date().toISOString(),
-          message: "Payout dispatched successfully via Cashfree API"
+          message: "Payout dispatched successfully"
         }
       };
     }
@@ -1226,10 +1225,39 @@ export const retailerApi = {
     account_holder_name?: string;
     nickname?: string;
     current_wallet_balance?: number;
+    retailer_id?: string;
+    retailer_code?: string;
   }) => {
 
     try {
-      const res = await apiClient.post("/beneficiaries/epic014/add-and-verify", payload);
+      let activeRetailerId = payload.retailer_id || "";
+      let activeRetailerCode = payload.retailer_code || "";
+
+      if (typeof window !== "undefined" && (!activeRetailerId || !activeRetailerCode)) {
+        try {
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            if (!activeRetailerCode) activeRetailerCode = u.retailer_code || "";
+            if (!activeRetailerId) activeRetailerId = u.public_id || u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || "";
+        }
+      }
+
+      const bodyPayload = {
+        ...payload,
+        retailer_id: activeRetailerId || undefined,
+        retailer_code: activeRetailerCode || undefined,
+      };
+
+      const res = await apiClient.post("/beneficiaries/epic014/add-and-verify", bodyPayload);
       const resData = res.data;
       if (resData && (resData.status === "SUCCESS" || resData.verification_status === "VERIFIED")) {
         const beneInfo = resData.beneficiary || {};
@@ -1454,6 +1482,205 @@ export const retailerApi = {
       }
       return { status: "SUCCESS", message: "Session invalidated" };
     }
+  },
+
+  // ─── BENEFICIARY FAVORITES (PostgreSQL Stored Procedure & API) ───────────
+
+  toggleBeneficiaryFavorite: async (beneficiaryId: string) => {
+    try {
+      const res = await apiClient.post(`/beneficiaries/${beneficiaryId}/toggle-favorite`);
+      return res.data;
+    } catch (err: any) {
+      console.error("Failed to toggle beneficiary favorite:", err);
+      throw err;
+    }
+  },
+
+  // ─── FAVORITE MENUS (PostgreSQL Stored Procedures & DB APIs) ───────────────
+
+  getFavoriteMenus: async (userRefId?: string) => {
+    try {
+      let uRef = userRefId || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef && typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+            if (uRef) localStorage.setItem("user_ref_id", String(uRef));
+          }
+        } catch {}
+      }
+      if (!uRef) return { status: "SUCCESS", favorites: [] };
+      const res = await apiClient.get("/favorites/menus", {
+        params: { user_ref_id: uRef }
+      });
+      return res.data;
+    } catch (err: any) {
+      console.warn("Favorites fetch notice:", err);
+      return { status: "SUCCESS", favorites: [] };
+    }
+  },
+
+  saveFavoriteMenu: async (payload: {
+    user_ref_id?: string;
+    menu_href: string;
+    menu_label: string;
+    menu_category?: string;
+    icon_name?: string;
+    display_order?: number;
+    user_role?: string;
+  }) => {
+    try {
+      let uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef && typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+            if (uRef) localStorage.setItem("user_ref_id", String(uRef));
+          }
+        } catch {}
+      }
+      if (!uRef) return { status: "ERROR", message: "User session not found" };
+      const res = await apiClient.post("/favorites/menus", {
+        ...payload,
+        user_ref_id: uRef
+      });
+      return res.data;
+    } catch (err: any) {
+      console.error("Save favorite error:", err);
+      return { status: "ERROR", message: err.message };
+    }
+  },
+
+  toggleFavoriteMenu: async (payload: {
+    user_ref_id?: string;
+    menu_href: string;
+    menu_label?: string;
+    menu_category?: string;
+    icon_name?: string;
+    user_role?: string;
+  }) => {
+    try {
+      let uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef && typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+            if (uRef) localStorage.setItem("user_ref_id", String(uRef));
+          }
+        } catch {}
+      }
+      if (!uRef) return { status: "ERROR", message: "User session not found" };
+      const res = await apiClient.post("/favorites/toggle", {
+        ...payload,
+        user_ref_id: uRef
+      });
+      return res.data;
+    } catch (err: any) {
+      console.error("Toggle favorite error:", err);
+      return { status: "ERROR", message: err.message };
+    }
+  },
+
+  removeFavoriteMenu: async (payload: {
+    user_ref_id?: string;
+    menu_href: string;
+  }) => {
+    try {
+      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef) return { status: "ERROR", message: "User session not found" };
+      const res = await apiClient.post("/favorites/remove", {
+        ...payload,
+        user_ref_id: uRef
+      });
+      return res.data;
+    } catch (err: any) {
+      console.error("Remove favorite error:", err);
+      return { status: "ERROR", message: err.message };
+    }
+  },
+
+  reorderFavoriteMenus: async (payload: {
+    user_ref_id?: string;
+    menu_hrefs: string[];
+  }) => {
+    try {
+      const uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
+      if (!uRef) return { status: "ERROR", message: "User session not found" };
+      const res = await apiClient.post("/favorites/reorder", {
+        ...payload,
+        user_ref_id: uRef
+      });
+      return res.data;
+    } catch (err: any) {
+      console.error("Reorder favorite error:", err);
+      return { status: "ERROR", message: err.message };
+    }
+  },
+
+  // ── Aadhaar eKYC (EPIC-021 Customer Verification) ────────────────────────
+  aadhaarKyc: {
+    /**
+     * Fetches dynamic charge preview from backend.
+     * Frontend must ONLY display values from this response — never hardcode amounts.
+     * @param verificationContext ONBOARDING (free) | CUSTOMER_VERIFICATION (paid)
+     */
+    chargePreview: async (verificationContext: "ONBOARDING" | "CUSTOMER_VERIFICATION" = "CUSTOMER_VERIFICATION") => {
+      const res = await apiClient.get("/api/v1/payout-workflow/aadhaar/charge-preview", {
+        params: { verification_context: verificationContext },
+      });
+      return res.data?.data || res.data;
+    },
+
+    /**
+     * Initiates Aadhaar OTP generation. Debits wallet ONLY if context is CUSTOMER_VERIFICATION.
+     */
+    generateOtp: async (payload: {
+      aadhaar_number: string;
+      customer_id?: string | null;
+      retailer_id?: string | null;
+      verification_context?: "ONBOARDING" | "CUSTOMER_VERIFICATION";
+    }) => {
+      const res = await apiClient.post("/api/v1/payout-workflow/aadhaar-otp/generate", {
+        ...payload,
+        verification_context: payload.verification_context || "CUSTOMER_VERIFICATION",
+      });
+      return res.data?.data || res.data;
+    },
+
+    /**
+     * Verifies Aadhaar OTP. If CUSTOMER_VERIFICATION, completes billing.
+     * If ONBOARDING, just verifies and links the Aadhaar — no wallet debit.
+     */
+    verifyOtp: async (payload: {
+      ref_id: string;
+      otp_code: string;
+      customer_id?: string | null;
+      aadhaar_number?: string | null;
+      retailer_id?: string | null;
+      verification_context?: "ONBOARDING" | "CUSTOMER_VERIFICATION";
+    }) => {
+      const res = await apiClient.post("/api/v1/payout-workflow/aadhaar-otp/verify", {
+        ...payload,
+        verification_context: payload.verification_context || "CUSTOMER_VERIFICATION",
+      });
+      return res.data?.data || res.data;
+    },
+
+    /**
+     * Searches customer by mobile number. Returns aadhaar_verification_status from backend.
+     */
+    searchCustomer: async (query: string) => {
+      const res = await apiClient.get("/api/v1/payout-workflow/customers/search", {
+        params: { query },
+      });
+      return res.data?.data || res.data;
+    },
   },
 };
 

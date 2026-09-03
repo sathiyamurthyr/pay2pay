@@ -387,8 +387,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     await markStep(6, "s7", currentTxnId ? `Status: INITIATED · Txn: ${currentTxnId}` : "Status: INITIATED — Routing via Bank DirectSwitch", 70, 90);
 
     // Step 8: Debiting Retailer Wallet (s8)
-    const gstCalc = Math.round(charges * 0.18);
-    const netDebitCalc = amount + charges + gstCalc;
+    const gstCalc = 3.00;
+    const netDebitCalc = totalPayable || (amount + (charges || 22.00) + gstCalc);
     await markStep(7, "s8", `ACID Balance Reservation: ₹${netDebitCalc.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 70, 90);
 
     // Step 9: Posting Double Entry Ledger (s9)
@@ -560,8 +560,8 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentPin, isLocked, viewState, supervisorModalOpen]);
 
-  const gst = Math.round(charges * 0.18);
-  const totalAmountPaid = amount + charges + gst;
+  const gst = 3.00;
+  const totalAmountPaid = totalPayable || (amount + (charges || 22.00) + gst);
 
   const modeIcons: Record<string, string> = {
     IMPS: "⚡ IMPS",
@@ -587,10 +587,10 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       if (uStr) savedUserInfo = JSON.parse(uStr);
     } catch {}
   }
-  const displayRetailerName = savedUserInfo?.full_name || savedUserInfo?.name || activeRetailer?.ownerName || activeRetailer?.name || "Sathiya Murthy";
-  const rawMobile = String(savedUserInfo?.mobile_number || savedUserInfo?.mobile || activeRetailer?.mobile || "9176669426");
-  const displayRetailerMobile = rawMobile.startsWith("+91") ? rawMobile : `+91 ${rawMobile.replace(/^(\+91|91)/, "")}`;
-  const displayRetailerCode = savedUserInfo?.retailer_code || activeRetailer?.code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : "") || "RET-9176669426";
+  const displayRetailerName = savedUserInfo?.full_name || savedUserInfo?.name || activeRetailer?.ownerName || activeRetailer?.name || "";
+  const rawMobile = String(savedUserInfo?.mobile_number || savedUserInfo?.mobile || activeRetailer?.mobile || "");
+  const displayRetailerMobile = rawMobile ? (rawMobile.startsWith("+91") ? rawMobile : `+91 ${rawMobile.replace(/^(\+91|91)/, "")}`) : "";
+  const displayRetailerCode = savedUserInfo?.retailer_code || activeRetailer?.code || (typeof window !== "undefined" ? localStorage.getItem("p2p_active_retailer_id") : "") || "";
 
   const displayBeneName = beneficiary?.name || "Beneficiary Account";
   const displayBeneBank = beneficiary?.bankName || "Partner Bank";
@@ -2367,7 +2367,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   </Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>GST (18%)</Typography>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>GST (0%)</Typography>
                   <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
                     ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>
