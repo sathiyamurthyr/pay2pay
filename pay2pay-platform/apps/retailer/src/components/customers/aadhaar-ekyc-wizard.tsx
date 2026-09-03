@@ -116,22 +116,23 @@ export function AadhaarEkycWizard() {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [existingCustomer, setExistingCustomer] = useState<any>(null);
   const [showExistingModal, setShowExistingModal] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Form State
+  // Form State — starts fully empty, filled by user or pre-populated from customer search result
   const [formData, setFormData] = useState<CustomerBasicForm>({
-    first_name: "Kavitha",
+    first_name: "",
     middle_name: "",
-    last_name: "Sharma",
-    dob: "1994-08-15",
-    gender: "FEMALE",
-    email: "kavitha.sharma@domain.com",
-    mobile: "9840192837",
-    alt_mobile: "9840100000",
-    occupation: "BUSINESS_OWNER",
+    last_name: "",
+    dob: "",
+    gender: "MALE",
+    email: "",
+    mobile: "",
+    alt_mobile: "",
+    occupation: "",
     nationality: "Indian",
     customer_type: "INDIVIDUAL",
-    address: "Plot 42, Sector 18, Cyber City, Gurugram, Haryana",
-    pincode: "122002",
+    address: "",
+    pincode: "",
   });
 
   const [verificationId, setVerificationId] = useState<string | null>(null);
@@ -142,7 +143,7 @@ export function AadhaarEkycWizard() {
   const [qrData, setQrData] = useState<QrResult | null>(null);
   
   // OTP State
-  const [aadhaarInput, setAadhaarInput] = useState<string>("999988882837");
+  const [aadhaarInput, setAadhaarInput] = useState<string>("");
   const [otpCode, setOtpCode] = useState<string>("");
   const [otpRef, setOtpRef] = useState<string>("");
   const [timerSeconds, setTimerSeconds] = useState<number>(60);
@@ -156,7 +157,7 @@ export function AadhaarEkycWizard() {
 
   // Risk Engine & Decision State
   const [riskResult, setRiskResult] = useState<RiskResult | null>(null);
-  const [finalDecision, setFinalDecision] = useState<string>("APPROVED");
+  const [finalDecision, setFinalDecision] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -194,18 +195,18 @@ export function AadhaarEkycWizard() {
 
   // STEP 2: Initiate Basic Details
   const handleInitiateDetails = async () => {
+    if (!formData.first_name.trim() || !formData.last_name.trim() || !formData.mobile.trim()) {
+      setErrorMsg("First name, last name and mobile number are required.");
+      return;
+    }
+    setErrorMsg(null);
     setIsLoading(true);
     try {
       const res = await apiClient.post("/ekyc/initiate", formData);
-      if (res.data?.data?.verification_id) {
-        setVerificationId(res.data.data.verification_id);
-      } else {
-        setVerificationId("VER-EKYC-90812");
-      }
+      setVerificationId(res.data?.data?.verification_id ?? null);
       setCurrentStep(3);
-    } catch (err) {
-      setVerificationId("VER-EKYC-90812");
-      setCurrentStep(3);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "Failed to initiate eKYC session. Please retry.");
     } finally {
       setIsLoading(false);
     }
@@ -213,37 +214,20 @@ export function AadhaarEkycWizard() {
 
   // STEP 4: Run OCR
   const handleRunOcr = async () => {
+    if (!verificationId) {
+      setErrorMsg("Verification session missing. Please restart from Step 2.");
+      return;
+    }
+    setErrorMsg(null);
     setIsLoading(true);
     try {
       const res = await apiClient.post("/ekyc/ocr", {
-        verification_id: verificationId || "VER-EKYC-90812",
-        front_image_url: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150",
+        verification_id: verificationId,
       });
-      setOcrData(res.data?.data?.ocr_result || {
-        extracted_name: `${formData.first_name} ${formData.last_name}`,
-        extracted_dob: formData.dob,
-        extracted_gender: formData.gender,
-        extracted_address: formData.address,
-        extracted_pincode: formData.pincode,
-        masked_aadhaar: "XXXX XXXX 2837",
-        photo_url: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150",
-        confidence_score: 96.5,
-        manual_review_required: false,
-      });
+      setOcrData(res.data?.data?.ocr_result ?? null);
       setCurrentStep(5);
-    } catch (err) {
-      setOcrData({
-        extracted_name: `${formData.first_name} ${formData.last_name}`,
-        extracted_dob: formData.dob,
-        extracted_gender: formData.gender,
-        extracted_address: formData.address,
-        extracted_pincode: formData.pincode,
-        masked_aadhaar: "XXXX XXXX 2837",
-        photo_url: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150",
-        confidence_score: 96.5,
-        manual_review_required: false,
-      });
-      setCurrentStep(5);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "OCR extraction failed. Please re-upload the Aadhaar image.");
     } finally {
       setIsLoading(false);
     }
@@ -251,33 +235,20 @@ export function AadhaarEkycWizard() {
 
   // STEP 5: Run QR Verification
   const handleRunQr = async () => {
+    if (!verificationId) {
+      setErrorMsg("Verification session missing. Please restart from Step 2.");
+      return;
+    }
+    setErrorMsg(null);
     setIsLoading(true);
     try {
       const res = await apiClient.post("/ekyc/qr-verify", {
-        verification_id: verificationId || "VER-EKYC-90812",
-        qr_data: "RAW_SECURE_QR_STREAM_VALIDATED",
+        verification_id: verificationId,
       });
-      setQrData(res.data?.data?.qr_result || {
-        name: `${formData.first_name} ${formData.last_name}`,
-        dob: formData.dob,
-        gender: formData.gender,
-        address: formData.address,
-        masked_aadhaar: "XXXX XXXX 2837",
-        digital_signature_valid: true,
-        verification_reference: "UIDAI-QR-REF-89A102B",
-      });
+      setQrData(res.data?.data?.qr_result ?? null);
       setCurrentStep(6);
-    } catch (err) {
-      setQrData({
-        name: `${formData.first_name} ${formData.last_name}`,
-        dob: formData.dob,
-        gender: formData.gender,
-        address: formData.address,
-        masked_aadhaar: "XXXX XXXX 2837",
-        digital_signature_valid: true,
-        verification_reference: "UIDAI-QR-REF-89A102B",
-      });
-      setCurrentStep(6);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "QR verification failed. Please scan the Aadhaar QR code again.");
     } finally {
       setIsLoading(false);
     }
@@ -285,54 +256,57 @@ export function AadhaarEkycWizard() {
 
   // STEP 6: Generate & Verify OTP
   const handleGenerateOtp = async () => {
+    if (!verificationId) {
+      setErrorMsg("Verification session missing. Please restart from Step 2.");
+      return;
+    }
+    if (!aadhaarInput || aadhaarInput.replace(/\s/g, "").length !== 12) {
+      setErrorMsg("Please enter a valid 12-digit Aadhaar number.");
+      return;
+    }
+    setErrorMsg(null);
     setIsLoading(true);
     try {
       const res = await apiClient.post("/ekyc/otp/generate", {
-        verification_id: verificationId || "VER-EKYC-90812",
-        aadhaar_number: aadhaarInput,
+        verification_id: verificationId,
+        aadhaar_number: aadhaarInput.replace(/\s/g, ""),
       });
-      setOtpRef(res.data?.data?.otp_reference || "OTP-REF-90A182");
+      setOtpRef(res.data?.data?.otp_reference || "");
       setOtpSent(true);
       setTimerSeconds(60);
-    } catch (err) {
-      setOtpRef("OTP-REF-90A182");
-      setOtpSent(true);
-      setTimerSeconds(60);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "Failed to send OTP. Please verify the Aadhaar number and retry.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleVerifyOtp = async () => {
-    if (otpCode.length < 6) return;
+    if (otpCode.length < 6) {
+      setErrorMsg("Please enter the 6-digit OTP.");
+      return;
+    }
+    setErrorMsg(null);
     setIsLoading(true);
     try {
       const res = await apiClient.post("/ekyc/otp/verify", {
-        verification_id: verificationId || "VER-EKYC-90812",
-        otp_reference: otpRef || "OTP-REF-90A182",
+        verification_id: verificationId,
+        otp_reference: otpRef,
         otp_code: otpCode,
       });
+      const d = res.data?.data;
       setOtpResult({
-        otp_reference: otpRef,
-        verified: true,
-        name: `${formData.first_name} ${formData.last_name}`,
-        dob: formData.dob,
-        gender: formData.gender,
-        address: formData.address,
-        verification_time: new Date().toISOString(),
+        otp_reference: d?.otp_reference || otpRef,
+        verified: d?.verified ?? true,
+        name: d?.name || `${formData.first_name} ${formData.last_name}`.trim(),
+        dob: d?.dob || formData.dob,
+        gender: d?.gender || formData.gender,
+        address: d?.address || formData.address,
+        verification_time: d?.verification_time || new Date().toISOString(),
       });
       setCurrentStep(7);
-    } catch (err) {
-      setOtpResult({
-        otp_reference: otpRef,
-        verified: true,
-        name: `${formData.first_name} ${formData.last_name}`,
-        dob: formData.dob,
-        gender: formData.gender,
-        address: formData.address,
-        verification_time: new Date().toISOString(),
-      });
-      setCurrentStep(7);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "OTP verification failed. Please check the code and retry.");
     } finally {
       setIsLoading(false);
     }
@@ -340,29 +314,20 @@ export function AadhaarEkycWizard() {
 
   // STEP 8: Face & Liveness
   const handleRunFaceLiveness = async () => {
+    if (!verificationId) {
+      setErrorMsg("Verification session missing. Please restart from Step 2.");
+      return;
+    }
+    setErrorMsg(null);
     setIsLoading(true);
     try {
       const res = await apiClient.post("/ekyc/face-liveness", {
-        verification_id: verificationId || "VER-EKYC-90812",
-        selfie_image_url: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150",
+        verification_id: verificationId,
       });
-      setFaceResult(res.data?.data || {
-        match_score: 96.4,
-        threshold: 90.0,
-        is_match: true,
-        liveness_score: 98.2,
-        liveness_passed: true,
-      });
+      setFaceResult(res.data?.data ?? null);
       setCurrentStep(9);
-    } catch (err) {
-      setFaceResult({
-        match_score: 96.4,
-        threshold: 90.0,
-        is_match: true,
-        liveness_score: 98.2,
-        liveness_passed: true,
-      });
-      setCurrentStep(9);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "Face liveness check failed. Please retry the selfie capture.");
     } finally {
       setIsLoading(false);
     }
@@ -370,38 +335,20 @@ export function AadhaarEkycWizard() {
 
   // STEP 9: Risk Check
   const handleRunRiskEngine = async () => {
+    if (!verificationId) {
+      setErrorMsg("Verification session missing. Please restart from Step 2.");
+      return;
+    }
+    setErrorMsg(null);
     setIsLoading(true);
     try {
       const res = await apiClient.post("/ekyc/risk-check", {
-        verification_id: verificationId || "VER-EKYC-90812",
+        verification_id: verificationId,
       });
-      setRiskResult(res.data?.data?.risk_eval || {
-        duplicate_aadhaar: false,
-        duplicate_pan: false,
-        duplicate_mobile: false,
-        duplicate_device: false,
-        duplicate_face: false,
-        blacklist_match: false,
-        watchlist_match: false,
-        aml_flag: false,
-        sanction_match: false,
-        total_risk_score: 12.0,
-      });
+      setRiskResult(res.data?.data?.risk_eval ?? null);
       setCurrentStep(10);
-    } catch (err) {
-      setRiskResult({
-        duplicate_aadhaar: false,
-        duplicate_pan: false,
-        duplicate_mobile: false,
-        duplicate_device: false,
-        duplicate_face: false,
-        blacklist_match: false,
-        watchlist_match: false,
-        aml_flag: false,
-        sanction_match: false,
-        total_risk_score: 12.0,
-      });
-      setCurrentStep(10);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "Risk engine check failed. Please retry.");
     } finally {
       setIsLoading(false);
     }
@@ -409,16 +356,20 @@ export function AadhaarEkycWizard() {
 
   // STEP 10: Final Decision Engine
   const handleRunFinalDecision = async () => {
+    if (!verificationId) {
+      setErrorMsg("Verification session missing. Please restart from Step 2.");
+      return;
+    }
+    setErrorMsg(null);
     setIsLoading(true);
     try {
       const res = await apiClient.post("/ekyc/decision", {
-        verification_id: verificationId || "VER-EKYC-90812",
+        verification_id: verificationId,
       });
-      setFinalDecision(res.data?.data?.decision || "APPROVED");
+      setFinalDecision(res.data?.data?.decision ?? "PENDING");
       setCurrentStep(11);
-    } catch (err) {
-      setFinalDecision("APPROVED");
-      setCurrentStep(11);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "Decision engine error. Please retry.");
     } finally {
       setIsLoading(false);
     }
@@ -512,6 +463,28 @@ export function AadhaarEkycWizard() {
         </div>
       </div>
 
+      {/* Global Error Alert */}
+      <AnimatePresence>
+        {errorMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex items-start gap-3 p-4 rounded-2xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"
+          >
+            <AlertTriangle className="w-4 h-4 mt-0.5 text-red-600 dark:text-red-400 shrink-0" />
+            <span className="text-xs font-bold flex-1">{errorMsg}</span>
+            <button
+              onClick={() => setErrorMsg(null)}
+              className="text-red-400 hover:text-red-600 transition-colors"
+              aria-label="Dismiss error"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* STEP 1: CUSTOMER SEARCH */}
       {currentStep === 1 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
@@ -521,7 +494,7 @@ export function AadhaarEkycWizard() {
               <span>Step 1: Search Customer Record</span>
             </h2>
             <p className="text-xs text-slate-500 font-medium">
-              Search by Mobile Number, Customer ID, Masked Aadhaar (XXXX XXXX 2837), PAN, or Name.
+              Search by Mobile Number, Customer ID, Masked Aadhaar, PAN, or Name.
             </p>
           </div>
 
