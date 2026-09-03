@@ -96,6 +96,10 @@ export interface FinancialProcessResult {
   walletBalanceBefore: number;
   walletBalanceAfter: number;
   beneficiaryRemainingMonthlyLimit: number;
+  receiptToken?: string;
+  receiptUrl?: string;
+  receiptSignature?: string;
+  whatsappStatus?: string;
   errorMessage?: string;
   ledgers: {
     walletLedgerId: string;
@@ -277,13 +281,14 @@ class FinancialAccountingService {
         }
       } catch {}
       if (!retailerCode) {
-        retailerCode = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("p2p_retailer_code") || "P2P-R404667";
+        retailerCode = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("p2p_retailer_code") || "";
       }
       if (!retailerPublicId) {
-        retailerPublicId = localStorage.getItem("p2p_retailer_public_id") || "e238fb8b-beb3-4cd4-862b-319b5d05d24e";
+        retailerPublicId = localStorage.getItem("p2p_retailer_public_id") || "";
       }
-      if (!userRefId && (retailerCode === "P2P-R404667" || !retailerCode)) {
-        userRefId = 24;
+      if (!userRefId && !retailerCode) {
+        // No session found — cannot proceed with payout
+        userRefId = null;
       }
     }
 
@@ -294,8 +299,8 @@ class FinancialAccountingService {
 
     // Execute backend Payout API call via apiClient (with raw fetch fallback)
     try {
-      const custId = params.customerId || "93538c98-0b19-493c-a247-4cdb02a46c68";
-      const beneId = params.beneficiaryId || "a46ec999-57db-4138-a79b-a208a6d75109";
+      const custId = params.customerId || null;
+      const beneId = params.beneficiaryId || null;
       const payload: Record<string, any> = {
         customer_id: custId,
         beneficiary_id: beneId,
@@ -306,12 +311,12 @@ class FinancialAccountingService {
         amount: amount,
         mpin: params.pin,
         mode: mode,
-        retailer_id: retailerCode || retailerPublicId || "P2P-R404667",
-        retailer_code: retailerCode || "P2P-R404667",
-        user_ref_id: userRefId ? Number(userRefId) : 24,
+        retailer_id: retailerCode || retailerPublicId || null,
+        retailer_code: retailerCode || null,
+        user_ref_id: userRefId ? Number(userRefId) : null,
         user_type_ref_id: Number(userTypeRefId || 2),
-        retailer_ref_id: userRefId ? Number(userRefId) : 24,
-        tenant_id: "547aa7bb-a790-4fe2-bd5b-27214ed176c8"
+        retailer_ref_id: userRefId ? Number(userRefId) : null,
+        tenant_id: localStorage.getItem("p2p_tenant_id") || null
       };
 
       const reqHeaders: Record<string, string> = {
@@ -403,6 +408,10 @@ class FinancialAccountingService {
             walletBalanceBefore: wBefore,
             walletBalanceAfter: wAfter,
             beneficiaryRemainingMonthlyLimit: Math.max(0, beneMonthlyBefore - amount),
+            receiptToken: apiData.receipt_token || apiData.data?.receipt_token,
+            receiptUrl: apiData.receipt_url || apiData.data?.receipt_url,
+            receiptSignature: apiData.receipt_signature || apiData.data?.receipt_signature,
+            whatsappStatus: apiData.whatsapp_status || apiData.data?.whatsapp_status,
             ledgers: {
               walletLedgerId: `LEDG-WAL-${apiData.transaction_number || Date.now()}`,
               payoutLedgerId: `LEDG-PAY-${apiData.transaction_number || Date.now()}`,
@@ -427,6 +436,10 @@ class FinancialAccountingService {
             walletBalanceBefore: wBefore,
             walletBalanceAfter: wAfter,
             beneficiaryRemainingMonthlyLimit: Math.max(0, beneMonthlyBefore - amount),
+            receiptToken: apiData.receipt_token || apiData.data?.receipt_token,
+            receiptUrl: apiData.receipt_url || apiData.data?.receipt_url,
+            receiptSignature: apiData.receipt_signature || apiData.data?.receipt_signature,
+            whatsappStatus: apiData.whatsapp_status || apiData.data?.whatsapp_status,
             ledgers: {
               walletLedgerId: `LEDG-WAL-${apiData.transaction_number || Date.now()}`,
               payoutLedgerId: `LEDG-PAY-${apiData.transaction_number || Date.now()}`,
