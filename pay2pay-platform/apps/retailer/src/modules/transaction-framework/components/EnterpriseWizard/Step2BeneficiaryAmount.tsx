@@ -360,7 +360,7 @@ export const Step2BeneficiaryAmount: React.FC<Step2BeneficiaryAmountProps> = ({
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST (18%)</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.60)", fontSize: "12px" }}>GST (0%)</Typography>
               <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "13px" }}>+ ₹{gst.toLocaleString()}</Typography>
             </Stack>
 

@@ -1355,7 +1355,7 @@ export const BankingExecutionCenter: React.FC<BankingExecutionCenterProps> = ({
                   </Stack>
 
                   <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>GST (18%)</Typography>
+                    <Typography sx={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>GST (0%)</Typography>
                     <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FFFFFF" }}>₹{gst.toFixed(2)}</Typography>
                   </Stack>
 

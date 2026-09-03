@@ -106,7 +106,7 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px" }}>GST (18%)</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px" }}>GST (0%)</Typography>
               <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "14px" }}>+ ₹{gst}.00</Typography>
             </Stack>
 

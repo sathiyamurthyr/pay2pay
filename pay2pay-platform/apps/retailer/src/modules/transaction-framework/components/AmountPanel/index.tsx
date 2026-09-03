@@ -117,7 +117,7 @@ export const AmountPanel: React.FC<AmountPanelProps> = ({ amount, onAmountChange
 
         <Box sx={{ p: 2, borderRadius: "12px", bgcolor: "rgba(255, 255, 255, 0.04)" }}>
           <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", display: "block", fontSize: "12px", fontWeight: 700 }}>
-            GST (18%)
+            GST (0%)
           </Typography>
           <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "18px" }}>
             + ₹{gst.toLocaleString()}

@@ -50,7 +50,7 @@ const COL_HEADERS = [
   { label:"Txn Count",       icon: Hash,          bg:"bg-[#EFF6FF] border-[#BFDBFE]", ic:"text-[#2563EB]" },
   { label:"Gross Volume",    icon: Banknote,      bg:"bg-[#F5F3FF] border-[#DDD6FE]", ic:"text-[#7C3AED]" },
   { label:"MDR Revenue",     icon: DollarSign,    bg:"bg-[#FEF2F2] border-[#FCA5A5]", ic:"text-[#DC2626]" },
-  { label:"GST (18%)",       icon: FileSpreadsheet,bg:"bg-[#FFFBEB] border-[#FDE68A]", ic:"text-[#D97706]" },
+  { label:"GST (0%)",        icon: FileSpreadsheet,bg:"bg-[#FFFBEB] border-[#FDE68A]", ic:"text-[#D97706]" },
   { label:"TDS Withheld",    icon: Percent,       bg:"bg-[#FDF4FF] border-[#E9D5FF]", ic:"text-[#9333EA]" },
   { label:"Net Wallet Credit",icon: Wallet,       bg:"bg-[#ECFDF5] border-[#A7F3D0]", ic:"text-[#059669]" },
   { label:"Outbound Payout", icon: Receipt,       bg:"bg-[#EFF6FF] border-[#BFDBFE]", ic:"text-[#2563EB]" },

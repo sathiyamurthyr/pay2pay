@@ -43,8 +43,8 @@ export default function DmtTransferPage() {
       setCalc({
         transfer_amount: form.transfer_amount,
         service_charge: 10,
-        gst_amount: 1.80,
-        total_debit_amount: form.transfer_amount + 11.80,
+        gst_amount: 0.00,
+        total_debit_amount: form.transfer_amount + 10.00,
         retailer_commission: 6.50,
       });
     } finally {
@@ -167,7 +167,7 @@ export default function DmtTransferPage() {
                   <span className="font-mono text-[#D97706]">₹{calc.service_charge}</span>
                 </div>
                 <div className="flex justify-between text-[#64748B]">
-                  <span>GST (18%)</span>
+                  <span>GST (0%)</span>
                   <span className="font-mono text-[#D97706]">₹{calc.gst_amount}</span>
                 </div>
                 <div className="flex justify-between font-bold text-[#0F172A] text-sm pt-2 border-t border-[#E2E8F0]">

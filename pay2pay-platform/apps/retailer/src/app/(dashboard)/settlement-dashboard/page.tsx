@@ -450,7 +450,7 @@ export default function SettlementDashboardPage() {
                 icon: Coins,
               },
               {
-                label: "GST (18%)",
+                label: "GST (0%)",
                 value: fmt(metrics.total_gst_liability),
                 pct: Math.round((metrics.total_gst_liability / metrics.total_mdr_earned) * 100),
                 color: "bg-cyan-400",

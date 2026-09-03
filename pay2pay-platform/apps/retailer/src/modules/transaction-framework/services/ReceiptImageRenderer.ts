@@ -402,7 +402,7 @@ export function renderReceiptToCanvas(
     feeBoxY + 34
   );
   drawFeeRow(
-    "GST (18%)",
+    "GST (0%)",
     `₹${data.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
     feeBoxY + 54
   );

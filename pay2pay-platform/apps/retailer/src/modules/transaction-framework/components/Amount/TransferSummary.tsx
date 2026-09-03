@@ -20,15 +20,15 @@ export const TransferSummary: React.FC<TransferSummaryProps> = ({
   dailyRemaining = 0,
   monthlyRemaining = 0,
 }) => {
-  const gst = Math.round(charges * 0.18);
-  const fee = charges - gst;
+  const gst = 0;
+  const fee = charges;
   const commission = Math.round(amount * 0.0035);
   const walletAfterTransfer = Math.max(0, currentWalletBalance - totalPayable);
 
   const kpis = [
     { label: "TRANSFER AMOUNT", value: `₹${amount.toLocaleString()}`, color: "#FFFFFF", highlight: false },
     { label: "CONVENIENCE FEE", value: `+ ₹${fee.toLocaleString()}`, color: "#60A5FA", highlight: false },
-    { label: "GST (18%)", value: `+ ₹${gst.toLocaleString()}`, color: "#93C5FD", highlight: false },
+    { label: "GST (0%)", value: `+ ₹${gst.toLocaleString()}`, color: "#93C5FD", highlight: false },
     { label: "OPERATOR COMMISSION", value: `+ ₹${commission.toLocaleString()}`, color: "#4ADE80", highlight: true, bg: "rgba(34, 197, 94, 0.12)" },
     { label: "NET WALLET DEBIT", value: `₹${totalPayable.toLocaleString()}`, color: "#3B82F6", highlight: true, bg: "rgba(37, 99, 235, 0.25)" },
     { label: "WALLET AFTER TXN", value: `₹${walletAfterTransfer.toLocaleString()}`, color: "#FBBF24", highlight: false },

@@ -421,12 +421,12 @@ def build_unified_transactions_query(
             p.amount::float AS amount,
             CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE COALESCE(p.charges, 0.0)::float END AS charges,
             0.0 AS commission,
-            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)::float END AS gst_amount,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE COALESCE(p.gst_amount, 0.0)::float END AS gst_amount,
             0.0 AS tds_amount,
-            COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)))::float AS net_amount,
+            COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + COALESCE(p.gst_amount, 0.0)))::float AS net_amount,
             COALESCE(p.wallet_before, 50000.0)::float AS previous_balance,
             CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN COALESCE(p.net_debit, p.amount)::float ELSE 0.0 END AS cr,
-            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)))::float END AS dr,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + COALESCE(p.gst_amount, 0.0)))::float END AS dr,
             COALESCE(p.wallet_after, 
                 CASE 
                     WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN COALESCE(p.wallet_before, 50000.0) + COALESCE(p.net_debit, p.amount)
