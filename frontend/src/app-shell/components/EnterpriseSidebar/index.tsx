@@ -29,11 +29,10 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import GavelIcon from "@mui/icons-material/Gavel";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import DescriptionIcon from "@mui/icons-material/Description";
-import LogoutIcon from "@mui/icons-material/Logout";
 import { tokens } from "@/design-system/tokens/design-tokens";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { normalizeUserRole } from "@/lib/portal-resolver";
-import { useAuth } from "@/lib/auth";
+import { retailerApi } from "@/services/retailer-api";
 
 const FINANCIAL_PATHS = new Set([
   "/retailer/dmt",
@@ -58,7 +57,6 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   onToggle,
   activePath = "/retailer/dashboard",
 }) => {
-  const { logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
 
@@ -77,7 +75,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 
   const userRole = normalizeUserRole(rawRoleStr);
 
-  const toggleFavorite = (path: string, e: React.MouseEvent) => {
+  const toggleFavorite = (path: string, e: React.MouseEvent, label?: string, category?: string) => {
     e.stopPropagation();
     e.preventDefault();
     setFavorites((prev) => {
@@ -87,9 +85,49 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       } catch {}
       return updated;
     });
+
+    // Authoritative persistence to PostgreSQL DB via Stored Procedure sp_toggle_user_favorite_menu
+    const userRefId =
+      (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") : null) ||
+      (() => {
+        try {
+          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            return u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+          }
+        } catch {}
+        return null;
+      })();
+
+    if (userRefId) {
+      retailerApi
+        .toggleFavoriteMenu({
+          user_ref_id: String(userRefId),
+          menu_href: path,
+          menu_label: label || path,
+          menu_category: category || "General",
+          user_role: userRole || "RETAILER",
+        })
+        .then((res: any) => {
+          if (res && res.favorites && Array.isArray(res.favorites) && res.favorites.length > 0) {
+            const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
+            if (dbHrefs.length > 0) {
+              setFavorites(dbHrefs);
+              try {
+                localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
+              } catch {}
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("DB favorite toggle notice:", err);
+        });
+    }
   };
 
   useEffect(() => {
+    // 1. Immediate local cache load
     try {
       const saved = localStorage.getItem("p2p_sidebar_favorites");
       if (saved) {
@@ -102,6 +140,37 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
       }
     } catch {
       setFavorites([userRole === "SD" ? "/sd/dashboard" : userRole === "DIST" ? "/dist/dashboard" : "/retailer/dashboard"]);
+    }
+
+    // 2. Authoritative PostgreSQL fetch via Stored Procedure sp_get_user_favorite_menus
+    const userRefId =
+      (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") : null) ||
+      (() => {
+        try {
+          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            return u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+          }
+        } catch {}
+        return null;
+      })();
+
+    if (userRefId) {
+      retailerApi
+        .getFavoriteMenus(String(userRefId))
+        .then((res: any) => {
+          if (res && res.favorites && Array.isArray(res.favorites) && res.favorites.length > 0) {
+            const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
+            if (dbHrefs.length > 0) {
+              setFavorites(dbHrefs);
+              try {
+                localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
+              } catch {}
+            }
+          }
+        })
+        .catch(() => {});
     }
   }, [userRole]);
 
@@ -205,14 +274,15 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   return (
     <Box
       sx={{
-        width: "100%",
-        height: "100%",
+        width: isCollapsed ? 76 : 280,
+        height: "100vh",
         bgcolor: "#0B132B",
-        borderRight: "1px solid #1E293B",
+        borderRight: "1px solid rgba(255, 255, 255, 0.14)",
         display: "flex",
         flexDirection: "column",
-        position: "relative",
-        boxSizing: "border-box",
+        position: "sticky",
+        top: 0,
+        zIndex: 1200,
         transition: tokens.transitions.fast,
       }}
     >
@@ -386,7 +456,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                         ) : (
                           <IconButton
                             size="small"
-                            onClick={(e) => toggleFavorite(item.path, e)}
+                            onClick={(e) => toggleFavorite(item.path, e, item.label, "Favorites")}
                             sx={{ p: 0.5, color: isFav ? "#FFD54F" : "rgba(255,255,255,0.5)" }}
                           >
                             <StarIcon sx={{ fontSize: 18 }} />
@@ -487,20 +557,36 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
                       {!isCollapsed && (
                         locked ? (
                           <LockIcon sx={{ fontSize: 14, color: "rgba(245, 158, 11, 0.6)", flexShrink: 0 }} />
-                        ) : item.badge ? (
-                          <Chip
-                            label={item.badge}
-                            size="small"
-                            sx={{
-                              bgcolor: "rgba(59, 130, 246, 0.25)",
-                              color: "#60A5FA",
-                              fontWeight: 800,
-                              fontSize: "12px",
-                              height: 22,
-                              flexShrink: 0,
-                            }}
-                          />
-                        ) : null
+                        ) : (
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                            {item.badge && (
+                              <Chip
+                                label={item.badge}
+                                size="small"
+                                sx={{
+                                  bgcolor: "rgba(59, 130, 246, 0.25)",
+                                  color: "#60A5FA",
+                                  fontWeight: 800,
+                                  fontSize: "12px",
+                                  height: 22,
+                                  flexShrink: 0,
+                                }}
+                              />
+                            )}
+                            <IconButton
+                              size="small"
+                              onClick={(e) => toggleFavorite(item.path, e, item.label, cat.title)}
+                              sx={{
+                                p: 0.5,
+                                color: favorites.includes(item.path) ? "#FFD54F" : "rgba(255, 255, 255, 0.25)",
+                                "&:hover": { color: "#FFD54F" },
+                              }}
+                              title={favorites.includes(item.path) ? "Remove from Favorites" : "Add to Favorites"}
+                            >
+                              <StarIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Stack>
+                        )
                       )}
                     </Box>
                   </Tooltip>
@@ -509,41 +595,6 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             </Stack>
           </Box>
         ))}
-      </Box>
-
-      {/* Bottom Logout Action */}
-      <Box sx={{ p: 2, borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
-        <Tooltip title={isCollapsed ? "Sign Out / Logout" : ""} placement="right">
-          <Box
-            onClick={logout}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: isCollapsed ? "center" : "flex-start",
-              gap: 1.8,
-              py: 1.4,
-              px: isCollapsed ? 0 : 2,
-              borderRadius: "12px",
-              cursor: "pointer",
-              bgcolor: "rgba(239, 68, 68, 0.12)",
-              color: "#EF4444",
-              border: "1px solid rgba(239, 68, 68, 0.25)",
-              transition: "all 0.2s ease",
-              "&:hover": {
-                bgcolor: "rgba(239, 68, 68, 0.25)",
-                color: "#FCA5A5",
-                boxShadow: "0 4px 14px rgba(239, 68, 68, 0.3)",
-              },
-            }}
-          >
-            <LogoutIcon sx={{ fontSize: 22, flexShrink: 0 }} />
-            {!isCollapsed && (
-              <Typography sx={{ fontSize: "15px", fontWeight: 700, whiteSpace: "nowrap" }}>
-                Sign Out / Logout
-              </Typography>
-            )}
-          </Box>
-        </Tooltip>
       </Box>
     </Box>
   );

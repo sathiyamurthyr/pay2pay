@@ -1712,21 +1712,30 @@ export const RetailerPayoutReport: React.FC = () => {
 
                   <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.08)" }} />
 
-                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 1.5 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
                     <Box sx={{ textAlign: "center", bgcolor: "rgba(8,11,17,0.5)", p: 1, borderRadius: "8px" }}>
-                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10.5px", fontWeight: 600 }}>
-                        Fees &amp; GST
+                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 600 }}>
+                        Service Charge
                       </Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#F8FAFC", fontSize: "13px", mt: 0.2 }}>
-                        ₹{(fee + gst).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12.5px", mt: 0.2 }}>
+                        ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
                     <Box sx={{ textAlign: "center", bgcolor: "rgba(8,11,17,0.5)", p: 1, borderRadius: "8px" }}>
-                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10.5px", fontWeight: 600 }}>
+                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 600 }}>
+                        GST
+                      </Typography>
+                      <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12.5px", mt: 0.2 }}>
+                        ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ textAlign: "center", bgcolor: "rgba(8,11,17,0.5)", p: 1, borderRadius: "8px" }}>
+                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 600 }}>
                         Total Debit
                       </Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#F87171", fontSize: "13px", mt: 0.2 }}>
+                      <Typography sx={{ fontWeight: 800, color: "#F87171", fontSize: "12.5px", mt: 0.2 }}>
                         -₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>

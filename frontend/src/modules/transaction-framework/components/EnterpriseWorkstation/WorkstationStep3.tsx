@@ -18,8 +18,9 @@ export interface WorkstationStep3Props {
   customer: CustomerData | null;
   beneficiary: BeneficiaryData | null;
   amount: number;
-  charges: number;
-  totalPayable: number;
+  charges?: number;
+  gst?: number;
+  totalPayable?: number;
   onBack: () => void;
   onAuthorize: () => void;
 }
@@ -28,12 +29,15 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
   customer,
   beneficiary,
   amount,
-  charges,
-  totalPayable,
+  charges = 22,
+  gst = 3,
+  totalPayable = amount + 25,
   onBack,
   onAuthorize,
 }) => {
-  const gst = Math.round(charges * 0.18);
+  const effectiveCharges = charges ?? 22;
+  const effectiveGst = gst ?? 3;
+  const effectiveTotal = totalPayable ?? (amount + effectiveCharges + effectiveGst);
 
   return (
     <Box sx={{ maxWidth: 860, mx: "auto", pt: 2 }}>
@@ -43,28 +47,32 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
           p: 4,
           borderRadius: "22px",
           bgcolor: "rgba(11, 15, 25, 0.85)",
-          backdropFilter: "blur(24px)",
-          border: "1px solid rgba(245, 158, 11, 0.2)",
-          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 24px rgba(245, 158, 11, 0.08)",
-          position: "relative",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          backdropFilter: "blur(20px)",
+          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6)",
         }}
       >
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 3 }}>
-          <AccountBalanceWalletIcon sx={{ color: "#F59E0B", fontSize: 28 }} />
+        <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 3 }}>
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: "14px",
+              bgcolor: "rgba(245, 158, 11, 0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#F59E0B",
+            }}
+          >
+            <AccountBalanceWalletIcon sx={{ fontSize: 26 }} />
+          </Box>
           <Box>
-            <Typography
-              sx={{
-                fontWeight: 900,
-                fontSize: "20px",
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              STEP 3: TRANSFER AMOUNT & FINANCIAL SUMMARY
+            <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: "18px" }}>
+              Confirm Payment Authorization
             </Typography>
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px" }}>
-              Verify financial calculations before proceeding to PIN authorization.
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "13px" }}>
+              Verify beneficiary and financial details before debit
             </Typography>
           </Box>
         </Stack>
@@ -96,18 +104,24 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
 
           <Stack spacing={1.5}>
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px" }}>Transfer Amount</Typography>
-              <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "18px" }}>₹{amount.toLocaleString()}.00</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px" }}>Payout Amount</Typography>
+              <Typography sx={{ fontWeight: 900, color: "#FFFFFF", fontSize: "18px" }}>
+                ₹{Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px" }}>Convenience Fee</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "14px" }}>+ ₹{charges}.00</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px" }}>Payout Service Charge</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "14px" }}>
+                + ₹{Number(effectiveCharges).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Typography>
             </Stack>
 
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px" }}>GST (18%)</Typography>
-              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "14px" }}>+ ₹{gst}.00</Typography>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px" }}>GST</Typography>
+              <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "14px" }}>
+                + ₹{Number(effectiveGst).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Typography>
             </Stack>
 
             <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
@@ -123,7 +137,7 @@ export const WorkstationStep3: React.FC<WorkstationStep3Props> = ({
                   WebkitTextFillColor: "transparent",
                 }}
               >
-                ₹{totalPayable.toLocaleString()}.00
+                ₹{Number(effectiveTotal).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Typography>
             </Stack>
           </Stack>
