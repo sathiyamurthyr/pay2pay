@@ -155,7 +155,9 @@ class AadhaarEkycWorkflowService:
             stmt = select(
                 AadhaarVerificationModel.id,
                 AadhaarVerificationModel.masked_aadhaar,
-                AadhaarVerificationModel.aadhaar_ref_token
+                AadhaarVerificationModel.aadhaar_ref_token,
+                AadhaarVerificationModel.customer_id,
+                AadhaarVerificationModel.full_name
             ).where(
                 AadhaarVerificationModel.aadhaar_ref_token == aadhaar_hash
             )
@@ -163,9 +165,14 @@ class AadhaarEkycWorkflowService:
             existing_ver = result.first()
 
             if existing_ver:
+                # If verifying for the same customer, permit re-verification / update
+                if customer_id and existing_ver.customer_id and str(existing_ver.customer_id) == str(customer_id):
+                    return None
+
+                cust_label = existing_ver.full_name or (f"Customer ({existing_ver.customer_id})" if existing_ver.customer_id else "an existing Customer profile")
                 return {
                     "is_duplicate_different_customer": True,
-                    "existing_customer_id": "CUST-MASTER",
+                    "existing_customer_id": cust_label,
                     "masked_aadhaar": existing_ver.masked_aadhaar
                 }
         except Exception as ex:
