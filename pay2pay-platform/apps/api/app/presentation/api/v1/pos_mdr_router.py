@@ -61,7 +61,7 @@ class PosMdrConfigCreateRequest(BaseModel):
     payment_mode: str = Field(..., description="POS - Instant, POS+T1, or POS+T2")
     mdr: float = Field(..., ge=0, description="MDR rate (percentage or fixed amount)")
     mdr_type: Optional[str] = Field("PERCENTAGE", description="PERCENTAGE or FIXED")
-    gst_rate: Optional[float] = Field(18.00, ge=0, description="GST rate percentage on MDR")
+    gst_rate: Optional[float] = Field(0.00, ge=0, description="GST rate percentage on MDR (default 0.00)")
     retailer_id: Optional[str] = Field(None, description="Retailer UUID or Code (leave empty for Default MDR)")
     effective_from: Optional[datetime] = Field(None, description="Effective from timestamp")
     effective_to: Optional[datetime] = Field(None, description="Effective to timestamp (optional)")
@@ -88,10 +88,8 @@ class PosMdrConfigUpdateRequest(BaseModel):
 @router.get("/payment-modes")
 async def get_payment_modes(db: AsyncSession = Depends(get_db)):
     """
-    Returns active allowed POS payment modes:
-    1. POS - Instant
-    2. POS+T1
-    3. POS+T2
+    Returns active allowed POS payment modes ordered by priority/display_order.
+    Allowed: POS - Instant, POS+T1 (excluding deactivated modes like POS+T2).
     """
     modes = await PosMdrService.get_active_payment_modes(db)
     return {"items": modes, "total": len(modes)}
@@ -137,13 +135,14 @@ async def calculate_mdr(
 async def list_admin_mdr_configs(
     payment_mode: Optional[str] = Query(None),
     retailer_id: Optional[str] = Query(None),
-    is_active: Optional[bool] = Query(None),
+    is_active: Optional[bool] = Query(True, description="Filter by active status (defaults to True to only show active)"),
     scope: Optional[str] = Query(None, description="ALL, DEFAULT, or RETAILER"),
     search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Lists configured POS MDR rates (both retailer-specific and default rates).
+    By default returns only active configurations (hiding deactivated modes like T+2).
     """
     stmt = select(PosMdrConfigurationModel).where(
         PosMdrConfigurationModel.is_deleted == False
@@ -206,7 +205,7 @@ async def list_admin_mdr_configs(
             "payment_mode": c.payment_mode,
             "mdr": float(c.mdr),
             "mdr_type": c.mdr_type,
-            "gst_rate": float(c.gst_rate) if c.gst_rate is not None else 18.00,
+            "gst_rate": float(c.gst_rate) if c.gst_rate is not None else 0.00,
             "is_default": c.retailer_id is None,
             "retailer_id": str(c.retailer_id) if c.retailer_id else None,
             "retailer_code": ret_info["retailer_code"] if ret_info else None,
@@ -261,7 +260,7 @@ async def create_admin_mdr_config(
         payment_mode=req.payment_mode.strip(),
         mdr=req.mdr,
         mdr_type=(req.mdr_type or "PERCENTAGE").upper(),
-        gst_rate=req.gst_rate if req.gst_rate is not None else 18.00,
+        gst_rate=req.gst_rate if req.gst_rate is not None else 0.00,
         effective_from=eff_from,
         effective_to=eff_to,
         is_active=req.is_active if req.is_active is not None else True,

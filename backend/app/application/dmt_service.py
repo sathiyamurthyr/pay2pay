@@ -106,8 +106,8 @@ class DmtService:
         # Standard DMT Charge: 1% of transfer amount, minimum ₹10, maximum ₹50
         raw_charge = req.transfer_amount * 0.01
         charge = max(10.0, min(50.0, raw_charge))
-        gst = round(charge * 0.18, 2)
-        total_debit = req.transfer_amount + charge + gst
+        gst = 0.00
+        total_debit = req.transfer_amount + charge
         net_credit = req.transfer_amount
 
         # Commission distribution

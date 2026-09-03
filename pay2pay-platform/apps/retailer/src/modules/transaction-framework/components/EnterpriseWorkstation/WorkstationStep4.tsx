@@ -2367,7 +2367,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
                   </Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>GST (18%)</Typography>
+                  <Typography sx={{ fontSize: "11px", color: "#64748B" }}>GST (0%)</Typography>
                   <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#0F172A" }}>
                     ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>

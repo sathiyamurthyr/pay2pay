@@ -901,8 +901,8 @@ class PayoutWorkflowService:
         ret_name = getattr(ret_obj, "store_name", None) or getattr(ret_obj, "legal_name", None) or "Retailer"
         comp_id = getattr(ret_obj, "company_id", None)
 
-        charge_ex_gst = max(0.0, float(charges) - float(charges * 0.18 / 1.18))
-        gst_val = round(float(charges) - charge_ex_gst, 2)
+        charge_ex_gst = float(charges)
+        gst_val = 0.00
 
         # 1. Primary Workflow Transaction Model (payout_workflow_transactions)
         payout = PayoutWorkflowTransactionModel(

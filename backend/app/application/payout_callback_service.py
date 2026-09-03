@@ -25,7 +25,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.db.payout_workflow_models import (
     PayoutWorkflowTransactionModel,
-    PayoutAuditModel
+    PayoutAuditModel,
+    PayoutReceiptModel
 )
 from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel,
@@ -463,6 +464,43 @@ class PayoutCallbackService:
                     logger.info(
                         f"[PAYOUT CALLBACK] Wallet refunded via SP for retailer {matched_tx.retailer_id}: ₹{matched_tx.net_debit}"
                     )
+
+            # Update public digital receipt & dispatch WhatsApp notification
+            try:
+                stmt_rc = select(PayoutReceiptModel).where(
+                    (PayoutReceiptModel.transaction_id == matched_tx.public_id) |
+                    (PayoutReceiptModel.transaction_number == matched_tx.transaction_number)
+                )
+                rc_obj = (await db.execute(stmt_rc)).scalars().first()
+                if rc_obj:
+                    rc_obj.status = new_status
+                    if utr:
+                        rc_obj.utr_number = utr
+                    if new_status == "SUCCESS":
+                        rc_obj.status_text = "TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED"
+                    elif new_status in ("FAILED", "REVERSED"):
+                        rc_obj.status_text = f"TRANSACTION {new_status} · REFUND PROCESSED"
+                    
+                    if rc_obj.customer_mobile:
+                        from app.application.payout_workflow_service import PayoutWorkflowService
+                        wa_info = await PayoutWorkflowService.dispatch_payout_whatsapp_notification(
+                            db=db,
+                            tenant_id=matched_tx.tenant_id,
+                            company_id=matched_tx.company_id,
+                            transaction_id=matched_tx.public_id,
+                            transaction_number=matched_tx.transaction_number,
+                            customer_id=matched_tx.customer_id,
+                            customer_name=rc_obj.customer_name or "Customer",
+                            customer_mobile=rc_obj.customer_mobile,
+                            amount=float(matched_tx.amount),
+                            status=new_status,
+                            receipt_token=rc_obj.receipt_token,
+                            utr_number=utr
+                        )
+                        rc_obj.whatsapp_message_id = wa_info.get("message_id")
+                        rc_obj.whatsapp_status = wa_info.get("status")
+            except Exception as ex_rc:
+                logger.warning(f"[PAYOUT CALLBACK RECEIPT UPDATE NOTICE] {ex_rc}")
 
             await db.commit()
 

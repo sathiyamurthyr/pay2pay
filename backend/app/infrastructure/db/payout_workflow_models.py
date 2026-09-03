@@ -164,3 +164,39 @@ class TransactionPinAttemptModel(BaseEntity, EnterpriseBaseMixin):
     is_success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     failure_reason: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+
+class PayoutReceiptModel(BaseEntity, EnterpriseBaseMixin):
+    """
+    Authoritative Public Digital Receipt Model.
+    Stores cryptographically secure receipt tokens and real transaction snapshots
+    for public receipt downloading and WhatsApp link sharing.
+    """
+    __tablename__ = "payout_receipt"
+    __table_args__ = {'extend_existing': True}
+
+    receipt_token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    transaction_number: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    reference_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    customer_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    customer_mobile: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    beneficiary_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    beneficiary_bank: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    beneficiary_account: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    beneficiary_ifsc: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    charges: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    gst: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    total_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="SUCCESS", index=True)
+    status_text: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    utr_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    mode: Mapped[str] = mapped_column(String(20), nullable=False, default="IMPS")
+    retailer_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    retailer_mobile: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    receipt_signature: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    whatsapp_message_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    whatsapp_status: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+

@@ -444,7 +444,7 @@ export const SwipeMachineSettlementReport: React.FC = () => {
                     <TableCell>Card Details</TableCell>
                     <TableCell align="right">Gross Amount</TableCell>
                     <TableCell align="right">MDR Charge</TableCell>
-                    <TableCell align="right">GST (18%)</TableCell>
+                    <TableCell align="right">GST (0%)</TableCell>
                     <TableCell align="right">Net Settlement</TableCell>
                     <TableCell>Bank Account / UTR</TableCell>
                     <TableCell align="center">Status</TableCell>
@@ -532,7 +532,7 @@ export const SwipeMachineSettlementReport: React.FC = () => {
                 <Typography variant="body1" sx={{ fontSize: "16px", fontWeight: 700, color: "#F87171" }}>-₹{selectedSettlement.mdr_charge.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
               </Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-                <Typography variant="body1" sx={{ fontSize: "16px", color: "#CBD5E1" }}>GST (18%):</Typography>
+                <Typography variant="body1" sx={{ fontSize: "16px", color: "#CBD5E1" }}>GST (0%):</Typography>
                 <Typography variant="body1" sx={{ fontSize: "16px", fontWeight: 700, color: "#FBBF24" }}>-₹{selectedSettlement.gst_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Typography>
               </Box>
               <Divider sx={{ borderColor: "rgba(255,255,255,0.14)", my: 1.5 }} />

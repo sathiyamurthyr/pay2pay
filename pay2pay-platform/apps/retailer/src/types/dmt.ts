@@ -19,9 +19,14 @@ export interface Customer {
   initials: string;
   mobile: string;
   aadhaarMasked: string;
+  /** Authoritative Aadhaar verification status from backend — VERIFIED | PENDING */
+  aadhaarVerificationStatus?: "VERIFIED" | "PENDING";
+  aadhaarVerified?: boolean;
   verified: boolean;
+  kycStatus?: string;
   riskLevel: "Low" | "Medium" | "High";
   customerSince: string;
   limits: CustomerLimits;
   lastTransaction: LastTransaction;
 }
+

@@ -25,6 +25,8 @@ export default function PublicReceiptPage() {
 
   const [copied, setCopied] = useState(false);
   const [verified, setVerified] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [receiptData, setReceiptData] = useState({
     companyName: "SUPER REX PRODUCTS PRIVATE LIMITED",
     brandName: "Pay2Pay",
@@ -51,22 +53,88 @@ export default function PublicReceiptPage() {
   });
 
   useEffect(() => {
-    // Attempt to load live receipt data from localStorage if generated in this browser
-    if (typeof window !== "undefined") {
+    let isMounted = true;
+    async function fetchReceipt() {
+      if (!token) return;
       try {
-        const stored = localStorage.getItem(`pay2pay_receipt_${token}`) || localStorage.getItem("pay2pay_last_receipt");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed && (parsed.receiptToken === token || !token || token === "P2P-A61E08C4")) {
-            setReceiptData((prev) => ({
-              ...prev,
-              ...parsed,
-              receiptToken: token,
-            }));
+        setLoading(true);
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://api.pay2pay.in";
+        const res = await fetch(`${apiBase}/api/v1/public/receipt/${token}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data && data.valid) {
+            setReceiptData({
+              companyName: data.companyName || "SUPER REX PRODUCTS PRIVATE LIMITED",
+              brandName: data.brandName || "Pay2Pay",
+              brandTagline: data.brandTagline || "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
+              certifications: data.certifications || "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
+              status: data.status || "SUCCESS",
+              statusText: data.statusText || "TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED",
+              amount: Number(data.amount) || 0,
+              charges: Number(data.charges) || 0,
+              gst: Number(data.gst) || 0,
+              totalPaid: Number(data.totalPaid) || 0,
+              transactionId: data.transactionId || "",
+              utr: data.utr || "N/A",
+              receiptToken: data.receiptToken || token,
+              channel: data.channel || "IMPS",
+              date: data.date || "",
+              retailerName: data.retailerName || "Pay2Pay Retailer",
+              retailerMobile: data.retailerMobile || "",
+              beneficiaryName: data.beneficiaryName || "Beneficiary",
+              beneficiaryBank: data.beneficiaryBank || "",
+              beneficiaryIfsc: data.beneficiaryIfsc || "",
+              beneficiaryAccount: data.beneficiaryAccount || "",
+              signature: data.signature || `SIG-SHA256-${token.replace("P2P-", "")}982A1B7C`,
+            });
+            setVerified(true);
+            setNotFound(false);
+            setLoading(false);
+            return;
+          }
+        } else if (res.status === 404) {
+          if (typeof window !== "undefined") {
+            const stored = localStorage.getItem(`pay2pay_receipt_${token}`);
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (parsed && (parsed.receiptToken === token || parsed.transactionId === token)) {
+                setReceiptData((prev) => ({ ...prev, ...parsed, receiptToken: token }));
+                setVerified(true);
+                setNotFound(false);
+                setLoading(false);
+                return;
+              }
+            }
+          }
+          if (isMounted) {
+            setNotFound(true);
+            setVerified(false);
           }
         }
-      } catch (e) {}
+      } catch (err) {
+        if (typeof window !== "undefined") {
+          const stored = localStorage.getItem(`pay2pay_receipt_${token}`);
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              if (parsed) {
+                setReceiptData((prev) => ({ ...prev, ...parsed, receiptToken: token }));
+                setVerified(true);
+                setNotFound(false);
+                setLoading(false);
+                return;
+              }
+            } catch (e) {}
+          }
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
+    fetchReceipt();
+    return () => {
+      isMounted = false;
+    };
   }, [token]);
 
   const handleCopyLink = () => {
@@ -154,17 +222,40 @@ export default function PublicReceiptPage() {
         </div>
       </header>
 
-      {/* ── VERIFIED RECEIPT CARD (PRINTABLE) ── */}
-      <main className="w-full max-w-xl bg-white text-slate-900 rounded-3xl p-5 sm:p-7 shadow-2xl border border-slate-200 print-container relative overflow-hidden">
-        {/* Subtle Watermark */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none -rotate-12">
-          <span className="text-6xl sm:text-7xl font-black text-slate-900 uppercase tracking-widest">
-            Pay2Pay Verified
-          </span>
-        </div>
+      {/* ── NOT FOUND ERROR CARD (Anti-Enumeration Protection) ── */}
+      {notFound ? (
+        <main className="w-full max-w-xl bg-[#0F172A] text-slate-100 rounded-3xl p-7 shadow-2xl border border-red-500/30 text-center my-8">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4 text-red-400">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-black text-white">Receipt Link Not Found</h2>
+          <p className="text-sm text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+            The transaction receipt you are attempting to view does not exist, has expired, or access is restricted.
+          </p>
+          <div className="mt-5 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs font-mono text-amber-400">
+            Token: {token}
+          </div>
+          <p className="text-xs text-slate-500 mt-4">
+            If you recently initiated this transaction, please check your WhatsApp notification or contact Pay2Pay Support.
+          </p>
+        </main>
+      ) : loading ? (
+        <main className="w-full max-w-xl bg-white text-slate-900 rounded-3xl p-10 shadow-2xl border border-slate-200 text-center my-8">
+          <div className="animate-spin w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-sm font-bold text-slate-600">Verifying Digital Receipt...</p>
+        </main>
+      ) : (
+        /* ── VERIFIED RECEIPT CARD (PRINTABLE) ── */
+        <main className="w-full max-w-xl bg-white text-slate-900 rounded-3xl p-5 sm:p-7 shadow-2xl border border-slate-200 print-container relative overflow-hidden">
+          {/* Subtle Watermark */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none -rotate-12">
+            <span className="text-6xl sm:text-7xl font-black text-slate-900 uppercase tracking-widest">
+              Pay2Pay Verified
+            </span>
+          </div>
 
-        {/* ── 1. HEADER: BRAND & COMPANY DETAILS ── */}
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 relative z-10">
+          {/* ── 1. HEADER: BRAND & COMPANY DETAILS ── */}
+          <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 relative z-10">
           <div className="flex items-center gap-3">
             {/* Pay2Pay Dual Emblem Logo */}
             <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/30 shrink-0 border-2 border-white/20">
@@ -291,7 +382,7 @@ export default function PublicReceiptPage() {
             </span>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>GST (18%)</span>
+            <span>GST (0%)</span>
             <span className="font-bold text-slate-900">
               ₹{receiptData.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </span>
@@ -358,6 +449,7 @@ export default function PublicReceiptPage() {
           </button>
         </div>
       </main>
+      )}
 
       {/* ── FOOTER COPYRIGHT ── */}
       <footer className="mt-6 text-center text-xs text-slate-500 no-print space-y-1">

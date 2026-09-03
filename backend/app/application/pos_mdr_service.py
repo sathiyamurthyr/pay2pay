@@ -237,7 +237,7 @@ class PosMdrService:
         mdr_val = Decimal(str(mdr_config.mdr))
         mdr_type = str(mdr_config.mdr_type or "PERCENTAGE").upper()
         raw_gst_val = getattr(mdr_config, "gst_rate", None)
-        gst_rate = Decimal(str(raw_gst_val)) if raw_gst_val is not None else Decimal("18.00")
+        gst_rate = Decimal(str(raw_gst_val)) if raw_gst_val is not None else Decimal("0.00")
 
         if mdr_val < Decimal("0.00"):
             raise HTTPException(

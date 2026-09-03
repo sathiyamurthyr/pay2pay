@@ -8,7 +8,11 @@ import logging
 from datetime import datetime, timezone
 from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
-from app.infrastructure.db.payout_workflow_models import PayoutWorkflowTransactionModel, PayoutAuditModel
+from app.infrastructure.db.payout_workflow_models import (
+    PayoutWorkflowTransactionModel,
+    PayoutAuditModel,
+    PayoutReceiptModel
+)
 from app.infrastructure.db.models import RetailerWalletModel
 from app.application.bulkpe_client import BulkPeApiClient
 
@@ -77,6 +81,44 @@ async def poll_pending_bulkpe_transactions():
                             is_deleted=False
                         )
                         db.add(refund_audit)
+
+                # Update public digital receipt & dispatch WhatsApp notification if status changed
+                if new_status in ("SUCCESS", "FAILED", "REVERSED"):
+                    try:
+                        stmt_rc = select(PayoutReceiptModel).where(
+                            (PayoutReceiptModel.transaction_id == tx.public_id) |
+                            (PayoutReceiptModel.transaction_number == tx.transaction_number)
+                        )
+                        rc_obj = (await db.execute(stmt_rc)).scalars().first()
+                        if rc_obj:
+                            rc_obj.status = new_status
+                            if utr:
+                                rc_obj.utr_number = utr
+                            if new_status == "SUCCESS":
+                                rc_obj.status_text = "TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED"
+                            elif new_status in ("FAILED", "REVERSED"):
+                                rc_obj.status_text = f"TRANSACTION {new_status} · REFUND PROCESSED"
+
+                            if rc_obj.customer_mobile:
+                                from app.application.payout_workflow_service import PayoutWorkflowService
+                                wa_info = await PayoutWorkflowService.dispatch_payout_whatsapp_notification(
+                                    db=db,
+                                    tenant_id=tx.tenant_id,
+                                    company_id=tx.company_id,
+                                    transaction_id=tx.public_id,
+                                    transaction_number=tx.transaction_number,
+                                    customer_id=tx.customer_id,
+                                    customer_name=rc_obj.customer_name or "Customer",
+                                    customer_mobile=rc_obj.customer_mobile,
+                                    amount=float(tx.amount),
+                                    status=new_status,
+                                    receipt_token=rc_obj.receipt_token,
+                                    utr_number=utr
+                                )
+                                rc_obj.whatsapp_message_id = wa_info.get("message_id")
+                                rc_obj.whatsapp_status = wa_info.get("status")
+                    except Exception as ex_rc:
+                        logger.warning(f"[BulkPe Poller Receipt Update Notice] {ex_rc}")
 
                 await db.commit()
 

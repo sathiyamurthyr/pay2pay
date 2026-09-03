@@ -259,7 +259,7 @@ export default function MachinesPage() {
     payment_mode: "POS - Instant",
     mdr: "1.70" as string | number,
     mdr_type: "PERCENTAGE",
-    gst_rate: "18.00" as string | number,
+    gst_rate: "0.00" as string | number,
     remarks: "",
     is_active: true
   });
@@ -322,18 +322,22 @@ export default function MachinesPage() {
     }
   };
 
-  // Fetch MDR Configurations List
+  // Fetch MDR Configurations List (Always active only, hides deactivated T+2)
   const fetchMdrConfigs = async () => {
     try {
       setLoadingMdr(true);
       const res = await api.get("/api/v1/pos/admin/mdr-configs", {
         params: {
           search: searchMdr || undefined,
-          scope: mdrScopeFilter !== "ALL" ? mdrScopeFilter : undefined
+          scope: mdrScopeFilter !== "ALL" ? mdrScopeFilter : undefined,
+          is_active: true
         }
       });
-      setMdrConfigs(res.data.items || []);
-      setTotalMdr(res.data.total || 0);
+      // Filter strictly active records only (hides deactivated T+2)
+      const rawList = res.data.items || [];
+      const activeList = rawList.filter((c: any) => c.is_active !== false);
+      setMdrConfigs(activeList);
+      setTotalMdr(activeList.length);
     } catch (err) {
       console.error("Failed to fetch MDR configs", err);
     } finally {
@@ -572,7 +576,7 @@ export default function MachinesPage() {
       payment_mode: cfg.payment_mode,
       mdr: cfg.mdr !== undefined && cfg.mdr !== null ? String(cfg.mdr) : "1.70",
       mdr_type: cfg.mdr_type || "PERCENTAGE",
-      gst_rate: cfg.gst_rate !== undefined && cfg.gst_rate !== null ? String(cfg.gst_rate) : "18.00",
+      gst_rate: cfg.gst_rate !== undefined && cfg.gst_rate !== null ? String(cfg.gst_rate) : "0.00",
       remarks: cfg.remarks || "",
       is_active: cfg.is_active ?? true
     });
@@ -753,7 +757,7 @@ export default function MachinesPage() {
       header: "GST Rate",
       cell: (c) => (
         <span className="font-mono text-xs font-bold text-[#334155]">
-          {c.gst_rate}%
+          {Number(c.gst_rate || 0).toFixed(0)}%
         </span>
       ),
     },
@@ -854,7 +858,7 @@ export default function MachinesPage() {
                   payment_mode: "POS - Instant",
                   mdr: 1.70,
                   mdr_type: "PERCENTAGE",
-                  gst_rate: 18.00,
+                  gst_rate: 0.00,
                   remarks: "",
                   is_active: true
                 });
@@ -1018,12 +1022,12 @@ export default function MachinesPage() {
                 <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-[#E2E8F0] shadow-2xs">
                   <span className="text-xs font-bold text-[#64748B]">POS - Instant:</span>
                   <span className="font-mono text-sm font-black text-[#2563EB]">1.70%</span>
-                  <span className="text-[10px] text-[#64748B] font-mono">+ 18% GST</span>
+                  <span className="text-[10px] text-[#64748B] font-mono">0% GST</span>
                 </div>
                 <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-[#E2E8F0] shadow-2xs">
                   <span className="text-xs font-bold text-[#64748B]">POS+T1:</span>
                   <span className="font-mono text-sm font-black text-[#16A34A]">1.60%</span>
-                  <span className="text-[10px] text-[#64748B] font-mono">+ 18% GST</span>
+                  <span className="text-[10px] text-[#64748B] font-mono">0% GST</span>
                 </div>
               </div>
             </div>
@@ -1045,7 +1049,7 @@ export default function MachinesPage() {
                 payment_mode: "POS - Instant",
                 mdr: 1.70,
                 mdr_type: "PERCENTAGE",
-                gst_rate: 18.00,
+                gst_rate: 0.00,
                 remarks: "",
                 is_active: true
               });
@@ -1292,14 +1296,13 @@ export default function MachinesPage() {
                     disabled={Boolean(editingMdrConfig)}
                     onChange={(e) => {
                       const mode = e.target.value;
-                      const defVal = mode === "POS - Instant" ? 1.70 : mode === "POS+T1" ? 1.60 : 1.50;
+                      const defVal = mode === "POS - Instant" ? 1.70 : 1.60;
                       setMdrForm({ ...mdrForm, payment_mode: mode, mdr: defVal });
                     }}
                     className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 text-[#111827] font-bold cursor-pointer disabled:bg-[#F1F5F9]"
                   >
                     <option value="POS - Instant">POS - Instant (Default: 1.70%)</option>
                     <option value="POS+T1">POS+T1 (Default: 1.60%)</option>
-                    <option value="POS+T2">POS+T2 (Default: 1.50%)</option>
                   </select>
                 </div>
                 <div>
@@ -1327,6 +1330,7 @@ export default function MachinesPage() {
                     value={mdrForm.gst_rate}
                     onChange={(e) => setMdrForm({ ...mdrForm, gst_rate: e.target.value })}
                     className="w-full rounded-lg border border-[#D1D5DB] bg-white p-2.5 font-mono text-[#111827] focus:border-[#2563EB] focus:outline-none font-bold"
+                    placeholder="0.00"
                   />
                 </div>
                 <div>

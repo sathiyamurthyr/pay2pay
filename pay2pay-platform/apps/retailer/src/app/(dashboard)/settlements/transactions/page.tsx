@@ -678,13 +678,13 @@ export default function TransactionsPage() {
     },
     {
       id: "gst_amount",
-      header: "GST (18%)",
+      header: "GST (0%)",
       cell: (t) => {
-        const gst = t.fee_split?.gst_amount || roundVal((t.fee_split?.mdr_fee || (t.amount || 0) * 0.015) * 0.18);
+        const gst = t.fee_split?.gst_amount || 0.00;
         return (
           <div className="font-mono text-xs">
             <span className="text-[#4F46E5] font-extrabold">₹{gst.toLocaleString("en-IN")}</span>
-            <span className="text-[10px] text-[#3730A3] font-semibold ml-1">(18%)</span>
+            <span className="text-[10px] text-[#3730A3] font-semibold ml-1">(0%)</span>
           </div>
         );
       },
@@ -765,7 +765,7 @@ export default function TransactionsPage() {
             Swipe Transaction Ledger
           </h1>
           <p className="mt-1 text-sm font-medium text-[#64748B]">
-            Real-time card &amp; UPI transactions, RRN references, GST (18%), TDS (1%) &amp; MDR fee split calculations
+            Real-time card &amp; UPI transactions, RRN references, GST (0%), TDS (1%) &amp; MDR fee split calculations
           </p>
         </div>
       </div>

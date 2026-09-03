@@ -676,21 +676,41 @@ class ProgressiveOnboardingService:
         }
 
     @staticmethod
-    async def create_credentials(db: AsyncSession, registration_id: str, password: str, mpin: str) -> Dict[str, Any]:
+    async def create_credentials(db: AsyncSession, registration_id: str, password: str, mpin: str, confirm_password: Optional[str] = None) -> Dict[str, Any]:
         """Step 5: Set account password and 4-digit security MPIN."""
+        if confirm_password is not None and password != confirm_password:
+            return {"status": "ERROR", "message": "Password and Confirm Password do not match."}
         if len(password) < 8:
             return {"status": "ERROR", "message": "Password must be at least 8 characters long."}
+        if not re.search(r"[A-Z]", password):
+            return {"status": "ERROR", "message": "Password must contain at least one uppercase letter."}
+        if not re.search(r"[a-z]", password):
+            return {"status": "ERROR", "message": "Password must contain at least one lowercase letter."}
+        if not re.search(r"\d", password):
+            return {"status": "ERROR", "message": "Password must contain at least one number."}
+        if not re.search(r"[^A-Za-z0-9]", password):
+            return {"status": "ERROR", "message": "Password must contain at least one special character."}
+        
+        # Weak/common passwords rejection
+        if password in ["12345678", "12341234", "password", "Password123!", "Retailer#2026", "Admin#2026", "123456"]:
+            return {"status": "ERROR", "message": "This password is too common or predictable. Please choose a more secure password."}
+
         if len(mpin) != 4 or not mpin.isdigit():
             return {"status": "ERROR", "message": "MPIN must be exactly 4 digits."}
+        if mpin in ["1234", "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999", "4321"]:
+            return {"status": "ERROR", "message": "MPIN cannot be a common sequential or repeating pattern."}
 
         d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == registration_id)
         draft = (await db.execute(d_stmt)).scalars().first()
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        draft_data = dict(draft.draft_data)
-        draft_data["password_hash"] = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        from app.core.security import hash_password
+
+        draft_data = dict(draft.draft_data or {})
+        draft_data["password_hash"] = hash_password(password)
         draft_data["mpin"] = mpin
+        draft_data["mpin_hash"] = hash_password(mpin)
         draft.draft_data = draft_data
         draft.current_step = max(draft.current_step, 6)
         draft.status = "BASIC_PROFILE"
@@ -1557,6 +1577,34 @@ class ProgressiveOnboardingService:
             await RetailerManagementService.sync_verifications_to_retailers(db, DEFAULT_TENANT_ID)
         except Exception as e:
             pass
+
+        # Ensure AuthUserModel is linked with the onboarding password hash
+        try:
+            from app.infrastructure.db.auth_models import AuthUserModel
+            from app.infrastructure.db.models import RetailerContactModel, RetailerModel
+            clean_m = re.sub(r"\D", "", str(draft.mobile_number))[-10:]
+            pass_h = draft_d.get("password_hash")
+            if clean_m and pass_h:
+                auth_u = (await db.execute(select(AuthUserModel).where(AuthUserModel.mobile_number.in_([clean_m, f"91{clean_m}", f"+91{clean_m}"])))).scalars().first()
+                if auth_u:
+                    auth_u.password_hash = pass_h
+                else:
+                    ret_chk = (await db.execute(select(RetailerContactModel, RetailerModel).join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id).where(RetailerContactModel.mobile.in_([clean_m, f"+91{clean_m}", f"91{clean_m}"])))).first()
+                    ret_id = ret_chk[1].public_id if ret_chk else uuid.uuid4()
+                    auth_u = AuthUserModel(
+                        user_id=ret_id,
+                        mobile_number=clean_m,
+                        full_name=ret_name,
+                        email=draft.email or f"{clean_m}@pay2pay.in",
+                        password_hash=pass_h,
+                        role="RETAILER",
+                        account_status="ACTIVE" if (ret_chk and ret_chk[1].status == "ACTIVE") else "PENDING_APPROVAL",
+                        tenant_id=DEFAULT_TENANT_ID,
+                        company_id=DEFAULT_TENANT_ID
+                    )
+                    db.add(auth_u)
+        except Exception as e:
+            logger.warning(f"Error persisting AuthUserModel on submit: {e}")
 
         await db.commit()
 

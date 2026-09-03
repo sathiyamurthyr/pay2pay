@@ -15,13 +15,13 @@ export const TransferDetails: React.FC<TransferDetailsProps> = ({
   totalPayable,
   walletBalance = useRetailerStore.getState().wallet.mainBalance,
 }) => {
-  const gst = Math.round(charges * 0.18);
-  const fee = charges - gst;
+  const gst = 0;
+  const fee = charges;
   const walletAfter = Math.max(0, walletBalance - totalPayable);
   const items = [
     { label: "TRANSFER AMOUNT", value: `₹${amount.toLocaleString()}`, color: "#FFFFFF" },
     { label: "CONVENIENCE FEE", value: `+ ₹${fee.toLocaleString()}`, color: "#60A5FA" },
-    { label: "GST (18%)", value: `+ ₹${gst.toLocaleString()}`, color: "#93C5FD" },
+    { label: "GST (0%)", value: `+ ₹${gst.toLocaleString()}`, color: "#93C5FD" },
     { label: "TOTAL WALLET DEBIT", value: `₹${totalPayable.toLocaleString()}`, color: "#3B82F6" },
     { label: "CURRENT WALLET BAL", value: `₹${walletBalance.toLocaleString()}`, color: "#FBBF24" },
     { label: "BAL AFTER TRANSFER", value: `₹${walletAfter.toLocaleString()}`, color: "#34D399" },

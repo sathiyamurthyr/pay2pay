@@ -166,6 +166,10 @@ app.include_router(payout_workflow.router, prefix=settings.API_V1_STR)
 app.include_router(payout_workflow.router, prefix="/api")
 app.include_router(payout_workflow.router, prefix="")
 app.include_router(payout_workflow.router, prefix=f"{settings.API_V1_STR}/api/v1")
+from app.presentation.api.v1 import public_receipt_router
+app.include_router(public_receipt_router.router, prefix=settings.API_V1_STR)
+app.include_router(public_receipt_router.router, prefix="/api")
+app.include_router(public_receipt_router.router, prefix="")
 app.include_router(ekyc.router, prefix=settings.API_V1_STR)
 app.include_router(epic014_beneficiary_router.router, prefix=settings.API_V1_STR)
 app.include_router(customer_mpin.router, prefix=settings.API_V1_STR)
@@ -349,6 +353,14 @@ app.include_router(urbanrupee_payout_router.router, prefix="")
 # Support /payouts alias as well
 app.include_router(urbanrupee_payout_router.router, prefix=f"{settings.API_V1_STR}/payouts")
 app.include_router(urbanrupee_payout_router.router, prefix="/payouts")
+
+import app.infrastructure.db.recharge_models as _recharge_models
+from app.presentation.api.v1 import recharge_router
+app.include_router(recharge_router.router, prefix=settings.API_V1_STR)
+app.include_router(recharge_router.router, prefix="/v1")
+app.include_router(recharge_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(recharge_router.router, prefix="/api")
+app.include_router(recharge_router.router, prefix="")
 
 
 @app.get("/health", tags=["Health"])
