@@ -274,6 +274,11 @@ app.include_router(topup_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(topup_router.router, prefix="/api")
 app.include_router(topup_router.router, prefix="")
 
+from app.presentation.api.v1 import whatsapp_config_router
+app.include_router(whatsapp_config_router.router, prefix=settings.API_V1_STR)
+app.include_router(whatsapp_config_router.router, prefix="/api")
+app.include_router(whatsapp_config_router.router, prefix="")
+
 from app.presentation.api.v1 import retailer_dashboard_router
 app.include_router(retailer_dashboard_router.router, prefix=f"{settings.API_V1_STR}/payout")
 app.include_router(retailer_dashboard_router.router, prefix=settings.API_V1_STR)

@@ -10,7 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
-  Megaphone, Terminal, Star, Pin
+  Megaphone, Terminal, Star, Pin, MessageSquare
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -103,6 +103,7 @@ const ADMIN_NAV: NavCategory[] = [
     items: [
       { label: "Service Availability", href: "/configuration/services", icon: Sliders, badge: "Live" },
       { label: "Payout Slabs", href: "/configuration/payout-slabs", icon: Layers, badge: "New" },
+      { label: "WhatsApp Alerts", href: "/configuration/whatsapp-alerts", icon: MessageSquare, badge: "Live" },
       { label: "Payout Switch", href: "/payouts/gateways", icon: ArrowLeftRight, badge: "Live" },
       { label: "Wallet", href: "/wallet-ledger/entity-wallets", icon: Wallet },
       { label: "Chart of Accounts", href: "/wallet-ledger/chart-of-accounts", icon: BookOpen },
