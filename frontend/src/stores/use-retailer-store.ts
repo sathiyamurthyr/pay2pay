@@ -160,6 +160,7 @@ interface RetailerStoreState {
   setWalletBalance: (balance: number) => void;
   debitWallet: (amount: number) => number;
   syncBalance: () => Promise<void>;
+  refreshBalances: () => Promise<void>;
   toggleSoundbox: () => void;
   setUnreadNotifications: (count: number) => void;
   setActiveDrawer: (drawer: string | null) => void;
@@ -300,6 +301,13 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
         console.warn("syncBalance fetch error:", err);
       } finally {
         set({ isSyncing: false });
+      }
+    },
+    refreshBalances: async () => {
+      try {
+        await get().syncBalance();
+      } catch (err) {
+        console.warn("refreshBalances error:", err);
       }
     },
 

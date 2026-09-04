@@ -1,7 +1,10 @@
 "use client";
 
 import { create } from "zustand";
+import apiClient from "@/lib/api";
 import { retailerApi } from "@/services/retailer-api";
+
+export type KpiTheme = "classic-blue" | "royal-gold" | "emerald-green" | "purple" | "dark" | "corporate-white";
 
 export interface RetailerOutlet {
   id: string;
@@ -25,8 +28,6 @@ export interface WalletState {
   todayTxnCount: number;
   todaySettlement: number;
 }
-
-export type KpiTheme = "classic-blue" | "royal-gold" | "emerald-green" | "purple" | "dark" | "corporate-white";
 
 export interface ThemeConfig {
   id: KpiTheme;
@@ -130,6 +131,21 @@ export const THEME_CONFIGS: Record<KpiTheme, ThemeConfig> = {
   },
 };
 
+export const applyThemeToDocument = (themeId: KpiTheme) => {
+  if (typeof window === "undefined") return;
+  const config = THEME_CONFIGS[themeId] || THEME_CONFIGS["classic-blue"];
+  const root = document.documentElement;
+  root.style.setProperty("--p2p-header-bg", config.headerBg);
+  root.style.setProperty("--p2p-header-text", config.headerText);
+  root.style.setProperty("--p2p-primary-color", config.primaryColor);
+  root.style.setProperty("--p2p-page-bg", config.pageBg);
+  root.style.setProperty("--p2p-card-bg", config.cardBg);
+  root.style.setProperty("--p2p-card-border", config.cardBorder);
+  root.style.setProperty("--p2p-text-color", config.textColor);
+  root.style.setProperty("--p2p-subtext-color", config.subtextColor);
+  root.setAttribute("data-theme", themeId);
+};
+
 interface RetailerStoreState {
   outlet: RetailerOutlet;
   wallet: WalletState;
@@ -141,8 +157,10 @@ interface RetailerStoreState {
   // Actions
   setSyncing: (syncing: boolean) => void;
   updateWallet: (part: Partial<WalletState>) => void;
+  setWalletBalance: (balance: number) => void;
   debitWallet: (amount: number) => number;
   syncBalance: () => Promise<void>;
+  refreshBalances: () => Promise<void>;
   toggleSoundbox: () => void;
   setUnreadNotifications: (count: number) => void;
   setActiveDrawer: (drawer: string | null) => void;
@@ -150,15 +168,12 @@ interface RetailerStoreState {
   setApprovalStatus: (status: "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW") => void;
 }
 
-const getInitialMainBalance = (): number => {
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
-    if (saved && !isNaN(parseFloat(saved))) {
-      return parseFloat(saved);
-    }
-  }
-  return 48250.75;
-};
+// Wallet balance is NOT persisted to localStorage.
+// It is always synced live from the API via syncBalance() or WalletSyncProvider.
+// This prevents stale cached balances from misleading users or transaction logic.
+
+const DEFAULT_RETAILER_ID = "";
+const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
 
 const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW" => {
   if (typeof window !== "undefined") {
@@ -174,90 +189,125 @@ const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDE
   return "PENDING";
 };
 
+const getInitialOutlet = (): RetailerOutlet => ({
+  id: "",
+  code: "",
+  name: "Retailer Store",
+  ownerName: "Retailer Partner",
+  mobile: "",
+  email: "",
+  location: "India",
+  status: "ACTIVE",
+  kycStatus: "VERIFIED",
+  approvalStatus: "APPROVED",
+  soundboxActive: true,
+  soundboxLang: "en",
+});
+
+
+const getInitialTheme = (): KpiTheme => {
+  if (typeof window !== "undefined") {
+    const saved = (localStorage.getItem("kpi_card_theme") || localStorage.getItem("pay2pay_app_theme")) as KpiTheme;
+    if (saved && THEME_CONFIGS[saved]) {
+      applyThemeToDocument(saved);
+      return saved;
+    }
+  }
+  return "classic-blue";
+};
+
 export const useRetailerStore = create<RetailerStoreState>((set, get) => {
   const initApproval = getInitialApprovalStatus();
   return {
-    outlet: {
-      id: "RET-10829",
-      code: "RET-0CFE2B",
-      name: "Sri Venkateswara Telecom & FinTech",
-      ownerName: "Sathiya Murthy",
-      mobile: "+91 70139 14767",
-      email: "sathiya@pay2pay.in",
-      location: "Anna Salai, Chennai, TN",
-      status: initApproval === "APPROVED" ? "ACTIVE" : "PENDING_KYC",
-      kycStatus: initApproval === "APPROVED" ? "VERIFIED" : "PENDING",
-      approvalStatus: initApproval,
-      soundboxActive: true,
-      soundboxLang: "en",
-    },
+    outlet: getInitialOutlet(),
     wallet: {
-      mainBalance: getInitialMainBalance(),
-      commissionBalance: 3420.50,
-      todayMargin: 1480.00,
-      todayTxnCount: 42,
-      todaySettlement: 25000.00,
+      mainBalance: 0.00, // Always starts at 0; syncBalance() or WalletSyncProvider populates live value
+      commissionBalance: 0.00,
+      todayMargin: 0.00,
+      todayTxnCount: 0,
+      todaySettlement: 0.00,
     },
     isSyncing: false,
-    unreadNotifications: 3,
+    unreadNotifications: 0,
     soundboxEnabled: true,
     activeDrawer: null,
-    kpiTheme: "classic-blue",
+    kpiTheme: getInitialTheme(),
 
     setSyncing: (syncing) => set({ isSyncing: syncing }),
     
+    updateOutlet: (part: Partial<RetailerOutlet>) =>
+      set((state) => ({ outlet: { ...state.outlet, ...part } })),
+
     updateWallet: (part) => {
       set((state) => {
         const updatedWallet = { ...state.wallet, ...part };
-        if (part.mainBalance !== undefined && typeof window !== "undefined") {
-          localStorage.setItem("p2p_active_retailer_wallet_balance", part.mainBalance.toString());
-        }
+        // No localStorage write — wallet is always fetched from the live API
         return { wallet: updatedWallet };
       });
+    },
+
+    setWalletBalance: (balance: number) => {
+      set((state) => ({
+        wallet: {
+          ...state.wallet,
+          mainBalance: balance,
+          availableBalance: balance,
+        },
+      }));
     },
 
     debitWallet: (amount: number) => {
       const current = get().wallet.mainBalance;
       const newBal = Math.max(0, current - amount);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", newBal.toString());
-      }
       set((state) => ({
-        wallet: { ...state.wallet, mainBalance: newBal },
+        wallet: { ...state.wallet, mainBalance: newBal, availableBalance: newBal },
       }));
-      retailerApi.debitWallet(amount).catch(() => {});
       return newBal;
     },
 
     syncBalance: async () => {
       set({ isSyncing: true });
       try {
-        const data = await retailerApi.getWalletBalance();
-        let newBalance = data && data.mainBalance !== undefined ? data.mainBalance : getInitialMainBalance();
-        if (typeof window !== "undefined") {
-          const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
-          if (saved && !isNaN(parseFloat(saved))) {
-            newBalance = parseFloat(saved);
-          }
-        }
+        // Call /header-wallet with NO params — backend resolves the authenticated retailer
+        // from the JWT cookie (p2p_access_token). Zero localStorage reads.
+        const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet");
+        const rawData = res.data;
+        const walletObj = rawData.wallet || rawData;
+        const bal =
+          typeof rawData.wallet_balance === "number"
+            ? rawData.wallet_balance
+            : typeof walletObj.main_balance === "number"
+            ? walletObj.main_balance
+            : typeof walletObj.wallet_balance === "number"
+            ? walletObj.wallet_balance
+            : 0.00;
+        const avail =
+          typeof rawData.available_balance === "number"
+            ? rawData.available_balance
+            : bal;
+
+        // In-memory only — NO localStorage write
         set((state) => ({
           wallet: {
             ...state.wallet,
-            mainBalance: newBalance,
-            commissionBalance: data?.commissionBalance ?? state.wallet.commissionBalance,
-            todayMargin: data?.todayMargin ?? state.wallet.todayMargin,
-            todayTxnCount: data?.todayTxnCount ?? state.wallet.todayTxnCount,
-            todaySettlement: data?.todaySettlement ?? state.wallet.todaySettlement,
+            mainBalance: bal,
+            availableBalance: avail,
+            commissionBalance: rawData.todays_commission ?? state.wallet.commissionBalance,
+            todayMargin: rawData.todays_commission ?? state.wallet.todayMargin,
+            todaySettlement: rawData.settlement_pending_amount ?? state.wallet.todaySettlement,
           },
         }));
-      } catch {
-        // Preserve local storage balance on API error
-        const savedBalance = getInitialMainBalance();
-        set((state) => ({
-          wallet: { ...state.wallet, mainBalance: savedBalance },
-        }));
+      } catch (err) {
+        console.warn("syncBalance fetch error:", err);
       } finally {
         set({ isSyncing: false });
+      }
+    },
+    refreshBalances: async () => {
+      try {
+        await get().syncBalance();
+      } catch (err) {
+        console.warn("refreshBalances error:", err);
       }
     },
 
@@ -267,7 +317,9 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     setKpiTheme: (theme) => {
       if (typeof window !== "undefined") {
         localStorage.setItem("kpi_card_theme", theme);
+        localStorage.setItem("pay2pay_app_theme", theme);
       }
+      applyThemeToDocument(theme);
       set({ kpiTheme: theme });
     },
     setApprovalStatus: (newStatus) => {

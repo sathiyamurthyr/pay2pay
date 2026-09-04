@@ -1,7 +1,10 @@
 "use client";
 
 import { create } from "zustand";
+import apiClient from "@/lib/api";
 import { retailerApi } from "@/services/retailer-api";
+
+export type KpiTheme = "classic-blue" | "royal-gold" | "emerald-green" | "purple" | "dark" | "corporate-white";
 
 export interface RetailerOutlet {
   id: string;
@@ -25,8 +28,6 @@ export interface WalletState {
   todayTxnCount: number;
   todaySettlement: number;
 }
-
-export type KpiTheme = "classic-blue" | "royal-gold" | "emerald-green" | "purple" | "dark" | "corporate-white";
 
 export interface ThemeConfig {
   id: KpiTheme;
@@ -142,7 +143,7 @@ export const applyThemeToDocument = (themeId: KpiTheme) => {
   root.style.setProperty("--p2p-card-border", config.cardBorder);
   root.style.setProperty("--p2p-text-color", config.textColor);
   root.style.setProperty("--p2p-subtext-color", config.subtextColor);
-  root.style.setProperty("--p2p-badge-bg", config.badgeBg);
+  root.setAttribute("data-theme", themeId);
 };
 
 interface RetailerStoreState {
@@ -156,8 +157,10 @@ interface RetailerStoreState {
   // Actions
   setSyncing: (syncing: boolean) => void;
   updateWallet: (part: Partial<WalletState>) => void;
+  setWalletBalance: (balance: number) => void;
   debitWallet: (amount: number) => number;
   syncBalance: () => Promise<void>;
+  refreshBalances: () => Promise<void>;
   toggleSoundbox: () => void;
   setUnreadNotifications: (count: number) => void;
   setActiveDrawer: (drawer: string | null) => void;
@@ -165,15 +168,12 @@ interface RetailerStoreState {
   setApprovalStatus: (status: "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW") => void;
 }
 
-const getInitialMainBalance = (): number => {
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("p2p_active_retailer_wallet_balance");
-    if (saved && !isNaN(parseFloat(saved))) {
-      return parseFloat(saved);
-    }
-  }
-  return 48250.75;
-};
+// Wallet balance is NOT persisted to localStorage.
+// It is always synced live from the API via syncBalance() or WalletSyncProvider.
+// This prevents stale cached balances from misleading users or transaction logic.
+
+const DEFAULT_RETAILER_ID = "";
+const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
 
 const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW" => {
   if (typeof window !== "undefined") {
@@ -189,116 +189,125 @@ const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDE
   return "PENDING";
 };
 
+const getInitialOutlet = (): RetailerOutlet => ({
+  id: "",
+  code: "",
+  name: "Retailer Store",
+  ownerName: "Retailer Partner",
+  mobile: "",
+  email: "",
+  location: "India",
+  status: "ACTIVE",
+  kycStatus: "VERIFIED",
+  approvalStatus: "APPROVED",
+  soundboxActive: true,
+  soundboxLang: "en",
+});
+
+
+const getInitialTheme = (): KpiTheme => {
+  if (typeof window !== "undefined") {
+    const saved = (localStorage.getItem("kpi_card_theme") || localStorage.getItem("pay2pay_app_theme")) as KpiTheme;
+    if (saved && THEME_CONFIGS[saved]) {
+      applyThemeToDocument(saved);
+      return saved;
+    }
+  }
+  return "classic-blue";
+};
+
 export const useRetailerStore = create<RetailerStoreState>((set, get) => {
   const initApproval = getInitialApprovalStatus();
   return {
-    outlet: {
-      id: "RET-10829",
-      code: "RET-0CFE2B",
-      name: "Sri Venkateswara Telecom & FinTech",
-      ownerName: "Sathiya Murthy",
-      mobile: "+91 70139 14767",
-      email: "sathiya@pay2pay.in",
-      location: "Anna Salai, Chennai, TN",
-      status: initApproval === "APPROVED" ? "ACTIVE" : "PENDING_KYC",
-      kycStatus: initApproval === "APPROVED" ? "VERIFIED" : "PENDING",
-      approvalStatus: initApproval,
-      soundboxActive: true,
-      soundboxLang: "en",
-    },
+    outlet: getInitialOutlet(),
     wallet: {
-      mainBalance: getInitialMainBalance(),
-      commissionBalance: 3420.50,
-      todayMargin: 1480.00,
-      todayTxnCount: 42,
-      todaySettlement: 25000.00,
+      mainBalance: 0.00, // Always starts at 0; syncBalance() or WalletSyncProvider populates live value
+      commissionBalance: 0.00,
+      todayMargin: 0.00,
+      todayTxnCount: 0,
+      todaySettlement: 0.00,
     },
     isSyncing: false,
-    unreadNotifications: 3,
+    unreadNotifications: 0,
     soundboxEnabled: true,
     activeDrawer: null,
-    kpiTheme: "classic-blue",
+    kpiTheme: getInitialTheme(),
 
     setSyncing: (syncing) => set({ isSyncing: syncing }),
     
+    updateOutlet: (part: Partial<RetailerOutlet>) =>
+      set((state) => ({ outlet: { ...state.outlet, ...part } })),
+
     updateWallet: (part) => {
       set((state) => {
         const updatedWallet = { ...state.wallet, ...part };
-        if (part.mainBalance !== undefined && typeof window !== "undefined") {
-          localStorage.setItem("p2p_active_retailer_wallet_balance", part.mainBalance.toString());
-        }
+        // No localStorage write — wallet is always fetched from the live API
         return { wallet: updatedWallet };
       });
+    },
+
+    setWalletBalance: (balance: number) => {
+      set((state) => ({
+        wallet: {
+          ...state.wallet,
+          mainBalance: balance,
+          availableBalance: balance,
+        },
+      }));
     },
 
     debitWallet: (amount: number) => {
       const current = get().wallet.mainBalance;
       const newBal = Math.max(0, current - amount);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("p2p_active_retailer_wallet_balance", newBal.toString());
-      }
       set((state) => ({
-        wallet: { ...state.wallet, mainBalance: newBal },
+        wallet: { ...state.wallet, mainBalance: newBal, availableBalance: newBal },
       }));
-      retailerApi.debitWallet(amount).catch(() => {});
       return newBal;
     },
 
     syncBalance: async () => {
       set({ isSyncing: true });
       try {
-        let activeRetailerId = "";
-        let activeTenantId = "";
-        if (typeof window !== "undefined") {
-          try {
-            const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
-            if (userStr) {
-              const u = JSON.parse(userStr);
-              const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
-              if (["SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN"].includes(role)) {
-                set({ isSyncing: false });
-                return;
-              }
-              activeRetailerId = u.retailer_id || "";
-              activeTenantId = u.tenant_id || "";
-            }
-          } catch {}
-          if (!activeRetailerId) {
-            activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
-          }
-          if (!activeTenantId) {
-            activeTenantId = localStorage.getItem("p2p_tenant_id") || "";
-          }
-        }
+        // Call /header-wallet with NO params — backend resolves the authenticated retailer
+        // from the JWT cookie (p2p_access_token). Zero localStorage reads.
+        const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet");
+        const rawData = res.data;
+        const walletObj = rawData.wallet || rawData;
+        const bal =
+          typeof rawData.wallet_balance === "number"
+            ? rawData.wallet_balance
+            : typeof walletObj.main_balance === "number"
+            ? walletObj.main_balance
+            : typeof walletObj.wallet_balance === "number"
+            ? walletObj.wallet_balance
+            : 0.00;
+        const avail =
+          typeof rawData.available_balance === "number"
+            ? rawData.available_balance
+            : bal;
 
-        const params = new URLSearchParams();
-        if (activeRetailerId) params.append("retailer_id", activeRetailerId);
-        if (activeTenantId) params.append("tenant_id", activeTenantId);
-        const queryStr = params.toString() ? `?${params.toString()}` : "";
-
-        const apiUrl = `/api/v1/payout/dashboard/retailer/header-wallet${queryStr}`;
-        const res = await fetch(apiUrl);
-        if (res.ok) {
-          const data = await res.json();
-          const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.00;
-          if (typeof window !== "undefined") {
-            localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-          }
-          set((state) => ({
-            wallet: {
-              ...state.wallet,
-              mainBalance: bal,
-              commissionBalance: data.todays_commission || 0.00,
-              todayMargin: data.todays_commission || 0.00,
-              todayTxnCount: 0,
-              todaySettlement: data.settlement_pending_amount || 0.00,
-            },
-          }));
-        }
+        // In-memory only — NO localStorage write
+        set((state) => ({
+          wallet: {
+            ...state.wallet,
+            mainBalance: bal,
+            availableBalance: avail,
+            commissionBalance: rawData.todays_commission ?? state.wallet.commissionBalance,
+            todayMargin: rawData.todays_commission ?? state.wallet.todayMargin,
+            todaySettlement: rawData.settlement_pending_amount ?? state.wallet.todaySettlement,
+          },
+        }));
       } catch (err) {
         console.warn("syncBalance fetch error:", err);
       } finally {
         set({ isSyncing: false });
+      }
+    },
+    refreshBalances: async () => {
+      try {
+        await get().syncBalance();
+      } catch (err) {
+        console.warn("refreshBalances error:", err);
       }
     },
 
@@ -308,7 +317,9 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     setKpiTheme: (theme) => {
       if (typeof window !== "undefined") {
         localStorage.setItem("kpi_card_theme", theme);
+        localStorage.setItem("pay2pay_app_theme", theme);
       }
+      applyThemeToDocument(theme);
       set({ kpiTheme: theme });
     },
     setApprovalStatus: (newStatus) => {

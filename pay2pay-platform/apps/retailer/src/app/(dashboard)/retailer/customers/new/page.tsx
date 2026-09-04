@@ -63,7 +63,7 @@ const STEPS = [
 export default function NewCustomerWorkspacePage() {
   const router = useRouter();
   const { setSelectedCustomer, referrerUrl } = useTransactionMemoryStore();
-  const { wallet, refreshBalances } = useRetailerStore();
+  const { wallet, syncBalance, refreshBalances } = useRetailerStore();
 
   const [activeStep, setActiveStep] = useState(0);
 
@@ -141,10 +141,20 @@ export default function NewCustomerWorkspacePage() {
     });
   }, []);
 
+  useEffect(() => {
+    const checkFreshWallet = async () => {
+      try {
+        if (typeof refreshBalances === "function") await refreshBalances();
+        else if (typeof syncBalance === "function") await syncBalance();
+      } catch {}
+    };
+    checkFreshWallet();
+  }, [refreshBalances, syncBalance]);
+
   const handleRefreshClick = async () => {
     setIsRefreshing(true);
     try {
-      if (refreshBalances) await refreshBalances();
+      if (typeof refreshBalances === "function") await refreshBalances();
       const health = await retailerApi.checkPayoutWorkflowHealth();
       if (health) setServiceHealth(health);
     } catch {
@@ -391,7 +401,10 @@ export default function NewCustomerWorkspacePage() {
           "OTP_RECEIVED",
           `Aadhaar eKYC OTP Dispatched via UIDAI.${totalCharged > 0 ? ` Wallet debited: ₹${totalCharged.toFixed(2)}` : ""}`
         );
-        refreshBalances();
+        try {
+          if (typeof refreshBalances === "function") refreshBalances();
+          else if (typeof syncBalance === "function") syncBalance();
+        } catch {}
       } else {
         const errMsg = res?.detail || res?.error || res?.message || "Failed to generate Aadhaar OTP";
         setAadhaarError(errMsg);
@@ -402,7 +415,10 @@ export default function NewCustomerWorkspacePage() {
       setAadhaarLoading(false);
       setShowDebitConfirmModal(false);
       const rawDetail = err?.response?.data?.detail || err?.response?.data?.message || err?.message;
-      const errMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail || "Failed to generate Aadhaar OTP";
+      let errMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail || "Failed to generate Aadhaar OTP";
+      if (typeof errMsg === "string" && (errMsg.includes("is not a function") || errMsg.includes("Cannot read propert"))) {
+        errMsg = "Failed to generate Aadhaar OTP. Please check your details and try again.";
+      }
       setAadhaarError(errMsg);
       notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
@@ -459,7 +475,10 @@ export default function NewCustomerWorkspacePage() {
           "CUSTOMER_VERIFIED",
           `Aadhaar eKYC Verified Successfully for ${profile.full_name || "Customer"}!`
         );
-        refreshBalances();
+        try {
+          if (typeof refreshBalances === "function") refreshBalances();
+          else if (typeof syncBalance === "function") syncBalance();
+        } catch {}
         // Skip PIN completely — jump directly to Verified Profile (Step 3)
         setActiveStep(3);
       } else {
@@ -470,7 +489,10 @@ export default function NewCustomerWorkspacePage() {
     } catch (err: any) {
       setAadhaarLoading(false);
       const rawDetail = err?.response?.data?.detail || err?.response?.data?.message || err?.message;
-      const errMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail || "Failed to verify Aadhaar OTP";
+      let errMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail || "Failed to verify Aadhaar OTP";
+      if (typeof errMsg === "string" && (errMsg.includes("is not a function") || errMsg.includes("Cannot read propert"))) {
+        errMsg = "Failed to verify Aadhaar OTP. Please check your OTP and try again.";
+      }
       setAadhaarError(errMsg);
       notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
