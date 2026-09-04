@@ -369,6 +369,58 @@ export const retailerApi = {
     }
   },
 
+  sendEmailUpdateOtp: async (new_email: string) => {
+    try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+      }
+      const params: any = {};
+      if (activeRetailerId) params.retailer_id = activeRetailerId;
+
+      const res = await apiClient.post("/retailer/profile/email/send-otp", { new_email }, { params });
+      return res.data;
+    } catch (e) {
+      console.error("Failed to send email update OTP:", e);
+      throw e;
+    }
+  },
+
+  verifyEmailUpdateOtp: async (new_email: string, otp_code: string) => {
+    try {
+      let activeRetailerId = "";
+      if (typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            activeRetailerId = u.retailer_id || u.id || "";
+          }
+        } catch {}
+        if (!activeRetailerId) {
+          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        }
+      }
+      const params: any = {};
+      if (activeRetailerId) params.retailer_id = activeRetailerId;
+
+      const res = await apiClient.post("/retailer/profile/email/verify-otp", { new_email, otp_code }, { params });
+      return res.data;
+    } catch (e) {
+      console.error("Failed to verify email update OTP:", e);
+      throw e;
+    }
+  },
+
   updateAddress: async (data: any) => {
     try {
       let activeRetailerId = "";
