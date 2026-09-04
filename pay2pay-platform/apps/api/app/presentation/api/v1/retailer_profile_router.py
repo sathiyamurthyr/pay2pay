@@ -2,14 +2,18 @@ import uuid
 import re
 import hmac
 import hashlib
-from datetime import datetime, timezone
+import random
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, UploadFile, File, Form
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, EmailStr
 from sqlalchemy import select, or_, and_, desc, update, text
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+
+from app.infrastructure.adapters.email_service import email_service
 
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password
@@ -118,6 +122,15 @@ class ContactUpdateRequest(BaseModel):
     alternate_mobile: Optional[str] = Field(None, description="Alternate mobile number")
     whatsapp_number: Optional[str] = Field(None, description="WhatsApp contact number")
     email: Optional[str] = Field(None, description="Operational email address")
+
+
+class EmailUpdateOtpRequest(BaseModel):
+    new_email: EmailStr = Field(..., description="New email address to verify")
+
+
+class EmailVerifyOtpRequest(BaseModel):
+    new_email: EmailStr = Field(..., description="New email address")
+    otp_code: str = Field(..., min_length=4, max_length=10, description="Verification OTP code")
 
 
 class AddressUpdateRequest(BaseModel):
@@ -307,17 +320,22 @@ async def get_retailer_profile(
     except Exception as e:
         logger.warning(f"RetailerModel query error: {e}")
 
-    # 3. Query Draft table
+    # 3. Query Draft table (prioritize draft matching active verification registration_id)
     draft = None
     try:
-        draft_conds = []
-        if target_ident:
-            draft_conds.append(RegistrationDraftModel.registration_id == str(target_ident))
-        if clean_mobile and len(clean_mobile) == 10:
-            draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
-        if draft_conds:
-            draft_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.created_date))
-            draft = (await db.execute(draft_stmt)).scalars().first()
+        if verif and verif.registration_id:
+            d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == verif.registration_id)
+            draft = (await db.execute(d_stmt)).scalars().first()
+
+        if not draft:
+            draft_conds = []
+            if target_ident:
+                draft_conds.append(RegistrationDraftModel.registration_id == str(target_ident))
+            if clean_mobile and len(clean_mobile) == 10:
+                draft_conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
+            if draft_conds:
+                draft_stmt = select(RegistrationDraftModel).where(or_(*draft_conds)).order_by(desc(RegistrationDraftModel.created_date))
+                draft = (await db.execute(draft_stmt)).scalars().first()
     except Exception as e:
         logger.warning(f"Draft query error: {e}")
 
@@ -422,6 +440,20 @@ async def get_retailer_profile(
     raw_mobile = verif.mobile_number if verif else (draft.mobile_number if draft else clean_mobile)
     raw_email = verif.email if (verif and verif.email) else (draft.email if (draft and draft.email) else draft_data.get("email"))
 
+    # Sanitize and wipe dummy test phone values
+    def _clean_contact_field(val: Optional[str]) -> str:
+        if not val:
+            return ""
+        s = str(val).strip()
+        dummy_test_patterns = ["9444012345", "9840012345", "9876543210", "1234567890", "94440 12345", "98400 12345", "98765 43210"]
+        for dp in dummy_test_patterns:
+            if dp.replace(" ", "") in s.replace(" ", ""):
+                return ""
+        return s
+
+    alt_mobile_clean = _clean_contact_field(draft_data.get("alternate_mobile"))
+    wa_number_clean = _clean_contact_field(draft_data.get("whatsapp_number"))
+
     contact_data = {
         "mobile_raw": raw_mobile,
         "mobile_masked": f"+91 {raw_mobile}" if raw_mobile else "—",
@@ -429,8 +461,8 @@ async def get_retailer_profile(
         "email_raw": raw_email,
         "email_masked": raw_email or "—",
         "email_status": "VERIFIED" if raw_email else "PENDING",
-        "alternate_mobile": draft_data.get("alternate_mobile"),
-        "whatsapp_number": draft_data.get("whatsapp_number") or draft_data.get("alternate_mobile"),
+        "alternate_mobile": alt_mobile_clean,
+        "whatsapp_number": wa_number_clean,
     }
 
     # 7. Build Dynamic ADDRESS Data
@@ -676,27 +708,56 @@ async def update_contact(
 ):
     target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
 
+    # 1. Prioritize active verification registration_id
     draft = None
-    if target_ident or clean_mobile:
-        conds = []
-        if target_ident:
-            conds.append(RegistrationDraftModel.registration_id == str(target_ident))
-        if clean_mobile:
-            conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
-        draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
-        draft = (await db.execute(draft_stmt)).scalars().first()
+    v_rec = None
+    try:
+        if target_ident or clean_mobile:
+            v_conds = []
+            if target_ident:
+                v_conds.append(RetailerVerificationModel.registration_id == str(target_ident))
+            if clean_mobile:
+                v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}"))
+            v_rec = (await db.execute(select(RetailerVerificationModel).where(or_(*v_conds)))).scalars().first()
 
+        reg_id_to_use = v_rec.registration_id if v_rec else (str(target_ident) if target_ident else None)
+        if reg_id_to_use:
+            draft = (await db.execute(select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id_to_use))).scalars().first()
+
+        if not draft and (target_ident or clean_mobile):
+            conds = []
+            if target_ident:
+                conds.append(RegistrationDraftModel.registration_id == str(target_ident))
+            if clean_mobile:
+                conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
+            draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
+            draft = (await db.execute(draft_stmt)).scalars().first()
+    except Exception as e:
+        logger.warning(f"Draft query in update_contact error: {e}")
+
+    # Exclude email from direct unverified update; email must be verified via /email/verify-otp
     updates = req.model_dump(exclude_unset=True)
+    updates.pop("email", None)
+
     if draft:
-        from sqlalchemy.orm.attributes import flag_modified
         cdata = dict(draft.draft_data or {})
         cdata.update(updates)
         draft.draft_data = cdata
         draft.last_activity_at = datetime.now(timezone.utc)
-        if req.email:
-            draft.email = req.email
         flag_modified(draft, "draft_data")
-        await db.commit()
+
+    # Update RetailerContactModel if exists
+    if r_uuid:
+        try:
+            rc_stmt = select(RetailerContactModel).where(RetailerContactModel.retailer_id == r_uuid)
+            rc_rec = (await db.execute(rc_stmt)).scalars().first()
+            if rc_rec:
+                if req.alternate_mobile is not None:
+                    rc_rec.alternate_mobile = req.alternate_mobile
+        except Exception as ex_rc:
+            logger.warning(f"Could not update RetailerContactModel: {ex_rc}")
+
+    await db.commit()
 
     # Log Audit Action
     try:
@@ -714,7 +775,275 @@ async def update_contact(
 
     return {
         "success": True,
-        "message": "Contact details updated in PostgreSQL successfully."
+        "message": "Alternate contact details updated successfully."
+    }
+
+
+# ── EMAIL UPDATE WITH OTP VERIFICATION ──
+
+@router.post("/email/send-otp", summary="Send Verification OTP for Profile Email Update")
+async def send_email_update_otp(
+    req: EmailUpdateOtpRequest,
+    request: Request,
+    retailer_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+    
+    new_email = str(req.new_email).lower().strip()
+    
+    # 1. Check if same as current email
+    if session_email and new_email == session_email.lower().strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The new email address cannot be identical to your current email address."
+        )
+
+    # 2. Check if already registered by another account in auth_users
+    try:
+        if clean_mobile:
+            dup_stmt = select(AuthUserModel).where(
+                AuthUserModel.email == new_email,
+                ~AuthUserModel.mobile_number.like(f"%{clean_mobile}")
+            )
+            dup_user = (await db.execute(dup_stmt)).scalars().first()
+            if dup_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="This email address is already in use by another user account."
+                )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Email uniqueness check notice: {e}")
+
+    # 3. Locate active draft
+    draft = None
+    try:
+        v_rec = None
+        if target_ident or clean_mobile:
+            v_conds = []
+            if target_ident:
+                v_conds.append(RetailerVerificationModel.registration_id == str(target_ident))
+            if clean_mobile:
+                v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}"))
+            v_rec = (await db.execute(select(RetailerVerificationModel).where(or_(*v_conds)))).scalars().first()
+
+        reg_id_to_use = v_rec.registration_id if v_rec else (str(target_ident) if target_ident else None)
+        if reg_id_to_use:
+            draft = (await db.execute(select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id_to_use))).scalars().first()
+
+        if not draft and (target_ident or clean_mobile):
+            conds = []
+            if target_ident:
+                conds.append(RegistrationDraftModel.registration_id == str(target_ident))
+            if clean_mobile:
+                conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
+            draft = (await db.execute(select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at)))).scalars().first()
+    except Exception as e:
+        logger.warning(f"Draft query in send_email_update_otp: {e}")
+
+    if not draft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Retailer registration record not found to initiate email update."
+        )
+
+    # 4. Generate 6-digit OTP and store pending state with 10 min expiry
+    otp_code = f"{random.randint(100000, 999999)}"
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+
+    cdata = dict(draft.draft_data or {})
+    cdata["pending_email_update"] = {
+        "new_email": new_email,
+        "otp": otp_code,
+        "expires_at": expires_at,
+        "attempts": 0,
+        "requested_at": datetime.now(timezone.utc).isoformat()
+    }
+    draft.draft_data = cdata
+    draft.last_activity_at = datetime.now(timezone.utc)
+    flag_modified(draft, "draft_data")
+    await db.commit()
+
+    # 5. Dispatch real OTP Email
+    dispatch_res = await email_service.send_otp(new_email, otp_code)
+    logger.info(f"[PROFILE EMAIL UPDATE OTP] Dispatched OTP to {new_email}: {dispatch_res}")
+
+    return {
+        "success": True,
+        "message": f"6-digit verification code sent to {new_email}. Please enter it to verify.",
+        "email": new_email
+    }
+
+
+@router.post("/email/verify-otp", summary="Verify OTP and Update Retailer Email in Database")
+async def verify_email_update_otp(
+    req: EmailVerifyOtpRequest,
+    request: Request,
+    retailer_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+
+    new_email = str(req.new_email).lower().strip()
+    entered_otp = str(req.otp_code).strip()
+
+    # 1. Locate draft and pending session
+    draft = None
+    v_rec = None
+    try:
+        if target_ident or clean_mobile:
+            v_conds = []
+            if target_ident:
+                v_conds.append(RetailerVerificationModel.registration_id == str(target_ident))
+            if clean_mobile:
+                v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}"))
+            v_rec = (await db.execute(select(RetailerVerificationModel).where(or_(*v_conds)))).scalars().first()
+
+        reg_id_to_use = v_rec.registration_id if v_rec else (str(target_ident) if target_ident else None)
+        if reg_id_to_use:
+            draft = (await db.execute(select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == reg_id_to_use))).scalars().first()
+
+        if not draft and (target_ident or clean_mobile):
+            conds = []
+            if target_ident:
+                conds.append(RegistrationDraftModel.registration_id == str(target_ident))
+            if clean_mobile:
+                conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
+            draft = (await db.execute(select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at)))).scalars().first()
+    except Exception as e:
+        logger.warning(f"Draft query in verify_email_update_otp: {e}")
+
+    if not draft or not draft.draft_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending email update request found. Please request a new verification code."
+        )
+
+    cdata = dict(draft.draft_data or {})
+    pending = cdata.get("pending_email_update")
+    if not pending or not isinstance(pending, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending email update session found. Please request a new verification code."
+        )
+
+    # 2. Validate email matches pending request
+    if str(pending.get("new_email", "")).lower().strip() != new_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email address mismatch. Please request a new verification code for this email."
+        )
+
+    # 3. Check expiration (10 minutes)
+    try:
+        exp_dt = datetime.fromisoformat(pending["expires_at"])
+        if datetime.now(timezone.utc) > exp_dt:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Verification code has expired. Please request a new OTP."
+            )
+    except (KeyError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP session. Please request a new OTP."
+        )
+
+    # 4. Check max attempts (5)
+    attempts = pending.get("attempts", 0)
+    if attempts >= 5:
+        cdata.pop("pending_email_update", None)
+        draft.draft_data = cdata
+        flag_modified(draft, "draft_data")
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum verification attempts exceeded. Please request a new OTP."
+        )
+
+    # 5. STRICT OTP VALIDATION:
+    # If invalid OTP, NEVER save or update email in the database!
+    expected_otp = str(pending.get("otp", "")).strip()
+    if entered_otp != expected_otp:
+        pending["attempts"] = attempts + 1
+        cdata["pending_email_update"] = pending
+        draft.draft_data = cdata
+        flag_modified(draft, "draft_data")
+        await db.commit()
+        remaining = 5 - pending["attempts"]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid verification code. Email address was NOT updated. ({remaining} attempt(s) remaining)."
+        )
+
+    # 6. OTP IS VALID: ATOMICALLY UPDATE EMAIL IN DATABASE
+    old_email = session_email or draft.email or (v_rec.email if v_rec else None)
+
+    # (a) Update auth_users
+    try:
+        user_uuid = None
+        try:
+            if session_user_id:
+                user_uuid = uuid.UUID(str(session_user_id))
+        except Exception:
+            user_uuid = None
+        if user_uuid:
+            await db.execute(update(AuthUserModel).where(AuthUserModel.user_id == user_uuid).values(email=new_email))
+        if clean_mobile:
+            await db.execute(update(AuthUserModel).where(AuthUserModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
+    except Exception as e_auth:
+        logger.warning(f"Could not update auth_users email: {e_auth}")
+
+    # (b) Update retailer_verifications
+    try:
+        if v_rec:
+            v_rec.email = new_email
+        elif clean_mobile:
+            await db.execute(update(RetailerVerificationModel).where(RetailerVerificationModel.mobile_number.like(f"%{clean_mobile}")).values(email=new_email))
+    except Exception as e_verif:
+        logger.warning(f"Could not update retailer_verifications email: {e_verif}")
+
+    # (c) Update registration_drafts
+    draft.email = new_email
+    cdata["email"] = new_email
+    cdata.pop("pending_email_update", None)
+    draft.draft_data = cdata
+    draft.last_activity_at = datetime.now(timezone.utc)
+    flag_modified(draft, "draft_data")
+
+    # (d) Update retailer_contact
+    if r_uuid:
+        try:
+            await db.execute(update(RetailerContactModel).where(RetailerContactModel.retailer_id == r_uuid).values(email=new_email))
+        except Exception as e_rc:
+            logger.warning(f"Could not update retailer_contact email: {e_rc}")
+
+    # (e) Log Audit Trail
+    try:
+        await AuditLogger.log_action(
+            db=db,
+            tenant_id=uuid.uuid4(),
+            action="UPDATE_EMAIL_VERIFIED",
+            resource_type="RETAILER_PROFILE",
+            resource_id=str(target_ident or clean_mobile),
+            actor_email=new_email,
+            details={
+                "previous_email": old_email,
+                "updated_email": new_email,
+                "verified_via": "EMAIL_OTP",
+                "verified_at": datetime.now(timezone.utc).isoformat()
+            }
+        )
+    except Exception as e_audit:
+        logger.warning(f"Audit log notice: {e_audit}")
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Email address successfully verified and updated to {new_email}.",
+        "email": new_email
     }
 
 

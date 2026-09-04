@@ -18,7 +18,11 @@ import {
   Avatar,
   Divider,
   Tooltip,
-  Grid
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   User,
@@ -47,7 +51,8 @@ import {
   Headphones,
   MessageSquare,
   Clock,
-  Globe
+  Globe,
+  X,
 } from "lucide-react";
 import { retailerApi } from "@/services/retailer-api";
 
@@ -209,6 +214,106 @@ export default function RetailerProfilePage() {
     alternate_mobile: "",
     whatsapp_number: "",
   });
+
+  // Email Update OTP Modal State
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailOtp, setEmailOtp] = useState("");
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
+  const [verifyingEmailOtp, setVerifyingEmailOtp] = useState(false);
+  const [emailModalError, setEmailModalError] = useState<string | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  // Resend Countdown Timer
+  useEffect(() => {
+    let interval: any = null;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  const handleOpenEmailModal = () => {
+    setNewEmail("");
+    setEmailOtp("");
+    setEmailOtpSent(false);
+    setEmailModalError(null);
+    setResendTimer(0);
+    setEmailModalOpen(true);
+  };
+
+  const handleCloseEmailModal = () => {
+    if (sendingEmailOtp || verifyingEmailOtp) return;
+    setEmailModalOpen(false);
+  };
+
+  const handleSendEmailOtp = async () => {
+    if (!newEmail || !newEmail.includes("@") || !newEmail.includes(".")) {
+      setEmailModalError("Please enter a valid email address.");
+      return;
+    }
+    const currentEmail = profile?.contact?.email_raw;
+    if (currentEmail && newEmail.trim().toLowerCase() === currentEmail.trim().toLowerCase()) {
+      setEmailModalError("The new email address cannot be identical to your current email address.");
+      return;
+    }
+
+    try {
+      setSendingEmailOtp(true);
+      setEmailModalError(null);
+      const res = await retailerApi.sendEmailUpdateOtp(newEmail.trim().toLowerCase());
+      if (res?.success) {
+        setEmailOtpSent(true);
+        setResendTimer(60);
+        setToast({
+          open: true,
+          message: res.message || `Verification code sent to ${newEmail}`,
+          severity: "info",
+        });
+      } else {
+        setEmailModalError(res?.message || "Failed to send verification code.");
+      }
+    } catch (err: any) {
+      console.error("Error sending email update OTP:", err);
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Failed to send verification OTP.";
+      setEmailModalError(msg);
+    } finally {
+      setSendingEmailOtp(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async () => {
+    if (!emailOtp || emailOtp.trim().length < 4) {
+      setEmailModalError("Please enter the 6-digit verification code sent to your email.");
+      return;
+    }
+
+    try {
+      setVerifyingEmailOtp(true);
+      setEmailModalError(null);
+      const res = await retailerApi.verifyEmailUpdateOtp(newEmail.trim().toLowerCase(), emailOtp.trim());
+      if (res?.success) {
+        setToast({
+          open: true,
+          message: res.message || "Email address updated and verified successfully!",
+          severity: "success",
+        });
+        setEmailModalOpen(false);
+        await fetchProfile();
+      } else {
+        setEmailModalError(res?.message || "Invalid verification code. Email not updated.");
+      }
+    } catch (err: any) {
+      console.error("Error verifying email OTP:", err);
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Invalid verification code. Email was not updated.";
+      setEmailModalError(msg);
+    } finally {
+      setVerifyingEmailOtp(false);
+    }
+  };
 
   // Address Edit Form
   const [addressForm, setAddressForm] = useState({
@@ -558,11 +663,35 @@ export default function RetailerProfilePage() {
                     <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 700 }}>
                       {profile.contact.email_masked || "—"}
                     </Typography>
-                    {profile.contact.email_raw && (
-                      <IconButton size="small" onClick={() => handleCopy(profile.contact.email_raw, "Email Address")} sx={{ color: "#94A3B8", "&:hover": { color: "#60A5FA" } }}>
-                        <Copy size={15} />
-                      </IconButton>
-                    )}
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {profile.contact.email_raw && (
+                        <IconButton size="small" onClick={() => handleCopy(profile.contact.email_raw, "Email Address")} sx={{ color: "#94A3B8", "&:hover": { color: "#60A5FA" } }}>
+                          <Copy size={15} />
+                        </IconButton>
+                      )}
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={handleOpenEmailModal}
+                        startIcon={<Mail size={13} />}
+                        sx={{
+                          borderColor: "rgba(59, 130, 246, 0.4)",
+                          color: "#60A5FA",
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          py: 0.3,
+                          px: 1.2,
+                          borderRadius: 1.5,
+                          textTransform: "none",
+                          "&:hover": {
+                            borderColor: "#3B82F6",
+                            bgcolor: "rgba(59, 130, 246, 0.1)",
+                          },
+                        }}
+                      >
+                        Update Email
+                      </Button>
+                    </Stack>
                   </Stack>
                 </Box>
               </Stack>
@@ -582,7 +711,7 @@ export default function RetailerProfilePage() {
                   fullWidth
                   variant="outlined"
                   sx={inputStyle}
-                  placeholder="+91 98765 43210"
+                  placeholder="Enter alternate mobile number (optional)"
                 />
                 <TextField
                   label="WhatsApp Number"
@@ -591,7 +720,7 @@ export default function RetailerProfilePage() {
                   fullWidth
                   variant="outlined"
                   sx={inputStyle}
-                  placeholder="+91 98765 43210"
+                  placeholder="Enter WhatsApp contact number (optional)"
                 />
                 <Button
                   variant="contained"
@@ -1456,6 +1585,205 @@ export default function RetailerProfilePage() {
           </Grid>
         </Grid>
       )}
+
+      {/* ── UPDATE EMAIL OTP DIALOG ── */}
+      <Dialog
+        open={emailModalOpen}
+        onClose={handleCloseEmailModal}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: "#0F172A",
+            backgroundImage: "linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
+            border: "1px solid rgba(59, 130, 246, 0.3)",
+            borderRadius: 3.5,
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.6)",
+            p: 1,
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 1 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Box sx={{ p: 1, bgcolor: "rgba(59, 130, 246, 0.15)", borderRadius: 2 }}>
+              <Mail size={20} color="#60A5FA" />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "1.1rem" }}>
+                Update Email Address
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                Two-step OTP verification required
+              </Typography>
+            </Box>
+          </Stack>
+          <IconButton
+            size="small"
+            onClick={handleCloseEmailModal}
+            disabled={sendingEmailOtp || verifyingEmailOtp}
+            sx={{ color: "#94A3B8", "&:hover": { color: "#FFFFFF" } }}
+          >
+            <X size={18} />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 2 }}>
+          {emailModalError && (
+            <Alert
+              severity="error"
+              sx={{
+                mb: 2.5,
+                bgcolor: "rgba(239, 68, 68, 0.15)",
+                color: "#FCA5A5",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                borderRadius: 2,
+                fontSize: "0.82rem",
+                "& .MuiAlert-icon": { color: "#EF4444" },
+              }}
+            >
+              {emailModalError}
+            </Alert>
+          )}
+
+          {/* Current Verified Email Info */}
+          <Box sx={{ p: 1.5, bgcolor: "rgba(255, 255, 255, 0.03)", borderRadius: 2, border: "1px solid rgba(255, 255, 255, 0.06)", mb: 2.5 }}>
+            <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", fontWeight: 600 }}>
+              CURRENT VERIFIED EMAIL
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, mt: 0.2 }}>
+              {profile?.contact?.email_raw || profile?.contact?.email_masked || "—"}
+            </Typography>
+          </Box>
+
+          {!emailOtpSent ? (
+            <Stack spacing={2}>
+              <TextField
+                label="New Email Address"
+                type="email"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value);
+                  setEmailModalError(null);
+                }}
+                fullWidth
+                autoFocus
+                placeholder="name@example.com"
+                sx={inputStyle}
+                helperText="A 6-digit verification code will be dispatched to this email."
+              />
+              <Button
+                variant="contained"
+                onClick={handleSendEmailOtp}
+                disabled={sendingEmailOtp || !newEmail}
+                startIcon={sendingEmailOtp ? <CircularProgress size={16} color="inherit" /> : <Mail size={16} />}
+                sx={{
+                  bgcolor: "#2563EB",
+                  color: "#FFFFFF",
+                  fontWeight: 700,
+                  py: 1.2,
+                  borderRadius: 2.5,
+                  textTransform: "none",
+                  boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
+                  "&:hover": { bgcolor: "#1D4ED8" },
+                }}
+              >
+                {sendingEmailOtp ? "Sending Verification Code..." : "Send Verification OTP"}
+              </Button>
+            </Stack>
+          ) : (
+            <Stack spacing={2.5}>
+              <Box sx={{ p: 1.5, bgcolor: "rgba(59, 130, 246, 0.08)", borderRadius: 2, border: "1px solid rgba(59, 130, 246, 0.2)" }}>
+                <Typography variant="caption" sx={{ color: "#94A3B8", display: "block" }}>
+                  VERIFICATION CODE SENT TO
+                </Typography>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.3 }}>
+                  <Typography variant="body2" sx={{ color: "#60A5FA", fontWeight: 700 }}>
+                    {newEmail}
+                  </Typography>
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setEmailOtpSent(false);
+                      setEmailOtp("");
+                      setEmailModalError(null);
+                    }}
+                    sx={{ color: "#94A3B8", fontSize: "0.72rem", textTransform: "none", p: 0, minWidth: 0 }}
+                  >
+                    Change
+                  </Button>
+                </Stack>
+              </Box>
+
+              <TextField
+                label="Enter 6-Digit OTP"
+                value={emailOtp}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setEmailOtp(val);
+                  setEmailModalError(null);
+                }}
+                fullWidth
+                autoFocus
+                placeholder="123456"
+                inputProps={{
+                  maxLength: 6,
+                  style: { textAlign: "center", letterSpacing: "8px", fontSize: "1.3rem", fontWeight: 700 },
+                }}
+                sx={inputStyle}
+                helperText="Enter the 6-digit code received in your inbox."
+              />
+
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                  Didn't receive the code?
+                </Typography>
+                <Button
+                  size="small"
+                  onClick={handleSendEmailOtp}
+                  disabled={resendTimer > 0 || sendingEmailOtp}
+                  sx={{ color: resendTimer > 0 ? "#64748B" : "#60A5FA", fontSize: "0.75rem", textTransform: "none", fontWeight: 700 }}
+                >
+                  {resendTimer > 0 ? `Resend code in ${resendTimer}s` : "Resend OTP"}
+                </Button>
+              </Stack>
+
+              <Alert
+                severity="info"
+                icon={<ShieldCheck size={16} color="#60A5FA" />}
+                sx={{
+                  bgcolor: "rgba(15, 23, 42, 0.6)",
+                  color: "#94A3B8",
+                  border: "1px solid rgba(59, 130, 246, 0.15)",
+                  borderRadius: 2,
+                  fontSize: "0.75rem",
+                  py: 0.5,
+                }}
+              >
+                Security notice: If an invalid or expired OTP is entered, your email will NOT be saved to the database.
+              </Alert>
+
+              <Button
+                variant="contained"
+                onClick={handleVerifyEmailOtp}
+                disabled={verifyingEmailOtp || emailOtp.length < 4}
+                startIcon={verifyingEmailOtp ? <CircularProgress size={16} color="inherit" /> : <CheckCircle2 size={16} />}
+                sx={{
+                  bgcolor: "#16A34A",
+                  color: "#FFFFFF",
+                  fontWeight: 700,
+                  py: 1.2,
+                  borderRadius: 2.5,
+                  textTransform: "none",
+                  boxShadow: "0 4px 14px rgba(22, 163, 74, 0.4)",
+                  "&:hover": { bgcolor: "#15803D" },
+                }}
+              >
+                {verifyingEmailOtp ? "Validating & Updating..." : "Verify OTP & Save Email"}
+              </Button>
+            </Stack>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── SNACKBAR FEEDBACK ── */}
       <Snackbar
