@@ -37,9 +37,9 @@ import {
   Building2,
   CheckSquare,
   Square,
-  MinusSquare,
   ListChecks,
   AlertTriangle,
+  Receipt,
 } from "lucide-react";
 
 interface AdminOperationWallet {
@@ -216,6 +216,62 @@ export default function AdminTopupRequestsPage() {
   const [rotation, setRotation] = useState<number>(0);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Slip OCR & Bank Reference Verification State
+  const [ocrLoading, setOcrLoading] = useState<boolean>(false);
+  const [ocrResult, setOcrResult] = useState<{
+    status: string;
+    is_match: boolean | null;
+    retailer_reference: string;
+    detected_reference: string | null;
+    detected_candidates: string[];
+    message: string;
+    extracted_text_preview?: string;
+  } | null>(null);
+
+  const runSlipOcr = useCallback(async (requestId: string) => {
+    if (!requestId) return;
+    setOcrLoading(true);
+    try {
+      const res = await api.get(`/api/v1/topup/requests/${requestId}/ocr-verify`);
+      if (res.data) {
+        setOcrResult(res.data);
+      }
+    } catch (err) {
+      console.warn("Slip OCR verification check failed:", err);
+      setOcrResult({
+        status: "ERROR",
+        is_match: null,
+        retailer_reference: selectedRequest?.payment_reference || "",
+        detected_reference: null,
+        detected_candidates: [],
+        message: "Automatic slip scan failed to reach service. Please verify manually."
+      });
+    } finally {
+      setOcrLoading(false);
+    }
+  }, [selectedRequest?.payment_reference]);
+
+  useEffect(() => {
+    if (drawerOpen && selectedRequest) {
+      if (selectedRequest.slip_url) {
+        runSlipOcr(selectedRequest.id || selectedRequest.topup_request_id);
+      } else {
+        setOcrResult({
+          status: "NO_SLIP",
+          is_match: null,
+          retailer_reference: selectedRequest.payment_reference || "",
+          detected_reference: null,
+          detected_candidates: [],
+          message: "No payment proof slip attached to this request."
+        });
+        setOcrLoading(false);
+      }
+    } else if (!drawerOpen) {
+      setOcrResult(null);
+      setOcrLoading(false);
+    }
+  }, [drawerOpen, selectedRequest?.id, selectedRequest?.topup_request_id, selectedRequest?.slip_url, runSlipOcr]);
 
   // Fetch Admin Operation Wallets (Dynamic Service + Vendor mapping)
   const fetchAdminWallets = useCallback(async () => {
@@ -1966,6 +2022,123 @@ export default function AdminTopupRequestsPage() {
                   </div>
                 </div>
 
+                {/* Bank UTR / Transaction Reference & OCR Advisory Card */}
+                <div className="p-4 rounded-2xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Receipt className="h-4 w-4 text-indigo-600" />
+                        Bank UTR / Transaction Reference <span className="text-rose-500">*</span>
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 text-[10px] font-black rounded border bg-slate-100 text-slate-700 border-slate-200">
+                      Mode: {selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}
+                    </span>
+                  </div>
+
+                  {/* Primary Reference ID with 1-click Copy */}
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                        Retailer Submitted Reference ID
+                      </span>
+                      <span className="font-mono font-black text-slate-950 text-base tracking-wide selection:bg-amber-200">
+                        {selectedRequest.payment_reference || "No Reference Provided"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {selectedRequest.payment_reference && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedRequest.payment_reference);
+                            setCopiedId(`drawer-ref-${selectedRequest.id}`);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                          title="Copy Bank UTR"
+                        >
+                          {copiedId === `drawer-ref-${selectedRequest.id}` ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              <span className="text-emerald-700 font-black">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5 text-slate-500" />
+                              <span>Copy UTR</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* OCR Image Text Comparison Advisory (Info Only) */}
+                  <div className="pt-1">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                        <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                        Slip OCR Analysis <span className="text-[10px] font-normal text-slate-400">(Advisory / Info Only)</span>
+                      </span>
+                      {selectedRequest.slip_url && (
+                        <button
+                          onClick={() => runSlipOcr(selectedRequest.id || selectedRequest.topup_request_id)}
+                          disabled={ocrLoading}
+                          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          title="Re-scan slip with OCR"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${ocrLoading ? "animate-spin" : ""}`} />
+                          {ocrLoading ? "Scanning..." : "Re-scan"}
+                        </button>
+                      )}
+                    </div>
+
+                    {ocrLoading ? (
+                      <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-center gap-2.5 text-xs text-indigo-800">
+                        <RefreshCw className="h-4 w-4 animate-spin text-indigo-600 shrink-0" />
+                        <span className="font-semibold">Reading transaction reference from proof slip image...</span>
+                      </div>
+                    ) : ocrResult ? (
+                      ocrResult.is_match === true ? (
+                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs space-y-1">
+                          <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                            <span>Slip Reference Verified: MATCHED ✅</span>
+                          </div>
+                          <p className="text-[11px] text-emerald-700 pl-5.5">
+                            Detected on slip: <strong className="font-mono">{ocrResult.detected_reference || selectedRequest.payment_reference}</strong>
+                          </p>
+                        </div>
+                      ) : ocrResult.status === "MISMATCH" ? (
+                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                            <span>Slip Reference: Advisory Mismatch ⚠️</span>
+                          </div>
+                          <div className="text-[11px] text-amber-900 pl-5.5 space-y-0.5">
+                            <p>Entered ID: <strong className="font-mono">{selectedRequest.payment_reference}</strong></p>
+                            {ocrResult.detected_reference && (
+                              <p>Detected on slip: <strong className="font-mono text-slate-900">{ocrResult.detected_reference}</strong></p>
+                            )}
+                            <p className="text-[10.5px] text-amber-800 italic pt-1 border-t border-amber-200/60">
+                              ℹ️ Info only for Admin decision. Admin can decide whether to approve or reject.
+                            </p>
+                          </div>
+                        </div>
+                      ) : ocrResult.status === "NO_SLIP" ? (
+                        <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] text-slate-600">
+                          ℹ️ No payment proof slip attached to this request.
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] text-slate-600 space-y-0.5">
+                          <span className="font-bold block">ℹ️ Slip text could not be verified automatically.</span>
+                          <span className="text-[10.5px] text-slate-500">Please inspect the payment proof slip image manually below.</span>
+                        </div>
+                      )
+                    ) : null}
+                  </div>
+                </div>
+
                 {/* Slip Image Viewer */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-700">
@@ -2213,6 +2386,48 @@ export default function AdminTopupRequestsPage() {
                 <span>Payment Mode:</span>
                 <span className="font-bold text-slate-700">{selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}</span>
               </div>
+              <div className="flex items-center justify-between border-t border-slate-200/80 pt-1.5">
+                <span className="text-slate-600 font-bold">Bank UTR / Ref ID:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-black text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200 text-xs">
+                    {selectedRequest.payment_reference || "None"}
+                  </span>
+                  {selectedRequest.payment_reference && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedRequest.payment_reference);
+                        setCopiedId(`modal-${selectedRequest.id}`);
+                        setTimeout(() => setCopiedId(null), 2000);
+                      }}
+                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                      title="Copy Bank UTR"
+                    >
+                      {copiedId === `modal-${selectedRequest.id}` ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {ocrResult && (
+                <div className="flex items-center justify-between border-t border-slate-200/80 pt-1.5 text-[11px]">
+                  <span className="text-slate-600 font-bold">Slip Match (Info Only):</span>
+                  {ocrResult.is_match === true ? (
+                    <span className="font-black text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Matched ✅
+                    </span>
+                  ) : ocrResult.status === "MISMATCH" ? (
+                    <span className="font-black text-amber-800 flex items-center gap-1" title={ocrResult.message}>
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Advisory Mismatch ⚠️
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 italic">Manual Slip Check</span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-3 text-xs">

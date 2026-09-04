@@ -1515,6 +1515,160 @@ async def _trigger_retailer_topup_status_whatsapp(
         logger.warning(f"[WHATSAPP RETAILER STATUS DISPATCH NOTICE] {bg_ex}")
 
 
+# ==============================================================================
+# 5b. OCR VERIFY TOPUP PROOF SLIP (ADVISORY INFO)
+# ==============================================================================
+
+@router.get("/requests/{request_id}/ocr-verify", summary="OCR Scan and Verify Topup Proof Slip against Bank Reference")
+async def ocr_verify_topup_slip(
+    request_id: str,
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Advisory OCR Verification: Scans uploaded payment proof slip, detects UTR / Reference ID,
+    and compares it with retailer-submitted payment_reference to assist Admin decision.
+    """
+    conditions = [TopupRequestModel.is_deleted == False]
+    try:
+        r_uuid = uuid.UUID(request_id)
+        conditions.append(or_(TopupRequestModel.public_id == r_uuid, TopupRequestModel.topup_request_id == request_id))
+    except Exception:
+        conditions.append(TopupRequestModel.topup_request_id == request_id)
+
+    stmt = select(TopupRequestModel).where(and_(*conditions))
+    res = await db.execute(stmt)
+    topup = res.scalars().first()
+    if not topup:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Topup request '{request_id}' not found.")
+
+    slip_url = topup.slip_url
+    retailer_ref = (topup.payment_reference or "").strip()
+
+    if not slip_url:
+        return {
+            "success": True,
+            "status": "NO_SLIP",
+            "is_match": None,
+            "retailer_reference": retailer_ref,
+            "detected_reference": None,
+            "detected_candidates": [],
+            "message": "No payment proof slip attached to this request.",
+            "extracted_text_preview": ""
+        }
+
+    import io, urllib.request, re
+    from PIL import Image
+    try:
+        import pytesseract
+    except ImportError:
+        return {
+            "success": True,
+            "status": "UNAVAILABLE",
+            "is_match": None,
+            "retailer_reference": retailer_ref,
+            "detected_reference": None,
+            "detected_candidates": [],
+            "message": "OCR engine not installed on server.",
+            "extracted_text_preview": ""
+        }
+
+    raw_text = ""
+    try:
+        req = urllib.request.Request(
+            slip_url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Pay2Pay/2.0"}
+        )
+        with urllib.request.urlopen(req, timeout=12) as response:
+            img_bytes = response.read()
+
+        img = Image.open(io.BytesIO(img_bytes))
+        raw_text = pytesseract.image_to_string(img)
+    except Exception as e:
+        logger.warning(f"[TOPUP OCR] Failed to process image {slip_url}: {e}")
+        return {
+            "success": True,
+            "status": "UNREADABLE",
+            "is_match": None,
+            "retailer_reference": retailer_ref,
+            "detected_reference": None,
+            "detected_candidates": [],
+            "message": f"Could not extract text from slip image. Please verify manually.",
+            "extracted_text_preview": ""
+        }
+
+    cleaned_text = re.sub(r"[ \t]+", " ", raw_text)
+    
+    # 1. Look for 12-digit UPI UTRs / Ref numbers
+    utr_matches = re.findall(r"\b\d{12}\b", cleaned_text)
+    
+    # 2. Look for transaction IDs following keywords
+    kw_matches = re.findall(r"(?:(?:TH\s*ID|TXN\s*ID|TRANSACTION\s*(?:ID|NO|REF)|UTR|UPI\s*(?:REF|REFERENCE)?|REF\s*(?:NO|ID)?|RRN|APPR\s*CODE)\s*[:=.-]?\s*)([A-Za-z0-9*]{6,24})", cleaned_text, re.IGNORECASE)
+    
+    # 3. Look for any 6-18 digit numeric sequences
+    digit_matches = re.findall(r"\b\d{6,18}\b", cleaned_text)
+
+    all_candidates = list(dict.fromkeys(utr_matches + kw_matches + digit_matches))
+
+    clean_ref = re.sub(r"[^A-Za-z0-9]", "", retailer_ref)
+    clean_digits = re.sub(r"\D", "", retailer_ref)
+
+    is_match = False
+    match_type = "NONE"
+    detected_ref = None
+
+    if clean_ref:
+        if clean_ref.lower() in cleaned_text.lower().replace(" ", "") or clean_ref.lower() in raw_text.lower():
+            is_match = True
+            match_type = "EXACT"
+            detected_ref = retailer_ref
+        elif clean_digits and len(clean_digits) >= 6 and clean_digits in re.sub(r"\D", "", raw_text):
+            is_match = True
+            match_type = "EXACT_DIGITS"
+            detected_ref = clean_digits
+        else:
+            for cand in all_candidates:
+                clean_cand = re.sub(r"[^A-Za-z0-9]", "", cand)
+                cand_digits = re.sub(r"\D", "", cand)
+                if clean_cand and (clean_cand == clean_ref or clean_ref in clean_cand or clean_cand in clean_ref):
+                    is_match = True
+                    match_type = "CANDIDATE_MATCH"
+                    detected_ref = cand
+                    break
+                if clean_digits and len(clean_digits) >= 6 and (cand_digits == clean_digits or clean_digits in cand_digits or cand_digits in clean_digits):
+                    is_match = True
+                    match_type = "DIGIT_MATCH"
+                    detected_ref = cand
+                    break
+
+    if not detected_ref and all_candidates:
+        detected_ref = utr_matches[0] if utr_matches else all_candidates[0]
+
+    status_str = "MATCHED" if is_match else ("MISMATCH" if raw_text.strip() else "UNREADABLE")
+
+    if is_match:
+        msg = f"Bank Reference matched transaction on slip ({detected_ref})."
+    elif status_str == "MISMATCH":
+        if detected_ref:
+            msg = f"Entered reference '{retailer_ref}' does not match detected slip reference '{detected_ref}'. (Advisory check only)"
+        else:
+            msg = f"Entered reference '{retailer_ref}' was not found in slip text. (Advisory check only)"
+    else:
+        msg = "No readable transaction text detected on slip. Please verify manually."
+
+    return {
+        "success": True,
+        "status": status_str,
+        "is_match": is_match,
+        "match_type": match_type,
+        "retailer_reference": retailer_ref,
+        "detected_reference": detected_ref,
+        "detected_candidates": all_candidates[:8],
+        "message": msg,
+        "extracted_text_preview": cleaned_text[:300].strip()
+    }
+
+
 @router.post("/requests/{request_id}/approve", summary="Admin Approve Topup Request & Credit Wallet (POST)")
 @router.put("/requests/{request_id}/approve", summary="Admin Approve Topup Request & Credit Wallet (PUT)")
 async def approve_topup_request(

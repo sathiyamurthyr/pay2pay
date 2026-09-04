@@ -136,11 +136,27 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
     if not payload.accepted_terms:
         raise HTTPException(status_code=400, detail="Security consent acceptance is required before login.")
 
-    raw_digits = re.sub(r"\D", "", str(payload.mobile_number))
-    clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
+    raw_input = str(payload.mobile_number).strip()
+    req_portal = (payload.portal_role or "").upper()
+    origin_header = request.headers.get("origin", "").lower()
+    referer_header = request.headers.get("referer", "").lower()
+    host_header = request.headers.get("host", "").lower()
+    is_admin_portal = (
+        req_portal == "ADMIN"
+        or "admin." in origin_header
+        or "admin." in referer_header
+        or "/admin" in referer_header
+        or "admin." in host_header
+    )
+    has_letters = bool(re.search(r"[a-zA-Z]", raw_input))
 
-    if len(clean_mobile) != 10:
-        raise HTTPException(status_code=400, detail="Mobile number must be exactly 10 digits.")
+    if has_letters or is_admin_portal:
+        clean_mobile = raw_input
+    else:
+        raw_digits = re.sub(r"\D", "", raw_input)
+        clean_mobile = raw_digits[-10:] if len(raw_digits) >= 10 else raw_input
+        if len(clean_mobile) != 10:
+            raise HTTPException(status_code=400, detail="Mobile number must be exactly 10 digits.")
 
     session_id = f"SESS-{uuid.uuid4().hex[:12].upper()}"
     correlation_id = f"CORR-{uuid.uuid4().hex[:12].upper()}"
@@ -170,7 +186,14 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
     except Exception:
         pass
 
-    mobile_variants = [clean_mobile, f"91{clean_mobile}", f"+91{clean_mobile}"]
+    mobile_variants = [
+        clean_mobile,
+        f"91{clean_mobile}",
+        f"+91{clean_mobile}",
+        raw_input,
+        raw_input.lower(),
+        raw_input.upper()
+    ]
 
     # 1. Check if user is an Admin User (admin_user table)
     admin_user = None
@@ -179,7 +202,9 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
             or_(
                 AdminUserModel.phone.in_(mobile_variants),
                 AdminUserModel.username.in_(mobile_variants),
-                AdminUserModel.email.in_([f"{clean_mobile}@pay2pay.in", f"{clean_mobile}@pay2pay.com"])
+                AdminUserModel.username.ilike(raw_input),
+                AdminUserModel.email.in_([f"{clean_mobile}@pay2pay.in", f"{clean_mobile}@pay2pay.com", raw_input, raw_input.lower()]),
+                AdminUserModel.email.ilike(raw_input)
             ),
             AdminUserModel.is_deleted == False
         )
@@ -231,6 +256,8 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
         or "/retailer" in referer_header
         or "retailer." in host_header
     )
+    if is_admin_portal:
+        is_retailer_portal = False
 
     if is_retailer_portal and not existing_retailer:
         if admin_user and admin_user.phone:

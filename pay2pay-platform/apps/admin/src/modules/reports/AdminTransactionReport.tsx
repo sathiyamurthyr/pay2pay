@@ -493,26 +493,27 @@ export default function AdminTransactionReport() {
         document.body.removeChild(a);
         setToastMsg({ open: true, message: "Downloading CSV export from authoritative backend...", severity: "success" });
       } else if (format === "excel") {
-        const formattedData = exportRows.map((r) => ({
-          "Date": r.date,
-          "Time": r.time,
+        const formattedData = exportRows.map((r, idx) => ({
+          "S.No": page * rowsPerPage + idx + 1,
           "Transaction ID": r.txn_id,
-          "Company": r.company_name,
-          "User Name": r.user_name,
-          "User Mobile": r.user_mobile,
-          "User Type": r.user_type,
-          "Vendor": r.vendor_name,
-          "Service": r.service_name,
-          "Txn Source": r.transaction_source,
-          "CR / DR": r.entry_type,
-          "Amount (INR)": r.amount,
+          "Reference ID": r.ref_id || "",
+          "Opening Balance": r.opening_balance,
           "Credit (CR)": r.cr,
           "Debit (DR)": r.dr,
-          "Opening Balance": r.opening_balance,
           "Closing Balance": r.closing_balance,
+          "CR / DR": r.entry_type,
+          "Date": r.date,
+          "Time": r.time,
+          "Retailer Name": r.user_name,
+          "Retailer Mobile": r.user_mobile,
+          "Service": r.service_name,
+          "Comments": r.narration || r.service_reference || "",
           "Status": r.status,
+          "Company": r.company_name,
+          "Role": r.user_type,
+          "Vendor": r.vendor_name,
+          "Txn Source": r.transaction_source,
           "Service Ref": r.service_reference,
-          "Narration": r.narration,
         }));
         const ws = XLSX.utils.json_to_sheet(formattedData);
         const wb = XLSX.utils.book_new();
@@ -598,20 +599,22 @@ export default function AdminTransactionReport() {
 
   // Available Table Columns definition
   const tableColumns = [
-    { id: "date", label: "Date / Time", sortable: true },
-    { id: "txn_id", label: "Transaction ID", sortable: true },
+    { id: "sno", label: "S.No", sortable: false },
+    { id: "txn_id", label: "Txn ID & Ref ID", sortable: true },
+    { id: "opening_balance", label: "Open Bal", sortable: false, align: "right" },
+    { id: "cr", label: "CR (₹)", sortable: true, align: "right" },
+    { id: "dr", label: "DR (₹)", sortable: true, align: "right" },
+    { id: "closing_balance", label: "Close Bal", sortable: false, align: "right" },
+    { id: "type", label: "CR/DR", sortable: false, align: "center" },
+    { id: "date", label: "Date & Time", sortable: true },
+    { id: "user", label: "Retailer Name", sortable: false },
+    { id: "service", label: "Service", sortable: false },
+    { id: "comments", label: "Comments", sortable: false },
+    { id: "status", label: "Status", sortable: true },
     { id: "company", label: "Company", sortable: false },
-    { id: "user", label: "Retailer / User", sortable: false },
     { id: "user_type", label: "Role", sortable: false },
     { id: "vendor", label: "Vendor", sortable: false },
-    { id: "service", label: "Service", sortable: false },
     { id: "source", label: "Source", sortable: false },
-    { id: "type", label: "CR / DR", sortable: false },
-    { id: "cr", label: "Credit (₹)", sortable: true, align: "right" },
-    { id: "dr", label: "Debit (₹)", sortable: true, align: "right" },
-    { id: "opening_balance", label: "Opening Bal", sortable: false, align: "right" },
-    { id: "closing_balance", label: "Closing Bal", sortable: false, align: "right" },
-    { id: "status", label: "Status", sortable: true },
     { id: "service_reference", label: "Service Ref", sortable: false },
   ];
 
@@ -1233,77 +1236,38 @@ export default function AdminTransactionReport() {
                   />
                 </th>
 
-                {/* Dynamic Columns */}
-                {!hiddenColumns.has("date") && (
-                  <th
-                    onClick={() => handleSort("created_at")}
-                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] cursor-pointer hover:bg-[#EDF2F7] select-none"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>Date / Time</span>
-                      <ArrowUpDown className="w-3 h-3 text-[#94A3B8]" />
-                    </div>
+                {/* 1. S.No */}
+                {!hiddenColumns.has("sno") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] text-center w-14 whitespace-nowrap">
+                    S.No
                   </th>
                 )}
 
+                {/* 2. Txn ID & Ref ID */}
                 {!hiddenColumns.has("txn_id") && (
                   <th
                     onClick={() => handleSort("txn_id")}
-                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] cursor-pointer hover:bg-[#EDF2F7] select-none"
+                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] cursor-pointer hover:bg-[#EDF2F7] select-none whitespace-nowrap"
                   >
                     <div className="flex items-center gap-1">
-                      <span>Txn ID & Ref</span>
+                      <span>Txn ID & Ref ID</span>
                       <ArrowUpDown className="w-3 h-3 text-[#94A3B8]" />
                     </div>
                   </th>
                 )}
 
-                {!hiddenColumns.has("company") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569]">
-                    Company
+                {/* 3. Open Bal */}
+                {!hiddenColumns.has("opening_balance") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#64748B] text-right whitespace-nowrap">
+                    Open Bal
                   </th>
                 )}
 
-                {!hiddenColumns.has("user") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569]">
-                    Retailer / User
-                  </th>
-                )}
-
-                {!hiddenColumns.has("user_type") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569]">
-                    Role
-                  </th>
-                )}
-
-                {!hiddenColumns.has("vendor") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569]">
-                    Vendor
-                  </th>
-                )}
-
-                {!hiddenColumns.has("service") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569]">
-                    Service
-                  </th>
-                )}
-
-                {!hiddenColumns.has("source") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569]">
-                    Source
-                  </th>
-                )}
-
-                {!hiddenColumns.has("type") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] text-center">
-                    CR/DR
-                  </th>
-                )}
-
+                {/* 4. CR (₹) */}
                 {!hiddenColumns.has("cr") && (
                   <th
                     onClick={() => handleSort("cr")}
-                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#166534] text-right cursor-pointer hover:bg-[#EDF2F7] select-none"
+                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#166534] text-right cursor-pointer hover:bg-[#EDF2F7] select-none whitespace-nowrap"
                   >
                     <div className="flex items-center justify-end gap-1">
                       <span>CR (₹)</span>
@@ -1312,10 +1276,11 @@ export default function AdminTransactionReport() {
                   </th>
                 )}
 
+                {/* 5. DR (₹) */}
                 {!hiddenColumns.has("dr") && (
                   <th
                     onClick={() => handleSort("dr")}
-                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#991B1B] text-right cursor-pointer hover:bg-[#EDF2F7] select-none"
+                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#991B1B] text-right cursor-pointer hover:bg-[#EDF2F7] select-none whitespace-nowrap"
                   >
                     <div className="flex items-center justify-end gap-1">
                       <span>DR (₹)</span>
@@ -1324,22 +1289,59 @@ export default function AdminTransactionReport() {
                   </th>
                 )}
 
-                {!hiddenColumns.has("opening_balance") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#64748B] text-right">
-                    Opening Bal
-                  </th>
-                )}
-
+                {/* 6. Close Bal */}
                 {!hiddenColumns.has("closing_balance") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#0F172A] text-right">
-                    Closing Bal
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#0F172A] text-right whitespace-nowrap">
+                    Close Bal
                   </th>
                 )}
 
+                {/* 7. CR/DR */}
+                {!hiddenColumns.has("type") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] text-center whitespace-nowrap">
+                    CR/DR
+                  </th>
+                )}
+
+                {/* 8. Date & Time */}
+                {!hiddenColumns.has("date") && (
+                  <th
+                    onClick={() => handleSort("created_at")}
+                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] cursor-pointer hover:bg-[#EDF2F7] select-none whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Date & Time</span>
+                      <ArrowUpDown className="w-3 h-3 text-[#94A3B8]" />
+                    </div>
+                  </th>
+                )}
+
+                {/* 9. Retailer Name */}
+                {!hiddenColumns.has("user") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] whitespace-nowrap">
+                    Retailer Name
+                  </th>
+                )}
+
+                {/* 10. Service */}
+                {!hiddenColumns.has("service") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] whitespace-nowrap">
+                    Service
+                  </th>
+                )}
+
+                {/* 11. Comments */}
+                {!hiddenColumns.has("comments") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] whitespace-nowrap">
+                    Comments
+                  </th>
+                )}
+
+                {/* 12. Status */}
                 {!hiddenColumns.has("status") && (
                   <th
                     onClick={() => handleSort("status")}
-                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] cursor-pointer hover:bg-[#EDF2F7] select-none"
+                    className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] cursor-pointer hover:bg-[#EDF2F7] select-none whitespace-nowrap"
                   >
                     <div className="flex items-center gap-1">
                       <span>Status</span>
@@ -1348,14 +1350,39 @@ export default function AdminTransactionReport() {
                   </th>
                 )}
 
+                {/* Additional Columns */}
+                {!hiddenColumns.has("company") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] whitespace-nowrap">
+                    Company
+                  </th>
+                )}
+
+                {!hiddenColumns.has("user_type") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] whitespace-nowrap">
+                    Role
+                  </th>
+                )}
+
+                {!hiddenColumns.has("vendor") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] whitespace-nowrap">
+                    Vendor
+                  </th>
+                )}
+
+                {!hiddenColumns.has("source") && (
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] whitespace-nowrap">
+                    Source
+                  </th>
+                )}
+
                 {!hiddenColumns.has("service_reference") && (
-                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569]">
+                  <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] whitespace-nowrap">
                     Service Ref
                   </th>
                 )}
 
                 {/* Actions Header */}
-                <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] text-center sticky right-0 bg-[#F8FAFC] z-10">
+                <th className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-[#475569] text-center sticky right-0 bg-[#F8FAFC] z-10 whitespace-nowrap">
                   Action
                 </th>
               </tr>
@@ -1368,26 +1395,29 @@ export default function AdminTransactionReport() {
                     <td className="px-3 py-3 text-center sticky left-0 bg-white">
                       <div className="w-4 h-4 bg-[#E2E8F0] rounded mx-auto" />
                     </td>
-                    <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-24" /></td>
-                    <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-28" /></td>
-                    <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-20" /></td>
-                    <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-32" /></td>
-                    <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-16" /></td>
-                    <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-20" /></td>
-                    <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-20" /></td>
-                    <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-16" /></td>
-                    <td className="px-3 py-3 text-center"><div className="h-3.5 bg-[#E2E8F0] rounded w-8 mx-auto" /></td>
-                    <td className="px-3 py-3 text-right"><div className="h-3.5 bg-[#E2E8F0] rounded w-16 ml-auto" /></td>
-                    <td className="px-3 py-3 text-right"><div className="h-3.5 bg-[#E2E8F0] rounded w-16 ml-auto" /></td>
-                    <td className="px-3 py-3 text-right"><div className="h-3.5 bg-[#E2E8F0] rounded w-16 ml-auto" /></td>
-                    <td className="px-3 py-3 text-right"><div className="h-3.5 bg-[#E2E8F0] rounded w-16 ml-auto" /></td>
-                    <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-20" /></td>
+                    {!hiddenColumns.has("sno") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-8 mx-auto" /></td>}
+                    {!hiddenColumns.has("txn_id") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-28" /></td>}
+                    {!hiddenColumns.has("opening_balance") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-16 ml-auto" /></td>}
+                    {!hiddenColumns.has("cr") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-16 ml-auto" /></td>}
+                    {!hiddenColumns.has("dr") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-16 ml-auto" /></td>}
+                    {!hiddenColumns.has("closing_balance") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-16 ml-auto" /></td>}
+                    {!hiddenColumns.has("type") && <td className="px-3 py-3 text-center"><div className="h-3.5 bg-[#E2E8F0] rounded w-8 mx-auto" /></td>}
+                    {!hiddenColumns.has("date") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-24" /></td>}
+                    {!hiddenColumns.has("user") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-32" /></td>}
+                    {!hiddenColumns.has("service") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-20" /></td>}
+                    {!hiddenColumns.has("comments") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-28" /></td>}
+                    {!hiddenColumns.has("status") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-20" /></td>}
+                    {!hiddenColumns.has("company") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-20" /></td>}
+                    {!hiddenColumns.has("user_type") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-16" /></td>}
+                    {!hiddenColumns.has("vendor") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-20" /></td>}
+                    {!hiddenColumns.has("source") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-16" /></td>}
+                    {!hiddenColumns.has("service_reference") && <td className="px-3 py-3"><div className="h-3.5 bg-[#E2E8F0] rounded w-20" /></td>}
                     <td className="px-3 py-3 text-center sticky right-0 bg-white"><div className="h-3.5 bg-[#E2E8F0] rounded w-12 mx-auto" /></td>
                   </tr>
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={18} className="py-16 text-center">
+                  <td colSpan={20} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="w-12 h-12 rounded-full bg-[#F1F5F9] flex items-center justify-center">
                         <Receipt className="w-6 h-6 text-[#94A3B8]" />
@@ -1430,15 +1460,14 @@ export default function AdminTransactionReport() {
                         />
                       </td>
 
-                      {/* Date / Time */}
-                      {!hiddenColumns.has("date") && (
-                        <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
-                          <p className={`${densityConf.fontSize} font-bold text-[#0F172A]`}>{row.date}</p>
-                          <p className="text-[11px] font-medium text-[#64748B]">{row.time}</p>
+                      {/* 1. S.No */}
+                      {!hiddenColumns.has("sno") && (
+                        <td className={`px-3 ${densityConf.py} text-center whitespace-nowrap font-mono text-xs font-semibold text-[#64748B]`}>
+                          {page * rowsPerPage + index + 1}
                         </td>
                       )}
 
-                      {/* Txn ID */}
+                      {/* 2. Txn ID & Ref ID */}
                       {!hiddenColumns.has("txn_id") && (
                         <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
                           <div className="flex items-center gap-1.5">
@@ -1456,7 +1485,7 @@ export default function AdminTransactionReport() {
                               {copiedKey === `txn-${row.txn_id}` ? (
                                 <Check className="w-3.5 h-3.5 text-[#16A34A]" />
                               ) : (
-                                <Copy className="w-3 h-3" />
+                                <Copy className="w-3.5 h-3.5" />
                               )}
                             </button>
                           </div>
@@ -1466,60 +1495,39 @@ export default function AdminTransactionReport() {
                         </td>
                       )}
 
-                      {/* Company */}
-                      {!hiddenColumns.has("company") && (
-                        <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-[#EFF6FF] text-[#1D4ED8]">
-                            <Building2 className="w-3 h-3" /> {row.company_name || "Pay2Pay"}
+                      {/* 3. Open Bal */}
+                      {!hiddenColumns.has("opening_balance") && (
+                        <td className={`px-3 ${densityConf.py} text-right whitespace-nowrap text-xs font-semibold text-[#64748B]`}>
+                          {formatINR(row.opening_balance)}
+                        </td>
+                      )}
+
+                      {/* 4. CR (₹) */}
+                      {!hiddenColumns.has("cr") && (
+                        <td className={`px-3 ${densityConf.py} text-right whitespace-nowrap`}>
+                          <span className={`${densityConf.fontSize} font-extrabold ${row.cr > 0 ? "text-[#16A34A]" : "text-[#94A3B8]"}`}>
+                            {row.cr > 0 ? formatINR(row.cr) : "—"}
                           </span>
                         </td>
                       )}
 
-                      {/* Retailer / Store */}
-                      {!hiddenColumns.has("user") && (
-                        <td className={`px-3 ${densityConf.py} max-w-[180px] truncate`}>
-                          <p className={`${densityConf.fontSize} font-bold text-[#0F172A] truncate`}>
-                            {row.user_name}
-                          </p>
-                          <p className="text-[11px] text-[#64748B] font-mono">
-                            {row.user_mobile || row.user_code}
-                          </p>
-                        </td>
-                      )}
-
-                      {/* User Type */}
-                      {!hiddenColumns.has("user_type") && (
-                        <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
-                          <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0]">
-                            {row.user_type}
+                      {/* 5. DR (₹) */}
+                      {!hiddenColumns.has("dr") && (
+                        <td className={`px-3 ${densityConf.py} text-right whitespace-nowrap`}>
+                          <span className={`${densityConf.fontSize} font-extrabold ${row.dr > 0 ? "text-[#DC2626]" : "text-[#94A3B8]"}`}>
+                            {row.dr > 0 ? formatINR(row.dr) : "—"}
                           </span>
                         </td>
                       )}
 
-                      {/* Vendor */}
-                      {!hiddenColumns.has("vendor") && (
-                        <td className={`px-3 ${densityConf.py} whitespace-nowrap text-xs font-semibold text-[#334155]`}>
-                          {row.vendor_name}
+                      {/* 6. Close Bal */}
+                      {!hiddenColumns.has("closing_balance") && (
+                        <td className={`px-3 ${densityConf.py} text-right whitespace-nowrap text-xs font-extrabold text-[#0F172A]`}>
+                          {formatINR(row.closing_balance)}
                         </td>
                       )}
 
-                      {/* Service */}
-                      {!hiddenColumns.has("service") && (
-                        <td className={`px-3 ${densityConf.py} whitespace-nowrap text-xs font-extrabold text-[#0F172A]`}>
-                          {row.service_name}
-                        </td>
-                      )}
-
-                      {/* Source */}
-                      {!hiddenColumns.has("source") && (
-                        <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
-                          <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]">
-                            {row.transaction_source}
-                          </span>
-                        </td>
-                      )}
-
-                      {/* Type (CR/DR Badge) */}
+                      {/* 7. CR/DR */}
                       {!hiddenColumns.has("type") && (
                         <td className={`px-3 ${densityConf.py} text-center whitespace-nowrap`}>
                           <span
@@ -1534,46 +1542,83 @@ export default function AdminTransactionReport() {
                         </td>
                       )}
 
-                      {/* Credit (CR) Amount */}
-                      {!hiddenColumns.has("cr") && (
-                        <td className={`px-3 ${densityConf.py} text-right whitespace-nowrap`}>
-                          <span className={`${densityConf.fontSize} font-extrabold ${row.cr > 0 ? "text-[#16A34A]" : "text-[#94A3B8]"}`}>
-                            {row.cr > 0 ? formatINR(row.cr) : "—"}
+                      {/* 8. Date & Time */}
+                      {!hiddenColumns.has("date") && (
+                        <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
+                          <p className={`${densityConf.fontSize} font-bold text-[#0F172A]`}>{row.date}</p>
+                          <p className="text-[11px] font-medium text-[#64748B]">{row.time}</p>
+                        </td>
+                      )}
+
+                      {/* 9. Retailer Name */}
+                      {!hiddenColumns.has("user") && (
+                        <td className={`px-3 ${densityConf.py} max-w-[180px] truncate`}>
+                          <p className={`${densityConf.fontSize} font-bold text-[#0F172A] truncate`}>
+                            {row.user_name}
+                          </p>
+                          <p className="text-[11px] text-[#64748B] font-mono">
+                            {row.user_mobile || row.user_code}
+                          </p>
+                        </td>
+                      )}
+
+                      {/* 10. Service */}
+                      {!hiddenColumns.has("service") && (
+                        <td className={`px-3 ${densityConf.py} whitespace-nowrap text-xs font-extrabold text-[#0F172A]`}>
+                          {row.service_name}
+                        </td>
+                      )}
+
+                      {/* 11. Comments */}
+                      {!hiddenColumns.has("comments") && (
+                        <td className={`px-3 ${densityConf.py} max-w-[200px] truncate`}>
+                          <span
+                            title={row.narration || row.service_reference || ""}
+                            className="text-xs text-[#475569] font-medium truncate block"
+                          >
+                            {row.narration || row.service_reference || "—"}
                           </span>
                         </td>
                       )}
 
-                      {/* Debit (DR) Amount */}
-                      {!hiddenColumns.has("dr") && (
-                        <td className={`px-3 ${densityConf.py} text-right whitespace-nowrap`}>
-                          <span className={`${densityConf.fontSize} font-extrabold ${row.dr > 0 ? "text-[#DC2626]" : "text-[#94A3B8]"}`}>
-                            {row.dr > 0 ? formatINR(row.dr) : "—"}
-                          </span>
-                        </td>
-                      )}
-
-                      {/* Opening Balance */}
-                      {!hiddenColumns.has("opening_balance") && (
-                        <td className={`px-3 ${densityConf.py} text-right whitespace-nowrap text-xs font-semibold text-[#64748B]`}>
-                          {formatINR(row.opening_balance)}
-                        </td>
-                      )}
-
-                      {/* Closing Balance */}
-                      {!hiddenColumns.has("closing_balance") && (
-                        <td className={`px-3 ${densityConf.py} text-right whitespace-nowrap text-xs font-extrabold text-[#0F172A]`}>
-                          {formatINR(row.closing_balance)}
-                        </td>
-                      )}
-
-                      {/* Status */}
+                      {/* 12. Status */}
                       {!hiddenColumns.has("status") && (
                         <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
                           {renderStatusBadge(row.status)}
                         </td>
                       )}
 
-                      {/* Service Ref */}
+                      {/* Additional Columns */}
+                      {!hiddenColumns.has("company") && (
+                        <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-[#EFF6FF] text-[#1D4ED8]">
+                            <Building2 className="w-3 h-3" /> {row.company_name || "Pay2Pay"}
+                          </span>
+                        </td>
+                      )}
+
+                      {!hiddenColumns.has("user_type") && (
+                        <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
+                          <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-[#F1F5F9] text-[#475569] border border-[#E2E8F0]">
+                            {row.user_type}
+                          </span>
+                        </td>
+                      )}
+
+                      {!hiddenColumns.has("vendor") && (
+                        <td className={`px-3 ${densityConf.py} whitespace-nowrap text-xs font-semibold text-[#334155]`}>
+                          {row.vendor_name}
+                        </td>
+                      )}
+
+                      {!hiddenColumns.has("source") && (
+                        <td className={`px-3 ${densityConf.py} whitespace-nowrap`}>
+                          <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]">
+                            {row.transaction_source}
+                          </span>
+                        </td>
+                      )}
+
                       {!hiddenColumns.has("service_reference") && (
                         <td className={`px-3 ${densityConf.py} whitespace-nowrap font-mono text-[11px] text-[#64748B]`}>
                           {row.service_reference || "—"}
