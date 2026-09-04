@@ -2598,12 +2598,6 @@ class RetailerManagementService:
         page: int = 1,
         page_size: int = 20
     ) -> Tuple[List[RetailerModel], int]:
-        # Synchronize any new onboarding records from verification/drafts
-        try:
-            await RetailerManagementService.sync_verifications_to_retailers(db, tenant_id)
-        except Exception as e:
-            pass
-
         stmt = select(RetailerModel).where(
             RetailerModel.is_deleted == False
         )
