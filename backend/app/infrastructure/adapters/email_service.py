@@ -168,12 +168,26 @@ class EmailService:
 
         smtp_server = self.smtp_server if self.smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
         smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
-        smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
+        smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "Paymebalu@gmail.com")
         smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
-        from_email = self.from_email if self.from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", "noreply@pay2pay.in")
+        from_email = self.from_email if self.from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", smtp_username or "Paymebalu@gmail.com")
         from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
 
+        if smtp_password:
+            smtp_password = smtp_password.strip()
+
         subject = "Reset Your Pay2Pay Password"
+        plain_text = (
+            f"Hello,\n\n"
+            f"We received a request to reset the password for your Pay2Pay account.\n\n"
+            f"Please click or visit the secure link below to create a new password:\n"
+            f"{reset_link}\n\n"
+            f"⏱ This link is valid for 30 minutes.\n\n"
+            f"If you did not request this change, you can safely ignore this email.\n\n"
+            f"Regards,\n"
+            f"Pay2Pay Security Team\n"
+            f"SUPER REX PRODUCTS PRIVATE LIMITED"
+        )
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -187,8 +201,8 @@ class EmailService:
             .sub-logo {{ font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; }}
             .content {{ padding: 32px 24px; text-align: left; }}
             .title {{ font-size: 20px; font-weight: 800; color: #ffffff; margin-bottom: 16px; text-align: center; }}
-            .btn {{ display: block; width: 80%; margin: 24px auto; padding: 14px 20px; background: linear-gradient(135deg, #2563eb, #4f46e5); color: #ffffff; text-align: center; text-decoration: none; font-weight: 800; font-size: 14px; border-radius: 12px; shadow: 0 4px 12px rgba(37,99,235,0.3); }}
-            .footer {{ background-color: #0f172a; padding: 16px 24px; text-align: center; font-size: 11px; color: #64748b; border-t: 1px solid #334155; }}
+            .btn {{ display: block; width: 80%; margin: 24px auto; padding: 14px 20px; background: linear-gradient(135deg, #2563eb, #4f46e5); color: #ffffff !important; text-align: center; text-decoration: none; font-weight: 800; font-size: 14px; border-radius: 12px; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }}
+            .footer {{ background-color: #0f172a; padding: 16px 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #334155; }}
             .security-note {{ font-size: 12px; color: #94a3b8; line-height: 1.6; margin-top: 20px; background-color: #0f172a; padding: 16px; border-radius: 12px; border-left: 4px solid #3b82f6; }}
           </style>
         </head>
@@ -205,16 +219,20 @@ class EmailService:
                 We received a request to reset the password for your Pay2Pay account.
               </p>
               <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">
-                Click the secure link below to create a new password.
+                Click the secure button below to create a new password:
               </p>
-              <a href="{reset_link}" class="btn" target="_blank">Reset Password</a>
+              <a href="{reset_link}" class="btn" target="_blank" style="color: #ffffff !important; text-decoration: none;">Reset Password</a>
+              <p style="font-size: 12px; color: #94a3b8; word-break: break-all; margin-top: 16px;">
+                Or copy and paste this link into your browser:<br>
+                <a href="{reset_link}" style="color: #60a5fa;">{reset_link}</a>
+              </p>
               <div class="security-note">
                 ⏱ <strong>The link is valid for 30 minutes.</strong><br><br>
                 If you did not request this change, you can safely ignore this email.
               </div>
               <p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">
                 Regards,<br>
-                <strong>Pay2Pay Security Team</strong>
+                <strong style="color: #f8fafc;">Pay2Pay Security Team</strong>
               </p>
             </div>
             <div class="footer">
@@ -229,6 +247,7 @@ class EmailService:
         msg["Subject"] = subject
         msg["From"] = f"{from_name} <{from_email}>"
         msg["To"] = recipient_email
+        msg.attach(MIMEText(plain_text, "plain"))
         msg.attach(MIMEText(html_content, "html"))
 
         if not smtp_username or not smtp_password:
@@ -240,25 +259,51 @@ class EmailService:
                 "subject": subject
             }
 
+        # Try Port 587 (STARTTLS) first, fallback to Port 465 (SSL)
         try:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+            with smtplib.SMTP(smtp_server, int(smtp_port), timeout=12.0) as server:
+                server.ehlo()
                 server.starttls()
+                server.ehlo()
                 server.login(smtp_username, smtp_password)
                 server.send_message(msg)
-            logger.info(f"Password reset email sent to {recipient_email}")
+            logger.info(f"[EMAIL SERVICE SUCCESS] Password reset email sent to {recipient_email} via Port {smtp_port}")
             return {
-                "status": "SENT",
+                "status": "SUCCESS",
                 "delivered": True,
-                "recipient": recipient_email
+                "recipient": recipient_email,
+                "subject": subject
             }
-        except Exception as e:
-            logger.error(f"Failed to send password reset email to {recipient_email}: {str(e)}")
-            return {
-                "status": "FAILED",
-                "delivered": False,
-                "error": str(e),
-                "recipient": recipient_email
-            }
+        except Exception as ex587:
+            logger.warning(f"[EMAIL SERVICE 587 FAILED] Attempting Port 465 SSL fallback for reset email: {ex587}")
+            try:
+                with smtplib.SMTP_SSL(smtp_server, 465, timeout=12.0) as ssl_server:
+                    ssl_server.ehlo()
+                    ssl_server.login(smtp_username, smtp_password)
+                    ssl_server.send_message(msg)
+                logger.info(f"[EMAIL SERVICE SUCCESS] Password reset email sent to {recipient_email} via Port 465 SSL")
+                return {
+                    "status": "SUCCESS",
+                    "delivered": True,
+                    "recipient": recipient_email,
+                    "subject": subject
+                }
+            except Exception as ex465:
+                logger.error(f"[EMAIL SERVICE ERROR] Failed to send password reset email to {recipient_email} via 587 and 465: {ex465}")
+                return {
+                    "status": "FAILED",
+                    "delivered": False,
+                    "recipient": recipient_email,
+                    "detail": str(ex465)
+                }
+
+    async def send_password_reset_email(self, recipient_email: str, reset_link: str) -> Dict[str, Any]:
+        """Async wrapper for dispatching enterprise password reset email."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.send_password_reset_email_sync, recipient_email, reset_link)
 
     def _build_topup_approval_html(self, data: Dict[str, Any]) -> str:
         req_id = data.get("topup_request_id", "N/A")
