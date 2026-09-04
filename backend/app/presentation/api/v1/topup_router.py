@@ -128,6 +128,8 @@ from app.infrastructure.db.models import (
     AdminUserModel, RetailerModel, RetailerWalletModel, RetailerContactModel,
     TopupRequestModel, AdminServiceVendorWalletModel
 )
+from app.infrastructure.db.pos_mdr_models import PosPaymentModeConfigModel
+from app.infrastructure.db.customer_models import CustomerServiceConfigurationModel
 from app.infrastructure.db.transaction_engine_models import (
     CentralTransactionModel, TransactionLedgerEntryModel
 )
@@ -570,8 +572,49 @@ async def create_topup_request(
 
     # Auto-resolve B2 slip_url from slip_id if not explicitly provided
     resolved_slip_url = _resolve_slip_url(req.slip_url, req.slip_id)
-    # 2b. Compute POS MDR & Vendor Snapshot
+
+    # 2b. Strict Platform Service Enablement Check: POS_TOPUP
+    svc_stmt = select(CustomerServiceConfigurationModel).where(
+        CustomerServiceConfigurationModel.service_code == "POS_TOPUP",
+        CustomerServiceConfigurationModel.is_deleted == False
+    )
+    svc_res = await db.execute(svc_stmt)
+    pos_svc = svc_res.scalars().first()
+    if pos_svc and not pos_svc.is_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="POS Top-Up service is currently disabled by administrator. Please contact support."
+        )
+
+    # 2c. Strict POS Settlement Mode Validation (POS Instant, POS+T1, POS+T2)
     selected_mode = (req.payment_mode or req.payment_method or "POS - Instant").strip()
+    clean_target = selected_mode.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
+
+    mode_stmt = select(PosPaymentModeConfigModel).where(
+        PosPaymentModeConfigModel.is_deleted == False
+    )
+    mode_res = await db.execute(mode_stmt)
+    all_modes = mode_res.scalars().all()
+    
+    matched_mode = None
+    for m in all_modes:
+        m_code_clean = m.code.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
+        m_name_clean = m.name.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
+        m_settle_clean = m.settlement_type.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
+        if clean_target in (m_code_clean, m_name_clean, m_settle_clean):
+            matched_mode = m
+            break
+
+    if not matched_mode or not matched_mode.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment settlement mode '{selected_mode}' is currently disabled by administrator. Please select an active payment mode."
+        )
+
+    # Use canonical code registered in pos_payment_mode_config
+    selected_mode = matched_mode.code
+
+    # 2d. Compute POS MDR & Vendor Snapshot
     mdr_charge_val = req.mdr_charge
     gst_amount_val = req.gst_amount
     charges_val = req.charges
@@ -601,6 +644,9 @@ async def create_topup_request(
             "pos_serial_number": calc.get("pos_serial_number"),
             "pos_mobile_number": calc.get("pos_mobile_number"),
         }
+    except HTTPException:
+        # Preserve HTTPExceptions such as disabled payment mode or negative amounts
+        raise
     except Exception as mdr_err:
         # If client provided values, use them, otherwise fallback to amount if not a configured POS mode
         if received_amount_val is None:

@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   Info,
   AlertTriangle,
+  AlertCircle,
   Receipt,
   Copy,
   Check,
@@ -91,18 +92,14 @@ export default function RetailerTopupRequestPage() {
     }
   }, [walletData, retailerInfo]);
 
-  // Allowed Dynamic Payment Modes
-  const [paymentModes, setPaymentModes] = useState<PaymentModeOption[]>([
-    { code: "POS - Instant", name: "POS - Instant", display_order: 1 },
-    { code: "POS+T1", name: "POS+T1", display_order: 2 },
-    { code: "POS+T2", name: "POS+T2", display_order: 3 }
-  ]);
+  // Allowed Dynamic Payment Modes (Loaded from live DB/API)
+  const [paymentModes, setPaymentModes] = useState<PaymentModeOption[]>([]);
 
   // Form Fields
   const [requestedAmount, setRequestedAmount] = useState<string>("");
   const [paymentReference, setPaymentReference] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split("T")[0]);
-  const [paymentMethod, setPaymentMethod] = useState<string>("POS - Instant");
+  const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [retailerRemarks, setRetailerRemarks] = useState<string>("");
 
   // Dynamic MDR Breakdown State
@@ -135,20 +132,25 @@ export default function RetailerTopupRequestPage() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Fetch Dynamic Payment Modes ──────────────────────────────────────────────
+  // ── Fetch Dynamic Payment Modes (Zero Local Storage, DB/API Driven) ───────────
   useEffect(() => {
     const fetchPaymentModes = async () => {
       try {
         const res = await api.get("/api/v1/pos/payment-modes");
-        if (res.data?.items && res.data.items.length > 0) {
-          setPaymentModes(res.data.items);
+        const items = res.data?.items || [];
+        setPaymentModes(items);
+        if (items.length > 0) {
           setPaymentMethod((prev) => {
-            const exists = res.data.items.some((m: any) => m.code === prev);
-            return exists ? prev : res.data.items[0].code;
+            const exists = items.some((m: any) => m.code === prev);
+            return exists ? prev : items[0].code;
           });
+        } else {
+          setPaymentMethod("");
         }
       } catch (err) {
         console.warn("Failed to load payment modes dynamically:", err);
+        setPaymentModes([]);
+        setPaymentMethod("");
       }
     };
     fetchPaymentModes();
@@ -544,17 +546,26 @@ export default function RetailerTopupRequestPage() {
             {/* Payment Method & Date */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-200">Payment Mode</label>
+                <label className="text-xs font-semibold text-slate-200">
+                  Payment Mode {paymentModes.length === 0 && <span className="text-rose-400 font-bold">(Unavailable)</span>}
+                </label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-500"
+                  disabled={paymentModes.length === 0}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 focus:outline-none focus:border-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {paymentModes.map((mode) => (
-                    <option key={mode.code} value={mode.code}>
-                      {mode.name}
+                  {paymentModes.length === 0 ? (
+                    <option value="" disabled>
+                      No settlement modes active
                     </option>
-                  ))}
+                  ) : (
+                    paymentModes.map((mode) => (
+                      <option key={mode.code} value={mode.code}>
+                        {mode.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
@@ -568,6 +579,16 @@ export default function RetailerTopupRequestPage() {
                 />
               </div>
             </div>
+
+            {/* Warning Banner when all POS settlement modes are disabled */}
+            {paymentModes.length === 0 && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-300 flex items-center gap-2.5">
+                <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                <div>
+                  <strong>POS Top-Up Temporarily Unavailable:</strong> All settlement modes (Instant, T+1, T+2) are currently disabled by administrator. Top-up submissions are paused.
+                </div>
+              </div>
+            )}
 
             {/* ── Dynamic Live MDR Breakdown Card ── */}
             {parseFloat(requestedAmount || "0") > 0 && (
@@ -718,13 +739,18 @@ export default function RetailerTopupRequestPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={submitting || uploadingSlip}
-              className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-900/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              disabled={submitting || uploadingSlip || paymentModes.length === 0 || !paymentMethod}
+              className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-900/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
                 <>
                   <RefreshCw className="h-4 w-4 animate-spin" />
                   Submitting Top-up Claim...
+                </>
+              ) : paymentModes.length === 0 ? (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-amber-950" />
+                  POS Top-Up Temporarily Unavailable
                 </>
               ) : (
                 <>

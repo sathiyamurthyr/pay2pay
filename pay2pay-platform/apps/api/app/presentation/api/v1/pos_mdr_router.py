@@ -81,6 +81,14 @@ class PosMdrConfigUpdateRequest(BaseModel):
     is_active: Optional[bool] = Field(None)
 
 
+class ToggleModeRequest(BaseModel):
+    is_active: Optional[bool] = None
+
+
+class ToggleServiceRequest(BaseModel):
+    is_enabled: Optional[bool] = None
+
+
 # ==============================================================================
 # PUBLIC / RETAILER ENDPOINTS
 # ==============================================================================
@@ -89,7 +97,7 @@ class PosMdrConfigUpdateRequest(BaseModel):
 async def get_payment_modes(db: AsyncSession = Depends(get_db)):
     """
     Returns active allowed POS payment modes ordered by priority/display_order.
-    Allowed: POS - Instant, POS+T1 (excluding deactivated modes like POS+T2).
+    If POS Top-Up is globally disabled, returns an empty list.
     """
     modes = await PosMdrService.get_active_payment_modes(db)
     return {"items": modes, "total": len(modes)}
@@ -130,6 +138,115 @@ async def calculate_mdr(
 # ==============================================================================
 # ADMIN CONFIGURATION ENDPOINTS
 # ==============================================================================
+
+@router.get("/admin/payment-modes")
+async def list_admin_payment_modes(db: AsyncSession = Depends(get_db)):
+    """
+    Returns ALL configured POS payment modes including active and inactive status for Admin control.
+    """
+    modes = await PosMdrService.get_all_payment_modes(db)
+    return {"items": modes, "total": len(modes)}
+
+
+@router.patch("/admin/payment-modes/{mode_code}/toggle")
+async def toggle_admin_payment_mode(
+    mode_code: str,
+    req: Optional[ToggleModeRequest] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Toggles or sets the active/enabled status for a specific POS payment mode (POS Instant, POS+T1, POS+T2)
+    using stored procedure sp_toggle_pos_payment_mode.
+    """
+    is_active = req.is_active if req else None
+    result = await PosMdrService.toggle_payment_mode(
+        db=db,
+        code=mode_code,
+        is_active=is_active,
+        updated_by="ADMIN"
+    )
+    all_modes = await PosMdrService.get_all_payment_modes(db)
+    return {
+        "success": True,
+        "message": f"Payment mode '{mode_code}' status updated to {'ENABLED' if result['is_active'] else 'DISABLED'}",
+        "mode": result,
+        "all_modes": all_modes
+    }
+
+
+@router.get("/admin/services")
+async def list_admin_platform_services(db: AsyncSession = Depends(get_db)):
+    """
+    Lists all platform services (Mobile Recharge, DMT, BBPS, AEPS, POS Top-Up) and POS settlement modes.
+    """
+    from sqlalchemy import text
+    res = await db.execute(text("SELECT service_code, service_name, is_enabled, config_status FROM customer_service_configuration WHERE is_deleted = false ORDER BY service_code;"))
+    services = [
+        {
+            "code": r[0],
+            "name": r[1],
+            "is_enabled": r[2],
+            "status": r[3]
+        }
+        for r in res.fetchall()
+    ]
+    pos_modes = await PosMdrService.get_all_payment_modes(db)
+    return {
+        "services": services,
+        "pos_modes": pos_modes
+    }
+
+
+@router.patch("/admin/services/{service_code}/toggle")
+async def toggle_admin_platform_service(
+    service_code: str,
+    req: Optional[ToggleServiceRequest] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Toggles or sets the enabled status for a platform service (Mobile Recharge, DMT, BBPS, AEPS, POS Top-Up)
+    using stored procedure sp_toggle_platform_service.
+    """
+    from sqlalchemy import text
+    cur_res = await db.execute(text("SELECT is_enabled FROM customer_service_configuration WHERE service_code = :code AND is_deleted = false;"), {"code": service_code.upper()})
+    row = cur_res.fetchone()
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Service '{service_code}' not found in service configuration."
+        )
+
+    new_val = not row[0] if (req is None or req.is_enabled is None) else req.is_enabled
+
+    sp_res = await db.execute(
+        text("SELECT * FROM sp_toggle_platform_service(:code, :is_enabled, :updated_by);"),
+        {"code": service_code.upper(), "is_enabled": new_val, "updated_by": "ADMIN"}
+    )
+    await db.commit()
+
+    res = await db.execute(text("SELECT service_code, service_name, is_enabled, config_status FROM customer_service_configuration WHERE is_deleted = false ORDER BY service_code;"))
+    services = [
+        {
+            "code": r[0],
+            "name": r[1],
+            "is_enabled": r[2],
+            "status": r[3]
+        }
+        for r in res.fetchall()
+    ]
+    pos_modes = await PosMdrService.get_all_payment_modes(db)
+
+    return {
+        "success": True,
+        "message": f"Service '{service_code}' status updated to {'ENABLED' if new_val else 'DISABLED'}",
+        "service": {
+            "code": service_code.upper(),
+            "is_enabled": new_val
+        },
+        "services": services,
+        "pos_modes": pos_modes
+    }
+
 
 @router.get("/admin/mdr-configs")
 async def list_admin_mdr_configs(
