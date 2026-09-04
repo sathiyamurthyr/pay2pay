@@ -712,6 +712,69 @@ async def create_topup_request(
     await db.commit()
     await db.refresh(topup_model)
 
+    # 4. Asynchronously dispatch official WhatsApp alert to Admin
+    async def _dispatch_admin_whatsapp_alert():
+        try:
+            from app.core.database import AsyncSessionLocal
+            from app.infrastructure.adapters.whatsapp_service import whatsapp_service
+            from sqlalchemy import text
+
+            async with AsyncSessionLocal() as bg_db:
+                cfg_res = await bg_db.execute(text("SELECT * FROM sp_get_whatsapp_topup_config();"))
+                cfg_row = cfg_res.mappings().first()
+                if not cfg_row or not cfg_row.get("out_is_enabled"):
+                    return
+
+                t_id = str(cfg_row.get("out_template_id") or "1043386768499813")
+                t_name = str(cfg_row.get("out_template_name") or "topup_request_admin")
+                p_id = str(cfg_row.get("out_phone_number_id") or "497102120160245")
+                admin_numbers_raw = str(cfg_row.get("out_admin_phone_numbers") or "7013914767")
+                lang_code = str(cfg_row.get("out_language_code") or "en")
+
+                admin_numbers = [n.strip() for n in admin_numbers_raw.replace("\n", ",").split(",") if n.strip()]
+                if not admin_numbers:
+                    admin_numbers = ["7013914767"]
+
+                ret_name = getattr(retailer, "owner_name", None) or getattr(retailer, "store_name", "Retailer")
+                ret_code = getattr(retailer, "retailer_code", None) or str(getattr(retailer, "retailer_ref_id", "N/A"))
+                req_id_val = topup_model.topup_request_id
+                amt_val = float(topup_model.requested_amount)
+                mode_val = topup_model.payment_method or "POS - Instant"
+
+                dt_obj = topup_model.submitted_at or datetime.now(timezone.utc)
+                try:
+                    dt_ist = dt_obj.astimezone(INDIA_TZ)
+                    dt_str = dt_ist.strftime("%d-%m-%Y %H:%M")
+                except Exception:
+                    dt_str = dt_obj.strftime("%d-%m-%Y %H:%M")
+
+                st_val = "Pending Approval"
+                view_id_val = str(topup_model.public_id)
+
+                for admin_num in admin_numbers:
+                    try:
+                        await whatsapp_service.send_admin_topup_alert(
+                            mobile_number=admin_num,
+                            retailer_name=ret_name,
+                            retailer_id=ret_code,
+                            request_id=req_id_val,
+                            amount=amt_val,
+                            payment_mode=mode_val,
+                            date_time_str=dt_str,
+                            status=st_val,
+                            view_id=view_id_val,
+                            template_name=t_name,
+                            template_id=t_id,
+                            language_code=lang_code,
+                            phone_number_id=p_id
+                        )
+                    except Exception as err_one:
+                        print(f"[WHATSAPP ALERT ERROR] Failed sending to {admin_num}: {err_one}")
+        except Exception as bg_ex:
+            print(f"[WHATSAPP ALERT BACKGROUND ERROR] {bg_ex}")
+
+    asyncio.create_task(_dispatch_admin_whatsapp_alert())
+
     return {
         "success": True,
         "message": f"Topup request {topup_req_id} submitted successfully and is pending admin verification.",
