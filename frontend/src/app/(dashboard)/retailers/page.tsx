@@ -32,9 +32,18 @@ import {
   Tag,
   MapPin,
   Phone,
+  Loader2,
 } from "lucide-react";
 
 type Tab = "retailers" | "distributors" | "super_distributors";
+
+function SkeletonShimmer({ className = "" }: { className?: string }) {
+  return (
+    <div className={`relative overflow-hidden bg-[#E2E8F0] ${className}`}>
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent animate-shimmer pointer-events-none" />
+    </div>
+  );
+}
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -77,7 +86,7 @@ function OnboardingHubContent() {
   const [distributors, setDistributors] = useState<any[]>([]);
   const [superDistributors, setSuperDistributors] = useState<any[]>([]);
   const [resetTarget, setResetTarget] = useState<{ type: string; item: any } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
   useEffect(() => {
@@ -290,13 +299,26 @@ function OnboardingHubContent() {
               }`}
             >
               <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: tab.bg }}>
-                  <Icon style={{ color: tab.color, width: 20, height: 20 }} />
-                </div>
+                {loading ? (
+                  <SkeletonShimmer className="w-10 h-10 rounded-xl" />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: tab.bg }}>
+                    <Icon style={{ color: tab.color, width: 20, height: 20 }} />
+                  </div>
+                )}
                 {isActive && <div className="w-3 h-3 rounded-full bg-[#2563EB]" />}
               </div>
-              <div className="font-mono text-[28px] font-extrabold text-[#0F172A] tabular-nums">{tab.count}</div>
-              <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mt-1">{tab.label}</p>
+              {loading ? (
+                <>
+                  <SkeletonShimmer className="h-8 w-20 rounded-lg mb-1.5 mt-0.5" />
+                  <SkeletonShimmer className="h-3.5 w-28 rounded" />
+                </>
+              ) : (
+                <>
+                  <div className="font-mono text-[28px] font-extrabold text-[#0F172A] tabular-nums">{tab.count}</div>
+                  <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mt-1">{tab.label}</p>
+                </>
+              )}
             </button>
           );
         })}
@@ -424,13 +446,35 @@ function OnboardingHubContent() {
         </div>
 
         {/* Right Group: record count */}
-        <span className="text-[12px] font-semibold text-[#64748B] whitespace-nowrap shrink-0">
-          {filteredData.length} record{filteredData.length !== 1 ? "s" : ""}
-        </span>
+        {loading ? (
+          <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[12px] font-semibold text-[#6C63FF] shrink-0">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#6C63FF]" />
+            <span>Loading records…</span>
+          </div>
+        ) : (
+          <span className="text-[12px] font-semibold text-[#64748B] whitespace-nowrap shrink-0">
+            {filteredData.length} record{filteredData.length !== 1 ? "s" : ""}
+          </span>
+        )}
       </div>
 
       {/* Data Grid */}
-      <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden relative">
+        {/* Top Centered Loading Indicator Banner */}
+        {loading && (
+          <div className="bg-gradient-to-b from-[#F8FAFC] via-[#F8FAFC]/95 to-white border-b border-[#E2E8F0] py-6 px-4 flex flex-col items-center justify-center text-center transition-all">
+            <div className="relative mb-2.5 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-full border-[2.5px] border-[#6C63FF]/20 border-t-[#6C63FF] animate-spin" />
+            </div>
+            <h3 className="text-sm font-extrabold text-[#0F172A] tracking-tight">
+              Loading {activeTab === "retailers" ? "Retailers" : activeTab === "distributors" ? "Distributors" : "Super Distributors"}...
+            </h3>
+            <p className="text-[12px] font-medium text-[#64748B] mt-1">
+              Please wait while we fetch the latest data
+            </p>
+          </div>
+        )}
+
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-gradient-to-r from-[#F8FAFC] to-[#EEF2FF] border-b-2 border-[#E2E8F0]">
@@ -541,15 +585,76 @@ function OnboardingHubContent() {
           </thead>
           <tbody>
             {loading ? (
-              [...Array(4)].map((_, i) => (
-                <tr key={i} className="animate-pulse border-b border-[#F1F5F9]">
-                  {[...Array(6)].map((_, j) => (
-                    <td key={j} className="px-5 py-3.5">
-                      <div className="h-4 bg-[#F1F5F9] rounded w-3/4" />
-                    </td>
-                  ))}
-                </tr>
-              ))
+              Array.from({ length: 7 }).map((_, i) => {
+                const widths = [
+                  { title: "w-44", sub: "w-28", name: "w-32", cat: "w-24", badge: "w-20" },
+                  { title: "w-52", sub: "w-36", name: "w-28", cat: "w-20", badge: "w-24" },
+                  { title: "w-40", sub: "w-32", name: "w-36", cat: "w-28", badge: "w-20" },
+                  { title: "w-48", sub: "w-24", name: "w-30", cat: "w-24", badge: "w-22" },
+                  { title: "w-44", sub: "w-32", name: "w-32", cat: "w-20", badge: "w-20" },
+                  { title: "w-56", sub: "w-28", name: "w-28", cat: "w-24", badge: "w-24" },
+                  { title: "w-40", sub: "w-36", name: "w-34", cat: "w-22", badge: "w-20" },
+                ][i % 7];
+
+                return (
+                  <tr key={i} className="border-b border-[#F1F5F9] transition-colors">
+                    {activeTab === "retailers" ? (
+                      <>
+                        <td className="px-5 py-4">
+                          <SkeletonShimmer className="h-5 w-24 rounded-md" />
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="space-y-1.5">
+                            <SkeletonShimmer className={`h-4 ${widths.title} rounded`} />
+                            <SkeletonShimmer className={`h-3 ${widths.sub} rounded`} />
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <SkeletonShimmer className={`h-4 ${widths.name} rounded`} />
+                        </td>
+                        <td className="px-5 py-4">
+                          <SkeletonShimmer className={`h-6 ${widths.cat} rounded-full`} />
+                        </td>
+                        <td className="px-5 py-4">
+                          <SkeletonShimmer className={`h-6 ${widths.badge} rounded-full`} />
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <SkeletonShimmer className="h-8 w-8 rounded-xl" />
+                            <SkeletonShimmer className="h-8 w-24 rounded-lg" />
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-5 py-4">
+                          <SkeletonShimmer className={`h-4 ${widths.title} rounded`} />
+                        </td>
+                        <td className="px-5 py-4">
+                          <SkeletonShimmer className={`h-4 ${widths.name} rounded`} />
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="space-y-1.5">
+                            <SkeletonShimmer className="h-3.5 w-28 rounded" />
+                            <SkeletonShimmer className={`h-3 ${widths.sub} rounded`} />
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <SkeletonShimmer className={`h-4 ${widths.name} rounded`} />
+                        </td>
+                        <td className="px-5 py-4">
+                          <SkeletonShimmer className={`h-6 ${widths.badge} rounded-full`} />
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <SkeletonShimmer className="h-8 w-8 rounded-xl" />
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })
             ) : filteredData.length === 0 ? (
               <tr>
                 <td colSpan={6}>
