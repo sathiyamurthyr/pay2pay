@@ -1563,14 +1563,29 @@ async def request_password_reset(payload: PasswordResetRequestPayload, request: 
         )
         db.add(token_record)
 
-        origin = request.headers.get("origin") or "http://localhost:3000"
-        reset_link = f"{origin}/reset-password?token={raw_token}"
+        origin = request.headers.get("origin")
+        if not origin or "localhost" in origin:
+            referer = request.headers.get("referer", "")
+            if "retailer.pay2pay.in" in referer:
+                origin = "https://retailer.pay2pay.in"
+            elif "admin.pay2pay.in" in referer:
+                origin = "https://admin.pay2pay.in"
+            else:
+                origin = "https://retailer.pay2pay.in"
+
+        reset_link = f"{origin.rstrip('/')}/reset-password?token={raw_token}"
 
         try:
-            await email_service.send_password_reset_email(target_email, reset_link)
-            audit_status = "EMAIL_SENT"
-        except Exception:
+            res = await email_service.send_password_reset_email(target_email, reset_link)
+            if isinstance(res, dict) and res.get("status") in ("SUCCESS", "SENT", "SIMULATED"):
+                audit_status = "EMAIL_SENT"
+                logger.info(f"[PASSWORD RESET SUCCESS] Link sent to {target_email} for mobile {clean_mobile}")
+            else:
+                audit_status = "EMAIL_FAILED"
+                logger.error(f"[PASSWORD RESET ERROR] Email dispatch failed for {target_email}: {res}")
+        except Exception as e:
             audit_status = "EMAIL_FAILED"
+            logger.error(f"[PASSWORD RESET EXCEPTION] Failed to dispatch reset email for {target_email}: {e}", exc_info=True)
 
     audit = PasswordResetAuditModel(
         tenant_id=DEFAULT_TENANT_ID,
