@@ -49,9 +49,9 @@ export const MpinSetupCard: React.FC<MpinSetupCardProps> = ({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const customerId = propCustId || searchParams.get("customer_id") || "8f64d450-8b7c-4414-a998-52f1d99e01b1";
-  const [customerName, setCustomerName] = useState(propCustName || "Ramesh Kumar");
-  const [customerMobile, setCustomerMobile] = useState(propCustMobile || "7013914767");
+  const customerId = propCustId || searchParams.get("customer_id") || "";
+  const [customerName, setCustomerName] = useState(propCustName || "Customer");
+  const [customerMobile, setCustomerMobile] = useState(propCustMobile || "");
 
   const [mpinLength, setMpinLength] = useState<4 | 6>(4);
   const [mpin, setMpin] = useState("");

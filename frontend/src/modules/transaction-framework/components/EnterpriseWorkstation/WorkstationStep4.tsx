@@ -501,10 +501,52 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
       setTimelineSteps([...stepsCopy]);
       bankingSounds.playSuccess();
 
-      const share = ReceiptShare.createShareToken(finResult.transactionId, finResult.referenceNo, amount);
+      const backendToken = (finResult as any).receiptToken || (finResult as any).receipt_token;
+      let share = ReceiptShare.createShareToken(finResult.transactionId, finResult.referenceNo, amount);
+      if (backendToken) {
+        share = {
+          ...share,
+          receiptToken: backendToken,
+          receiptSignature: (finResult as any).receiptSignature || share.receiptSignature,
+        };
+      }
       setShareRecord(share);
       const verify = ReceiptShare.verifyReceipt(share.receiptToken);
       setVerificationResult(verify);
+
+      // Cache verified receipt snapshot in localStorage for instantaneous loading
+      if (typeof window !== "undefined") {
+        try {
+          const snapshot = {
+            companyName: "SUPER REX PRODUCTS PRIVATE LIMITED",
+            brandName: "Pay2Pay",
+            brandTagline: "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
+            certifications: "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
+            status: "SUCCESS",
+            statusText: "TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED",
+            amount: amount,
+            charges: charges || 22.0,
+            gst: gst || 3.0,
+            totalPaid: totalAmountPaid || (amount + (charges || 22.0) + (gst || 3.0)),
+            transactionId: finResult.transactionId,
+            utr: finResult.utr || "—",
+            receiptToken: share.receiptToken,
+            channel: transactionMode || "IMPS",
+            date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + ", " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+            retailerName: displayRetailerName,
+            retailerMobile: displayRetailerMobile,
+            beneficiaryName: displayBeneName,
+            beneficiaryBank: displayBeneBank,
+            beneficiaryIfsc: displayBeneIfsc,
+            beneficiaryAccount: displayBeneAccount,
+            signature: share.receiptSignature,
+          };
+          localStorage.setItem(`pay2pay_receipt_${share.receiptToken}`, JSON.stringify(snapshot));
+          if (finResult.transactionId) {
+            localStorage.setItem(`pay2pay_receipt_${finResult.transactionId}`, JSON.stringify(snapshot));
+          }
+        } catch {}
+      }
 
       setTimeout(() => {
         setViewState("SUCCESS_RECEIPT");
@@ -596,7 +638,7 @@ export const WorkstationStep4: React.FC<WorkstationStep4Props> = ({
   const displayBeneBank = beneficiary?.bankName || "Partner Bank";
   const displayBeneAccount = beneficiary?.accountNumber || "";
   const displayBeneIfsc = beneficiary?.ifsc || "";
-  const liveToken = shareRecord?.receiptToken || (liveFinResult?.transactionId ? `P2P-${liveFinResult.transactionId.slice(-8).toUpperCase()}` : "P2P-69439E2E");
+  const liveToken = (liveFinResult as any)?.receiptToken || (liveFinResult as any)?.receipt_token || shareRecord?.receiptToken || (liveFinResult?.transactionId ? `P2P-${liveFinResult.transactionId.slice(-8).toUpperCase()}` : "P2P-69439E2E");
 
   const publicShareUrl = shareRecord ? ReceiptShare.getPublicReceiptUrl(shareRecord.receiptToken) : `https://receipt.pay2pay.in/r/${liveToken}`;
   const liveUtr = liveFinResult?.utr || liveFinResult?.bankRef || liveFinResult?.referenceNo || utr || "UTR-" + (activeTxId || "202608221849");

@@ -188,54 +188,21 @@ const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDE
   return "PENDING";
 };
 
-const getInitialOutlet = (): RetailerOutlet => {
-  let id = "";
-  let code = "";
-  let name = "Retailer Store";
-  let ownerName = "Retailer Partner";
-  let mobile = "";
-  let email = "";
+const getInitialOutlet = (): RetailerOutlet => ({
+  id: "",
+  code: "",
+  name: "Retailer Store",
+  ownerName: "Retailer Partner",
+  mobile: "",
+  email: "",
+  location: "India",
+  status: "ACTIVE",
+  kycStatus: "VERIFIED",
+  approvalStatus: "APPROVED",
+  soundboxActive: true,
+  soundboxLang: "en",
+});
 
-  if (typeof window !== "undefined") {
-    try {
-      const userStr =
-        localStorage.getItem("user_info") ||
-        localStorage.getItem("user") ||
-        localStorage.getItem("auth_user") ||
-        localStorage.getItem("pay2pay_user_data");
-      if (userStr) {
-        const u = JSON.parse(userStr);
-        id = u.id || u.public_id || u.retailer_id || "";
-        code = u.retailer_code || u.code || "";
-        name = u.company_name || u.store_name || u.name || name;
-        ownerName = u.owner_name || u.full_name || u.name || ownerName;
-        mobile = u.mobile || u.mobile_number || u.phone || "";
-        email = u.email || "";
-      }
-    } catch {}
-    if (!code) {
-      code = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("p2p_retailer_code") || "";
-    }
-    if (!name || name === "Retailer Store") {
-      name = localStorage.getItem("p2p_retailer_name") || name;
-    }
-  }
-
-  return {
-    id,
-    code,
-    name,
-    ownerName,
-    mobile,
-    email,
-    location: "India",
-    status: "ACTIVE",
-    kycStatus: "VERIFIED",
-    approvalStatus: "APPROVED",
-    soundboxActive: true,
-    soundboxLang: "en",
-  };
-};
 
 const getInitialTheme = (): KpiTheme => {
   if (typeof window !== "undefined") {
@@ -300,54 +267,33 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     syncBalance: async () => {
       set({ isSyncing: true });
       try {
-        let activeUserRefId: any = null;
-        let activeUserTypeId: any = 2;
-        if (typeof window !== "undefined") {
-          try {
-            const userStr =
-              localStorage.getItem("user_info") ||
-              localStorage.getItem("user") ||
-              localStorage.getItem("auth_user") ||
-              localStorage.getItem("pay2pay_user_data");
-            if (userStr) {
-              const u = JSON.parse(userStr);
-              activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
-              activeUserTypeId = u.user_type_ref_id || 2;
-            }
-          } catch {}
-        }
-
-        const params: Record<string, any> = {
-          user_type_ref_id: Number(activeUserTypeId || 2),
-        };
-        if (activeUserRefId) {
-          params.user_ref_id = Number(activeUserRefId);
-        }
-
-        // Standardized user wallet API (/api/v1/wallet-ledger/user-wallet)
-        const res = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params });
+        // Call /header-wallet with NO params — backend resolves the authenticated retailer
+        // from the JWT cookie (p2p_access_token). Zero localStorage reads.
+        const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet");
         const rawData = res.data;
-        const data = rawData.data || rawData;
+        const walletObj = rawData.wallet || rawData;
         const bal =
-          typeof data.wallet_balance === "number"
-            ? data.wallet_balance
-            : typeof data.balance === "number"
-            ? data.balance
-            : typeof data.mainBalance === "number"
-            ? data.mainBalance
-            : typeof data.available_balance === "number"
-            ? data.available_balance
+          typeof rawData.wallet_balance === "number"
+            ? rawData.wallet_balance
+            : typeof walletObj.main_balance === "number"
+            ? walletObj.main_balance
+            : typeof walletObj.wallet_balance === "number"
+            ? walletObj.wallet_balance
             : 0.00;
+        const avail =
+          typeof rawData.available_balance === "number"
+            ? rawData.available_balance
+            : bal;
 
-        // No localStorage write — store is purely in-memory cache
+        // In-memory only — NO localStorage write
         set((state) => ({
           wallet: {
             ...state.wallet,
             mainBalance: bal,
-            availableBalance: bal,
-            commissionBalance: data.commissionBalance ?? state.wallet.commissionBalance,
-            todayMargin: data.todayMargin ?? state.wallet.todayMargin,
-            todaySettlement: data.todaySettlement ?? state.wallet.todaySettlement,
+            availableBalance: avail,
+            commissionBalance: rawData.todays_commission ?? state.wallet.commissionBalance,
+            todayMargin: rawData.todays_commission ?? state.wallet.todayMargin,
+            todaySettlement: rawData.settlement_pending_amount ?? state.wallet.todaySettlement,
           },
         }));
       } catch (err) {

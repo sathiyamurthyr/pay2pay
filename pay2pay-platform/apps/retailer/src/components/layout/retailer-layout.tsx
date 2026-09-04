@@ -87,61 +87,38 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
 
   inFlightHeaderWalletPromise = (async () => {
     try {
-      let userRefId: any = null;
-      let userTypeRefId: any = 2;
-      if (typeof window !== "undefined") {
-        try {
-          const userStr =
-            localStorage.getItem("user_info") ||
-            localStorage.getItem("user") ||
-            localStorage.getItem("auth_user") ||
-            localStorage.getItem("pay2pay_user_data");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
-            userTypeRefId = u.user_type_ref_id || 2;
-          }
-        } catch {}
-      }
-
-      const qParams = new URLSearchParams();
-      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
-      if (userRefId) {
-        qParams.set("user_ref_id", String(userRefId));
-      }
-
-      const res = await fetch(
-        `/api/v1/payout/dashboard/retailer/header-wallet?${qParams.toString()}`
-      );
+      // Call /header-wallet with NO query params.
+      // The backend resolves the authenticated retailer from the JWT cookie (p2p_access_token).
+      // Zero localStorage reads — identity comes from the server session only.
+      const res = await fetch(`/api/v1/payout/dashboard/retailer/header-wallet`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       cachedHeaderWalletData = data;
       lastHeaderWalletFetchTime = Date.now();
 
-      // Sync into useRetailerStore (in-memory cache only, no localStorage)
-      if (typeof window !== "undefined") {
-        const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
-        const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
-        const rInfo = data.retailer_info || data;
-        if (rInfo.retailer_code || data.retailer_code) {
-          localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code);
-        }
-        useRetailerStore.getState().updateWallet({
-          mainBalance: bal,
-          availableBalance: avail,
-          commissionBalance: data.todays_commission || 0.0,
-          todayMargin: data.todays_commission || 0.0,
-          todaySettlement: data.settlement_pending_amount || 0.0,
-        });
-        useRetailerStore.getState().updateOutlet({
-          code: rInfo.retailer_code || data.retailer_code || "",
-          name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || "Retailer Store",
-          ownerName: rInfo.owner_name || data.owner_name || "Retailer Partner",
-          status: "ACTIVE",
-          kycStatus: "VERIFIED",
-          approvalStatus: "APPROVED",
-        });
+      // Sync into useRetailerStore in-memory state ONLY — NO localStorage write for balance
+      const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
+      const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
+      const rInfo = data.retailer_info || data;
+      if (rInfo.retailer_code || data.retailer_code) {
+        // p2p_active_retailer_id is identity (used as fallback), NOT a balance cache
+        localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code);
       }
+      useRetailerStore.getState().updateWallet({
+        mainBalance: bal,
+        availableBalance: avail,
+        commissionBalance: data.todays_commission || 0.0,
+        todayMargin: data.todays_commission || 0.0,
+        todaySettlement: data.settlement_pending_amount || 0.0,
+      });
+      useRetailerStore.getState().updateOutlet({
+        code: rInfo.retailer_code || data.retailer_code || "",
+        name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || "Retailer Store",
+        ownerName: rInfo.owner_name || data.owner_name || "Retailer Partner",
+        status: "ACTIVE",
+        kycStatus: "VERIFIED",
+        approvalStatus: "APPROVED",
+      });
 
       return data;
     } finally {
@@ -151,6 +128,7 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
 
   return inFlightHeaderWalletPromise;
 }
+
 
 export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();

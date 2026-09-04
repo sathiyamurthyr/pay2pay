@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import axios from "axios";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export interface WalletDataPayload {
   greeting: string;
@@ -47,55 +48,11 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
   const fetchWalletData = useCallback(async () => {
     setIsLoading(true);
     try {
-      let localName = "";
-      let localCode = "";
-      let activeRetailerId = "";
-      if (typeof window !== "undefined") {
-        try {
-          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            localName = u.full_name || u.name || u.owner_name || u.retailer_name || "";
-            localCode = u.retailer_code || u.code || "";
-            activeRetailerId = u.retailer_code || u.retailer_id || u.id || "";
-          }
-        } catch {}
-        if (!localName) {
-          localName = localStorage.getItem("p2p_retailer_name") || localStorage.getItem("pay2pay_reg_name") || localStorage.getItem("pay2pay_user_name") || "";
-        }
-        if (!localCode) {
-          localCode = localStorage.getItem("p2p_retailer_code") || localStorage.getItem("pay2pay_user_code") || localStorage.getItem("pay2pay_reg_code") || "";
-        }
-        if (!activeRetailerId) {
-          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "RET-10928";
-        }
-      }
-
-      const params: any = {};
-      if (activeRetailerId) {
-        params.retailer_id = activeRetailerId;
-      }
-
-      const res = await axios.get<WalletDataPayload>("/api/v1/payout/dashboard/retailer/header-wallet", {
-        params,
-      });
-
-      let data = res.data;
-      if (!data.retailer_name && localName) {
-        const short = localName.trim().split(" ")[0] || localName;
-        data = {
-          ...data,
-          owner_name: localName,
-          retailer_name: localName,
-          short_name: short,
-        };
-      }
-      if (!data.retailer_code && localCode) {
-        data = {
-          ...data,
-          retailer_code: localCode,
-        };
-      }
+      // Call /header-wallet with NO query params.
+      // The backend resolves the authenticated retailer from the JWT cookie (p2p_access_token).
+      // Zero localStorage reads — identity comes from the server session only.
+      const res = await axios.get<WalletDataPayload>("/api/v1/payout/dashboard/retailer/header-wallet");
+      const data = res.data;
 
       // If user is logged in as Super Admin / Admin, ensure approval flag is active
       try {
@@ -104,23 +61,21 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
           const u = JSON.parse(userStr);
           const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
           if (["SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN"].includes(role)) {
-            data = {
-              ...data,
-              is_approved: true,
-              status: "ACTIVE",
-            };
+            Object.assign(data, { is_approved: true, status: "ACTIVE" });
           }
         }
       } catch {}
 
-      // Update localStorage & useRetailerStore
-      if (typeof window !== "undefined") {
-        const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : 0.0;
-        localStorage.setItem("p2p_active_retailer_wallet_balance", bal.toString());
-        if (data.retailer_code || data.retailer_id) {
-          localStorage.setItem("p2p_active_retailer_id", data.retailer_code || data.retailer_id);
-        }
-      }
+      // Sync balance into useRetailerStore (in-memory only — NO localStorage write)
+      const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
+      const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
+      useRetailerStore.getState().updateWallet({
+        mainBalance: bal,
+        availableBalance: avail,
+        commissionBalance: data.todays_commission ?? 0.0,
+        todayMargin: data.todays_commission ?? 0.0,
+        todaySettlement: data.settlement_pending_amount ?? 0.0,
+      });
 
       setWalletData(data);
       setError(null);
@@ -131,6 +86,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
       setIsLoading(false);
     }
   }, []);
+
 
   // Initial fetch on component mount
   useEffect(() => {

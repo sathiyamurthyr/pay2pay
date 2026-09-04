@@ -430,10 +430,23 @@ export default function AdminTopupRequestsPage() {
     setShowAddFundModal(true);
   };
 
-  // Primary Payout + Utkal wallet
-  const payoutUtkalWallet = adminWallets.find(
-    (w) => w.service_code.toUpperCase() === "PAYOUT" && w.vendor_name.toUpperCase().includes("UTKAL")
-  ) || adminWallets.find((w) => w.service_code.toUpperCase() === "PAYOUT") || adminWallets[0];
+  // Primary Payout Wallet: UrbanRupee (Priority 1) -> Utkal (Priority 2) -> active Payout wallet
+  const primaryPayoutWallet = useMemo(() => {
+    return (
+      adminWallets.find(
+        (w) =>
+          w.service_code.toUpperCase() === "PAYOUT" &&
+          (w.vendor_code.toUpperCase().includes("URBAN") || w.vendor_name.toUpperCase().includes("URBAN"))
+      ) ||
+      adminWallets.find(
+        (w) =>
+          w.service_code.toUpperCase() === "PAYOUT" &&
+          (w.vendor_code.toUpperCase().includes("UTKAL") || w.vendor_name.toUpperCase().includes("UTKAL"))
+      ) ||
+      adminWallets.find((w) => w.service_code.toUpperCase() === "PAYOUT") ||
+      adminWallets[0]
+    );
+  }, [adminWallets]);
 
   // Single Approve
   const handleApprove = async () => {
@@ -803,10 +816,10 @@ export default function AdminTopupRequestsPage() {
             </div>
           </div>
 
-          {payoutUtkalWallet && (
+          {primaryPayoutWallet && (
             <button
-              onClick={() => openFundModalForWallet(payoutUtkalWallet)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+              onClick={() => openFundModalForWallet(primaryPayoutWallet)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
             >
               <PlusCircle className="h-4 w-4" />
               + Add Fund to Admin Wallet
@@ -817,12 +830,26 @@ export default function AdminTopupRequestsPage() {
         {/* Dynamic Service + Vendor Wallets Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {adminWallets.map((w) => {
-            const isPayoutUtkal = w.service_code.toUpperCase() === "PAYOUT" && w.vendor_name.toUpperCase().includes("UTKAL");
+            const isUrbanRupee =
+              w.service_code.toUpperCase() === "PAYOUT" &&
+              (w.vendor_code.toUpperCase().includes("URBAN") || w.vendor_name.toUpperCase().includes("URBAN"));
+            const isPrimaryPayout =
+              isUrbanRupee ||
+              (!adminWallets.some(
+                (x) =>
+                  x.service_code.toUpperCase() === "PAYOUT" &&
+                  (x.vendor_code.toUpperCase().includes("URBAN") || x.vendor_name.toUpperCase().includes("URBAN"))
+              ) &&
+                w.service_code.toUpperCase() === "PAYOUT" &&
+                w.vendor_name.toUpperCase().includes("UTKAL"));
+
             return (
               <div
                 key={w.id}
                 className={`rounded-xl p-4 border transition-all ${
-                  isPayoutUtkal
+                  isUrbanRupee
+                    ? "bg-slate-800/95 border-emerald-500/70 shadow-lg ring-1 ring-emerald-500/40"
+                    : isPrimaryPayout
                     ? "bg-slate-800/90 border-amber-400/50 shadow-md ring-1 ring-amber-400/30"
                     : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
                 }`}
@@ -833,11 +860,16 @@ export default function AdminTopupRequestsPage() {
                       Service: <strong className="text-amber-400">{w.service_name}</strong>
                     </span>
                   </div>
-                  {isPayoutUtkal && (
+                  {isUrbanRupee ? (
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 flex items-center gap-1 shadow-xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      PRIORITY 1 POS
+                    </span>
+                  ) : isPrimaryPayout ? (
                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
                       PRIMARY POS
                     </span>
-                  )}
+                  ) : null}
                 </div>
 
                 <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
@@ -1341,10 +1373,10 @@ export default function AdminTopupRequestsPage() {
                       <td className="py-3.5 px-4 text-center">
                         <div className="flex flex-col items-center">
                           <span className="font-mono font-bold text-xs text-slate-900">
-                            ₹{(item.admin_available_balance ?? payoutUtkalWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            ₹{(item.admin_available_balance ?? primaryPayoutWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </span>
                           <span className="text-[10px] text-slate-500">
-                            {item.vendor || "Utkal"}
+                            {item.vendor || "UrbanRupee"}
                           </span>
                         </div>
                       </td>
@@ -1604,7 +1636,7 @@ export default function AdminTopupRequestsPage() {
               <div className="flex items-center justify-between pt-2 border-t border-emerald-200/80">
                 <span className="text-slate-600">Primary Admin Operation Wallet:</span>
                 <span className="font-mono font-bold text-slate-900">
-                  {payoutUtkalWallet?.service_name || "Payout"} ({payoutUtkalWallet?.vendor_name || "Utkal"}) • ₹{(payoutUtkalWallet?.available_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  {primaryPayoutWallet?.service_name || "Payout"} ({primaryPayoutWallet?.vendor_name || "UrbanRupee"}) • ₹{(primaryPayoutWallet?.available_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -1918,7 +1950,7 @@ export default function AdminTopupRequestsPage() {
                       <div>
                         <span className="font-bold text-slate-800 block">2. Admin Wallet Balance:</span>
                         <span className="text-[11px] text-slate-600">
-                          {selectedRequest.service || "Payout"} ({selectedRequest.vendor || "Utkal"}) • Avail: <strong>₹{(selectedRequest.admin_available_balance ?? payoutUtkalWallet?.available_balance ?? 0).toLocaleString("en-IN")}</strong>
+                          {selectedRequest.service || "Payout"} ({selectedRequest.vendor || "UrbanRupee"}) • Avail: <strong>₹{(selectedRequest.admin_available_balance ?? primaryPayoutWallet?.available_balance ?? 0).toLocaleString("en-IN")}</strong>
                         </span>
                         {selectedRequest.is_balance_eligible === false && (
                           <span className="text-[11px] text-rose-700 block font-semibold mt-0.5">
@@ -2109,7 +2141,7 @@ export default function AdminTopupRequestsPage() {
                         {selectedRequest.is_balance_eligible === false && (
                           <button
                             onClick={() => {
-                              if (payoutUtkalWallet) openFundModalForWallet(payoutUtkalWallet);
+                              if (primaryPayoutWallet) openFundModalForWallet(primaryPayoutWallet);
                             }}
                             className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
                           >
@@ -2164,13 +2196,13 @@ export default function AdminTopupRequestsPage() {
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 font-medium">Mapped Admin Wallet:</span>
                 <span className="font-bold text-slate-800">
-                  {selectedRequest.service || "Payout"} · {selectedRequest.vendor || "Utkal"}
+                  {selectedRequest.service || "Payout"} · {selectedRequest.vendor || "UrbanRupee"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 font-medium">Admin Available Balance:</span>
                 <span className="font-mono font-black text-emerald-700">
-                  ₹{(selectedRequest.admin_available_balance ?? payoutUtkalWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹{(selectedRequest.admin_available_balance ?? primaryPayoutWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-500">

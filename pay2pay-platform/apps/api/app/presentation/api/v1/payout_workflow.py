@@ -42,16 +42,20 @@ class MobileOtpVerifyReq(BaseModel):
 class AadhaarOtpGenReq(BaseModel):
     aadhaar_number: str
     customer_id: Optional[str] = None
+    mobile_number: Optional[str] = None
     retailer_id: Optional[str] = "RET-DEFAULT"
+    verification_context: Optional[str] = "CUSTOMER_VERIFICATION"  # ONBOARDING | CUSTOMER_VERIFICATION
 
 class AadhaarOtpVerifyReq(BaseModel):
     customer_id: Optional[Any] = None
+    mobile_number: Optional[str] = None
     ref_number: Optional[str] = None
     ref_id: Optional[str] = None
     otp_code: str
     masked_aadhaar: Optional[str] = None
     aadhaar_number: Optional[str] = None
     retailer_id: Optional[str] = "RET-DEFAULT"
+    verification_context: Optional[str] = "CUSTOMER_VERIFICATION"  # ONBOARDING | CUSTOMER_VERIFICATION
 
 class CustomerFinalizeOnboardingReq(BaseModel):
     ref_id: Optional[str] = None
@@ -193,6 +197,19 @@ async def verify_mobile_otp(
     return {"status": "SUCCESS", "data": res}
 
 
+@router.get("/aadhaar/charge-preview")
+async def get_aadhaar_charge_preview(
+    verification_context: str = Query(default="CUSTOMER_VERIFICATION", description="ONBOARDING or CUSTOMER_VERIFICATION"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns the dynamic Aadhaar verification charge breakdown for the given context.
+    Frontend must display ONLY these values — never hardcode charges.
+    """
+    from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
+    preview = await AadhaarEkycWorkflowService.get_charge_preview(db=db, verification_context=verification_context)
+    return {"status": "SUCCESS", "data": preview}
+
+
 @router.post("/aadhaar-otp/generate")
 async def generate_aadhaar_otp(
     req: AadhaarOtpGenReq,
@@ -202,9 +219,46 @@ async def generate_aadhaar_otp(
     db: AsyncSession = Depends(get_db)
 ):
     from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
+    from app.core.security import decode_access_token
+    from fastapi import status
+
+    ctx = (req.verification_context or "CUSTOMER_VERIFICATION").strip().upper()
+
+    # Requirement 22: Retailer-only access enforcement for paid verification
+    if ctx not in ("ONBOARDING", "ONBOARDING_VERIFICATION"):
+        token = None
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+        if not token:
+            token = (
+                request.cookies.get("p2p_access_token") or
+                request.cookies.get("pay2pay_access_token") or
+                request.cookies.get("pay2pay_auth_token") or
+                request.cookies.get("access_token")
+            )
+        if token:
+            payload = decode_access_token(token)
+            if payload:
+                roles = payload.get("roles") or []
+                if isinstance(roles, str):
+                    roles = [roles]
+                role_claim = str(payload.get("role") or "").upper()
+                all_roles = [str(r).upper() for r in roles]
+                if role_claim and role_claim not in all_roles:
+                    all_roles.append(role_claim)
+                disallowed = {"ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "DISTRIBUTOR", "SUPER_DISTRIBUTOR", "SD"}
+                if any(r in disallowed for r in all_roles) and not any(r == "RETAILER" for r in all_roles):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Paid Aadhaar verification service is strictly restricted to Retailer accounts."
+                    )
+
     ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id") or "P2P-R404667"
     res = await AadhaarEkycWorkflowService.generate_otp(
-        db, tenant_id, ret_identifier, req.customer_id, req.aadhaar_number
+        db, tenant_id, ret_identifier, req.customer_id, req.aadhaar_number,
+        verification_context=ctx,
+        mobile_number=req.mobile_number
     )
     return {"status": "SUCCESS", "data": res}
 
@@ -222,7 +276,9 @@ async def verify_aadhaar_otp(
     cust_id = str(req.customer_id) if req.customer_id else None
     ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id") or "P2P-R404667"
     res = await AadhaarEkycWorkflowService.verify_otp(
-        db, tenant_id, ret_identifier, cust_id, ref, req.otp_code, req.aadhaar_number
+        db, tenant_id, ret_identifier, cust_id, ref, req.otp_code, req.aadhaar_number,
+        verification_context=req.verification_context,
+        mobile_number=req.mobile_number
     )
     return {"status": "SUCCESS", "data": res}
 
@@ -238,7 +294,9 @@ async def finalize_customer_onboarding(
     from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
     ref_val = req.ref_id or req.ref_number or f"CF-AADHAAR-{int(time.time())}"
     mpin_val = req.mpin or req.pin or "1234"
-    mobile_val = req.mobile_number or "7013914767"
+    mobile_val = req.mobile_number
+    if not mobile_val:
+        raise HTTPException(status_code=400, detail="Mobile number is required to finalize customer onboarding.")
     res = await AadhaarEkycWorkflowService.finalize_customer_onboarding(
         db=db,
         tenant_id=tenant_id,
@@ -328,11 +386,11 @@ async def execute_payout(
     current_user: Optional[AdminUserModel] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    retailer_uuid = getattr(current_user, "public_id", None) or uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
+    retailer_uuid = getattr(current_user, "public_id", None) or tenant_id
     res = await PayoutWorkflowService.execute_payout(
         db,
         tenant_id=tenant_id,
-        retailer_id=current_user.public_id,
+        retailer_id=retailer_uuid,
         customer_id=req.customer_id,
         beneficiary_id=req.beneficiary_id,
         amount=req.amount,
@@ -374,12 +432,11 @@ async def add_and_verify_epic014_beneficiary(
             pass
 
         if not cust_uuid:
-            clean_str = req.customer_id.replace("CUST-", "").replace("cust-", "")
+            clean_str = req.customer_id.replace("CUST-", "").replace("cust-", "").strip()
             stmt = select(CustomerModel).where(
                 or_(
-                    CustomerModel.mobile_number.like(f"%{clean_str}%"),
-                    CustomerModel.customer_number.like(f"%{clean_str}%"),
-                    CustomerModel.mobile_number == "7013914767",
+                    CustomerModel.mobile_number == clean_str,
+                    CustomerModel.customer_number == clean_str,
                 )
             )
             found_cust = (await db.execute(stmt)).scalars().first()
@@ -387,9 +444,21 @@ async def add_and_verify_epic014_beneficiary(
                 cust_uuid = found_cust.public_id
 
     if not cust_uuid:
-        stmt_default = select(CustomerModel).where(CustomerModel.mobile_number == "7013914767")
-        default_cust = (await db.execute(stmt_default)).scalars().first()
-        cust_uuid = default_cust.public_id if default_cust else uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
+        raise HTTPException(
+            status_code=400,
+            detail="A valid customer ID or registered mobile number is required to add a beneficiary."
+        )
+
+    stmt_c = select(CustomerModel).where(CustomerModel.public_id == cust_uuid)
+    cust_obj = (await db.execute(stmt_c)).scalars().first()
+    if not cust_obj:
+        raise HTTPException(status_code=404, detail="Customer not found in system.")
+
+    if cust_obj.kyc_status not in ("APPROVED", "VERIFIED") or cust_obj.customer_status != "ACTIVE":
+        raise HTTPException(
+            status_code=400,
+            detail="Beneficiary can only be added for a verified customer (KYC Approved). Please complete Aadhaar eKYC verification first."
+        )
 
     res = await Epic014BeneficiaryService.register_and_verify_beneficiary(
         db=db,
@@ -461,12 +530,11 @@ async def check_duplicate_account_endpoint(
         except Exception:
             pass
         if not cust_uuid:
-            clean_str = req.customer_id.replace("CUST-", "").replace("cust-", "")
+            clean_str = req.customer_id.replace("CUST-", "").replace("cust-", "").strip()
             stmt = select(CustomerModel).where(
                 or_(
-                    CustomerModel.mobile_number.like(f"%{clean_str}%"),
-                    CustomerModel.customer_number.like(f"%{clean_str}%"),
-                    CustomerModel.mobile_number == "7013914767",
+                    CustomerModel.mobile_number == clean_str,
+                    CustomerModel.customer_number == clean_str,
                 )
             )
             found_cust = (await db.execute(stmt)).scalars().first()
@@ -474,7 +542,7 @@ async def check_duplicate_account_endpoint(
                 cust_uuid = found_cust.public_id
 
     if not cust_uuid:
-        cust_uuid = uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
+        return {"is_duplicate": False}
 
     res = await Epic014BeneficiaryService.check_existing_account_for_customer(
         db=db,

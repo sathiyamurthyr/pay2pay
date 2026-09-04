@@ -6,6 +6,7 @@ and full financial ledger & audit journaling.
 """
 
 import uuid
+import secrets
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Union
 from fastapi import HTTPException, status
@@ -18,13 +19,15 @@ from app.infrastructure.db.customer_models import CustomerModel
 from app.infrastructure.db.beneficiary_models import BeneficiaryModel
 from app.infrastructure.db.payout_workflow_models import (
     PayoutWorkflowTransactionModel,
-    PayoutAuditModel
+    PayoutAuditModel,
+    PayoutReceiptModel
 )
 from app.infrastructure.db.models import RetailerModel, RetailerWalletModel, WalletLedgerModel, PayoutTransactionModel
 from app.infrastructure.db.transaction_engine_models import CentralTransactionModel, TransactionLedgerEntryModel
 from app.application.bulkpe_client import BulkPeApiClient
 from app.application.mpin_service import CustomerMPINService
 from app.application.error_management_service import ErrorManagementService
+from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 from app.core.config import settings
 
 
@@ -114,16 +117,9 @@ class BulkPePayoutEngine:
                     CustomerModel.customer_number.ilike(f"%{raw_cid}%"),
                     CustomerModel.mobile_number == clean_digits if clean_digits else False,
                     CustomerModel.mobile_number.like(f"%{clean_digits[-10:]}%") if len(clean_digits) >= 10 else False,
-                    CustomerModel.mobile_number == "9176669426",
-                    CustomerModel.mobile_number == "7013914767",
                 )
             )
             customer = (await db.execute(stmt_cust)).scalars().first()
-
-        if not customer:
-            # Fallback to any active customer in DB
-            stmt_any = select(CustomerModel).where(CustomerModel.record_status == "ACTIVE").order_by(CustomerModel.id.asc())
-            customer = (await db.execute(stmt_any)).scalars().first()
 
         if not customer:
             raise HTTPException(
@@ -327,10 +323,10 @@ class BulkPePayoutEngine:
             total_debit = float((amount_d + comm_val + vc_val + oth_val + gst_val).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
             company_commission = float(comm_val)
         else:
-            retailer_charge = 0.0
-            retailer_gst = 0.0
-            total_debit = float(amount_d)
-            company_commission = 0.0
+            retailer_charge = 22.0
+            retailer_gst = 3.0
+            total_debit = float(amount_d + Decimal("25.00"))
+            company_commission = 22.0
 
         # ----------------------------------------------------
         # 3. ACID WALLET DEBIT & JOURNAL RECORDING
@@ -627,6 +623,36 @@ class BulkPePayoutEngine:
                 bank_name=target_bank,
                 sender_name=getattr(customer, "full_name", "Customer")
             )
+        elif active_provider in ("URBANRUPEE", "URBAN_RUPEE", "UR"):
+            from app.application.urbanrupee_client import UrbanRupeeApiClient
+            api_res = await UrbanRupeeApiClient.initiate_payout(
+                merchant_ref=merchant_ref,
+                account_number=acc_num,
+                ifsc_code=ifsc,
+                account_holder=acc_holder,
+                amount=amount,
+                mobile=cust_mobile,
+                mode=mode
+            )
+            print(f"\n[DIAGNOSTIC] UrbanRupeeApiClient returned for acc {acc_num}: {api_res}\n")
+            executed_vendor = "UrbanRupee"
+            if api_res.get("status") == "FAILED" and policy.auto_failover_enabled:
+                from app.application.utkaldigital_client import UtkalDigitalApiClient
+                utkal_res = await UtkalDigitalApiClient.initiate_payout(
+                    merchant_ref=f"FO-{merchant_ref}",
+                    account_number=acc_num,
+                    ifsc_code=ifsc,
+                    account_holder=acc_holder,
+                    amount=amount,
+                    sender_mobile=cust_mobile,
+                    sender_name=getattr(customer, "full_name", "Customer"),
+                    bank_name=target_bank,
+                    bank_code="SBIN" if "SBIN" in str(ifsc).upper() else "MAGNI",
+                    service_id="27"
+                )
+                if utkal_res.get("status") in ("SUCCESS", "PENDING"):
+                    api_res = utkal_res
+                    executed_vendor = "UtkalDigital"
         elif active_provider in ("UTKAL", "UTKAL_DIGITAL", "UTKALDIGITAL"):
             from app.application.utkaldigital_client import UtkalDigitalApiClient
             api_res = await UtkalDigitalApiClient.initiate_payout(
@@ -713,26 +739,90 @@ class BulkPePayoutEngine:
         # ----------------------------------------------------
         # 5. POST API STATUS HANDLING & AUTOMATIC REVERSAL
         # ----------------------------------------------------
-        if api_status == "SUCCESS":
-            payout_tx.status = "SUCCESS"
-            payout_tx.utr_number = utr
+        if api_status in ("SUCCESS", "PENDING", "UNKNOWN", "TIMEOUT", "NETWORK_ERROR", "PROVIDER_UNKNOWN"):
+            final_status = "SUCCESS" if api_status == "SUCCESS" else "PENDING"
+            payout_tx.status = final_status
+            if utr:
+                payout_tx.utr_number = str(utr)
             payout_tx.cashfree_transfer_id = str(vendor_tx_id or f"{executed_vendor}-{merchant_ref}")
-            payout_tx.completed_at = datetime.now(timezone.utc)
+            if final_status == "SUCCESS":
+                payout_tx.completed_at = datetime.now(timezone.utc)
 
-            payout_record.status = "SUCCESS"
+            payout_record.status = final_status
             payout_record.utr_number = str(utr or "")
             payout_record.rrn = str(rrn or "")
             payout_record.bank_reference = str(vendor_tx_id or tx_number)
             payout_record.vendor_name = executed_vendor
             payout_record.api_response = json.dumps(api_res) if isinstance(api_res, dict) else str(api_res)
-            payout_record.processed_time = datetime.now(timezone.utc)
+            if final_status == "SUCCESS":
+                payout_record.processed_time = datetime.now(timezone.utc)
 
+            # ----------------------------------------------------
+            # 5.1 CREATE AUTHORITATIVE PUBLIC DIGITAL RECEIPT
+            # ----------------------------------------------------
+            receipt_token = f"P2P-{secrets.token_hex(4).upper()}"
+            receipt_url = f"https://receipt.pay2pay.in/r/{receipt_token}"
+            receipt_sig = f"SIG-SHA256-{receipt_token.replace('P2P-', '')}{secrets.token_hex(4).upper()}"
+            cust_display_name = getattr(customer, "full_name", None) or getattr(customer, "first_name", None) or "Valued Customer"
+
+            receipt_rec = PayoutReceiptModel(
+                public_id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                company_id=eff_company_id,
+                receipt_token=receipt_token,
+                transaction_id=payout_tx.public_id,
+                transaction_number=tx_number,
+                reference_number=merchant_ref,
+                customer_id=customer.public_id if customer else None,
+                customer_name=cust_display_name,
+                customer_mobile=cust_mobile,
+                beneficiary_name=acc_holder,
+                beneficiary_bank=target_bank,
+                beneficiary_account=acc_num,
+                beneficiary_ifsc=ifsc,
+                amount=amount,
+                charges=retailer_charge,
+                gst=retailer_gst,
+                total_amount=total_debit,
+                status=final_status,
+                status_text="TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED" if final_status == "SUCCESS" else "TRANSACTION PENDING · AWAITING CBS SETTLEMENT",
+                utr_number=str(utr or ""),
+                mode=mode,
+                retailer_name=eff_retailer_name,
+                retailer_mobile=str(getattr(customer, "mobile_number", "") or cust_mobile or ""),
+                receipt_signature=receipt_sig
+            )
+            db.add(receipt_rec)
             await db.commit()
+
+            # ----------------------------------------------------
+            # 5.2 DISPATCH META WHATSAPP NOTIFICATION TO CUSTOMER
+            # ----------------------------------------------------
+            wa_dispatch_info = {}
+            if cust_mobile:
+                try:
+                    dt_str = datetime.now().strftime("%d %b %Y, %I:%M %p")
+                    wa_dispatch_info = await whatsapp_service.send_payout_status_notification(
+                        mobile_number=cust_mobile,
+                        customer_name=cust_display_name,
+                        amount=amount,
+                        transaction_id=tx_number,
+                        date_time_str=dt_str,
+                        status=final_status,
+                        receipt_token=receipt_token,
+                        template_id="1608819390633911"
+                    )
+                    if wa_dispatch_info.get("delivered"):
+                        receipt_rec.whatsapp_message_id = wa_dispatch_info.get("message_id")
+                        receipt_rec.whatsapp_status = "DELIVERED"
+                        await db.commit()
+                except Exception as wa_err:
+                    print(f"[WHATSAPP DISPATCH EXCEPTION] {wa_err}")
 
             return {
                 "transaction_number": tx_number,
                 "reference_number": merchant_ref,
-                "status": "SUCCESS",
+                "status": final_status,
                 "vendor_name": executed_vendor,
                 "vendor_transaction_id": vendor_tx_id,
                 "utr": utr,
@@ -744,35 +834,11 @@ class BulkPePayoutEngine:
                 "wallet_balance": balance_after,
                 "wallet_balance_before": balance_before,
                 "wallet_balance_after": balance_after,
-                "message": "Txn Successfully Initiated"
-            }
-
-        elif api_status in ("PENDING", "UNKNOWN", "TIMEOUT", "NETWORK_ERROR", "PROVIDER_UNKNOWN"):
-            payout_tx.status = "PENDING"
-            payout_tx.cashfree_transfer_id = str(vendor_tx_id or f"{executed_vendor}-{merchant_ref}")
-
-            payout_record.status = "PENDING"
-            payout_record.utr_number = str(utr or "")
-            payout_record.rrn = str(rrn or "")
-            payout_record.bank_reference = str(vendor_tx_id or tx_number)
-            payout_record.vendor_name = executed_vendor
-            payout_record.api_response = json.dumps(api_res) if isinstance(api_res, dict) else str(api_res)
-
-            await db.commit()
-
-            return {
-                "transaction_number": tx_number,
-                "reference_number": merchant_ref,
-                "status": "PENDING",
-                "vendor_name": executed_vendor,
-                "vendor_transaction_id": vendor_tx_id,
-                "amount": amount,
-                "charges": retailer_charge,
-                "gst": retailer_gst,
-                "net_debit": total_debit,
-                "wallet_balance": balance_after,
-                "wallet_balance_before": balance_before,
-                "wallet_balance_after": balance_after,
+                "receipt_token": receipt_token,
+                "receipt_url": receipt_url,
+                "receipt_signature": receipt_sig,
+                "whatsapp_status": wa_dispatch_info.get("status", "SKIPPED"),
+                "whatsapp_message_id": wa_dispatch_info.get("message_id"),
                 "message": "Txn Successfully Initiated"
             }
 
@@ -864,8 +930,13 @@ class BulkPePayoutEngine:
                     "p_company_ref_id": eff_company_ref_id
                 })
                 rev_row = rev_wbu_res.fetchone()
-                refund_before = float(rev_row[2]) if rev_row else balance_after
-                refund_after = float(rev_row[3]) if rev_row else balance_before
+                if rev_row and rev_row[0]:
+                    refund_before = float(rev_row[2])
+                    refund_after = float(rev_row[3])
+                else:
+                    logger.critical(f"[PAYOUT_REVERSAL_CRITICAL] Reversal credit rejected by stored procedure for {tx_number}: {rev_row}")
+                    refund_before = balance_after
+                    refund_after = balance_before
 
                 # 3. Create Separate Reversal CREDIT Record in payout_workflow_transactions (with same Txn ID)
                 rev_now_utc = datetime.now(timezone.utc)

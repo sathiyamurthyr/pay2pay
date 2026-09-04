@@ -119,20 +119,12 @@ async def get_beneficiary_context(
     session_obj = res.scalars().first()
 
     if not session_obj:
-        customer_data = {
-            "customer_id": "cust-8f64d450-7013914767",
-            "full_name": "Ramesh Kumar",
-            "mobile_number": "7013914767",
-            "kyc_status": "VERIFIED",
-            "monthly_limit": 250000.0,
-            "remaining_limit": 215000.0,
-        }
         return APIResponse(
             data={
-                "session_id": "BSESSION-DEFAULT",
-                "customer": customer_data,
+                "session_id": None,
+                "customer": None,
                 "retailer": {"retailer_id": str(current_user.id), "email": current_user.email},
-                "wallet": {"balance": 48250.75},
+                "wallet": {"balance": 0.0},
                 "permissions": ["BENEFICIARY_REGISTER", "BENEFICIARY_VERIFY", "DMT_TRANSFER"],
             }
         )
@@ -146,9 +138,9 @@ async def get_beneficiary_context(
     await db.commit()
 
     customer_info = {
-        "customer_id": str(session_obj.customer_id) if session_obj.customer_id else "cust-default",
-        "full_name": session_obj.customer_name or "Ramesh Kumar",
-        "mobile_number": session_obj.customer_mobile or "7013914767",
+        "customer_id": str(session_obj.customer_id) if session_obj.customer_id else "",
+        "full_name": session_obj.customer_name or "Customer",
+        "mobile_number": session_obj.customer_mobile or "",
         "kyc_status": "VERIFIED",
         "monthly_limit": 250000.0,
         "remaining_limit": 215000.0,
@@ -454,23 +446,34 @@ async def add_and_verify_epic014_beneficiary(
 
         # 2. If not a valid UUID string, lookup in DB by mobile or customer_number
         if not cust_uuid:
-            clean_str = req.customer_id.replace("CUST-", "").replace("cust-", "")
+            clean_str = req.customer_id.replace("CUST-", "").replace("cust-", "").strip()
             stmt = select(CustomerModel).where(
                 or_(
-                    CustomerModel.mobile_number.like(f"%{clean_str}%"),
-                    CustomerModel.customer_number.like(f"%{clean_str}%"),
-                    CustomerModel.mobile_number == "7013914767",
+                    CustomerModel.mobile_number == clean_str,
+                    CustomerModel.customer_number == clean_str,
                 )
             )
             found_cust = (await db.execute(stmt)).scalars().first()
             if found_cust:
                 cust_uuid = found_cust.public_id
 
-    # 3. Fallback to default customer Ramesh Kumar UUID if still not resolved
     if not cust_uuid:
-        stmt_default = select(CustomerModel).where(CustomerModel.mobile_number == "7013914767")
-        default_cust = (await db.execute(stmt_default)).scalars().first()
-        cust_uuid = default_cust.public_id if default_cust else uuid.UUID("8f64d450-8b7c-4414-a998-52f1d99e01b1")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A valid customer ID or registered mobile number is required to add a beneficiary."
+        )
+
+    # 3. Strict Customer Verification Gate
+    stmt_c = select(CustomerModel).where(CustomerModel.public_id == cust_uuid)
+    cust_obj = (await db.execute(stmt_c)).scalars().first()
+    if not cust_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer record not found in system.")
+
+    if cust_obj.kyc_status not in ("APPROVED", "VERIFIED") or cust_obj.customer_status != "ACTIVE":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Beneficiary can only be added for a verified customer (KYC Approved). Please complete Aadhaar eKYC verification first."
+        )
 
     # 4. Resolve Target Retailer Entity for Wallet Operation
     retailer_uuid = None

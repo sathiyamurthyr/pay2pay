@@ -295,19 +295,17 @@ export function CustomerMasterSlideOver({
     if (mobileStatusState !== "NEW_CUSTOMER" || mobileNumber.length !== 10) return;
 
     setStep1Loading(true);
-    const regRes = await retailerApi.registerPayoutCustomer({
+    // In-memory draft only — no database row created before Aadhaar verification!
+    setCreatedCustomer({
       first_name: firstName,
       last_name: lastName,
       mobile_number: mobileNumber,
       email: email || undefined,
+      kyc_status: "PENDING_VERIFICATION",
     });
     setStep1Loading(false);
-
-    if (regRes.status === "SUCCESS") {
-      setCreatedCustomer(regRes.data);
-      triggerMobileOtp("WHATSAPP");
-      setActiveStep(1);
-    }
+    triggerMobileOtp("WHATSAPP");
+    setActiveStep(1);
   };
 
   // Step 3: Generate Aadhaar OTP
@@ -319,14 +317,14 @@ export function CustomerMasterSlideOver({
     }
     setStep3Error("");
     setStep3Loading(true);
-    const res = await retailerApi.generateAadhaarOtp(cleanAadhaar);
+    const res = await retailerApi.generateAadhaarOtp(cleanAadhaar, createdCustomer?.public_id, mobileNumber, "ONBOARDING");
     setStep3Loading(false);
 
     if (res.status === "SUCCESS") {
       setStep3Error("");
       setAadhaarOtpSent(true);
-      setAadhaarRefNum(res.data.ref_number);
-      setMaskedAadhaar(res.data.masked_aadhaar);
+      setAadhaarRefNum(res.data?.ref_id || res.data?.ref_number);
+      setMaskedAadhaar(res.data?.masked_aadhaar || `XXXX-XXXX-${cleanAadhaar.slice(-4)}`);
       notificationEngine.notify("OTP_RECEIVED", "Aadhaar eKYC OTP Dispatched");
     } else {
       setStep3Error(res.error || res.message || "Failed to generate Aadhaar OTP. Please check your Aadhaar number.");
@@ -342,9 +340,12 @@ export function CustomerMasterSlideOver({
     setStep3Loading(true);
     const res = await retailerApi.verifyAadhaarOtp({
       customer_id: createdCustomer.public_id,
+      mobile_number: mobileNumber,
       ref_number: aadhaarRefNum,
       otp_code: aadhaarOtp,
       masked_aadhaar: maskedAadhaar,
+      aadhaar_number: aadhaarNumber,
+      verification_context: "ONBOARDING",
     });
     setStep3Loading(false);
 
@@ -353,6 +354,15 @@ export function CustomerMasterSlideOver({
       const profileData = res.data || res.profile || {};
       setEkycVerified(true);
       setEkycProfile(profileData);
+      if (profileData.customer_id || profileData.public_id) {
+        setCreatedCustomer({
+          ...createdCustomer,
+          public_id: profileData.customer_id || profileData.public_id,
+          id: profileData.customer_number || profileData.id,
+          customer_number: profileData.customer_number,
+          kyc_status: profileData.kyc_status || "APPROVED",
+        });
+      }
       const photo = profileData.photo_url || profileData.photo_base64 || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200";
       setCustomerPhotoUrl(photo);
 

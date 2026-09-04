@@ -166,6 +166,7 @@ export const RetailerDashboardView: React.FC = () => {
   const [liveFeed, setLiveFeed] = useState<LiveFeedItem[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealthService[]>([]);
 
   // Active Chart Tab & Timeframe
@@ -178,30 +179,61 @@ export const RetailerDashboardView: React.FC = () => {
     try {
       const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
       let activeRetailerId = "";
+      let resolvedUserId = "";
       if (typeof window !== "undefined") {
+        try {
+          const userStr =
+            localStorage.getItem("user_info") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("auth_user") ||
+            localStorage.getItem("pay2pay_user_data");
+          if (userStr) {
+            const u = JSON.parse(userStr);
+            resolvedUserId = u.id || u.public_id || u.retailer_id || "";
+          }
+        } catch {}
         activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+        if (!resolvedUserId) {
+          resolvedUserId = activeRetailerId || localStorage.getItem("p2p_user_id") || "";
+        }
       }
       const queryParam = activeRetailerId ? `retailer_id=${activeRetailerId}` : "";
       const qPrefix = queryParam ? `?${queryParam}` : "";
       const qAnd = queryParam ? `&${queryParam}` : "";
 
-      const [finRes, opsRes, chRes, feedRes, altRes, actRes, sysRes] = await Promise.all([
+      const notifParams = new URLSearchParams();
+      if (resolvedUserId) notifParams.set("user_id", resolvedUserId);
+      notifParams.set("limit", "15");
+
+      const [finRes, opsRes, chRes, feedRes, altRes, actRes, sysRes, notifRes] = await Promise.allSettled([
         fetch(`${baseUrl}/financial-kpis${qPrefix}`),
         fetch(`${baseUrl}/operations-kpis${qPrefix}`),
         fetch(`${baseUrl}/charts?timeframe=${timeframe}${qAnd}`),
         fetch(`${baseUrl}/live-feed${qPrefix}`),
         fetch(`${baseUrl}/business-alerts${qPrefix}`),
         fetch(`${baseUrl}/recent-activity${qPrefix}`),
-        fetch(`${baseUrl}/system-health`)
+        fetch(`${baseUrl}/system-health`),
+        fetch(`/api/v1/notifications/recent?${notifParams.toString()}`)
       ]);
 
-      if (finRes.ok) setFinKpis(await finRes.json());
-      if (opsRes.ok) setOpsKpis(await opsRes.json());
-      if (chRes.ok) setCharts(await chRes.json());
-      if (feedRes.ok) setLiveFeed((await feedRes.json()).items || []);
-      if (altRes.ok) setAlerts((await altRes.json()).alerts || []);
-      if (actRes.ok) setActivities((await actRes.json()).activities || []);
-      if (sysRes.ok) setSystemHealth((await sysRes.json()).services || []);
+      if (finRes.status === "fulfilled" && finRes.value.ok) setFinKpis(await finRes.value.json());
+      if (opsRes.status === "fulfilled" && opsRes.value.ok) setOpsKpis(await opsRes.value.json());
+      if (chRes.status === "fulfilled" && chRes.value.ok) setCharts(await chRes.value.json());
+      if (feedRes.status === "fulfilled" && feedRes.value.ok) setLiveFeed((await feedRes.value.json()).items || []);
+      if (altRes.status === "fulfilled" && altRes.value.ok) setAlerts((await altRes.value.json()).alerts || []);
+      if (actRes.status === "fulfilled" && actRes.value.ok) setActivities((await actRes.value.json()).activities || []);
+      if (sysRes.status === "fulfilled" && sysRes.value.ok) setSystemHealth((await sysRes.value.json()).services || []);
+      if (notifRes.status === "fulfilled" && notifRes.value.ok) {
+        const notifJson = await notifRes.value.json();
+        const items = Array.isArray(notifJson?.data)
+          ? notifJson.data
+          : Array.isArray(notifJson)
+          ? notifJson
+          : Array.isArray(notifJson?.items)
+          ? notifJson.items
+          : [];
+        setNotifications(items);
+      }
     } catch (e) {
       console.error("Failed to load enterprise dashboard data", e);
     } finally {
@@ -209,14 +241,24 @@ export const RetailerDashboardView: React.FC = () => {
     }
   };
 
-  // NO auto-fetch on mount — dashboard data only loads when user clicks Refresh
-  // Timeframe changes only refetch if data was already loaded
+  // Auto-fetch immediately on mount and when timeframe changes
   useEffect(() => {
-    if (hasLoaded) {
-      fetchDashboardData();
-    }
+    fetchDashboardData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
+
+  // Real-time synchronization from NotificationCenter header component
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (e.detail?.notifications && Array.isArray(e.detail.notifications)) {
+        setNotifications(e.detail.notifications);
+      }
+    };
+    window.addEventListener("pay2pay:notifications_synced", handleSync);
+    return () => {
+      window.removeEventListener("pay2pay:notifications_synced", handleSync);
+    };
+  }, []);
 
   // Keyboard Shortcuts Listener
   useEffect(() => {
@@ -728,32 +770,140 @@ export const RetailerDashboardView: React.FC = () => {
           </Paper>
         </Grid>
 
-        {/* Business Alerts */}
+        {/* Business Alerts & System Notifications */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)", height: "100%" }}>
-            <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px", display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-              <WarningIcon color="warning" sx={{ fontSize: 20 }} /> System Alerts
-            </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {alerts.map((alt) => (
-                <Box
-                  key={alt.id}
-                  sx={{
-                    p: 1.75,
-                    borderRadius: 2,
-                    backgroundColor: alt.priority === "CRITICAL" ? "rgba(220, 38, 38, 0.1)" : "rgba(217, 119, 6, 0.1)",
-                    border: `1px solid ${alt.priority === "CRITICAL" ? "rgba(248, 113, 113, 0.3)" : "rgba(251, 191, 36, 0.3)"}`
-                  }}
-                >
-                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5, alignItems: "center" }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: alt.priority === "CRITICAL" ? "#FCA5A5" : "#FDE047", fontSize: "13px" }}>
-                      {alt.title}
-                    </Typography>
-                    <Chip label={alt.priority} size="small" sx={{ height: 18, fontSize: "10px", fontWeight: 700 }} />
-                  </Box>
-                  <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", lineHeight: 1.4 }}>{alt.message}</Typography>
-                </Box>
-              ))}
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)", height: "100%", display: "flex", flexDirection: "column" }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+              <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px", display: "flex", alignItems: "center", gap: 1 }}>
+                <WarningIcon color="warning" sx={{ fontSize: 20 }} /> Live Alerts & Updates
+                {(alerts.length > 0 || notifications.length > 0) && (
+                  <Chip
+                    label={alerts.length + notifications.length}
+                    size="small"
+                    sx={{
+                      height: 18,
+                      fontSize: "10px",
+                      fontWeight: 900,
+                      bgcolor: "rgba(251, 191, 36, 0.2)",
+                      color: "#FDE047",
+                      border: "1px solid rgba(251, 191, 36, 0.4)",
+                    }}
+                  />
+                )}
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => router.push("/retailer/notifications")}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: "11.5px",
+                  color: "#FDE047",
+                  minWidth: 0,
+                  p: "2px 6px",
+                  "&:hover": { color: "#FEF08A", backgroundColor: "rgba(251, 191, 36, 0.12)" },
+                }}
+              >
+                View All →
+              </Button>
+            </Box>
+
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, flex: 1, overflowY: "auto", maxHeight: 290, pr: 0.5 }}>
+              {alerts.length === 0 && notifications.length === 0 ? (
+                <Typography sx={{ color: "#64748B", fontSize: "12px", textAlign: "center", py: 4 }}>
+                  All systems operating normally.
+                </Typography>
+              ) : (
+                <>
+                  {alerts.map((alt) => (
+                    <Box
+                      key={alt.id}
+                      sx={{
+                        p: 1.75,
+                        borderRadius: 2,
+                        backgroundColor: alt.priority === "CRITICAL" ? "rgba(220, 38, 38, 0.1)" : "rgba(217, 119, 6, 0.1)",
+                        border: `1px solid ${alt.priority === "CRITICAL" ? "rgba(248, 113, 113, 0.3)" : "rgba(251, 191, 36, 0.3)"}`
+                      }}
+                    >
+                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5, alignItems: "center" }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: alt.priority === "CRITICAL" ? "#FCA5A5" : "#FDE047", fontSize: "13px" }}>
+                          {alt.title}
+                        </Typography>
+                        <Chip label={alt.priority} size="small" sx={{ height: 18, fontSize: "10px", fontWeight: 700 }} />
+                      </Box>
+                      <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", lineHeight: 1.4 }}>{alt.message}</Typography>
+                    </Box>
+                  ))}
+
+                  {notifications.map((notif: any) => {
+                    const isSuccess = (notif.status || "").toUpperCase() === "SUCCESS";
+                    const isTxn = (notif.type || "").toUpperCase() === "TRANSACTION";
+                    const isCredit = (notif.type || "").toUpperCase() === "CREDIT";
+
+                    return (
+                      <Box
+                        key={notif.id}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          backgroundColor: isSuccess ? "rgba(34, 197, 94, 0.12)" : "rgba(56, 189, 248, 0.12)",
+                          border: isSuccess ? "1px solid rgba(74, 222, 128, 0.3)" : "1px solid rgba(56, 189, 248, 0.3)",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.4, alignItems: "center" }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: isSuccess ? "#86EFAC" : "#7DD3FC", fontSize: "13px" }}>
+                            {notif.title}
+                          </Typography>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}>
+                            {notif.amount && Number(notif.amount) > 0 && (
+                              <Typography sx={{ fontWeight: 800, color: "#4ADE80", fontSize: "12px", fontFamily: "monospace" }}>
+                                {isCredit || isTxn ? "+" : ""}₹{formatAmount(notif.amount)}
+                              </Typography>
+                            )}
+                            <Chip
+                              label={notif.status || notif.type || "INFO"}
+                              size="small"
+                              sx={{
+                                height: 17,
+                                fontSize: "9px",
+                                fontWeight: 800,
+                                bgcolor: isSuccess ? "rgba(34, 197, 94, 0.2)" : "rgba(56, 189, 248, 0.2)",
+                                color: isSuccess ? "#4ADE80" : "#38BDF8",
+                              }}
+                            />
+                          </Box>
+                        </Box>
+                        <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", lineHeight: 1.35 }}>
+                          {notif.message}
+                        </Typography>
+                        {notif.reference && (
+                          <Box sx={{ mt: 0.5, pt: 0.4, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between" }}>
+                            <Chip
+                              label={notif.reference}
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(notif.reference);
+                              }}
+                              sx={{
+                                height: 18,
+                                fontSize: "9.5px",
+                                fontFamily: "monospace",
+                                bgcolor: "rgba(251, 191, 36, 0.12)",
+                                color: "#FDE68A",
+                                cursor: "pointer",
+                              }}
+                            />
+                            <Typography sx={{ color: "#94A3B8", fontSize: "10px" }}>
+                              {notif.created_at ? new Date(notif.created_at).toLocaleTimeString("en-IN", { timeStyle: "short" }) : ""}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    );
+                  })}
+                </>
+              )}
             </Box>
           </Paper>
         </Grid>
@@ -804,12 +954,30 @@ export const RetailerDashboardView: React.FC = () => {
           <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, backgroundColor: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)", height: "100%" }}>
             <Typography variant="h3" sx={{ fontWeight: 700, color: "#FFFFFF", fontSize: "16px", mb: 2 }}>Activity Log</Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {activities.map((act) => (
-                <Box key={act.id} sx={{ p: 1.75, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#60A5FA", fontSize: "13px" }}>{act.title}</Typography>
-                  <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", mt: 0.3, lineHeight: 1.4 }}>{act.desc}</Typography>
-                </Box>
-              ))}
+              {activities.length === 0 && notifications.length === 0 ? (
+                <Typography sx={{ color: "#64748B", fontSize: "12px", textAlign: "center", py: 3 }}>
+                  No recent activities recorded.
+                </Typography>
+              ) : activities.length > 0 ? (
+                activities.map((act) => (
+                  <Box key={act.id} sx={{ p: 1.75, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#60A5FA", fontSize: "13px" }}>{act.title}</Typography>
+                    <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", mt: 0.3, lineHeight: 1.4 }}>{act.desc}</Typography>
+                  </Box>
+                ))
+              ) : (
+                notifications.slice(0, 4).map((notif: any) => (
+                  <Box key={notif.id} sx={{ p: 1.5, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#60A5FA", fontSize: "13px" }}>{notif.title}</Typography>
+                      <Typography sx={{ color: "#94A3B8", fontSize: "10px" }}>
+                        {notif.created_at ? new Date(notif.created_at).toLocaleTimeString("en-IN", { timeStyle: "short" }) : ""}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ color: "#CBD5E1", fontSize: "12px", mt: 0.3, lineHeight: 1.4 }}>{notif.message}</Typography>
+                  </Box>
+                ))
+              )}
             </Box>
           </Paper>
         </Grid>

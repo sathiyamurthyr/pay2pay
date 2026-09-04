@@ -24,6 +24,7 @@ from app.infrastructure.db.customer_models import (
     CustomerIdentityModel, CustomerKycModel, CustomerDocumentModel,
     CustomerStatusHistoryModel, CustomerTimelineModel
 )
+from app.infrastructure.db.payout_workflow_models import CustomerPinModel, CustomerMonthlyLimitModel
 from app.infrastructure.db.ekyc_models import AadhaarVerificationModel, CustomerVerificationModel
 from app.infrastructure.db.models import RetailerModel
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
@@ -32,15 +33,21 @@ from app.application.storage_service import BackblazeStorageService
 
 logger = logging.getLogger("aadhaar_ekyc_workflow")
 
-# Authoritative Fee Configuration: Base ₹3.00 + 18% GST (CGST ₹0.27 + SGST ₹0.27) = ₹3.54 Total
-AADHAAR_FEE_BASE = 3.00
-AADHAAR_GST_RATE = 0.18
-AADHAAR_CGST = 0.27
-AADHAAR_SGST = 0.27
-AADHAAR_GST_TOTAL = 0.54
-AADHAAR_TOTAL_DEBIT = 3.54
+# Authoritative Fee Configuration — CUSTOMER_VERIFICATION context
+# Base ₹5.00 + 18% GST (CGST ₹0.45 + SGST ₹0.45) = ₹5.90 Total
+# Source of truth: backend config. Never hardcode in frontend.
+AADHAAR_FEE_BASE = 5.00            # Service charge for RETAILER paid verification
+AADHAAR_GST_RATE = 0.18            # 18% GST (configurable)
+AADHAAR_CGST = round(AADHAAR_FEE_BASE * AADHAAR_GST_RATE / 2, 2)   # 0.45
+AADHAAR_SGST = round(AADHAAR_FEE_BASE * AADHAAR_GST_RATE / 2, 2)   # 0.45
+AADHAAR_GST_TOTAL = round(AADHAAR_FEE_BASE * AADHAAR_GST_RATE, 2)  # 0.90
+AADHAAR_TOTAL_DEBIT = round(AADHAAR_FEE_BASE + AADHAAR_GST_TOTAL, 2)  # 5.90
 HSN_SAC_CODE = "998313"
-SERVICE_NAME = "AADHAAR_VERIFY"
+SERVICE_NAME = "Aadhaar Verification"
+
+# Verification context constants
+CONTEXT_ONBOARDING = "ONBOARDING"              # Free — no CR/DR
+CONTEXT_CUSTOMER_VERIFICATION = "CUSTOMER_VERIFICATION"  # Paid — ₹5 + GST
 
 # In-memory fee session ledger for pending OTP verifications & verified profiles
 _pending_fee_sessions: Dict[str, Dict[str, Any]] = {}
@@ -87,7 +94,109 @@ def simple_encrypt_pii(data: str) -> str:
 
 
 class AadhaarEkycWorkflowService:
-    """Service handling Cashfree Aadhaar eKYC, PII Encryption, Wallet Pre-Debit & Auto-Refund, and B2 Storage."""
+    """Service handling Cashfree Aadhaar eKYC, PII Encryption, Wallet Pre-Debit & Auto-Refund, and B2 Storage.
+    
+    Supports two verification contexts:
+    - ONBOARDING: Free, no wallet CR/DR, same Aadhaar API
+    - CUSTOMER_VERIFICATION: Paid (₹5 + applicable GST), existing CR/DR APIs
+    """
+
+    @classmethod
+    async def get_dynamic_pricing(cls, db: Optional[AsyncSession] = None, tenant_id: Optional[uuid.UUID] = None) -> Dict[str, float]:
+        """
+        Dynamically calculates Aadhaar verification pricing from database configurations:
+        - Checks gst_configuration table for active CGST and SGST rates
+        - Checks retailer_charge_configuration for service_fee or fixed_amount
+        - Fallbacks to environment variables or reasonable defaults if tables are empty
+        """
+        base_fee = float(os.getenv("AADHAAR_VERIFICATION_FEE", "5.00"))
+        cgst_pct = 0.09
+        sgst_pct = 0.09
+
+        if db is not None:
+            try:
+                # 1. Fetch dynamic GST from gst_configuration
+                from sqlalchemy import text
+                gst_query = await db.execute(text(
+                    "SELECT cgst_pct, sgst_pct, igst_pct FROM gst_configuration WHERE is_active = true ORDER BY id DESC LIMIT 1"
+                ))
+                gst_row = gst_query.fetchone()
+                if gst_row:
+                    cgst_pct = (float(gst_row[0]) / 100.0) if gst_row[0] is not None else 0.09
+                    sgst_pct = (float(gst_row[1]) / 100.0) if gst_row[1] is not None else 0.09
+            except Exception as e:
+                logger.warning(f"Could not load dynamic GST from gst_configuration: {e}")
+
+            try:
+                # 2. Fetch dynamic charge from retailer_charge_configuration if available
+                charge_query = await db.execute(text(
+                    "SELECT service_fee, fixed_amount FROM retailer_charge_configuration WHERE is_active = true ORDER BY id DESC LIMIT 1"
+                ))
+                charge_row = charge_query.fetchone()
+                if charge_row:
+                    if charge_row[0] is not None and float(charge_row[0]) > 0:
+                        base_fee = float(charge_row[0])
+                    elif charge_row[1] is not None and float(charge_row[1]) > 0:
+                        base_fee = float(charge_row[1])
+            except Exception as e:
+                logger.warning(f"Could not load dynamic fee from retailer_charge_configuration: {e}")
+
+        cgst = round(base_fee * cgst_pct, 2)
+        sgst = round(base_fee * sgst_pct, 2)
+        gst_total = round(cgst + sgst, 2)
+        total_debit = round(base_fee + gst_total, 2)
+        gst_rate = round(cgst_pct + sgst_pct, 4)
+
+        return {
+            "fee_base": base_fee,
+            "gst_rate": gst_rate,
+            "cgst": cgst,
+            "sgst": sgst,
+            "gst_total": gst_total,
+            "total_debit": total_debit,
+        }
+
+    @classmethod
+    async def get_charge_preview(cls, db: Optional[AsyncSession] = None, verification_context: str = CONTEXT_CUSTOMER_VERIFICATION) -> Dict[str, Any]:
+        """
+        Returns dynamic charge preview for the given verification context.
+        Frontend must ONLY display values returned by this method — never hardcode.
+        
+        ONBOARDING / ONBOARDING_VERIFICATION: Returns zero charges (free).
+        CUSTOMER_VERIFICATION / RETAILER_SERVICE_VERIFICATION: Returns dynamically calculated fee + GST breakdown.
+        """
+        norm_context = (verification_context or CONTEXT_CUSTOMER_VERIFICATION).strip().upper()
+        if norm_context in (CONTEXT_ONBOARDING, "ONBOARDING_VERIFICATION"):
+            return {
+                "verification_context": CONTEXT_ONBOARDING,
+                "is_chargeable": False,
+                "service_charge": 0.00,
+                "tax_rate": 0.00,
+                "cgst": 0.00,
+                "sgst": 0.00,
+                "tax_amount": 0.00,
+                "total_amount": 0.00,
+                "currency": "INR",
+                "hsn_sac": HSN_SAC_CODE,
+                "service_name": SERVICE_NAME,
+                "message": "Aadhaar verification is FREE during customer onboarding. No wallet debit."
+            }
+        
+        pricing = await cls.get_dynamic_pricing(db)
+        return {
+            "verification_context": CONTEXT_CUSTOMER_VERIFICATION,
+            "is_chargeable": True,
+            "service_charge": pricing["fee_base"],
+            "tax_rate": pricing["gst_rate"],
+            "cgst": pricing["cgst"],
+            "sgst": pricing["sgst"],
+            "tax_amount": pricing["gst_total"],
+            "total_amount": pricing["total_debit"],
+            "currency": "INR",
+            "hsn_sac": HSN_SAC_CODE,
+            "service_name": SERVICE_NAME,
+            "message": f"Aadhaar verification requires a service charge of ₹{pricing['fee_base']:.2f} + applicable GST (₹{pricing['gst_total']:.2f}). Total: ₹{pricing['total_debit']:.2f}."
+        }
 
     @classmethod
     async def check_duplicate_aadhaar(
@@ -100,10 +209,13 @@ class AadhaarEkycWorkflowService:
         aadhaar_hash = compute_aadhaar_hash(clean_aadhaar)
 
         try:
+            from sqlalchemy import text
             stmt = select(
                 AadhaarVerificationModel.id,
                 AadhaarVerificationModel.masked_aadhaar,
-                AadhaarVerificationModel.aadhaar_ref_token
+                AadhaarVerificationModel.aadhaar_ref_token,
+                AadhaarVerificationModel.customer_id,
+                AadhaarVerificationModel.full_name
             ).where(
                 AadhaarVerificationModel.aadhaar_ref_token == aadhaar_hash
             )
@@ -111,9 +223,35 @@ class AadhaarEkycWorkflowService:
             existing_ver = result.first()
 
             if existing_ver:
+                # 1. If verifying for the same customer, permit re-verification / update
+                if customer_id and existing_ver.customer_id and str(existing_ver.customer_id) == str(customer_id):
+                    return None
+
+                # 2. If record is a DEMO/dummy record, purge it immediately and permit verification
+                if existing_ver.full_name and "DEMO" in existing_ver.full_name.upper():
+                    await db.execute(text(f"DELETE FROM aadhaar_verification WHERE id = {existing_ver.id}"))
+                    await db.commit()
+                    return None
+
+                # 3. If customer_id is set, verify the customer actually exists in CustomerModel
+                if existing_ver.customer_id:
+                    cust_exists_stmt = select(CustomerModel).where(CustomerModel.public_id == existing_ver.customer_id)
+                    actual_cust = (await db.execute(cust_exists_stmt)).scalar_one_or_none()
+                    if not actual_cust:
+                        # Orphaned verification record with deleted customer — purge and allow
+                        await db.execute(text(f"DELETE FROM aadhaar_verification WHERE id = {existing_ver.id}"))
+                        await db.commit()
+                        return None
+                else:
+                    # Verification record has no associated customer — purge and allow
+                    await db.execute(text(f"DELETE FROM aadhaar_verification WHERE id = {existing_ver.id}"))
+                    await db.commit()
+                    return None
+
+                cust_label = existing_ver.full_name or (f"Customer ({existing_ver.customer_id})" if existing_ver.customer_id else "an existing Customer profile")
                 return {
                     "is_duplicate_different_customer": True,
-                    "existing_customer_id": "CUST-MASTER",
+                    "existing_customer_id": cust_label,
                     "masked_aadhaar": existing_ver.masked_aadhaar
                 }
         except Exception as ex:
@@ -128,14 +266,20 @@ class AadhaarEkycWorkflowService:
         tenant_id: uuid.UUID,
         retailer_id: Optional[str],
         customer_id: Optional[str],
-        aadhaar_number: str
+        aadhaar_number: str,
+        verification_context: str = CONTEXT_CUSTOMER_VERIFICATION,
+        mobile_number: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        1. Validates Aadhaar & duplicate check.
-        2. Resolves retailer entity and verifies live wallet balance >= ₹3.54 (STOP if insufficient).
-        3. Pre-debits ₹3.54 (Base ₹3.00 + GST ₹0.54) via PostgreSQL SP public.wallet_balance_update.
-        4. Calls Cashfree Aadhaar OTP API.
-        5. Reverses pre-debit immediately if vendor API call fails.
+        Generates Aadhaar OTP with optional wallet pre-debit based on verification_context.
+        
+        ONBOARDING context: No wallet debit — free verification.
+        CUSTOMER_VERIFICATION context:
+          1. Validates Aadhaar & duplicate check.
+          2. Resolves retailer entity and verifies live wallet balance >= total charge.
+          3. Pre-debits (Base + GST) via PostgreSQL SP public.wallet_balance_update.
+          4. Calls Cashfree Aadhaar OTP API.
+          5. Reverses pre-debit immediately if vendor API call fails.
         """
         clean_aadhaar = "".join(filter(str.isdigit, aadhaar_number))
         if len(clean_aadhaar) != 12:
@@ -153,101 +297,121 @@ class AadhaarEkycWorkflowService:
                 detail=f"Aadhaar number {masked_aadhaar} is already registered & verified under Customer profile {dup_cust}. Duplicate Aadhaar registration is strictly prohibited by law."
             )
 
-        # 2. Resolve Active Retailer
-        retailer_uuid = await _resolve_retailer_uuid(db, retailer_id)
-        if not retailer_uuid:
-            raise HTTPException(status_code=400, detail="Unable to resolve active retailer wallet for Aadhaar verification fee debit.")
+        # Determine charge amounts dynamically based on verification context
+        norm_context = (verification_context or CONTEXT_CUSTOMER_VERIFICATION).strip().upper()
+        is_paid = norm_context not in (CONTEXT_ONBOARDING, "ONBOARDING_VERIFICATION")
+        pricing = await cls.get_dynamic_pricing(db, tenant_id)
+        fee_base = pricing["fee_base"] if is_paid else 0.0
+        gst_total = pricing["gst_total"] if is_paid else 0.0
+        total_debit = pricing["total_debit"] if is_paid else 0.0
 
-        # 3. Live Wallet Balance Pre-Check (Stop immediately if balance < ₹3.54)
-        live_balance = await WalletBalanceAdjustmentService.get_realtime_wallet_balance(db, str(retailer_uuid))
-        if live_balance < AADHAAR_TOTAL_DEBIT:
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "status": "FAILED",
-                    "error_code": "INSUFFICIENT_BALANCE",
-                    "message": f"Insufficient wallet balance for Aadhaar verification. Available: ₹{live_balance:.2f}, Required: ₹{AADHAAR_TOTAL_DEBIT:.2f}",
-                    "wallet_balance": live_balance,
-                    "required_amount": AADHAAR_TOTAL_DEBIT
-                }
-            )
-
-        # 4. Phase 1: Authoritative Pre-Debit via PostgreSQL SP: public.wallet_balance_update
-        # Generates exactly 2 line entries: Line 1: Base Charge ₹3.00, Line 2: GST 18% ₹0.54
         ref_id = f"CF-AADHAAR-{int(time.time() * 1000)}"
         from app.core.transaction_id_generator import generate_transaction_number
         txn_id = await generate_transaction_number(db, service_prefix="KYC")
+        debit_result = None
 
-        debit_dto = WalletAdjustmentDTO(
-            retailer_id=str(retailer_uuid),
-            entry_type="DEBIT",
-            amount=AADHAAR_TOTAL_DEBIT,
-            payout_amount=0.0,
-            charge_amount=AADHAAR_FEE_BASE,
-            gst_amount=AADHAAR_GST_TOTAL,
-            service_name=SERVICE_NAME,
-            wallet_type="MAIN",
-            user_type="RETAILER",
-            txn_id=txn_id,
-            ref_id=ref_id,
-            narration=f"Aadhaar OTP Gen: {masked_aadhaar}"
-        )
-        debit_result = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db, debit_dto)
-        if not debit_result.success:
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "status": "FAILED",
-                    "error_code": debit_result.error_code or "INSUFFICIENT_BALANCE",
-                    "message": debit_result.error_message or f"Insufficient wallet balance. Available: ₹{debit_result.balance_before:.2f}, Required: ₹{AADHAAR_TOTAL_DEBIT:.2f}",
-                    "wallet_balance": debit_result.balance_before,
-                    "required_amount": AADHAAR_TOTAL_DEBIT
-                }
+        if is_paid:
+            # 2. Resolve Active Retailer (only needed for paid verification)
+            retailer_uuid = await _resolve_retailer_uuid(db, retailer_id)
+            if not retailer_uuid:
+                raise HTTPException(status_code=400, detail="Unable to resolve active retailer wallet for Aadhaar verification fee debit.")
+
+            # 3. Live Wallet Balance Pre-Check
+            live_balance = await WalletBalanceAdjustmentService.get_realtime_wallet_balance(db, str(retailer_uuid))
+            if live_balance < total_debit:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "status": "FAILED",
+                        "error_code": "INSUFFICIENT_BALANCE",
+                        "message": f"Insufficient wallet balance for Aadhaar verification. Available: ₹{live_balance:.2f}, Required: ₹{total_debit:.2f}",
+                        "wallet_balance": live_balance,
+                        "required_amount": total_debit
+                    }
+                )
+
+            # 4. Phase 1: Authoritative Pre-Debit via PostgreSQL SP: public.wallet_balance_update
+            debit_dto = WalletAdjustmentDTO(
+                retailer_id=str(retailer_uuid),
+                entry_type="DEBIT",
+                amount=total_debit,
+                payout_amount=0.0,
+                charge_amount=fee_base,
+                gst_amount=gst_total,
+                service_name=SERVICE_NAME,
+                wallet_type="MAIN",
+                user_type="RETAILER",
+                txn_id=txn_id,
+                ref_id=ref_id,
+                narration=f"DR - Verification Charge: ₹{fee_base:.2f}, DR - GST: ₹{gst_total:.2f} [{masked_aadhaar}]"
             )
+            debit_result = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db, debit_dto)
+            if not debit_result.success:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "status": "FAILED",
+                        "error_code": debit_result.error_code or "INSUFFICIENT_BALANCE",
+                        "message": debit_result.error_message or f"Insufficient wallet balance. Available: ₹{debit_result.balance_before:.2f}, Required: ₹{total_debit:.2f}",
+                        "wallet_balance": debit_result.balance_before,
+                        "required_amount": total_debit
+                    }
+                )
+        else:
+            # ONBOARDING — resolve retailer for session storage (no debit)
+            retailer_uuid = await _resolve_retailer_uuid(db, retailer_id)
 
         # 5. Phase 2: Call Cashfree Aadhaar OTP API
         try:
             cf_res = await cashfree_aadhaar_adapter.generate_aadhaar_otp(clean_aadhaar)
             cf_ref_id = str(cf_res.get("ref_id") or ref_id)
         except Exception as vendor_err:
-            # Automatic Reversal on OTP generation error
-            rev_txn_id = f"REV-{txn_id}"
-            rev_dto = WalletAdjustmentDTO(
-                retailer_id=str(retailer_uuid),
-                entry_type="CREDIT",
-                amount=AADHAAR_TOTAL_DEBIT,
-                payout_amount=0.0,
-                charge_amount=AADHAAR_FEE_BASE,
-                gst_amount=AADHAAR_GST_TOTAL,
-                service_name=SERVICE_NAME,
-                wallet_type="MAIN",
-                user_type="RETAILER",
-                txn_id=rev_txn_id,
-                ref_id=f"REFUND-{ref_id}",
-                narration=f"Reversal: Failed Aadhaar OTP dispatch for {masked_aadhaar}"
-            )
-            await WalletBalanceAdjustmentService.execute_wallet_balance_update(db, rev_dto)
+            if is_paid and debit_result and retailer_uuid:
+                # Automatic Reversal on OTP generation error (paid context only)
+                rev_txn_id = f"REV-{txn_id}"
+                rev_dto = WalletAdjustmentDTO(
+                    retailer_id=str(retailer_uuid),
+                    entry_type="CREDIT",
+                    amount=total_debit,
+                    payout_amount=0.0,
+                    charge_amount=fee_base,
+                    gst_amount=gst_total,
+                    service_name=SERVICE_NAME,
+                    wallet_type="MAIN",
+                    user_type="RETAILER",
+                    txn_id=rev_txn_id,
+                    ref_id=f"REFUND-{ref_id}",
+                    narration=f"CR - Verification Refund: ₹{fee_base:.2f}, CR - GST Reversal: ₹{gst_total:.2f} [Ref: {txn_id}]"
+                )
+                await WalletBalanceAdjustmentService.execute_wallet_balance_update(db, rev_dto)
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cashfree Aadhaar OTP dispatch failed: {str(vendor_err)}. Verification fee ₹{total_debit:.2f} refunded to wallet."
+                )
             raise HTTPException(
                 status_code=400,
-                detail=f"Cashfree Aadhaar OTP dispatch failed: {str(vendor_err)}. Verification fee ₹{AADHAAR_TOTAL_DEBIT:.2f} refunded to wallet."
+                detail=f"Cashfree Aadhaar OTP dispatch failed: {str(vendor_err)}."
             )
 
         # Store fee session details for verification / auto-refund on failure
         _pending_fee_sessions[cf_ref_id] = {
             "ref_id": cf_ref_id,
             "tenant_id": str(tenant_id),
-            "retailer_id": str(retailer_uuid),
+            "retailer_id": str(retailer_uuid) if retailer_uuid else None,
             "customer_id": customer_id,
+            "mobile_number": mobile_number,
             "clean_aadhaar": clean_aadhaar,
             "masked_aadhaar": masked_aadhaar,
             "aadhaar_hash": aadhaar_hash,
             "debit_txn_id": txn_id,
-            "base_fee": AADHAAR_FEE_BASE,
-            "cgst": AADHAAR_CGST,
-            "sgst": AADHAAR_SGST,
-            "total_debit": AADHAAR_TOTAL_DEBIT,
+            "verification_context": norm_context,
+            "is_paid": is_paid,
+            "base_fee": fee_base,
+            "cgst": round(fee_base * AADHAAR_GST_RATE / 2, 2) if is_paid else 0.0,
+            "sgst": round(fee_base * AADHAAR_GST_RATE / 2, 2) if is_paid else 0.0,
+            "total_debit": total_debit,
             "debit_timestamp": datetime.now(timezone.utc).isoformat(),
-            "status": "FEE_DEBITED_OTP_SENT"
+            "status": "FEE_DEBITED_OTP_SENT" if is_paid else "FREE_OTP_SENT"
         }
 
         return {
@@ -255,17 +419,23 @@ class AadhaarEkycWorkflowService:
             "ref_id": cf_ref_id,
             "ref_number": cf_ref_id,
             "masked_aadhaar": masked_aadhaar,
-            "fee_debited": AADHAAR_TOTAL_DEBIT,
+            "verification_context": verification_context,
+            "is_chargeable": is_paid,
+            "fee_debited": total_debit,
             "tax_breakup": {
-                "base_fee": AADHAAR_FEE_BASE,
-                "cgst": AADHAAR_CGST,
-                "sgst": AADHAAR_SGST,
-                "total_debit": AADHAAR_TOTAL_DEBIT,
+                "base_fee": fee_base,
+                "cgst": round(fee_base * AADHAAR_GST_RATE / 2, 2) if is_paid else 0.0,
+                "sgst": round(fee_base * AADHAAR_GST_RATE / 2, 2) if is_paid else 0.0,
+                "total_debit": total_debit,
                 "hsn_sac": HSN_SAC_CODE
             },
             "debit_txn_id": txn_id,
-            "wallet_balance_after": debit_result.balance_after,
-            "message": f"Aadhaar OTP dispatched to registered mobile. ₹{AADHAAR_FEE_BASE:.2f} (+ ₹{AADHAAR_GST_TOTAL:.2f} GST) verification fee debited from Retailer Wallet."
+            "wallet_balance_after": debit_result.balance_after if debit_result else None,
+            "message": (
+                f"Aadhaar OTP dispatched to registered mobile. ₹{fee_base:.2f} (+ ₹{gst_total:.2f} GST) verification fee debited from Retailer Wallet."
+                if is_paid else
+                "Aadhaar OTP dispatched to registered mobile (FREE — Onboarding context)."
+            )
         }
 
     @classmethod
@@ -277,13 +447,15 @@ class AadhaarEkycWorkflowService:
         customer_id: Optional[str],
         ref_id: str,
         otp_code: str,
-        aadhaar_number: Optional[str] = None
+        aadhaar_number: Optional[str] = None,
+        verification_context: Optional[str] = None,
+        mobile_number: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Verify 6-digit Aadhaar OTP via Cashfree.
-        On failure -> Auto-Refund verification fee (+₹3.54) via public.wallet_balance_update.
+        On failure -> Auto-Refund verification fee (+₹5.90) via public.wallet_balance_update (paid context only).
         On success -> Upload photo to Backblaze B2, store B2 URL in CustomerProfileModel,
-                      and update CustomerModel KYC status to APPROVED.
+                      create or update CustomerModel KYC status to APPROVED atomically.
         """
         fee_session = _pending_fee_sessions.get(ref_id)
         retailer_uuid = await _resolve_retailer_uuid(db, (fee_session.get("retailer_id") if fee_session else None) or retailer_id)
@@ -293,35 +465,46 @@ class AadhaarEkycWorkflowService:
         aadhaar_hash = compute_aadhaar_hash(clean_aadhaar)
         orig_txn_id = (fee_session.get("debit_txn_id") if fee_session else None) or f"TXN-KYC-{int(time.time())}"
 
+        norm_context = (verification_context or (fee_session.get("verification_context") if fee_session else CONTEXT_CUSTOMER_VERIFICATION)).strip().upper()
+        is_paid = fee_session.get("is_paid") if (fee_session and "is_paid" in fee_session) else (norm_context not in (CONTEXT_ONBOARDING, "ONBOARDING_VERIFICATION"))
+
         try:
             # 1. Call Cashfree OTP Verification API
             ekyc_profile = await cashfree_aadhaar_adapter.verify_aadhaar_otp(ref_id, otp_code)
         except Exception as ex:
-            # 2. AUTO-REFUND ON FAILURE (Instant wallet credit reversal via public.wallet_balance_update)
-            rev_txn_id = f"REV-{orig_txn_id}"
-            rev_dto = WalletAdjustmentDTO(
-                retailer_id=str(retailer_uuid) if retailer_uuid else None,
-                entry_type="CREDIT",
-                amount=AADHAAR_TOTAL_DEBIT,
-                payout_amount=0.0,
-                charge_amount=AADHAAR_FEE_BASE,
-                gst_amount=AADHAAR_GST_TOTAL,
-                service_name=SERVICE_NAME,
-                wallet_type="MAIN",
-                user_type="RETAILER",
-                txn_id=rev_txn_id,
-                ref_id=f"REFUND-{ref_id}",
-                narration=f"Reversal: Failed Aadhaar OTP verification for {masked_aadhaar}"
-            )
-            rev_result = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db, rev_dto)
+            # 2. AUTO-REFUND ON FAILURE (Instant wallet credit reversal via public.wallet_balance_update for paid verification)
+            if is_paid and orig_txn_id and retailer_uuid:
+                rev_txn_id = f"REV-{orig_txn_id}"
+                rev_dto = WalletAdjustmentDTO(
+                    retailer_id=str(retailer_uuid) if retailer_uuid else None,
+                    entry_type="CREDIT",
+                    amount=AADHAAR_TOTAL_DEBIT,
+                    payout_amount=0.0,
+                    charge_amount=AADHAAR_FEE_BASE,
+                    gst_amount=AADHAAR_GST_TOTAL,
+                    service_name=SERVICE_NAME,
+                    wallet_type="MAIN",
+                    user_type="RETAILER",
+                    txn_id=rev_txn_id,
+                    ref_id=f"REFUND-{ref_id}",
+                    narration=f"CR - Verification Refund: ₹{AADHAAR_FEE_BASE:.2f}, CR - GST Reversal: ₹{AADHAAR_GST_TOTAL:.2f} [Ref: {orig_txn_id}]"
+                )
+                await WalletBalanceAdjustmentService.execute_wallet_balance_update(db, rev_dto)
 
-            if ref_id in _pending_fee_sessions:
-                _pending_fee_sessions[ref_id]["status"] = "REFUNDED_ON_FAILURE"
+                if ref_id in _pending_fee_sessions:
+                    _pending_fee_sessions[ref_id]["status"] = "REFUNDED_ON_FAILURE"
 
-            raise HTTPException(
-                status_code=400,
-                detail=f"Aadhaar OTP verification failed: {str(ex)}. Verification fee of ₹{AADHAAR_TOTAL_DEBIT:.2f} (Base ₹{AADHAAR_FEE_BASE:.2f} + GST ₹{AADHAAR_GST_TOTAL:.2f}) has been fully refunded to your wallet. Ref: {rev_txn_id}"
-            )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Aadhaar OTP verification failed: {str(ex)}. Verification fee of ₹{AADHAAR_TOTAL_DEBIT:.2f} (Base ₹{AADHAAR_FEE_BASE:.2f} + GST ₹{AADHAAR_GST_TOTAL:.2f}) has been refunded to your wallet. Ref: {rev_txn_id}"
+                )
+            else:
+                if ref_id in _pending_fee_sessions:
+                    _pending_fee_sessions[ref_id]["status"] = "FAILED"
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Aadhaar OTP verification failed: {str(ex)}."
+                )
 
         # 3. SUCCESSFUL VERIFICATION — Upload Photo to Backblaze B2
         raw_photo = ekyc_profile.get("photo_base64") or ekyc_profile.get("photo_url") or ""
@@ -340,6 +523,10 @@ class AadhaarEkycWorkflowService:
                 b2_photo_url = raw_photo
 
         # Resolve or find customer in DB
+        mobile_val = mobile_number or (fee_session.get("mobile_number") if fee_session else None)
+        if not mobile_val and customer_id and str(customer_id).isdigit() and len(str(customer_id)) == 10:
+            mobile_val = str(customer_id)
+
         target_cust = None
         if customer_id:
             try:
@@ -357,6 +544,11 @@ class AadhaarEkycWorkflowService:
                 )
                 target_cust = (await db.execute(stmt)).scalar_one_or_none()
 
+        if not target_cust and mobile_val:
+            c_mob = "".join(filter(str.isdigit, mobile_val))[-10:]
+            stmt_m = select(CustomerModel).where(CustomerModel.mobile_number == c_mob)
+            target_cust = (await db.execute(stmt_m)).scalar_one_or_none()
+
         now_utc = datetime.now(timezone.utc)
         dob_val = None
         if ekyc_profile.get("dob"):
@@ -364,6 +556,93 @@ class AadhaarEkycWorkflowService:
                 dob_val = datetime.strptime(ekyc_profile["dob"], "%Y-%m-%d").date()
             except Exception:
                 pass
+
+        if not target_cust:
+            # Atomic creation of brand-new VERIFIED customer
+            c_mobile = "".join(filter(str.isdigit, mobile_val or ""))[-10:] if mobile_val else ""
+            if not c_mobile or len(c_mobile) != 10:
+                c_mobile = (fee_session.get("clean_mobile") if fee_session else "") or "9999999999"
+
+            cust_uuid = uuid.uuid4()
+            cust_num = f"CUST{random.randint(100000, 999999)}"
+            full_name_str = ekyc_profile.get("full_name") or "Verified Customer"
+            first_name_str = ekyc_profile.get("first_name") or (full_name_str.split(" ")[0] if " " in full_name_str else full_name_str)
+            last_name_str = ekyc_profile.get("last_name") or (" ".join(full_name_str.split(" ")[1:]) if " " in full_name_str else "")
+            gender_str = (ekyc_profile.get("gender") or "M").upper()
+            if gender_str in ("M", "MALE"):
+                gender_str = "MALE"
+            elif gender_str in ("F", "FEMALE"):
+                gender_str = "FEMALE"
+            else:
+                gender_str = "OTHER"
+
+            target_cust = CustomerModel(
+                public_id=cust_uuid,
+                tenant_id=tenant_id,
+                customer_number=cust_num,
+                customer_category="REGULAR",
+                customer_type="INDIVIDUAL",
+                first_name=first_name_str,
+                middle_name=ekyc_profile.get("middle_name", ""),
+                last_name=last_name_str,
+                full_name=full_name_str,
+                mobile_number=c_mobile,
+                email=f"{c_mobile}@pay2pay.in",
+                dob=dob_val,
+                gender=gender_str,
+                nationality="INDIAN",
+                occupation="RETAILER_CUSTOMER",
+                kyc_level="FULL_KYC",
+                kyc_status="APPROVED",
+                risk_category="LOW",
+                customer_status="ACTIVE",
+                registration_date=now_utc,
+                activation_date=now_utc,
+                last_active_date=now_utc,
+                mpin_enabled=True,
+                mpin_hash=_hash_mpin("1234", str(cust_uuid)),
+                mpin_created_at=now_utc,
+                created_date=now_utc,
+                updated_date=now_utc,
+                created_by="RETAILER",
+                updated_by="RETAILER",
+                is_active=True,
+                is_deleted=False
+            )
+            db.add(target_cust)
+            await db.flush()
+
+            try:
+                cpin = CustomerPinModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    created_by="SYSTEM",
+                    customer_id=target_cust.public_id,
+                    hashed_pin=hashlib.sha256(b"1234").hexdigest(),
+                    pin_length=4,
+                    is_locked=False,
+                    failed_attempts=0,
+                    last_changed_at=now_utc
+                )
+                db.add(cpin)
+            except Exception as cp_err:
+                logger.warning(f"CustomerPinModel notice: {cp_err}")
+
+            try:
+                cur_month = now_utc.strftime("%Y-%m")
+                mlimit = CustomerMonthlyLimitModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    created_by="SYSTEM",
+                    customer_id=target_cust.public_id,
+                    monthly_limit=200000.0,
+                    used_amount=0.0,
+                    remaining_amount=200000.0,
+                    month_year=cur_month
+                )
+                db.add(mlimit)
+            except Exception as lm_err:
+                logger.warning(f"CustomerMonthlyLimitModel notice: {lm_err}")
 
         if target_cust:
             # Upgrade existing customer to APPROVED KYC
@@ -548,11 +827,16 @@ class AadhaarEkycWorkflowService:
         if ref_id in _pending_fee_sessions:
             _pending_fee_sessions[ref_id]["status"] = "VERIFIED_FEE_FINALIZED"
 
+        addr_dict = ekyc_profile.get("address", {}) if isinstance(ekyc_profile.get("address"), dict) else {}
         return {
             "status": "SUCCESS",
             "verification_status": "VERIFIED",
             "customer_id": c_public_id,
+            "public_id": c_public_id,
+            "id": c_cust_number or c_public_id,
             "customer_number": c_cust_number,
+            "kyc_status": "APPROVED",
+            "customer_status": "ACTIVE",
             "ref_id": ref_id,
             "masked_aadhaar": masked_aadhaar,
             "full_name": ekyc_profile.get("full_name", ""),
@@ -560,12 +844,21 @@ class AadhaarEkycWorkflowService:
             "last_name": ekyc_profile.get("last_name", ""),
             "dob": ekyc_profile.get("dob", ""),
             "gender": ekyc_profile.get("gender", ""),
+            "care_of": ekyc_profile.get("care_of", ""),
+            "house": addr_dict.get("house") or ekyc_profile.get("house", ""),
+            "street": addr_dict.get("street") or ekyc_profile.get("street", ""),
+            "locality": addr_dict.get("loc") or ekyc_profile.get("loc", ""),
+            "district": addr_dict.get("dist") or ekyc_profile.get("dist", ""),
+            "state": addr_dict.get("state") or ekyc_profile.get("state", ""),
+            "pincode": str(addr_dict.get("pincode") or ekyc_profile.get("pincode", "")),
+            "country": "INDIA",
             "full_address": ekyc_profile.get("full_address", ""),
             "photo_url": b2_photo_url or raw_photo,
             "photo_avatar": b2_photo_url or raw_photo,
             "vendor_name": "CASHFREE_OFFLINE_AADHAAR",
             "vendor_reference": ref_id,
             "verification_date": now_utc.isoformat(),
+            "verification_timestamp": now_utc.isoformat(),
             "billing": {
                 "base_fee": AADHAAR_FEE_BASE,
                 "cgst": AADHAAR_CGST,
@@ -574,7 +867,7 @@ class AadhaarEkycWorkflowService:
                 "hsn_sac": HSN_SAC_CODE,
                 "debit_txn_id": orig_txn_id,
                 "status": "FEE_FINALIZED"
-            },
+            } if is_paid else None,
             "message": "Aadhaar eKYC verified successfully via Cashfree API. Customer photo uploaded to Backblaze B2 & KYC approved."
         }
 
@@ -600,6 +893,12 @@ class AadhaarEkycWorkflowService:
 
         fee_session = _pending_fee_sessions.get(ref_id)
         ekyc_profile = _pending_verified_profiles.get(ref_id) or {}
+
+        if not ekyc_profile or not ekyc_profile.get("full_name"):
+            raise HTTPException(
+                status_code=400,
+                detail="Customer cannot be registered or stored in database without genuine Aadhaar eKYC verification."
+            )
 
         clean_mobile = "".join(filter(str.isdigit, mobile_number))
         if len(clean_mobile) < 10:
@@ -664,7 +963,8 @@ class AadhaarEkycWorkflowService:
             quarter_k = (now_utc.month - 1) // 3 + 1
             year_k = now_utc.year
 
-            masked_aadhaar = ekyc_profile.get("masked_aadhaar") or "XXXX-XXXX-4748"
+            clean_aadhaar = (fee_session.get("clean_aadhaar") if fee_session else None) or ekyc_profile.get("clean_aadhaar") or ekyc_profile.get("aadhaar_number") or ""
+            masked_aadhaar = ekyc_profile.get("masked_aadhaar") or (f"XXXX-XXXX-{clean_aadhaar[-4:]}" if len(clean_aadhaar) >= 4 else "XXXX-XXXX-XXXX")
 
             # 1. Create CustomerModel (Tenant -> Retailer -> Customer)
             cust_obj = CustomerModel(
@@ -702,15 +1002,15 @@ class AadhaarEkycWorkflowService:
             await db.flush()
 
             # 2. Create CustomerAddressModel (Aadhaar Verified Address)
-            house_s = ekyc_profile.get("house", "")
-            street_s = ekyc_profile.get("street", "")
-            landmark_s = ekyc_profile.get("landmark", "")
-            city_s = ekyc_profile.get("city", "") or "CHENNAI"
-            dist_s = ekyc_profile.get("district", "") or "CHENNAI"
-            state_s = ekyc_profile.get("state", "") or "TAMIL NADU"
-            pincode_s = str(ekyc_profile.get("pincode", "")) or "600001"
+            house_s = ekyc_profile.get("house") or ekyc_profile.get("care_of") or ""
+            street_s = ekyc_profile.get("street") or ekyc_profile.get("locality") or ""
+            landmark_s = ekyc_profile.get("landmark") or ""
+            city_s = ekyc_profile.get("city") or ekyc_profile.get("vtc") or ekyc_profile.get("subdistrict") or ""
+            dist_s = ekyc_profile.get("district") or city_s or ""
+            state_s = ekyc_profile.get("state") or ""
+            pincode_s = str(ekyc_profile.get("pincode") or ekyc_profile.get("pin") or "").strip()
 
-            line1 = f"{house_s}, {street_s}".strip(", ") or ekyc_profile.get("full_address", "Verified eKYC Address")
+            line1 = f"{house_s}, {street_s}".strip(", ") or ekyc_profile.get("full_address") or "Verified eKYC Address"
             line2 = f"{landmark_s}".strip()
 
             addr_obj = CustomerAddressModel(
@@ -735,8 +1035,7 @@ class AadhaarEkycWorkflowService:
             db.add(addr_obj)
 
             # 3. Create CustomerIdentityModel (Masked Aadhaar + Hash)
-            clean_aadhaar = fee_session.get("clean_aadhaar", "225992647489") if fee_session else "225992647489"
-            aadhaar_hash = compute_aadhaar_hash(clean_aadhaar)
+            aadhaar_hash = compute_aadhaar_hash(clean_aadhaar) if clean_aadhaar else hashlib.sha256(f"PAY2PAY_{c_mobile}".encode("utf-8")).hexdigest()
             id_obj = CustomerIdentityModel(
                 public_id=uuid.uuid4(),
                 tenant_id=tenant_id,

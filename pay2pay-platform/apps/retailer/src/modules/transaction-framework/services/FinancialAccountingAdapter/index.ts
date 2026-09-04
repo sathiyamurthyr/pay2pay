@@ -96,6 +96,10 @@ export interface FinancialProcessResult {
   walletBalanceBefore: number;
   walletBalanceAfter: number;
   beneficiaryRemainingMonthlyLimit: number;
+  receiptToken?: string;
+  receiptUrl?: string;
+  receiptSignature?: string;
+  whatsappStatus?: string;
   errorMessage?: string;
   ledgers: {
     walletLedgerId: string;
@@ -404,6 +408,10 @@ class FinancialAccountingService {
             walletBalanceBefore: wBefore,
             walletBalanceAfter: wAfter,
             beneficiaryRemainingMonthlyLimit: Math.max(0, beneMonthlyBefore - amount),
+            receiptToken: apiData.receipt_token || apiData.data?.receipt_token,
+            receiptUrl: apiData.receipt_url || apiData.data?.receipt_url,
+            receiptSignature: apiData.receipt_signature || apiData.data?.receipt_signature,
+            whatsappStatus: apiData.whatsapp_status || apiData.data?.whatsapp_status,
             ledgers: {
               walletLedgerId: `LEDG-WAL-${apiData.transaction_number || Date.now()}`,
               payoutLedgerId: `LEDG-PAY-${apiData.transaction_number || Date.now()}`,
@@ -428,6 +436,10 @@ class FinancialAccountingService {
             walletBalanceBefore: wBefore,
             walletBalanceAfter: wAfter,
             beneficiaryRemainingMonthlyLimit: Math.max(0, beneMonthlyBefore - amount),
+            receiptToken: apiData.receipt_token || apiData.data?.receipt_token,
+            receiptUrl: apiData.receipt_url || apiData.data?.receipt_url,
+            receiptSignature: apiData.receipt_signature || apiData.data?.receipt_signature,
+            whatsappStatus: apiData.whatsapp_status || apiData.data?.whatsapp_status,
             ledgers: {
               walletLedgerId: `LEDG-WAL-${apiData.transaction_number || Date.now()}`,
               payoutLedgerId: `LEDG-PAY-${apiData.transaction_number || Date.now()}`,

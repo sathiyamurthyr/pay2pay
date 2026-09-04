@@ -108,6 +108,14 @@ export function middleware(request: NextRequest) {
   }
 
   // 1. Explicit Public Routes (Always accessible without authentication)
+  const host = request.headers.get("host") || "";
+  const isReceiptDomain = host.includes("receipt.pay2pay.in");
+  const isReceiptRoute =
+    isReceiptDomain ||
+    pathname.startsWith("/r/") ||
+    pathname === "/r" ||
+    pathname.startsWith("/receipt");
+
   const isLoginRoute =
     pathname === "/retailer/login" ||
     pathname === "/login" ||
@@ -117,11 +125,13 @@ export function middleware(request: NextRequest) {
     pathname === "/super-admin/login";
 
   const isPublicRoute =
+    isReceiptRoute ||
     isLoginRoute ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/design-system") ||
+    pathname.startsWith("/api/public") ||
     pathname === "/403";
 
   // If user is already authenticated and visits a login page, redirect to active dashboard
@@ -134,7 +144,12 @@ export function middleware(request: NextRequest) {
     return applySecurityHeaders(NextResponse.next());
   }
 
-  // If visiting another public route (like /register), allow
+  // If visiting receipt portal domain on root, rewrite directly to /r
+  if (isReceiptDomain && (pathname === "/" || pathname === "")) {
+    return applySecurityHeaders(NextResponse.rewrite(new URL("/r", request.url)));
+  }
+
+  // If visiting another public route (like /register or /r/token), allow
   if (isPublicRoute) {
     return applySecurityHeaders(NextResponse.next());
   }

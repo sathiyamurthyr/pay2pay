@@ -124,6 +124,11 @@ fi
 echo '=== 4. Deploying Backend API ==='
 sudo unzip -q -o /home/ubuntu/backend_deploy.zip -d /home/ubuntu/pay2pay/backend/
 
+echo '=== 4b. Running UrbanRupee Priority 1 Database Migration ==='
+if [ -f /home/ubuntu/pay2pay/backend/scripts/setup_urbanrupee_payout_priority1.py ]; then
+  /home/ubuntu/pay2pay/backend/venv/bin/python /home/ubuntu/pay2pay/backend/scripts/setup_urbanrupee_payout_priority1.py || true
+fi
+
 echo '=== 5. Setting Correct Ownership & Permissions ==='
 sudo chown -R ubuntu:ubuntu /home/ubuntu/pay2pay
 

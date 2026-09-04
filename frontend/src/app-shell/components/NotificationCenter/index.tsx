@@ -106,7 +106,15 @@ export const NotificationCenter: React.FC<{
         }
 
         const json = await res.json();
-        const items: NotificationItem[] = json.data || [];
+        const items: NotificationItem[] = Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json)
+          ? json
+          : Array.isArray(json?.items)
+          ? json.items
+          : Array.isArray(json?.notifications)
+          ? json.notifications
+          : [];
         setNotifications(items);
 
         const computedUnread =
@@ -118,6 +126,15 @@ export const NotificationCenter: React.FC<{
         }
         prevUnreadRef.current = computedUnread;
         setUnreadCount(computedUnread);
+
+        // Sync to window event so dashboard components update synchronously
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("pay2pay:notifications_synced", {
+              detail: { notifications: items, unreadCount: computedUnread }
+            })
+          );
+        }
       } catch (err: any) {
         console.warn("[NotificationCenter] Error fetching notifications:", err);
         setError("Unable to load live notifications");
@@ -126,7 +143,7 @@ export const NotificationCenter: React.FC<{
         setIsRefreshing(false);
       }
     },
-    [getResolvedUserId, getAuthHeaders, tenantId, notifications.length]
+    [getResolvedUserId, getAuthHeaders, tenantId]
   );
 
   // Load initial notification status on mount & set up background live polling
@@ -215,8 +232,9 @@ export const NotificationCenter: React.FC<{
     }
   };
 
-  const getStatusChipColor = (status: string) => {
-    switch (status.toUpperCase()) {
+  const getStatusChipColor = (status?: string | null) => {
+    const s = String(status || "INFO").toUpperCase();
+    switch (s) {
       case "SUCCESS":
         return {
           bg: "rgba(34, 197, 94, 0.18)",
@@ -250,20 +268,20 @@ export const NotificationCenter: React.FC<{
       <IconButton
         onClick={handleOpen}
         sx={{
-          color: unreadCount > 0 ? "#FBBF24" : "#94A3B8",
+          color: unreadCount > 0 ? "#FBBF24" : (notifications.length > 0 ? "#FDE047" : "#94A3B8"),
           transition: "all 0.2s ease-in-out",
           "&:hover": { color: "#F8FAFC", backgroundColor: "rgba(255, 255, 255, 0.08)" },
         }}
       >
         <Badge
-          badgeContent={unreadCount}
+          badgeContent={unreadCount > 0 ? unreadCount : (notifications.length > 0 ? notifications.length : 0)}
           sx={{
             "& .MuiBadge-badge": {
-              backgroundColor: "#EF4444",
-              color: "#FFFFFF",
-              fontWeight: 800,
-              fontSize: "11px",
-              boxShadow: "0 0 8px rgba(239, 68, 68, 0.6)",
+              backgroundColor: unreadCount > 0 ? "#EF4444" : "rgba(245, 158, 11, 0.95)",
+              color: unreadCount > 0 ? "#FFFFFF" : "#0A0F1D",
+              fontWeight: 900,
+              fontSize: "10.5px",
+              boxShadow: unreadCount > 0 ? "0 0 8px rgba(239, 68, 68, 0.6)" : "0 0 8px rgba(245, 158, 11, 0.4)",
             },
           }}
           max={99}
@@ -321,9 +339,9 @@ export const NotificationCenter: React.FC<{
                 WebkitTextFillColor: "transparent",
               }}
             >
-              Recent Alerts
+              Recent Alerts{notifications.length > 0 ? ` (${notifications.length})` : ""}
             </Typography>
-            {unreadCount > 0 && (
+            {unreadCount > 0 ? (
               <Chip
                 label={`${unreadCount} New`}
                 size="small"
@@ -336,7 +354,20 @@ export const NotificationCenter: React.FC<{
                   border: "1px solid rgba(239, 68, 68, 0.35)",
                 }}
               />
-            )}
+            ) : notifications.length > 0 ? (
+              <Chip
+                label={`${notifications.length} Live`}
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: "9.5px",
+                  fontWeight: 900,
+                  bgcolor: "rgba(245, 158, 11, 0.18)",
+                  color: "#FDE047",
+                  border: "1px solid rgba(245, 158, 11, 0.35)",
+                }}
+              />
+            ) : null}
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -555,7 +586,7 @@ export const NotificationCenter: React.FC<{
                             letterSpacing: "0.2px",
                           }}
                         >
-                          {item.reference.startsWith("UTR")
+                          {String(item.reference).startsWith("UTR")
                             ? item.reference
                             : `UTR: ${item.reference}`}
                         </Typography>
@@ -566,6 +597,42 @@ export const NotificationCenter: React.FC<{
               );
             })
           )}
+        </Box>
+
+        {/* Footer: View All Notifications */}
+        <Box
+          sx={{
+            p: 1.2,
+            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+            bgcolor: "rgba(15, 23, 42, 0.95)",
+            textAlign: "center",
+          }}
+        >
+          <Button
+            fullWidth
+            size="small"
+            onClick={() => {
+              handleClose();
+              window.location.href = "/retailer/notifications";
+            }}
+            sx={{
+              color: "#FBBF24",
+              fontWeight: 800,
+              fontSize: "12px",
+              textTransform: "none",
+              borderRadius: "8px",
+              py: 0.8,
+              bgcolor: "rgba(251, 191, 36, 0.08)",
+              border: "1px solid rgba(251, 191, 36, 0.25)",
+              "&:hover": {
+                bgcolor: "rgba(251, 191, 36, 0.18)",
+                borderColor: "#FACC15",
+                color: "#FEF08A",
+              },
+            }}
+          >
+            View All Notifications & Soundbox Settings →
+          </Button>
         </Box>
       </Menu>
     </>

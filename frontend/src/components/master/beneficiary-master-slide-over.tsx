@@ -230,9 +230,7 @@ export function BeneficiaryMasterSlideOver({
   onSuccess,
   customerId,
 }: BeneficiaryMasterSlideOverProps) {
-  const { selectedCustomer, setSelectedBeneficiary } = useTransactionMemoryStore();
-
-  const targetCustomer = customerId || selectedCustomer?.customer_number || selectedCustomer?.public_id || "7013914767";
+  const targetCustomer = customerId || selectedCustomer?.public_id || selectedCustomer?.customer_number || "";
   const currentWalletBalance = 500.0;
   const verificationFee = 3.0;
   const gstAmount = 0.54;
@@ -373,23 +371,27 @@ export function BeneficiaryMasterSlideOver({
 
   // Duplicate Check in Master
   useEffect(() => {
-    if (isAccNumMatched && ifscCode) {
-      if (accNum.endsWith("882233")) {
-        setDuplicateFound({
-          account_holder_name: "SATHIYA MURTHY",
-          bank_name: selectedBankObj?.bank_name || "HDFC Bank",
-          ifsc_code: ifscCode,
-          account_number: accNum,
-          verified_at: "2026-08-01 14:30:00",
-          ref_id: "CFV2-938472910",
-        });
-      } else {
-        setDuplicateFound(null);
-      }
+    let active = true;
+    if (isAccNumMatched && ifscCode && targetCustomer) {
+      retailerApi.checkDuplicateBeneficiaryAccount({
+        customer_id: targetCustomer,
+        account_number: accNum,
+        ifsc_code: ifscCode,
+      }).then((res: any) => {
+        if (!active) return;
+        if (res && res.is_duplicate) {
+          setDuplicateFound(res.existing_beneficiary || null);
+        } else {
+          setDuplicateFound(null);
+        }
+      }).catch(() => {
+        if (active) setDuplicateFound(null);
+      });
     } else {
       setDuplicateFound(null);
     }
-  }, [accNum, confirmAccNum, ifscCode, isAccNumMatched, selectedBankObj]);
+    return () => { active = false; };
+  }, [accNum, confirmAccNum, ifscCode, isAccNumMatched, selectedBankObj, targetCustomer]);
 
   const resetForm = () => {
     setAccHolder("");
@@ -408,6 +410,15 @@ export function BeneficiaryMasterSlideOver({
   // Multi-step Processing Screen Workflow
   const handleExecuteVerification = async () => {
     if (!isAccNumMatched || !ifscCode || !selectedBankObj) return;
+
+    if (!targetCustomer) {
+      setVerificationFailure({
+        reason: "Customer must be selected and verified before adding a beneficiary.",
+        ref_id: `VERIF-ERR-${Math.floor(100000 + Math.random() * 900000)}`,
+        refund_amount: 0.0,
+      });
+      return;
+    }
 
     setIsProcessing(true);
     setVerificationFailure(null);
@@ -467,7 +478,7 @@ export function BeneficiaryMasterSlideOver({
 
         const beneInfo = resPayload.beneficiary || data.beneficiary || {};
         const verifInfo = resPayload.verification || {};
-        const verifiedName = beneInfo.name_at_bank || beneInfo.registered_name_in_bank || beneInfo.account_holder_name || accHolder || "SATHUS TECHNOLOGY PRIVATE LIMITED";
+        const verifiedName = beneInfo.name_at_bank || beneInfo.registered_name_in_bank || beneInfo.account_holder_name || accHolder || "";
         const ifscDet = beneInfo.ifsc_details || {};
 
         setAccHolder(verifiedName);
@@ -479,13 +490,13 @@ export function BeneficiaryMasterSlideOver({
           masked_account: beneInfo.account_number_masked || `•••• •••• ${accNum.slice(-4)}`,
           ifsc_code: ifscCode,
           account_status_code: beneInfo.account_status_code || "ACCOUNT_IS_VALID",
-          utr: beneInfo.utr || "621819407998",
-          city: beneInfo.city || ifscDet.city || "CHENNAI",
-          branch: beneInfo.branch || ifscDet.branch || "NUNGAMBAKKAM, CHENNAI",
-          micr: beneInfo.micr || ifscDet.micr || "600532002",
-          address: ifscDet.address || "UTHAMAR GANDHI SALAI,, OPP PARK HOTEL,, NUNGAMBAKKAM,, CHENNAI, TAMIL NADU-600034",
-          state: ifscDet.state || "TAMIL NADU",
-          ref_id: beneInfo.verification_reference || verifInfo.cashfree_reference_id || "1450540671",
+          utr: beneInfo.utr || "",
+          city: beneInfo.city || ifscDet.city || "",
+          branch: beneInfo.branch || ifscDet.branch || "",
+          micr: beneInfo.micr || ifscDet.micr || "",
+          address: ifscDet.address || "",
+          state: ifscDet.state || "",
+          ref_id: beneInfo.verification_reference || verifInfo.cashfree_reference_id || "",
           verified_at: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
           wallet_debited: 3.0,
           is_reused: resPayload.is_reused || false,
@@ -497,38 +508,14 @@ export function BeneficiaryMasterSlideOver({
         throw new Error(data.detail || data.message || "Bank Penny Drop failed at gateway");
       }
     } catch (err: any) {
-      if (err.message && (err.message.includes("failed") || err.message.includes("Error"))) {
-        setVerificationFailure({
-          reason: err.message,
-          ref_id: `VERIF-ERR-${Math.floor(100000 + Math.random() * 900000)}`,
-          refund_amount: 3.0,
-        });
-      } else {
-        setActiveStep(4);
-        const verifiedName = accHolder || "SATHUS TECHNOLOGY PRIVATE LIMITED";
-        setAccHolder(verifiedName);
-        const successData = {
-          registered_name: verifiedName,
-          name_at_bank: verifiedName,
-          bank_name: selectedBankObj.bank_name,
-          account_number: accNum,
-          masked_account: `•••• •••• ${accNum.slice(-4)}`,
-          ifsc_code: ifscCode,
-          account_status_code: "ACCOUNT_IS_VALID",
-          utr: "621819407998",
-          city: "CHENNAI",
-          branch: "NUNGAMBAKKAM, CHENNAI",
-          micr: "600532002",
-          address: "UTHAMAR GANDHI SALAI,, OPP PARK HOTEL,, NUNGAMBAKKAM,, CHENNAI, TAMIL NADU-600034",
-          state: "TAMIL NADU",
-          ref_id: `1450540671`,
-          verified_at: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-          wallet_debited: 3.0,
-          is_reused: false,
-        };
-        setVerificationSuccess(successData);
-        notificationEngine.notify("BENEFICIARY_VERIFIED", `Bank Verified: ${verifiedName}`);
-      }
+      const rawMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Bank Penny Drop failed at gateway";
+      const errMsg = typeof rawMsg === "object" ? (rawMsg.message || JSON.stringify(rawMsg)) : String(rawMsg);
+      setVerificationFailure({
+        reason: errMsg,
+        ref_id: `VERIF-ERR-${Math.floor(100000 + Math.random() * 900000)}`,
+        refund_amount: 3.54,
+      });
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     } finally {
       setIsProcessing(false);
     }

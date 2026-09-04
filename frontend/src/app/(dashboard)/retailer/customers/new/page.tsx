@@ -19,6 +19,7 @@ import {
   TextField,
   InputAdornment,
   Tooltip,
+  Dialog,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
@@ -42,6 +43,7 @@ import SpeedIcon from "@mui/icons-material/Speed";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { retailerApi } from "@/services/retailer-api";
@@ -50,13 +52,12 @@ import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 
-// Shortened stepper labels: Mobile → OTP → eKYC → PIN → Finish
+// Stepper labels: Mobile → OTP → Aadhaar eKYC → Verified Profile (PIN removed)
 const STEPS = [
   { label: "Mobile", est: "10s" },
   { label: "OTP", est: "30s" },
-  { label: "eKYC", est: "45s" },
-  { label: "PIN", est: "15s" },
-  { label: "Finish", est: "0s" },
+  { label: "Aadhaar eKYC", est: "45s" },
+  { label: "Verified Profile", est: "Done" },
 ];
 
 export default function NewCustomerWorkspacePage() {
@@ -74,7 +75,6 @@ export default function NewCustomerWorkspacePage() {
   const [aadhaarNumber, setAadhaarNumber] = useState("");
   const [otpValue, setOtpValue] = useState("");
   const [aadhaarOtp, setAadhaarOtp] = useState("");
-  const [securityPin, setSecurityPin] = useState("");
 
   // Validation & Lookup States
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -89,19 +89,50 @@ export default function NewCustomerWorkspacePage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [canResend, setCanResend] = useState(true);
+  const [otpChannel, setOtpChannel] = useState<"WHATSAPP" | "SMS">("WHATSAPP");
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
   const [aadhaarVerified, setAadhaarVerified] = useState(false);
   const [aadhaarLoading, setAadhaarLoading] = useState(false);
   const [aadhaarError, setAadhaarError] = useState("");
   const [aadhaarRefId, setAadhaarRefId] = useState("");
   const [createdCustomer, setCreatedCustomer] = useState<any | null>(null);
-  const [securityPinError, setSecurityPinError] = useState("");
-  const [securityPinLoading, setSecurityPinLoading] = useState(false);
+  const [aadhaarProfile, setAadhaarProfile] = useState<any | null>(null);
+  const [showDebitConfirmModal, setShowDebitConfirmModal] = useState(false);
+  const [chargePreview, setChargePreview] = useState<{
+    service_charge?: number;
+    tax_rate?: number;
+    cgst?: number;
+    sgst?: number;
+    tax_amount?: number;
+    total_amount?: number;
+    is_chargeable?: boolean;
+    message?: string;
+  } | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
 
   // Auto-Save Draft Timestamp
   const [lastSaved, setLastSaved] = useState<string>("Just now");
+
+  // OTP Countdown Timer
+  useEffect(() => {
+    let timer: any;
+    if (resendTimer > 0) {
+      timer = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendTimer]);
 
   // Initial Health Check on page load
   useEffect(() => {
@@ -144,6 +175,21 @@ export default function NewCustomerWorkspacePage() {
       setExistingCustomer(null);
     }
   };
+
+  useEffect(() => {
+    const fetchChargePreview = async () => {
+      try {
+        const previewFn = retailerApi.aadhaarKyc?.chargePreview || retailerApi.aadhaar?.chargePreview;
+        if (previewFn) {
+          const data = await previewFn("CUSTOMER_VERIFICATION");
+          if (data) setChargePreview(data);
+        }
+      } catch (err) {
+        console.warn("Using fallback charge preview", err);
+      }
+    };
+    fetchChargePreview();
+  }, []);
 
   useEffect(() => {
     if (mobileNumber.length === 10 && /^[6789]/.test(mobileNumber)) {
@@ -216,6 +262,31 @@ export default function NewCustomerWorkspacePage() {
     }
   };
 
+  const handleResendMobileOtp = async (channel: "WHATSAPP" | "SMS" = "WHATSAPP") => {
+    if (!canResend && resendTimer > 0) return;
+    setOtpLoading(true);
+    setOtpError("");
+    setOtpChannel(channel);
+    try {
+      const res = await retailerApi.generateMobileOtp(mobileNumber, channel);
+      setOtpLoading(false);
+      if (res && (res.status === "SUCCESS" || res.data)) {
+        setCanResend(false);
+        setResendTimer(30);
+        notificationEngine.notify("OTP_RECEIVED", `OTP Resent via ${channel === "WHATSAPP" ? "WhatsApp" : "SMS"} to +91 ${mobileNumber}`);
+      } else {
+        const errMsg = res?.detail || res?.error || res?.message || "Failed to resend OTP code";
+        setOtpError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+      }
+    } catch (err: any) {
+      setOtpLoading(false);
+      const errMsg = err?.response?.data?.detail || err?.message || "Failed to resend OTP";
+      setOtpError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+    }
+  };
+
   const handleSendMobileOtp = async () => {
     if (mobileNumber.length !== 10) return;
     setOtpLoading(true);
@@ -224,20 +295,14 @@ export default function NewCustomerWorkspacePage() {
 
     let cust = createdCustomer;
     if (!cust && firstName && lastName) {
-      try {
-        const regRes = await retailerApi.registerPayoutCustomer({
-          first_name: firstName,
-          last_name: lastName,
-          mobile_number: mobileNumber,
-          email: email || undefined,
-        });
-        if (regRes && regRes.status === "SUCCESS") {
-          cust = regRes.data;
-          setCreatedCustomer(cust);
-        }
-      } catch {
-        // Fallback gracefully
-      }
+      cust = {
+        first_name: firstName,
+        last_name: lastName,
+        mobile_number: mobileNumber,
+        email: email || undefined,
+        kyc_status: "PENDING_VERIFICATION",
+      };
+      setCreatedCustomer(cust);
     }
 
     try {
@@ -245,121 +310,184 @@ export default function NewCustomerWorkspacePage() {
       setOtpLoading(false);
       if (res && (res.status === "SUCCESS" || res.data)) {
         setOtpSent(true);
+        setCanResend(false);
+        setResendTimer(30);
         setActiveStep(1);
         notificationEngine.notify("OTP_RECEIVED", `WhatsApp OTP Dispatched to +91 ${mobileNumber}`);
       } else {
-        setActiveStep(1);
+        const errMsg = res?.detail || res?.error || res?.message || "Failed to dispatch WhatsApp OTP. Please check mobile number.";
+        setOtpError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
       }
-    } catch {
+    } catch (err: any) {
       setOtpLoading(false);
-      setActiveStep(1);
+      const errMsg = err?.response?.data?.detail || err?.message || "Failed to dispatch WhatsApp OTP";
+      setOtpError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
   const handleVerifyMobileOtp = async () => {
-    if (otpValue.length < 4) {
-      setOtpError("Please enter complete 6-digit OTP code");
+    const cleanOtp = otpValue.replace(/\D/g, "").slice(0, 6);
+    if (cleanOtp.length !== 6) {
+      setOtpError("Please enter the complete 6-digit OTP code received on WhatsApp");
       return;
     }
     setOtpLoading(true);
     setOtpError("");
 
     try {
-      const res = await retailerApi.verifyMobileOtp(mobileNumber, otpValue);
+      const res = await retailerApi.verifyMobileOtp(mobileNumber, cleanOtp);
       setOtpLoading(false);
       if (res && res.status === "SUCCESS") {
+        setOtpVerified(true);
+        setOtpError("");
+        notificationEngine.notify(
+          "CUSTOMER_VERIFIED",
+          `✓ WhatsApp OTP Verified Successfully! Proceeding to Step 2 — Aadhaar eKYC`
+        );
         setActiveStep(2);
       } else {
-        setActiveStep(2);
+        const errMsg = res?.detail || res?.error || res?.message || "Invalid WhatsApp OTP code. Please check your WhatsApp message and try again.";
+        setOtpError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
       }
-    } catch {
+    } catch (err: any) {
       setOtpLoading(false);
-      setActiveStep(2);
+      const errMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Invalid OTP code. Please try again.";
+      setOtpError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
-  const handleGenerateAadhaarOtp = async () => {
+  const handleOpenDebitConfirmation = () => {
     if (aadhaarNumber.length !== 12) {
       setAadhaarError("Aadhaar Number must be exactly 12 digits");
       return;
     }
+    setAadhaarError("");
+    setShowDebitConfirmModal(true);
+  };
+
+  const handleConfirmAndSendAadhaarOtp = async () => {
     setAadhaarLoading(true);
     setAadhaarError("");
     try {
-      const res = await retailerApi.generateAadhaarOtp(aadhaarNumber, existingCustomer?.public_id);
+      const res = await retailerApi.generateAadhaarOtp(
+        aadhaarNumber,
+        existingCustomer?.public_id || createdCustomer?.public_id,
+        mobileNumber,
+        "ONBOARDING"
+      );
       setAadhaarLoading(false);
       if (res && res.status === "SUCCESS") {
+        setShowDebitConfirmModal(false);
         setAadhaarOtpSent(true);
-        setAadhaarRefId(res.data?.ref_id || res.data?.ref_number || "REF-12345");
+        setAadhaarRefId(res.data?.ref_id || res.data?.ref_number || res.ref_id || "");
+        const totalCharged = chargePreview?.total_amount != null
+          ? chargePreview.total_amount
+          : res.data?.total_debit || 0;
+        notificationEngine.notify(
+          "OTP_RECEIVED",
+          `Aadhaar eKYC OTP Dispatched via UIDAI.${totalCharged > 0 ? ` Wallet debited: ₹${totalCharged.toFixed(2)}` : ""}`
+        );
+        refreshBalances();
       } else {
-        setAadhaarOtpSent(true);
+        const errMsg = res?.detail || res?.error || res?.message || "Failed to generate Aadhaar OTP";
+        setAadhaarError(errMsg);
+        setShowDebitConfirmModal(false);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
       }
-    } catch {
+    } catch (err: any) {
       setAadhaarLoading(false);
-      setAadhaarOtpSent(true);
+      setShowDebitConfirmModal(false);
+      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message || err?.message;
+      const errMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail || "Failed to generate Aadhaar OTP";
+      setAadhaarError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
   const handleVerifyAadhaarOtp = async () => {
-    if (aadhaarOtp.length < 4) return;
+    const cleanOtp = aadhaarOtp.replace(/\D/g, "").slice(0, 6);
+    if (cleanOtp.length !== 6) {
+      setAadhaarError("Aadhaar OTP must be exactly 6 digits");
+      return;
+    }
     setAadhaarLoading(true);
     setAadhaarError("");
     try {
       const res = await retailerApi.verifyAadhaarOtp({
-        customer_id: existingCustomer?.public_id || "NEW-CUST",
+        customer_id: existingCustomer?.public_id || createdCustomer?.public_id || undefined,
+        mobile_number: mobileNumber,
         ref_number: aadhaarRefId,
-        otp_code: aadhaarOtp,
+        otp_code: cleanOtp,
         masked_aadhaar: `XXXX-XXXX-${aadhaarNumber.slice(-4)}`,
         aadhaar_number: aadhaarNumber,
+        verification_context: "ONBOARDING",
       });
       setAadhaarLoading(false);
       if (res && res.status === "SUCCESS") {
+        const profile = res.data || res.profile || res;
         setAadhaarVerified(true);
+        setAadhaarProfile(profile);
+
+        const updatedCust = {
+          public_id: profile.customer_id || createdCustomer?.public_id,
+          id: profile.customer_number || createdCustomer?.customer_number,
+          customer_number: profile.customer_number || createdCustomer?.customer_number,
+          full_name: profile.full_name || `${firstName} ${lastName}`.trim(),
+          name: profile.full_name || `${firstName} ${lastName}`.trim(),
+          mobile: mobileNumber,
+          mobile_number: mobileNumber,
+          photo_url: profile.photo_url || profile.photo_avatar || profile.photo_base64 || "",
+          photo_avatar: profile.photo_url || profile.photo_avatar || profile.photo_base64 || "",
+          masked_aadhaar: profile.masked_aadhaar || `XXXX-XXXX-${aadhaarNumber.slice(-4)}`,
+          dob: profile.dob || "",
+          gender: profile.gender || "",
+          care_of: profile.care_of || "",
+          address: profile.full_address || profile.address || "",
+          full_address: profile.full_address || profile.address || "",
+          kyc_status: profile.kyc_status || (profile.verification_status === "VERIFIED" ? "APPROVED" : "PENDING"),
+          aadhaar_verified: true,
+          monthly_limit: profile.monthly_limit ?? (createdCustomer?.monthly_limit ?? 200000),
+          risk_score: profile.risk_score ?? (createdCustomer?.risk_score ?? 0),
+        };
+        setCreatedCustomer(updatedCust);
+
+        notificationEngine.notify(
+          "CUSTOMER_VERIFIED",
+          `Aadhaar eKYC Verified Successfully for ${profile.full_name || "Customer"}!`
+        );
+        refreshBalances();
+        // Skip PIN completely — jump directly to Verified Profile (Step 3)
         setActiveStep(3);
       } else {
-        setActiveStep(3);
+        const errMsg = res?.detail || res?.error || res?.message || "Invalid Aadhaar OTP code";
+        setAadhaarError(errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
       }
-    } catch {
+    } catch (err: any) {
       setAadhaarLoading(false);
-      setActiveStep(3);
+      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message || err?.message;
+      const errMsg = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail || "Failed to verify Aadhaar OTP";
+      setAadhaarError(errMsg);
+      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     }
   };
 
-  const handleCreateCustomer = async () => {
-    if (securityPin.length !== 4) {
-      setSecurityPinError("Security PIN must be exactly 4 digits");
-      return;
-    }
-    setSecurityPinLoading(true);
-    setSecurityPinError("");
-
-    const newCust = {
-      public_id: `cust-${Date.now()}`,
-      id: `CUST-${mobileNumber}`,
-      customer_number: `CUST-${mobileNumber}`,
-      full_name: `${firstName} ${lastName}`.trim() || "Verified Customer",
-      name: `${firstName} ${lastName}`.trim() || "Verified Customer",
-      mobile: mobileNumber,
-      mobile_number: mobileNumber,
-      kyc_status: "VERIFIED",
-      monthly_limit: 200000,
-      risk_score: 15,
-    };
-    setCreatedCustomer(newCust);
-    setSecurityPinLoading(false);
-    setActiveStep(4);
-  };
-
-  const handleCompleteAndReturn = (custToSelect: any) => {
+  const handleCompleteAndReturn = (custToSelect?: any) => {
+    const target = custToSelect || createdCustomer || aadhaarProfile;
     const formatted = {
-      ...custToSelect,
-      id: custToSelect.customer_number || custToSelect.public_id || custToSelect.id || `CUST-${mobileNumber}`,
-      public_id: custToSelect.public_id || custToSelect.id,
-      name: custToSelect.full_name || custToSelect.name || "Customer",
-      full_name: custToSelect.full_name || custToSelect.name || "Customer",
-      mobile: custToSelect.mobile_number || custToSelect.mobile || mobileNumber,
-      mobile_number: custToSelect.mobile_number || custToSelect.mobile || mobileNumber,
-      kyc_status: custToSelect.kyc_status || "VERIFIED",
+      ...target,
+      id: target?.customer_number || target?.public_id || target?.id || `CUST-${mobileNumber}`,
+      public_id: target?.public_id || target?.customer_id || target?.id,
+      name: target?.full_name || target?.name || `${firstName} ${lastName}`.trim() || "Customer",
+      full_name: target?.full_name || target?.name || `${firstName} ${lastName}`.trim() || "Customer",
+      mobile: target?.mobile_number || target?.mobile || mobileNumber,
+      mobile_number: target?.mobile_number || target?.mobile || mobileNumber,
+      kyc_status: target?.kyc_status || "VERIFIED",
+      photo_url: target?.photo_url || target?.photo_avatar || aadhaarProfile?.photo_url || "",
     };
     setSelectedCustomer(formatted);
     localStorage.removeItem("pay2pay_customer_workspace_draft");
@@ -373,10 +501,12 @@ export default function NewCustomerWorkspacePage() {
   const isFormValid = mobileNumber.length === 10 && firstName.trim() !== "" && lastName.trim() !== "" && !lookupLoading && !existingCustomer;
   const completionPercentage = Math.round(((activeStep + 1) / STEPS.length) * 100);
 
-  const mainBalanceFormatted = Number(wallet?.mainBalance ?? 49357.52).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const mainBalanceFormatted = wallet?.mainBalance != null
+    ? Number(wallet.mainBalance).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : "0.00";
 
   return (
     <Box
@@ -1268,16 +1398,69 @@ export default function NewCustomerWorkspacePage() {
 
             {/* STEP 1: MOBILE OTP */}
             {activeStep === 1 && (
-              <Stack spacing={2}>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px" }}>
-                  OTP dispatched via WhatsApp to <strong>+91 {mobileNumber}</strong>.
-                </Typography>
+              <Stack spacing={2.5}>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: "14px",
+                    bgcolor: "rgba(34, 197, 94, 0.08)",
+                    border: "1px solid rgba(34, 197, 94, 0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Box>
+                    <Typography sx={{ color: "#4ADE80", fontSize: "13.5px", fontWeight: 800, display: "flex", alignItems: "center", gap: 1 }}>
+                      <span>📲</span> WhatsApp OTP Active
+                    </Typography>
+                    <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "12.5px", mt: 0.5 }}>
+                      6-digit verification code dispatched to <strong>+91 {mobileNumber}</strong>
+                    </Typography>
+                  </Box>
+                  <Chip
+                    label={canResend ? "Code Sent" : `Resend in ${resendTimer}s`}
+                    size="small"
+                    sx={{
+                      bgcolor: canResend ? "rgba(34, 197, 94, 0.2)" : "rgba(255, 255, 255, 0.1)",
+                      color: canResend ? "#4ADE80" : "rgba(255, 255, 255, 0.6)",
+                      fontWeight: 700,
+                      fontSize: "11px",
+                    }}
+                  />
+                </Box>
+
+                {otpError && (
+                  <Alert
+                    severity="error"
+                    sx={{
+                      bgcolor: "rgba(239, 68, 68, 0.15)",
+                      color: "#FCA5A5",
+                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                      borderRadius: "12px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {otpError}
+                  </Alert>
+                )}
 
                 <TextField
                   fullWidth
                   value={otpValue}
-                  onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="Enter 6-digit OTP (e.g. 123456)"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setOtpValue(val);
+                    if (otpError) setOtpError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && otpValue.length === 6 && !otpLoading) {
+                      handleVerifyMobileOtp();
+                    }
+                  }}
+                  placeholder="Enter 6-digit OTP"
+                  autoFocus
                   slotProps={{
                     input: {
                       sx: {
@@ -1285,10 +1468,10 @@ export default function NewCustomerWorkspacePage() {
                         color: "#FFF",
                         borderRadius: "12px",
                         border: "1px solid rgba(245, 158, 11, 0.4)",
-                        fontSize: "16px",
+                        fontSize: "22px",
                         fontWeight: 900,
                         fontFamily: "monospace",
-                        letterSpacing: "0.2em",
+                        letterSpacing: "0.25em",
                         textAlign: "center",
                       },
                     },
@@ -1297,19 +1480,60 @@ export default function NewCustomerWorkspacePage() {
 
                 <Button
                   variant="contained"
-                  disabled={otpValue.length < 4 || otpLoading}
+                  disabled={otpValue.length !== 6 || otpLoading}
                   onClick={handleVerifyMobileOtp}
                   sx={{
                     height: 50,
                     borderRadius: "12px",
                     fontWeight: 900,
+                    fontSize: "14.5px",
                     background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
                     color: "#080B11",
                     textTransform: "none",
+                    boxShadow: "0 6px 20px rgba(245, 158, 11, 0.4)",
+                    "&.Mui-disabled": {
+                      bgcolor: "rgba(255, 255, 255, 0.08)",
+                      color: "rgba(255, 255, 255, 0.3)",
+                    },
                   }}
                 >
-                  Verify Mobile OTP →
+                  {otpLoading ? (
+                    <CircularProgress size={22} sx={{ color: "#080B11" }} />
+                  ) : (
+                    "Verify WhatsApp OTP & Proceed →"
+                  )}
                 </Button>
+
+                {/* Resend Actions */}
+                <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="center" sx={{ pt: 0.5 }}>
+                  <Button
+                    size="small"
+                    disabled={!canResend || otpLoading}
+                    onClick={() => handleResendMobileOtp("WHATSAPP")}
+                    sx={{
+                      color: canResend ? "#FDE68A" : "rgba(255, 255, 255, 0.4)",
+                      fontSize: "12px",
+                      textTransform: "none",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {canResend ? "🔄 Resend WhatsApp OTP" : `Resend in ${resendTimer}s`}
+                  </Button>
+
+                  <Button
+                    size="small"
+                    disabled={!canResend || otpLoading}
+                    onClick={() => handleResendMobileOtp("SMS")}
+                    sx={{
+                      color: canResend ? "rgba(255, 255, 255, 0.8)" : "rgba(255, 255, 255, 0.3)",
+                      fontSize: "12px",
+                      textTransform: "none",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Send via SMS instead
+                  </Button>
+                </Stack>
               </Stack>
             )}
 
@@ -1320,10 +1544,29 @@ export default function NewCustomerWorkspacePage() {
                   Real-time Aadhaar eKYC via Cashfree APIs.
                 </Typography>
 
+                {aadhaarError && (
+                  <Alert
+                    severity="error"
+                    sx={{
+                      bgcolor: "rgba(239, 68, 68, 0.15)",
+                      color: "#FCA5A5",
+                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                      borderRadius: "12px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {aadhaarError}
+                  </Alert>
+                )}
+
                 <TextField
                   fullWidth
                   value={aadhaarNumber}
-                  onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                  onChange={(e) => {
+                    setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12));
+                    if (aadhaarError) setAadhaarError("");
+                  }}
                   placeholder="Enter 12-Digit Aadhaar Number"
                   slotProps={{
                     input: {
@@ -1344,7 +1587,7 @@ export default function NewCustomerWorkspacePage() {
                   <Button
                     variant="contained"
                     disabled={aadhaarNumber.length !== 12 || aadhaarLoading}
-                    onClick={handleGenerateAadhaarOtp}
+                    onClick={handleOpenDebitConfirmation}
                     sx={{
                       height: 50,
                       borderRadius: "12px",
@@ -1361,7 +1604,10 @@ export default function NewCustomerWorkspacePage() {
                     <TextField
                       fullWidth
                       value={aadhaarOtp}
-                      onChange={(e) => setAadhaarOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onChange={(e) => {
+                        setAadhaarOtp(e.target.value.replace(/\D/g, "").slice(0, 6));
+                        if (aadhaarError) setAadhaarError("");
+                      }}
                       placeholder="Enter 6-Digit Aadhaar OTP"
                       slotProps={{
                         input: {
@@ -1380,7 +1626,7 @@ export default function NewCustomerWorkspacePage() {
 
                     <Button
                       variant="contained"
-                      disabled={aadhaarOtp.length < 4 || aadhaarLoading}
+                      disabled={aadhaarOtp.length !== 6 || aadhaarLoading}
                       onClick={handleVerifyAadhaarOtp}
                       sx={{
                         height: 50,
@@ -1391,103 +1637,523 @@ export default function NewCustomerWorkspacePage() {
                         textTransform: "none",
                       }}
                     >
-                      Verify Aadhaar OTP →
+                      {aadhaarLoading ? "Verifying with UIDAI..." : "Verify Aadhaar OTP →"}
                     </Button>
                   </>
                 )}
               </Stack>
             )}
 
-            {/* STEP 3: CREATE MPIN */}
+            {/* STEP 3: VERIFIED PROFILE & FINISH (PIN REMOVED) */}
             {activeStep === 3 && (
-              <Stack spacing={2}>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px" }}>
-                  Create a 4-Digit Security PIN for customer authorization.
-                </Typography>
-
-                <TextField
-                  fullWidth
-                  type="password"
-                  value={securityPin}
-                  onChange={(e) => setSecurityPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  placeholder="Enter 4-Digit PIN"
-                  slotProps={{
-                    input: {
-                      sx: {
-                        bgcolor: "rgba(8, 11, 17, 0.8)",
-                        color: "#FFF",
-                        borderRadius: "12px",
-                        border: "1px solid rgba(245, 158, 11, 0.4)",
-                        fontSize: "20px",
-                        fontWeight: 900,
-                        fontFamily: "monospace",
-                        textAlign: "center",
-                      },
-                    },
-                  }}
-                />
-
-                <Button
-                  variant="contained"
-                  disabled={securityPin.length !== 4 || securityPinLoading}
-                  onClick={handleCreateCustomer}
+              <Stack spacing={2.5} sx={{ textAlign: "center", py: 1 }}>
+                {/* Success Badge */}
+                <Box
                   sx={{
-                    height: 50,
-                    borderRadius: "12px",
-                    fontWeight: 900,
-                    background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
-                    color: "#080B11",
-                    textTransform: "none",
-                  }}
-                >
-                  Create Account &amp; Finish →
-                </Button>
-              </Stack>
-            )}
-
-            {/* STEP 4: FINISH & SELECT */}
-            {activeStep === 4 && (
-              <Stack spacing={2.5} sx={{ textAlign: "center", py: 2 }}>
-                <Avatar
-                  sx={{
-                    width: 60,
-                    height: 60,
-                    bgcolor: "rgba(34, 197, 94, 0.2)",
+                    width: 72,
+                    height: 72,
+                    borderRadius: "50%",
+                    bgcolor: "rgba(34, 197, 94, 0.15)",
                     border: "2px solid #4ADE80",
                     color: "#4ADE80",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     mx: "auto",
+                    boxShadow: "0 0 30px rgba(34, 197, 94, 0.3)",
                   }}
                 >
-                  <CheckCircleIcon sx={{ fontSize: 36 }} />
-                </Avatar>
+                  <CheckCircleIcon sx={{ fontSize: 44 }} />
+                </Box>
 
-                <Typography sx={{ fontWeight: 900, fontSize: "18px", color: "#FFFFFF" }}>
-                  Customer Successfully Registered!
-                </Typography>
-                <Typography sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px" }}>
-                  Customer Profile verified and ready for DMT Money Transfer.
-                </Typography>
+                <Box>
+                  <Typography sx={{ fontWeight: 900, fontSize: "20px", color: "#4ADE80" }}>
+                    Aadhaar eKYC Verified Successfully ✓
+                  </Typography>
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "13px", mt: 0.5 }}>
+                    Customer profile is now officially KYC-verified and authorized for Move to Bank (DMT).
+                  </Typography>
+                </Box>
 
-                <Button
-                  variant="contained"
-                  onClick={() => handleCompleteAndReturn(createdCustomer || { id: `CUST-${mobileNumber}`, name: `${firstName} ${lastName}`.trim(), mobile: mobileNumber })}
+                {/* Rich Aadhaar Customer Card with Photo */}
+                <Box
                   sx={{
-                    height: 52,
-                    borderRadius: "12px",
-                    fontWeight: 900,
-                    fontSize: "15px",
-                    background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
-                    color: "#080B11",
-                    textTransform: "none",
-                    boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45)",
+                    p: 2.5,
+                    borderRadius: "16px",
+                    bgcolor: "rgba(15, 23, 42, 0.8)",
+                    border: "1px solid rgba(245, 158, 11, 0.35)",
+                    textAlign: "left",
+                    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
                   }}
                 >
-                  Use New Customer for Transfer →
-                </Button>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    {aadhaarProfile?.photo_url || aadhaarProfile?.photo_avatar ? (
+                      <Avatar
+                        src={aadhaarProfile.photo_url || aadhaarProfile.photo_avatar}
+                        alt="Customer Aadhaar Photo"
+                        sx={{
+                          width: 72,
+                          height: 72,
+                          border: "2px solid #F59E0B",
+                          boxShadow: "0 0 16px rgba(245, 158, 11, 0.3)",
+                        }}
+                      />
+                    ) : (
+                      <Avatar
+                        sx={{
+                          width: 72,
+                          height: 72,
+                          bgcolor: "rgba(245, 158, 11, 0.2)",
+                          color: "#FDE68A",
+                          border: "2px solid #F59E0B",
+                          fontWeight: 900,
+                          fontSize: "26px",
+                        }}
+                      >
+                        {(aadhaarProfile?.full_name || firstName || "C").charAt(0).toUpperCase()}
+                      </Avatar>
+                    )}
+
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 900, fontSize: "17px", color: "#FFFFFF", lineHeight: 1.3 }}>
+                        {aadhaarProfile?.full_name || `${firstName} ${lastName}`.trim() || "Verified Customer"}
+                      </Typography>
+                      <Typography sx={{ color: "#FDE68A", fontSize: "13px", fontWeight: 700, mt: 0.5 }}>
+                        Aadhaar: {aadhaarProfile?.masked_aadhaar || `XXXX-XXXX-${aadhaarNumber.slice(-4)}`}
+                      </Typography>
+                      <Typography sx={{ color: "#34D399", fontSize: "12px", fontWeight: 700, mt: 0.25, display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <span>✓</span> UIDAI Officially Verified &amp; Encrypted
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 2 }} />
+
+                  {/* Demographic & Address Details Grid */}
+                  <Typography sx={{ color: "#FDE68A", fontSize: "11.5px", fontWeight: 800, textTransform: "uppercase", mb: 1 }}>
+                    Demographic &amp; Address Details
+                  </Typography>
+
+                  <Grid container spacing={1.5} sx={{ fontSize: "12.5px" }}>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Mobile Number</Typography>
+                      <Typography sx={{ fontWeight: 700, color: "#FFF" }}>+91 {mobileNumber}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Customer ID</Typography>
+                      <Typography sx={{ fontWeight: 700, color: "#FDE68A" }}>
+                        {createdCustomer?.customer_number || createdCustomer?.id || `CUST-${mobileNumber}`}
+                      </Typography>
+                    </Grid>
+                    {aadhaarProfile?.dob && (
+                      <Grid size={{ xs: 6 }}>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Date of Birth</Typography>
+                        <Typography sx={{ fontWeight: 700, color: "#FFF" }}>{aadhaarProfile.dob}</Typography>
+                      </Grid>
+                    )}
+                    {aadhaarProfile?.gender && (
+                      <Grid size={{ xs: 6 }}>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Gender</Typography>
+                        <Typography sx={{ fontWeight: 700, color: "#FFF" }}>{aadhaarProfile.gender}</Typography>
+                      </Grid>
+                    )}
+                    {aadhaarProfile?.care_of && (
+                      <Grid size={{ xs: 12 }}>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Care Of</Typography>
+                        <Typography sx={{ fontWeight: 700, color: "#FFF" }}>{aadhaarProfile.care_of}</Typography>
+                      </Grid>
+                    )}
+                    {(aadhaarProfile?.full_address || aadhaarProfile?.address) && (
+                      <Grid size={{ xs: 12 }}>
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px" }}>Registered Address</Typography>
+                        <Typography sx={{ fontWeight: 600, color: "rgba(255, 255, 255, 0.9)", lineHeight: 1.4 }}>
+                          {typeof aadhaarProfile.full_address === "string" ? aadhaarProfile.full_address : typeof aadhaarProfile.address === "string" ? aadhaarProfile.address : `${aadhaarProfile.locality || ""}, ${aadhaarProfile.district || ""}, ${aadhaarProfile.state || ""} - ${aadhaarProfile.pincode || ""}`}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Box>
+
+                {/* Action Buttons */}
+                <Stack spacing={1.5} sx={{ pt: 1 }}>
+                  <Button
+                    variant="contained"
+                    onClick={() => handleCompleteAndReturn(createdCustomer || aadhaarProfile)}
+                    sx={{
+                      height: 52,
+                      borderRadius: "14px",
+                      fontWeight: 900,
+                      fontSize: "15px",
+                      background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
+                      color: "#080B11",
+                      textTransform: "none",
+                      boxShadow: "0 8px 24px rgba(245, 158, 11, 0.4)",
+                    }}
+                  >
+                    Go to Move to Bank (DMT) →
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={() => router.push("/retailer/customers")}
+                    sx={{
+                      height: 48,
+                      borderRadius: "14px",
+                      borderColor: "rgba(255, 255, 255, 0.2)",
+                      color: "rgba(255, 255, 255, 0.8)",
+                      textTransform: "none",
+                      fontWeight: 700,
+                      "&:hover": { borderColor: "rgba(255, 255, 255, 0.4)", bgcolor: "rgba(255, 255, 255, 0.05)" },
+                    }}
+                  >
+                    View Customers Master List
+                  </Button>
+                </Stack>
               </Stack>
             )}
           </Paper>
         )}
+
+        {/* ── AADHAAR WALLET DEBIT CONFIRMATION MODAL (ENTERPRISE FINTECH REDESIGN) ── */}
+        <Dialog
+          open={showDebitConfirmModal}
+          onClose={() => !aadhaarLoading && setShowDebitConfirmModal(false)}
+          slotProps={{
+            backdrop: {
+              sx: {
+                bgcolor: "rgba(3, 7, 18, 0.82)",
+                backdropFilter: "blur(12px)",
+              },
+            },
+          }}
+          PaperProps={{
+            sx: {
+              bgcolor: "rgba(11, 15, 25, 0.96)",
+              backgroundImage: "linear-gradient(180deg, rgba(23, 31, 50, 0.75) 0%, rgba(10, 14, 23, 0.98) 100%)",
+              backdropFilter: "blur(24px)",
+              borderRadius: { xs: "20px", sm: "24px" },
+              border: "1px solid rgba(245, 158, 11, 0.28)",
+              boxShadow: "0 28px 75px rgba(0, 0, 0, 0.92), 0 0 35px rgba(245, 158, 11, 0.12)",
+              color: "#FFFFFF",
+              maxWidth: 440,
+              width: "100%",
+              p: { xs: 2.5, sm: 3 },
+              position: "relative",
+              overflow: "hidden",
+            },
+          }}
+        >
+          {/* Subtle Top Gold Highlight Glow Line */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: "10%",
+              right: "10%",
+              height: "2px",
+              background: "linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.9) 50%, transparent 100%)",
+              boxShadow: "0 0 14px rgba(245, 158, 11, 0.6)",
+            }}
+          />
+
+          <Stack spacing={2.25}>
+            {/* Header: Icon, Title, Subtitle, and Security Indicator */}
+            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1.5}>
+              <Stack direction="row" alignItems="center" spacing={1.75}>
+                <Box
+                  sx={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: "14px",
+                    bgcolor: "rgba(245, 158, 11, 0.12)",
+                    border: "1.5px solid rgba(245, 158, 11, 0.35)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#F59E0B",
+                    boxShadow: "0 0 16px rgba(245, 158, 11, 0.2)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <ShieldIcon sx={{ fontSize: 24, color: "#FBBF24" }} />
+                </Box>
+                <Box>
+                  <Typography
+                    sx={{
+                      fontWeight: 900,
+                      fontSize: { xs: "16.5px", sm: "17.5px" },
+                      color: "#FFFFFF",
+                      letterSpacing: "-0.3px",
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    Confirm Aadhaar Verification
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: "rgba(255, 255, 255, 0.6)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      mt: 0.35,
+                    }}
+                  >
+                    UIDAI Offline eKYC via Cashfree
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {/* Subtle Verification/Security Indicator */}
+              <Box
+                sx={{
+                  display: { xs: "none", sm: "flex" },
+                  alignItems: "center",
+                  gap: 0.6,
+                  bgcolor: "rgba(34, 197, 94, 0.12)",
+                  border: "1px solid rgba(74, 222, 128, 0.3)",
+                  borderRadius: "20px",
+                  px: 1,
+                  py: 0.35,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: "#4ADE80",
+                    boxShadow: "0 0 6px #4ADE80",
+                  }}
+                />
+                <Typography
+                  sx={{
+                    fontSize: "9.5px",
+                    fontWeight: 800,
+                    color: "#4ADE80",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  UIDAI COMPLIANT
+                </Typography>
+              </Box>
+            </Stack>
+
+            {/* Fee Breakdown Card (Polished Financial Summary) */}
+            <Box
+              sx={{
+                bgcolor: "rgba(15, 23, 42, 0.65)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "16px",
+                p: 2,
+              }}
+            >
+              <Typography
+                sx={{
+                  color: "#94A3B8",
+                  fontSize: "10.5px",
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  mb: 1.5,
+                }}
+              >
+                VERIFICATION FEE
+              </Typography>
+
+              <Stack spacing={1.2}>
+                {/* eKYC Service Fee */}
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "13px", fontWeight: 500 }}>
+                    eKYC Service Fee
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: "13.5px",
+                      color: "#FFFFFF",
+                      fontFamily: "var(--font-geist-mono), monospace",
+                    }}
+                  >
+                    ₹{(chargePreview?.service_charge ?? 0).toFixed(2)}
+                  </Typography>
+                </Stack>
+
+                {/* GST Rate & Amount */}
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography sx={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "13px", fontWeight: 500 }}>
+                    GST ({chargePreview?.tax_rate ? Math.round(chargePreview.tax_rate * 100) : 18}%)
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: "13.5px",
+                      color: "#FFFFFF",
+                      fontFamily: "var(--font-geist-mono), monospace",
+                    }}
+                  >
+                    ₹{((chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0)).toFixed(2)}
+                  </Typography>
+                </Stack>
+
+                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
+
+                {/* Total Wallet Debit (Strongest Visual Element) */}
+                <Box
+                  sx={{
+                    p: 1.25,
+                    borderRadius: "12px",
+                    bgcolor: "rgba(245, 158, 11, 0.08)",
+                    border: "1px solid rgba(245, 158, 11, 0.22)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography sx={{ color: "#FDE68A", fontSize: "13.5px", fontWeight: 800 }}>
+                    Total Wallet Debit
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontWeight: 900,
+                      fontSize: { xs: "18px", sm: "20px" },
+                      fontFamily: "var(--font-geist-mono), monospace",
+                      background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      letterSpacing: "-0.4px",
+                    }}
+                  >
+                    ₹{(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+
+            {/* Available Wallet Balance Indicator Card */}
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: "14px",
+                bgcolor: "rgba(255, 255, 255, 0.02)",
+                border: "1px solid rgba(255, 255, 255, 0.07)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <AccountBalanceWalletIcon sx={{ fontSize: 18, color: "#94A3B8" }} />
+                <Typography
+                  sx={{
+                    color: "#94A3B8",
+                    fontSize: "11.5px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Available Wallet Balance
+                </Typography>
+              </Stack>
+              <Typography
+                sx={{
+                  color: "#4ADE80",
+                  fontSize: { xs: "14px", sm: "15px" },
+                  fontWeight: 900,
+                  fontFamily: "var(--font-geist-mono), monospace",
+                }}
+              >
+                ₹{mainBalanceFormatted}
+              </Typography>
+            </Box>
+
+            {/* Compact Professional Information Notice Banner */}
+            <Box
+              sx={{
+                p: 1.35,
+                borderRadius: "12px",
+                bgcolor: "rgba(245, 158, 11, 0.06)",
+                border: "1px solid rgba(245, 158, 11, 0.2)",
+                display: "flex",
+                gap: 1.25,
+                alignItems: "flex-start",
+              }}
+            >
+              <InfoOutlinedIcon sx={{ fontSize: 18, color: "#F59E0B", mt: 0.15, flexShrink: 0 }} />
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", lineHeight: 1.5 }}>
+                Verification charge of{" "}
+                <strong style={{ color: "#FDE68A" }}>
+                  ₹{(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}
+                </strong>{" "}
+                will be debited from your retailer main wallet upon OTP dispatch.
+                <Box component="span" sx={{ display: "block", color: "#4ADE80", fontWeight: 700, mt: 0.35 }}>
+                  ✓ Auto-refund is guaranteed if verification fails.
+                </Box>
+              </Typography>
+            </Box>
+
+            {/* Two-Button Modern Footer */}
+            <Stack direction="row" spacing={1.5} sx={{ pt: 0.5 }}>
+              <Button
+                variant="outlined"
+                fullWidth
+                disabled={aadhaarLoading}
+                onClick={() => setShowDebitConfirmModal(false)}
+                sx={{
+                  height: 48,
+                  borderRadius: "12px",
+                  borderColor: "rgba(255, 255, 255, 0.16)",
+                  bgcolor: "rgba(255, 255, 255, 0.03)",
+                  color: "rgba(255, 255, 255, 0.75)",
+                  textTransform: "none",
+                  fontWeight: 800,
+                  fontSize: "14px",
+                  letterSpacing: "-0.2px",
+                  transition: "all 0.2s ease-in-out",
+                  "&:hover": {
+                    borderColor: "rgba(255, 255, 255, 0.3)",
+                    bgcolor: "rgba(255, 255, 255, 0.07)",
+                    color: "#FFFFFF",
+                    transform: "translateY(-1px)",
+                  },
+                  "&:active": { transform: "translateY(0)" },
+                }}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                variant="contained"
+                fullWidth
+                disabled={aadhaarLoading}
+                onClick={handleConfirmAndSendAadhaarOtp}
+                sx={{
+                  height: 48,
+                  borderRadius: "12px",
+                  fontWeight: 900,
+                  fontSize: "13.5px",
+                  letterSpacing: "-0.2px",
+                  background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
+                  color: "#080B11",
+                  textTransform: "none",
+                  boxShadow: "0 4px 18px rgba(245, 158, 11, 0.35)",
+                  transition: "all 0.2s ease-in-out",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+                    boxShadow: "0 6px 24px rgba(245, 158, 11, 0.5)",
+                    transform: "translateY(-1px)",
+                  },
+                  "&:active": { transform: "translateY(0)" },
+                }}
+              >
+                {aadhaarLoading ? (
+                  <CircularProgress size={20} sx={{ color: "#080B11" }} />
+                ) : (
+                  `Confirm & Debit ₹${(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}`
+                )}
+              </Button>
+            </Stack>
+          </Stack>
+        </Dialog>
       </Box>
 
       {/* ── 5. FIXED MOBILE BOTTOM NAVIGATION WITH FLOATING (+) BUTTON ── */}
