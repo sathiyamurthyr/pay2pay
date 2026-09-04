@@ -1432,6 +1432,89 @@ async def get_topup_request_detail(
 # 6. ADMIN ATOMIC APPROVAL (CRITICAL FINANCIAL P0)
 # ==============================================================================
 
+async def _trigger_retailer_topup_status_whatsapp(
+    topup_public_id: uuid.UUID,
+    status_str: str,
+    approved_amt: float,
+    wallet_credit_amt: float,
+    txn_ref_override: Optional[str] = None
+):
+    """
+    Background asynchronous dispatcher for Retailer WhatsApp status notifications.
+    Uses Template ID 1586618753193150 (topup_status_retailer).
+    """
+    try:
+        from app.core.database import AsyncSessionLocal
+        from app.infrastructure.adapters.whatsapp_service import whatsapp_service
+        from app.infrastructure.db.models import RetailerContactModel, RetailerModel, TopupRequestModel
+        from sqlalchemy import text, select
+
+        async with AsyncSessionLocal() as bg_db:
+            cfg_res = await bg_db.execute(text("SELECT * FROM sp_get_whatsapp_topup_config();"))
+            cfg_row = cfg_res.mappings().first()
+            if not cfg_row or not cfg_row.get("out_retailer_alert_enabled"):
+                return
+
+            t_id = str(cfg_row.get("out_retailer_template_id") or "1586618753193150")
+            t_name = str(cfg_row.get("out_retailer_template_name") or "topup_status_retailer")
+            p_id = str(cfg_row.get("out_phone_number_id") or "497102120160245")
+            lang_code = str(cfg_row.get("out_retailer_language_code") or "en")
+
+            # Fetch Topup record
+            t_stmt = select(TopupRequestModel).where(TopupRequestModel.public_id == topup_public_id)
+            topup_obj = (await bg_db.execute(t_stmt)).scalars().first()
+            if not topup_obj:
+                return
+
+            # Resolve retailer contact
+            ret_stmt = select(RetailerContactModel).where(
+                RetailerContactModel.retailer_id == topup_obj.retailer_id,
+                RetailerContactModel.is_deleted == False
+            ).order_by(RetailerContactModel.primary_contact.desc()).limit(1)
+            c_res = await bg_db.execute(ret_stmt)
+            c_obj = c_res.scalars().first()
+            ret_mob = c_obj.mobile if c_obj else None
+            if not ret_mob:
+                logger.warning(f"[WHATSAPP RETAILER STATUS] No mobile number found for retailer {topup_obj.retailer_id}")
+                return
+
+            # Resolve retailer name
+            ret_m_stmt = select(RetailerModel).where(RetailerModel.public_id == topup_obj.retailer_id)
+            ret_m = (await bg_db.execute(ret_m_stmt)).scalars().first()
+            ret_name = getattr(ret_m, "owner_name", None) or getattr(ret_m, "store_name", None) or str(getattr(ret_m, "retailer_code", "Retailer")) if ret_m else "Retailer"
+
+            req_id_val = topup_obj.topup_request_id
+            amt_req = float(topup_obj.requested_amount)
+            mode_val = topup_obj.payment_method or "POS - Instant"
+            txn_ref = txn_ref_override or topup_obj.transaction_reference or topup_obj.payment_reference or req_id_val
+
+            dt_obj = topup_obj.approved_at or topup_obj.rejected_at or datetime.now(timezone.utc)
+            try:
+                dt_str = dt_obj.astimezone(INDIA_TZ).strftime("%d-%m-%Y %H:%M")
+            except Exception:
+                dt_str = dt_obj.strftime("%d-%m-%Y %H:%M")
+
+            await whatsapp_service.send_retailer_topup_status_alert(
+                mobile_number=ret_mob,
+                retailer_name=ret_name,
+                request_id=req_id_val,
+                amount_requested=amt_req,
+                approved_amount=approved_amt,
+                wallet_credit=wallet_credit_amt,
+                payment_mode=mode_val,
+                transaction_id=txn_ref,
+                approved_date_time=dt_str,
+                status=status_str,
+                view_id=str(topup_obj.public_id),
+                template_name=t_name,
+                template_id=t_id,
+                language_code=lang_code,
+                phone_number_id=p_id
+            )
+    except Exception as bg_ex:
+        logger.warning(f"[WHATSAPP RETAILER STATUS DISPATCH NOTICE] {bg_ex}")
+
+
 @router.post("/requests/{request_id}/approve", summary="Admin Approve Topup Request & Credit Wallet (POST)")
 @router.put("/requests/{request_id}/approve", summary="Admin Approve Topup Request & Credit Wallet (PUT)")
 async def approve_topup_request(
@@ -1510,6 +1593,12 @@ async def approve_topup_request(
         if raw_sp is not None:
             sp_data = json.loads(raw_sp) if isinstance(raw_sp, str) else raw_sp
             await db.commit()
+
+            # Dispatch retailer WhatsApp notification in background
+            override_txn = sp_data.get("txn_id") if isinstance(sp_data, dict) else None
+            asyncio.create_task(_trigger_retailer_topup_status_whatsapp(
+                topup_record.public_id, "Approved", final_approved_amount, final_approved_amount, override_txn
+            ))
 
             # Dispatch notification
             return {
@@ -1749,6 +1838,11 @@ async def approve_topup_request(
     except Exception as email_err:
         logger.warning(f"Failed to dispatch topup approval email: {email_err}")
 
+    # Dispatch retailer WhatsApp notification in background (Application fallback branch)
+    asyncio.create_task(_trigger_retailer_topup_status_whatsapp(
+        topup_record.public_id, "Approved", final_approved_amount, final_approved_amount, getattr(sp_result, "txn_id", None)
+    ))
+
     return {
         "success": True,
         "message": f"Topup request {topup_record.topup_request_id} successfully approved. ₹{final_approved_amount:,.2f} credited to {get_retailer_display_name(retailer)}'s wallet.",
@@ -1824,6 +1918,11 @@ async def reject_topup_request(
     topup_record.updated_by = current_admin.email
 
     await db.commit()
+
+    # Dispatch retailer WhatsApp rejection notification in background
+    asyncio.create_task(_trigger_retailer_topup_status_whatsapp(
+        topup_record.public_id, "Rejected", 0.0, 0.0
+    ))
 
     return {
         "success": True,

@@ -430,6 +430,169 @@ class WhatsAppService:
                 "detail": str(ex)
             }
 
+    async def send_retailer_topup_status_alert(
+        self,
+        mobile_number: str,
+        retailer_name: str,
+        request_id: str,
+        amount_requested: Union[float, str],
+        approved_amount: Union[float, str],
+        wallet_credit: Union[float, str],
+        payment_mode: str,
+        transaction_id: str,
+        approved_date_time: str,
+        status: str,
+        view_id: str,
+        template_name: str = "topup_status_retailer",
+        template_id: str = "1586618753193150",
+        language_code: str = "en",
+        phone_number_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Dispatches automated WhatsApp notification to Retailer when Admin updates top-up request status (Approved / Rejected).
+        Approved Meta Template ID: 1586618753193150 (topup_status_retailer)
+        Format:
+          Body:
+            Hi {{1}},
+            Your wallet top-up request status is updated.
+            Request ID: {{2}}
+            Amount Requested: ₹{{3}}
+            Approved Amount: ₹{{4}}
+            Wallet Credit: ₹{{5}}
+            Payment Mode: {{6}}
+            Transaction ID: {{7}}
+            Approved Date & Time: {{8}}
+            Status: {{9}}
+            Thank you for using Pay2Pay.
+            SUPER REX PRODUCTS PRIVATE LIMITED
+          Button:
+            Receipt: https://receipt.pay2pay.in/r/{{1}}
+        """
+        clean_mobile = "".join(filter(str.isdigit, str(mobile_number)))
+        if clean_mobile.startswith("91") and len(clean_mobile) == 12:
+            formatted_mobile = clean_mobile
+        elif len(clean_mobile) == 10:
+            formatted_mobile = f"91{clean_mobile}"
+        else:
+            formatted_mobile = clean_mobile
+
+        # Format numeric currencies
+        try:
+            req_amt_str = f"{float(amount_requested):,.2f}".rstrip("0").rstrip(".") if float(amount_requested) % 1 != 0 else f"{int(amount_requested)}"
+        except Exception:
+            req_amt_str = str(amount_requested)
+
+        try:
+            app_amt_str = f"{float(approved_amount):,.2f}".rstrip("0").rstrip(".") if float(approved_amount) % 1 != 0 else f"{int(approved_amount)}"
+        except Exception:
+            app_amt_str = str(approved_amount)
+
+        try:
+            w_credit_str = f"{float(wallet_credit):,.2f}".rstrip("0").rstrip(".") if float(wallet_credit) % 1 != 0 else f"{int(wallet_credit)}"
+        except Exception:
+            w_credit_str = str(wallet_credit)
+
+        safe_ret_name = str(retailer_name or "Retailer").strip()
+        safe_req_id = str(request_id or "TOP-REQ").strip()
+        safe_mode = str(payment_mode or "POS - Instant").strip()
+        safe_txn_id = str(transaction_id or safe_req_id).strip()
+        safe_date_time = str(approved_date_time or "").strip()
+        safe_status = str(status or "Updated").strip()
+        safe_view_id = str(view_id or safe_req_id).strip()
+
+        target_phone_id = phone_number_id or self.phone_number_id or "497102120160245"
+        target_url = f"{self.api_url}/{target_phone_id}/messages"
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": formatted_mobile,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": language_code or "en"},
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {"type": "text", "text": safe_ret_name},
+                            {"type": "text", "text": safe_req_id},
+                            {"type": "text", "text": req_amt_str},
+                            {"type": "text", "text": app_amt_str},
+                            {"type": "text", "text": w_credit_str},
+                            {"type": "text", "text": safe_mode},
+                            {"type": "text", "text": safe_txn_id},
+                            {"type": "text", "text": safe_date_time},
+                            {"type": "text", "text": safe_status}
+                        ]
+                    },
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": "0",
+                        "parameters": [
+                            {"type": "text", "text": safe_view_id}
+                        ]
+                    }
+                ]
+            }
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+
+        receipt_url = f"https://receipt.pay2pay.in/r/{safe_view_id}"
+
+        try:
+            logger.info(
+                f"[WHATSAPP RETAILER STATUS ALERT] Destination: +{formatted_mobile} | ReqID: {safe_req_id} | Status: {safe_status} | Receipt: {receipt_url}"
+            )
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(target_url, headers=headers, json=payload)
+                if res.status_code == 200:
+                    res_data = res.json()
+                    msg_id = res_data.get("messages", [{}])[0].get("id", "N/A")
+                    logger.info(f"WhatsApp API 200 OK | Retailer status alert delivered to +{formatted_mobile} | MsgID: {msg_id}")
+                    return {
+                        "status": "SUCCESS",
+                        "delivered": True,
+                        "status_code": 200,
+                        "recipient": formatted_mobile,
+                        "message_id": msg_id,
+                        "template_id": template_id,
+                        "template_name": template_name,
+                        "view_url": receipt_url,
+                        "meta_response": res_data
+                    }
+                else:
+                    logger.warning(f"WhatsApp API HTTP {res.status_code}: {res.text}")
+                    return {
+                        "status": "FAILED",
+                        "delivered": False,
+                        "status_code": res.status_code,
+                        "recipient": formatted_mobile,
+                        "template_id": template_id,
+                        "template_name": template_name,
+                        "view_url": receipt_url,
+                        "detail": res.text,
+                        "meta_response": res.text
+                    }
+        except Exception as ex:
+            logger.error(f"WhatsApp API Exception during retailer topup status alert: {ex}")
+            return {
+                "status": "FAILED",
+                "delivered": False,
+                "status_code": 500,
+                "recipient": formatted_mobile,
+                "template_id": template_id,
+                "template_name": template_name,
+                "view_url": receipt_url,
+                "detail": str(ex)
+            }
+
 
 whatsapp_service = WhatsAppService()
+
 
