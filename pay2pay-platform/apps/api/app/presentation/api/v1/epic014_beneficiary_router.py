@@ -9,6 +9,7 @@ from sqlalchemy import select, or_
 from app.core.database import get_db
 from app.application.dependencies import get_current_tenant_id, get_current_user
 from app.infrastructure.db.models import AdminUserModel
+from app.infrastructure.db.customer_models import CustomerModel
 from app.infrastructure.db.bank_master_models import BankMasterModel
 from app.application.epic014_beneficiary_service import Epic014BeneficiaryService
 
@@ -44,10 +45,40 @@ async def add_and_verify_beneficiary(
     - Cashfree V2 Penny Drop Call
     - Beneficiary Master & Verification Persistence (or Immediate Refund on Failure)
     """
-    try:
-        cust_uuid = uuid.UUID(req.customer_id) if isinstance(req.customer_id, str) and "-" in req.customer_id else uuid.uuid4()
-    except Exception:
-        cust_uuid = uuid.uuid4()
+    cust_uuid = None
+    if isinstance(req.customer_id, str):
+        try:
+            cust_uuid = uuid.UUID(req.customer_id)
+        except Exception:
+            pass
+        if not cust_uuid:
+            clean_str = req.customer_id.replace("CUST-", "").replace("cust-", "").strip()
+            stmt_find = select(CustomerModel).where(
+                or_(
+                    CustomerModel.mobile_number == clean_str,
+                    CustomerModel.customer_number == clean_str,
+                )
+            )
+            found_cust = (await db.execute(stmt_find)).scalars().first()
+            if found_cust:
+                cust_uuid = found_cust.public_id
+
+    if not cust_uuid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A valid customer ID or registered mobile number is required to add a beneficiary."
+        )
+
+    stmt_c = select(CustomerModel).where(CustomerModel.public_id == cust_uuid)
+    cust_obj = (await db.execute(stmt_c)).scalars().first()
+    if not cust_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer record not found in system.")
+
+    if cust_obj.kyc_status not in ("APPROVED", "VERIFIED") or cust_obj.customer_status != "ACTIVE":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Beneficiary can only be added for a verified customer (KYC Approved). Please complete Aadhaar eKYC verification first."
+        )
 
     res = await Epic014BeneficiaryService.register_and_verify_beneficiary(
         db=db,

@@ -207,8 +207,9 @@ function ManualTopupContent() {
       if (typeof window !== "undefined") {
         localStorage.removeItem("pay2pay_entity_balances_map");
         localStorage.removeItem("pay2pay_entity_wallets");
-        localStorage.removeItem("p2p_active_retailer_wallet_balance");
+        // p2p_active_retailer_wallet_balance no longer cached in localStorage (always fetched live from DB)
       }
+
 
       const [retRes, distRes, sdRes] = await Promise.allSettled([
         api.get("/api/v1/retailers?page_size=100"),

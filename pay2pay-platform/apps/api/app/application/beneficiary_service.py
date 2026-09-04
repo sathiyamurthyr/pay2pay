@@ -120,6 +120,23 @@ class BeneficiaryService:
 
     @staticmethod
     async def register_beneficiary(db: AsyncSession, req: BeneficiaryRegisterRequest) -> BeneficiaryResponse:
+        from fastapi import HTTPException, status
+        from app.infrastructure.db.customer_models import CustomerModel
+
+        # Strict customer verification gate
+        stmt_cust = select(CustomerModel).where(CustomerModel.public_id == req.customer_id)
+        cust_row = (await db.execute(stmt_cust)).scalars().first()
+        if not cust_row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Customer not found in system."
+            )
+        if cust_row.kyc_status not in ("APPROVED", "VERIFIED") or cust_row.customer_status != "ACTIVE":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Beneficiary can only be registered for a verified active customer (KYC Approved)."
+            )
+
         # Pre-check & row lock for active duplicate account number + IFSC code for customer
         if req.account_number and req.ifsc_code:
             clean_acc = req.account_number.strip().replace(" ", "")

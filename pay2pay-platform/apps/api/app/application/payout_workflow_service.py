@@ -161,70 +161,19 @@ class PayoutWorkflowService:
                 "message": "Customer record retrieved successfully"
             }
 
-        cust_num = f"CUST{random.randint(100000, 999999)}"
+        # Unverified Customer Protection:
+        # DO NOT insert unverified customer into database!
+        # Customers are created and saved ONLY upon genuine UIDAI Aadhaar eKYC completion.
         full_name = f"{req_data.get('first_name', '')} {req_data.get('last_name', '')}".strip()
-
-        customer = CustomerModel(
-            public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
-            created_by="RETAILER",
-            customer_number=cust_num,
-            customer_category="REGULAR",
-            customer_type="INDIVIDUAL",
-            first_name=req_data.get("first_name", "Customer"),
-            last_name=req_data.get("last_name", "User"),
-            full_name=full_name or "New Customer",
-            mobile_number=mobile,
-            email=req_data.get("email"),
-            gender=req_data.get("gender", "MALE"),
-            kyc_level="MINIMUM_KYC",
-            kyc_status="PENDING",
-            risk_category="LOW",
-            customer_status="ACTIVE",
-            registration_date=datetime.now(),
-            activation_date=datetime.now()
-        )
-        db.add(customer)
-        await db.commit()
-        await db.refresh(customer)
-
-        # Initialize Default Pin (Default 1234)
-        hashed = hashlib.sha256(b"1234").hexdigest()
-        cpin = CustomerPinModel(
-            public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
-            created_by="SYSTEM",
-            customer_id=customer.public_id,
-            hashed_pin=hashed,
-            pin_length=4,
-            is_locked=False,
-            failed_attempts=0,
-            last_changed_at=datetime.now()
-        )
-        db.add(cpin)
-
-        # Initialize Monthly Limit ₹200,000
-        cur_month = datetime.now().strftime("%Y-%m")
-        mlimit = CustomerMonthlyLimitModel(
-            public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
-            created_by="SYSTEM",
-            customer_id=customer.public_id,
-            monthly_limit=200000.0,
-            used_amount=0.0,
-            remaining_amount=200000.0,
-            month_year=cur_month
-        )
-        db.add(mlimit)
-        await db.commit()
-
         return {
-            "public_id": str(customer.public_id),
-            "customer_number": customer.customer_number,
-            "full_name": customer.full_name,
-            "mobile_number": customer.mobile_number,
-            "kyc_status": customer.kyc_status,
-            "message": "Customer registered successfully"
+            "public_id": None,
+            "customer_number": None,
+            "full_name": full_name or "New Customer",
+            "first_name": req_data.get("first_name", "Customer"),
+            "last_name": req_data.get("last_name", ""),
+            "mobile_number": mobile,
+            "kyc_status": "PENDING_VERIFICATION",
+            "message": "Customer mobile validated. Proceed with Aadhaar eKYC verification to activate and save record in database."
         }
 
     # ── STEP 2: Mobile OTP Verification ───────────────────────────────────────
@@ -572,82 +521,137 @@ class PayoutWorkflowService:
     async def add_beneficiary(
         db: AsyncSession,
         tenant_id: uuid.UUID,
-        customer_id: uuid.UUID,
+        customer_id: Any,
         req_data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Add new beneficiary with Penny Drop verification."""
-        acc_holder = req_data.get("account_holder", "").strip()
-        acc_num = req_data.get("account_number", "").strip()
-        confirm_acc = req_data.get("confirm_account_number", "").strip()
-        ifsc = req_data.get("ifsc", "").strip().upper()
-        bank_name = req_data.get("bank_name", "State Bank of India").strip()
-        nickname = req_data.get("nickname", acc_holder)
+        """Add new beneficiary with genuine Cashfree Penny Drop verification.
+        STRICT SECURITY & VERIFICATION GATES:
+        1. Customer must exist and have KYC status APPROVED or VERIFIED.
+        2. Penny Drop must be executed against Cashfree V2 API.
+        3. If Penny Drop fails: zero rows are written to DB, wallet is refunded, HTTP 422 is raised.
+        """
+        from app.application.epic014_beneficiary_service import Epic014BeneficiaryService
 
-        # MPIN Security Check
-        stmt_c = select(CustomerModel).where(CustomerModel.public_id == customer_id)
-        cust_obj = (await db.execute(stmt_c)).scalars().first()
-        if cust_obj and (not getattr(cust_obj, "mpin_enabled", False) or getattr(cust_obj, "is_locked", False)):
+        # 1. Resolve Customer UUID
+        cust_uuid = None
+        if isinstance(customer_id, uuid.UUID):
+            cust_uuid = customer_id
+        elif isinstance(customer_id, str):
+            try:
+                cust_uuid = uuid.UUID(customer_id)
+            except Exception:
+                pass
+            if not cust_uuid:
+                clean_str = customer_id.replace("CUST-", "").replace("cust-", "").strip()
+                stmt_find = select(CustomerModel).where(
+                    or_(
+                        CustomerModel.mobile_number == clean_str,
+                        CustomerModel.customer_number == clean_str,
+                    )
+                )
+                found_cust = (await db.execute(stmt_find)).scalars().first()
+                if found_cust:
+                    cust_uuid = found_cust.public_id
+
+        if not cust_uuid:
             raise HTTPException(
-                status_code=403,
-                detail={
-                    "code": "MPIN_REQUIRED",
-                    "message": "Customer must create an MPIN before performing financial transactions.",
-                    "customer_id": str(customer_id),
-                    "redirect_url": f"/customers/create-pin?customer_id={customer_id}"
-                }
+                status_code=400,
+                detail="A valid customer ID or registered mobile number is required to add a beneficiary."
             )
 
-        if not acc_holder or not acc_num or not ifsc:
-            raise HTTPException(status_code=400, detail="Account holder, Account Number, and IFSC are required")
+        # 2. Strict Customer Verification Gate
+        stmt_c = select(CustomerModel).where(CustomerModel.public_id == cust_uuid)
+        cust_obj = (await db.execute(stmt_c)).scalars().first()
+        if not cust_obj:
+            raise HTTPException(status_code=404, detail="Customer record not found in system.")
+
+        if cust_obj.kyc_status not in ("APPROVED", "VERIFIED") or cust_obj.customer_status != "ACTIVE":
+            raise HTTPException(
+                status_code=400,
+                detail="Beneficiary can only be added for a verified customer (KYC Approved). Please complete Aadhaar eKYC verification first."
+            )
+
+        acc_holder = req_data.get("account_holder") or req_data.get("account_holder_name") or ""
+        acc_num = (req_data.get("account_number") or "").strip()
+        confirm_acc = (req_data.get("confirm_account_number") or req_data.get("confirm_account") or acc_num).strip()
+        ifsc = (req_data.get("ifsc") or req_data.get("ifsc_code") or "").strip().upper()
+        bank_name = (req_data.get("bank_name") or "State Bank of India").strip()
+        nickname = req_data.get("nickname") or acc_holder
+
+        if not acc_num or not ifsc:
+            raise HTTPException(status_code=400, detail="Account number and IFSC code are required.")
 
         if acc_num != confirm_acc:
-            raise HTTPException(status_code=400, detail="Account number and Confirm Account number do not match")
+            raise HTTPException(status_code=400, detail="Account number and Confirm Account number do not match.")
 
-        ben_num = f"BEN{random.randint(100000, 999999)}"
-        ben = BeneficiaryModel(
-            public_id=uuid.uuid4(),
+        # 3. Call Epic014BeneficiaryService (Real Cashfree Penny Drop V2)
+        res = await Epic014BeneficiaryService.register_and_verify_beneficiary(
+            db=db,
             tenant_id=tenant_id,
-            created_by="RETAILER",
-            beneficiary_number=ben_num,
-            customer_id=customer_id,
-            full_name=acc_holder,
-            nickname=nickname,
-            relationship="SELF",
-            verification_status="VERIFIED",
-            beneficiary_status="ACTIVE",
-            registration_date=datetime.now(),
-            activation_date=datetime.now()
-        )
-        db.add(ben)
-
-        masked_num = f"XXXX-XXXX-{acc_num[-4:]}" if len(acc_num) > 4 else acc_num
-        bank_acc = BeneficiaryBankAccountModel(
-            public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
-            created_by="RETAILER",
-            beneficiary_id=ben.public_id,
-            account_holder_name=acc_holder,
+            company_id=None,
+            customer_id=cust_uuid,
             account_number=acc_num,
-            account_number_masked=masked_num,
+            confirm_account_number=confirm_acc,
             ifsc_code=ifsc,
             bank_name=bank_name,
-            verification_status="VERIFIED",
-            penny_drop_status="SUCCESS",
-            name_match_score=100.0,
-            registered_name_in_bank=acc_holder
+            account_holder_name=acc_holder,
+            nickname=nickname,
+            retailer_id=None,
+            current_wallet_balance=float(req_data.get("current_wallet_balance") or 5000.0),
         )
-        db.add(bank_acc)
-        await db.commit()
 
-        return {
-            "beneficiary_id": str(ben.public_id),
-            "full_name": ben.full_name,
-            "account_number_masked": masked_num,
-            "ifsc_code": ifsc,
-            "bank_name": bank_name,
-            "penny_drop_status": "SUCCESS",
-            "message": "Beneficiary added and verified via Penny Drop"
-        }
+        # 4. On genuine Penny Drop success, synchronize legacy BeneficiaryModel
+        if isinstance(res, dict) and res.get("status") == "SUCCESS":
+            bene_info = res.get("beneficiary") or {}
+            master_id = bene_info.get("beneficiary_id")
+            master_uuid = uuid.UUID(master_id) if master_id and isinstance(master_id, str) and "-" in master_id else uuid.uuid4()
+            verified_name = bene_info.get("registered_name_in_bank") or bene_info.get("name_at_bank") or bene_info.get("account_holder_name") or acc_holder
+
+            stmt_leg = select(BeneficiaryModel).where(
+                and_(
+                    BeneficiaryModel.customer_id == cust_uuid,
+                    BeneficiaryModel.public_id == master_uuid
+                )
+            )
+            leg_row = (await db.execute(stmt_leg)).scalars().first()
+            if not leg_row:
+                ben_num = f"BEN{random.randint(100000, 999999)}"
+                leg_row = BeneficiaryModel(
+                    public_id=master_uuid,
+                    tenant_id=tenant_id,
+                    created_by="RETAILER",
+                    beneficiary_number=ben_num,
+                    customer_id=cust_uuid,
+                    full_name=verified_name,
+                    nickname=nickname or f"{bank_name} Account",
+                    relationship="SELF",
+                    verification_status="VERIFIED",
+                    beneficiary_status="ACTIVE",
+                    registration_date=datetime.now(),
+                    activation_date=datetime.now()
+                )
+                db.add(leg_row)
+
+                masked_num = f"XXXX-XXXX-{acc_num[-4:]}" if len(acc_num) > 4 else acc_num
+                leg_acc = BeneficiaryBankAccountModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    created_by="RETAILER",
+                    beneficiary_id=leg_row.public_id,
+                    account_holder_name=verified_name,
+                    account_number=acc_num,
+                    account_number_masked=masked_num,
+                    ifsc_code=ifsc,
+                    bank_name=bank_name,
+                    verification_status="VERIFIED",
+                    penny_drop_status="SUCCESS",
+                    name_match_score=100.0,
+                    registered_name_in_bank=verified_name
+                )
+                db.add(leg_acc)
+                await db.commit()
+
+        return res
 
     # ── STEP 5: Wallet & Limit Validations ────────────────────────────────────
 

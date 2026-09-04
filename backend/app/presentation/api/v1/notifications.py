@@ -98,7 +98,11 @@ async def get_recent_notifications(
                 UserNotificationAlertModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000001"),
                 UserNotificationAlertModel.user_id == uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e"),
             ),
-            UserNotificationAlertModel.tenant_id == t_uuid,
+            or_(
+                UserNotificationAlertModel.tenant_id == t_uuid,
+                UserNotificationAlertModel.tenant_id == uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
+                UserNotificationAlertModel.tenant_id == uuid.UUID("00000000-0000-0000-0000-000000000001")
+            ),
             UserNotificationAlertModel.is_deleted == False
         ]
         if unread_only:
@@ -194,8 +198,10 @@ async def get_recent_notifications(
 
 @router.put("/mark-all-read", summary="Mark All Notifications as Read for Authenticated User")
 @router.patch("/mark-all-read", summary="Mark All Notifications as Read (PATCH)")
+@router.post("/mark-all-read", summary="Mark All Notifications as Read (POST)")
 @router.put("/read-all", summary="Mark All Notifications as Read (Alias)")
 @router.patch("/read-all", summary="Mark All Notifications as Read (Alias PATCH)")
+@router.post("/read-all", summary="Mark All Notifications as Read (Alias POST)")
 async def mark_all_notifications_read(
     user_id: Optional[str] = Query(None),
     tenant_id: Optional[str] = Query(None),

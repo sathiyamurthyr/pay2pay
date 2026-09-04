@@ -329,6 +329,7 @@ async def admin_create_announcement(
 
 
 @router.put("/admin/{announcement_id}", summary="Admin: Update announcement")
+@router.patch("/admin/{announcement_id}", summary="Admin: Partially update announcement (e.g. is_active)")
 async def admin_update_announcement(
     announcement_id: str,
     payload: AnnouncementUpdatePayload,
@@ -362,6 +363,8 @@ async def admin_update_announcement(
         ann.status = payload.status
     if payload.is_active is not None:
         ann.is_active = payload.is_active
+        if not payload.status:
+            ann.status = "ACTIVE" if ann.is_active else "INACTIVE"
     if payload.start_at is not None:
         ann.start_at = payload.start_at
     if payload.end_at is not None:
@@ -405,7 +408,119 @@ async def admin_update_announcement(
             "id": str(ann.public_id),
             "announcement_code": ann.announcement_code,
             "title": ann.title,
-            "is_active": ann.is_active
+            "is_active": ann.is_active,
+            "status": ann.status
+        }
+    }
+
+
+@router.post("/admin/{announcement_id}/toggle", summary="Admin: Toggle announcement active status")
+async def admin_toggle_announcement(
+    announcement_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin endpoint to easily toggle announcement active/inactive status."""
+    try:
+        ann_uuid = uuid.UUID(announcement_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid announcement ID format.")
+
+    stmt = select(AnnouncementModel).where(and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False))
+    ann = (await db.execute(stmt)).scalars().first()
+
+    if not ann:
+        raise HTTPException(status_code=404, detail="Announcement not found.")
+
+    ann.is_active = not ann.is_active
+    ann.status = "ACTIVE" if ann.is_active else "INACTIVE"
+    ann.updated_date = datetime.now(timezone.utc)
+    ann.updated_by = "ADMIN"
+    await db.commit()
+
+    return {
+        "success": True,
+        "status": "SUCCESS",
+        "message": f"Announcement {ann.announcement_code} is now {'Active' if ann.is_active else 'Inactive'}.",
+        "data": {
+            "id": str(ann.public_id),
+            "announcement_code": ann.announcement_code,
+            "title": ann.title,
+            "is_active": ann.is_active,
+            "status": ann.status
+        }
+    }
+
+
+@router.post("/admin/{announcement_id}/enable", summary="Admin: Enable announcement")
+async def admin_enable_announcement(
+    announcement_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin endpoint to enable announcement."""
+    try:
+        ann_uuid = uuid.UUID(announcement_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid announcement ID format.")
+
+    stmt = select(AnnouncementModel).where(and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False))
+    ann = (await db.execute(stmt)).scalars().first()
+
+    if not ann:
+        raise HTTPException(status_code=404, detail="Announcement not found.")
+
+    ann.is_active = True
+    ann.status = "ACTIVE"
+    ann.updated_date = datetime.now(timezone.utc)
+    ann.updated_by = "ADMIN"
+    await db.commit()
+
+    return {
+        "success": True,
+        "status": "SUCCESS",
+        "message": f"Announcement {ann.announcement_code} enabled successfully.",
+        "data": {
+            "id": str(ann.public_id),
+            "announcement_code": ann.announcement_code,
+            "title": ann.title,
+            "is_active": True,
+            "status": "ACTIVE"
+        }
+    }
+
+
+@router.post("/admin/{announcement_id}/disable", summary="Admin: Disable announcement")
+async def admin_disable_announcement(
+    announcement_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin endpoint to disable announcement."""
+    try:
+        ann_uuid = uuid.UUID(announcement_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid announcement ID format.")
+
+    stmt = select(AnnouncementModel).where(and_(AnnouncementModel.public_id == ann_uuid, AnnouncementModel.is_deleted == False))
+    ann = (await db.execute(stmt)).scalars().first()
+
+    if not ann:
+        raise HTTPException(status_code=404, detail="Announcement not found.")
+
+    ann.is_active = False
+    ann.status = "INACTIVE"
+    ann.updated_date = datetime.now(timezone.utc)
+    ann.updated_by = "ADMIN"
+    await db.commit()
+
+    return {
+        "success": True,
+        "status": "SUCCESS",
+        "message": f"Announcement {ann.announcement_code} disabled successfully.",
+        "data": {
+            "id": str(ann.public_id),
+            "announcement_code": ann.announcement_code,
+            "title": ann.title,
+            "is_active": False,
+            "status": "INACTIVE"
         }
     }
 

@@ -182,19 +182,18 @@ export function CustomerOnboardingStepper({
     if (mobileStatusState !== "NEW_CUSTOMER" || mobileNumber.length !== 10) return;
 
     setStep1Loading(true);
-    const regRes = await retailerApi.registerPayoutCustomer({
+    // In-memory draft only — no database row created before Aadhaar verification!
+    const draftCustomer = {
       first_name: firstName,
       last_name: lastName,
       mobile_number: mobileNumber,
       email: email || undefined,
-    });
+      kyc_status: "PENDING_VERIFICATION",
+    };
+    setCreatedCustomer(draftCustomer);
     setStep1Loading(false);
-
-    if (regRes.status === "SUCCESS") {
-      setCreatedCustomer(regRes.data);
-      triggerMobileOtp("WHATSAPP");
-      setActiveStep(1);
-    }
+    triggerMobileOtp("WHATSAPP");
+    setActiveStep(1);
   };
 
   // Trigger Mobile OTP
@@ -239,7 +238,7 @@ export function CustomerOnboardingStepper({
     setStep3Loading(true);
     setAadhaarError("");
     try {
-      const res = await retailerApi.generateAadhaarOtp(cleanAadhaar, createdCustomer?.public_id);
+      const res = await retailerApi.generateAadhaarOtp(cleanAadhaar, createdCustomer?.public_id, mobileNumber, "ONBOARDING");
       setStep3Loading(false);
 
       if (res.status === "SUCCESS" && res.data) {
@@ -266,10 +265,12 @@ export function CustomerOnboardingStepper({
     try {
       const res = await retailerApi.verifyAadhaarOtp({
         customer_id: createdCustomer.public_id,
+        mobile_number: mobileNumber,
         ref_number: aadhaarRefNum,
         otp_code: aadhaarOtp,
         masked_aadhaar: maskedAadhaar,
-        aadhaar_number: aadhaarNumber
+        aadhaar_number: aadhaarNumber,
+        verification_context: "ONBOARDING",
       });
       setStep3Loading(false);
 
@@ -279,10 +280,20 @@ export function CustomerOnboardingStepper({
         return;
       }
 
-      if (res.status === "SUCCESS" && res.data) {
+      if (res.status === "SUCCESS" && (res.data || res.profile)) {
+        const profile = res.data || res.profile;
         setAadhaarVerified(true);
-        setVerifiedAadhaarData(res.data);
-        notificationEngine.notify("AADHAAR_EKYC_COMPLETED", `Aadhaar eKYC Verified via Government Gateway! Fee Billed: ₹${res.data.billing?.total_debited || 11.80}`);
+        setVerifiedAadhaarData(profile);
+        const updatedCust = {
+          ...createdCustomer,
+          public_id: profile.customer_id || profile.public_id || createdCustomer.public_id,
+          id: profile.customer_number || profile.id || createdCustomer.id,
+          customer_number: profile.customer_number || createdCustomer.customer_number,
+          full_name: profile.full_name || `${firstName} ${lastName}`,
+          kyc_status: profile.kyc_status || "APPROVED",
+        };
+        setCreatedCustomer(updatedCust);
+        notificationEngine.notify("AADHAAR_EKYC_COMPLETED", `Aadhaar eKYC Verified via Government Gateway! Fee Billed: ₹${profile.billing?.total_debited || 11.80}`);
       }
     } catch (err: any) {
       setStep3Loading(false);

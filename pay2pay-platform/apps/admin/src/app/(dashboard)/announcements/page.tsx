@@ -121,6 +121,7 @@ export default function AnnouncementsPage() {
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAudienceFilter, setSelectedAudienceFilter] = useState("ALL");
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -285,16 +286,40 @@ export default function AnnouncementsPage() {
 
   const toggleActive = async (id: string, current: boolean) => {
     try {
-      await api.patch(`/api/v1/announcements/admin/${id}`, {
-        is_active: !current,
-        status: !current ? "ACTIVE" : "INACTIVE",
-      });
+      setTogglingId(id);
+      let updatedStatus = !current;
+      try {
+        const res = await api.post(`/api/v1/announcements/admin/${id}/toggle`);
+        if (res.data?.data?.is_active !== undefined) {
+          updatedStatus = res.data.data.is_active;
+        }
+      } catch {
+        try {
+          await api.patch(`/api/v1/announcements/admin/${id}`, {
+            is_active: !current,
+            status: !current ? "ACTIVE" : "INACTIVE",
+          });
+        } catch {
+          await api.put(`/api/v1/announcements/admin/${id}`, {
+            is_active: !current,
+            status: !current ? "ACTIVE" : "INACTIVE",
+          });
+        }
+      }
+
       setAnnouncements((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, is_active: !current } : a))
+        prev.map((a) => (a.id === id ? { ...a, is_active: updatedStatus } : a))
       );
-      showToast("success", current ? "Announcement deactivated" : "Announcement activated");
+      showToast(
+        "success",
+        updatedStatus
+          ? "Announcement enabled (Active)"
+          : "Announcement disabled (Inactive)"
+      );
     } catch {
-      showToast("error", "Failed to update status");
+      showToast("error", "Failed to update announcement status. Please try again.");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -547,6 +572,17 @@ export default function AnnouncementsPage() {
 
                     {/* Badges */}
                     <div className="flex items-center gap-2 shrink-0">
+                      {a.is_active ? (
+                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          LIVE
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-200 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                          DISABLED
+                        </span>
+                      )}
                       <span
                         className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${pStyle.bg} ${pStyle.text} ${pStyle.border}`}
                       >
@@ -567,32 +603,54 @@ export default function AnnouncementsPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {/* Active Status Pill */}
+                      {/* Enable / Disable Toggle Switch Button */}
                       <button
+                        type="button"
                         onClick={() => toggleActive(a.id, a.is_active)}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        disabled={togglingId === a.id}
+                        className={`group relative flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer select-none shadow-2xs ${
                           a.is_active
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                            : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                        }`}
+                            ? "bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 border-emerald-300/80"
+                            : "bg-slate-100 hover:bg-slate-200/90 text-slate-600 border-slate-300"
+                        } ${togglingId === a.id ? "opacity-60 cursor-not-allowed" : ""}`}
+                        title={a.is_active ? "Click to Disable announcement" : "Click to Enable announcement"}
                       >
-                        {a.is_active ? (
-                          <>
-                            <Eye className="h-3.5 w-3.5 text-emerald-600" />
-                            <span>Active</span>
-                          </>
+                        {/* Interactive iOS-style Toggle Switch Track & Knob */}
+                        <div
+                          className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                            a.is_active ? "bg-emerald-600" : "bg-slate-400"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out ${
+                              a.is_active ? "translate-x-3.5" : "translate-x-0.5"
+                            }`}
+                          />
+                        </div>
+
+                        {togglingId === a.id ? (
+                          <span className="flex items-center gap-1 font-bold text-slate-500">
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                            <span>Updating...</span>
+                          </span>
+                        ) : a.is_active ? (
+                          <div className="flex items-center gap-1 font-bold">
+                            <span className="text-emerald-700">Enabled</span>
+                            <span className="text-[10px] font-normal text-emerald-600/70 hidden sm:inline">(Active)</span>
+                          </div>
                         ) : (
-                          <>
-                            <EyeOff className="h-3.5 w-3.5 text-slate-500" />
-                            <span>Inactive</span>
-                          </>
+                          <div className="flex items-center gap-1 font-bold">
+                            <span className="text-slate-600">Disabled</span>
+                            <span className="text-[10px] font-normal text-slate-400 hidden sm:inline">(Inactive)</span>
+                          </div>
                         )}
                       </button>
 
                       {/* Delete Button */}
                       <button
+                        type="button"
                         onClick={() => deleteAnnouncement(a.id)}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50/50 hover:bg-rose-50 border border-rose-200/70 transition-all cursor-pointer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50/50 hover:bg-rose-50 border border-rose-200/70 transition-all cursor-pointer shadow-2xs"
                         title="Delete announcement permanently"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

@@ -295,20 +295,14 @@ export default function NewCustomerWorkspacePage() {
 
     let cust = createdCustomer;
     if (!cust && firstName && lastName) {
-      try {
-        const regRes = await retailerApi.registerPayoutCustomer({
-          first_name: firstName,
-          last_name: lastName,
-          mobile_number: mobileNumber,
-          email: email || undefined,
-        });
-        if (regRes && regRes.status === "SUCCESS") {
-          cust = regRes.data;
-          setCreatedCustomer(cust);
-        }
-      } catch {
-        // Fallback gracefully
-      }
+      cust = {
+        first_name: firstName,
+        last_name: lastName,
+        mobile_number: mobileNumber,
+        email: email || undefined,
+        kyc_status: "PENDING_VERIFICATION",
+      };
+      setCreatedCustomer(cust);
     }
 
     try {
@@ -381,7 +375,9 @@ export default function NewCustomerWorkspacePage() {
     try {
       const res = await retailerApi.generateAadhaarOtp(
         aadhaarNumber,
-        existingCustomer?.public_id || createdCustomer?.public_id
+        existingCustomer?.public_id || createdCustomer?.public_id,
+        mobileNumber,
+        "ONBOARDING"
       );
       setAadhaarLoading(false);
       if (res && res.status === "SUCCESS") {
@@ -423,10 +419,12 @@ export default function NewCustomerWorkspacePage() {
     try {
       const res = await retailerApi.verifyAadhaarOtp({
         customer_id: existingCustomer?.public_id || createdCustomer?.public_id || undefined,
+        mobile_number: mobileNumber,
         ref_number: aadhaarRefId,
         otp_code: cleanOtp,
         masked_aadhaar: `XXXX-XXXX-${aadhaarNumber.slice(-4)}`,
         aadhaar_number: aadhaarNumber,
+        verification_context: "ONBOARDING",
       });
       setAadhaarLoading(false);
       if (res && res.status === "SUCCESS") {

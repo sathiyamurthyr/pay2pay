@@ -26,20 +26,8 @@ export class DMTCustomerService {
     return null;
   }
 
-  static async registerCustomer(data: { name: string; mobile: string; dob: string }): Promise<CustomerData | null> {
-    const parts = (data.name || "").trim().split(" ");
-    const first_name = parts[0] || "Customer";
-    const last_name = parts.slice(1).join(" ") || "User";
-    try {
-      const res = await retailerApi.registerPayoutCustomer({
-        first_name,
-        last_name,
-        mobile_number: data.mobile,
-      });
-      if (res) {
-        return DMTCustomerService.searchCustomerByMobile(data.mobile);
-      }
-    } catch {}
+  static async registerCustomer(_data: { name: string; mobile: string; dob: string }): Promise<CustomerData | null> {
+    // Customers must complete Aadhaar eKYC verification onboarding flow to be registered in DB
     return null;
   }
 }

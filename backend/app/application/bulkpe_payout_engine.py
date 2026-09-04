@@ -117,16 +117,9 @@ class BulkPePayoutEngine:
                     CustomerModel.customer_number.ilike(f"%{raw_cid}%"),
                     CustomerModel.mobile_number == clean_digits if clean_digits else False,
                     CustomerModel.mobile_number.like(f"%{clean_digits[-10:]}%") if len(clean_digits) >= 10 else False,
-                    CustomerModel.mobile_number == "9176669426",
-                    CustomerModel.mobile_number == "7013914767",
                 )
             )
             customer = (await db.execute(stmt_cust)).scalars().first()
-
-        if not customer:
-            # Fallback to any active customer in DB
-            stmt_any = select(CustomerModel).where(CustomerModel.record_status == "ACTIVE").order_by(CustomerModel.id.asc())
-            customer = (await db.execute(stmt_any)).scalars().first()
 
         if not customer:
             raise HTTPException(
@@ -937,8 +930,13 @@ class BulkPePayoutEngine:
                     "p_company_ref_id": eff_company_ref_id
                 })
                 rev_row = rev_wbu_res.fetchone()
-                refund_before = float(rev_row[2]) if rev_row else balance_after
-                refund_after = float(rev_row[3]) if rev_row else balance_before
+                if rev_row and rev_row[0]:
+                    refund_before = float(rev_row[2])
+                    refund_after = float(rev_row[3])
+                else:
+                    logger.critical(f"[PAYOUT_REVERSAL_CRITICAL] Reversal credit rejected by stored procedure for {tx_number}: {rev_row}")
+                    refund_before = balance_after
+                    refund_after = balance_before
 
                 # 3. Create Separate Reversal CREDIT Record in payout_workflow_transactions (with same Txn ID)
                 rev_now_utc = datetime.now(timezone.utc)

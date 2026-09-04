@@ -478,8 +478,19 @@ function BeneficiaryWorkspaceContent() {
       return;
     }
 
+    if (!rawId) {
+      setPennyDropLoading(false);
+      const errDetail = "Customer must be selected and verified before adding a beneficiary.";
+      setVerificationError(errDetail);
+      setResultModalSuccess(false);
+      setResultModalData({ error: errDetail });
+      setResultModalOpen(true);
+      playFailureSound();
+      return;
+    }
+
     try {
-      const custId = rawId && rawId.includes("-") ? rawId : "011b2d7f-9426-4444-8888-000000000001";
+      const custId = rawId;
       const res = await retailerApi.addAndVerifyEpic014Beneficiary({
         customer_id: custId,
         account_number: accNum,

@@ -150,7 +150,15 @@ export default function NotificationsPage() {
         }
 
         const json = await res.json();
-        const items: NotificationItem[] = json.data || [];
+        const items: NotificationItem[] = Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json)
+          ? json
+          : Array.isArray(json?.items)
+          ? json.items
+          : Array.isArray(json?.notifications)
+          ? json.notifications
+          : [];
         setNotifications(items);
 
         const unread = json.unread_count ?? items.filter((i) => !i.is_read).length;
@@ -328,19 +336,19 @@ export default function NotificationsPage() {
   };
 
   // Filtered Notifications
-  const filteredNotifications = notifications.filter((item) => {
+  const filteredNotifications = (Array.isArray(notifications) ? notifications : []).filter((item) => {
+    if (!item) return false;
     if (selectedFilter === "UNREAD" && item.is_read) return false;
     if (selectedFilter !== "ALL" && selectedFilter !== "UNREAD") {
       if (item.type?.toUpperCase() !== selectedFilter) return false;
     }
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    return (
-      item.title?.toLowerCase().includes(q) ||
-      item.message?.toLowerCase().includes(q) ||
-      item.reference?.toLowerCase().includes(q) ||
-      item.status?.toLowerCase().includes(q)
-    );
+    const titleMatch = Boolean(item.title && item.title.toLowerCase().includes(q));
+    const msgMatch = Boolean(item.message && item.message.toLowerCase().includes(q));
+    const refMatch = Boolean(item.reference && item.reference.toLowerCase().includes(q));
+    const statusMatch = Boolean(item.status && item.status.toLowerCase().includes(q));
+    return titleMatch || msgMatch || refMatch || statusMatch;
   });
 
   return (

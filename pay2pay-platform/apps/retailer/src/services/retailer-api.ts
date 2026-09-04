@@ -784,9 +784,14 @@ export const retailerApi = {
     }
   },
 
-  generateAadhaarOtp: async (aadhaar_number: string, customer_id?: string) => {
+  generateAadhaarOtp: async (aadhaar_number: string, customer_id?: string, mobile_number?: string, verification_context: string = "ONBOARDING") => {
     try {
-      const res = await apiClient.post("/payout-workflow/aadhaar-otp/generate", { aadhaar_number, customer_id });
+      const res = await apiClient.post("/payout-workflow/aadhaar-otp/generate", {
+        aadhaar_number,
+        customer_id,
+        mobile_number,
+        verification_context,
+      });
       return res.data;
     } catch (err: any) {
       console.error("Aadhaar OTP Generation API Error:", err);
@@ -802,12 +807,12 @@ export const retailerApi = {
   },
 
   verifyAadhaarOtp: async (
-    customer_id_or_payload: string | { customer_id: string; ref_number: string; otp_code: string; masked_aadhaar: string; aadhaar_number?: string },
+    customer_id_or_payload: string | { customer_id?: string; mobile_number?: string; ref_number: string; otp_code: string; masked_aadhaar: string; aadhaar_number?: string; verification_context?: string },
     ref_number?: string,
     otp_code?: string,
     masked_aadhaar?: string
   ) => {
-    let payload: { customer_id: string; ref_number: string; otp_code: string; masked_aadhaar: string; aadhaar_number?: string };
+    let payload: { customer_id?: string; mobile_number?: string; ref_number: string; otp_code: string; masked_aadhaar: string; aadhaar_number?: string; verification_context?: string };
     if (typeof customer_id_or_payload === "object") {
       payload = customer_id_or_payload;
     } else {
@@ -859,27 +864,8 @@ export const retailerApi = {
     } catch (err: any) {
       console.error("finalizeCustomerOnboarding API Error:", err);
       const rawDetail = err?.response?.data?.detail || err?.response?.data?.message;
-      if (rawDetail) {
-        const errorText = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
-        return { status: "FAILED", error: errorText };
-      }
-      const cust_id = `CUST-PUB-${Date.now()}`;
-      return {
-        status: "SUCCESS",
-        data: {
-          status: "SUCCESS",
-          customer_id: cust_id,
-          public_id: cust_id,
-          customer_number: `CUST-${Date.now().toString().slice(-6)}`,
-          mobile_number: payload.mobile_number || "7013914767",
-          first_name: payload.first_name || "SATHIYA",
-          last_name: payload.last_name || "MURTHY",
-          full_name: `${payload.first_name || "SATHIYA"} ${payload.last_name || "MURTHY"}`,
-          kyc_status: "VERIFIED",
-          customer_status: "ACTIVE",
-          message: "Customer created and activated successfully via Cashfree Aadhaar eKYC!"
-        }
-      };
+      const errorText = typeof rawDetail === 'string' ? rawDetail : (rawDetail ? JSON.stringify(rawDetail) : "Failed to finalize customer onboarding");
+      return { status: "FAILED", error: errorText };
     }
   },
 
@@ -911,13 +897,14 @@ export const retailerApi = {
   },
 
   addPayoutBeneficiary: async (payload: { customer_id: string; account_holder: string; account_number: string; confirm_account_number: string; ifsc: string; bank_name: string; nickname?: string }) => {
+    if (!payload.customer_id) {
+      return { status: "FAILED", error: "A valid customer ID is required to add a beneficiary" };
+    }
     const reqBody = {
-      retailer_id: "8c563671-037e-4764-8edb-d76f4b8afd24",
-      customer_id: payload.customer_id && payload.customer_id.includes("-") ? payload.customer_id : "011b2d7f-9426-4444-8888-000000000001",
+      customer_id: payload.customer_id,
       account_number: payload.account_number,
       ifsc_code: payload.ifsc,
       account_holder_name: payload.account_holder,
-      mobile_number: "7013914767",
       vendor_code: "CASHFREE"
     };
 
@@ -941,7 +928,7 @@ export const retailerApi = {
           verification_status: "VERIFIED",
           beneficiary_status: "ACTIVE",
           penny_drop_status: "SUCCESS",
-          utr: vData.utr_number || `UTR-CF-${Date.now()}`,
+          utr: vData.utr_number || "",
           vendor_ref_id: vData.vendor_ref_id,
           raw_vendor_response: vData.raw_vendor_response
         };
@@ -956,56 +943,22 @@ export const retailerApi = {
           data: verifiedBen,
           message: vData.message || "Bank Account Verified Successfully"
         };
+      } else {
+        const errDetail = res?.data?.detail || res?.data?.message || "Bank Account Verification Failed";
+        return {
+          status: "FAILED",
+          error: typeof errDetail === "object" ? JSON.stringify(errDetail) : errDetail
+        };
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Real /beneficiaries/verify call exception:", err);
+      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Failed to verify beneficiary account";
+      const errText = typeof rawDetail === "object" ? (rawDetail.message || JSON.stringify(rawDetail)) : rawDetail;
+      return {
+        status: "FAILED",
+        error: errText
+      };
     }
-
-    const masked = `XXXX-XXXX-${payload.account_number.slice(-4)}`;
-    const fallbackName = payload.account_holder.toUpperCase();
-    const fallbackBen = {
-      beneficiary_id: `ben-${Date.now()}`,
-      account_holder_name: fallbackName,
-      registered_name_in_bank: fallbackName,
-      name_at_bank: fallbackName,
-      full_name: fallbackName,
-      nickname: payload.nickname || `${payload.bank_name} Account`,
-      account_number: payload.account_number,
-      account_number_masked: masked,
-      ifsc_code: payload.ifsc,
-      bank_name: payload.bank_name,
-      is_verified: true,
-      verification_status: "VERIFIED",
-      beneficiary_status: "ACTIVE",
-      penny_drop_status: "SUCCESS",
-      utr: `UTR-CF-${Date.now()}`,
-      vendor_ref_id: `CF-PENNY-${Date.now()}`,
-      raw_vendor_response: {
-        status: "SUCCESS",
-        subCode: "200",
-        message: "Bank Account Verified Successfully",
-        accountStatus: "VALID",
-        data: {
-          refId: `CF-PENNY-${Date.now()}`,
-          nameAtBank: fallbackName,
-          accountNumber: payload.account_number,
-          ifsc: payload.ifsc,
-          accountExists: true,
-          utr: `UTR-CF-${Date.now()}`
-        }
-      }
-    };
-
-    if (!dynamicBeneficiaryStore[payload.customer_id]) {
-      dynamicBeneficiaryStore[payload.customer_id] = [];
-    }
-    dynamicBeneficiaryStore[payload.customer_id].push(fallbackBen);
-
-    return {
-      status: "SUCCESS",
-      data: fallbackBen,
-      message: "Beneficiary added and verified via Penny Drop"
-    };
   },
 
   createReversePennyDrop: async (payload: { name: string; phone: string; amount?: number }) => {

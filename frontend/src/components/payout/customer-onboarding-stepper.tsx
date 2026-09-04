@@ -182,19 +182,18 @@ export function CustomerOnboardingStepper({
     if (mobileStatusState !== "NEW_CUSTOMER" || mobileNumber.length !== 10) return;
 
     setStep1Loading(true);
-    const regRes = await retailerApi.registerPayoutCustomer({
+    // In-memory draft only — no database row created before Aadhaar verification!
+    const draftCustomer = {
       first_name: firstName,
       last_name: lastName,
       mobile_number: mobileNumber,
       email: email || undefined,
-    });
+      kyc_status: "PENDING_VERIFICATION",
+    };
+    setCreatedCustomer(draftCustomer);
     setStep1Loading(false);
-
-    if (regRes.status === "SUCCESS") {
-      setCreatedCustomer(regRes.data);
-      triggerMobileOtp("WHATSAPP");
-      setActiveStep(1);
-    }
+    triggerMobileOtp("WHATSAPP");
+    setActiveStep(1);
   };
 
   // Trigger Mobile OTP
@@ -239,14 +238,14 @@ export function CustomerOnboardingStepper({
     setStep3Loading(true);
     setAadhaarError("");
     try {
-      const res = await retailerApi.generateAadhaarOtp(cleanAadhaar, createdCustomer?.public_id);
+      const res = await retailerApi.generateAadhaarOtp(cleanAadhaar, createdCustomer?.public_id, mobileNumber, "ONBOARDING");
       setStep3Loading(false);
 
       if (res.status === "SUCCESS" && res.data) {
         setAadhaarOtpSent(true);
         setAadhaarRefNum(res.data.ref_id || res.data.ref_number);
         setMaskedAadhaar(res.data.masked_aadhaar);
-        notificationEngine.notify("OTP_RECEIVED", `Aadhaar OTP sent for ${res.data.masked_aadhaar}. Fee Billed: ₹10.00 (+ ₹1.80 GST)`);
+        notificationEngine.notify("OTP_RECEIVED", `Aadhaar OTP sent for ${res.data.masked_aadhaar}. Fee Billed: ₹3.00 (+ ₹0.54 GST)`);
       } else {
         setAadhaarError(res.detail || res.message || "Failed to generate Aadhaar OTP.");
       }
@@ -266,10 +265,12 @@ export function CustomerOnboardingStepper({
     try {
       const res = await retailerApi.verifyAadhaarOtp({
         customer_id: createdCustomer.public_id,
+        mobile_number: mobileNumber,
         ref_number: aadhaarRefNum,
         otp_code: aadhaarOtp,
         masked_aadhaar: maskedAadhaar,
-        aadhaar_number: aadhaarNumber
+        aadhaar_number: aadhaarNumber,
+        verification_context: "ONBOARDING",
       });
       setStep3Loading(false);
 
@@ -279,10 +280,20 @@ export function CustomerOnboardingStepper({
         return;
       }
 
-      if (res.status === "SUCCESS" && res.data) {
+      if (res.status === "SUCCESS" && (res.data || res.profile)) {
+        const profile = res.data || res.profile;
         setAadhaarVerified(true);
-        setVerifiedAadhaarData(res.data);
-        notificationEngine.notify("AADHAAR_EKYC_COMPLETED", `Aadhaar eKYC Verified via Government Gateway! Fee Billed: ₹${res.data.billing?.total_debited || 11.80}`);
+        setVerifiedAadhaarData(profile);
+        const updatedCust = {
+          ...createdCustomer,
+          public_id: profile.customer_id || profile.public_id || createdCustomer.public_id,
+          id: profile.customer_number || profile.id || createdCustomer.id,
+          customer_number: profile.customer_number || createdCustomer.customer_number,
+          full_name: profile.full_name || `${firstName} ${lastName}`,
+          kyc_status: profile.kyc_status || "APPROVED",
+        };
+        setCreatedCustomer(updatedCust);
+        notificationEngine.notify("AADHAAR_EKYC_COMPLETED", `Aadhaar eKYC Verified via Government Gateway! Fee Billed: ₹${profile.billing?.total_debited || 11.80}`);
       }
     } catch (err: any) {
       setStep3Loading(false);
@@ -487,18 +498,30 @@ export function CustomerOnboardingStepper({
                     }}
                   >
                     <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 2 }}>
-                      <Avatar sx={{ width: 44, height: 44, bgcolor: "#16A34A", color: "#FFF" }}>
-                        <VerifiedUserIcon />
+                      <Avatar
+                        src={duplicateCustomer.photo_url || duplicateCustomer.photo_avatar || undefined}
+                        sx={{ width: 52, height: 52, bgcolor: "#16A34A", color: "#FFF", border: "2px solid #BBF7D0", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+                      >
+                        {duplicateCustomer.photo_url ? null : <VerifiedUserIcon />}
                       </Avatar>
                       <Box sx={{ flexGrow: 1 }}>
                         <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
                           <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#14532D" }}>
                             Existing Customer Found
                           </Typography>
-                          <Chip label="Match Confirmed" size="small" sx={{ bgcolor: "#DCFCE7", color: "#15803D", fontWeight: 800, fontSize: "0.65rem" }} />
+                          <Chip
+                            label={duplicateCustomer.kyc_status === "APPROVED" || duplicateCustomer.kyc_status === "VERIFIED" ? "KYC Approved" : "KYC Pending"}
+                            size="small"
+                            sx={{
+                              bgcolor: duplicateCustomer.kyc_status === "APPROVED" || duplicateCustomer.kyc_status === "VERIFIED" ? "#DCFCE7" : "#FEF3C7",
+                              color: duplicateCustomer.kyc_status === "APPROVED" || duplicateCustomer.kyc_status === "VERIFIED" ? "#15803D" : "#B45309",
+                              fontWeight: 800,
+                              fontSize: "0.65rem"
+                            }}
+                          />
                         </Stack>
                         <Typography variant="caption" sx={{ color: "#166534", fontWeight: 600 }}>
-                          Verified customer record retrieved from system
+                          {duplicateCustomer.kyc_status === "APPROVED" || duplicateCustomer.kyc_status === "VERIFIED" ? "Verified customer record retrieved from system" : "Customer record found — Aadhaar eKYC verification required"}
                         </Typography>
                       </Box>
                     </Stack>
@@ -655,12 +678,20 @@ export function CustomerOnboardingStepper({
                 <Alert
                   severity="info"
                   icon={otpChannel === "WHATSAPP" ? <WhatsAppIcon sx={{ color: "#25D366" }} /> : <SmsIcon sx={{ color: "#0284C7" }} />}
-                  sx={{ mb: 3, borderRadius: 3 }}
+                  sx={{
+                    mb: 3,
+                    borderRadius: 3,
+                    bgcolor: "#E0F2FE !important",
+                    color: "#075985 !important",
+                    border: "1px solid #7DD3FC !important",
+                    "& .MuiAlert-message": { color: "#075985 !important", fontWeight: 600 }
+                  }}
                   action={
                     <Button
                       size="small"
                       color="inherit"
                       onClick={() => triggerMobileOtp(otpChannel === "WHATSAPP" ? "SMS" : "WHATSAPP")}
+                      sx={{ fontWeight: 800, color: "#0369A1" }}
                     >
                       Switch to {otpChannel === "WHATSAPP" ? "SMS OTP" : "WhatsApp OTP"}
                     </Button>
@@ -712,14 +743,26 @@ export function CustomerOnboardingStepper({
                 <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0F172A" }}>
                   Step 3: Aadhaar eKYC Verification
                 </Typography>
-                <Chip label="Fee: ₹10.00 + GST (Auto-Refund on Fail)" size="small" sx={{ bgcolor: "#E0F2FE", color: "#0284C7", fontWeight: 800, fontSize: "0.7rem" }} />
+                <Chip label="Fee: ₹3.00 + GST (Auto-Refund on Fail)" size="small" sx={{ bgcolor: "#E0F2FE", color: "#0284C7", fontWeight: 800, fontSize: "0.7rem" }} />
               </Box>
               <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 2.5 }}>
                 Enter 12-digit Aadhaar number to trigger UIDAI verification. PII encrypted AES-256.
               </Typography>
 
               {aadhaarError && (
-                <Alert severity="error" sx={{ mb: 2.5, borderRadius: 3, fontWeight: 700 }}>
+                <Alert
+                  severity="error"
+                  sx={{
+                    mb: 2.5,
+                    borderRadius: 3,
+                    fontWeight: 700,
+                    bgcolor: "#FEE2E2 !important",
+                    color: "#991B1B !important",
+                    border: "1px solid #FCA5A5 !important",
+                    "& .MuiAlert-icon": { color: "#DC2626 !important" },
+                    "& .MuiAlert-message": { color: "#991B1B !important", fontWeight: 700 }
+                  }}
+                >
                   {aadhaarError}
                 </Alert>
               )}
@@ -749,8 +792,20 @@ export function CustomerOnboardingStepper({
                   </Stack>
                 ) : (
                   <form onSubmit={handleVerifyAadhaarOtp}>
-                    <Alert severity="info" sx={{ mb: 2, borderRadius: 3, fontWeight: 600 }}>
-                      Aadhaar OTP sent for <strong>{maskedAadhaar}</strong> (Ref: {aadhaarRefNum}). ₹10.00 (+ GST) debited from wallet.
+                    <Alert
+                      severity="info"
+                      sx={{
+                        mb: 2,
+                        borderRadius: 3,
+                        fontWeight: 600,
+                        bgcolor: "#E0F2FE !important",
+                        color: "#0369A1 !important",
+                        border: "1px solid #7DD3FC !important",
+                        "& .MuiAlert-icon": { color: "#0284C7 !important" },
+                        "& .MuiAlert-message": { color: "#075985 !important", fontWeight: 600 }
+                      }}
+                    >
+                      Aadhaar OTP sent for <strong>{maskedAadhaar}</strong> (Ref: {aadhaarRefNum}). ₹3.00 (+ GST) debited from wallet.
                     </Alert>
 
                     <M3TextField
@@ -786,7 +841,19 @@ export function CustomerOnboardingStepper({
                 )
               ) : (
                 <Stack spacing={2.5}>
-                  <Alert severity="success" icon={<CheckCircleIcon fontSize="inherit" />} sx={{ borderRadius: 3, fontWeight: 800 }}>
+                  <Alert
+                    severity="success"
+                    icon={<CheckCircleIcon sx={{ color: "#16A34A !important" }} fontSize="inherit" />}
+                    sx={{
+                      borderRadius: 3,
+                      fontWeight: 800,
+                      bgcolor: "#DCFCE7 !important",
+                      color: "#14532D !important",
+                      border: "1px solid #86EFAC !important",
+                      "& .MuiAlert-icon": { color: "#16A34A !important" },
+                      "& .MuiAlert-message": { color: "#14532D !important", fontWeight: 800 }
+                    }}
+                  >
                     Aadhaar eKYC Verified Successfully! Digital Aadhaar Card Created.
                   </Alert>
 

@@ -137,56 +137,10 @@ class CustomerService:
 
     @staticmethod
     async def register_customer(db: AsyncSession, req: CustomerRegisterRequest) -> CustomerResponse:
-        # Prevent duplicate registrations by mobile number
-        stmt = select(CustomerModel).where(CustomerModel.mobile_number == req.mobile_number)
-        existing = (await db.execute(stmt)).scalar_one_or_none()
-        if existing:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Customer with mobile number {req.mobile_number} already exists"
-            )
-
-        full_name = f"{req.first_name} {req.middle_name + ' ' if req.middle_name else ''}{req.last_name}".strip()
-        default_tenant_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
-        customer = CustomerModel(
-            public_id=uuid.uuid4(),
-            customer_number=_generate_customer_number(),
-            customer_category=req.customer_category,
-            customer_type=req.customer_type,
-            first_name=req.first_name,
-            middle_name=req.middle_name,
-            last_name=req.last_name,
-            full_name=full_name,
-            mobile_number=req.mobile_number,
-            email=req.email,
-            dob=req.dob,
-            gender=req.gender,
-            nationality=req.nationality,
-            occupation=req.occupation,
-            preferred_language=req.preferred_language or "en",
-            preferred_channel=req.preferred_channel or "SMS",
-            referral_code=req.referral_code,
-            introduced_by_retailer_id=req.introduced_by_retailer_id,
-            kyc_level="MINIMUM_KYC",
-            kyc_status="PENDING_KYC",
-            risk_category="LOW",
-            customer_status="DRAFT",
-            registration_date=_now(),
-            is_active=True,
-            is_deleted=False,
-            tenant_id=default_tenant_id,
-            date_key=int(datetime.now().strftime("%Y%m%d")),
-            created_by="system",
-            created_date=_now(),
-            updated_by="system",
-            updated_date=_now(),
-            version_no=1,
-            record_status="ACTIVE",
+        raise HTTPException(
+            status_code=400,
+            detail="Customers cannot be registered or saved in the database without completing Aadhaar eKYC verification. Please use the Aadhaar eKYC onboarding flow."
         )
-        db.add(customer)
-        await db.commit()
-        await db.refresh(customer)
-        return _to_customer_response(customer)
 
     @staticmethod
     async def list_customers(db: AsyncSession, req: CustomerSearchRequest) -> List[CustomerResponse]:

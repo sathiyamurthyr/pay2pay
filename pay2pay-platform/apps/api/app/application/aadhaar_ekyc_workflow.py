@@ -24,6 +24,7 @@ from app.infrastructure.db.customer_models import (
     CustomerIdentityModel, CustomerKycModel, CustomerDocumentModel,
     CustomerStatusHistoryModel, CustomerTimelineModel
 )
+from app.infrastructure.db.payout_workflow_models import CustomerPinModel, CustomerMonthlyLimitModel
 from app.infrastructure.db.ekyc_models import AadhaarVerificationModel, CustomerVerificationModel
 from app.infrastructure.db.models import RetailerModel
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
@@ -266,7 +267,8 @@ class AadhaarEkycWorkflowService:
         retailer_id: Optional[str],
         customer_id: Optional[str],
         aadhaar_number: str,
-        verification_context: str = CONTEXT_CUSTOMER_VERIFICATION
+        verification_context: str = CONTEXT_CUSTOMER_VERIFICATION,
+        mobile_number: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generates Aadhaar OTP with optional wallet pre-debit based on verification_context.
@@ -397,6 +399,7 @@ class AadhaarEkycWorkflowService:
             "tenant_id": str(tenant_id),
             "retailer_id": str(retailer_uuid) if retailer_uuid else None,
             "customer_id": customer_id,
+            "mobile_number": mobile_number,
             "clean_aadhaar": clean_aadhaar,
             "masked_aadhaar": masked_aadhaar,
             "aadhaar_hash": aadhaar_hash,
@@ -445,13 +448,14 @@ class AadhaarEkycWorkflowService:
         ref_id: str,
         otp_code: str,
         aadhaar_number: Optional[str] = None,
-        verification_context: Optional[str] = None
+        verification_context: Optional[str] = None,
+        mobile_number: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Verify 6-digit Aadhaar OTP via Cashfree.
         On failure -> Auto-Refund verification fee (+₹5.90) via public.wallet_balance_update (paid context only).
         On success -> Upload photo to Backblaze B2, store B2 URL in CustomerProfileModel,
-                      and update CustomerModel KYC status to APPROVED.
+                      create or update CustomerModel KYC status to APPROVED atomically.
         """
         fee_session = _pending_fee_sessions.get(ref_id)
         retailer_uuid = await _resolve_retailer_uuid(db, (fee_session.get("retailer_id") if fee_session else None) or retailer_id)
@@ -519,6 +523,10 @@ class AadhaarEkycWorkflowService:
                 b2_photo_url = raw_photo
 
         # Resolve or find customer in DB
+        mobile_val = mobile_number or (fee_session.get("mobile_number") if fee_session else None)
+        if not mobile_val and customer_id and str(customer_id).isdigit() and len(str(customer_id)) == 10:
+            mobile_val = str(customer_id)
+
         target_cust = None
         if customer_id:
             try:
@@ -536,6 +544,11 @@ class AadhaarEkycWorkflowService:
                 )
                 target_cust = (await db.execute(stmt)).scalar_one_or_none()
 
+        if not target_cust and mobile_val:
+            c_mob = "".join(filter(str.isdigit, mobile_val))[-10:]
+            stmt_m = select(CustomerModel).where(CustomerModel.mobile_number == c_mob)
+            target_cust = (await db.execute(stmt_m)).scalar_one_or_none()
+
         now_utc = datetime.now(timezone.utc)
         dob_val = None
         if ekyc_profile.get("dob"):
@@ -543,6 +556,93 @@ class AadhaarEkycWorkflowService:
                 dob_val = datetime.strptime(ekyc_profile["dob"], "%Y-%m-%d").date()
             except Exception:
                 pass
+
+        if not target_cust:
+            # Atomic creation of brand-new VERIFIED customer
+            c_mobile = "".join(filter(str.isdigit, mobile_val or ""))[-10:] if mobile_val else ""
+            if not c_mobile or len(c_mobile) != 10:
+                c_mobile = (fee_session.get("clean_mobile") if fee_session else "") or "9999999999"
+
+            cust_uuid = uuid.uuid4()
+            cust_num = f"CUST{random.randint(100000, 999999)}"
+            full_name_str = ekyc_profile.get("full_name") or "Verified Customer"
+            first_name_str = ekyc_profile.get("first_name") or (full_name_str.split(" ")[0] if " " in full_name_str else full_name_str)
+            last_name_str = ekyc_profile.get("last_name") or (" ".join(full_name_str.split(" ")[1:]) if " " in full_name_str else "")
+            gender_str = (ekyc_profile.get("gender") or "M").upper()
+            if gender_str in ("M", "MALE"):
+                gender_str = "MALE"
+            elif gender_str in ("F", "FEMALE"):
+                gender_str = "FEMALE"
+            else:
+                gender_str = "OTHER"
+
+            target_cust = CustomerModel(
+                public_id=cust_uuid,
+                tenant_id=tenant_id,
+                customer_number=cust_num,
+                customer_category="REGULAR",
+                customer_type="INDIVIDUAL",
+                first_name=first_name_str,
+                middle_name=ekyc_profile.get("middle_name", ""),
+                last_name=last_name_str,
+                full_name=full_name_str,
+                mobile_number=c_mobile,
+                email=f"{c_mobile}@pay2pay.in",
+                dob=dob_val,
+                gender=gender_str,
+                nationality="INDIAN",
+                occupation="RETAILER_CUSTOMER",
+                kyc_level="FULL_KYC",
+                kyc_status="APPROVED",
+                risk_category="LOW",
+                customer_status="ACTIVE",
+                registration_date=now_utc,
+                activation_date=now_utc,
+                last_active_date=now_utc,
+                mpin_enabled=True,
+                mpin_hash=_hash_mpin("1234", str(cust_uuid)),
+                mpin_created_at=now_utc,
+                created_date=now_utc,
+                updated_date=now_utc,
+                created_by="RETAILER",
+                updated_by="RETAILER",
+                is_active=True,
+                is_deleted=False
+            )
+            db.add(target_cust)
+            await db.flush()
+
+            try:
+                cpin = CustomerPinModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    created_by="SYSTEM",
+                    customer_id=target_cust.public_id,
+                    hashed_pin=hashlib.sha256(b"1234").hexdigest(),
+                    pin_length=4,
+                    is_locked=False,
+                    failed_attempts=0,
+                    last_changed_at=now_utc
+                )
+                db.add(cpin)
+            except Exception as cp_err:
+                logger.warning(f"CustomerPinModel notice: {cp_err}")
+
+            try:
+                cur_month = now_utc.strftime("%Y-%m")
+                mlimit = CustomerMonthlyLimitModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    created_by="SYSTEM",
+                    customer_id=target_cust.public_id,
+                    monthly_limit=200000.0,
+                    used_amount=0.0,
+                    remaining_amount=200000.0,
+                    month_year=cur_month
+                )
+                db.add(mlimit)
+            except Exception as lm_err:
+                logger.warning(f"CustomerMonthlyLimitModel notice: {lm_err}")
 
         if target_cust:
             # Upgrade existing customer to APPROVED KYC
@@ -732,7 +832,11 @@ class AadhaarEkycWorkflowService:
             "status": "SUCCESS",
             "verification_status": "VERIFIED",
             "customer_id": c_public_id,
+            "public_id": c_public_id,
+            "id": c_cust_number or c_public_id,
             "customer_number": c_cust_number,
+            "kyc_status": "APPROVED",
+            "customer_status": "ACTIVE",
             "ref_id": ref_id,
             "masked_aadhaar": masked_aadhaar,
             "full_name": ekyc_profile.get("full_name", ""),
