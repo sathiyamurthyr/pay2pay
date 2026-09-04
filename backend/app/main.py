@@ -343,6 +343,14 @@ app.include_router(admin_payout_routing_router.router, prefix=f"{settings.API_V1
 app.include_router(admin_payout_routing_router.router, prefix="/api")
 app.include_router(admin_payout_routing_router.router, prefix="")
 
+from app.presentation.api.v1 import services_router
+app.include_router(services_router.router, prefix=settings.API_V1_STR)
+app.include_router(services_router.router, prefix="/v1")
+app.include_router(services_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(services_router.router, prefix="/api")
+app.include_router(services_router.router, prefix="")
+
+
 from app.presentation.api.v1 import urbanrupee_payout_router
 app.include_router(urbanrupee_payout_router.router, prefix=settings.API_V1_STR)
 app.include_router(urbanrupee_payout_router.router, prefix="/v1")

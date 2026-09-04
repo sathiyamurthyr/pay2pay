@@ -166,6 +166,10 @@ app.include_router(payout_workflow.router, prefix=settings.API_V1_STR)
 app.include_router(payout_workflow.router, prefix="/api")
 app.include_router(payout_workflow.router, prefix="")
 app.include_router(payout_workflow.router, prefix=f"{settings.API_V1_STR}/api/v1")
+from app.presentation.api.v1 import public_receipt_router
+app.include_router(public_receipt_router.router, prefix=settings.API_V1_STR)
+app.include_router(public_receipt_router.router, prefix="/api")
+app.include_router(public_receipt_router.router, prefix="")
 app.include_router(ekyc.router, prefix=settings.API_V1_STR)
 app.include_router(epic014_beneficiary_router.router, prefix=settings.API_V1_STR)
 app.include_router(customer_mpin.router, prefix=settings.API_V1_STR)
@@ -338,6 +342,14 @@ app.include_router(admin_payout_routing_router.router, prefix="/v1")
 app.include_router(admin_payout_routing_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(admin_payout_routing_router.router, prefix="/api")
 app.include_router(admin_payout_routing_router.router, prefix="")
+
+from app.presentation.api.v1 import services_router
+app.include_router(services_router.router, prefix=settings.API_V1_STR)
+app.include_router(services_router.router, prefix="/v1")
+app.include_router(services_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(services_router.router, prefix="/api")
+app.include_router(services_router.router, prefix="")
+
 
 from app.presentation.api.v1 import urbanrupee_payout_router
 app.include_router(urbanrupee_payout_router.router, prefix=settings.API_V1_STR)

@@ -20,13 +20,14 @@ from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Union
 from fastapi import HTTPException, status
-from sqlalchemy import select, and_, or_, func, update
+from sqlalchemy import select, and_, or_, func, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.db.pos_mdr_models import (
     PosPaymentModeConfigModel, PosMdrConfigurationModel
 )
 from app.infrastructure.db.models import RetailerModel
+from app.infrastructure.db.customer_models import CustomerServiceConfigurationModel
 
 
 class PosMdrService:
@@ -38,8 +39,18 @@ class PosMdrService:
     async def get_active_payment_modes(db: AsyncSession) -> List[Dict[str, Any]]:
         """
         Returns active POS payment modes ordered by display_order.
-        Allowed active modes: POS - Instant, POS+T1, POS+T2.
+        If POS_TOPUP service is disabled by admin, returns an empty list.
         """
+        # 1. Check if POS_TOPUP service is enabled in customer_service_configuration
+        svc_stmt = select(CustomerServiceConfigurationModel).where(
+            CustomerServiceConfigurationModel.service_code == "POS_TOPUP",
+            CustomerServiceConfigurationModel.is_deleted == False
+        )
+        svc_res = await db.execute(svc_stmt)
+        pos_svc = svc_res.scalars().first()
+        if pos_svc and not pos_svc.is_enabled:
+            return []
+
         stmt = (
             select(PosPaymentModeConfigModel)
             .where(
@@ -57,10 +68,84 @@ class PosMdrService:
                 "name": m.name,
                 "display_order": m.display_order,
                 "settlement_type": m.settlement_type,
-                "description": m.description
+                "description": m.description,
+                "is_active": m.is_active
             }
             for m in modes
         ]
+
+    @staticmethod
+    async def get_all_payment_modes(db: AsyncSession) -> List[Dict[str, Any]]:
+        """
+        Returns ALL POS payment modes (both active and inactive) for Admin control.
+        """
+        stmt = (
+            select(PosPaymentModeConfigModel)
+            .where(PosPaymentModeConfigModel.is_deleted == False)
+            .order_by(PosPaymentModeConfigModel.display_order.asc())
+        )
+        res = await db.execute(stmt)
+        modes = res.scalars().all()
+        return [
+            {
+                "id": str(m.public_id),
+                "code": m.code,
+                "name": m.name,
+                "display_order": m.display_order,
+                "settlement_type": m.settlement_type,
+                "description": m.description,
+                "is_active": m.is_active
+            }
+            for m in modes
+        ]
+
+    @staticmethod
+    async def toggle_payment_mode(
+        db: AsyncSession,
+        code: str,
+        is_active: Optional[bool] = None,
+        updated_by: str = "ADMIN"
+    ) -> Dict[str, Any]:
+        """
+        Toggles or sets the active status of a POS payment mode using Stored Procedure sp_toggle_pos_payment_mode.
+        """
+        clean_code = (code or "").strip()
+        # Find current mode
+        stmt = select(PosPaymentModeConfigModel).where(
+            or_(
+                PosPaymentModeConfigModel.code == clean_code,
+                PosPaymentModeConfigModel.settlement_type == clean_code
+            ),
+            PosPaymentModeConfigModel.is_deleted == False
+        )
+        res = await db.execute(stmt)
+        mode = res.scalars().first()
+        if not mode:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"POS payment mode '{code}' not found."
+            )
+
+        new_status = not mode.is_active if is_active is None else is_active
+
+        # Execute Stored Procedure sp_toggle_pos_payment_mode
+        sp_query = text("SELECT * FROM sp_toggle_pos_payment_mode(:code, :is_active, :updated_by);")
+        sp_res = await db.execute(sp_query, {
+            "code": mode.code,
+            "is_active": new_status,
+            "updated_by": updated_by
+        })
+        await db.commit()
+        sp_row = sp_res.fetchone()
+
+        return {
+            "id": str(mode.public_id),
+            "code": mode.code,
+            "name": mode.name,
+            "settlement_type": mode.settlement_type,
+            "is_active": new_status,
+            "updated_by": updated_by
+        }
 
     @classmethod
     async def resolve_retailer_uuid(
@@ -150,6 +235,23 @@ class PosMdrService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Payment mode is required to resolve MDR configuration."
+            )
+
+        # Validate that the payment mode is actively enabled by administrator
+        mode_stmt = select(PosPaymentModeConfigModel).where(
+            or_(
+                PosPaymentModeConfigModel.code == clean_mode,
+                PosPaymentModeConfigModel.name == clean_mode,
+                PosPaymentModeConfigModel.settlement_type == clean_mode
+            ),
+            PosPaymentModeConfigModel.is_deleted == False
+        )
+        mode_res = await db.execute(mode_stmt)
+        mode_cfg = mode_res.scalars().first()
+        if mode_cfg and not mode_cfg.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Payment settlement mode '{clean_mode}' is currently disabled by administrator."
             )
 
         retailer_uuid = await cls.resolve_retailer_uuid(db, retailer_id) if retailer_id else None

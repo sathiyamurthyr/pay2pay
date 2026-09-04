@@ -6,7 +6,8 @@ import api from "@/lib/api";
 import {
   CreditCard, Search, Plus, RefreshCw, FileSpreadsheet, ChevronRight,
   Wifi, Battery, ShieldCheck, X, Cpu, CheckCircle2, AlertTriangle, Store, Building2, Sliders, DollarSign, Scale, Volume2,
-  ChevronDown, Check, Phone, Layers, Edit3, Trash2, ArrowRight, UserCheck, ShieldAlert, Sparkles, SlidersHorizontal, ArrowUpDown
+  ChevronDown, Check, Phone, Layers, Edit3, Trash2, ArrowRight, UserCheck, ShieldAlert, Sparkles, SlidersHorizontal, ArrowUpDown,
+  Smartphone, Send, Receipt, Fingerprint, Power
 } from "lucide-react";
 import { DataTable, type TableColumn } from "@/components/ui/data-table";
 
@@ -195,8 +196,15 @@ function SearchableRetailerSelect({
 }
 
 export default function MachinesPage() {
-  // Navigation Tabs: "machines" (POS Machines) | "mdr" (POS MDR Configuration)
-  const [activeTab, setActiveTab] = useState<"machines" | "mdr">("machines");
+  // Navigation Tabs: "machines" (POS Machines) | "mdr" (POS MDR Configuration) | "services" (Platform Service & POS Availability)
+  const [activeTab, setActiveTab] = useState<"machines" | "mdr" | "services">("machines");
+
+  // Tab 3: Platform Services & POS Settlement Modes State (Live DB/API, Zero LocalStorage)
+  const [servicesList, setServicesList] = useState<any[]>([]);
+  const [posModesList, setPosModesList] = useState<any[]>([]);
+  const [loadingServices, setLoadingServices] = useState<boolean>(false);
+  const [togglingServiceCode, setTogglingServiceCode] = useState<string | null>(null);
+  const [togglingPosModeCode, setTogglingPosModeCode] = useState<string | null>(null);
 
   // Tab 1: POS Machines State
   const [machines, setMachines] = useState<any[]>([]);
@@ -345,16 +353,106 @@ export default function MachinesPage() {
     }
   };
 
+  // Fetch Platform Services & POS Modes (Zero Local Storage, DB/API Driven)
+  const fetchServicesAndModes = async () => {
+    try {
+      setLoadingServices(true);
+      const res = await api.get("/api/v1/admin/services/status");
+      if (res.data) {
+        setServicesList(res.data.services || []);
+        setPosModesList(res.data.pos_modes || []);
+      }
+    } catch (err) {
+      console.error("Failed to load services and POS modes:", err);
+    } finally {
+      setLoadingServices(false);
+    }
+  };
+
+  // Toggle Platform Service Availability via Live DB Stored Procedure
+  const handleToggleService = async (serviceCode: string, currentEnabled: boolean) => {
+    const nextState = !currentEnabled;
+    setServicesList((prev) =>
+      prev.map((s) => (s.code === serviceCode ? { ...s, is_enabled: nextState } : s))
+    );
+    setTogglingServiceCode(serviceCode);
+    try {
+      const res = await api.patch(`/api/v1/admin/services/${serviceCode}/toggle`, {
+        is_enabled: nextState
+      });
+      playSuccessSound();
+      setAlertState({
+        type: "success",
+        message: `Service '${serviceCode}' availability updated to ${nextState ? "ENABLED" : "DISABLED"} via DB Stored Procedure.`
+      });
+      if (res.data?.service) {
+        setServicesList((prev) =>
+          prev.map((s) => (s.code === serviceCode ? { ...s, is_enabled: res.data.service.is_enabled } : s))
+        );
+      }
+    } catch (err: any) {
+      setServicesList((prev) =>
+        prev.map((s) => (s.code === serviceCode ? { ...s, is_enabled: currentEnabled } : s))
+      );
+      playErrorSound();
+      setAlertState({
+        type: "error",
+        message: err.response?.data?.detail || `Failed to update service '${serviceCode}'.`
+      });
+    } finally {
+      setTogglingServiceCode(null);
+    }
+  };
+
+  // Toggle POS Settlement Mode Availability via Live DB Stored Procedure
+  const handleTogglePosMode = async (modeCode: string, currentActive: boolean) => {
+    const nextState = !currentActive;
+    setPosModesList((prev) =>
+      prev.map((m) => (m.code === modeCode ? { ...m, is_active: nextState } : m))
+    );
+    setTogglingPosModeCode(modeCode);
+    try {
+      const res = await api.patch(`/api/v1/admin/services/pos-modes/${encodeURIComponent(modeCode)}/toggle`, {
+        is_active: nextState
+      });
+      playSuccessSound();
+      setAlertState({
+        type: "success",
+        message: `POS Settlement Mode '${modeCode}' updated to ${nextState ? "ENABLED" : "DISABLED"} via DB Stored Procedure.`
+      });
+      if (res.data?.mode) {
+        setPosModesList((prev) =>
+          prev.map((m) => (m.code === modeCode ? { ...m, is_active: res.data.mode.is_active } : m))
+        );
+      }
+    } catch (err: any) {
+      setPosModesList((prev) =>
+        prev.map((m) => (m.code === modeCode ? { ...m, is_active: currentActive } : m))
+      );
+      playErrorSound();
+      setAlertState({
+        type: "error",
+        message: err.response?.data?.detail || `Failed to update POS mode '${modeCode}'.`
+      });
+    } finally {
+      setTogglingPosModeCode(null);
+    }
+  };
+
   useEffect(() => {
     fetchVendors();
     fetchRetailersAndCompanies();
+    fetchServicesAndModes();
   }, []);
 
   useEffect(() => {
     if (activeTab === "machines") {
       fetchMachines();
-    } else {
+    } else if (activeTab === "mdr") {
       fetchMdrConfigs();
+      fetchServicesAndModes();
+    } else if (activeTab === "services") {
+      fetchServicesAndModes();
     }
   }, [activeTab, searchMachine, statusFilter, vendorFilter, searchMdr, mdrScopeFilter]);
 
@@ -849,7 +947,7 @@ export default function MachinesPage() {
             >
               <Plus className="w-4 h-4" /> Add POS Machine
             </button>
-          ) : (
+          ) : activeTab === "mdr" ? (
             <button
               onClick={() => {
                 setEditingMdrConfig(null);
@@ -868,6 +966,14 @@ export default function MachinesPage() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2563EB] text-xs font-extrabold text-white hover:bg-[#1D4ED8] shadow-2xs transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Configure Retailer MDR
+            </button>
+          ) : (
+            <button
+              onClick={fetchServicesAndModes}
+              disabled={loadingServices}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#2563EB] text-xs font-extrabold text-white hover:bg-[#1D4ED8] shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loadingServices ? "animate-spin" : ""}`} /> Refresh Service Status
             </button>
           )}
         </div>
@@ -896,6 +1002,17 @@ export default function MachinesPage() {
         >
           <Scale className="w-4 h-4" />
           Tab 2 — POS MDR Configuration ({totalMdr})
+        </button>
+        <button
+          onClick={() => setActiveTab("services")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+            activeTab === "services"
+              ? "bg-[#2563EB] text-white shadow-xs"
+              : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9]"
+          }`}
+        >
+          <Sliders className="w-4 h-4" />
+          Tab 3 — Service & POS Enable/Disable ({servicesList.length + posModesList.length})
         </button>
       </div>
 
@@ -1001,6 +1118,79 @@ export default function MachinesPage() {
       {/* TAB 2: POS MDR CONFIGURATION CONTENT */}
       {activeTab === "mdr" && (
         <div className="space-y-6">
+          {/* POS Settlement Modes Availability Quick Controls (Requirement 2 & 7) */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-[#2563EB]" />
+                  POS Settlement Mode Controls (Independent Enable / Disable)
+                </h3>
+                <p className="text-xs text-[#64748B] mt-0.5">
+                  Control availability of each settlement mode. Disabled modes are blocked in Retailer Top-Up and rejected by backend.
+                </p>
+              </div>
+              <button
+                onClick={fetchServicesAndModes}
+                disabled={loadingServices}
+                className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-bold text-[#334155] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingServices ? "animate-spin text-[#2563EB]" : ""}`} />
+                Refresh Status
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {posModesList.map((mode) => {
+                const isActive = mode.is_active;
+                const isToggling = togglingPosModeCode === mode.code;
+                return (
+                  <div
+                    key={mode.code}
+                    className={`p-4 rounded-xl border transition-all flex items-center justify-between ${
+                      isActive
+                        ? "bg-gradient-to-br from-[#F0FDF4] to-white border-[#BBF7D0] shadow-2xs"
+                        : "bg-gradient-to-br from-[#FEF2F2] to-white border-[#FCA5A5] opacity-80"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${isActive ? "bg-[#16A34A] animate-pulse" : "bg-[#DC2626]"}`} />
+                        <span className="font-mono text-sm font-extrabold text-[#0F172A]">{mode.name}</span>
+                      </div>
+                      <p className="text-[11px] text-[#64748B] mt-1 font-medium">
+                        {mode.code === "POS - Instant"
+                          ? "Instant wallet credit (1.70% MDR)"
+                          : mode.code === "POS+T1"
+                          ? "T+1 day settlement (1.60% MDR)"
+                          : "T+2 settlement mode"}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => handleTogglePosMode(mode.code, isActive)}
+                      disabled={isToggling}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                        isActive
+                          ? "bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs"
+                          : "bg-[#DC2626] hover:bg-[#B91C1C] text-white shadow-2xs"
+                      }`}
+                    >
+                      {isToggling ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : isActive ? (
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      ) : (
+                        <X className="w-3.5 h-3.5" />
+                      )}
+                      {isActive ? "ENABLED" : "DISABLED"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Default MDR Rates Highlight Banner */}
           <div className="rounded-2xl border border-[#BFDBFE] bg-gradient-to-r from-[#EFF6FF] to-[#F8FAFC] p-5 shadow-2xs">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -1070,6 +1260,214 @@ export default function MachinesPage() {
               },
             ]}
           />
+        </div>
+      )}
+
+      {/* TAB 3: PLATFORM SERVICE & POS AVAILABILITY (LIVE DB / SP DRIVEN) */}
+      {activeTab === "services" && (
+        <div className="space-y-6">
+          {/* Card 1: POS Settlement Modes Independent Controls */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-wider">
+                    Requirement 2
+                  </span>
+                  <h3 className="text-base font-extrabold text-[#0F172A]">
+                    POS Top-Up Settlement Mode Controls
+                  </h3>
+                </div>
+                <p className="text-xs text-[#64748B] mt-1">
+                  POS Top-Up is governed by independent settlement controls. If an administrator disables POS T+2, it is immediately hidden and prohibited from retailer submission, while Instant and T+1 remain fully operational.
+                </p>
+              </div>
+
+              <button
+                onClick={fetchServicesAndModes}
+                disabled={loadingServices}
+                className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-[#334155] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingServices ? "animate-spin text-[#2563EB]" : ""}`} />
+                Sync Status from DB
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {posModesList.map((mode) => {
+                const isActive = mode.is_active;
+                const isToggling = togglingPosModeCode === mode.code;
+                return (
+                  <div
+                    key={mode.code}
+                    className={`rounded-2xl border p-5 transition-all flex flex-col justify-between space-y-4 ${
+                      isActive
+                        ? "bg-gradient-to-br from-[#F0FDF4] to-white border-[#BBF7D0] shadow-sm"
+                        : "bg-gradient-to-br from-[#FEF2F2] to-[#FFF5F5] border-[#FCA5A5] shadow-sm"
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-base font-extrabold text-[#0F172A]">
+                          {mode.name}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                            isActive
+                              ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                              : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
+                          }`}
+                        >
+                          {isActive ? "ENABLED" : "DISABLED"}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-[#64748B]">
+                        {mode.code === "POS - Instant"
+                          ? "Instant wallet credit upon payment receipt approval. Configured Rate: 1.70% MDR (0% GST)."
+                          : mode.code === "POS+T1"
+                          ? "Next business day settlement (T+1). Configured Rate: 1.60% MDR (0% GST)."
+                          : "Second business day settlement (T+2). Independent settlement toggle."}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-[#64748B]">
+                        Retailer Access:
+                      </span>
+                      <button
+                        onClick={() => handleTogglePosMode(mode.code, isActive)}
+                        disabled={isToggling}
+                        className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 ${
+                          isActive
+                            ? "bg-[#16A34A] hover:bg-[#15803D] text-white"
+                            : "bg-[#DC2626] hover:bg-[#B91C1C] text-white"
+                        }`}
+                      >
+                        {isToggling ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : isActive ? (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        ) : (
+                          <X className="w-3.5 h-3.5" />
+                        )}
+                        {isActive ? "Click to Disable" : "Click to Enable"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Card 2: Platform Customer Services Availability */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <div className="border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#6C63FF] text-white text-[11px] font-black uppercase tracking-wider">
+                  Requirement 1
+                </span>
+                <h3 className="text-base font-extrabold text-[#0F172A]">
+                  Platform Customer Service Configuration
+                </h3>
+              </div>
+              <p className="text-xs text-[#64748B] mt-1">
+                Admin controls whether each platform customer service is available to retailers. State changes execute stored procedure <code>sp_toggle_platform_service</code> directly on the live PostgreSQL ledger.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-black text-[#64748B] uppercase tracking-wider">
+                    <th className="py-3 px-4">Service</th>
+                    <th className="py-3 px-4">Service Code</th>
+                    <th className="py-3 px-4">Service Description</th>
+                    <th className="py-3 px-4">Current Status</th>
+                    <th className="py-3 px-4 text-right">Admin Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {servicesList.map((svc) => {
+                    const isEnabled = svc.is_enabled;
+                    const isToggling = togglingServiceCode === svc.code;
+                    return (
+                      <tr key={svc.code} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3.5 px-4 font-bold text-[#0F172A]">
+                          <div className="flex items-center gap-2.5">
+                            {svc.code === "RECHARGE" ? (
+                              <Smartphone className="w-4 h-4 text-[#2563EB]" />
+                            ) : svc.code === "DMT" ? (
+                              <Send className="w-4 h-4 text-[#16A34A]" />
+                            ) : svc.code === "BBPS" ? (
+                              <Receipt className="w-4 h-4 text-[#D97706]" />
+                            ) : svc.code === "AEPS" ? (
+                              <Fingerprint className="w-4 h-4 text-[#9333EA]" />
+                            ) : (
+                              <CreditCard className="w-4 h-4 text-[#2563EB]" />
+                            )}
+                            <span>{svc.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="font-mono px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[#334155] font-bold text-[11px]">
+                            {svc.code}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-[#64748B]">
+                          {svc.code === "RECHARGE"
+                            ? "Prepaid & postpaid mobile recharge across all telecom operators"
+                            : svc.code === "DMT"
+                            ? "Domestic Money Transfer (Instant IMPS / NEFT 24x7)"
+                            : svc.code === "BBPS"
+                            ? "Bharat Bill Payment System (Electricity, Water, Gas, Fastag)"
+                            : svc.code === "AEPS"
+                            ? "Aadhaar Enabled Payment System (Cash withdrawal & inquiry)"
+                            : "POS Card swipe settlement top-up working capital"}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase ${
+                              isEnabled
+                                ? "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]"
+                                : "bg-[#FEF2F2] text-[#991B1B] border border-[#FCA5A5]"
+                            }`}
+                          >
+                            {isEnabled ? (
+                              <CheckCircle2 className="w-3 h-3" />
+                            ) : (
+                              <X className="w-3 h-3" />
+                            )}
+                            {isEnabled ? "ENABLED" : "DISABLED"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            onClick={() => handleToggleService(svc.code, isEnabled)}
+                            disabled={isToggling}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50 ${
+                              isEnabled
+                                ? "bg-[#FEF2F2] text-[#DC2626] border border-[#FCA5A5] hover:bg-[#FEE2E2]"
+                                : "bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0] hover:bg-[#DCFCE7]"
+                            }`}
+                          >
+                            {isToggling ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : isEnabled ? (
+                              <Power className="w-3.5 h-3.5" />
+                            ) : (
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            )}
+                            {isEnabled ? "Disable Service" : "Enable Service"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
