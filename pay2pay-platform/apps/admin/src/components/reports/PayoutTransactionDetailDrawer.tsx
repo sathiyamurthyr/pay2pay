@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Receipt, Shield, Building, User, Landmark, CheckCircle2, Clock, AlertTriangle, MessageSquare, Server } from "lucide-react";
+import { X, Receipt, Shield, Building, User, Landmark, CheckCircle2, Clock, AlertTriangle, MessageSquare, Server, ExternalLink, ArrowRight, Terminal } from "lucide-react";
 
 export interface PayoutTransactionDetail {
   transaction?: {
@@ -287,14 +287,28 @@ export const PayoutTransactionDetailDrawer: React.FC<Props> = ({ open, onClose, 
               </div>
             </div>
 
-            {/* 5. Vendor / API Details (Authorized Admin Role) */}
-            {vendor && (
-              <div className="space-y-3">
+            {/* 5. Vendor / API Details & Telemetry Inspection */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                   <Server className="w-4 h-4 text-cyan-400" />
-                  Vendor / Gateway Details (Authorized Role Only)
+                  Vendor &amp; Gateway Telemetry
                 </h3>
-                <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2 text-xs">
+                {txnId && txnId !== "N/A" && (
+                  <a
+                    href={`/operations/api-logs?transaction_id=${txnId}&service=PAYOUT`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors"
+                  >
+                    <span>View Raw Logs</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+
+              {vendor ? (
+                <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3 text-xs">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Vendor / Switch Name</span>
                     <span className="font-bold text-slate-200">{vendor.name}</span>
@@ -305,15 +319,62 @@ export const PayoutTransactionDetailDrawer: React.FC<Props> = ({ open, onClose, 
                       {vendor.api_status}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block mb-1">API Response</span>
-                    <div className="font-mono text-[11px] text-slate-300 bg-slate-950/60 p-2 rounded-lg border border-slate-800/60">
-                      {vendor.api_response}
+                  {vendor.api_response && (
+                    <div>
+                      <span className="text-slate-400 block mb-1">API Response</span>
+                      <div className="font-mono text-[11px] text-slate-300 bg-slate-950/60 p-2 rounded-lg border border-slate-800/60 break-all">
+                        {vendor.api_response}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {txnId && txnId !== "N/A" && (
+                    <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between gap-2">
+                      <a
+                        href={`/operations/api-logs?transaction_id=${txnId}&service=PAYOUT`}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-semibold transition-all text-xs"
+                      >
+                        <Terminal className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Inspect Outbound Vendor Logs &amp; Latency</span>
+                        <ArrowRight className="w-3 h-3 ml-1" />
+                      </a>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 flex items-center justify-between gap-3 text-xs">
+                  <div className="text-slate-400">
+                    <span>Audit telemetry logs recorded for this transaction</span>
+                  </div>
+                  {txnId && txnId !== "N/A" && (
+                    <a
+                      href={`/operations/api-logs?transaction_id=${txnId}&service=PAYOUT`}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium flex items-center gap-1.5 transition-all text-xs"
+                    >
+                      <Terminal className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>View API Logs</span>
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Gateway Failure Direct Redirection Banner */}
+              {!isSuccess && !isPending && txnId && txnId !== "N/A" && (
+                <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/30 text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-rose-300">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                    <span>Transaction encountered a vendor switch failure.</span>
+                  </div>
+                  <a
+                    href={`/operations/api-logs?transaction_id=${txnId}&service=PAYOUT&direction=OUTBOUND&is_error=true`}
+                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold flex items-center gap-1 transition-all flex-shrink-0 text-[11px]"
+                  >
+                    <Terminal className="w-3 h-3" />
+                    <span>Inspect Failure Log</span>
+                  </a>
+                </div>
+              )}
+            </div>
 
             {/* 6. Comments */}
             {comments && (

@@ -164,3 +164,38 @@ class TransactionPinAttemptModel(BaseEntity, EnterpriseBaseMixin):
     is_success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     failure_reason: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+
+class PayoutReceiptModel(BaseEntity, EnterpriseBaseMixin):
+    """Digital receipt record for successful payout (DMT) transactions."""
+    __tablename__ = "payout_receipt"
+    __table_args__ = {'extend_existing': True}
+
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    receipt_token: Mapped[str] = mapped_column(String(60), nullable=False, unique=True, index=True)
+    transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    transaction_number: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    reference_number: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+
+    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    customer_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    customer_mobile: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    beneficiary_name: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    beneficiary_bank: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    beneficiary_account: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    beneficiary_ifsc: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    charges: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    gst: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    total_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="SUCCESS", index=True)
+    status_text: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    utr_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    mode: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    retailer_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    retailer_mobile: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    receipt_signature: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

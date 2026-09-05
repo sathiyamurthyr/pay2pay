@@ -1434,13 +1434,7 @@ export const retailerApi = {
     user_role?: string;
   }) => {
     try {
-      // user_ref_id resolved server-side via Bearer token — no localStorage lookup
-      const uRef = null; // backend derives identity from Authorization header
-      if (!uRef) return { status: "ERROR", message: "User session not found" };
-      const res = await apiClient.post("/favorites/menus", {
-        ...payload,
-        user_ref_id: uRef
-      });
+      const res = await apiClient.post("/favorites/menus", payload);
       return res.data;
     } catch (err: any) {
       console.error("Save favorite error:", err);
@@ -1457,13 +1451,7 @@ export const retailerApi = {
     user_role?: string;
   }) => {
     try {
-      // user_ref_id resolved server-side via Bearer token — no localStorage lookup
-      const uRef = null; // backend derives identity from Authorization header
-      if (!uRef) return { status: "ERROR", message: "User session not found" };
-      const res = await apiClient.post("/favorites/toggle", {
-        ...payload,
-        user_ref_id: uRef
-      });
+      const res = await apiClient.post("/favorites/toggle", payload);
       return res.data;
     } catch (err: any) {
       console.error("Toggle favorite error:", err);

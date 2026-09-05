@@ -3,6 +3,7 @@ import uuid
 import json
 import logging
 import datetime
+import traceback
 from typing import Callable
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -201,6 +202,7 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
         clean_res_headers = {}
         error_msg = None
         error_type = None
+        stack_trace = None
 
         try:
             response = await call_next(request)
@@ -215,6 +217,7 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
             res_status_code = 500
             error_msg = str(exc)
             error_type = type(exc).__name__
+            stack_trace = traceback.format_exc()
             raise exc
         finally:
             end_time = time.perf_counter()
@@ -222,6 +225,26 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
             res_timestamp = datetime.datetime.now(datetime.timezone.utc)
 
             res_json, res_raw, res_trunc, res_orig_size, res_stored_size = process_and_truncate_payload(res_body_bytes)
+
+            # If response body is empty or null during an error or exception, synthesize a rich diagnostic response payload
+            if (error_msg or res_status_code >= 400) and not res_json:
+                res_json = {
+                    "status": "FAILED",
+                    "statusCode": res_status_code,
+                    "error": error_type or ("InternalServerError" if res_status_code >= 500 else "HttpError"),
+                    "message": error_msg or f"HTTP {res_status_code} Error",
+                    "detail": error_msg or f"Request failed with HTTP status code {res_status_code}",
+                    "stack_trace": stack_trace,
+                }
+                res_raw = json.dumps(res_json, indent=2, default=str)
+                res_orig_size = len(res_raw.encode("utf-8"))
+                res_stored_size = res_orig_size
+
+            # If response returned a failure JSON but error_msg wasn't explicitly set, extract diagnostic info
+            if res_status_code >= 400 and not error_msg and isinstance(res_json, dict):
+                error_msg = res_json.get("detail") or res_json.get("message") or res_json.get("error")
+                if not error_type:
+                    error_type = "HTTP_ERROR" if res_status_code < 500 else "INTERNAL_SERVER_ERROR"
 
             # Determine response business status
             if res_status_code < 400:
@@ -260,6 +283,7 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
                 "response_status": resp_status,
                 "error_type": error_type,
                 "error_message": error_msg,
+                "stack_trace": stack_trace,
                 "request_headers": clean_req_headers,
                 "request_query": query_dict,
                 "request_body": req_json,

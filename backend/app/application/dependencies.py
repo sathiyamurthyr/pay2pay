@@ -195,6 +195,7 @@ async def get_current_user(
         if ret_status in ("BLOCKED", "SUSPENDED", "DEACTIVATED"):
             raise UnauthorizedException("Retailer account has been blocked or suspended")
         email_val = payload.get("email") or f"{retailer.retailer_code}@pay2pay.in"
+        phone_val = payload.get("mobile") or payload.get("phone")
         return AdminUserModel(
             id=retailer.id,
             public_id=retailer.public_id,
@@ -203,6 +204,7 @@ async def get_current_user(
             email=email_val,
             full_name=retailer.owner_name or "Retailer Partner",
             status=ret_status,
+            phone=phone_val,
             user_roles=[]
         )
 

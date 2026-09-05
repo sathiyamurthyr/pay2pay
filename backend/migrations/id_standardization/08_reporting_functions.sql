@@ -24,20 +24,20 @@ DROP FUNCTION IF EXISTS public.get_payout_transactions_report(BIGINT, BIGINT, BI
 CREATE OR REPLACE FUNCTION public.get_payout_transactions_report(
     p_tenant_ref_id       BIGINT,
     p_company_ref_id      BIGINT DEFAULT NULL,
-    p_retailer_ref_id     BIGINT DEFAULT NULL,
-    p_rm_ref_id            BIGINT DEFAULT NULL,
-    p_user_type            VARCHAR(50) DEFAULT NULL,
+    p_user_ref_id         BIGINT DEFAULT NULL,
+    p_rm_ref_id           BIGINT DEFAULT NULL,
+    p_user_type           VARCHAR(50) DEFAULT NULL,
 
-    p_from_date            DATE DEFAULT CURRENT_DATE,
-    p_to_date              DATE DEFAULT CURRENT_DATE,
+    p_from_date           DATE DEFAULT CURRENT_DATE,
+    p_to_date             DATE DEFAULT CURRENT_DATE,
 
-    p_status               VARCHAR(50) DEFAULT NULL,
-    p_mode                 VARCHAR(50) DEFAULT NULL,
-    p_search               VARCHAR(200) DEFAULT NULL,
+    p_status              VARCHAR(50) DEFAULT NULL,
+    p_mode                VARCHAR(50) DEFAULT NULL,
+    p_search              VARCHAR(200) DEFAULT NULL,
 
-    p_page                 INTEGER DEFAULT 1,
-    p_limit                INTEGER DEFAULT 25,
-    p_user_type_ref_id     BIGINT DEFAULT NULL
+    p_page                INTEGER DEFAULT 1,
+    p_limit               INTEGER DEFAULT 25,
+    p_user_type_ref_id    BIGINT DEFAULT NULL
 )
 RETURNS TABLE (
     txn_id                VARCHAR(100),
@@ -74,7 +74,7 @@ BEGIN
     p_limit := LEAST(GREATEST(COALESCE(p_limit, 25), 1), 100);
     v_offset := (p_page - 1) * p_limit;
 
-    -- Timezone handling: Default to Asia/Kolkata (IST: UTC+05:30) bounds
+    -- Timezone handling: Asia/Kolkata (IST: UTC+05:30) bounds
     v_from_dt := (COALESCE(p_from_date, CURRENT_DATE)::TEXT || ' 00:00:00+05:30')::TIMESTAMPTZ;
     v_to_dt   := (COALESCE(p_to_date, CURRENT_DATE)::TEXT || ' 23:59:59.999999+05:30')::TIMESTAMPTZ;
 
@@ -85,14 +85,10 @@ BEGIN
         COALESCE(c.company_name, c.display_name, c.legal_name, 'Pay2Pay')::VARCHAR(500) AS company,
         COALESCE(r.store_name, r.legal_name, r.owner_name, 'Retailer')::VARCHAR(500) AS retailer,
         COALESCE(cu.full_name, 'Customer')::VARCHAR(500) AS customer,
-        COALESCE(bm.account_holder_name, 'Beneficiary')::VARCHAR(500) AS beneficiary,
-        CASE
-            WHEN bm.account_number IS NULL THEN NULL
-            WHEN LENGTH(bm.account_number) <= 4 THEN bm.account_number
-            ELSE 'XXXXXX' || RIGHT(bm.account_number, 4)
-        END::VARCHAR(100) AS account,
-        COALESCE(bm.bank_name, '')::VARCHAR(500) AS bank,
-        COALESCE(bm.ifsc_code, '')::VARCHAR(100) AS ifsc,
+        COALESCE(bm.account_holder_name, bba.account_holder_name, b.full_name, 'Beneficiary')::VARCHAR(500) AS beneficiary,
+        COALESCE(bm.account_number, bba.account_number, '')::VARCHAR(100) AS account,
+        COALESCE(bm.bank_name, bba.bank_name, '')::VARCHAR(500) AS bank,
+        COALESCE(bm.ifsc_code, bba.ifsc_code, '')::VARCHAR(100) AS ifsc,
         COALESCE(t_amt.amount, 0.00)::NUMERIC(18,2) AS amount,
         COALESCE(t_chg.charge, 0.00)::NUMERIC(18,2) AS charge,
         COALESCE(t_gst.gst, 0.00)::NUMERIC(18,2) AS gst,
@@ -103,7 +99,7 @@ BEGIN
         COALESCE(pt.vendor_name, '')::VARCHAR(500) AS vendor,
         CASE
             WHEN UPPER(pt.status) = 'SUCCESS' THEN 'SUCCESS'
-            WHEN UPPER(pt.status) = 'FAILED' THEN 'FAILED'
+            WHEN UPPER(pt.status) IN ('FAILED', 'REVERSED') THEN 'FAILED'
             WHEN UPPER(pt.status) = 'PENDING' THEN 'PENDING'
             WHEN UPPER(pt.status) = 'INITIATED' THEN 'REQUESTED'
             ELSE COALESCE(pt.api_response_code, 'NOT_CALLED')
@@ -111,16 +107,30 @@ BEGIN
         COALESCE(pt.api_response, '')::TEXT AS api_response,
         CASE
             WHEN UPPER(pt.status) = 'SUCCESS' THEN 'Payout successful'
-            WHEN UPPER(pt.status) = 'FAILED' THEN 'Payout failed - wallet reversed'
+            WHEN UPPER(pt.status) IN ('FAILED', 'REVERSED') THEN 'Payout failed - wallet reversed'
             WHEN UPPER(pt.status) = 'PENDING' THEN 'Payout pending - status check required'
             WHEN UPPER(pt.status) = 'INITIATED' THEN 'Payout initiated'
             ELSE 'Payout status updated'
         END::VARCHAR(500) AS comments
     FROM public.payout_transaction pt
     LEFT JOIN public.company c ON c.company_ref_id = pt.company_ref_id
-    LEFT JOIN public.retailer r ON r.retailer_ref_id = pt.retailer_ref_id
+    LEFT JOIN public.retailer r ON (r.retailer_ref_id = pt.user_ref_id AND pt.user_type_ref_id = 2) OR (r.retailer_ref_id = pt.retailer_ref_id)
     LEFT JOIN public.customer cu ON cu.customer_ref_id = pt.customer_ref_id
-    LEFT JOIN public.beneficiary_master bm ON bm.beneficiary_master_ref_id = pt.beneficiary_master_ref_id
+    LEFT JOIN LATERAL (
+        SELECT * FROM public.beneficiary_master bm_sub
+        WHERE bm_sub.public_id = pt.beneficiary_id
+           OR (pt.beneficiary_id IS NULL AND bm_sub.beneficiary_master_ref_id = pt.beneficiary_master_ref_id)
+        ORDER BY bm_sub.created_date DESC
+        LIMIT 1
+    ) bm ON true
+    LEFT JOIN public.beneficiary b ON b.public_id = pt.beneficiary_id
+    LEFT JOIN LATERAL (
+        SELECT * FROM public.beneficiary_bank_account bba_sub
+        WHERE bba_sub.beneficiary_id = pt.beneficiary_id
+           OR bba_sub.beneficiary_id = b.public_id
+        ORDER BY bba_sub.is_primary DESC, bba_sub.created_date DESC
+        LIMIT 1
+    ) bba ON true
     LEFT JOIN LATERAL (
         SELECT COALESCE(SUM(t.amount), 0.00) AS amount
         FROM public.transactions t
@@ -149,17 +159,31 @@ BEGIN
         AND pt.created_date >= v_from_dt
         AND pt.created_date <= v_to_dt
         AND (p_company_ref_id IS NULL OR COALESCE(pt.company_ref_id, r.company_ref_id, 1) = p_company_ref_id OR pt.company_ref_id IS NULL)
-        AND (p_retailer_ref_id IS NULL OR pt.retailer_ref_id = p_retailer_ref_id)
-        AND (p_rm_ref_id IS NULL OR COALESCE(r.regional_manager_ref_id, 0) = p_rm_ref_id)
+        
+        -- Primary Ownership Filter
+        AND (
+            p_user_ref_id IS NULL 
+            OR (pt.user_ref_id = p_user_ref_id AND (p_user_type_ref_id IS NULL OR pt.user_type_ref_id = p_user_type_ref_id))
+            OR (pt.retailer_ref_id = p_user_ref_id)
+        )
+        
+        -- RM Scoping (Hierarchy traversal)
+        AND (
+            p_rm_ref_id IS NULL 
+            OR COALESCE(r.regional_manager_ref_id, 0) = p_rm_ref_id
+        )
+        
         AND (p_user_type_ref_id IS NULL OR pt.user_type_ref_id = p_user_type_ref_id)
         AND (p_user_type IS NULL OR p_user_type = 'ALL' OR UPPER(COALESCE(pt.user_type, 'RETAILER')) = UPPER(p_user_type))
-        AND (p_status IS NULL OR p_status = 'ALL' OR UPPER(pt.status) = UPPER(p_status))
+        AND (p_status IS NULL OR p_status = 'ALL' OR UPPER(pt.status) = UPPER(p_status) OR (UPPER(p_status) = 'FAILED' AND UPPER(pt.status) = 'REVERSED'))
         AND (p_mode IS NULL OR p_mode = 'ALL' OR UPPER(pt.mode) = UPPER(p_mode))
         AND (
             p_search IS NULL
             OR pt.transaction_number ILIKE '%' || p_search || '%'
             OR pt.utr_number ILIKE '%' || p_search || '%'
             OR bm.account_holder_name ILIKE '%' || p_search || '%'
+            OR bba.account_holder_name ILIKE '%' || p_search || '%'
+            OR b.full_name ILIKE '%' || p_search || '%'
             OR cu.full_name ILIKE '%' || p_search || '%'
             OR r.store_name ILIKE '%' || p_search || '%'
             OR r.legal_name ILIKE '%' || p_search || '%'

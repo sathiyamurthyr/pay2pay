@@ -10,7 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
-  Megaphone, Terminal, Star, Pin, MessageSquare
+  Megaphone, Terminal, Star, Pin, MessageSquare, QrCode
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -73,89 +73,79 @@ interface FavoriteItem {
   display_order?: number;
 }
 
-// ─── ADMIN PORTAL MENU STRUCTURE (Strict Governance & Administration) ───
+// ─── ADMIN PORTAL MENU STRUCTURE (Strict Governance & Administration - Section 20) ───
 const ADMIN_NAV: NavCategory[] = [
   {
-    category: "Main",
+    category: "Dashboard",
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     ],
   },
   {
-    category: "Administration",
+    category: "Retailers",
     items: [
-      { label: "Company", href: "/companies", icon: Building2 },
-      { label: "Organization", href: "/organization", icon: Network },
-      { label: "RM", href: "/organization/transfers", icon: UserCircle },
-      { label: "Super Distributor", href: "/retailers", icon: Store },
-      { label: "Distributor", href: "/retailers", icon: Store },
-      { label: "Retailer", href: "/retailers", icon: Store },
-      { label: "Entity User", href: "/wallet-ledger/wallets", icon: Wallet },
-      { label: "Manual Top-up", href: "/wallet-ledger/manual-topup", icon: ArrowLeftRight },
-      { label: "Topup Requests", href: "/operations/topup-requests", icon: ArrowLeftRight, badge: "Live" },
-      { label: "POS Machine", href: "/machines", icon: CreditCard },
-      { label: "Users", href: "/users", icon: Users },
-      { label: "Roles", href: "/roles", icon: ShieldCheck },
+      { label: "Retailer Management", href: "/retailers", icon: Store },
+      { label: "Verification", href: "/admin/retailer-verification", icon: ShieldCheck, badge: "Live" },
+      { label: "Approval", href: "/approvals", icon: CheckSquare },
+      { label: "KYC", href: "/retailers", icon: Users },
     ],
   },
   {
-    category: "Configuration",
+    category: "Transactions",
     items: [
-      { label: "Service Availability", href: "/configuration/services", icon: Sliders, badge: "Live" },
-      { label: "Payout Slabs", href: "/configuration/payout-slabs", icon: Layers, badge: "New" },
-      { label: "WhatsApp Alerts", href: "/configuration/whatsapp-alerts", icon: MessageSquare, badge: "Live" },
-      { label: "Payout Switch", href: "/payouts/gateways", icon: ArrowLeftRight, badge: "Live" },
-      { label: "Wallet", href: "/wallet-ledger/entity-wallets", icon: Wallet },
-      { label: "Chart of Accounts", href: "/wallet-ledger/chart-of-accounts", icon: BookOpen },
-      { label: "Transactions", href: "/settlements/transactions", icon: TrendingUp },
-      { label: "Commission", href: "/financial-config/rules", icon: BookOpen },
-      { label: "Charges", href: "/financial-config/approvals", icon: Scale },
-      { label: "Customer Policy", href: "/policies", icon: Sliders },
-      { label: "Beneficiary Policy", href: "/policies/evaluator", icon: Sliders },
-      { label: "Risk", href: "/fraud/rules", icon: ShieldAlert },
-      { label: "AML", href: "/compliance/reports", icon: ShieldCheck },
-      { label: "Announcements", href: "/announcements", icon: Megaphone, badge: "Live" },
-      { label: "Notifications", href: "/notifications", icon: Bell },
-      { label: "API", href: "/developer/api-keys", icon: Webhook },
-      { label: "Security", href: "/settings/secrets", icon: Key },
+      { label: "All Transactions", href: "/admin/reports/transactions", icon: Receipt, badge: "Master" },
+      { label: "Payout", href: "/admin/reports/payout-transactions", icon: ArrowLeftRight },
+      { label: "DMT", href: "/retailer/dmt/reports", icon: Send },
+      { label: "AEPS", href: "/admin/reports/transactions?service=AEPS", icon: Fingerprint },
+      { label: "Recharge", href: "/admin/reports/transactions?service=RECHARGE", icon: Zap },
+      { label: "BBPS", href: "/admin/reports/transactions?service=BBPS", icon: Receipt },
+      { label: "UPI", href: "/admin/reports/transactions?service=UPI", icon: CreditCard },
+      { label: "POS", href: "/settlements/transactions", icon: CreditCard },
+      { label: "QR Pay", href: "/admin/reports/transactions?service=QR_PAY", icon: QrCode },
     ],
   },
   {
-    category: "Approvals",
+    category: "Wallet",
     items: [
-      { label: "Topup Requests", href: "/operations/topup-requests", icon: ArrowLeftRight, badge: "P0" },
-      { label: "KYC & Onboarding", href: "/approvals", icon: CheckSquare },
-      { label: "Settlement", href: "/settlements/batches", icon: Receipt },
-      { label: "Wallet Adjustments", href: "/wallet-ledger/wallets", icon: Wallet },
-      { label: "Configuration", href: "/bpm/approvals", icon: CheckSquare },
-      { label: "High Value", href: "/bpm/tasks", icon: AlertTriangle },
+      { label: "Wallet Overview", href: "/wallet-ledger/wallets", icon: Wallet },
+      { label: "Top-Up Requests", href: "/operations/topup-requests", icon: ArrowLeftRight, badge: "Live" },
+      { label: "Wallet Transactions", href: "/wallet-ledger/transactions", icon: TrendingUp },
+      { label: "Settlements", href: "/settlements/transactions", icon: Scale },
     ],
   },
   {
-    category: "Monitoring",
+    category: "Services",
     items: [
-      { label: "Services", href: "/ops-dashboard", icon: Activity },
-      { label: "API Logs", href: "/operations/api-logs", icon: Terminal },
-      { label: "Queues", href: "/bpm/queues", icon: GitMerge },
-      { label: "API", href: "/developer-dashboard", icon: Code },
-      { label: "Wallet", href: "/wallet-ledger/reconciliation", icon: Wallet },
-      { label: "Settlement", href: "/settlement-dashboard", icon: TrendingUp },
-      { label: "Database", href: "/compliance-dashboard", icon: Landmark },
+      { label: "Service Status", href: "/ops-dashboard", icon: Activity, badge: "Live" },
+      { label: "Service Configuration", href: "/configuration/services", icon: Sliders },
+      { label: "Vendor Status", href: "/payouts/gateways", icon: ArrowLeftRight },
     ],
   },
   {
     category: "Reports",
     items: [
-      { label: "Transaction Report", href: "/admin/reports/transactions", icon: FileText, badge: "Master" },
-      { label: "Transaction Ledger", href: "/admin/reports/transaction-ledger", icon: ScrollText },
-      { label: "Payout Report", href: "/retailer/dmt/reports", icon: FileText },
-      { label: "Report Center", href: "/retailer/reports", icon: FileText },
-      { label: "Settlement", href: "/settlement-processing/batches", icon: FileText },
-      { label: "Wallet", href: "/settlement-processing/journals", icon: FileText },
-      { label: "Retailers", href: "/retailer-dashboard", icon: BarChart3 },
-      { label: "Machines", href: "/machine-dashboard", icon: CreditCard },
-      { label: "Audit", href: "/compliance/audit-explorer", icon: ScrollText },
-      { label: "Reconciliation", href: "/mis-dashboard", icon: Scale },
+      { label: "Transaction Reports", href: "/admin/reports/transactions", icon: FileText },
+      { label: "Wallet Reports", href: "/admin/reports/transaction-ledger", icon: ScrollText },
+      { label: "Commission Reports", href: "/retailer/reports", icon: FileText },
+      { label: "Settlement Reports", href: "/settlement-processing/batches", icon: FileText },
+    ],
+  },
+  {
+    category: "Configuration",
+    items: [
+      { label: "Charges", href: "/financial-config/approvals", icon: Scale },
+      { label: "MDR", href: "/configuration/payout-slabs", icon: Layers },
+      { label: "GST", href: "/financial-config/rules", icon: BookOpen },
+      { label: "Service Enable/Disable", href: "/configuration/services", icon: Sliders },
+      { label: "Notifications", href: "/notifications", icon: Bell },
+    ],
+  },
+  {
+    category: "System",
+    items: [
+      { label: "API Health", href: "/ops-dashboard", icon: Activity },
+      { label: "Audit Logs", href: "/compliance/audit-explorer", icon: ScrollText },
+      { label: "System Logs", href: "/operations/api-logs", icon: Terminal, badge: "Live" },
     ],
   },
 ];
@@ -223,7 +213,7 @@ export const Sidebar: React.FC = () => {
           menu_href: item.href,
           menu_label: item.label,
           menu_category: categoryName,
-          icon_name: item.icon?.name || "Star",
+          icon_name: (item.icon as any)?.displayName || (item.icon as any)?.name || "Star",
         },
       ]);
     }
@@ -233,7 +223,7 @@ export const Sidebar: React.FC = () => {
         menu_href: item.href,
         menu_label: item.label,
         menu_category: categoryName,
-        icon_name: item.icon?.name || "Star",
+        icon_name: (item.icon as any)?.displayName || (item.icon as any)?.name || "Star",
       });
       if (res.data?.favorites && Array.isArray(res.data.favorites)) {
         setFavorites(res.data.favorites);

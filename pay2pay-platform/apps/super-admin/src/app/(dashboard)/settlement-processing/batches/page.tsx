@@ -32,6 +32,13 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+const fmt = (n: number) =>
+  n >= 10_000_000
+    ? `₹${(n / 10_000_000).toFixed(2)} Cr`
+    : n >= 100_000
+    ? `₹${(n / 100_000).toFixed(2)} L`
+    : `₹${(n || 0).toLocaleString("en-IN")}`;
+
 export default function SettlementBatchesPage() {
   const [txns, setTxns]           = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);

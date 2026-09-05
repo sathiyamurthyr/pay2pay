@@ -31,6 +31,36 @@ export interface NotificationItem {
   created_at: string;
 }
 
+export const getStatusChipColor = (status?: string) => {
+  const s = String(status || "INFO").toUpperCase();
+  if (s === "SUCCESS") {
+    return {
+      bg: "rgba(34, 197, 94, 0.12)",
+      text: "#4ADE80",
+      border: "1px solid rgba(34, 197, 94, 0.3)",
+    };
+  }
+  if (s === "FAILED" || s === "REVERSED") {
+    return {
+      bg: "rgba(239, 68, 68, 0.12)",
+      text: "#F87171",
+      border: "1px solid rgba(239, 68, 68, 0.3)",
+    };
+  }
+  if (s === "PENDING" || s === "PROCESSING") {
+    return {
+      bg: "rgba(245, 158, 11, 0.12)",
+      text: "#FBBF24",
+      border: "1px solid rgba(245, 158, 11, 0.3)",
+    };
+  }
+  return {
+    bg: "rgba(59, 130, 246, 0.12)",
+    text: "#60A5FA",
+    border: "1px solid rgba(59, 130, 246, 0.25)",
+  };
+};
+
 export const NotificationCenter: React.FC<{
   userId?: string;
   tenantId?: string;
@@ -232,39 +262,64 @@ export const NotificationCenter: React.FC<{
     }
   };
 
-  const getStatusChipColor = (status?: string | null) => {
-    const s = String(status || "INFO").toUpperCase();
-    switch (s) {
-      case "SUCCESS":
-        return {
-          bg: "rgba(34, 197, 94, 0.18)",
-          text: "#4ADE80",
-          border: "1px solid rgba(34, 197, 94, 0.35)",
-        };
-      case "REVERSED":
-      case "FAILED":
-        return {
-          bg: "rgba(239, 68, 68, 0.18)",
-          text: "#F87171",
-          border: "1px solid rgba(239, 68, 68, 0.35)",
-        };
-      case "PENDING":
-        return {
-          bg: "rgba(234, 179, 8, 0.18)",
-          text: "#FACC15",
-          border: "1px solid rgba(234, 179, 8, 0.35)",
-        };
-      default:
-        return {
-          bg: "rgba(59, 130, 246, 0.18)",
-          text: "#60A5FA",
-          border: "1px solid rgba(59, 130, 246, 0.35)",
-        };
+  const getNotificationIcon = (item: NotificationItem) => {
+    if (!item.is_read) {
+      return (
+        <Box
+          sx={{
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            bgcolor: "#FBBF24",
+            boxShadow: "0 0 10px #FBBF24, 0 0 20px rgba(251,191,36,0.4)",
+            flexShrink: 0,
+            mt: "3px",
+            "@keyframes pulseGlow": {
+              "0%, 100%": { boxShadow: "0 0 6px #FBBF24, 0 0 14px rgba(251,191,36,0.4)" },
+              "50%": { boxShadow: "0 0 12px #FBBF24, 0 0 28px rgba(251,191,36,0.6)" },
+            },
+            animation: "pulseGlow 2s ease-in-out infinite",
+          }}
+        />
+      );
     }
+    const s = String(item.status || "INFO").toUpperCase();
+    if (s === "SUCCESS") {
+      return (
+        <Box sx={{
+          width: 30, height: 30, borderRadius: "9px",
+          bgcolor: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.22)",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>
+          <CheckCircleIcon sx={{ fontSize: 16, color: "#22C55E" }} />
+        </Box>
+      );
+    }
+    if (s === "FAILED" || s === "REVERSED") {
+      return (
+        <Box sx={{
+          width: 30, height: 30, borderRadius: "9px",
+          bgcolor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.22)",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>
+          <ErrorIcon sx={{ fontSize: 16, color: "#F87171" }} />
+        </Box>
+      );
+    }
+    return (
+      <Box sx={{
+        width: 30, height: 30, borderRadius: "9px",
+        bgcolor: "rgba(59, 130, 246, 0.1)", border: "1px solid rgba(59, 130, 246, 0.22)",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        <InfoIcon sx={{ fontSize: 16, color: "#60A5FA" }} />
+      </Box>
+    );
   };
 
   return (
     <>
+      {/* ── Bell Button ── */}
       <IconButton
         onClick={handleOpen}
         sx={{
@@ -290,68 +345,86 @@ export const NotificationCenter: React.FC<{
         </Badge>
       </IconButton>
 
+      {/* ── Notification Panel ── */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleClose}
         slotProps={{
           paper: {
-            elevation: 12,
+            elevation: 0,
             sx: {
-              width: 400,
-              maxWidth: "calc(100vw - 32px)",
-              maxHeight: 520,
-              borderRadius: "16px",
+              width: { xs: "calc(100vw - 16px)", sm: 420 },
+              maxWidth: "calc(100vw - 16px)",
+              maxHeight: "none",
+              borderRadius: "18px",
               mt: 1.5,
-              backgroundColor: "rgba(10, 15, 29, 0.95)",
-              backdropFilter: "blur(20px)",
+              background: "linear-gradient(160deg, rgba(9,11,24,0.98) 0%, rgba(12,17,35,0.97) 100%)",
+              backdropFilter: "blur(28px) saturate(180%)",
+              WebkitBackdropFilter: "blur(28px) saturate(180%)",
               color: "#F8FAFC",
-              border: "1px solid rgba(251, 191, 36, 0.25)",
+              border: "1px solid rgba(251, 191, 36, 0.16)",
               boxShadow:
-                "0 24px 48px -12px rgba(0, 0, 0, 0.9), 0 0 20px rgba(251, 191, 36, 0.08)",
+                "0 32px 64px -16px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.04), 0 0 40px rgba(251,191,36,0.05)",
               overflowX: "hidden",
+              overflowY: "hidden",
+              display: "flex",
+              flexDirection: "column",
             },
           },
         }}
         transformOrigin={{ horizontal: "right", vertical: "top" }}
         anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
       >
-        {/* Header with Gold Title and Refresh */}
+        {/* ── Header ── */}
         <Box
           sx={{
-            px: 2,
-            py: 1.5,
+            px: 2.5,
+            py: 1.75,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-            bgcolor: "rgba(30, 41, 59, 0.7)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.07)",
+            background: "linear-gradient(180deg, rgba(30,41,59,0.55) 0%, rgba(15,23,42,0.35) 100%)",
+            flexShrink: 0,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+            {unreadCount > 0 && (
+              <Box sx={{
+                width: 8, height: 8, borderRadius: "50%", bgcolor: "#EF4444",
+                boxShadow: "0 0 8px #EF4444",
+                "@keyframes dot-pulse": {
+                  "0%,100%": { transform: "scale(1)", opacity: 1 },
+                  "50%": { transform: "scale(1.5)", opacity: 0.6 },
+                },
+                animation: "dot-pulse 2s ease-in-out infinite",
+                flexShrink: 0,
+              }} />
+            )}
             <Typography
               variant="subtitle2"
               sx={{
                 fontWeight: 800,
-                fontSize: "14.5px",
+                fontSize: "14px",
+                letterSpacing: "0.015em",
                 background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
               }}
             >
-              Recent Alerts{notifications.length > 0 ? ` (${notifications.length})` : ""}
+              Notification Center
             </Typography>
             {unreadCount > 0 ? (
               <Chip
                 label={`${unreadCount} New`}
                 size="small"
                 sx={{
-                  height: 18,
-                  fontSize: "9.5px",
-                  fontWeight: 900,
-                  bgcolor: "rgba(239, 68, 68, 0.2)",
-                  color: "#F87171",
-                  border: "1px solid rgba(239, 68, 68, 0.35)",
+                  height: 19, fontSize: "9.5px", fontWeight: 900,
+                  bgcolor: "rgba(239, 68, 68, 0.15)", color: "#F87171",
+                  border: "1px solid rgba(239, 68, 68, 0.30)",
+                  letterSpacing: "0.05em",
+                  "& .MuiChip-label": { px: 1 },
                 }}
               />
             ) : notifications.length > 0 ? (
@@ -359,31 +432,26 @@ export const NotificationCenter: React.FC<{
                 label={`${notifications.length} Live`}
                 size="small"
                 sx={{
-                  height: 18,
-                  fontSize: "9.5px",
-                  fontWeight: 900,
-                  bgcolor: "rgba(245, 158, 11, 0.18)",
-                  color: "#FDE047",
-                  border: "1px solid rgba(245, 158, 11, 0.35)",
+                  height: 19, fontSize: "9.5px", fontWeight: 900,
+                  bgcolor: "rgba(245, 158, 11, 0.14)", color: "#FDE047",
+                  border: "1px solid rgba(245, 158, 11, 0.30)",
+                  letterSpacing: "0.05em",
+                  "& .MuiChip-label": { px: 1 },
                 }}
               />
             ) : null}
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
             {unreadCount > 0 && (
               <Button
                 size="small"
                 onClick={handleMarkAllRead}
                 sx={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "#38BDF8",
-                  textTransform: "none",
-                  padding: "2px 8px",
-                  borderRadius: "6px",
-                  minWidth: 0,
-                  "&:hover": { backgroundColor: "rgba(56, 189, 248, 0.15)" },
+                  fontSize: "10.5px", fontWeight: 700, color: "#38BDF8",
+                  textTransform: "none", padding: "3px 10px", borderRadius: "8px", minWidth: 0,
+                  border: "1px solid rgba(56, 189, 248, 0.2)", bgcolor: "rgba(56, 189, 248, 0.06)",
+                  "&:hover": { backgroundColor: "rgba(56, 189, 248, 0.14)", borderColor: "rgba(56,189,248,0.4)" },
                 }}
               >
                 Mark all read
@@ -394,15 +462,17 @@ export const NotificationCenter: React.FC<{
               onClick={() => fetchNotifications(true)}
               disabled={isRefreshing}
               sx={{
-                color: isRefreshing ? "#FBBF24" : "#94A3B8",
-                padding: "4px",
-                "&:hover": { color: "#F8FAFC" },
+                color: isRefreshing ? "#FBBF24" : "#64748B",
+                padding: "5px",
+                borderRadius: "8px",
+                border: "1px solid rgba(255,255,255,0.07)",
+                "&:hover": { color: "#F8FAFC", bgcolor: "rgba(255,255,255,0.08)" },
               }}
             >
               <RefreshIcon
                 sx={{
-                  fontSize: 17,
-                  animation: isRefreshing ? "spin 1s linear infinite" : "none",
+                  fontSize: 16,
+                  animation: isRefreshing ? "spin 0.8s linear infinite" : "none",
                   "@keyframes spin": {
                     "0%": { transform: "rotate(0deg)" },
                     "100%": { transform: "rotate(360deg)" },
@@ -413,53 +483,89 @@ export const NotificationCenter: React.FC<{
           </Box>
         </Box>
 
-        {/* List Content */}
-        <Box sx={{ overflowY: "auto", overflowX: "hidden", maxHeight: 440 }}>
+        {/* ── List Content ── */}
+        <Box
+          sx={{
+            overflowY: "auto",
+            overflowX: "hidden",
+            maxHeight: { xs: "60vh", sm: 430 },
+            flexGrow: 1,
+            /* Premium slim gold scrollbar */
+            "&::-webkit-scrollbar": { width: "3px" },
+            "&::-webkit-scrollbar-track": { background: "rgba(255,255,255,0.02)", borderRadius: "4px" },
+            "&::-webkit-scrollbar-thumb": {
+              background: "linear-gradient(180deg, rgba(251,191,36,0.55) 0%, rgba(251,191,36,0.18) 100%)",
+              borderRadius: "4px",
+            },
+            "&::-webkit-scrollbar-thumb:hover": { background: "rgba(251,191,36,0.75)" },
+            scrollbarWidth: "thin",
+            scrollbarColor: "rgba(251,191,36,0.4) rgba(255,255,255,0.02)",
+          }}
+        >
           {loading && notifications.length === 0 ? (
-            <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-              <CircularProgress size={24} sx={{ color: "#FBBF24" }} />
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 6, gap: 1.5 }}>
+              <CircularProgress size={26} thickness={3} sx={{ color: "#FBBF24" }} />
+              <Typography variant="caption" sx={{ color: "#64748B", fontSize: "11px" }}>
+                Loading notifications…
+              </Typography>
             </Box>
           ) : error ? (
-            <Box sx={{ p: 3, textAlign: "center" }}>
-              <ErrorIcon sx={{ color: "#EF4444", fontSize: 28 }} />
-              <Typography variant="body2" sx={{ color: "#94A3B8", mt: 0.5 }}>
-                {error}
-              </Typography>
+            <Box sx={{ p: 4, textAlign: "center" }}>
+              <Box sx={{
+                width: 48, height: 48, borderRadius: "14px",
+                bgcolor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)",
+                display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 1.5,
+              }}>
+                <ErrorIcon sx={{ color: "#EF4444", fontSize: 24 }} />
+              </Box>
+              <Typography variant="body2" sx={{ color: "#CBD5E1", fontWeight: 600, mb: 0.5 }}>Unable to load alerts</Typography>
+              <Typography variant="caption" sx={{ color: "#64748B", display: "block", mb: 2 }}>{error}</Typography>
               <Button
                 size="small"
                 onClick={() => fetchNotifications(true)}
-                sx={{ mt: 1, fontSize: "12px", color: "#38BDF8" }}
+                sx={{
+                  fontSize: "11px", color: "#38BDF8", textTransform: "none",
+                  border: "1px solid rgba(56,189,248,0.25)", borderRadius: "8px",
+                  px: 2, "&:hover": { bgcolor: "rgba(56,189,248,0.1)" },
+                }}
               >
                 Try again
               </Button>
             </Box>
           ) : notifications.length === 0 ? (
-            <Box sx={{ p: 4, textAlign: "center" }}>
-              <InfoIcon sx={{ color: "#64748B", fontSize: 32, mb: 0.5 }} />
-              <Typography variant="body2" sx={{ fontWeight: 600, color: "#E2E8F0" }}>
+            <Box sx={{ py: 6, px: 3, textAlign: "center" }}>
+              <Box sx={{
+                width: 52, height: 52, borderRadius: "16px",
+                background: "linear-gradient(135deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.8) 100%)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2,
+              }}>
+                <NotificationsIcon sx={{ color: "#475569", fontSize: 24 }} />
+              </Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "#E2E8F0", mb: 0.75, fontSize: "13px" }}>
                 No recent notifications
               </Typography>
-              <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: 0.5 }}>
-                Live transaction & wallet updates will appear here automatically.
+              <Typography variant="caption" sx={{ color: "#64748B", display: "block", lineHeight: 1.6, maxWidth: 240, mx: "auto" }}>
+                Live transaction &amp; wallet updates will appear here automatically.
               </Typography>
             </Box>
           ) : (
-            notifications.map((item) => {
+            notifications.map((item, idx) => {
               const chipStyle = getStatusChipColor(item.status);
               return (
                 <MenuItem
                   key={item.id}
                   onClick={() => handleItemClick(item)}
                   sx={{
-                    py: 1.5,
-                    px: 2,
-                    borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
-                    bgcolor: item.is_read ? "transparent" : "rgba(30, 58, 138, 0.25)",
-                    borderLeft: item.is_read
-                      ? "3px solid transparent"
-                      : "3px solid #FBBF24",
+                    py: 1.75,
+                    px: 2.5,
+                    borderBottom: idx < notifications.length - 1 ? "1px solid rgba(255, 255, 255, 0.05)" : "none",
+                    bgcolor: item.is_read ? "transparent" : "rgba(30, 58, 138, 0.12)",
+                    borderLeft: item.is_read ? "2px solid transparent" : "2px solid #FBBF24",
                     transition: "all 0.15s ease-in-out",
-                    "&:hover": { bgcolor: "rgba(255, 255, 255, 0.06)" },
+                    "&:hover": {
+                      bgcolor: "rgba(255, 255, 255, 0.04)",
+                    },
                     display: "flex",
                     alignItems: "flex-start",
                     gap: 1.5,
@@ -468,92 +574,82 @@ export const NotificationCenter: React.FC<{
                     boxSizing: "border-box",
                   }}
                 >
-                  {/* Status / Read Icon Dot */}
-                  <Box
-                    sx={{
-                      mt: 0.5,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {!item.is_read ? (
-                      <Box
-                        sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          bgcolor: "#FBBF24",
-                          boxShadow: "0 0 8px #FBBF24",
-                        }}
-                      />
-                    ) : item.status === "SUCCESS" ? (
-                      <CheckCircleIcon sx={{ fontSize: 16, color: "#22C55E" }} />
-                    ) : (
-                      <InfoIcon sx={{ fontSize: 16, color: "#64748B" }} />
-                    )}
+                  {/* Icon */}
+                  <Box sx={{ mt: "3px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {getNotificationIcon(item)}
                   </Box>
 
                   {/* Main Content */}
                   <Box sx={{ flexGrow: 1, minWidth: 0, width: "100%" }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 0.35,
-                      }}
-                    >
+                    {/* Title + Time */}
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.4, gap: 1 }}>
                       <Typography
                         variant="body2"
                         sx={{
                           fontWeight: item.is_read ? 600 : 800,
-                          fontSize: "13.5px",
-                          color: "#FFFFFF",
-                          lineHeight: 1.25,
+                          fontSize: "13px",
+                          color: item.is_read ? "#E2E8F0" : "#FFFFFF",
+                          lineHeight: 1.3,
+                          flex: 1,
+                          minWidth: 0,
                         }}
                       >
                         {item.title}
                       </Typography>
                       <Typography
                         variant="caption"
-                        sx={{ color: "#94A3B8", fontSize: "11px", ml: 1, flexShrink: 0 }}
+                        sx={{
+                          color: "#475569",
+                          fontSize: "10.5px",
+                          flexShrink: 0,
+                          fontVariantNumeric: "tabular-nums",
+                          letterSpacing: "0.02em",
+                          mt: "1px",
+                        }}
                       >
                         {formatTimestamp(item.created_at)}
                       </Typography>
                     </Box>
 
+                    {/* Message */}
                     <Typography
                       variant="body2"
                       sx={{
-                        color: "#CBD5E1",
-                        fontSize: "12px",
+                        color: "#94A3B8",
+                        fontSize: "11.5px",
                         display: "block",
-                        lineHeight: 1.45,
-                        mb: 0.75,
+                        lineHeight: 1.55,
+                        mb: 1,
                         wordBreak: "break-word",
                       }}
                     >
                       {item.message}
                     </Typography>
 
-                    {/* Footer Details: Amount + Status Chip + Reference/UTR */}
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    {/* Footer: Amount + Status + UTR */}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
                       {item.amount != null && (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            fontWeight: 800,
-                            color:
-                              item.status === "REVERSED" || item.status === "FAILED"
-                                ? "#F87171"
-                                : "#4ADE80",
-                            fontSize: "12.5px",
-                          }}
-                        >
-                          ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </Typography>
+                        <Box sx={{
+                          display: "inline-flex", alignItems: "center",
+                          bgcolor: item.status === "REVERSED" || item.status === "FAILED"
+                            ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)",
+                          border: item.status === "REVERSED" || item.status === "FAILED"
+                            ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(34,197,94,0.2)",
+                          borderRadius: "6px",
+                          px: 0.9, py: 0.3,
+                        }}>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontWeight: 800,
+                              color: item.status === "REVERSED" || item.status === "FAILED" ? "#F87171" : "#4ADE80",
+                              fontSize: "12px",
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            ₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </Typography>
+                        </Box>
                       )}
 
                       <Chip
@@ -564,10 +660,11 @@ export const NotificationCenter: React.FC<{
                           color: chipStyle.text,
                           border: chipStyle.border,
                           fontWeight: 800,
-                          fontSize: "10px",
-                          height: 18,
-                          px: 0.5,
-                          borderRadius: "4px",
+                          fontSize: "9.5px",
+                          height: 19,
+                          letterSpacing: "0.06em",
+                          borderRadius: "5px",
+                          "& .MuiChip-label": { px: 0.85 },
                         }}
                       />
 
@@ -575,15 +672,15 @@ export const NotificationCenter: React.FC<{
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "#CBD5E1",
-                            fontSize: "11px",
-                            bgcolor: "rgba(255, 255, 255, 0.08)",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
-                            px: 0.75,
-                            py: 0.2,
-                            borderRadius: "4px",
-                            fontFamily: "monospace",
-                            letterSpacing: "0.2px",
+                            color: "#94A3B8",
+                            fontSize: "10.5px",
+                            bgcolor: "rgba(255, 255, 255, 0.05)",
+                            border: "1px solid rgba(255, 255, 255, 0.09)",
+                            px: 0.9,
+                            py: 0.25,
+                            borderRadius: "5px",
+                            fontFamily: "'Roboto Mono', 'Fira Code', monospace",
+                            letterSpacing: "0.4px",
                           }}
                         >
                           {String(item.reference).startsWith("UTR")
@@ -599,13 +696,14 @@ export const NotificationCenter: React.FC<{
           )}
         </Box>
 
-        {/* Footer: View All Notifications */}
+        {/* ── Footer ── */}
         <Box
           sx={{
-            p: 1.2,
-            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-            bgcolor: "rgba(15, 23, 42, 0.95)",
-            textAlign: "center",
+            px: 2,
+            py: 1.25,
+            borderTop: "1px solid rgba(255, 255, 255, 0.07)",
+            background: "linear-gradient(0deg, rgba(9,11,24,0.98) 0%, rgba(15,23,42,0.5) 100%)",
+            flexShrink: 0,
           }}
         >
           <Button
@@ -617,21 +715,29 @@ export const NotificationCenter: React.FC<{
             }}
             sx={{
               color: "#FBBF24",
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: "12px",
               textTransform: "none",
-              borderRadius: "8px",
-              py: 0.8,
-              bgcolor: "rgba(251, 191, 36, 0.08)",
-              border: "1px solid rgba(251, 191, 36, 0.25)",
+              borderRadius: "10px",
+              py: 1,
+              letterSpacing: "0.03em",
+              background: "linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(245,158,11,0.04) 100%)",
+              border: "1px solid rgba(251, 191, 36, 0.2)",
+              transition: "all 0.2s ease",
               "&:hover": {
-                bgcolor: "rgba(251, 191, 36, 0.18)",
-                borderColor: "#FACC15",
+                background: "linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(245,158,11,0.10) 100%)",
+                borderColor: "rgba(251, 191, 36, 0.45)",
                 color: "#FEF08A",
+                boxShadow: "0 4px 16px rgba(251, 191, 36, 0.14)",
+                transform: "translateY(-1px)",
+              },
+              "&:active": {
+                transform: "translateY(0)",
+                boxShadow: "none",
               },
             }}
           >
-            View All Notifications & Soundbox Settings →
+            View All Notifications &amp; Soundbox Settings →
           </Button>
         </Box>
       </Menu>
@@ -640,3 +746,6 @@ export const NotificationCenter: React.FC<{
 };
 
 export default NotificationCenter;
+
+
+
