@@ -498,18 +498,21 @@ async def add_and_verify_epic014_beneficiary(
         except Exception:
             pass
 
-    # If still not found, check P2P-R404667 or active retailer with wallet
-    if not retailer_uuid:
-        stmt_r = select(RetailerModel).where(RetailerModel.retailer_code == "P2P-R404667")
-        r_row = (await db.execute(stmt_r)).scalars().first()
-        if r_row:
-            retailer_uuid = r_row.public_id
+    if not retailer_uuid and cust_obj and getattr(cust_obj, "created_by", None):
+        try:
+            c_creator = uuid.UUID(str(cust_obj.created_by))
+            ret_lookup = select(RetailerModel).where(RetailerModel.public_id == c_creator)
+            r_creator = (await db.execute(ret_lookup)).scalars().first()
+            if r_creator:
+                retailer_uuid = r_creator.public_id
+        except Exception:
+            pass
 
     if not retailer_uuid:
-        stmt_r = select(RetailerModel).where(RetailerModel.is_active == True).limit(1)
-        r_row = (await db.execute(stmt_r)).scalars().first()
-        if r_row:
-            retailer_uuid = r_row.public_id
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authenticated retailer context is required to verify beneficiary."
+        )
 
     # 5. P0 REAL-TIME AUTHORITATIVE WALLET BALANCE PRE-CHECK (GET /api/v1/wallet/balance)
     REQUIRED_VERIFICATION_AMOUNT = 3.54  # Base Charge: Rs.3.00 + GST 18%: Rs.0.54

@@ -253,7 +253,7 @@ export function BeneficiaryMasterSlideOver({
     setWalletLoading(true);
     retailerApi.getWalletBalance().then((res: any) => {
       if (!cancelled) {
-        const bal = res?.wallet_balance ?? res?.balance ?? res?.data?.wallet_balance ?? 0;
+        const bal = res?.wallet_balance ?? res?.available_balance ?? res?.mainBalance ?? res?.balance ?? res?.data?.wallet_balance ?? 0;
         setCurrentWalletBalance(typeof bal === "number" ? bal : parseFloat(bal) || 0);
         setWalletLoading(false);
       }
