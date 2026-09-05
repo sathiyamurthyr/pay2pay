@@ -16,8 +16,9 @@ import random
 import hashlib
 import secrets
 from datetime import datetime, timedelta, date, timezone
+from decimal import Decimal
 from typing import Optional, List, Dict, Any
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 import logging
@@ -26,8 +27,10 @@ logger = logging.getLogger("payout_workflow_service")
 
 from app.core.config import settings
 from app.infrastructure.adapters.whatsapp_service import whatsapp_service
-from app.infrastructure.adapters.cashfree_aadhaar_adapter import CashfreeAadhaarAdapter
-from app.infrastructure.db.customer_models import CustomerModel, CustomerKycModel, CustomerProfileModel
+from app.infrastructure.db.customer_models import (
+    CustomerModel, CustomerKycModel, CustomerProfileModel,
+    CustomerIdentityModel, CustomerAddressModel
+)
 from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
 from app.infrastructure.db.models import AdminUserModel, CompanyModel, NotificationModel, NotificationDeliveryModel
 from app.infrastructure.db.payout_workflow_models import (
@@ -1097,6 +1100,7 @@ class PayoutWorkflowService:
         payout.wallet_before = wallet_before
         payout.wallet_after = wallet_after
 
+        now_dt = datetime.now()
         ptxn_rec = PayoutTransactionModel(
             public_id=uuid.uuid4(),
             tenant_id=tenant_id,
