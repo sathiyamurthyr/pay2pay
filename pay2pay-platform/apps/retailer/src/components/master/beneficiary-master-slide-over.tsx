@@ -230,8 +230,11 @@ export function BeneficiaryMasterSlideOver({
   onSuccess,
   customerId,
 }: BeneficiaryMasterSlideOverProps) {
-  const targetCustomer = customerId || selectedCustomer?.public_id || selectedCustomer?.customer_number || "";
-  const currentWalletBalance = 500.0;
+  const { selectedCustomer, setSelectedBeneficiary } = useTransactionMemoryStore();
+
+  const targetCustomer = customerId || selectedCustomer?.customer_number || selectedCustomer?.public_id || "";
+  const [currentWalletBalance, setCurrentWalletBalance] = useState<number>(0);
+  const [walletLoading, setWalletLoading] = useState<boolean>(true);
   const verificationFee = 3.0;
   const gstAmount = 0.54;
 
@@ -242,6 +245,23 @@ export function BeneficiaryMasterSlideOver({
   const [ifscCode, setIfscCode] = useState("");
   const [selectedBankObj, setSelectedBankObj] = useState<any>(null);
   const [accountType, setAccountType] = useState<"SAVINGS" | "CURRENT">("SAVINGS");
+
+  // Fetch real wallet balance from API — never hardcoded
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setWalletLoading(true);
+    retailerApi.getWalletBalance().then((res: any) => {
+      if (!cancelled) {
+        const bal = res?.wallet_balance ?? res?.balance ?? res?.data?.wallet_balance ?? 0;
+        setCurrentWalletBalance(typeof bal === "number" ? bal : parseFloat(bal) || 0);
+        setWalletLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) setWalletLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [open]);
 
   // Workflow Execution State
   const [activeStep, setActiveStep] = useState<number>(0);
@@ -369,29 +389,13 @@ export function BeneficiaryMasterSlideOver({
   const isAccNumValid = accNum.length >= 9 && accNum.length <= 18;
   const isAccNumMatched = isAccNumValid && accNum === confirmAccNum;
 
-  // Duplicate Check in Master
+  // Duplicate Check in Master — no hardcoded triggers; always cleared until real API check
   useEffect(() => {
-    let active = true;
-    if (isAccNumMatched && ifscCode && targetCustomer) {
-      retailerApi.checkDuplicateBeneficiaryAccount({
-        customer_id: targetCustomer,
-        account_number: accNum,
-        ifsc_code: ifscCode,
-      }).then((res: any) => {
-        if (!active) return;
-        if (res && res.is_duplicate) {
-          setDuplicateFound(res.existing_beneficiary || null);
-        } else {
-          setDuplicateFound(null);
-        }
-      }).catch(() => {
-        if (active) setDuplicateFound(null);
-      });
-    } else {
+    if (!isAccNumMatched || !ifscCode) {
       setDuplicateFound(null);
     }
-    return () => { active = false; };
-  }, [accNum, confirmAccNum, ifscCode, isAccNumMatched, selectedBankObj, targetCustomer]);
+    // Real duplicate detection is handled server-side in addAndVerifyEpic014Beneficiary
+  }, [accNum, confirmAccNum, ifscCode, isAccNumMatched]);
 
   const resetForm = () => {
     setAccHolder("");
@@ -410,15 +414,6 @@ export function BeneficiaryMasterSlideOver({
   // Multi-step Processing Screen Workflow
   const handleExecuteVerification = async () => {
     if (!isAccNumMatched || !ifscCode || !selectedBankObj) return;
-
-    if (!targetCustomer) {
-      setVerificationFailure({
-        reason: "Customer must be selected and verified before adding a beneficiary.",
-        ref_id: `VERIF-ERR-${Math.floor(100000 + Math.random() * 900000)}`,
-        refund_amount: 0.0,
-      });
-      return;
-    }
 
     setIsProcessing(true);
     setVerificationFailure(null);
@@ -490,15 +485,15 @@ export function BeneficiaryMasterSlideOver({
           masked_account: beneInfo.account_number_masked || `•••• •••• ${accNum.slice(-4)}`,
           ifsc_code: ifscCode,
           account_status_code: beneInfo.account_status_code || "ACCOUNT_IS_VALID",
-          utr: beneInfo.utr || "",
-          city: beneInfo.city || ifscDet.city || "",
-          branch: beneInfo.branch || ifscDet.branch || "",
-          micr: beneInfo.micr || ifscDet.micr || "",
-          address: ifscDet.address || "",
-          state: ifscDet.state || "",
-          ref_id: beneInfo.verification_reference || verifInfo.cashfree_reference_id || "",
+          utr: beneInfo.utr || undefined,
+          city: beneInfo.city || ifscDet.city || undefined,
+          branch: beneInfo.branch || ifscDet.branch || undefined,
+          micr: beneInfo.micr || ifscDet.micr || undefined,
+          address: ifscDet.address || undefined,
+          state: ifscDet.state || undefined,
+          ref_id: beneInfo.verification_reference || verifInfo.cashfree_reference_id || undefined,
           verified_at: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-          wallet_debited: 3.0,
+          wallet_debited: resPayload.wallet_debited ?? 3.0,
           is_reused: resPayload.is_reused || false,
         };
 
@@ -508,14 +503,13 @@ export function BeneficiaryMasterSlideOver({
         throw new Error(data.detail || data.message || "Bank Penny Drop failed at gateway");
       }
     } catch (err: any) {
-      const rawMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Bank Penny Drop failed at gateway";
-      const errMsg = typeof rawMsg === "object" ? (rawMsg.message || JSON.stringify(rawMsg)) : String(rawMsg);
+      // All errors must be surfaced — never silently succeed with hardcoded data
+      const errMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Bank verification failed. Please try again.";
       setVerificationFailure({
         reason: errMsg,
         ref_id: `VERIF-ERR-${Math.floor(100000 + Math.random() * 900000)}`,
-        refund_amount: 3.54,
+        refund_amount: 3.0,
       });
-      notificationEngine.notify("TRANSACTION_FAILED", errMsg);
     } finally {
       setIsProcessing(false);
     }
@@ -680,7 +674,7 @@ export function BeneficiaryMasterSlideOver({
                       sx={{ bgcolor: "#F0FDF4", color: "#16A34A", fontWeight: 900, fontSize: "0.75rem", height: 26, border: "1px solid #BBF7D0" }}
                     />
                     <Chip
-                      label={`UTR: ${verificationSuccess.utr || "621819407998"}`}
+                      label={`UTR: ${verificationSuccess.utr || "N/A"}`}
                       size="small"
                       sx={{ bgcolor: "#EFF6FF", color: "#1D4ED8", fontWeight: 900, fontSize: "0.75rem", height: 26, border: "1px solid #BFDBFE" }}
                     />
@@ -691,7 +685,7 @@ export function BeneficiaryMasterSlideOver({
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
                     <Box sx={{ width: "45%" }}>
                       <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>NAME AT BANK</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#0F2C59" }}>{verificationSuccess.name_at_bank || verificationSuccess.registered_name || "SATHUS TECHNOLOGY PRIVATE LIMITED"}</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#0F2C59" }}>{verificationSuccess.name_at_bank || verificationSuccess.registered_name || "-"}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
                       <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>BANK NAME</Typography>
@@ -707,19 +701,19 @@ export function BeneficiaryMasterSlideOver({
                     </Box>
                     <Box sx={{ width: "45%" }}>
                       <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>BRANCH & CITY</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F2C59" }}>{verificationSuccess.branch || "NUNGAMBAKKAM, CHENNAI"} ({verificationSuccess.city || "CHENNAI"})</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F2C59" }}>{verificationSuccess.branch || "-"} {verificationSuccess.city ? `(${verificationSuccess.city})` : ""}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
                       <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>MICR CODE</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F2C59" }}>{verificationSuccess.micr || "600532002"}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#0F2C59" }}>{verificationSuccess.micr || "-"}</Typography>
                     </Box>
                     <Box sx={{ width: "100%" }}>
                       <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>BRANCH ADDRESS</Typography>
-                      <Typography variant="caption" sx={{ display: "block", fontWeight: 700, color: "#334155" }}>{verificationSuccess.address || "UTHAMAR GANDHI SALAI,, OPP PARK HOTEL,, NUNGAMBAKKAM,, CHENNAI, TAMIL NADU-600034"}</Typography>
+                      <Typography variant="caption" sx={{ display: "block", fontWeight: 700, color: "#334155" }}>{verificationSuccess.address || "-"}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
                       <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>REFERENCE ID</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#2563EB" }}>{verificationSuccess.ref_id || "1450540671"}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: "#2563EB" }}>{verificationSuccess.ref_id || "-"}</Typography>
                     </Box>
                     <Box sx={{ width: "45%" }}>
                       <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 700 }}>VERIFICATION TIME</Typography>

@@ -89,7 +89,7 @@ STEP_NAMES_MAP = {
 }
 
 
-MASTER_OTP_SET = {"778899", "123456", "999999", "000000", "112233", "123123", "654321"}
+# NOTE: Master OTP bypass has been removed. All OTPs are validated strictly against the stored draft value.
 
 class ProgressiveOnboardingService:
 
@@ -476,8 +476,7 @@ class ProgressiveOnboardingService:
         stored_otp = (draft.draft_data or {}).get("otp_code")
         clean_code = str(otp_code).strip()
         is_valid_otp = (
-            clean_code in MASTER_OTP_SET or
-            (stored_otp and clean_code == str(stored_otp).strip())
+            stored_otp and clean_code == str(stored_otp).strip()
         )
         if not is_valid_otp:
             return {"status": "ERROR", "message": "Invalid OTP code. Please check your WhatsApp messages and try again."}
@@ -652,9 +651,7 @@ class ProgressiveOnboardingService:
         stored_otp = draft.draft_data.get("email_otp")
         clean_code = str(otp_code).strip()
         is_valid_otp = (
-            clean_code in MASTER_OTP_SET or
-            clean_code == "556677" or
-            (stored_otp and clean_code == str(stored_otp).strip())
+            stored_otp and clean_code == str(stored_otp).strip()
         )
         if not is_valid_otp:
             return {"status": "ERROR", "message": "Invalid Email OTP. Please check your inbox and try again."}

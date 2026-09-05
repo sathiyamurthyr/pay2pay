@@ -26,7 +26,7 @@ from app.core.security import verify_password, hash_password, create_access_toke
 
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 DEFAULT_COMPANY_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
-MASTER_OTP_SET = {"778899", "123456", "999999", "000000", "112233", "123123", "654321"}
+# NOTE: Master OTP bypass has been removed. All OTPs are validated strictly against the database record.
 
 INSECURE_PRESET_PASSWORDS = {
     "1234", "123456", "12345678", "password", "defaultpassword",
@@ -787,20 +787,17 @@ async def verify_login_otp(payload: OtpVerifyPayload, request: Request, db: Asyn
     otp_tx = (await db.execute(stmt)).scalars().first()
 
     clean_entered_otp = str(payload.otp_code).strip()
-    is_master = clean_entered_otp in MASTER_OTP_SET
 
-    if not otp_tx and not is_master:
+    if not otp_tx:
         raise HTTPException(status_code=400, detail="OTP expired or not found. Please request a new OTP.")
 
-    # 2. Compare OTP with live hash OR master bypass set
-    if otp_tx and not is_master:
-        if not secrets.compare_digest(clean_entered_otp, str(otp_tx.otp_code_hash).strip()):
-            raise HTTPException(status_code=400, detail="Invalid OTP. Please check the OTP and try again.")
+    # 2. Compare OTP with live hash
+    if not secrets.compare_digest(clean_entered_otp, str(otp_tx.otp_code_hash).strip()):
+        raise HTTPException(status_code=400, detail="Invalid OTP. Please check the OTP and try again.")
 
     # 3. Mark OTP verified
-    if otp_tx:
-        otp_tx.is_verified = True
-        await db.commit()
+    otp_tx.is_verified = True
+    await db.commit()
 
     # 4. Check if existing retailer exists
     ret_contact_stmt = (

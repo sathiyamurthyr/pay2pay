@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
 from app.infrastructure.adapters.email_service import email_service
+from app.infrastructure.adapters.whatsapp_service import whatsapp_service
 
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password
@@ -116,6 +117,25 @@ def mask_gst(gst: Optional[str]) -> str:
     return f"XXXXXXXXXXXX{gst[-3:]}"
 
 
+def _format_doc_title(doc_type: str) -> str:
+    dt = (doc_type or "").upper()
+    if dt == "PAN":
+        return "PAN Card Document"
+    elif dt == "AADHAAR_FRONT":
+        return "Aadhaar Card (Front)"
+    elif dt == "AADHAAR_BACK":
+        return "Aadhaar Card (Back)"
+    elif dt in ("BANK_PROOF", "CHEQUE", "PASSBOOK"):
+        return "Bank Passbook / Cancelled Cheque"
+    elif dt == "SHOP_PHOTO":
+        return "Shop Establishment Photo"
+    elif dt == "GST":
+        return "GST Registration Certificate"
+    elif dt == "SELFIE":
+        return "Merchant Photo Verification"
+    return dt.replace("_", " ").title() + " Document"
+
+
 # ── SCHEMAS ──
 
 class ContactUpdateRequest(BaseModel):
@@ -151,16 +171,66 @@ class AddressUpdateRequest(BaseModel):
     comm_pincode: Optional[str] = None
 
 
+class SecurityWhatsAppOtpRequest(BaseModel):
+    action: str = Field(..., description="Action type: PASSWORD or MPIN")
+
+
 class PasswordChangeRequest(BaseModel):
-    current_password: str = Field(..., min_length=1, description="Current plaintext password")
+    current_password: Optional[str] = Field(None, description="Current plaintext password")
     new_password: str = Field(..., min_length=8, description="New strong password")
     confirm_password: str = Field(..., min_length=8, description="Confirm new password")
+    otp_code: str = Field(..., min_length=4, max_length=10, description="WhatsApp OTP code received on registered mobile")
 
 
 class PinChangeRequest(BaseModel):
     current_pin: Optional[str] = Field(None, description="Current 4-digit MPIN (if configured)")
     new_pin: str = Field(..., min_length=4, max_length=6, description="New 4-6 digit numeric MPIN")
     confirm_pin: str = Field(..., min_length=4, max_length=6, description="Confirm new MPIN")
+    otp_code: str = Field(..., min_length=4, max_length=10, description="WhatsApp OTP code received on registered mobile")
+
+
+def validate_password_rules(pwd: str, confirm_pwd: str):
+    """
+    Validates enterprise password security policies:
+    - Must match confirmation password
+    - Length between 8 and 64 characters
+    - At least 1 uppercase letter [A-Z]
+    - At least 1 lowercase letter [a-z]
+    - At least 1 numeric digit [0-9]
+    - At least 1 special character
+    """
+    if pwd != confirm_pwd:
+        raise HTTPException(status_code=400, detail="New password and confirmation password do not match.")
+    if len(pwd) < 8 or len(pwd) > 64:
+        raise HTTPException(status_code=400, detail="Password must be between 8 and 64 characters long.")
+    if not re.search(r'[A-Z]', pwd):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter (A-Z).")
+    if not re.search(r'[a-z]', pwd):
+        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter (a-z).")
+    if not re.search(r'\d', pwd):
+        raise HTTPException(status_code=400, detail="Password must contain at least one numeric digit (0-9).")
+    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?~`]', pwd):
+        raise HTTPException(status_code=400, detail="Password must contain at least one special character (!@#$%^&*...).")
+
+
+def validate_mpin_rules(pin: str, confirm_pin: str):
+    """
+    Validates enterprise transaction MPIN security policies:
+    - Must match confirmation MPIN
+    - Exactly 4 or 6 numeric digits
+    - Reject all identical repeating digits (e.g. 1111, 0000, 999999)
+    - Reject sequential digits (e.g. 1234, 4321, 123456)
+    """
+    if pin != confirm_pin:
+        raise HTTPException(status_code=400, detail="New MPIN and confirmation MPIN do not match.")
+    if not pin.isdigit() or len(pin) not in (4, 6):
+        raise HTTPException(status_code=400, detail="MPIN must be exactly 4 or 6 numeric digits.")
+    if len(set(pin)) == 1:
+        raise HTTPException(status_code=400, detail="MPIN cannot have all identical repeating digits (e.g. 1111, 0000).")
+    seq_asc = "0123456789012345"
+    seq_desc = "9876543210987654"
+    if pin in seq_asc or pin in seq_desc:
+        raise HTTPException(status_code=400, detail="MPIN cannot be a simple sequential sequence (e.g. 1234, 4321, 123456).")
 
 
 # ── CONTEXT RESOLUTION HELPER ──
@@ -375,6 +445,28 @@ async def get_retailer_profile(
         except Exception:
             pass
 
+        all_bank_records = []
+        try:
+            all_b_stmt = select(RegistrationBankModel).where(RegistrationBankModel.registration_id == reg_id).order_by(RegistrationBankModel.account_number.isnot(None).desc(), desc(RegistrationBankModel.created_date))
+            all_bank_records = (await db.execute(all_b_stmt)).scalars().all()
+        except Exception as e:
+            logger.warning(f"Error querying RegistrationBankModel: {e}")
+
+        ret_bank_records = []
+        if ret_model and getattr(ret_model, "public_id", None):
+            try:
+                rb_stmt = select(RetailerBankModel).where(RetailerBankModel.retailer_id == ret_model.public_id)
+                ret_bank_records = (await db.execute(rb_stmt)).scalars().all()
+            except Exception as e:
+                logger.warning(f"Error querying RetailerBankModel: {e}")
+
+        doc_records = []
+        try:
+            d_stmt = select(RegistrationDocumentModel).where(RegistrationDocumentModel.registration_id == reg_id).order_by(RegistrationDocumentModel.created_date.asc())
+            doc_records = (await db.execute(d_stmt)).scalars().all()
+        except Exception as e:
+            logger.warning(f"Error querying RegistrationDocumentModel: {e}")
+
         try:
             s_stmt = select(RegistrationShopModel).where(RegistrationShopModel.registration_id == reg_id)
             shop_record = (await db.execute(s_stmt)).scalars().first()
@@ -386,6 +478,10 @@ async def get_retailer_profile(
             addr_record = (await db.execute(ad_stmt)).scalars().first()
         except Exception:
             pass
+    else:
+        all_bank_records = []
+        ret_bank_records = []
+        doc_records = []
 
     # 5. Build Dynamic PERSONAL Data
     full_name = None
@@ -509,10 +605,40 @@ async def get_retailer_profile(
         } if not same_as_perm else None
     }
 
-    # 8. Build Dynamic KYC Data
+    # 8. Build Dynamic KYC Data & Documents
     raw_pan = pan_record.pan_number if pan_record else (verif.pan_number if verif else draft_data.get("pan_number"))
-    raw_aadhaar = (aadhaar_record.aadhaar_masked if aadhaar_record else draft_data.get("aadhaar_number")) or verif.aadhaar_number if verif else None
+    raw_aadhaar = (aadhaar_record.aadhaar_masked if aadhaar_record else draft_data.get("aadhaar_number")) or (verif.aadhaar_number if verif else None)
     raw_gst = gst_record.gst_number if gst_record else (verif.gst_number if verif else draft_data.get("gst_number"))
+
+    # Map all documents
+    formatted_docs = []
+    pan_doc = None
+    aadhaar_front_doc = None
+    aadhaar_back_doc = None
+    bank_proof_doc = None
+
+    for d in doc_records:
+        dt = (d.doc_type or "").upper()
+        if dt == "PAN" and not pan_doc:
+            pan_doc = d
+        elif dt == "AADHAAR_FRONT" and not aadhaar_front_doc:
+            aadhaar_front_doc = d
+        elif dt == "AADHAAR_BACK" and not aadhaar_back_doc:
+            aadhaar_back_doc = d
+        elif dt in ("BANK_PROOF", "CHEQUE", "PASSBOOK") and not bank_proof_doc:
+            bank_proof_doc = d
+
+        formatted_docs.append({
+            "id": str(getattr(d, "public_id", getattr(d, "id", uuid.uuid4()))),
+            "doc_type": d.doc_type,
+            "title": _format_doc_title(d.doc_type),
+            "file_name": d.file_name,
+            "file_url": d.file_url,
+            "file_size_bytes": d.file_size_bytes or 0,
+            "mime_type": d.mime_type or "application/octet-stream",
+            "is_verified": bool(d.is_verified),
+            "uploaded_at": get_iso_date(d)
+        })
 
     kyc_data = {
         "pan": {
@@ -521,7 +647,12 @@ async def get_retailer_profile(
             "verification_date": get_iso_date(pan_record),
             "provider": "NSDL / Protean eGov",
             "provider_reference": f"NSDL-PAN-{reg_id[-6:] if reg_id else 'OK'}",
-            "kyc_status": "APPROVED" if raw_pan else "PENDING"
+            "kyc_status": "APPROVED" if raw_pan else "PENDING",
+            "document_url": pan_doc.file_url if pan_doc else None,
+            "file_name": pan_doc.file_name if pan_doc else None,
+            "file_size_bytes": pan_doc.file_size_bytes if pan_doc else None,
+            "mime_type": pan_doc.mime_type if pan_doc else None,
+            "is_verified": bool(pan_doc.is_verified) if pan_doc else True,
         },
         "aadhaar": {
             "masked": raw_aadhaar or "—",
@@ -529,38 +660,158 @@ async def get_retailer_profile(
             "verification_date": get_iso_date(aadhaar_record),
             "provider": "UIDAI OTP eKYC",
             "provider_reference": f"UIDAI-AUTH-{reg_id[-6:] if reg_id else 'OK'}",
-            "kyc_status": "APPROVED" if raw_aadhaar else "PENDING"
+            "kyc_status": "APPROVED" if raw_aadhaar else "PENDING",
+            "document_url": aadhaar_front_doc.file_url if aadhaar_front_doc else None,
+            "front_document_url": aadhaar_front_doc.file_url if aadhaar_front_doc else None,
+            "front_file_name": aadhaar_front_doc.file_name if aadhaar_front_doc else None,
+            "front_file_size": aadhaar_front_doc.file_size_bytes if aadhaar_front_doc else None,
+            "back_document_url": aadhaar_back_doc.file_url if aadhaar_back_doc else None,
+            "back_file_name": aadhaar_back_doc.file_name if aadhaar_back_doc else None,
+            "back_file_size": aadhaar_back_doc.file_size_bytes if aadhaar_back_doc else None,
+            "is_verified": bool(aadhaar_front_doc.is_verified) if aadhaar_front_doc else True,
         },
         "gst": {
             "masked": raw_gst or "—",
             "legal_business_name": gst_record.legal_business_name if gst_record else None,
             "status": (gst_record.gst_status or "ACTIVE") if gst_record else ("ACTIVE" if raw_gst else "NOT_APPLICABLE")
-        } if raw_gst else None
+        } if raw_gst else None,
+        "documents": formatted_docs
     }
 
-    # 9. Build Dynamic BANK Data
+    # 9. Build Dynamic BANK Data & Accounts Table
+    bank_accounts = []
+    seen_accounts = {}
+
+    def _acc_suffix(s: Optional[str]) -> str:
+        if not s:
+            return ""
+        digits = "".join(c for c in str(s) if c.isdigit())
+        return digits[-4:] if len(digits) >= 4 else digits
+
+    for b in all_bank_records:
+        acc_sfx = _acc_suffix(b.account_number) or _acc_suffix(b.account_number_masked)
+        bank_clean = (b.bank_name or "").strip().upper()
+        ifsc_clean = (b.ifsc or "").strip().upper()
+        dedup_key = f"{bank_clean}_{acc_sfx}_{ifsc_clean}" if acc_sfx else f"{bank_clean}_{b.account_number_masked}_{ifsc_clean}"
+
+        if dedup_key in seen_accounts:
+            continue
+
+        is_prim = (len(bank_accounts) == 0)
+        item = {
+            "id": str(getattr(b, "public_id", getattr(b, "id", uuid.uuid4()))),
+            "bank_name": b.bank_name,
+            "branch": b.branch or "Main Branch",
+            "account_number": b.account_number,
+            "account_number_masked": b.account_number_masked or mask_bank_acc(b.account_number),
+            "account_holder_name": b.name_at_bank,
+            "ifsc": b.ifsc,
+            "account_type": b.account_type or "SAVINGS",
+            "is_primary": is_prim,
+            "role": "PRIMARY SETTLEMENT" if is_prim else "SECONDARY",
+            "verification_status": b.verification_status or "VERIFIED",
+            "verification_date": get_iso_date(b),
+            "document_url": bank_proof_doc.file_url if bank_proof_doc else None,
+            "document_file_name": bank_proof_doc.file_name if bank_proof_doc else None,
+            "document_file_size": bank_proof_doc.file_size_bytes if bank_proof_doc else None,
+            "document_mime_type": bank_proof_doc.mime_type if bank_proof_doc else None,
+        }
+        seen_accounts[dedup_key] = item
+        bank_accounts.append(item)
+
+    for rb in ret_bank_records:
+        acc_sfx = _acc_suffix(rb.account_number)
+        bank_clean = (rb.settlement_bank_name or "").strip().upper()
+        ifsc_clean = (rb.ifsc or "").strip().upper()
+        dedup_key = f"{bank_clean}_{acc_sfx}_{ifsc_clean}" if acc_sfx else f"{bank_clean}_{rb.account_number}_{ifsc_clean}"
+
+        if dedup_key in seen_accounts:
+            existing = seen_accounts[dedup_key]
+            if not existing.get("account_number") and rb.account_number:
+                existing["account_number"] = rb.account_number
+                existing["account_number_masked"] = mask_bank_acc(rb.account_number)
+            if not existing.get("account_holder_name") and rb.account_holder:
+                existing["account_holder_name"] = rb.account_holder
+            continue
+
+        is_prim = (len(bank_accounts) == 0)
+        item = {
+            "id": str(getattr(rb, "public_id", getattr(rb, "id", uuid.uuid4()))),
+            "bank_name": rb.settlement_bank_name,
+            "branch": rb.branch or "Main Branch",
+            "account_number": rb.account_number,
+            "account_number_masked": mask_bank_acc(rb.account_number),
+            "account_holder_name": rb.account_holder,
+            "ifsc": rb.ifsc,
+            "account_type": "SAVINGS",
+            "is_primary": is_prim,
+            "role": "PRIMARY SETTLEMENT" if is_prim else "SECONDARY",
+            "verification_status": rb.verification_status or "VERIFIED",
+            "verification_date": get_iso_date(rb),
+            "document_url": bank_proof_doc.file_url if bank_proof_doc else None,
+            "document_file_name": bank_proof_doc.file_name if bank_proof_doc else None,
+            "document_file_size": bank_proof_doc.file_size_bytes if bank_proof_doc else None,
+            "document_mime_type": bank_proof_doc.mime_type if bank_proof_doc else None,
+        }
+        seen_accounts[dedup_key] = item
+        bank_accounts.append(item)
+
+    if not bank_accounts and (draft_data.get("bank_name") or draft_data.get("account_number")):
+        bank_accounts.append({
+            "id": "draft_primary",
+            "bank_name": draft_data.get("bank_name", "Registered Settlement Bank"),
+            "branch": draft_data.get("branch", "Branch Office"),
+            "account_number": draft_data.get("account_number"),
+            "account_number_masked": mask_bank_acc(draft_data.get("account_number")),
+            "account_holder_name": draft_data.get("account_holder", full_name),
+            "ifsc": draft_data.get("ifsc", "—"),
+            "account_type": draft_data.get("account_type", "SAVINGS"),
+            "is_primary": True,
+            "verification_status": "VERIFIED",
+            "verification_date": None,
+            "document_url": bank_proof_doc.file_url if bank_proof_doc else None,
+            "document_file_name": bank_proof_doc.file_name if bank_proof_doc else None,
+            "document_file_size": bank_proof_doc.file_size_bytes if bank_proof_doc else None,
+            "document_mime_type": bank_proof_doc.mime_type if bank_proof_doc else None,
+        })
+
     bank_data = None
-    if bank_record:
+    if bank_record or bank_accounts:
+        primary_acc = bank_accounts[0] if bank_accounts else {}
         bank_data = {
-            "account_holder_name": bank_record.name_at_bank,
-            "bank_name": bank_record.bank_name,
-            "account_number_masked": bank_record.account_number or bank_record.account_number_masked or "—",
-            "ifsc": bank_record.ifsc,
-            "branch": bank_record.branch or "Main Branch",
-            "account_type": bank_record.account_type or "SAVINGS",
-            "verification_status": bank_record.verification_status or "VERIFIED",
-            "verification_date": get_iso_date(bank_record)
+            "account_holder_name": bank_record.name_at_bank if bank_record else primary_acc.get("account_holder_name"),
+            "bank_name": bank_record.bank_name if bank_record else primary_acc.get("bank_name"),
+            "account_number_masked": (bank_record.account_number_masked if bank_record else None) or primary_acc.get("account_number_masked") or "—",
+            "ifsc": bank_record.ifsc if bank_record else primary_acc.get("ifsc"),
+            "branch": (bank_record.branch if bank_record else None) or primary_acc.get("branch") or "Main Branch",
+            "account_type": (bank_record.account_type if bank_record else None) or primary_acc.get("account_type") or "SAVINGS",
+            "verification_status": (bank_record.verification_status if bank_record else None) or primary_acc.get("verification_status") or "VERIFIED",
+            "verification_date": get_iso_date(bank_record) if bank_record else primary_acc.get("verification_date"),
+            "document_url": bank_proof_doc.file_url if bank_proof_doc else None,
+            "document_file_name": bank_proof_doc.file_name if bank_proof_doc else None,
+            "document_file_size": bank_proof_doc.file_size_bytes if bank_proof_doc else None,
+            "document_mime_type": bank_proof_doc.mime_type if bank_proof_doc else None,
+            "document_is_verified": bool(bank_proof_doc.is_verified) if bank_proof_doc else True,
+            "document_uploaded_at": get_iso_date(bank_proof_doc) if bank_proof_doc else None,
+            "accounts": bank_accounts
         }
     elif draft_data.get("bank_name") or draft_data.get("account_number"):
         bank_data = {
             "account_holder_name": draft_data.get("account_holder", full_name),
             "bank_name": draft_data.get("bank_name"),
-            "account_number_masked": draft_data.get("account_number", "—"),
+            "account_number_masked": mask_bank_acc(draft_data.get("account_number")),
             "ifsc": draft_data.get("ifsc"),
             "branch": draft_data.get("branch", "Branch Office"),
             "account_type": draft_data.get("account_type", "SAVINGS"),
             "verification_status": "VERIFIED",
-            "verification_date": None
+            "verification_date": None,
+            "document_url": bank_proof_doc.file_url if bank_proof_doc else None,
+            "document_file_name": bank_proof_doc.file_name if bank_proof_doc else None,
+            "document_file_size": bank_proof_doc.file_size_bytes if bank_proof_doc else None,
+            "document_mime_type": bank_proof_doc.mime_type if bank_proof_doc else None,
+            "document_is_verified": bool(bank_proof_doc.is_verified) if bank_proof_doc else True,
+            "document_uploaded_at": get_iso_date(bank_proof_doc) if bank_proof_doc else None,
+            "accounts": bank_accounts
         }
 
     # 10. Build Dynamic SECURITY Metadata (Never plaintext passwords or PINs)
@@ -1316,6 +1567,82 @@ async def get_photo_image(
     raise HTTPException(status_code=404, detail="Photo stream unavailable.")
 
 
+# ── POST DISPATCH SECURITY WHATSAPP OTP ──
+
+@router.post("/security/whatsapp-otp/send", summary="Send WhatsApp OTP for Security Update")
+async def send_security_whatsapp_otp(
+    req: SecurityWhatsAppOtpRequest,
+    request: Request,
+    retailer_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Dispatches a secure 6-digit OTP code to the retailer's verified WhatsApp mobile number.
+    OTP is required to authorize updating Password or MPIN.
+    """
+    action_type = (req.action or "").upper().strip()
+    if action_type not in ("PASSWORD", "MPIN"):
+        raise HTTPException(status_code=400, detail="Invalid action type. Expected PASSWORD or MPIN.")
+
+    target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
+
+    if not clean_mobile and session_user_id:
+        try:
+            uid = uuid.UUID(str(session_user_id))
+            au = (await db.execute(select(AuthUserModel).where(AuthUserModel.user_id == uid))).scalars().first()
+            if au and au.mobile_number:
+                clean_mobile = "".join(filter(str.isdigit, au.mobile_number))[-10:]
+        except Exception:
+            pass
+
+    if not clean_mobile:
+        raise HTTPException(status_code=400, detail="Could not determine registered mobile number for WhatsApp OTP dispatch.")
+
+    import secrets
+    otp_code = f"{secrets.randbelow(900000) + 100000:06d}"
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    conds = []
+    if target_ident:
+        conds.append(RegistrationDraftModel.registration_id == str(target_ident))
+    if clean_mobile:
+        conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
+    draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
+    draft = (await db.execute(draft_stmt)).scalars().first()
+
+    if not draft:
+        draft = RegistrationDraftModel(
+            registration_id=str(target_ident or uuid.uuid4().hex[:12].upper()),
+            mobile_number=clean_mobile,
+            status="SECURITY_VERIFICATION",
+            draft_data={}
+        )
+        db.add(draft)
+
+    draft_data = dict(draft.draft_data or {})
+    draft_data["pending_security_whatsapp_otp"] = {
+        "code": otp_code,
+        "action": action_type,
+        "mobile": clean_mobile,
+        "expires_at": expires_at.isoformat(),
+        "attempts": 0
+    }
+    draft.draft_data = draft_data
+    flag_modified(draft, "draft_data")
+    await db.commit()
+
+    wa_res = await whatsapp_service.send_otp(clean_mobile, otp_code)
+    logger.info(f"Security WhatsApp OTP dispatched to {clean_mobile} for {action_type}: {wa_res}")
+
+    masked = f"+91 ******{clean_mobile[-4:]}"
+    return {
+        "success": True,
+        "message": f"Authorization OTP sent via WhatsApp to {masked}. Valid for 10 minutes.",
+        "masked_mobile": masked,
+        "action": action_type
+    }
+
+
 # ── POST CHANGE PASSWORD ──
 
 @router.post("/security/password", summary="Change Retailer Account Password")
@@ -1326,14 +1653,18 @@ async def change_password(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Validates current password, securely hashes new password with bcrypt/argon2,
-    persists hash in database across AuthUserModel, AdminUserModel, and Drafts.
+    Validates password rules, strictly verifies WhatsApp OTP code against stored draft,
+    validates current password, and persists argon2/bcrypt hash across AuthUserModel, AdminUserModel, and Drafts.
+    If OTP is invalid, database is NOT modified.
     """
-    if req.new_password != req.confirm_password:
-        raise HTTPException(status_code=400, detail="New password and confirmation password do not match.")
+    # 1. Validate Password Rules
+    validate_password_rules(req.new_password, req.confirm_password)
 
-    if len(req.new_password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
+    if req.current_password and req.current_password == req.new_password:
+        raise HTTPException(status_code=400, detail="New password cannot be the same as your current password.")
+
+    if not req.otp_code or not req.otp_code.strip():
+        raise HTTPException(status_code=400, detail="WhatsApp authorization OTP is required. Changes were NOT saved.")
 
     target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
 
@@ -1341,7 +1672,65 @@ async def change_password(
     if clean_mobile:
         mobile_variants = [clean_mobile, f"91{clean_mobile}", f"+91{clean_mobile}"]
 
-    # 1. Lookup AuthUserModel
+    # 2. Lookup RegistrationDraftModel for OTP verification
+    draft = None
+    if target_ident or clean_mobile:
+        conds = []
+        if target_ident:
+            conds.append(RegistrationDraftModel.registration_id == str(target_ident))
+        if clean_mobile:
+            conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
+        draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
+        draft = (await db.execute(draft_stmt)).scalars().first()
+
+    # STRICT WHATSAPP OTP VERIFICATION
+    otp_clean = req.otp_code.strip()
+    stored_otp = None
+    if draft and draft.draft_data:
+        stored_otp = draft.draft_data.get("pending_security_whatsapp_otp")
+
+    if not stored_otp:
+        raise HTTPException(status_code=400, detail="No active WhatsApp OTP request found. Please request a WhatsApp OTP first. Changes were NOT saved.")
+
+    stored_action = (stored_otp.get("action") or "").upper()
+    if stored_action != "PASSWORD":
+        raise HTTPException(status_code=400, detail="WhatsApp OTP was requested for a different action. Please request a new OTP. Changes were NOT saved.")
+
+    # Check expiration
+    exp_str = stored_otp.get("expires_at")
+    is_expired = True
+    if exp_str:
+        try:
+            exp_dt = datetime.fromisoformat(exp_str)
+            if datetime.now(timezone.utc) < exp_dt:
+                is_expired = False
+        except Exception:
+            pass
+
+    if is_expired:
+        raise HTTPException(status_code=400, detail="WhatsApp OTP has expired. Please request a new OTP. Changes were NOT saved.")
+
+    # Check attempts
+    attempts = stored_otp.get("attempts", 0)
+    if attempts >= 5:
+        raise HTTPException(status_code=400, detail="Too many invalid OTP attempts. Please request a new OTP. Changes were NOT saved.")
+
+    # Compare OTP code
+    stored_code = str(stored_otp.get("code") or "").strip()
+    if otp_clean != stored_code:
+        stored_otp["attempts"] = attempts + 1
+        draft_data = dict(draft.draft_data)
+        draft_data["pending_security_whatsapp_otp"] = stored_otp
+        draft.draft_data = draft_data
+        flag_modified(draft, "draft_data")
+        await db.commit()
+        remaining = 5 - (attempts + 1)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid WhatsApp OTP code. Changes were NOT saved. ({remaining} attempts remaining)"
+        )
+
+    # 3. Lookup AuthUserModel
     auth_user = None
     if session_user_id:
         try:
@@ -1359,7 +1748,7 @@ async def change_password(
         au_stmt = select(AuthUserModel).where(AuthUserModel.email == session_email)
         auth_user = (await db.execute(au_stmt)).scalars().first()
 
-    # 2. Lookup AdminUserModel
+    # 4. Lookup AdminUserModel
     admin_user = None
     if session_user_id:
         try:
@@ -1382,35 +1771,37 @@ async def change_password(
         adm_stmt = select(AdminUserModel).where(AdminUserModel.email == session_email)
         admin_user = (await db.execute(adm_stmt)).scalars().first()
 
-    # 3. Lookup RegistrationDraftModel
-    draft = None
-    if target_ident or clean_mobile:
-        conds = []
-        if target_ident:
-            conds.append(RegistrationDraftModel.registration_id == str(target_ident))
-        if clean_mobile:
-            conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
-        draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
-        draft = (await db.execute(draft_stmt)).scalars().first()
+    # 5. Verify Current Password (if user has an existing password)
+    has_existing_pwd = bool(
+        (auth_user and auth_user.password_hash) or
+        (admin_user and admin_user.hashed_password) or
+        (draft and draft.draft_data and draft.draft_data.get("password_hash"))
+    )
 
-    # 4. Verify Current Password
-    is_valid_current = False
-    if auth_user and auth_user.password_hash:
-        if verify_password(req.current_password, auth_user.password_hash):
-            is_valid_current = True
+    if req.current_password and req.current_password.strip():
+        is_valid_current = False
+        if auth_user and auth_user.password_hash:
+            if verify_password(req.current_password, auth_user.password_hash):
+                is_valid_current = True
+        if not is_valid_current and admin_user and admin_user.hashed_password:
+            if verify_password(req.current_password, admin_user.hashed_password):
+                is_valid_current = True
+        if not is_valid_current and draft and draft.draft_data and draft.draft_data.get("password_hash"):
+            if verify_password(req.current_password, draft.draft_data["password_hash"]):
+                is_valid_current = True
 
-    if not is_valid_current and admin_user and admin_user.hashed_password:
-        if verify_password(req.current_password, admin_user.hashed_password):
-            is_valid_current = True
+        if not is_valid_current:
+            raise HTTPException(status_code=400, detail="Current password is incorrect. Please verify and try again.")
+    elif has_existing_pwd:
+        raise HTTPException(status_code=400, detail="Current password is required to change password.")
 
-    if not is_valid_current and draft and draft.draft_data and draft.draft_data.get("password_hash"):
-        if verify_password(req.current_password, draft.draft_data["password_hash"]):
-            is_valid_current = True
+    # 6. Validated! Now consume OTP and update password in DB
+    if draft and draft.draft_data:
+        draft_data = dict(draft.draft_data)
+        draft_data.pop("pending_security_whatsapp_otp", None)
+        draft.draft_data = draft_data
+        flag_modified(draft, "draft_data")
 
-    if not is_valid_current:
-        raise HTTPException(status_code=400, detail="Current password is incorrect. Please verify and try again.")
-
-    # 5. Persist New Hashed Password
     new_hashed = hash_password(req.new_password)
 
     if auth_user:
@@ -1437,7 +1828,6 @@ async def change_password(
         admin_user.updated_date = datetime.now(timezone.utc)
 
     if draft:
-        from sqlalchemy.orm.attributes import flag_modified
         cdata = dict(draft.draft_data or {})
         cdata["password_hash"] = new_hashed
         cdata["last_password_changed_at"] = datetime.now(timezone.utc).isoformat()
@@ -1455,14 +1845,14 @@ async def change_password(
             resource_type="USER_CREDENTIALS",
             resource_id=str(session_user_id or target_ident),
             actor_email=session_email or "retailer@pay2pay.in",
-            details={"status": "SUCCESS", "event": "PASSWORD_CHANGED"}
+            details={"status": "SUCCESS", "event": "PASSWORD_CHANGED_VIA_WHATSAPP_OTP"}
         )
     except Exception as e:
         logger.warning(f"Audit log notice: {e}")
 
     return {
         "success": True,
-        "message": "Account password changed successfully."
+        "message": "Account password changed successfully via WhatsApp authorization."
     }
 
 
@@ -1476,14 +1866,18 @@ async def change_mpin(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Validates and updates the 4-6 digit transaction authorization MPIN / Screen Lock PIN securely.
-    Updates UserSecuritySettingsModel and CustomerModel with cryptographically secure hashes.
+    Validates MPIN rules, strictly verifies WhatsApp OTP code against stored draft,
+    validates current MPIN (if configured), and updates UserSecuritySettingsModel, CustomerModel, and Draft.
+    If OTP is invalid, database is NOT modified.
     """
-    if req.new_pin != req.confirm_pin:
-        raise HTTPException(status_code=400, detail="New MPIN and confirmation MPIN do not match.")
+    # 1. Validate MPIN Rules
+    validate_mpin_rules(req.new_pin, req.confirm_pin)
 
-    if not req.new_pin.isdigit() or len(req.new_pin) not in (4, 6):
-        raise HTTPException(status_code=400, detail="MPIN must be 4 or 6 numeric digits.")
+    if req.current_pin and req.current_pin.strip() == req.new_pin.strip():
+        raise HTTPException(status_code=400, detail="New MPIN cannot be the same as your current MPIN.")
+
+    if not req.otp_code or not req.otp_code.strip():
+        raise HTTPException(status_code=400, detail="WhatsApp authorization OTP is required. Changes were NOT saved.")
 
     target_ident, clean_mobile, r_uuid, session_user_id, session_email = await resolve_retailer_context(request, retailer_id, db)
 
@@ -1491,7 +1885,65 @@ async def change_mpin(
     if clean_mobile:
         mobile_variants = [clean_mobile, f"91{clean_mobile}", f"+91{clean_mobile}"]
 
-    # 1. Lookup UserSecuritySettingsModel
+    # 2. Lookup RegistrationDraftModel for OTP verification
+    draft = None
+    if target_ident or clean_mobile:
+        conds = []
+        if target_ident:
+            conds.append(RegistrationDraftModel.registration_id == str(target_ident))
+        if clean_mobile:
+            conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
+        draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
+        draft = (await db.execute(draft_stmt)).scalars().first()
+
+    # STRICT WHATSAPP OTP VERIFICATION
+    otp_clean = req.otp_code.strip()
+    stored_otp = None
+    if draft and draft.draft_data:
+        stored_otp = draft.draft_data.get("pending_security_whatsapp_otp")
+
+    if not stored_otp:
+        raise HTTPException(status_code=400, detail="No active WhatsApp OTP request found. Please request a WhatsApp OTP first. Changes were NOT saved.")
+
+    stored_action = (stored_otp.get("action") or "").upper()
+    if stored_action != "MPIN":
+        raise HTTPException(status_code=400, detail="WhatsApp OTP was requested for a different action. Please request a new OTP. Changes were NOT saved.")
+
+    # Check expiration
+    exp_str = stored_otp.get("expires_at")
+    is_expired = True
+    if exp_str:
+        try:
+            exp_dt = datetime.fromisoformat(exp_str)
+            if datetime.now(timezone.utc) < exp_dt:
+                is_expired = False
+        except Exception:
+            pass
+
+    if is_expired:
+        raise HTTPException(status_code=400, detail="WhatsApp OTP has expired. Please request a new OTP. Changes were NOT saved.")
+
+    # Check attempts
+    attempts = stored_otp.get("attempts", 0)
+    if attempts >= 5:
+        raise HTTPException(status_code=400, detail="Too many invalid OTP attempts. Please request a new OTP. Changes were NOT saved.")
+
+    # Compare OTP code
+    stored_code = str(stored_otp.get("code") or "").strip()
+    if otp_clean != stored_code:
+        stored_otp["attempts"] = attempts + 1
+        draft_data = dict(draft.draft_data)
+        draft_data["pending_security_whatsapp_otp"] = stored_otp
+        draft.draft_data = draft_data
+        flag_modified(draft, "draft_data")
+        await db.commit()
+        remaining = 5 - (attempts + 1)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid WhatsApp OTP code. Changes were NOT saved. ({remaining} attempts remaining)"
+        )
+
+    # 3. Lookup UserSecuritySettingsModel
     user_sec = None
     target_uid = None
     if session_user_id:
@@ -1511,24 +1963,13 @@ async def change_mpin(
         ).order_by(desc(UserSecuritySettingsModel.created_date))
         user_sec = (await db.execute(sec_stmt)).scalars().first()
 
-    # 2. Lookup CustomerModel
+    # 4. Lookup CustomerModel
     cust = None
     if mobile_variants:
         c_stmt = select(CustomerModel).where(CustomerModel.mobile_number.in_(mobile_variants))
         cust = (await db.execute(c_stmt)).scalars().first()
 
-    # 3. Lookup Draft
-    draft = None
-    if target_ident or clean_mobile:
-        conds = []
-        if target_ident:
-            conds.append(RegistrationDraftModel.registration_id == str(target_ident))
-        if clean_mobile:
-            conds.append(RegistrationDraftModel.mobile_number.like(f"%{clean_mobile}"))
-        draft_stmt = select(RegistrationDraftModel).where(or_(*conds)).order_by(desc(RegistrationDraftModel.last_activity_at))
-        draft = (await db.execute(draft_stmt)).scalars().first()
-
-    # 4. If current_pin is provided, verify it
+    # 5. If current_pin is provided, verify it
     if req.current_pin and req.current_pin.strip():
         curr_clean = req.current_pin.strip()
         is_curr_valid = False
@@ -1550,10 +1991,17 @@ async def change_mpin(
         if has_any_pin and not is_curr_valid:
             raise HTTPException(status_code=400, detail="Current transaction PIN is incorrect. Please verify and try again.")
 
-    # 5. Generate New Hashes
+    # 6. Validated! Clear OTP from draft
+    if draft and draft.draft_data:
+        draft_data = dict(draft.draft_data)
+        draft_data.pop("pending_security_whatsapp_otp", None)
+        draft.draft_data = draft_data
+        flag_modified(draft, "draft_data")
+
+    # 7. Generate New Hashes
     new_argon_hash = hash_password(req.new_pin)
 
-    # 6. Update / Upsert UserSecuritySettingsModel
+    # 8. Update / Upsert UserSecuritySettingsModel
     if not target_uid:
         target_uid = user_sec.user_id if user_sec else uuid.uuid4()
 
@@ -1575,7 +2023,7 @@ async def change_mpin(
         )
         db.add(user_sec)
 
-    # 7. Update CustomerModel if present
+    # 9. Update CustomerModel if present
     if cust:
         cust_mpin_hash = _hash_mpin(req.new_pin, str(cust.public_id))
         cust.mpin_hash = cust_mpin_hash
@@ -1584,9 +2032,8 @@ async def change_mpin(
         cust.is_locked = False
         cust.mpin_last_changed_at = datetime.now(timezone.utc)
 
-    # 8. Update DraftModel if present
+    # 10. Update DraftModel if present
     if draft:
-        from sqlalchemy.orm.attributes import flag_modified
         cdata = dict(draft.draft_data or {})
         cdata["mpin_hash"] = new_argon_hash
         cdata["last_pin_changed_at"] = datetime.now(timezone.utc).isoformat()
@@ -1604,12 +2051,12 @@ async def change_mpin(
             resource_type="TRANSACTION_MPIN",
             resource_id=str(session_user_id or target_ident),
             actor_email=session_email or "retailer@pay2pay.in",
-            details={"status": "SUCCESS", "event": "PIN_CHANGED"}
+            details={"status": "SUCCESS", "event": "PIN_CHANGED_VIA_WHATSAPP_OTP"}
         )
     except Exception as e:
         logger.warning(f"Audit log notice: {e}")
 
     return {
         "success": True,
-        "message": "Transaction MPIN updated successfully."
+        "message": "Transaction MPIN updated successfully via WhatsApp authorization."
     }

@@ -15,6 +15,7 @@ Enterprise Service implementing:
 - Admin configuration CRUD with overlap prevention.
 """
 
+import re
 import uuid
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone
@@ -214,6 +215,25 @@ class PosMdrService:
         return uuid.uuid5(uuid.NAMESPACE_DNS, f"retailer.{retailer_identifier}")
 
     @classmethod
+    def normalize_mode_code(cls, mode: str) -> str:
+        """
+        Normalizes payment mode aliases to canonical database codes:
+        - POS+Instant / Instant / POS-Instant -> 'POS - Instant'
+        - POS+T1 / POST1 / T1 -> 'POS+T1'
+        - POS+T2 / POST2 / T2 -> 'POS+T2'
+        """
+        if not mode:
+            return ""
+        norm = re.sub(r"[\s\-_+]", "", mode.upper())
+        if "INSTANT" in norm:
+            return "POS - Instant"
+        if "T1" in norm:
+            return "POS+T1"
+        if "T2" in norm:
+            return "POS+T2"
+        return mode.strip()
+
+    @classmethod
     async def resolve_mdr_configuration(
         cls,
         db: AsyncSession,
@@ -228,33 +248,43 @@ class PosMdrService:
         1. Retailer-Specific MDR
         2. Default MDR (retailer_id IS NULL)
         3. Neither exists -> Configuration error.
+        Maps mode aliases (e.g. POS+Instant -> POS - Instant, POS+T1 -> POS+T1, POS+T2 -> POS+T2).
         """
         eff_dt = effective_date or datetime.now(timezone.utc)
-        clean_mode = (payment_mode or "").strip()
-        if not clean_mode:
+        raw_mode = (payment_mode or "").strip()
+        if not raw_mode:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Payment mode is required to resolve MDR configuration."
             )
 
+        canonical_mode = cls.normalize_mode_code(raw_mode)
+
         # Validate that the payment mode is actively enabled by administrator
         mode_stmt = select(PosPaymentModeConfigModel).where(
             or_(
-                PosPaymentModeConfigModel.code == clean_mode,
-                PosPaymentModeConfigModel.name == clean_mode,
-                PosPaymentModeConfigModel.settlement_type == clean_mode
+                PosPaymentModeConfigModel.code == canonical_mode,
+                PosPaymentModeConfigModel.code == raw_mode,
+                PosPaymentModeConfigModel.name == canonical_mode,
+                PosPaymentModeConfigModel.name == raw_mode,
+                PosPaymentModeConfigModel.settlement_type == canonical_mode,
+                PosPaymentModeConfigModel.settlement_type == raw_mode
             ),
             PosPaymentModeConfigModel.is_deleted == False
         )
         mode_res = await db.execute(mode_stmt)
         mode_cfg = mode_res.scalars().first()
-        if mode_cfg and not mode_cfg.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Payment settlement mode '{clean_mode}' is currently disabled by administrator."
-            )
+        if mode_cfg:
+            canonical_mode = mode_cfg.code
+            if not mode_cfg.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Payment settlement mode '{raw_mode}' is currently disabled by administrator."
+                )
 
         retailer_uuid = await cls.resolve_retailer_uuid(db, retailer_id) if retailer_id else None
+
+        allowed_modes = list(dict.fromkeys([canonical_mode, raw_mode]))
 
         # Priority 1: Check for Retailer-Specific MDR
         if retailer_uuid:
@@ -262,7 +292,7 @@ class PosMdrService:
                 select(PosMdrConfigurationModel)
                 .where(
                     PosMdrConfigurationModel.retailer_id == retailer_uuid,
-                    PosMdrConfigurationModel.payment_mode == clean_mode,
+                    PosMdrConfigurationModel.payment_mode.in_(allowed_modes),
                     PosMdrConfigurationModel.is_active == True,
                     PosMdrConfigurationModel.is_deleted == False,
                     PosMdrConfigurationModel.effective_from <= eff_dt,
@@ -284,7 +314,7 @@ class PosMdrService:
             select(PosMdrConfigurationModel)
             .where(
                 PosMdrConfigurationModel.retailer_id == None,
-                PosMdrConfigurationModel.payment_mode == clean_mode,
+                PosMdrConfigurationModel.payment_mode.in_(allowed_modes),
                 PosMdrConfigurationModel.is_active == True,
                 PosMdrConfigurationModel.is_deleted == False,
                 PosMdrConfigurationModel.effective_from <= eff_dt,
@@ -316,11 +346,12 @@ class PosMdrService:
         """
         Executes financial calculations using Python Decimal with 2-decimal ROUND_HALF_UP precision.
 
+        Admin-configured percentage is the TOTAL charge inclusive of 18% GST.
         Formulas:
-        - MDR Charge = Amount * (MDR % / 100)  [if PERCENTAGE]  or  MDR [if FIXED]
-        - GST = MDR Charge * (GST % / 100)
-        - Charges = MDR Charge
-        - Received Amount = Amount - (Charges + GST)
+        - Total Charge = Amount * (Admin Total % / 100)  [if PERCENTAGE]  or  Admin Total [if FIXED]
+        - MDR = Total Charge / 1.18
+        - GST = MDR * 18% (quantized such that Charges == MDR + GST)
+        - Net Received Amount = Amount - Total Charge
         """
         try:
             amt_dec = Decimal(str(amount))
@@ -339,7 +370,7 @@ class PosMdrService:
         mdr_val = Decimal(str(mdr_config.mdr))
         mdr_type = str(mdr_config.mdr_type or "PERCENTAGE").upper()
         raw_gst_val = getattr(mdr_config, "gst_rate", None)
-        gst_rate = Decimal(str(raw_gst_val)) if raw_gst_val is not None else Decimal("0.00")
+        gst_rate = Decimal(str(raw_gst_val)) if raw_gst_val is not None else Decimal("18.00")
 
         if mdr_val < Decimal("0.00"):
             raise HTTPException(
@@ -376,7 +407,7 @@ class PosMdrService:
         quant_amt = amt_dec.quantize(two_places, rounding=ROUND_HALF_UP)
         quant_charges = raw_total_charge.quantize(two_places, rounding=ROUND_HALF_UP)
         quant_mdr = raw_mdr.quantize(two_places, rounding=ROUND_HALF_UP)
-        quant_gst = raw_gst.quantize(two_places, rounding=ROUND_HALF_UP)
+        quant_gst = (quant_charges - quant_mdr).quantize(two_places, rounding=ROUND_HALF_UP)
         quant_received = (quant_amt - quant_charges).quantize(two_places, rounding=ROUND_HALF_UP)
 
         return {
@@ -467,8 +498,8 @@ class PosMdrService:
 
         # Fallback values if not found in DB
         default_rates = {
-            "POS - Instant": Decimal("1.7000"),
-            "POS+T1": Decimal("1.6000")
+            "POS - Instant": Decimal("1.6500"),
+            "POS+T1": Decimal("1.7000")
         }
 
         created_items: List[PosMdrConfigurationModel] = []

@@ -186,6 +186,17 @@ class TopupCreateRequest(BaseModel):
     charges: Optional[float] = Field(None)
     received_amount: Optional[float] = Field(None)
     mdr_config_id: Optional[str] = Field(None)
+    # UPI Top-Up specific fields
+    payment_app: Optional[str] = Field(None, description="Detected or selected UPI app: Google Pay, PhonePe, Paytm, BHIM, etc.")
+    payer_name: Optional[str] = Field(None, description="Detected or entered name of payer")
+    payer_upi_id: Optional[str] = Field(None, description="Detected or entered payer UPI VPA")
+    qr_request_id: Optional[str] = Field(None, description="Original dynamic QR request reference ID")
+    ocr_extracted_data: Optional[Dict[str, Any]] = Field(None, description="OCR telemetry extracted from screenshot")
+
+
+class UpiGenerateQrRequest(BaseModel):
+    amount: float = Field(..., gt=0, le=500000, description="Requested topup amount in INR")
+    payment_mode: Optional[str] = Field("UPI", description="Payment Mode")
 
 
 class TopupApprovalRequest(BaseModel):
@@ -512,6 +523,312 @@ def _resolve_slip_url(slip_url: Optional[str], slip_id: Optional[str] = None) ->
 
 
 # ==============================================================================
+# 1b. DYNAMIC UPI QR GENERATION & AI PAYMENT SCREENSHOT SCANNER
+# ==============================================================================
+
+STATIC_UPI_PA = "Mswipe.1430101325004413@mswipesbm"
+STATIC_UPI_PN = "MSWIPE"
+STATIC_COMPANY_NAME = "SUPER REX PRODUCTS PRIVATE LIMITED"
+
+def _extract_upi_payment_details(raw_text: str, expected_amount: Optional[float] = None) -> Dict[str, Any]:
+    """
+    Intelligent heuristics parser for Indian UPI payment screenshots
+    Extracts Amount, 12-digit UTR, Payment App, UPI VPA, Payer, Payee, Date/Time, and Status.
+    """
+    if not raw_text:
+        return {
+            "amount": None,
+            "transaction_id": None,
+            "payment_app": "Other UPI App",
+            "upi_id": None,
+            "payer_name": None,
+            "payee_name": None,
+            "payment_date": None,
+            "payment_time": None,
+            "payment_status": "Unknown",
+            "is_amount_matched": False,
+            "raw_text_preview": ""
+        }
+
+    text_clean = re.sub(r"[ \t]+", " ", raw_text)
+    lower_text = text_clean.lower()
+
+    # 1. Identify Payment App
+    payment_app = "Other UPI App"
+    if "google pay" in lower_text or "gpay" in lower_text or "google transaction" in lower_text:
+        payment_app = "Google Pay"
+    elif "phonepe" in lower_text or "phone pe" in lower_text:
+        payment_app = "PhonePe"
+    elif "paytm" in lower_text or "paytm payments" in lower_text:
+        payment_app = "Paytm"
+    elif "bhim" in lower_text:
+        payment_app = "BHIM"
+    elif "cred" in lower_text:
+        payment_app = "CRED"
+    elif "amazon pay" in lower_text or "amazonpay" in lower_text:
+        payment_app = "Amazon Pay"
+
+    # 2. Extract UTR / Transaction ID (12-digit standard Indian UPI UTR or alphanumeric)
+    txn_id = None
+    kw_patterns = [
+        r"(?:UPI\s*transaction\s*ID|Google\s*transaction\s*ID|Transaction\s*(?:ID|Id|No|no)|Txn\s*ID|TXN\s*ID|UTR\s*(?:No|no)?|UPI\s*Ref\s*(?:No|no|ID|id)|Reference\s*(?:No|no|ID|id)|RRN)\s*[:=.-]?\s*([A-Za-z0-9]{8,24})",
+        r"(?:UTR\s*[:=.-]?\s*)(\d{12})",
+        r"(?:Ref\s*No\.?\s*[:=.-]?\s*)(\d{12})"
+    ]
+    for pat in kw_patterns:
+        m = re.search(pat, text_clean, re.IGNORECASE)
+        if m:
+            cand = m.group(1).strip()
+            if not any(bad in cand.lower() for bad in ["success", "pending", "failed", "completed"]):
+                txn_id = cand
+                break
+
+    if not txn_id:
+        twelve_digits = re.findall(r"\b\d{12}\b", text_clean)
+        if twelve_digits:
+            txn_id = twelve_digits[0]
+
+    # 3. Extract Amount
+    detected_amount = None
+    amt_patterns = [
+        r"(?:₹|Rs\.?|INR)\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{2})?)",
+        r"(?:Paid|Amount|Transfer(?:red)?)\s*(?:of)?\s*(?:₹|Rs\.?|INR)?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{2})?)",
+        r"\b([0-9]{1,3}(?:,[0-9]{2,3})+(?:\.[0-9]{2})?)\b"
+    ]
+    for pat in amt_patterns:
+        matches = re.findall(pat, text_clean, re.IGNORECASE)
+        for match in matches:
+            try:
+                clean_num = float(match.replace(",", "").strip())
+                if clean_num > 0:
+                    if expected_amount and abs(clean_num - expected_amount) < 0.01:
+                        detected_amount = clean_num
+                        break
+                    elif detected_amount is None:
+                        detected_amount = clean_num
+            except Exception:
+                continue
+        if detected_amount and expected_amount and detected_amount == expected_amount:
+            break
+
+    # 4. Extract UPI ID
+    upi_id = None
+    upi_matches = re.findall(r"\b[A-Za-z0-9._\-]{3,64}@[A-Za-z]{2,30}\b", text_clean)
+    if upi_matches:
+        for v in upi_matches:
+            if "mswipe" not in v.lower():
+                upi_id = v
+                break
+        if not upi_id:
+            upi_id = upi_matches[0]
+
+    # 5. Extract Payer Name / Payee Name
+    payer_name = None
+    payee_name = None
+    payer_m = re.search(r"(?:From|Debited\s*from|Sender|Paid\s*by)\s*[:=.-]?\s*([A-Za-z\s]{3,35})(?:\n|\r|\band\b|via|using|account|\d)", text_clean, re.IGNORECASE)
+    if payer_m:
+        cand_name = payer_m.group(1).strip()
+        if cand_name and not any(w in cand_name.lower() for w in ["bank", "account", "upi", "card", "wallet"]):
+            payer_name = cand_name
+
+    payee_m = re.search(r"(?:To|Paid\s*to|Transferred\s*to)\s*[:=.-]?\s*([A-Za-z0-9\s]{3,40})(?:\n|\r|UPI|via|using)", text_clean, re.IGNORECASE)
+    if payee_m:
+        payee_name = payee_m.group(1).strip()
+
+    # 6. Extract Status
+    status_val = "Successful"
+    if any(w in lower_text for w in ["failed", "failure", "declined"]):
+        status_val = "Failed"
+    elif any(w in lower_text for w in ["successful", "completed", "paid successfully", "payment successful", "transaction successful", "success"]):
+        status_val = "Successful"
+    elif any(w in lower_text for w in ["processing", "pending"]):
+        status_val = "Pending"
+
+    # 7. Extract Date & Time
+    date_match = re.search(r"\b(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})\b", text_clean, re.IGNORECASE)
+    payment_date = date_match.group(1) if date_match else None
+    if not payment_date:
+        date_dmy = re.search(r"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b", text_clean)
+        if date_dmy:
+            payment_date = date_dmy.group(1)
+
+    time_match = re.search(r"\b(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?)\b", text_clean)
+    payment_time = time_match.group(1) if time_match else None
+
+    # 8. Compare Amount with Expected Amount
+    is_amount_matched = False
+    if detected_amount is not None and expected_amount is not None:
+        is_amount_matched = abs(detected_amount - expected_amount) < 0.01
+
+    return {
+        "amount": detected_amount,
+        "transaction_id": txn_id,
+        "payment_app": payment_app,
+        "upi_id": upi_id,
+        "payer_name": payer_name,
+        "payee_name": payee_name,
+        "payment_date": payment_date,
+        "payment_time": payment_time,
+        "payment_status": status_val,
+        "is_amount_matched": is_amount_matched,
+        "raw_text_preview": text_clean[:300].strip()
+    }
+
+
+@router.post("/upi/generate-qr", summary="Generate Dynamic UPI QR Code for Retailer Top-Up")
+async def generate_upi_topup_qr(
+    req: UpiGenerateQrRequest,
+    retailer: RetailerModel = Depends(get_authenticated_retailer),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generates dynamic UPI QR Code containing Pay2Pay static UPI endpoint,
+    dynamic request reference, amount, and returns Base64 PNG data URL + 15-minute countdown.
+    """
+    ret_status = (getattr(retailer, "status", None) or "").upper()
+    if ret_status != "ACTIVE":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Retailer account '{retailer.retailer_code}' is currently {ret_status or 'PENDING_APPROVAL'}. Top-up requests are only allowed for admin-approved, active retailers."
+        )
+
+    if req.amount < 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Minimum UPI top-up amount is ₹100.00."
+        )
+    if req.amount > 200000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum UPI top-up amount is ₹2,00,000.00 per transaction."
+        )
+
+    now_utc = datetime.now(timezone.utc)
+    now_str = now_utc.strftime("%Y%m%d")
+    short_hex = uuid.uuid4().hex[:6].upper()
+    request_id = f"UPI-{now_str}-{short_hex}"
+
+    # Dynamic UPI URI conforming to user static spec:
+    # upi://pay?ver=01&mode=01&pa=Mswipe.1430101325004413@mswipesbm&pn=MSWIPE&tr=&cu=INR
+    upi_url = f"upi://pay?ver=01&mode=01&pa={STATIC_UPI_PA}&pn={STATIC_UPI_PN}&tr={request_id}&am={req.amount:.2f}&cu=INR"
+
+    # Generate QR Code in memory as base64 PNG data URL
+    import base64
+    import qrcode
+
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(upi_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    qr_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+    qr_data_url = f"data:image/png;base64,{qr_base64}"
+
+    expires_at = (now_utc + timedelta(minutes=15)).isoformat()
+
+    return {
+        "success": True,
+        "request_id": request_id,
+        "amount": float(req.amount),
+        "upi_id": STATIC_UPI_PA,
+        "payee_name": STATIC_UPI_PN,
+        "company_name": STATIC_COMPANY_NAME,
+        "upi_url": upi_url,
+        "qr_data_url": qr_data_url,
+        "expires_at": expires_at,
+        "expires_in_seconds": 900,
+        "instructions": "Scan this dynamic QR code using GPay, PhonePe, Paytm, or any UPI app. Complete the payment and upload the confirmation screenshot."
+    }
+
+
+@router.post("/upi/upload-and-scan", summary="Upload Payment Screenshot to B2 & Extract Details via OCR")
+async def upload_and_scan_upi_slip(
+    file: UploadFile = File(..., description="Payment screenshot — JPG, PNG, WEBP (max 10 MB)"),
+    expected_amount: Optional[float] = Form(None),
+    qr_request_id: Optional[str] = Form(None),
+    retailer: RetailerModel = Depends(get_authenticated_retailer),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Stores original payment screenshot in Backblaze B2 cloud storage and runs automatic OCR
+    extraction to read Amount, UTR, Payment App, and UPI ID for retailer verification.
+    """
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No filename provided in upload."
+        )
+
+    content_type = (file.content_type or "").lower()
+    if content_type not in ALLOWED_IMAGE_MIMES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported file format '{content_type}'. Please upload JPG, PNG, or WEBP image."
+        )
+
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds maximum allowed limit of 10 MB."
+        )
+
+    checksum = hashlib.sha256(file_bytes).hexdigest()
+    now_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    slip_id = f"SLIP-UPI-{now_str}-{uuid.uuid4().hex[:8].upper()}"
+
+    # 1. Upload to Backblaze B2
+    try:
+        slip_res = BackblazeStorageService.upload_topup_slip(
+            file_bytes=file_bytes,
+            filename=file.filename or "upi_payment_slip.jpg",
+            slip_id=slip_id,
+            content_type=content_type
+        )
+    except Exception as ex:
+        logger.error(f"[UPI Slip Upload] B2 storage error: {ex}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload document to Backblaze B2: {str(ex)}"
+        )
+
+    # 2. Run OCR Extraction
+    raw_ocr_text = ""
+    try:
+        from PIL import Image
+        import pytesseract
+        pil_img = Image.open(io.BytesIO(file_bytes))
+        raw_ocr_text = pytesseract.image_to_string(pil_img)
+    except Exception as ocr_err:
+        logger.warning(f"[UPI OCR Notice] Pytesseract failed: {ocr_err}")
+
+    # 3. Parse extracted details
+    extracted_details = _extract_upi_payment_details(raw_ocr_text, expected_amount)
+
+    return {
+        "success": True,
+        "message": "Payment screenshot uploaded and scanned successfully.",
+        "data": {
+            "slip_id": slip_id,
+            "slip_url": slip_res["slip_url"],
+            "storage_path": slip_res["storage_path"],
+            "original_filename": file.filename,
+            "mime_type": content_type,
+            "file_size_bytes": len(file_bytes),
+            "checksum": checksum,
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            "extracted_details": extracted_details
+        }
+    }
+
+
+# ==============================================================================
 # 2. RETAILER CREATE TOPUP REQUEST
 # ==============================================================================
 
@@ -545,6 +862,17 @@ async def create_topup_request(
 
     # 1b. Strict Unique Payment Reference (UTR / Bank Reference) Check
     clean_payment_ref = (req.payment_reference or "").strip()
+    is_upi = (
+        "UPI" in (req.payment_method or "").upper()
+        or "UPI" in (req.payment_mode or "").upper()
+    )
+
+    if is_upi and not clean_payment_ref:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Transaction ID / UTR is mandatory for UPI Top-Up requests."
+        )
+
     if clean_payment_ref:
         dup_stmt = select(TopupRequestModel).where(
             func.trim(func.upper(TopupRequestModel.payment_reference)) == clean_payment_ref.upper(),
@@ -573,85 +901,101 @@ async def create_topup_request(
     # Auto-resolve B2 slip_url from slip_id if not explicitly provided
     resolved_slip_url = _resolve_slip_url(req.slip_url, req.slip_id)
 
-    # 2b. Strict Platform Service Enablement Check: POS_TOPUP
-    svc_stmt = select(CustomerServiceConfigurationModel).where(
-        CustomerServiceConfigurationModel.service_code == "POS_TOPUP",
-        CustomerServiceConfigurationModel.is_deleted == False
-    )
-    svc_res = await db.execute(svc_stmt)
-    pos_svc = svc_res.scalars().first()
-    if pos_svc and not pos_svc.is_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="POS Top-Up service is currently disabled by administrator. Please contact support."
-        )
-
-    # 2c. Strict POS Settlement Mode Validation (POS Instant, POS+T1, POS+T2)
-    selected_mode = (req.payment_mode or req.payment_method or "POS - Instant").strip()
-    clean_target = selected_mode.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
-
-    mode_stmt = select(PosPaymentModeConfigModel).where(
-        PosPaymentModeConfigModel.is_deleted == False
-    )
-    mode_res = await db.execute(mode_stmt)
-    all_modes = mode_res.scalars().all()
-    
-    matched_mode = None
-    for m in all_modes:
-        m_code_clean = m.code.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
-        m_name_clean = m.name.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
-        m_settle_clean = m.settlement_type.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
-        if clean_target in (m_code_clean, m_name_clean, m_settle_clean):
-            matched_mode = m
-            break
-
-    if not matched_mode or not matched_mode.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Payment settlement mode '{selected_mode}' is currently disabled by administrator. Please select an active payment mode."
-        )
-
-    # Use canonical code registered in pos_payment_mode_config
-    selected_mode = matched_mode.code
-
-    # 2d. Compute POS MDR & Vendor Snapshot
-    mdr_charge_val = req.mdr_charge
-    gst_amount_val = req.gst_amount
-    charges_val = req.charges
-    received_amount_val = req.received_amount
-    mdr_config_uuid = None
-    vendor_calc_meta = {}
-
-    try:
-        calc = await PosMdrService.calculate_pos_topup_pricing(
-            db=db,
-            amount=req.requested_amount,
-            payment_mode=selected_mode,
-            retailer_id=retailer.public_id
-        )
-        mdr_charge_val = calc["mdr"]
-        gst_amount_val = calc["gst"]
-        charges_val = calc["charges"]
-        received_amount_val = calc["received_amount"]
-        if calc.get("mdr_config_id"):
-            mdr_config_uuid = uuid.UUID(calc["mdr_config_id"])
+    if is_upi:
+        # UPI Top-Up bypasses POS machine MDR and charges 0 fees
+        selected_mode = "UPI Top-Up"
+        mdr_charge_val = 0.0
+        gst_amount_val = 0.0
+        charges_val = 0.0
+        received_amount_val = req.requested_amount
+        mdr_config_uuid = None
         vendor_calc_meta = {
-            "vendor_id": calc.get("vendor_id"),
-            "vendor_name": calc.get("vendor_name"),
-            "vendor_commission_rate": calc.get("vendor_commission_rate"),
-            "vendor_commission_type": calc.get("vendor_commission_type"),
-            "vendor_commission_amount": calc.get("vendor_commission_amount"),
-            "pos_serial_number": calc.get("pos_serial_number"),
-            "pos_mobile_number": calc.get("pos_mobile_number"),
+            "payment_type": "UPI",
+            "payment_app": req.payment_app or "UPI",
+            "payer_name": req.payer_name,
+            "payer_upi_id": req.payer_upi_id,
+            "qr_request_id": req.qr_request_id,
         }
-    except HTTPException:
-        # Preserve HTTPExceptions such as disabled payment mode or negative amounts
-        raise
-    except Exception as mdr_err:
-        # If client provided values, use them, otherwise fallback to amount if not a configured POS mode
-        if received_amount_val is None:
-            received_amount_val = req.requested_amount
-            charges_val = 0.0
+    else:
+        # 2b. Strict Platform Service Enablement Check: POS_TOPUP
+        svc_stmt = select(CustomerServiceConfigurationModel).where(
+            CustomerServiceConfigurationModel.service_code == "POS_TOPUP",
+            CustomerServiceConfigurationModel.is_deleted == False
+        )
+        svc_res = await db.execute(svc_stmt)
+        pos_svc = svc_res.scalars().first()
+        if pos_svc and not pos_svc.is_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="POS Top-Up service is currently disabled by administrator. Please contact support."
+            )
+
+        # 2c. Strict POS Settlement Mode Validation (POS Instant, POS+T1, POS+T2)
+        selected_mode = (req.payment_mode or req.payment_method or "POS - Instant").strip()
+        clean_target = selected_mode.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
+
+        mode_stmt = select(PosPaymentModeConfigModel).where(
+            PosPaymentModeConfigModel.is_deleted == False
+        )
+        mode_res = await db.execute(mode_stmt)
+        all_modes = mode_res.scalars().all()
+        
+        matched_mode = None
+        for m in all_modes:
+            m_code_clean = m.code.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
+            m_name_clean = m.name.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
+            m_settle_clean = m.settlement_type.upper().replace(" ", "").replace("-", "").replace("_", "").replace("+", "")
+            if clean_target in (m_code_clean, m_name_clean, m_settle_clean):
+                matched_mode = m
+                break
+
+        if not matched_mode or not matched_mode.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Payment settlement mode '{selected_mode}' is currently disabled by administrator. Please select an active payment mode."
+            )
+
+        # Use canonical code registered in pos_payment_mode_config
+        selected_mode = matched_mode.code
+
+        # 2d. Compute POS MDR & Vendor Snapshot
+        mdr_charge_val = req.mdr_charge
+        gst_amount_val = req.gst_amount
+        charges_val = req.charges
+        received_amount_val = req.received_amount
+        mdr_config_uuid = None
+        vendor_calc_meta = {}
+
+        try:
+            calc = await PosMdrService.calculate_pos_topup_pricing(
+                db=db,
+                amount=req.requested_amount,
+                payment_mode=selected_mode,
+                retailer_id=retailer.public_id
+            )
+            mdr_charge_val = calc["mdr"]
+            gst_amount_val = calc["gst"]
+            charges_val = calc["charges"]
+            received_amount_val = calc["received_amount"]
+            if calc.get("mdr_config_id"):
+                mdr_config_uuid = uuid.UUID(calc["mdr_config_id"])
+            vendor_calc_meta = {
+                "vendor_id": calc.get("vendor_id"),
+                "vendor_name": calc.get("vendor_name"),
+                "vendor_commission_rate": calc.get("vendor_commission_rate"),
+                "vendor_commission_type": calc.get("vendor_commission_type"),
+                "vendor_commission_amount": calc.get("vendor_commission_amount"),
+                "pos_serial_number": calc.get("pos_serial_number"),
+                "pos_mobile_number": calc.get("pos_mobile_number"),
+            }
+        except HTTPException:
+            # Preserve HTTPExceptions such as disabled payment mode or negative amounts
+            raise
+        except Exception as mdr_err:
+            # If client provided values, use them, otherwise fallback to amount if not a configured POS mode
+            if received_amount_val is None:
+                received_amount_val = req.requested_amount
+                charges_val = 0.0
 
     # 3. Create TopupRequestModel with pricing snapshot
     ret_ref = getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "user_ref_id", None) or 24
@@ -701,6 +1045,11 @@ async def create_topup_request(
             "retailer_code": retailer.retailer_code,
             "owner_name": getattr(retailer, "owner_name", ""),
             "payment_mode": selected_mode,
+            "payment_app": req.payment_app or ("UPI" if is_upi else None),
+            "payer_name": req.payer_name,
+            "payer_upi_id": req.payer_upi_id,
+            "qr_request_id": req.qr_request_id,
+            "ocr_extracted": req.ocr_extracted_data,
             "mdr": mdr_charge_val,
             "gst": gst_amount_val,
             "charges": charges_val,
@@ -739,7 +1088,7 @@ async def create_topup_request(
                 ret_code = getattr(retailer, "retailer_code", None) or str(getattr(retailer, "retailer_ref_id", "N/A"))
                 req_id_val = topup_model.topup_request_id
                 amt_val = float(topup_model.requested_amount)
-                mode_val = topup_model.payment_method or "POS - Instant"
+                mode_val = f"UPI - {req.payment_app}" if (is_upi and req.payment_app) else (topup_model.payment_method or "POS - Instant")
 
                 dt_obj = topup_model.submitted_at or datetime.now(timezone.utc)
                 try:
@@ -749,7 +1098,7 @@ async def create_topup_request(
                     dt_str = dt_obj.strftime("%d-%m-%Y %H:%M")
 
                 st_val = "Pending Approval"
-                view_id_val = str(topup_model.public_id)
+                view_id_val = topup_model.topup_request_id or str(topup_model.public_id)
 
                 for admin_num in admin_numbers:
                     try:
@@ -1505,7 +1854,7 @@ async def _trigger_retailer_topup_status_whatsapp(
                 transaction_id=txn_ref,
                 approved_date_time=dt_str,
                 status=status_str,
-                view_id=str(topup_obj.public_id),
+                view_id=topup_obj.topup_request_id or str(topup_obj.public_id),
                 template_name=t_name,
                 template_id=t_id,
                 language_code=lang_code,
