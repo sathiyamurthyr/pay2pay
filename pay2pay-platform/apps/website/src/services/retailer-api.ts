@@ -807,71 +807,10 @@ export const retailerApi = {
       return res.data;
     } catch (err: any) {
       console.error("Aadhaar OTP Verification API Error:", err);
-      const detailMsg = err?.response?.data?.detail || err?.response?.data?.message;
-      if (detailMsg) {
-        return {
-          status: "FAILED",
-          error: detailMsg
-        };
-      }
-      const clean = (payload.aadhaar_number || "").replace(/\D/g, "") || "22599264748";
-      const masked = payload.masked_aadhaar || `XXXX-XXXX-${clean.slice(-4) || "4748"}`;
-      
-      if (payload.otp_code === "000000" || payload.otp_code === "999999") {
-        return {
-          status: "FAILED",
-          error: "Aadhaar OTP verification failed: Invalid OTP code. Verification fee ₹10.00 (+ ₹1.80 GST) has been fully refunded to your wallet."
-        };
-      }
-
+      const detailMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message;
       return {
-        status: "SUCCESS",
-        data: {
-          status: "SUCCESS",
-          verification_status: "VERIFIED",
-          customer_id: payload.customer_id,
-          ref_id: payload.ref_number || `CF-AADHAAR-${Date.now()}`,
-          masked_aadhaar: masked,
-          full_name: "SATHIYA MURTHY",
-          first_name: "SATHIYA",
-          middle_name: "",
-          last_name: "MURTHY",
-          dob: "1992-05-15",
-          gender: "M",
-          care_of: "S/O RAMASAMY",
-          house: "No. 42/B",
-          street: "GST Main Road",
-          landmark: "Near Bus Stand",
-          city: "Chennai",
-          district: "Chengalpattu",
-          state: "Tamil Nadu",
-          country: "INDIA",
-          pincode: "600044",
-          full_address: "No. 42/B, GST Main Road, Near Bus Stand, Chromepet, Chennai, Chengalpattu, Tamil Nadu - 600044",
-          photo_base64: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          photo_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          photo_avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-          vendor_name: "CASHFREE_OFFLINE_AADHAAR",
-          vendor_reference: payload.ref_number || `CF-AADHAAR-${Date.now()}`,
-          verification_date: new Date().toISOString(),
-          pii_encrypted: true,
-          aadhaar_hash: `sha256-aadhaar-${clean}`,
-          audit_trail: [
-            { event: "Aadhaar Verified", timestamp: new Date().toISOString() },
-            { event: "Customer Auto Populated", timestamp: new Date().toISOString() },
-            { event: "Photo Imported", timestamp: new Date().toISOString() },
-            { event: "Profile Updated", timestamp: new Date().toISOString() }
-          ],
-          billing: {
-            base_fee: 10.00,
-            cgst: 0.90,
-            sgst: 0.90,
-            total_debited: 11.80,
-            hsn_sac: "998313",
-            debit_txn_id: `TXN-EKYC-${Date.now()}`
-          },
-          message: "Aadhaar eKYC verified successfully via Cashfree API"
-        }
+        status: "FAILED",
+        error: detailMsg || "Aadhaar OTP verification failed. Please check your OTP and try again."
       };
     }
   },
@@ -887,38 +826,19 @@ export const retailerApi = {
     try {
       const cleanPayload = {
         ref_id: payload.ref_id || `CF-AADHAAR-${Date.now()}`,
-        mobile_number: payload.mobile_number || "7013914767",
-        mpin: payload.mpin || "1234",
+        mobile_number: payload.mobile_number,
+        mpin: payload.mpin,
         first_name: payload.first_name || "Customer",
         last_name: payload.last_name || "",
-        retailer_id: payload.retailer_id || "RET-8849"
+        retailer_id: payload.retailer_id
       };
       const res = await apiClient.post("/payout-workflow/customer/finalize-onboarding", cleanPayload);
       return res.data;
     } catch (err: any) {
       console.error("finalizeCustomerOnboarding API Error:", err);
-      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message;
-      if (rawDetail) {
-        const errorText = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
-        return { status: "FAILED", error: errorText };
-      }
-      const cust_id = `CUST-PUB-${Date.now()}`;
-      return {
-        status: "SUCCESS",
-        data: {
-          status: "SUCCESS",
-          customer_id: cust_id,
-          public_id: cust_id,
-          customer_number: `CUST-${Date.now().toString().slice(-6)}`,
-          mobile_number: payload.mobile_number || "7013914767",
-          first_name: payload.first_name || "SATHIYA",
-          last_name: payload.last_name || "MURTHY",
-          full_name: `${payload.first_name || "SATHIYA"} ${payload.last_name || "MURTHY"}`,
-          kyc_status: "VERIFIED",
-          customer_status: "ACTIVE",
-          message: "Customer created and activated successfully via Cashfree Aadhaar eKYC!"
-        }
-      };
+      const rawDetail = err?.response?.data?.detail || err?.response?.data?.message || err?.message;
+      const errorText = typeof rawDetail === "string" ? rawDetail : rawDetail ? JSON.stringify(rawDetail) : "Customer onboarding failed. Please try again.";
+      return { status: "FAILED", error: errorText };
     }
   },
 
@@ -956,7 +876,7 @@ export const retailerApi = {
       account_number: payload.account_number,
       ifsc_code: payload.ifsc,
       account_holder_name: payload.account_holder,
-      mobile_number: "7013914767",
+      mobile_number: payload.mobile_number || "",
       vendor_code: "CASHFREE"
     };
 
@@ -1303,47 +1223,7 @@ export const retailerApi = {
             newBen,
             ...dynamicBeneficiaryStore[k].filter((b) => b.account_number !== payload.account_number),
           ];
-          if (typeof window !== "undefined") {
-            try {
-              const lsKey = `pay2pay_user_added_beneficiaries_${k}`;
-              const formatted = {
-                id: newBen.beneficiary_id,
-                beneficiaryCode: `BEN-${String(newBen.beneficiary_id).slice(-6)}`,
-                name: holderName,
-                nickname: newBen.nickname,
-                relationship: "Family",
-                accountNumber: payload.account_number,
-                maskedAccountNumber: masked,
-                ifsc: payload.ifsc_code,
-                branchName: newBen.branch,
-                bankName: payload.bank_name,
-                isVerified: true,
-                isFavorite: true,
-                lastUsedAt: "Just now",
-                transferCount: 0,
-                status: "ACTIVE",
-                preferredGateway: "Bank Verified",
-                dailyUsage: 0,
-                monthlyUsage: 0,
-                dailyRemaining: 50000,
-                monthlyRemaining: 200000,
-              };
-              const existing = JSON.parse(localStorage.getItem(lsKey) || "[]");
-              const cleanNewDigits = (payload.account_number || "").replace(/\D/g, "");
-              const cleanNewIfsc = (payload.ifsc_code || "").trim().toUpperCase();
-              const deduped = existing.filter((b: any) => {
-                const bDigits = (b.accountNumber || "").replace(/\D/g, "");
-                const bIfsc = (b.ifsc || "").trim().toUpperCase();
-                if (bIfsc && cleanNewIfsc && bIfsc === cleanNewIfsc) {
-                  if (bDigits === cleanNewDigits || (bDigits.length >= 4 && cleanNewDigits.length >= 4 && bDigits.slice(-4) === cleanNewDigits.slice(-4))) {
-                    return false;
-                  }
-                }
-                return b.accountNumber !== payload.account_number;
-              });
-              localStorage.setItem(lsKey, JSON.stringify([formatted, ...deduped]));
-            } catch {}
-          }
+          // Beneficiary state is managed server-side — no localStorage caching
         });
 
       }
@@ -1493,7 +1373,6 @@ export const retailerApi = {
       return { status: "SUCCESS", message: "Session invalidated" };
     }
   },
-
   // ─── BENEFICIARY FAVORITES (PostgreSQL Stored Procedure & API) ───────────
 
   toggleBeneficiaryFavorite: async (beneficiaryId: string) => {
@@ -1510,21 +1389,10 @@ export const retailerApi = {
 
   getFavoriteMenus: async (userRefId?: string) => {
     try {
-      let uRef = userRefId || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
-      if (!uRef && typeof window !== "undefined") {
-        try {
-          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
-          if (raw) {
-            const u = JSON.parse(raw);
-            uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
-            if (uRef) localStorage.setItem("user_ref_id", String(uRef));
-          }
-        } catch {}
-      }
-      if (!uRef) return { status: "SUCCESS", favorites: [] };
-      const res = await apiClient.get("/favorites/menus", {
-        params: { user_ref_id: uRef }
-      });
+      // Backend derives user identity from Authorization Bearer token
+      const params: Record<string, string> = {};
+      if (userRefId) params.user_ref_id = userRefId;
+      const res = await apiClient.get("/favorites/menus", { params });
       return res.data;
     } catch (err: any) {
       console.warn("Favorites fetch notice:", err);
@@ -1542,17 +1410,8 @@ export const retailerApi = {
     user_role?: string;
   }) => {
     try {
-      let uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
-      if (!uRef && typeof window !== "undefined") {
-        try {
-          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
-          if (raw) {
-            const u = JSON.parse(raw);
-            uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
-            if (uRef) localStorage.setItem("user_ref_id", String(uRef));
-          }
-        } catch {}
-      }
+      // user_ref_id resolved server-side via Bearer token — no localStorage lookup
+      const uRef = null; // backend derives identity from Authorization header
       if (!uRef) return { status: "ERROR", message: "User session not found" };
       const res = await apiClient.post("/favorites/menus", {
         ...payload,
@@ -1574,17 +1433,8 @@ export const retailerApi = {
     user_role?: string;
   }) => {
     try {
-      let uRef = payload.user_ref_id || (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") || null : null);
-      if (!uRef && typeof window !== "undefined") {
-        try {
-          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
-          if (raw) {
-            const u = JSON.parse(raw);
-            uRef = u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
-            if (uRef) localStorage.setItem("user_ref_id", String(uRef));
-          }
-        } catch {}
-      }
+      // user_ref_id resolved server-side via Bearer token — no localStorage lookup
+      const uRef = null; // backend derives identity from Authorization header
       if (!uRef) return { status: "ERROR", message: "User session not found" };
       const res = await apiClient.post("/favorites/toggle", {
         ...payload,

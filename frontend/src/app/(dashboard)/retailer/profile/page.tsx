@@ -23,6 +23,13 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  InputAdornment,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from "@mui/material";
 import {
   User,
@@ -53,8 +60,47 @@ import {
   Clock,
   Globe,
   X,
+  Eye,
+  EyeOff,
+  MessageCircle,
+  FileText,
+  Download,
+  FileCheck,
+  Landmark,
+  Check,
+  FileSpreadsheet,
 } from "lucide-react";
 import { retailerApi } from "@/services/retailer-api";
+
+export interface KycDocument {
+  id: string;
+  doc_type: string;
+  title: string;
+  file_name: string;
+  file_url: string;
+  file_size_bytes?: number;
+  mime_type?: string;
+  is_verified?: boolean;
+  uploaded_at?: string | null;
+}
+
+export interface BankAccountItem {
+  id: string;
+  bank_name: string;
+  branch?: string | null;
+  account_number?: string | null;
+  account_number_masked?: string | null;
+  account_holder_name?: string | null;
+  ifsc?: string | null;
+  account_type?: string | null;
+  is_primary?: boolean;
+  verification_status?: string | null;
+  verification_date?: string | null;
+  document_url?: string | null;
+  document_file_name?: string | null;
+  document_file_size?: number | null;
+  document_mime_type?: string | null;
+}
 
 interface ProfileResponse {
   personal: {
@@ -117,6 +163,11 @@ interface ProfileResponse {
       provider?: string | null;
       provider_reference?: string | null;
       kyc_status?: string | null;
+      document_url?: string | null;
+      file_name?: string | null;
+      file_size_bytes?: number | null;
+      mime_type?: string | null;
+      is_verified?: boolean;
     } | null;
     aadhaar?: {
       masked?: string | null;
@@ -125,12 +176,21 @@ interface ProfileResponse {
       provider?: string | null;
       provider_reference?: string | null;
       kyc_status?: string | null;
+      document_url?: string | null;
+      front_document_url?: string | null;
+      front_file_name?: string | null;
+      front_file_size?: number | null;
+      back_document_url?: string | null;
+      back_file_name?: string | null;
+      back_file_size?: number | null;
+      is_verified?: boolean;
     } | null;
     gst?: {
       masked?: string | null;
       legal_business_name?: string | null;
       status?: string | null;
     } | null;
+    documents?: KycDocument[];
   };
   bank?: {
     account_holder_name?: string | null;
@@ -141,6 +201,13 @@ interface ProfileResponse {
     account_type?: string | null;
     verification_status?: string | null;
     verification_date?: string | null;
+    document_url?: string | null;
+    document_file_name?: string | null;
+    document_file_size?: number | null;
+    document_mime_type?: string | null;
+    document_is_verified?: boolean;
+    document_uploaded_at?: string | null;
+    accounts?: BankAccountItem[];
   } | null;
   security: {
     mfa_enabled?: boolean;
@@ -331,6 +398,85 @@ export default function RetailerProfilePage() {
   const [pwdForm, setPwdForm] = useState({ current_password: "", new_password: "", confirm_password: "" });
   const [pinForm, setPinForm] = useState({ current_pin: "", new_pin: "", confirm_pin: "" });
 
+  // Password & PIN Visibility
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [showCurrentPin, setShowCurrentPin] = useState(false);
+  const [showNewPin, setShowNewPin] = useState(false);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
+
+  // Security WhatsApp OTP Modal
+  const [secOtpModalOpen, setSecOtpModalOpen] = useState(false);
+  const [secOtpAction, setSecOtpAction] = useState<"PASSWORD" | "MPIN">("PASSWORD");
+  const [secOtpCode, setSecOtpCode] = useState("");
+  const [secOtpSending, setSecOtpSending] = useState(false);
+  const [secOtpVerifying, setSecOtpVerifying] = useState(false);
+  const [secOtpError, setSecOtpError] = useState<string | null>(null);
+  const [secOtpResendTimer, setSecOtpResendTimer] = useState(0);
+  const [secMaskedMobile, setSecMaskedMobile] = useState<string>("");
+
+  // Universal Document Viewer Dialog
+  const [selectedDoc, setSelectedDoc] = useState<{
+    url: string;
+    title: string;
+    fileName: string;
+    mimeType?: string;
+  } | null>(null);
+
+  const formatFileSize = (bytes?: number | null) => {
+    if (!bytes || bytes <= 0) return "—";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  // Countdown timer for Security WhatsApp OTP
+  useEffect(() => {
+    let interval: any = null;
+    if (secOtpResendTimer > 0) {
+      interval = setInterval(() => {
+        setSecOtpResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [secOtpResendTimer]);
+
+  // Computed Password Rules Checklist
+  const pwdRules = {
+    length: pwdForm.new_password.length >= 8 && pwdForm.new_password.length <= 64,
+    uppercase: /[A-Z]/.test(pwdForm.new_password),
+    lowercase: /[a-z]/.test(pwdForm.new_password),
+    number: /[0-9]/.test(pwdForm.new_password),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwdForm.new_password),
+    matches: Boolean(pwdForm.new_password && pwdForm.new_password === pwdForm.confirm_password),
+  };
+  const isPwdValid = Object.values(pwdRules).every(Boolean);
+
+  // Computed MPIN Rules Checklist
+  const isSequentialPin = (pin: string) => {
+    const seqAsc = "0123456789012345";
+    const seqDesc = "9876543210987654";
+    return seqAsc.includes(pin) || seqDesc.includes(pin);
+  };
+  const isRepeatingPin = (pin: string) => {
+    return pin.length > 0 && new Set(pin.split("")).size === 1;
+  };
+
+  const pinRules = {
+    length: /^\d{4}$|^\d{6}$/.test(pinForm.new_pin),
+    notRepeating: pinForm.new_pin.length >= 4 ? !isRepeatingPin(pinForm.new_pin) : true,
+    notSequential: pinForm.new_pin.length >= 4 ? !isSequentialPin(pinForm.new_pin) : true,
+    matches: Boolean(pinForm.new_pin && pinForm.new_pin === pinForm.confirm_pin),
+  };
+  const isPinValid = Boolean(
+    /^\d{4}$|^\d{6}$/.test(pinForm.new_pin) &&
+    !isRepeatingPin(pinForm.new_pin) &&
+    !isSequentialPin(pinForm.new_pin) &&
+    pinForm.new_pin === pinForm.confirm_pin
+  );
+
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
@@ -420,49 +566,103 @@ export default function RetailerProfilePage() {
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handleInitiatePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pwdForm.current_password || !pwdForm.new_password || !pwdForm.confirm_password) {
-      setToast({ open: true, message: "Please fill all password fields.", severity: "error" });
-      return;
-    }
-    if (pwdForm.new_password !== pwdForm.confirm_password) {
-      setToast({ open: true, message: "New password and confirmation password do not match.", severity: "error" });
+    if (!isPwdValid) {
+      setToast({ open: true, message: "Please fulfill all password security rules before proceeding.", severity: "error" });
       return;
     }
     try {
       setSaving(true);
-      await retailerApi.changePassword(pwdForm);
-      setToast({ open: true, message: "Account password updated successfully.", severity: "success" });
-      setPwdForm({ current_password: "", new_password: "", confirm_password: "" });
-      await fetchProfile();
+      setSecOtpError(null);
+      setSecOtpCode("");
+      const res = await retailerApi.sendSecurityWhatsAppOtp("PASSWORD");
+      setSecOtpAction("PASSWORD");
+      setSecMaskedMobile(res?.masked_mobile || (profile?.contact?.mobile_raw ? `+91 ******${profile.contact.mobile_raw.slice(-4)}` : "your registered WhatsApp number"));
+      setSecOtpResendTimer(60);
+      setSecOtpModalOpen(true);
+      setToast({ open: true, message: res?.message || "WhatsApp authorization OTP sent successfully.", severity: "info" });
     } catch (err: any) {
-      setToast({ open: true, message: err?.response?.data?.detail || err?.message || "Unable to change password.", severity: "error" });
+      setToast({ open: true, message: err?.response?.data?.detail || err?.message || "Unable to send WhatsApp OTP.", severity: "error" });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleChangePin = async (e: React.FormEvent) => {
+  const handleInitiatePinChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pinForm.new_pin || !pinForm.confirm_pin) {
-      setToast({ open: true, message: "Please enter new MPIN and confirmation.", severity: "error" });
-      return;
-    }
-    if (pinForm.new_pin !== pinForm.confirm_pin) {
-      setToast({ open: true, message: "New MPIN and confirmation MPIN do not match.", severity: "error" });
+    if (!isPinValid) {
+      setToast({ open: true, message: "Please fulfill all MPIN security rules before proceeding.", severity: "error" });
       return;
     }
     try {
       setSaving(true);
-      await retailerApi.changeMpin(pinForm);
-      setToast({ open: true, message: "Transaction MPIN updated successfully.", severity: "success" });
-      setPinForm({ current_pin: "", new_pin: "", confirm_pin: "" });
-      await fetchProfile();
+      setSecOtpError(null);
+      setSecOtpCode("");
+      const res = await retailerApi.sendSecurityWhatsAppOtp("MPIN");
+      setSecOtpAction("MPIN");
+      setSecMaskedMobile(res?.masked_mobile || (profile?.contact?.mobile_raw ? `+91 ******${profile.contact.mobile_raw.slice(-4)}` : "your registered WhatsApp number"));
+      setSecOtpResendTimer(60);
+      setSecOtpModalOpen(true);
+      setToast({ open: true, message: res?.message || "WhatsApp authorization OTP sent successfully.", severity: "info" });
     } catch (err: any) {
-      setToast({ open: true, message: err?.response?.data?.detail || err?.message || "Unable to change MPIN.", severity: "error" });
+      setToast({ open: true, message: err?.response?.data?.detail || err?.message || "Unable to send WhatsApp OTP.", severity: "error" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResendSecOtp = async () => {
+    if (secOtpResendTimer > 0 || secOtpSending) return;
+    try {
+      setSecOtpSending(true);
+      setSecOtpError(null);
+      const res = await retailerApi.sendSecurityWhatsAppOtp(secOtpAction);
+      setSecOtpResendTimer(60);
+      setToast({ open: true, message: res?.message || "WhatsApp OTP resent successfully.", severity: "info" });
+    } catch (err: any) {
+      setSecOtpError(err?.response?.data?.detail || err?.message || "Failed to resend WhatsApp OTP.");
+    } finally {
+      setSecOtpSending(false);
+    }
+  };
+
+  const handleVerifyAndSubmitSecurity = async () => {
+    if (!secOtpCode || secOtpCode.trim().length < 4) {
+      setSecOtpError("Please enter the 6-digit WhatsApp OTP code.");
+      return;
+    }
+    try {
+      setSecOtpVerifying(true);
+      setSecOtpError(null);
+      if (secOtpAction === "PASSWORD") {
+        const res = await retailerApi.changePassword({
+          current_password: pwdForm.current_password || undefined,
+          new_password: pwdForm.new_password,
+          confirm_password: pwdForm.confirm_password,
+          otp_code: secOtpCode.trim(),
+        });
+        setToast({ open: true, message: res?.message || "Account password updated successfully!", severity: "success" });
+        setPwdForm({ current_password: "", new_password: "", confirm_password: "" });
+        setSecOtpModalOpen(false);
+        await fetchProfile();
+      } else {
+        const res = await retailerApi.changeMpin({
+          current_pin: pinForm.current_pin || undefined,
+          new_pin: pinForm.new_pin,
+          confirm_pin: pinForm.confirm_pin,
+          otp_code: secOtpCode.trim(),
+        });
+        setToast({ open: true, message: res?.message || "Transaction MPIN updated successfully!", severity: "success" });
+        setPinForm({ current_pin: "", new_pin: "", confirm_pin: "" });
+        setSecOtpModalOpen(false);
+        await fetchProfile();
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Invalid WhatsApp OTP code. Changes were NOT saved to the database.";
+      setSecOtpError(msg);
+    } finally {
+      setSecOtpVerifying(false);
     }
   };
 
@@ -989,6 +1189,7 @@ export default function RetailerProfilePage() {
       {/* 4. KYC TAB */}
       {activeTab === 3 && (
         <Grid container spacing={3}>
+          {/* PAN IDENTIFICATION */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Paper elevation={0} sx={cardStyle}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -997,7 +1198,7 @@ export default function RetailerProfilePage() {
                 </Typography>
                 <Chip
                   icon={<CheckCircle2 size={13} color="#22C55E" />}
-                  label={profile.kyc.pan?.verification_status || "VERIFIED"}
+                  label={profile.kyc.pan?.verification_status || "VALID"}
                   size="small"
                   sx={verifiedBadgeStyle}
                 />
@@ -1017,9 +1218,61 @@ export default function RetailerProfilePage() {
                 <DataRow label="Provider Reference" value={profile.kyc.pan?.provider_reference} />
                 <DataRow label="KYC Status" value={profile.kyc.pan?.kyc_status} isStatus />
               </Stack>
+
+              {/* PAN Document Attachment Box */}
+              {profile.kyc.pan?.document_url && (
+                <Box sx={{ mt: 2.5, p: 2, bgcolor: "rgba(59, 130, 246, 0.08)", borderRadius: 2.5, border: "1px solid rgba(59, 130, 246, 0.25)" }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Box sx={{ p: 1, bgcolor: "rgba(59, 130, 246, 0.15)", borderRadius: 2 }}>
+                        <FileCheck size={20} color="#60A5FA" />
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
+                          Verification Document
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, wordBreak: "break-all" }}>
+                          {profile.kyc.pan?.file_name || "PAN_Card_Document.pdf"}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748B" }}>
+                          {formatFileSize(profile.kyc.pan?.file_size_bytes)} • Verified Document
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<Eye size={13} />}
+                        onClick={() => setSelectedDoc({
+                          url: profile.kyc.pan?.document_url!,
+                          title: "PAN Card Document",
+                          fileName: profile.kyc.pan?.file_name || "pan_card.pdf",
+                          mimeType: profile.kyc.pan?.mime_type || undefined
+                        })}
+                        sx={{ bgcolor: "#2563EB", fontWeight: 700, fontSize: "0.75rem", textTransform: "none" }}
+                      >
+                        View
+                      </Button>
+                      <IconButton
+                        size="small"
+                        component="a"
+                        href={profile.kyc.pan?.document_url}
+                        download={profile.kyc.pan?.file_name || "pan_card"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", "&:hover": { color: "#FFFFFF" } }}
+                      >
+                        <Download size={15} />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+                </Box>
+              )}
             </Paper>
           </Grid>
 
+          {/* AADHAAR IDENTIFICATION */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Paper elevation={0} sx={cardStyle}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -1048,9 +1301,75 @@ export default function RetailerProfilePage() {
                 <DataRow label="Provider Reference" value={profile.kyc.aadhaar?.provider_reference} />
                 <DataRow label="KYC Status" value={profile.kyc.aadhaar?.kyc_status} isStatus />
               </Stack>
+
+              {/* Aadhaar Document Attachment Box */}
+              {(profile.kyc.aadhaar?.front_document_url || profile.kyc.aadhaar?.document_url) && (
+                <Box sx={{ mt: 2.5, p: 2, bgcolor: "rgba(34, 197, 94, 0.08)", borderRadius: 2.5, border: "1px solid rgba(34, 197, 94, 0.25)" }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Box sx={{ p: 1, bgcolor: "rgba(34, 197, 94, 0.15)", borderRadius: 2 }}>
+                        <FileCheck size={20} color="#4ADE80" />
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
+                          Verification Document
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, wordBreak: "break-all" }}>
+                          {profile.kyc.aadhaar?.front_file_name || "Aadhaar_Document.pdf"}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748B" }}>
+                          {formatFileSize(profile.kyc.aadhaar?.front_file_size)} • eKYC Proof
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<Eye size={13} />}
+                        onClick={() => setSelectedDoc({
+                          url: (profile.kyc.aadhaar?.front_document_url || profile.kyc.aadhaar?.document_url)!,
+                          title: "Aadhaar Card (Front)",
+                          fileName: profile.kyc.aadhaar?.front_file_name || "aadhaar_front.pdf",
+                        })}
+                        sx={{ bgcolor: "#16A34A", fontWeight: 700, fontSize: "0.75rem", textTransform: "none", "&:hover": { bgcolor: "#15803D" } }}
+                      >
+                        View Front
+                      </Button>
+                      {profile.kyc.aadhaar?.back_document_url && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<Eye size={13} />}
+                          onClick={() => setSelectedDoc({
+                            url: profile.kyc.aadhaar?.back_document_url!,
+                            title: "Aadhaar Card (Back)",
+                            fileName: profile.kyc.aadhaar?.back_file_name || "aadhaar_back.pdf",
+                          })}
+                          sx={{ color: "#4ADE80", borderColor: "rgba(74, 222, 128, 0.4)", fontWeight: 700, fontSize: "0.75rem", textTransform: "none" }}
+                        >
+                          View Back
+                        </Button>
+                      )}
+                      <IconButton
+                        size="small"
+                        component="a"
+                        href={profile.kyc.aadhaar?.front_document_url || profile.kyc.aadhaar?.document_url || "#"}
+                        download={profile.kyc.aadhaar?.front_file_name || "aadhaar_document"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", "&:hover": { color: "#FFFFFF" } }}
+                      >
+                        <Download size={15} />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+                </Box>
+              )}
             </Paper>
           </Grid>
 
+          {/* GST CARD IF PRESENT */}
           {profile.kyc.gst && (
             <Grid size={{ xs: 12 }}>
               <Paper elevation={0} sx={cardStyle}>
@@ -1075,13 +1394,150 @@ export default function RetailerProfilePage() {
               </Paper>
             </Grid>
           )}
+
+          {/* KYC & VERIFICATION DOCUMENT REPOSITORY (FULL-WIDTH) */}
+          <Grid size={{ xs: 12 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                ...cardStyle,
+                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.85) 100%)",
+                border: "1px solid rgba(59, 130, 246, 0.25)",
+              }}
+            >
+              <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} sx={{ mb: 3 }} spacing={1.5}>
+                <Box>
+                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <Box sx={{ p: 1, bgcolor: "rgba(59, 130, 246, 0.15)", borderRadius: 2 }}>
+                      <FileCheck size={22} color="#60A5FA" />
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
+                        KYC & Verification Document Repository
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                        Authoritative government identity and premise verification proof uploaded for regulatory compliance
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Box>
+                <Chip
+                  icon={<ShieldCheck size={14} color="#22C55E" />}
+                  label="NPCI & RBI Compliant eKYC"
+                  size="small"
+                  sx={{ bgcolor: "rgba(34, 197, 94, 0.12)", color: "#4ADE80", fontWeight: 700, border: "1px solid rgba(34, 197, 94, 0.25)" }}
+                />
+              </Stack>
+
+              {profile.kyc.documents && profile.kyc.documents.length > 0 ? (
+                <Grid container spacing={2.5}>
+                  {profile.kyc.documents.map((doc, idx) => (
+                    <Grid key={doc.id || idx} size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Box
+                        sx={{
+                          p: 2.2,
+                          bgcolor: "rgba(255, 255, 255, 0.03)",
+                          borderRadius: 2.5,
+                          border: "1px solid rgba(255, 255, 255, 0.08)",
+                          transition: "all 0.2s ease-in-out",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                          minHeight: 160,
+                          "&:hover": {
+                            bgcolor: "rgba(255, 255, 255, 0.05)",
+                            borderColor: "rgba(59, 130, 246, 0.4)",
+                            transform: "translateY(-2px)",
+                            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
+                          },
+                        }}
+                      >
+                        <Box>
+                          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 1.5 }}>
+                            <Box sx={{ p: 1, bgcolor: "rgba(59, 130, 246, 0.12)", borderRadius: 2 }}>
+                              <FileText size={20} color="#60A5FA" />
+                            </Box>
+                            <Chip
+                              icon={<CheckCircle2 size={12} color="#22C55E" />}
+                              label={doc.is_verified ? "VERIFIED" : "PENDING"}
+                              size="small"
+                              sx={verifiedBadgeStyle}
+                            />
+                          </Stack>
+                          <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: 700, mb: 0.5 }}>
+                            {doc.title || doc.doc_type}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", wordBreak: "break-all", mb: 0.5 }}>
+                            {doc.file_name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#64748B", display: "block" }}>
+                            Size: {formatFileSize(doc.file_size_bytes)} {doc.uploaded_at ? `• ${new Date(doc.uploaded_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}` : ""}
+                          </Typography>
+                        </Box>
+
+                        <Stack direction="row" spacing={1} sx={{ mt: 2, pt: 1.5, borderTop: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            fullWidth
+                            startIcon={<Eye size={14} />}
+                            onClick={() => setSelectedDoc({
+                              url: doc.file_url,
+                              title: doc.title || doc.doc_type,
+                              fileName: doc.file_name,
+                              mimeType: doc.mime_type
+                            })}
+                            sx={{ bgcolor: "#2563EB", fontWeight: 700, fontSize: "0.75rem", textTransform: "none", "&:hover": { bgcolor: "#1D4ED8" } }}
+                          >
+                            View Document
+                          </Button>
+                          <Tooltip title="Download File">
+                            <IconButton
+                              size="small"
+                              component="a"
+                              href={doc.file_url}
+                              download={doc.file_name || "document"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.1)" } }}
+                            >
+                              <Download size={16} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Open in New Tab">
+                            <IconButton
+                              size="small"
+                              component="a"
+                              href={doc.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", "&:hover": { color: "#FFFFFF", bgcolor: "rgba(255, 255, 255, 0.1)" } }}
+                            >
+                              <ExternalLink size={16} />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : (
+                <Box sx={{ p: 3, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 2.5, border: "1px dashed rgba(255, 255, 255, 0.1)" }}>
+                  <Typography variant="body2" sx={{ color: "#94A3B8" }}>
+                    No additional KYC documents stored in repository.
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+          </Grid>
         </Grid>
       )}
 
       {/* 5. BANK TAB */}
       {activeTab === 4 && (
         <Grid container spacing={3}>
-          <Grid size={{ xs: 12, md: 8 }}>
+          {/* PRIMARY SETTLEMENT ACCOUNT */}
+          <Grid size={{ xs: 12, md: 6 }}>
             <Paper elevation={0} sx={cardStyle}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
                 <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
@@ -1096,7 +1552,7 @@ export default function RetailerProfilePage() {
               </Stack>
 
               {profile.bank ? (
-                <Stack spacing={1.8}>
+                <Stack spacing={1.5}>
                   <DataRow label="Account Holder Name" value={profile.bank.account_holder_name} />
                   <DataRow label="Bank Name" value={profile.bank.bank_name} />
                   <DataRow
@@ -1121,14 +1577,325 @@ export default function RetailerProfilePage() {
             </Paper>
           </Grid>
 
-          <Grid size={{ xs: 12, md: 4 }}>
+          {/* BANK SETTLEMENT PROOF DOCUMENT */}
+          <Grid size={{ xs: 12, md: 6 }}>
             <Paper elevation={0} sx={cardStyle}>
-              <Typography variant="h6" sx={cardTitleStyle}>
-                Bank Compliance Policy
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF" }}>
+                  Bank Settlement Proof Document
+                </Typography>
+                <Chip
+                  icon={<ShieldCheck size={13} color="#22C55E" />}
+                  label="VERIFIED PROOF"
+                  size="small"
+                  sx={verifiedBadgeStyle}
+                />
+              </Stack>
+
+              <Typography variant="body2" sx={{ color: "#94A3B8", mb: 2 }}>
+                Passbook copy or Cancelled Cheque submitted for NPCI settlement authentication and beneficiary registry verification.
               </Typography>
-              <Alert severity="info" sx={{ bgcolor: "rgba(2, 132, 199, 0.15)", color: "#38BDF8", border: "1px solid rgba(2, 132, 199, 0.3)" }}>
-                Settlement bank details are validated via penny drop verification against NPCI registry. To request an account modification, initiate a Bank Change Request ticket with your Relationship Manager.
-              </Alert>
+
+              {profile.bank?.document_url ? (
+                <Box sx={{ p: 2.2, bgcolor: "rgba(59, 130, 246, 0.08)", borderRadius: 2.5, border: "1px solid rgba(59, 130, 246, 0.25)" }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{ p: 1.5, bgcolor: "rgba(59, 130, 246, 0.15)", borderRadius: 2.5 }}>
+                      <Landmark size={26} color="#60A5FA" />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, textTransform: "uppercase", display: "block" }}>
+                        Submitted Proof Document
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 700, wordBreak: "break-all" }}>
+                        {profile.bank?.document_file_name || "Settlement_Bank_Proof.pdf"}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#64748B", display: "block", mt: 0.3 }}>
+                        Size: {formatFileSize(profile.bank?.document_file_size)} • NPCI Penny Drop Verified
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Divider sx={{ my: 1.8, borderColor: "rgba(255, 255, 255, 0.08)" }} />
+
+                  <Stack direction="row" spacing={1.5} justifyContent="flex-end">
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<Eye size={14} />}
+                      onClick={() => setSelectedDoc({
+                        url: profile.bank?.document_url!,
+                        title: "Bank Settlement Proof Document",
+                        fileName: profile.bank?.document_file_name || "bank_proof.pdf",
+                        mimeType: profile.bank?.document_mime_type || undefined
+                      })}
+                      sx={{ bgcolor: "#2563EB", fontWeight: 700, fontSize: "0.78rem", textTransform: "none", "&:hover": { bgcolor: "#1D4ED8" } }}
+                    >
+                      View Proof Document
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Download size={14} />}
+                      component="a"
+                      href={profile.bank?.document_url}
+                      download={profile.bank?.document_file_name || "bank_proof"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ color: "#94A3B8", borderColor: "rgba(255, 255, 255, 0.2)", fontSize: "0.78rem", textTransform: "none", "&:hover": { color: "#FFFFFF", borderColor: "#FFFFFF" } }}
+                    >
+                      Download
+                    </Button>
+                    <Tooltip title="Open in New Tab">
+                      <IconButton
+                        size="small"
+                        component="a"
+                        href={profile.bank?.document_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ color: "#94A3B8", bgcolor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", "&:hover": { color: "#FFFFFF" } }}
+                      >
+                        <ExternalLink size={16} />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </Box>
+              ) : (
+                <Box sx={{ p: 2.5, textAlign: "center", bgcolor: "rgba(255, 255, 255, 0.02)", borderRadius: 2.5, border: "1px dashed rgba(255, 255, 255, 0.1)" }}>
+                  <Typography variant="body2" sx={{ color: "#94A3B8" }}>
+                    Bank details authenticated via Instant Reverse Penny Drop.
+                  </Typography>
+                </Box>
+              )}
+
+              <Box sx={{ mt: 2, p: 1.5, bgcolor: "rgba(2, 132, 199, 0.1)", borderRadius: 2, border: "1px solid rgba(2, 132, 199, 0.2)" }}>
+                <Typography variant="caption" sx={{ color: "#38BDF8", display: "block" }}>
+                  <strong>Compliance Notice:</strong> Retailer wallet cashouts and payouts are directly credited to this validated bank account under RBI & NPCI settlement framework.
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* REGISTERED BANK ACCOUNTS & SETTLEMENT TABLE (FULL-WIDTH) */}
+          <Grid size={{ xs: 12 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                ...cardStyle,
+                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.85) 100%)",
+                border: "1px solid rgba(59, 130, 246, 0.25)",
+              }}
+            >
+              <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} sx={{ mb: 2.5 }} spacing={1.5}>
+                <Box>
+                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <Box sx={{ p: 1, bgcolor: "rgba(59, 130, 246, 0.15)", borderRadius: 2 }}>
+                      <Landmark size={22} color="#60A5FA" />
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
+                        Registered Bank Accounts & Settlement Table
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                        Authorized commercial bank accounts configured for merchant payouts, instant settlements, and refunds
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Box>
+                <Chip
+                  icon={<CheckCircle2 size={14} color="#22C55E" />}
+                  label="NPCI Penny Drop Verified"
+                  size="small"
+                  sx={{ bgcolor: "rgba(34, 197, 94, 0.12)", color: "#4ADE80", fontWeight: 700, border: "1px solid rgba(34, 197, 94, 0.25)" }}
+                />
+              </Stack>
+
+              <TableContainer
+                sx={{
+                  borderRadius: 2.5,
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  bgcolor: "rgba(15, 23, 42, 0.7)",
+                }}
+              >
+                <Table size="small">
+                  <TableHead sx={{ bgcolor: "rgba(30, 41, 59, 0.8)" }}>
+                    <TableRow>
+                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                        BANK & BRANCH
+                      </TableCell>
+                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                        ACCOUNT NUMBER
+                      </TableCell>
+                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                        ACCOUNT HOLDER
+                      </TableCell>
+                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                        IFSC CODE
+                      </TableCell>
+                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                        TYPE
+                      </TableCell>
+                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                        ROLE
+                      </TableCell>
+                      <TableCell sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                        STATUS
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: "#94A3B8", fontWeight: 700, fontSize: "0.75rem", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", py: 1.5 }}>
+                        DOCUMENT PROOF
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(profile.bank?.accounts && profile.bank.accounts.length > 0
+                      ? profile.bank.accounts
+                      : profile.bank
+                      ? [{
+                          id: "primary",
+                          bank_name: profile.bank.bank_name || "Registered Bank",
+                          branch: profile.bank.branch || "Main Branch",
+                          account_number_masked: profile.bank.account_number_masked,
+                          account_holder_name: profile.bank.account_holder_name,
+                          ifsc: profile.bank.ifsc,
+                          account_type: profile.bank.account_type || "SAVINGS",
+                          is_primary: true,
+                          verification_status: profile.bank.verification_status || "VERIFIED",
+                          document_url: profile.bank.document_url,
+                          document_file_name: profile.bank.document_file_name,
+                        }]
+                      : []
+                    ).map((acc, idx) => (
+                      <TableRow
+                        key={acc.id || idx}
+                        sx={{
+                          bgcolor: idx % 2 === 0 ? "rgba(255, 255, 255, 0.01)" : "transparent",
+                          "&:hover": { bgcolor: "rgba(59, 130, 246, 0.06)" },
+                        }}
+                      >
+                        {/* Bank & Branch */}
+                        <TableCell sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Box sx={{ p: 0.8, bgcolor: "rgba(59, 130, 246, 0.15)", borderRadius: 1.5 }}>
+                              <Landmark size={18} color="#60A5FA" />
+                            </Box>
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
+                                {acc.bank_name}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                                {acc.branch || "Main Branch"}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </TableCell>
+
+                        {/* Account Number */}
+                        <TableCell sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#E2E8F0", fontWeight: 700 }}>
+                              {acc.account_number_masked || "—"}
+                            </Typography>
+                            {acc.account_number_masked && (
+                              <Tooltip title="Copy Account Number">
+                                <IconButton size="small" onClick={() => handleCopy(acc.account_number_masked, "Account Number")} sx={{ color: "#60A5FA" }}>
+                                  <Copy size={13} />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        </TableCell>
+
+                        {/* Holder Name */}
+                        <TableCell sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
+                          <Typography variant="body2" sx={{ color: "#FFFFFF", fontWeight: 600 }}>
+                            {acc.account_holder_name || "—"}
+                          </Typography>
+                        </TableCell>
+
+                        {/* IFSC */}
+                        <TableCell sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#94A3B8", fontWeight: 600 }}>
+                              {acc.ifsc || "—"}
+                            </Typography>
+                            {acc.ifsc && (
+                              <Tooltip title="Copy IFSC">
+                                <IconButton size="small" onClick={() => handleCopy(acc.ifsc, "IFSC")} sx={{ color: "#60A5FA" }}>
+                                  <Copy size={13} />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        </TableCell>
+
+                        {/* Type */}
+                        <TableCell sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
+                          <Chip
+                            label={acc.account_type || "SAVINGS"}
+                            size="small"
+                            sx={{ bgcolor: "rgba(255, 255, 255, 0.06)", color: "#CBD5E1", fontSize: "0.72rem", fontWeight: 700 }}
+                          />
+                        </TableCell>
+
+                        {/* Role */}
+                        <TableCell sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
+                          <Chip
+                            label={acc.is_primary ? "PRIMARY" : "SECONDARY"}
+                            size="small"
+                            sx={{
+                              bgcolor: acc.is_primary ? "rgba(59, 130, 246, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                              color: acc.is_primary ? "#60A5FA" : "#94A3B8",
+                              fontSize: "0.72rem",
+                              fontWeight: 800,
+                              border: acc.is_primary ? "1px solid rgba(59, 130, 246, 0.35)" : "none",
+                            }}
+                          />
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
+                          <Chip
+                            icon={<CheckCircle2 size={12} color="#22C55E" />}
+                            label={acc.verification_status || "VERIFIED"}
+                            size="small"
+                            sx={verifiedBadgeStyle}
+                          />
+                        </TableCell>
+
+                        {/* Document Proof */}
+                        <TableCell align="right" sx={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", py: 1.8 }}>
+                          {(acc.document_url || profile.bank?.document_url) ? (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<Eye size={13} />}
+                              onClick={() => setSelectedDoc({
+                                url: acc.document_url || profile.bank?.document_url!,
+                                title: `${acc.bank_name} Settlement Proof`,
+                                fileName: acc.document_file_name || profile.bank?.document_file_name || "bank_proof.pdf",
+                              })}
+                              sx={{
+                                color: "#60A5FA",
+                                borderColor: "rgba(59, 130, 246, 0.35)",
+                                fontSize: "0.72rem",
+                                fontWeight: 700,
+                                textTransform: "none",
+                                py: 0.4,
+                                "&:hover": { bgcolor: "rgba(59, 130, 246, 0.1)", borderColor: "#3B82F6" },
+                              }}
+                            >
+                              View Proof
+                            </Button>
+                          ) : (
+                            <Typography variant="caption" sx={{ color: "#64748B" }}>
+                              Penny Drop Verified
+                            </Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Paper>
           </Grid>
         </Grid>
@@ -1140,46 +1907,123 @@ export default function RetailerProfilePage() {
           {/* PASSWORD SECTION */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Paper elevation={0} sx={cardStyle}>
-              <Typography variant="h6" sx={cardTitleStyle}>
-                PASSWORD
-              </Typography>
-              <form onSubmit={handleChangePassword}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" sx={cardTitleStyle}>
+                  PASSWORD
+                </Typography>
+                <Chip
+                  icon={<ShieldCheck size={14} color="#38BDF8" />}
+                  label="WhatsApp Protected"
+                  size="small"
+                  sx={{ bgcolor: "rgba(56, 189, 248, 0.15)", color: "#38BDF8", fontWeight: 700, fontSize: "0.72rem" }}
+                />
+              </Stack>
+              <form onSubmit={handleInitiatePasswordChange}>
                 <Stack spacing={2.5}>
                   <TextField
                     label="Current Password"
-                    type="password"
+                    type={showCurrentPassword ? "text" : "password"}
                     value={pwdForm.current_password}
                     onChange={(e) => setPwdForm({ ...pwdForm, current_password: e.target.value })}
                     fullWidth
                     variant="outlined"
                     sx={inputStyle}
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                              edge="end"
+                              sx={{ color: "#94A3B8" }}
+                            >
+                              {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                   <TextField
                     label="New Password"
-                    type="password"
+                    type={showNewPassword ? "text" : "password"}
                     value={pwdForm.new_password}
                     onChange={(e) => setPwdForm({ ...pwdForm, new_password: e.target.value })}
                     fullWidth
                     variant="outlined"
                     sx={inputStyle}
-                    helperText="Minimum 8 characters with letters, numbers & symbols"
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                              edge="end"
+                              sx={{ color: "#94A3B8" }}
+                            >
+                              {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                   <TextField
                     label="Confirm Password"
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     value={pwdForm.confirm_password}
                     onChange={(e) => setPwdForm({ ...pwdForm, confirm_password: e.target.value })}
                     fullWidth
                     variant="outlined"
                     sx={inputStyle}
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              edge="end"
+                              sx={{ color: "#94A3B8" }}
+                            >
+                              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
+
+                  {/* Visual Password Rules Checklist */}
+                  <Box sx={{ p: 2, borderRadius: 2.5, bgcolor: "rgba(15, 23, 42, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, mb: 1.2, display: "block", letterSpacing: "0.04em" }}>
+                      PASSWORD REQUIREMENTS
+                    </Typography>
+                    <Stack spacing={0.8}>
+                      <RuleItem satisfied={pwdRules.length} text="8 to 64 characters in length" />
+                      <RuleItem satisfied={pwdRules.uppercase} text="At least 1 uppercase letter (A-Z)" />
+                      <RuleItem satisfied={pwdRules.lowercase} text="At least 1 lowercase letter (a-z)" />
+                      <RuleItem satisfied={pwdRules.number} text="At least 1 numeric digit (0-9)" />
+                      <RuleItem satisfied={pwdRules.special} text="At least 1 special symbol (!@#$%^&*...)" />
+                      <RuleItem satisfied={pwdRules.matches} text="Matches confirmation password" />
+                    </Stack>
+                  </Box>
+
                   <Button
                     type="submit"
                     variant="contained"
-                    disabled={saving}
-                    sx={{ bgcolor: "#2563EB", fontWeight: 700, borderRadius: 2 }}
+                    disabled={saving || !isPwdValid}
+                    startIcon={<Lock size={16} />}
+                    sx={{
+                      bgcolor: isPwdValid ? "#2563EB" : "rgba(37, 99, 235, 0.4)",
+                      color: "#FFFFFF",
+                      fontWeight: 700,
+                      borderRadius: 2,
+                      py: 1.2,
+                      textTransform: "none",
+                      "&:hover": { bgcolor: "#1D4ED8" },
+                    }}
                   >
-                    {saving ? "Updating..." : "Change Password"}
+                    {saving ? "Sending WhatsApp OTP..." : "Change Password"}
                   </Button>
                 </Stack>
               </form>
@@ -1189,52 +2033,127 @@ export default function RetailerProfilePage() {
           {/* TRANSACTION PIN SECTION */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Paper elevation={0} sx={cardStyle}>
-              <Typography variant="h6" sx={cardTitleStyle}>
-                TRANSACTION PIN
-              </Typography>
-              <form onSubmit={handleChangePin}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" sx={cardTitleStyle}>
+                  TRANSACTION PIN
+                </Typography>
+                <Chip
+                  icon={<ShieldCheck size={14} color="#38BDF8" />}
+                  label="WhatsApp Protected"
+                  size="small"
+                  sx={{ bgcolor: "rgba(56, 189, 248, 0.15)", color: "#38BDF8", fontWeight: 700, fontSize: "0.72rem" }}
+                />
+              </Stack>
+              <form onSubmit={handleInitiatePinChange}>
                 <Stack spacing={2.5}>
                   <TextField
                     label="Current PIN (Optional)"
-                    type="password"
+                    type={showCurrentPin ? "text" : "password"}
                     value={pinForm.current_pin}
-                    onChange={(e) => setPinForm({ ...pinForm, current_pin: e.target.value })}
+                    onChange={(e) => setPinForm({ ...pinForm, current_pin: e.target.value.replace(/\D/g, "").slice(0, 6) })}
                     fullWidth
                     variant="outlined"
                     sx={inputStyle}
                     placeholder="••••"
                     inputProps={{ maxLength: 6 }}
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowCurrentPin(!showCurrentPin)}
+                              edge="end"
+                              sx={{ color: "#94A3B8" }}
+                            >
+                              {showCurrentPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                   <TextField
                     label="New PIN"
-                    type="password"
+                    type={showNewPin ? "text" : "password"}
                     value={pinForm.new_pin}
-                    onChange={(e) => setPinForm({ ...pinForm, new_pin: e.target.value })}
+                    onChange={(e) => setPinForm({ ...pinForm, new_pin: e.target.value.replace(/\D/g, "").slice(0, 6) })}
                     fullWidth
                     variant="outlined"
                     sx={inputStyle}
                     placeholder="••••"
                     inputProps={{ maxLength: 6 }}
-                    helperText="4 or 6 digit numeric authorization code"
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowNewPin(!showNewPin)}
+                              edge="end"
+                              sx={{ color: "#94A3B8" }}
+                            >
+                              {showNewPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                   <TextField
                     label="Confirm PIN"
-                    type="password"
+                    type={showConfirmPin ? "text" : "password"}
                     value={pinForm.confirm_pin}
-                    onChange={(e) => setPinForm({ ...pinForm, confirm_pin: e.target.value })}
+                    onChange={(e) => setPinForm({ ...pinForm, confirm_pin: e.target.value.replace(/\D/g, "").slice(0, 6) })}
                     fullWidth
                     variant="outlined"
                     sx={inputStyle}
                     placeholder="••••"
                     inputProps={{ maxLength: 6 }}
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowConfirmPin(!showConfirmPin)}
+                              edge="end"
+                              sx={{ color: "#94A3B8" }}
+                            >
+                              {showConfirmPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
+
+                  {/* Visual MPIN Rules Checklist */}
+                  <Box sx={{ p: 2, borderRadius: 2.5, bgcolor: "rgba(15, 23, 42, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                    <Typography variant="caption" sx={{ color: "#94A3B8", fontWeight: 700, mb: 1.2, display: "block", letterSpacing: "0.04em" }}>
+                      TRANSACTION PIN (MPIN) REQUIREMENTS
+                    </Typography>
+                    <Stack spacing={0.8}>
+                      <RuleItem satisfied={pinRules.length} text="Exactly 4 or 6 numeric digits" />
+                      <RuleItem satisfied={pinRules.notRepeating} text="No identical repeating digits (e.g. 1111, 0000)" />
+                      <RuleItem satisfied={pinRules.notSequential} text="No simple sequential digits (e.g. 1234, 4321, 123456)" />
+                      <RuleItem satisfied={pinRules.matches} text="Matches confirmation PIN" />
+                    </Stack>
+                  </Box>
+
                   <Button
                     type="submit"
                     variant="contained"
-                    disabled={saving}
-                    sx={{ bgcolor: "#2563EB", fontWeight: 700, borderRadius: 2 }}
+                    disabled={saving || !isPinValid}
+                    startIcon={<KeyRound size={16} />}
+                    sx={{
+                      bgcolor: isPinValid ? "#2563EB" : "rgba(37, 99, 235, 0.4)",
+                      color: "#FFFFFF",
+                      fontWeight: 700,
+                      borderRadius: 2,
+                      py: 1.2,
+                      textTransform: "none",
+                      "&:hover": { bgcolor: "#1D4ED8" },
+                    }}
                   >
-                    {saving ? "Updating..." : "Change PIN"}
+                    {saving ? "Sending WhatsApp OTP..." : "Change PIN"}
                   </Button>
                 </Stack>
               </form>
@@ -1785,6 +2704,272 @@ export default function RetailerProfilePage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── SECURITY WHATSAPP OTP AUTHORIZATION DIALOG ── */}
+      <Dialog
+        open={secOtpModalOpen}
+        onClose={() => {
+          if (secOtpSending || secOtpVerifying) return;
+          setSecOtpModalOpen(false);
+        }}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: "#0F172A",
+            backgroundImage: "linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
+            border: "1px solid rgba(37, 99, 235, 0.3)",
+            borderRadius: 3.5,
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+            color: "#FFFFFF",
+            p: 1,
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 1 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Box sx={{ width: 38, height: 38, borderRadius: "50%", bgcolor: "rgba(37, 211, 102, 0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <MessageCircle size={20} color="#25D366" />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800, fontSize: "1.1rem", color: "#FFFFFF" }}>
+                WhatsApp Authorization
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                {secOtpAction === "PASSWORD" ? "Update Account Password" : "Update Transaction MPIN"}
+              </Typography>
+            </Box>
+          </Stack>
+          <IconButton
+            onClick={() => setSecOtpModalOpen(false)}
+            disabled={secOtpSending || secOtpVerifying}
+            sx={{ color: "#94A3B8", "&:hover": { color: "#FFFFFF" } }}
+          >
+            <X size={18} />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 1.5 }}>
+          <Stack spacing={2.5}>
+            <Alert
+              severity="info"
+              icon={<ShieldCheck size={18} />}
+              sx={{
+                bgcolor: "rgba(37, 99, 235, 0.12)",
+                color: "#93C5FD",
+                border: "1px solid rgba(37, 99, 235, 0.25)",
+                "& .MuiAlert-icon": { color: "#60A5FA" },
+                fontSize: "0.82rem",
+              }}
+            >
+              A 6-digit one-time passcode has been sent to your registered WhatsApp mobile number{" "}
+              <strong style={{ color: "#FFFFFF" }}>{secMaskedMobile}</strong>.
+            </Alert>
+
+            {secOtpError && (
+              <Alert
+                severity="error"
+                sx={{
+                  bgcolor: "rgba(239, 68, 68, 0.15)",
+                  color: "#FCA5A5",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  fontSize: "0.82rem",
+                }}
+              >
+                {secOtpError}
+              </Alert>
+            )}
+
+            <Box sx={{ textAlign: "center", py: 1 }}>
+              <Typography variant="caption" sx={{ color: "#94A3B8", mb: 1, display: "block" }}>
+                ENTER 6-DIGIT WHATSAPP OTP
+              </Typography>
+              <TextField
+                autoFocus
+                value={secOtpCode}
+                onChange={(e) => {
+                  setSecOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setSecOtpError(null);
+                }}
+                placeholder="••••••"
+                fullWidth
+                variant="outlined"
+                inputProps={{
+                  maxLength: 6,
+                  style: {
+                    textAlign: "center",
+                    letterSpacing: "8px",
+                    fontSize: "1.4rem",
+                    fontWeight: 800,
+                    color: "#60A5FA",
+                  },
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "rgba(15, 23, 42, 0.8)",
+                    borderRadius: 2.5,
+                    "& fieldset": { borderColor: "rgba(37, 99, 235, 0.4)" },
+                    "&:hover fieldset": { borderColor: "#3B82F6" },
+                    "&.Mui-focused fieldset": { borderColor: "#60A5FA" },
+                  },
+                }}
+              />
+            </Box>
+
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="caption" sx={{ color: "#64748B" }}>
+                Valid for 10 minutes
+              </Typography>
+              <Button
+                onClick={handleResendSecOtp}
+                disabled={secOtpResendTimer > 0 || secOtpSending || secOtpVerifying}
+                size="small"
+                startIcon={secOtpSending ? <CircularProgress size={14} color="inherit" /> : <RefreshCw size={14} />}
+                sx={{ color: secOtpResendTimer > 0 ? "#64748B" : "#38BDF8", textTransform: "none", fontSize: "0.78rem" }}
+              >
+                {secOtpResendTimer > 0 ? `Resend in ${secOtpResendTimer}s` : "Resend WhatsApp OTP"}
+              </Button>
+            </Stack>
+
+            <Box sx={{ p: 1.25, borderRadius: 1.5, bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px dashed rgba(239, 68, 68, 0.25)" }}>
+              <Typography variant="caption" sx={{ color: "#F87171", display: "block", textAlign: "center", fontSize: "0.75rem" }}>
+                Strict Verification: If an invalid or expired OTP is entered, changes will NOT be saved to the database.
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, pt: 1 }}>
+          <Button
+            onClick={() => setSecOtpModalOpen(false)}
+            disabled={secOtpSending || secOtpVerifying}
+            sx={{ color: "#94A3B8", textTransform: "none" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleVerifyAndSubmitSecurity}
+            disabled={secOtpVerifying || secOtpCode.length < 4}
+            variant="contained"
+            startIcon={secOtpVerifying ? <CircularProgress size={16} color="inherit" /> : <CheckCircle2 size={16} />}
+            sx={{
+              bgcolor: "#2563EB",
+              color: "#FFFFFF",
+              fontWeight: 700,
+              textTransform: "none",
+              px: 3,
+              borderRadius: 2.5,
+              boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
+              "&:hover": { bgcolor: "#1D4ED8" },
+            }}
+          >
+            {secOtpVerifying ? "Verifying & Saving..." : `Verify & Update ${secOtpAction === "PASSWORD" ? "Password" : "MPIN"}`}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── UNIVERSAL DOCUMENT VIEWER MODAL ── */}
+      <Dialog
+        open={Boolean(selectedDoc)}
+        onClose={() => setSelectedDoc(null)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: "#0F172A",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
+            borderRadius: 3.5,
+            overflow: "hidden",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.7)",
+          },
+        }}
+      >
+        <DialogTitle sx={{ p: 2.5, bgcolor: "rgba(30, 41, 59, 0.7)", borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ p: 1, bgcolor: "rgba(59, 130, 246, 0.15)", borderRadius: 2 }}>
+                <FileCheck size={20} color="#60A5FA" />
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" sx={{ color: "#FFFFFF", fontWeight: 800 }}>
+                  {selectedDoc?.title || "Verification Document"}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#94A3B8" }}>
+                  {selectedDoc?.fileName}
+                </Typography>
+              </Box>
+            </Stack>
+            <IconButton onClick={() => setSelectedDoc(null)} sx={{ color: "#94A3B8", "&:hover": { color: "#FFFFFF" } }}>
+              <X size={20} />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2, bgcolor: "#020617", minHeight: 480, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {selectedDoc && (
+            selectedDoc.url.toLowerCase().endsWith(".pdf") ? (
+              <Box
+                component="iframe"
+                src={selectedDoc.url}
+                title={selectedDoc.title}
+                sx={{
+                  width: "100%",
+                  height: "70vh",
+                  minHeight: 500,
+                  border: "none",
+                  borderRadius: 2,
+                  bgcolor: "#FFFFFF",
+                }}
+              />
+            ) : (
+              <Box
+                component="img"
+                src={selectedDoc.url}
+                alt={selectedDoc.title}
+                sx={{
+                  maxWidth: "100%",
+                  maxHeight: "70vh",
+                  objectFit: "contain",
+                  borderRadius: 2,
+                  boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
+                }}
+              />
+            )
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, bgcolor: "rgba(30, 41, 59, 0.5)", borderTop: "1px solid rgba(255, 255, 255, 0.08)", justifyContent: "space-between" }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<ExternalLink size={15} />}
+            href={selectedDoc?.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{ color: "#94A3B8", borderColor: "rgba(255, 255, 255, 0.15)", textTransform: "none" }}
+          >
+            Open in New Tab
+          </Button>
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<Download size={15} />}
+              component="a"
+              href={selectedDoc?.url}
+              download={selectedDoc?.fileName || "document"}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ bgcolor: "#2563EB", fontWeight: 700, textTransform: "none", "&:hover": { bgcolor: "#1D4ED8" } }}
+            >
+              Download
+            </Button>
+            <Button variant="outlined" size="small" onClick={() => setSelectedDoc(null)} sx={{ color: "#E2E8F0", textTransform: "none" }}>
+              Close
+            </Button>
+          </Stack>
+        </DialogActions>
+      </Dialog>
+
       {/* ── SNACKBAR FEEDBACK ── */}
       <Snackbar
         open={toast.open}
@@ -1921,3 +3106,28 @@ const inputStyle = {
     color: "#94A3B8",
   },
 };
+
+// ── REUSABLE RULE ITEM ──
+
+function RuleItem({ satisfied, text }: { satisfied: boolean; text: string }) {
+  return (
+    <Stack direction="row" spacing={1} alignItems="center">
+      {satisfied ? (
+        <CheckCircle2 size={14} color="#10B981" />
+      ) : (
+        <Box sx={{ width: 14, height: 14, borderRadius: "50%", border: "1.5px solid #64748B" }} />
+      )}
+      <Typography
+        variant="caption"
+        sx={{
+          color: satisfied ? "#10B981" : "#94A3B8",
+          fontWeight: satisfied ? 600 : 400,
+          transition: "color 0.2s ease",
+          fontSize: "0.75rem",
+        }}
+      >
+        {text}
+      </Typography>
+    </Stack>
+  );
+}
