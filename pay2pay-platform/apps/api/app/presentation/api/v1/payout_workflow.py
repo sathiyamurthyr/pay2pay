@@ -43,7 +43,7 @@ class AadhaarOtpGenReq(BaseModel):
     aadhaar_number: str
     customer_id: Optional[str] = None
     mobile_number: Optional[str] = None
-    retailer_id: Optional[str] = "RET-DEFAULT"
+    retailer_id: Optional[str] = None
     verification_context: Optional[str] = "CUSTOMER_VERIFICATION"  # ONBOARDING | CUSTOMER_VERIFICATION
 
 class AadhaarOtpVerifyReq(BaseModel):
@@ -54,7 +54,7 @@ class AadhaarOtpVerifyReq(BaseModel):
     otp_code: str
     masked_aadhaar: Optional[str] = None
     aadhaar_number: Optional[str] = None
-    retailer_id: Optional[str] = "RET-DEFAULT"
+    retailer_id: Optional[str] = None
     verification_context: Optional[str] = "CUSTOMER_VERIFICATION"  # ONBOARDING | CUSTOMER_VERIFICATION
 
 class CustomerFinalizeOnboardingReq(BaseModel):
@@ -254,7 +254,13 @@ async def generate_aadhaar_otp(
                         detail="Paid Aadhaar verification service is strictly restricted to Retailer accounts."
                     )
 
-    ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id") or "P2P-R404667"
+    ret_identifier = (
+        req.retailer_id
+        or request.headers.get("x-retailer-code")
+        or request.headers.get("x-retailer-id")
+        or (payload.get("retailer_code") if token and payload else None)
+        or (payload.get("retailer_id") if token and payload else None)
+    )
     res = await AadhaarEkycWorkflowService.generate_otp(
         db, tenant_id, ret_identifier, req.customer_id, req.aadhaar_number,
         verification_context=ctx,
@@ -272,9 +278,30 @@ async def verify_aadhaar_otp(
     db: AsyncSession = Depends(get_db)
 ):
     from app.application.aadhaar_ekyc_workflow import AadhaarEkycWorkflowService
+    from app.core.security import decode_access_token
     ref = req.ref_id or req.ref_number or ""
     cust_id = str(req.customer_id) if req.customer_id else None
-    ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id") or "P2P-R404667"
+
+    token = None
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    if not token:
+        token = (
+            request.cookies.get("p2p_access_token") or
+            request.cookies.get("pay2pay_access_token") or
+            request.cookies.get("pay2pay_auth_token") or
+            request.cookies.get("access_token")
+        )
+    payload = decode_access_token(token) if token else None
+
+    ret_identifier = (
+        req.retailer_id
+        or request.headers.get("x-retailer-code")
+        or request.headers.get("x-retailer-id")
+        or (payload.get("retailer_code") if payload else None)
+        or (payload.get("retailer_id") if payload else None)
+    )
     res = await AadhaarEkycWorkflowService.verify_otp(
         db, tenant_id, ret_identifier, cust_id, ref, req.otp_code, req.aadhaar_number,
         verification_context=req.verification_context,

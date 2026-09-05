@@ -30,7 +30,7 @@ class EmailService:
         self.smtp_port = smtp_port if smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
         self.smtp_username = smtp_username if smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
         self.smtp_password = smtp_password if smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
-        self.from_email = from_email if from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", "noreply@pay2pay.in")
+        self.from_email = from_email if from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", "")
         self.from_name = from_name if from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
 
     def _build_otp_html(self, otp_code: str, recipient_email: str) -> str:
@@ -88,9 +88,9 @@ class EmailService:
 
         smtp_server = self.smtp_server or getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
         smtp_port = self.smtp_port or getattr(settings, "SMTP_PORT", 587)
-        smtp_username = self.smtp_username or getattr(settings, "SMTP_USERNAME", "Paymebalu@gmail.com")
-        smtp_password = self.smtp_password or getattr(settings, "SMTP_PASSWORD", "pbcr sgsm cugn ducm")
-        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "Paymebalu@gmail.com")
+        smtp_username = self.smtp_username or getattr(settings, "SMTP_USERNAME", "")
+        smtp_password = self.smtp_password or getattr(settings, "SMTP_PASSWORD", "")
+        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username
         from_name = self.from_name or getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
 
         if smtp_password:
@@ -102,6 +102,15 @@ class EmailService:
         msg["From"] = f"{from_name} <{from_email}>"
         msg["To"] = recipient_email
 
+        plain_text = (
+            f"Your Pay2Pay Email Verification Code is: {otp_code}\n\n"
+            f"This code is valid for 10 minutes.\n"
+            f"Please do not share this code with anyone.\n\n"
+            f"Regards,\n"
+            f"{from_name}\n"
+            f"SUPER REX PRODUCTS PRIVATE LIMITED"
+        )
+        msg.attach(MIMEText(plain_text, "plain"))
         html_content = self._build_otp_html(otp_code, recipient_email)
         msg.attach(MIMEText(html_content, "html"))
 
@@ -168,9 +177,9 @@ class EmailService:
 
         smtp_server = self.smtp_server if self.smtp_server is not None else getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
         smtp_port = self.smtp_port if self.smtp_port is not None else getattr(settings, "SMTP_PORT", 587)
-        smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "Paymebalu@gmail.com")
+        smtp_username = self.smtp_username if self.smtp_username is not None else getattr(settings, "SMTP_USERNAME", "")
         smtp_password = self.smtp_password if self.smtp_password is not None else getattr(settings, "SMTP_PASSWORD", "")
-        from_email = self.from_email if self.from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", smtp_username or "Paymebalu@gmail.com")
+        from_email = self.from_email if self.from_email is not None else getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username
         from_name = self.from_name if self.from_name is not None else getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
 
         if smtp_password:
@@ -450,9 +459,9 @@ class EmailService:
 
         smtp_server = self.smtp_server or getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
         smtp_port = self.smtp_port or getattr(settings, "SMTP_PORT", 587)
-        smtp_username = self.smtp_username or getattr(settings, "SMTP_USERNAME", "Paymebalu@gmail.com")
-        smtp_password = self.smtp_password or getattr(settings, "SMTP_PASSWORD", "pbcr sgsm cugn ducm")
-        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "Paymebalu@gmail.com")
+        smtp_username = self.smtp_username or getattr(settings, "SMTP_USERNAME", "")
+        smtp_password = self.smtp_password or getattr(settings, "SMTP_PASSWORD", "")
+        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username
         from_name = self.from_name or getattr(settings, "SMTP_FROM_NAME", "Pay2Pay Enterprise")
 
         if smtp_password:
