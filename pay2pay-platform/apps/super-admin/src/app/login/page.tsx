@@ -1,5 +1,7 @@
 import React from "react";
-import AuthPanel from "@/components/auth/AuthPanel";
+import { AuthPanel } from "@/components/auth/AuthPanel";
+
+export const dynamic = "force-dynamic";
 
 export default function SuperAdminLoginPage() {
   return (
@@ -9,7 +11,7 @@ export default function SuperAdminLoginPage() {
         <p className="text-sm text-slate-400 mt-1">Platform Operations & System Governance Portal</p>
       </div>
       <div className="w-full max-w-md">
-        <AuthPanel />
+        <AuthPanel portalRole="ADMIN" />
       </div>
     </div>
   );

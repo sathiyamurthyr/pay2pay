@@ -33,6 +33,10 @@ class BeneficiaryMasterModel(BaseEntity, EnterpriseBaseMixin):
     registered_name_in_bank: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     utr: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     status: Mapped[Optional[str]] = mapped_column(String(30), nullable=True, default="ACTIVE", index=True)
+    beneficiary_master_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    tenant_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    company_ref_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    is_favourite: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=False)
 
 
 class BeneficiaryCustomerMappingModel(BaseEntity, EnterpriseBaseMixin):

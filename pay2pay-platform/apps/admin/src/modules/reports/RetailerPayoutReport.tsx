@@ -53,6 +53,9 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SendIcon from "@mui/icons-material/Send";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import DnsIcon from "@mui/icons-material/Dns";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
 
@@ -670,9 +673,38 @@ export const RetailerPayoutReport: React.FC = () => {
               {successPercent}%
             </Typography>
           )}
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "11.5px", fontWeight: 600 }}>
-            {summary?.pending_transactions ?? 0} Pending · {summary?.failed_transactions ?? 0} Failed
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.2 }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "11.5px", fontWeight: 600 }}>
+              {summary?.pending_transactions ?? 0} Pending · {summary?.failed_transactions ?? 0} Failed
+            </Typography>
+            {(summary?.failed_transactions ?? 0) > 0 && (
+              <Box
+                component="span"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open("/operations/api-logs?tab=payout_vendor_errors&service=PAYOUT&direction=OUTBOUND&is_error=true", "_blank");
+                }}
+                sx={{
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.3,
+                  fontSize: "10px",
+                  fontWeight: 800,
+                  color: "#F87171",
+                  bgcolor: "rgba(239, 68, 68, 0.15)",
+                  px: 0.8,
+                  py: 0.2,
+                  borderRadius: "5px",
+                  border: "1px solid rgba(239, 68, 68, 0.35)",
+                  "&:hover": { bgcolor: "rgba(239, 68, 68, 0.25)" },
+                }}
+              >
+                <span>Inspect</span>
+                <OpenInNewIcon sx={{ fontSize: 10 }} />
+              </Box>
+            )}
+          </Stack>
         </Paper>
       </Box>
 
@@ -1225,6 +1257,43 @@ export const RetailerPayoutReport: React.FC = () => {
                               </IconButton>
                             </Tooltip>
 
+                            <Tooltip
+                              title={
+                                String(row.status || "").toUpperCase() === "FAILED"
+                                  ? "Inspect Outbound Vendor Failure Log"
+                                  : "Inspect Gateway API Telemetry Logs"
+                              }
+                            >
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rId = row.txn_id || row.transaction_number || row.transaction_id || row.id || "";
+                                  const isFailed = String(row.status || "").toUpperCase() === "FAILED";
+                                  const url = `/operations/api-logs?transaction_id=${encodeURIComponent(rId)}&service=PAYOUT${
+                                    isFailed ? "&direction=OUTBOUND&is_error=true" : ""
+                                  }`;
+                                  window.open(url, "_blank");
+                                }}
+                                sx={{
+                                  color: String(row.status || "").toUpperCase() === "FAILED" ? "#F87171" : "#818CF8",
+                                  p: 0.5,
+                                  "&:hover": {
+                                    bgcolor:
+                                      String(row.status || "").toUpperCase() === "FAILED"
+                                        ? "rgba(239, 68, 68, 0.15)"
+                                        : "rgba(129, 140, 248, 0.15)",
+                                  },
+                                }}
+                              >
+                                {String(row.status || "").toUpperCase() === "FAILED" ? (
+                                  <BugReportIcon sx={{ fontSize: 17 }} />
+                                ) : (
+                                  <DnsIcon sx={{ fontSize: 16 }} />
+                                )}
+                              </IconButton>
+                            </Tooltip>
+
                             <Tooltip title="Print Receipt">
                               <IconButton
                                 size="small"
@@ -1521,6 +1590,55 @@ export const RetailerPayoutReport: React.FC = () => {
                           ₹{(fee + gst).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </Typography>
                       </Box>
+
+                      {/* Mobile Card Deep Link */}
+                      <Box sx={{ gridColumn: "span 2", mt: 1, display: "flex", gap: 1 }}>
+                        <Button
+                          fullWidth
+                          size="small"
+                          variant="outlined"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isFailed = status === "FAILED";
+                            const url = `/operations/api-logs?transaction_id=${encodeURIComponent(txnId)}&service=PAYOUT${
+                              isFailed ? "&direction=OUTBOUND&is_error=true" : ""
+                            }`;
+                            window.open(url, "_blank");
+                          }}
+                          startIcon={status === "FAILED" ? <BugReportIcon sx={{ fontSize: 14 }} /> : <DnsIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            fontSize: "10.5px",
+                            fontWeight: 700,
+                            textTransform: "none",
+                            borderRadius: "6px",
+                            color: status === "FAILED" ? "#F87171" : "#818CF8",
+                            borderColor: status === "FAILED" ? "rgba(239, 68, 68, 0.4)" : "rgba(129, 140, 248, 0.35)",
+                            bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.08)" : "rgba(99, 102, 241, 0.08)",
+                          }}
+                        >
+                          {status === "FAILED" ? "Inspect Failure Logs" : "Gateway Logs"}
+                        </Button>
+                        <Button
+                          fullWidth
+                          size="small"
+                          variant="contained"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDetailsDrawer(row);
+                          }}
+                          startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            fontSize: "10.5px",
+                            fontWeight: 700,
+                            textTransform: "none",
+                            borderRadius: "6px",
+                            color: "#080B11",
+                            background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 100%)",
+                          }}
+                        >
+                          Receipt
+                        </Button>
+                      </Box>
                     </Box>
                   </Collapse>
                 </Paper>
@@ -1808,6 +1926,57 @@ export const RetailerPayoutReport: React.FC = () => {
                       {dt.date} · {dt.time}
                     </Typography>
                   </Box>
+
+                  {/* API Telemetry Deep Link */}
+                  <Box
+                    sx={{
+                      p: 1.2,
+                      borderRadius: "8px",
+                      bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.08)" : "rgba(99, 102, 241, 0.08)",
+                      border: status === "FAILED" ? "1px solid rgba(239, 68, 68, 0.25)" : "1px solid rgba(99, 102, 241, 0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Box>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: status === "FAILED" ? "#FCA5A5" : "#A5B4FC", fontSize: "10.5px", fontWeight: 700 }}
+                      >
+                        {status === "FAILED" ? "Vendor Gateway Error Trace" : "Gateway Telemetry"}
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>
+                        {status === "FAILED" ? "Outbound switch failed · Inspect payload" : "Audited in enterprise_api_log"}
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        const url = `/operations/api-logs?transaction_id=${encodeURIComponent(txnId)}&service=PAYOUT${
+                          status === "FAILED" ? "&direction=OUTBOUND&is_error=true" : ""
+                        }`;
+                        window.open(url, "_blank");
+                      }}
+                      endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
+                      sx={{
+                        fontSize: "11px",
+                        fontWeight: 800,
+                        textTransform: "none",
+                        color: status === "FAILED" ? "#F87171" : "#818CF8",
+                        bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.15)" : "rgba(99, 102, 241, 0.15)",
+                        px: 1.2,
+                        py: 0.3,
+                        borderRadius: "6px",
+                        border: status === "FAILED" ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(99, 102, 241, 0.3)",
+                        "&:hover": {
+                          bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.25)" : "rgba(99, 102, 241, 0.25)",
+                        },
+                      }}
+                    >
+                      Inspect Logs
+                    </Button>
+                  </Box>
                 </Stack>
               </Box>
 
@@ -1836,6 +2005,34 @@ export const RetailerPayoutReport: React.FC = () => {
                     }}
                   >
                     Print / Download Receipt
+                  </Button>
+
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => {
+                      const url = `/operations/api-logs?transaction_id=${encodeURIComponent(txnId)}&service=PAYOUT${
+                        status === "FAILED" ? "&direction=OUTBOUND&is_error=true" : ""
+                      }`;
+                      window.open(url, "_blank");
+                    }}
+                    startIcon={status === "FAILED" ? <BugReportIcon sx={{ fontSize: 17 }} /> : <DnsIcon sx={{ fontSize: 17 }} />}
+                    sx={{
+                      height: "38px",
+                      fontSize: "12px",
+                      fontWeight: 800,
+                      textTransform: "none",
+                      borderRadius: "8px",
+                      color: status === "FAILED" ? "#F87171" : "#818CF8",
+                      borderColor: status === "FAILED" ? "rgba(239, 68, 68, 0.4)" : "rgba(129, 140, 248, 0.35)",
+                      bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.1)" : "rgba(99, 102, 241, 0.1)",
+                      "&:hover": {
+                        borderColor: status === "FAILED" ? "#F87171" : "#818CF8",
+                        bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.2)" : "rgba(99, 102, 241, 0.2)",
+                      },
+                    }}
+                  >
+                    {status === "FAILED" ? "Inspect Vendor Switch Failure Logs" : "Inspect Outbound Gateway Telemetry"}
                   </Button>
 
                   <Button

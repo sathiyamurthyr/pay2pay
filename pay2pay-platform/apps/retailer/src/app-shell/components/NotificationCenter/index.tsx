@@ -31,6 +31,36 @@ export interface NotificationItem {
   created_at: string;
 }
 
+export const getStatusChipColor = (status?: string) => {
+  const s = String(status || "INFO").toUpperCase();
+  if (s === "SUCCESS") {
+    return {
+      bg: "rgba(34, 197, 94, 0.12)",
+      text: "#4ADE80",
+      border: "1px solid rgba(34, 197, 94, 0.3)",
+    };
+  }
+  if (s === "FAILED" || s === "REVERSED") {
+    return {
+      bg: "rgba(239, 68, 68, 0.12)",
+      text: "#F87171",
+      border: "1px solid rgba(239, 68, 68, 0.3)",
+    };
+  }
+  if (s === "PENDING" || s === "PROCESSING") {
+    return {
+      bg: "rgba(245, 158, 11, 0.12)",
+      text: "#FBBF24",
+      border: "1px solid rgba(245, 158, 11, 0.3)",
+    };
+  }
+  return {
+    bg: "rgba(59, 130, 246, 0.12)",
+    text: "#60A5FA",
+    border: "1px solid rgba(59, 130, 246, 0.25)",
+  };
+};
+
 export const NotificationCenter: React.FC<{
   userId?: string;
   tenantId?: string;
@@ -230,36 +260,6 @@ export const NotificationCenter: React.FC<{
     } catch {
       return "";
     }
-  };
-
-  const getStatusChipColor = (status?: string) => {
-    const s = String(status || "INFO").toUpperCase();
-    if (s === "SUCCESS") {
-      return {
-        bg: "rgba(34, 197, 94, 0.12)",
-        text: "#4ADE80",
-        border: "1px solid rgba(34, 197, 94, 0.3)",
-      };
-    }
-    if (s === "FAILED" || s === "REVERSED") {
-      return {
-        bg: "rgba(239, 68, 68, 0.12)",
-        text: "#F87171",
-        border: "1px solid rgba(239, 68, 68, 0.3)",
-      };
-    }
-    if (s === "PENDING" || s === "PROCESSING") {
-      return {
-        bg: "rgba(245, 158, 11, 0.12)",
-        text: "#FBBF24",
-        border: "1px solid rgba(245, 158, 11, 0.3)",
-      };
-    }
-    return {
-      bg: "rgba(59, 130, 246, 0.12)",
-      text: "#60A5FA",
-      border: "1px solid rgba(59, 130, 246, 0.25)",
-    };
   };
 
   const getNotificationIcon = (item: NotificationItem) => {

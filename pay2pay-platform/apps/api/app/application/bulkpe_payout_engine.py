@@ -416,7 +416,7 @@ class BulkPePayoutEngine:
             stmt_bm_acc = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.account_number == str(final_acc_num).strip())
             bm_acc_obj = (await db.execute(stmt_bm_acc)).scalars().first()
             if bm_acc_obj:
-                eff_bene_master_ref_id = bm_acc_obj.beneficiary_master_ref_id
+                eff_bene_master_ref_id = getattr(bm_acc_obj, "beneficiary_master_ref_id", None) or getattr(bm_acc_obj, "id", None)
 
         # Resolve active vendor provider to determine transaction prefix
         from app.application.wowpe_client import WowPeApiClient
@@ -740,6 +740,42 @@ class BulkPePayoutEngine:
         vendor_tx_id = api_res.get("vendor_tx_id") or api_res.get("order_id")
         utr = api_res.get("utr")
         rrn = api_res.get("rrn")
+
+        # ----------------------------------------------------
+        # Outbound Vendor API Log (Enterprise Centralized Telemetry)
+        # ----------------------------------------------------
+        try:
+            from app.core.outbound_api_logger import log_outbound_api_call
+            await log_outbound_api_call(
+                provider_name=executed_vendor,
+                service_name="PAYOUT",
+                endpoint="/initiatepayout",
+                http_method="POST",
+                base_url_reference="https://api.bulkpe.in" if executed_vendor == "BulkPe" else "https://api.wowpe.in",
+                api_name=f"{executed_vendor} Bank Payout Transfer",
+                transaction_id=tx_number,
+                request_id=f"REQ-{tx_number}",
+                correlation_id=f"CORR-{tx_number}",
+                client_reference_id=merchant_ref,
+                provider_reference_id=api_res.get("vendor_tx_id") or api_res.get("vendor_ref") or api_res.get("order_id") or utr,
+                request_body=api_res.get("request_payload"),
+                response_body=api_res.get("response_payload"),
+                http_status_code=int(api_res.get("http_status") or (200 if api_res.get("status") in ("SUCCESS", "PENDING") else 400)),
+                duration_ms=float(api_res.get("latency_ms", 350.0) or 350.0),
+                response_status="SUCCESS" if api_res.get("status") in ("SUCCESS", "PENDING") else "FAILED",
+                provider_response_code=str(api_res.get("code") or api_res.get("http_status") or ""),
+                provider_response_message=api_res.get("message"),
+                error_code=None if api_res.get("status") in ("SUCCESS", "PENDING") else "VENDOR_ERROR",
+                error_message=None if api_res.get("status") in ("SUCCESS", "PENDING") else str(api_res.get("message") or "Vendor Payout Execution Failed"),
+                failure_reason=None if api_res.get("status") in ("SUCCESS", "PENDING") else str(api_res.get("message") or "Vendor API rejected transaction"),
+                retailer_id=str(retailer_id) if retailer_id else None,
+                customer_id=str(customer_id) if customer_id else None,
+                tenant_id=uuid.UUID(str(tenant_id)) if tenant_id else None,
+            )
+        except Exception as log_ex:
+            import logging
+            logging.getLogger("payout_engine").warning(f"[OUTBOUND LOG FAILED] {log_ex}")
+
 
         # ----------------------------------------------------
         # 5. POST API STATUS HANDLING & AUTOMATIC REVERSAL

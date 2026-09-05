@@ -1000,7 +1000,7 @@ class PayoutWorkflowService:
             stmt_bm_acc = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.account_number == str(acc_num).strip())
             bm_acc_obj = (await db.execute(stmt_bm_acc)).scalars().first()
             if bm_acc_obj:
-                eff_bm_ref_id = bm_acc_obj.beneficiary_master_ref_id
+                eff_bm_ref_id = getattr(bm_acc_obj, "beneficiary_master_ref_id", None) or getattr(bm_acc_obj, "id", None)
 
         ret_stmt = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
         ret_obj = (await db.execute(ret_stmt)).scalars().first()
