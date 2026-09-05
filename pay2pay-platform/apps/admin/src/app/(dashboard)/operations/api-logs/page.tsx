@@ -146,6 +146,7 @@ function EnterpriseApiLogsContent() {
   const [metrics, setMetrics] = useState<ApiLogMetrics | null>(null);
 
   // Filters
+  const [searchInput, setSearchInput] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [selectedService, setSelectedService] = useState<string>("ALL");
   const [selectedDirection, setSelectedDirection] = useState<string>("ALL");
@@ -167,6 +168,7 @@ function EnterpriseApiLogsContent() {
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
   const [logDetail, setLogDetail] = useState<ApiLogDetail | null>(null);
   const [activeDrawerTab, setActiveDrawerTab] = useState<"overview" | "request" | "response" | "error" | "trace">("overview");
+  const [payloadViewMode, setPayloadViewMode] = useState<"formatted" | "raw">("formatted");
   const [traceLoading, setTraceLoading] = useState<boolean>(false);
   const [traceSteps, setTraceSteps] = useState<TraceStep[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -229,10 +231,12 @@ function EnterpriseApiLogsContent() {
 
     if (txnParam) {
       setSearch(txnParam);
+      setSearchInput(txnParam);
       setActiveDeepLinkTxn(txnParam);
       setSelectedDatePreset("ALL"); // Expand date range to find specific transaction across history
     } else if (searchParam) {
       setSearch(searchParam);
+      setSearchInput(searchParam);
     }
   }, [searchParams]);
 
@@ -340,6 +344,15 @@ function EnterpriseApiLogsContent() {
     fetchServices();
     fetchMetrics();
   }, []);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     fetchLogs();
@@ -791,31 +804,56 @@ function EnterpriseApiLogsContent() {
       <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-4">
         {/* Search & Main Row */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-          {/* Search Box */}
-          <div className="lg:col-span-4 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          {/* Search Box with Action Buttons */}
+          <div className="lg:col-span-4 relative flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              value={search}
+              value={searchInput}
               onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
+                setSearchInput(e.target.value);
               }}
-              placeholder="Search Log ID, Txn ID, Req ID, Endpoint, Provider..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 transition-all font-mono"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setSearch(searchInput);
+                  if (searchInput.trim() && selectedDatePreset === "TODAY") {
+                    setSelectedDatePreset("ALL");
+                  }
+                  setPage(1);
+                }
+              }}
+              placeholder="Search Log ID, Txn ID, Req ID, Endpoint, Vendor, Error..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-16 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 transition-all font-mono"
             />
-            {search && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searchInput && (
+                <button
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearch("");
+                    setActiveDeepLinkTxn(null);
+                    setPage(1);
+                  }}
+                  className="p-1 text-slate-500 hover:text-slate-300"
+                  title="Clear Search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 onClick={() => {
-                  setSearch("");
-                  setActiveDeepLinkTxn(null);
+                  setSearch(searchInput);
+                  if (searchInput.trim() && selectedDatePreset === "TODAY") {
+                    setSelectedDatePreset("ALL");
+                  }
                   setPage(1);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-semibold transition-all shadow-sm"
+                title="Search Logs"
               >
-                <X className="w-3.5 h-3.5" />
+                Go
               </button>
-            )}
+            </div>
           </div>
 
           {/* Service Dropdown */}
@@ -1107,11 +1145,19 @@ function EnterpriseApiLogsContent() {
                             {log.provider_name || providerBadge.label}
                           </span>
                         ) : (
-                          <div className="flex items-center gap-1.5 text-slate-300 font-medium">
-                            <Building className="w-3.5 h-3.5 text-slate-500" />
-                            <span className="truncate max-w-[120px]" title={log.client_name || log.retailer_id || "Retailer Portal"}>
-                              {log.client_name || (log.retailer_id ? `Retailer: ${log.retailer_id}` : "Retailer Portal")}
-                            </span>
+                          <div className="space-y-1">
+                            {log.provider_name && log.provider_name !== "Enterprise Platform Core" && log.provider_name !== "Enterprise API" && (
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${providerBadge.bg}`}>
+                                <Globe className="w-2.5 h-2.5" />
+                                {log.provider_name}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-1.5 text-slate-300 font-medium">
+                              <Building className="w-3.5 h-3.5 text-slate-500" />
+                              <span className="truncate max-w-[120px]" title={log.client_name || log.retailer_id || "Retailer Portal"}>
+                                {log.client_name || (log.retailer_id ? `Retailer: ${log.retailer_id}` : "Retailer Portal")}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </td>
@@ -1651,21 +1697,52 @@ function EnterpriseApiLogsContent() {
                               </span>
                             )}
                           </div>
-                          <button
-                            onClick={() =>
-                              handleCopy(
-                                typeof logDetail.request_body === "string"
-                                  ? logDetail.request_body
-                                  : JSON.stringify(logDetail.request_body || {}, null, 2),
-                                "req_body_copy"
-                              )
-                            }
-                            className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                          >
-                            <Copy className="w-3 h-3" /> Copy Body
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center bg-slate-950 border border-slate-800 rounded p-0.5 text-[11px]">
+                              <button
+                                onClick={() => setPayloadViewMode("formatted")}
+                                className={`px-2 py-0.5 rounded transition-all ${
+                                  payloadViewMode === "formatted"
+                                    ? "bg-indigo-600 text-white font-semibold"
+                                    : "text-slate-400 hover:text-slate-200"
+                                }`}
+                              >
+                                JSON
+                              </button>
+                              <button
+                                onClick={() => setPayloadViewMode("raw")}
+                                className={`px-2 py-0.5 rounded transition-all ${
+                                  payloadViewMode === "raw"
+                                    ? "bg-indigo-600 text-white font-semibold"
+                                    : "text-slate-400 hover:text-slate-200"
+                                }`}
+                              >
+                                Raw
+                              </button>
+                            </div>
+                            <button
+                              onClick={() =>
+                                handleCopy(
+                                  logDetail.request_body_raw ||
+                                    (typeof logDetail.request_body === "string"
+                                      ? logDetail.request_body
+                                      : JSON.stringify(logDetail.request_body || {}, null, 2)),
+                                  "req_body_copy"
+                                )
+                              }
+                              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                            >
+                              <Copy className="w-3 h-3" /> Copy Body
+                            </button>
+                          </div>
                         </div>
-                        {renderFormattedJson(logDetail.request_body || logDetail.request_body_raw)}
+                        {payloadViewMode === "raw" && logDetail.request_body_raw ? (
+                          <pre className="p-4 bg-slate-950 font-mono text-xs text-slate-200 rounded-lg overflow-x-auto border border-slate-800 leading-relaxed whitespace-pre-wrap max-h-96">
+                            {logDetail.request_body_raw}
+                          </pre>
+                        ) : (
+                          renderFormattedJson(logDetail.request_body || logDetail.request_body_raw)
+                        )}
                       </div>
                     </div>
                   )}
@@ -1728,36 +1805,60 @@ function EnterpriseApiLogsContent() {
                           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                             Response Body Payload
                           </h3>
-                          <button
-                            onClick={() => {
-                              const effPayload =
-                                logDetail.response_body ||
-                                logDetail.response_body_raw ||
-                                (logDetail.http_status >= 400 || logDetail.response_status === "FAILED" || logDetail.error_message || logDetail.stack_trace
-                                  ? {
-                                      status: logDetail.response_status || "FAILED",
-                                      statusCode: logDetail.http_status || 500,
-                                      error: logDetail.error_type || "InternalServerError",
-                                      errorCode: logDetail.error_code || "ERR_500",
-                                      message: logDetail.error_message || logDetail.provider_response_message || "Internal server error occurred during request execution.",
-                                      failureReason: logDetail.failure_reason || "Unhandled Exception",
-                                      endpoint: logDetail.endpoint,
-                                      requestId: logDetail.request_id,
-                                      timestamp: logDetail.response_timestamp || logDetail.timestamp,
-                                      stackTrace: logDetail.stack_trace || "No server stack trace provided."
-                                    }
-                                  : null);
-                              handleCopy(
-                                typeof effPayload === "string"
-                                  ? effPayload
-                                  : JSON.stringify(effPayload || {}, null, 2),
-                                "res_body_copy"
-                              );
-                            }}
-                            className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                          >
-                            <Copy className="w-3 h-3" /> Copy Body
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center bg-slate-950 border border-slate-800 rounded p-0.5 text-[11px]">
+                              <button
+                                onClick={() => setPayloadViewMode("formatted")}
+                                className={`px-2 py-0.5 rounded transition-all ${
+                                  payloadViewMode === "formatted"
+                                    ? "bg-indigo-600 text-white font-semibold"
+                                    : "text-slate-400 hover:text-slate-200"
+                                }`}
+                              >
+                                JSON
+                              </button>
+                              <button
+                                onClick={() => setPayloadViewMode("raw")}
+                                className={`px-2 py-0.5 rounded transition-all ${
+                                  payloadViewMode === "raw"
+                                    ? "bg-indigo-600 text-white font-semibold"
+                                    : "text-slate-400 hover:text-slate-200"
+                                }`}
+                              >
+                                Raw
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const effPayload =
+                                  logDetail.response_body_raw ||
+                                  logDetail.response_body ||
+                                  (logDetail.http_status >= 400 || logDetail.response_status === "FAILED" || logDetail.error_message || logDetail.stack_trace
+                                    ? {
+                                        status: logDetail.response_status || "FAILED",
+                                        statusCode: logDetail.http_status || 500,
+                                        error: logDetail.error_type || "InternalServerError",
+                                        errorCode: logDetail.error_code || "ERR_500",
+                                        message: logDetail.error_message || logDetail.provider_response_message || "Internal server error occurred during request execution.",
+                                        failureReason: logDetail.failure_reason || "Unhandled Exception",
+                                        endpoint: logDetail.endpoint,
+                                        requestId: logDetail.request_id,
+                                        timestamp: logDetail.response_timestamp || logDetail.timestamp,
+                                        stackTrace: logDetail.stack_trace || "No server stack trace provided."
+                                      }
+                                    : null);
+                                handleCopy(
+                                  typeof effPayload === "string"
+                                    ? effPayload
+                                    : JSON.stringify(effPayload || {}, null, 2),
+                                  "res_body_copy"
+                                );
+                              }}
+                              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                            >
+                              <Copy className="w-3 h-3" /> Copy Body
+                            </button>
+                          </div>
                         </div>
 
                         {(logDetail.http_status >= 400 || logDetail.response_status === "FAILED") && (
@@ -1779,26 +1880,32 @@ function EnterpriseApiLogsContent() {
                           </div>
                         )}
 
-                        {(() => {
-                          const effPayload =
-                            logDetail.response_body ||
-                            logDetail.response_body_raw ||
-                            (logDetail.http_status >= 400 || logDetail.response_status === "FAILED" || logDetail.error_message || logDetail.stack_trace
-                              ? {
-                                  status: logDetail.response_status || "FAILED",
-                                  statusCode: logDetail.http_status || 500,
-                                  error: logDetail.error_type || "InternalServerError",
-                                  errorCode: logDetail.error_code || "ERR_500",
-                                  message: logDetail.error_message || logDetail.provider_response_message || "Internal server error occurred during request execution.",
-                                  failureReason: logDetail.failure_reason || "Unhandled Exception",
-                                  endpoint: logDetail.endpoint,
-                                  requestId: logDetail.request_id,
-                                  timestamp: logDetail.response_timestamp || logDetail.timestamp,
-                                  stackTrace: logDetail.stack_trace || "No server stack trace provided."
-                                }
-                              : null);
-                          return renderFormattedJson(effPayload, logDetail.http_status >= 400 || logDetail.response_status === "FAILED");
-                        })()}
+                        {payloadViewMode === "raw" && logDetail.response_body_raw ? (
+                          <pre className="p-4 bg-slate-950 font-mono text-xs text-slate-200 rounded-lg overflow-x-auto border border-slate-800 leading-relaxed whitespace-pre-wrap max-h-96">
+                            {logDetail.response_body_raw}
+                          </pre>
+                        ) : (
+                          (() => {
+                            const effPayload =
+                              logDetail.response_body ||
+                              logDetail.response_body_raw ||
+                              (logDetail.http_status >= 400 || logDetail.response_status === "FAILED" || logDetail.error_message || logDetail.stack_trace
+                                ? {
+                                    status: logDetail.response_status || "FAILED",
+                                    statusCode: logDetail.http_status || 500,
+                                    error: logDetail.error_type || "InternalServerError",
+                                    errorCode: logDetail.error_code || "ERR_500",
+                                    message: logDetail.error_message || logDetail.provider_response_message || "Internal server error occurred during request execution.",
+                                    failureReason: logDetail.failure_reason || "Unhandled Exception",
+                                    endpoint: logDetail.endpoint,
+                                    requestId: logDetail.request_id,
+                                    timestamp: logDetail.response_timestamp || logDetail.timestamp,
+                                    stackTrace: logDetail.stack_trace || "No server stack trace provided."
+                                  }
+                                : null);
+                            return renderFormattedJson(effPayload, logDetail.http_status >= 400 || logDetail.response_status === "FAILED");
+                          })()
+                        )}
                       </div>
                     </div>
                   )}
@@ -1829,6 +1936,13 @@ function EnterpriseApiLogsContent() {
                               <div className="text-xs text-slate-300">
                                 <span className="text-slate-500">Provider Message:</span>{" "}
                                 <span className="font-mono text-amber-300">{logDetail.provider_response_message}</span>
+                              </div>
+                            )}
+
+                            {logDetail.failure_reason && (
+                              <div className="text-xs text-slate-300">
+                                <span className="text-slate-500">Failure Reason:</span>{" "}
+                                <span className="font-mono text-rose-300 font-semibold">{logDetail.failure_reason}</span>
                               </div>
                             )}
 

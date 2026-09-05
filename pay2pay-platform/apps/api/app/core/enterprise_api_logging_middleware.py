@@ -70,6 +70,41 @@ def infer_service_name(path: str) -> str:
     return "GENERAL"
 
 
+def infer_provider_name(path: str, headers: dict, req_payload: Any = None) -> str:
+    p = path.lower()
+    if "bulkpe" in p:
+        return "BulkPe"
+    if "wowpe" in p:
+        return "WowPe"
+    if "urbanrupee" in p:
+        return "UrbanRupee"
+    if "utkal" in p:
+        return "UtkalDigital"
+    if "cashfree" in p:
+        return "Cashfree"
+    if "aadhaar" in p or "ekyc" in p:
+        return "Aadhaar / UIDAI"
+    if "pan" in p or "nsdl" in p:
+        return "NSDL / Protean"
+    if "bbps" in p or "bill" in p:
+        return "Bharat BillPay (NPCI)"
+    if "recharge" in p:
+        return "Recharge Switch"
+
+    # Check payload if dictionary
+    if isinstance(req_payload, dict):
+        prov = req_payload.get("provider") or req_payload.get("vendor") or req_payload.get("vendor_name") or req_payload.get("gateway")
+        if prov:
+            return str(prov)
+
+    # Check vendor header
+    vh = headers.get("x-provider-name") or headers.get("x-vendor") or headers.get("x-gateway")
+    if vh:
+        return str(vh)
+
+    return "Enterprise Platform Core"
+
+
 def infer_api_name(path: str, method: str) -> str:
     parts = [part for part in path.strip("/").split("/") if part and part not in ("api", "v1")]
     if not parts:
@@ -275,6 +310,7 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
                 "environment": "PRODUCTION",
                 "client_name": client_name,
                 "client_ip": client_ip,
+                "provider_name": infer_provider_name(path, dict(request.headers), req_json),
                 "retailer_id": str(retailer_id) if retailer_id else None,
                 "request_timestamp": req_timestamp,
                 "response_timestamp": res_timestamp,

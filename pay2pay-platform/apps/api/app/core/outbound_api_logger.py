@@ -44,12 +44,14 @@ async def log_outbound_api_call(
     error_type: Optional[str] = None,
     error_message: Optional[str] = None,
     stack_trace: Optional[str] = None,
+    failure_reason: Optional[str] = None,
     retailer_id: Optional[str] = None,
     customer_id: Optional[str] = None,
     performed_by: Optional[str] = "System Gateway",
     tenant_id: Optional[uuid.UUID] = None,
     company_id: Optional[uuid.UUID] = None,
     environment: str = "PRODUCTION",
+    **kwargs: Any,
 ) -> Optional[str]:
     """
     Persists an OUTBOUND vendor/provider API call to the enterprise_api_log table.
@@ -112,6 +114,7 @@ async def log_outbound_api_call(
             error_type=error_type,
             error_message=error_message,
             stack_trace=stack_trace,
+            failure_reason=failure_reason,
             request_headers=clean_req_headers,
             request_query=request_query,
             request_body=req_json,
