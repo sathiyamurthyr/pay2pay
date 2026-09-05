@@ -24,6 +24,7 @@ export interface CustomerData {
   relationshipManager?: string;
   mpin_enabled?: boolean;
   category?: string;
+  customer_category?: string;
   kycLevel?: string;
   kyc_level?: string;
   photo_url?: string;
@@ -36,6 +37,8 @@ export interface CustomerData {
   aadhaar_masked?: string;
   full_address?: string;
   beneficiaries?: any[];
+  monthly_remaining?: number;
+  daily_remaining?: number;
 }
 
 export function useCustomer() {
@@ -45,17 +48,6 @@ export function useCustomer() {
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Clear any legacy storage artifacts on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem("pay2pay_transaction_memory");
-        localStorage.removeItem("pay2pay_registered_customers");
-        sessionStorage.removeItem("pay2pay_transaction_memory");
-        sessionStorage.removeItem("pay2pay_registered_customers");
-      } catch {}
-    }
-  }, []);
 
   const searchCustomer = useCallback(async (query: string) => {
     const trimmedQuery = query ? query.trim() : "";
@@ -80,14 +72,14 @@ export function useCustomer() {
         const currentWalletBal = useRetailerStore.getState()?.wallet?.mainBalance ?? 0;
         const isAadhaarVerified = Boolean(
           c.aadhaar_verified === true ||
-          c.aadhaar_verification_status === "VERIFIED" ||
-          c.aadhaarVerificationStatus === "VERIFIED" ||
-          c.aadhaar_status === "VERIFIED" ||
-          c.kyc_status === "VERIFIED" ||
-          c.kyc_status === "APPROVED" ||
-          c.kycStatus === "VERIFIED" ||
-          c.kyc_level === "FULL_KYC" ||
-          c.kycLevel === "FULL_KYC"
+          String(c.aadhaar_verified).toLowerCase() === "true" ||
+          (typeof c.aadhaar_verification_status === "string" && c.aadhaar_verification_status.toUpperCase() === "VERIFIED") ||
+          (typeof c.aadhaarVerificationStatus === "string" && c.aadhaarVerificationStatus.toUpperCase() === "VERIFIED") ||
+          (typeof c.aadhaar_status === "string" && c.aadhaar_status.toUpperCase() === "VERIFIED") ||
+          (typeof c.kyc_status === "string" && (c.kyc_status.toUpperCase() === "VERIFIED" || c.kyc_status.toUpperCase() === "APPROVED")) ||
+          (typeof c.kycStatus === "string" && (c.kycStatus.toUpperCase() === "VERIFIED" || c.kycStatus.toUpperCase() === "APPROVED")) ||
+          (typeof c.kyc_level === "string" && c.kyc_level.toUpperCase() === "FULL_KYC") ||
+          (typeof c.kycLevel === "string" && c.kycLevel.toUpperCase() === "FULL_KYC")
         );
 
         const custData: CustomerData = {
