@@ -86,10 +86,14 @@ class PayoutWorkflowService:
             p_obj = res_p.scalars().first()
             p_url = p_obj.photo_url if p_obj else ""
 
-            # Aadhaar verification status from CustomerKycModel
+            # Aadhaar verification status from CustomerKycModel or Customer status
             res_k = await db.execute(select(CustomerKycModel).where(CustomerKycModel.customer_id == c.public_id))
             kyc_obj = res_k.scalars().first()
-            aadhaar_verified = bool(kyc_obj and kyc_obj.aadhaar_verified)
+            aadhaar_verified = bool(
+                (kyc_obj and kyc_obj.aadhaar_verified) or
+                (c.kyc_status and str(c.kyc_status).upper() in ["VERIFIED", "APPROVED"]) or
+                (c.kyc_level and str(c.kyc_level).upper() in ["FULL_KYC", "AADHAAR_KYC"])
+            )
             aadhaar_verification_status = "VERIFIED" if aadhaar_verified else "PENDING"
 
             # Masked Aadhaar from CustomerIdentityModel

@@ -696,23 +696,40 @@ export const retailerApi = {
       const res = await apiClient.get(`/customers/?query=${encodeURIComponent(normalizedQuery)}`);
       if (res.status === 200 && res.data && Array.isArray(res.data.data)) {
         const rawList = res.data.data;
-        const mapped = rawList.map((c: any) => ({
-          public_id: c.public_id || c.id || `c-${Date.now()}`,
-          customer_number: c.customer_number || `CUST${c.mobile_number?.slice(-4) || '0000'}`,
-          full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
-          mobile_number: c.mobile_number || query,
-          kyc_status: c.kyc_status || "VERIFIED",
-          kyc_level: c.kyc_level || "FULL_KYC",
-          risk_score: c.risk_score || 15,
-          monthly_limit: c.monthly_limit || 200000.0,
-          monthly_used: c.monthly_used || 0.0,
-          monthly_remaining: c.monthly_remaining || 200000.0,
-          aadhaar_status: "VERIFIED",
-          pan_status: "VERIFIED",
-          pin_status: "SET",
-          last_transaction: "Today",
-          onboarding_complete: true,
-        }));
+        const mapped = rawList.map((c: any) => {
+          const isAadhaarVerified = Boolean(
+            c.aadhaar_verified === true ||
+            c.aadhaar_verification_status === "VERIFIED" ||
+            c.aadhaarVerificationStatus === "VERIFIED" ||
+            c.aadhaar_status === "VERIFIED" ||
+            c.kyc_status === "VERIFIED" ||
+            c.kyc_status === "APPROVED" ||
+            c.kyc_level === "FULL_KYC"
+          );
+          return {
+            ...c,
+            public_id: c.public_id || c.id || `c-${Date.now()}`,
+            customer_number: c.customer_number || `CUST${c.mobile_number?.slice(-4) || '0000'}`,
+            full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || "Customer",
+            mobile_number: c.mobile_number || query,
+            kyc_status: c.kyc_status || "VERIFIED",
+            kyc_level: c.kyc_level || "FULL_KYC",
+            risk_score: c.risk_score || 15,
+            monthly_limit: c.monthly_limit || 200000.0,
+            monthly_used: c.monthly_used || 0.0,
+            monthly_remaining: c.monthly_remaining || 200000.0,
+            aadhaar_verified: isAadhaarVerified,
+            aadhaar_verification_status: isAadhaarVerified ? "VERIFIED" : "PENDING",
+            aadhaarVerificationStatus: isAadhaarVerified ? "VERIFIED" : "PENDING",
+            aadhaar_status: isAadhaarVerified ? "VERIFIED" : "PENDING",
+            aadhaar_masked: c.masked_aadhaar || c.aadhaar_masked || "",
+            pan_status: "VERIFIED",
+            pin_status: "SET",
+            last_transaction: "Today",
+            onboarding_complete: true,
+            beneficiaries: c.beneficiaries || [],
+          };
+        });
         return { status: "SUCCESS", data: mapped };
       }
     } catch (err: any) {}

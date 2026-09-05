@@ -68,6 +68,8 @@ class CustomerResponse(BaseModel):
     photo_url: Optional[str] = None
     photo_base64: Optional[str] = None
     masked_aadhaar: Optional[str] = None
+    aadhaar_verified: bool = False
+    aadhaar_verification_status: str = "PENDING"
     beneficiaries: List[Dict[str, Any]] = []
 
 

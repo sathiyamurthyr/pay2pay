@@ -67,9 +67,17 @@ def _to_customer_response(
     photo_url: Optional[str] = None, 
     photo_base64: Optional[str] = None, 
     masked_aadhaar: Optional[str] = None,
-    beneficiaries: Optional[List[Dict[str, Any]]] = None
+    beneficiaries: Optional[List[Dict[str, Any]]] = None,
+    aadhaar_verified: Optional[bool] = None,
+    aadhaar_verification_status: Optional[str] = None,
 ) -> CustomerResponse:
     formatted_photo = _format_photo_url(photo_url or photo_base64)
+    is_aadhaar_verified = bool(
+        aadhaar_verified or 
+        (c.kyc_status and str(c.kyc_status).upper() in ["VERIFIED", "APPROVED"]) or 
+        (c.kyc_level and str(c.kyc_level).upper() in ["FULL_KYC", "AADHAAR_KYC"])
+    )
+    status_str = "VERIFIED" if is_aadhaar_verified else (aadhaar_verification_status or "PENDING")
     return CustomerResponse(
         public_id=c.public_id,
         customer_number=c.customer_number,
@@ -91,6 +99,8 @@ def _to_customer_response(
         photo_url=formatted_photo,
         photo_base64=formatted_photo,
         masked_aadhaar=masked_aadhaar,
+        aadhaar_verified=is_aadhaar_verified,
+        aadhaar_verification_status=status_str,
         beneficiaries=beneficiaries or [],
     )
 
@@ -205,7 +215,25 @@ class CustomerService:
                     "isVerified": b_item.verification_status == "VERIFIED"
                 })
 
-            responses.append(_to_customer_response(c, photo_url=p_url, photo_base64=p_url, masked_aadhaar=m_aadhaar, beneficiaries=b_list))
+            res_k = await db.execute(select(CustomerKycModel).where(
+                CustomerKycModel.customer_id == c.public_id).order_by(CustomerKycModel.created_date.desc()).limit(1))
+            kyc_obj = res_k.scalar_one_or_none()
+            is_aadhaar_verified = bool(
+                (kyc_obj and kyc_obj.aadhaar_verified) or
+                (c.kyc_status and str(c.kyc_status).upper() in ["VERIFIED", "APPROVED"]) or
+                (c.kyc_level and str(c.kyc_level).upper() in ["FULL_KYC", "AADHAAR_KYC"])
+            )
+            aadhaar_status = "VERIFIED" if is_aadhaar_verified else "PENDING"
+
+            responses.append(_to_customer_response(
+                c, 
+                photo_url=p_url, 
+                photo_base64=p_url, 
+                masked_aadhaar=m_aadhaar, 
+                beneficiaries=b_list,
+                aadhaar_verified=is_aadhaar_verified,
+                aadhaar_verification_status=aadhaar_status
+            ))
         return responses
 
     @staticmethod
@@ -222,7 +250,24 @@ class CustomerService:
         id_obj = res_i.scalars().first()
         m_aadhaar = id_obj.identity_number_masked if id_obj else None
 
-        return _to_customer_response(c, photo_url=p_url, photo_base64=p_url, masked_aadhaar=m_aadhaar)
+        res_k = await db.execute(select(CustomerKycModel).where(
+            CustomerKycModel.customer_id == c.public_id).order_by(CustomerKycModel.created_date.desc()).limit(1))
+        kyc_obj = res_k.scalar_one_or_none()
+        is_aadhaar_verified = bool(
+            (kyc_obj and kyc_obj.aadhaar_verified) or
+            (c.kyc_status and str(c.kyc_status).upper() in ["VERIFIED", "APPROVED"]) or
+            (c.kyc_level and str(c.kyc_level).upper() in ["FULL_KYC", "AADHAAR_KYC"])
+        )
+        aadhaar_status = "VERIFIED" if is_aadhaar_verified else "PENDING"
+
+        return _to_customer_response(
+            c, 
+            photo_url=p_url, 
+            photo_base64=p_url, 
+            masked_aadhaar=m_aadhaar,
+            aadhaar_verified=is_aadhaar_verified,
+            aadhaar_verification_status=aadhaar_status
+        )
 
     @staticmethod
     async def _find_customer_model(db: AsyncSession, customer_id: Union[uuid.UUID, str]) -> Optional[CustomerModel]:
