@@ -223,68 +223,38 @@ export function classifyApiError(err: any, endpoint: string) {
 }
 
 export const retailerApi = {
-  // ── Fast Dedicated User Wallet Balance (Standardized public.get_user_wallet) ──
+  // ── Live Wallet Balance — same source as navbar WalletSyncProvider ──
+  // Uses /header-wallet with NO query params.
+  // The backend resolves the authenticated retailer from the JWT Bearer token.
+  // Zero localStorage reads — identity comes from the server session only.
   getWalletBalance: async () => {
     try {
-      let activeUserRefId: any = null;
-      let activeRetailerId = "";
-      if (typeof window !== "undefined") {
-        try {
-          const userStr =
-            localStorage.getItem("user_info") ||
-            localStorage.getItem("user") ||
-            localStorage.getItem("auth_user") ||
-            localStorage.getItem("pay2pay_user_data");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            activeUserRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
-            activeRetailerId = u.retailer_code || u.retailer_id || u.mobile || u.mobile_number || u.id || "";
-          }
-        } catch {}
-        if (!activeRetailerId) {
-          activeRetailerId =
-            localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            localStorage.getItem("pay2pay_reg_id") ||
-            "";
-        }
-      }
-      const params: any = { user_type_ref_id: 2 };
-      if (activeUserRefId) params.user_ref_id = activeUserRefId;
-      if (activeRetailerId) params.retailer_id = activeRetailerId;
-
-      // Call standardized user wallet endpoint
-      const res = await apiClient.get("/api/v1/wallet-ledger/user-wallet", { params });
-      const rawData = res.data;
-      const data = rawData.data || rawData;
+      const res = await apiClient.get("/api/v1/payout/dashboard/retailer/header-wallet");
+      const data = res.data;
       const bal =
         typeof data.wallet_balance === "number"
           ? data.wallet_balance
-          : typeof data.balance === "number"
-          ? data.balance
           : typeof data.available_balance === "number"
           ? data.available_balance
-          : typeof data.mainBalance === "number"
-          ? data.mainBalance
+          : typeof data.balance === "number"
+          ? data.balance
           : 0.00;
 
-      // No localStorage write — wallet balance lives in WalletSyncProvider state only
       return {
         success: true,
         mainBalance: bal,
         wallet_balance: bal,
-        available_balance: bal,
-        wallet_status: data.wallet_status || "ACTIVE",
-        is_active: data.is_active ?? true,
-        is_frozen: data.is_frozen ?? false,
-        commissionBalance: data.commissionBalance || 0.00,
-        todayMargin: data.todayMargin || 0.00,
-        todayTxnCount: data.todayTxnCount || 0,
-        todaySettlement: data.todaySettlement || 0.00,
+        available_balance: typeof data.available_balance === "number" ? data.available_balance : bal,
+        wallet_status: data.status || "ACTIVE",
+        is_active: data.is_approved ?? true,
+        is_frozen: false,
+        commissionBalance: data.todays_commission || 0.00,
+        todayMargin: data.todays_commission || 0.00,
+        todayTxnCount: 0,
+        todaySettlement: data.settlement_pending_amount || 0.00,
         ...data,
       };
     } catch {
-      // Return 0 on failure — stale localStorage balance must not be used
       return {
         success: false,
         mainBalance: 0.00,
