@@ -1,6 +1,7 @@
 import uuid
-from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends, Query, Request
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +11,38 @@ from app.application.dependencies import get_current_user, get_current_tenant_id
 from app.infrastructure.db.models import AdminUserModel, AuditLogModel
 
 router = APIRouter(prefix="/audit-logs", tags=["Audit Trail"])
+
+
+class AuditLogCreateReq(BaseModel):
+    event_type: Optional[str] = None
+    action: Optional[str] = None
+    resource_type: Optional[str] = "SECURITY"
+    resource_id: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    details: Optional[Dict[str, Any]] = None
+    timestamp: Optional[str] = None
+
+
+@router.post("")
+async def create_audit_log_endpoint(
+    req: AuditLogCreateReq,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.presentation.api.v1.compliance import create_compliance_audit_log, AuditLogCreateRequest
+    return await create_compliance_audit_log(
+        AuditLogCreateRequest(
+            event_type=req.event_type,
+            action=req.action,
+            resource_type=req.resource_type,
+            resource_id=req.resource_id,
+            metadata=req.metadata,
+            details=req.details,
+            timestamp=req.timestamp
+        ),
+        request=request,
+        db=db
+    )
 
 
 @router.get("", response_model=List[AuditLogResponse])
