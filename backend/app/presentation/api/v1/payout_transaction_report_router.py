@@ -603,6 +603,8 @@ async def get_payout_transactions_report(
             pt.transaction_number ILIKE :search_val OR
             pt.utr_number ILIKE :search_val OR
             bm.account_holder_name ILIKE :search_val OR
+            bba.account_holder_name ILIKE :search_val OR
+            b.full_name ILIKE :search_val OR
             cu.full_name ILIKE :search_val OR
             r.store_name ILIKE :search_val OR
             r.legal_name ILIKE :search_val OR
@@ -613,8 +615,22 @@ async def get_payout_transactions_report(
     count_sql = f"""
     SELECT COUNT(*) 
     FROM public.payout_transaction pt
-    LEFT JOIN public.retailer r ON r.retailer_ref_id = pt.retailer_ref_id
-    LEFT JOIN public.beneficiary_master bm ON bm.beneficiary_master_ref_id = pt.beneficiary_master_ref_id
+    LEFT JOIN public.retailer r ON (r.retailer_ref_id = pt.user_ref_id AND pt.user_type_ref_id = 2) OR (r.retailer_ref_id = pt.retailer_ref_id)
+    LEFT JOIN LATERAL (
+        SELECT * FROM public.beneficiary_master bm_sub
+        WHERE bm_sub.public_id = pt.beneficiary_id
+           OR (pt.beneficiary_id IS NULL AND bm_sub.beneficiary_master_ref_id = pt.beneficiary_master_ref_id)
+        ORDER BY bm_sub.created_date DESC
+        LIMIT 1
+    ) bm ON true
+    LEFT JOIN public.beneficiary b ON b.public_id = pt.beneficiary_id
+    LEFT JOIN LATERAL (
+        SELECT * FROM public.beneficiary_bank_account bba_sub
+        WHERE bba_sub.beneficiary_id = pt.beneficiary_id
+           OR bba_sub.beneficiary_id = b.public_id
+        ORDER BY bba_sub.is_primary DESC, bba_sub.created_date DESC
+        LIMIT 1
+    ) bba ON true
     LEFT JOIN public.customer cu ON cu.customer_ref_id = pt.customer_ref_id
     LEFT JOIN public.company c ON c.company_ref_id = pt.company_ref_id
     WHERE {" AND ".join(where_clauses)};
@@ -690,7 +706,7 @@ async def get_payout_transactions_report(
         charge_val = round_curr(m.get("charge"))
         gst_val = round_curr(m.get("gst"))
         debit_val = round_curr(m.get("debit") or (amount_val + charge_val + gst_val))
-        masked_acc = m.get("account") or mask_account_number(m.get("raw_account"))
+        clear_acc = m.get("account") or m.get("raw_account") or ""
         sanitized_api_resp = sanitize_api_response(m.get("api_response") or m.get("raw_api_response"))
 
         # Role Visibility Construction
@@ -702,7 +718,7 @@ async def get_payout_transactions_report(
                 "retailer": m.get("retailer"),
                 "customer": m.get("customer"),
                 "beneficiary": m.get("beneficiary"),
-                "account": masked_acc,
+                "account": clear_acc,
                 "bank": m.get("bank"),
                 "ifsc": m.get("ifsc"),
                 "amount": amount_val,
@@ -724,7 +740,7 @@ async def get_payout_transactions_report(
                 "retailer": m.get("retailer"),
                 "customer": m.get("customer"),
                 "beneficiary": m.get("beneficiary"),
-                "account": masked_acc,
+                "account": clear_acc,
                 "bank": m.get("bank"),
                 "ifsc": m.get("ifsc"),
                 "amount": amount_val,
@@ -744,7 +760,7 @@ async def get_payout_transactions_report(
                 "retailer": m.get("retailer"),
                 "customer": m.get("customer"),
                 "beneficiary": m.get("beneficiary"),
-                "account": masked_acc,
+                "account": clear_acc,
                 "bank": m.get("bank"),
                 "ifsc": m.get("ifsc"),
                 "amount": amount_val,
@@ -764,7 +780,7 @@ async def get_payout_transactions_report(
                 "retailer": m.get("retailer"),
                 "customer": m.get("customer"),
                 "beneficiary": m.get("beneficiary"),
-                "account": masked_acc,
+                "account": clear_acc,
                 "bank": m.get("bank"),
                 "ifsc": m.get("ifsc"),
                 "amount": amount_val,

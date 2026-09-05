@@ -44,19 +44,21 @@ class ReorderFavoritesRequest(BaseModel):
 
 
 def _resolve_user_ref(user_ref_id: Optional[str], current_user: Optional[Any]) -> str:
-    """Helper to resolve a robust string user_ref_id."""
+    """Helper to resolve a robust string user_ref_id without hardcoding."""
     if user_ref_id and str(user_ref_id).strip():
         return str(user_ref_id).strip()
     if current_user:
+        if hasattr(current_user, "phone") and current_user.phone:
+            return str(current_user.phone).strip()
         if hasattr(current_user, "mobile_number") and current_user.mobile_number:
             return str(current_user.mobile_number).strip()
         if hasattr(current_user, "username") and current_user.username:
             return str(current_user.username).strip()
-        if hasattr(current_user, "email") and current_user.email:
-            return str(current_user.email).strip()
         if hasattr(current_user, "public_id") and current_user.public_id:
             return str(current_user.public_id).strip()
-    return "9176669426"  # Standard default active retailer ref
+        if hasattr(current_user, "email") and current_user.email:
+            return str(current_user.email).strip()
+    return ""
 
 
 # ─── 1. GET FAVORITE MENUS (PostgreSQL Stored Procedure sp_get_user_favorite_menus) ───

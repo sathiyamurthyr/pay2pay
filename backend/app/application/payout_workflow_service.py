@@ -941,10 +941,31 @@ class PayoutWorkflowService:
         )
         bank_acc = (await db.execute(stmt_bank)).scalars().first()
 
-        acc_name = ben.full_name if ben else "Beneficiary"
-        acc_num = bank_acc.account_number if bank_acc else "9988776655"
-        ifsc = bank_acc.ifsc_code if bank_acc else "SBIN0001234"
-        bank_name = bank_acc.bank_name if bank_acc else "State Bank of India"
+        from app.infrastructure.db.epic014_models import BeneficiaryMasterModel
+        stmt_bm = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.public_id == beneficiary_id)
+        bm_obj = (await db.execute(stmt_bm)).scalars().first()
+
+        acc_name = (
+            getattr(bm_obj, "account_holder_name", None)
+            or (ben.full_name if ben else None)
+            or getattr(bank_acc, "account_holder_name", None)
+            or "Beneficiary"
+        )
+        acc_num = (
+            getattr(bm_obj, "account_number", None)
+            or (bank_acc.account_number if bank_acc else None)
+            or ""
+        )
+        ifsc = (
+            getattr(bm_obj, "ifsc_code", None)
+            or (bank_acc.ifsc_code if bank_acc else None)
+            or ""
+        )
+        bank_name = (
+            getattr(bm_obj, "bank_name", None)
+            or (bank_acc.bank_name if bank_acc else None)
+            or ""
+        )
 
         # Check Bank Health
         bhealth = await PayoutWorkflowService.get_bank_health(db, ifsc)
@@ -970,7 +991,16 @@ class PayoutWorkflowService:
         cust_stmt = select(CustomerModel).where(CustomerModel.public_id == customer_id)
         cust_obj = (await db.execute(cust_stmt)).scalars().first()
         eff_cust_ref_id = getattr(cust_obj, "customer_ref_id", None) or 11
-        eff_bm_ref_id = getattr(ben, "beneficiary_master_ref_id", None) or getattr(bank_acc, "beneficiary_master_ref_id", None) or 3
+        eff_bm_ref_id = (
+            getattr(bm_obj, "beneficiary_master_ref_id", None)
+            or getattr(ben, "beneficiary_master_ref_id", None)
+            or getattr(bank_acc, "beneficiary_master_ref_id", None)
+        )
+        if not eff_bm_ref_id and acc_num:
+            stmt_bm_acc = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.account_number == str(acc_num).strip())
+            bm_acc_obj = (await db.execute(stmt_bm_acc)).scalars().first()
+            if bm_acc_obj:
+                eff_bm_ref_id = bm_acc_obj.beneficiary_master_ref_id
 
         ret_stmt = select(RetailerModel).where(RetailerModel.public_id == retailer_id)
         ret_obj = (await db.execute(ret_stmt)).scalars().first()

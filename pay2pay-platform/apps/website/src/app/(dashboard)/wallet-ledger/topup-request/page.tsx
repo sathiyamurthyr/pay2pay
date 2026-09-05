@@ -74,6 +74,7 @@ interface PaymentModeOption {
   name: string;
   display_order?: number;
   settlement_type?: string;
+  is_active?: boolean;
 }
 
 interface UpiQrData {
@@ -1605,13 +1606,14 @@ export default function RetailerTopupRequestPage() {
                     {/* Both Instant & T+1 Settlement Selector Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {paymentModes.length === 0 ? (
-                         <div className="col-span-2 p-3 text-center text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                        <div className="col-span-2 p-3 text-center text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl">
                           No settlement modes active
                         </div>
                       ) : (
                         paymentModes.map((mode) => {
                           const isInstant = mode.code.toLowerCase().includes("instant");
                           const isSelected = paymentMethod === mode.code;
+                          const isActive = mode.is_active !== false;
                           return (
                             <button
                               type="button"
@@ -1631,13 +1633,24 @@ export default function RetailerTopupRequestPage() {
                                   </span>
                                 </div>
                                 <span
-                                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                                  className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1.5 ${
                                     isSelected
-                                      ? "bg-amber-400 text-slate-950 shadow-sm"
-                                      : "bg-slate-800 text-slate-400 border border-slate-700"
+                                      ? "bg-amber-400 text-slate-950 shadow-sm font-black"
+                                      : isActive
+                                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                      : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                                   }`}
                                 >
-                                  {isInstant ? "1.65% Total" : "1.70% Total"}
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      isSelected
+                                        ? "bg-slate-950"
+                                        : isActive
+                                        ? "bg-emerald-400"
+                                        : "bg-rose-400"
+                                    }`}
+                                  />
+                                  {isActive ? "Active" : "Inactive"}
                                 </span>
                               </div>
                               <p className="text-[11px] text-slate-400 leading-tight">
@@ -1672,14 +1685,14 @@ export default function RetailerTopupRequestPage() {
                         Live Fee & Settlement Breakdown
                       </span>
                       <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono font-bold uppercase tracking-wider">
-                        {paymentMethod.toLowerCase().includes("instant") ? "Instant (1.65% Total)" : "POS+T1 (1.70% Total)"}
+                        {paymentMethod.toLowerCase().includes("instant") ? "Instant" : "POS+T1"}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-y-2 text-xs">
                       <span className="text-slate-400">Payment Mode</span>
                       <span className="text-right font-semibold text-white">
-                        {paymentMethod.toLowerCase().includes("instant") ? "POS - Instant (1.65%)" : "POS+T1 (1.70%)"}
+                        {paymentMethod.toLowerCase().includes("instant") ? "POS - Instant" : "POS+T1"}
                       </span>
 
                       <span className="text-slate-400">Transaction Amount</span>
