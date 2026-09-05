@@ -672,30 +672,33 @@ class PayoutWorkflowService:
         cur_month = datetime.now().strftime("%Y-%m")
         stmt = select(CustomerMonthlyLimitModel).where(
             and_(
-                CustomerMonthlyLimitModel.tenant_id == tenant_id,
                 CustomerMonthlyLimitModel.customer_id == customer_id,
                 CustomerMonthlyLimitModel.month_year == cur_month
             )
         )
         limit_rec = (await db.execute(stmt)).scalar_one_or_none()
         if not limit_rec:
-            limit_rec = CustomerMonthlyLimitModel(
-                public_id=uuid.uuid4(),
-                tenant_id=tenant_id,
-                created_by="SYSTEM",
-                customer_id=customer_id,
-                monthly_limit=200000.0,
-                used_amount=0.0,
-                remaining_amount=200000.0,
-                month_year=cur_month
-            )
-            db.add(limit_rec)
-            await db.commit()
+            try:
+                limit_rec = CustomerMonthlyLimitModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    created_by="SYSTEM",
+                    customer_id=customer_id,
+                    monthly_limit=200000.0,
+                    used_amount=0.0,
+                    remaining_amount=200000.0,
+                    month_year=cur_month
+                )
+                db.add(limit_rec)
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                limit_rec = (await db.execute(stmt)).scalar_one_or_none()
 
         return {
-            "monthly_limit": limit_rec.monthly_limit,
-            "used_amount": limit_rec.used_amount,
-            "remaining_amount": limit_rec.remaining_amount
+            "monthly_limit": limit_rec.monthly_limit if limit_rec else 200000.0,
+            "used_amount": limit_rec.used_amount if limit_rec else 0.0,
+            "remaining_amount": limit_rec.remaining_amount if limit_rec else 200000.0
         }
 
     @staticmethod
@@ -1136,7 +1139,6 @@ class PayoutWorkflowService:
         cur_month = datetime.now().strftime("%Y-%m")
         stmt_lim = select(CustomerMonthlyLimitModel).where(
             and_(
-                CustomerMonthlyLimitModel.tenant_id == tenant_id,
                 CustomerMonthlyLimitModel.customer_id == customer_id,
                 CustomerMonthlyLimitModel.month_year == cur_month
             )
