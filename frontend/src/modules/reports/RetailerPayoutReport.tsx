@@ -189,7 +189,10 @@ export const RetailerPayoutReport: React.FC = () => {
       if (toDate) q.append("to_date", toDate);
       if (globalSearch.trim()) q.append("search", globalSearch.trim());
       if (statusFilter !== "ALL") q.append("status", statusFilter);
-      if (paymentModeFilter !== "ALL") q.append("payment_mode", paymentModeFilter);
+      if (paymentModeFilter !== "ALL") {
+        q.append("mode", paymentModeFilter);
+        q.append("payment_mode", paymentModeFilter);
+      }
 
       const token = typeof window !== "undefined" ? (
         localStorage.getItem("p2p_access_token") ||
@@ -225,7 +228,13 @@ export const RetailerPayoutReport: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        const rawItems = Array.isArray(data.items) ? data.items : (data.data?.items || []);
+        const rawItems = Array.isArray(data.items)
+          ? data.items
+          : Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data.data?.items)
+          ? data.data.items
+          : [];
         const total = data.pagination?.total_records ?? rawItems.length;
 
         setItems(rawItems);
