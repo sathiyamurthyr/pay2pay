@@ -132,19 +132,23 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [searchInput, canCreateCustomer]);
 
-  const showEmptyState = !isSearching && !customer && (Boolean(error) || hasSearched || localHasSearched);
+  const showEmptyState = !isSearching && !customer && (hasSearched || localHasSearched);
 
+  // Dynamic Aadhaar Verification check directly from live customer object (No hardcode, no localStorage)
+  const custAny = customer as any;
   const isAadhaarVerified = Boolean(
     customer && (
       customer.aadhaar_verified === true ||
-      customer.aadhaarVerificationStatus === "VERIFIED" ||
-      customer.aadhaar_verification_status === "VERIFIED" ||
-      (customer as any).aadhaar_status === "VERIFIED" ||
-      customer.kycStatus === "VERIFIED" ||
-      (customer as any).kyc_status === "VERIFIED" ||
-      (customer as any).kyc_status === "APPROVED" ||
-      customer.kycLevel === "FULL_KYC" ||
-      (customer as any).kyc_level === "FULL_KYC"
+      String(customer.aadhaar_verified).toLowerCase() === "true" ||
+      (typeof customer.aadhaar_verification_status === "string" && (customer.aadhaar_verification_status.toUpperCase() === "VERIFIED" || customer.aadhaar_verification_status.toUpperCase() === "APPROVED")) ||
+      (typeof customer.aadhaarVerificationStatus === "string" && (customer.aadhaarVerificationStatus.toUpperCase() === "VERIFIED" || customer.aadhaarVerificationStatus.toUpperCase() === "APPROVED")) ||
+      (typeof customer.aadhaar_status === "string" && (customer.aadhaar_status.toUpperCase() === "VERIFIED" || customer.aadhaar_status.toUpperCase() === "APPROVED")) ||
+      (typeof customer.kyc_status === "string" && (customer.kyc_status.toUpperCase() === "VERIFIED" || customer.kyc_status.toUpperCase() === "APPROVED")) ||
+      (typeof customer.kycStatus === "string" && (customer.kycStatus.toUpperCase() === "VERIFIED" || customer.kycStatus.toUpperCase() === "APPROVED")) ||
+      (typeof customer.kyc_level === "string" && (customer.kyc_level.toUpperCase() === "FULL_KYC" || customer.kyc_level.toUpperCase() === "VERIFIED")) ||
+      (typeof customer.kycLevel === "string" && (customer.kycLevel.toUpperCase() === "FULL_KYC" || customer.kycLevel.toUpperCase() === "VERIFIED")) ||
+      (typeof custAny?.aadhaar_verified === "boolean" && custAny.aadhaar_verified) ||
+      (typeof custAny?.aadhaar_verification_status === "string" && custAny.aadhaar_verification_status.toUpperCase() === "VERIFIED")
     )
   );
 
@@ -715,12 +719,12 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                     />
                   ) : (
                     <Chip
-                      label="Aadhaar Not Verified"
+                      label="Aadhaar Pending"
                       size="small"
                       sx={{
-                        bgcolor: "rgba(239, 68, 68, 0.15)",
-                        border: "1px solid rgba(239, 68, 68, 0.4)",
-                        color: "#F87171",
+                        bgcolor: "rgba(245, 158, 11, 0.15)",
+                        border: "1px solid rgba(245, 158, 11, 0.4)",
+                        color: "#FBBF24",
                         fontWeight: 800,
                         fontSize: "9.5px",
                         height: 22,
@@ -979,14 +983,14 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               Search Another Customer
             </Button>
 
-            {/* PRIMARY ACTION — AADHAAR VERIFICATION GUARD (Requirements 17, 19, 21) */}
-            {!isAadhaarVerified ? (
-              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "center", gap: 2, width: { xs: "100%", sm: "auto" } }}>
-                <Typography sx={{ color: "#F87171", fontSize: "13px", fontWeight: 700, textAlign: { xs: "center", sm: "right" } }}>
-                  Aadhaar verification is required before money transfer.
+            {/* WARNING / AUXILIARY ACTIONS WHEN AADHAAR IS PENDING */}
+            {!isAadhaarVerified && (
+              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "center", gap: 1.5, width: { xs: "100%", sm: "auto" } }}>
+                <Typography sx={{ color: "#FBBF24", fontSize: "12.5px", fontWeight: 700, textAlign: { xs: "center", sm: "right" } }}>
+                  ⚠️ Aadhaar verification recommended for higher limits.
                 </Typography>
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   onClick={() => {
                     const custId = customer.id || customer.public_id || "";
                     const mobile = customer.mobile || customer.mobile_number || "";
@@ -999,97 +1003,99 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                     });
                     router.push(`/retailer/customers/aadhaar-verify?${params.toString()}`);
                   }}
-                  startIcon={<SecurityIcon sx={{ color: "#FFFFFF" }} />}
+                  startIcon={<SecurityIcon sx={{ color: "#F87171" }} />}
                   sx={{
                     width: { xs: "100%", sm: "auto" },
-                    height: { xs: 48, sm: 52 },
-                    px: 3.5,
+                    height: { xs: 46, sm: 50 },
+                    px: 2.25,
                     borderRadius: "12px",
-                    fontWeight: 900,
-                    fontSize: "14.5px",
-                    background: "linear-gradient(135deg, #EF4444 0%, #DC2626 50%, #B91C1C 100%)",
-                    color: "#FFFFFF",
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    color: "#F87171",
+                    borderColor: "rgba(239, 68, 68, 0.4)",
+                    bgcolor: "rgba(239, 68, 68, 0.08)",
                     textTransform: "none",
-                    letterSpacing: "-0.2px",
-                    boxShadow: "0 6px 24px rgba(239, 68, 68, 0.45)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #F87171 0%, #DC2626 50%, #991B1B 100%)",
-                      boxShadow: "0 8px 28px rgba(239, 68, 68, 0.6)",
+                      borderColor: "#EF4444",
+                      bgcolor: "rgba(239, 68, 68, 0.16)",
                     },
                   }}
                 >
                   Verify Aadhaar
                 </Button>
               </Box>
-            ) : customer.mpin_enabled === false ? (
+            )}
+
+            {/* MPIN NOTICE / ACTION */}
+            {customer.mpin_enabled === false && (
               <Button
-                variant="contained"
+                variant="outlined"
                 onClick={() => {
                   window.location.href = `/customers/create-pin?customer_id=${customer.id}`;
                 }}
-                startIcon={<ShieldIcon sx={{ color: "#080B11" }} />}
+                startIcon={<ShieldIcon sx={{ color: "#F59E0B" }} />}
                 sx={{
                   width: { xs: "100%", sm: "auto" },
-                  height: { xs: 48, sm: 52 },
-                  px: 3.5,
+                  height: { xs: 46, sm: 50 },
+                  px: 2.25,
                   borderRadius: "12px",
-                  fontWeight: 900,
-                  fontSize: "14.5px",
-                  background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-                  color: "#080B11",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  borderColor: "rgba(245, 158, 11, 0.4)",
+                  color: "#FBBF24",
+                  bgcolor: "rgba(245, 158, 11, 0.08)",
                   textTransform: "none",
-                  letterSpacing: "-0.2px",
-                  boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45)",
                   "&:hover": {
-                    background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
-                    boxShadow: "0 8px 28px rgba(245, 158, 11, 0.55)",
+                    borderColor: "#F59E0B",
+                    bgcolor: "rgba(245, 158, 11, 0.16)",
                   },
                 }}
               >
-                🔒 Create Required MPIN
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={onContinue}
-                endIcon={
-                  <ArrowForwardIcon
-                    className="arrow-icon"
-                    sx={{
-                      color: "#080B11",
-                      transition: "transform 0.2s ease-in-out",
-                    }}
-                  />
-                }
-                sx={{
-                  width: { xs: "100%", sm: "auto" },
-                  height: { xs: 48, sm: 52 },
-                  px: 3.5,
-                  borderRadius: "12px",
-                  fontWeight: 900,
-                  fontSize: "14.5px",
-                  background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-                  color: "#080B11",
-                  textTransform: "none",
-                  letterSpacing: "-0.2px",
-                  boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45), 0 0 12px rgba(245, 158, 11, 0.3)",
-                  transition: "all 0.2s ease-in-out",
-                  "&:hover": {
-                    background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
-                    boxShadow: "0 8px 30px rgba(245, 158, 11, 0.6), 0 0 16px rgba(245, 158, 11, 0.4)",
-                    transform: "translateY(-1px)",
-                    "& .arrow-icon": {
-                      transform: "translateX(5px)",
-                    },
-                  },
-                  "&:active": {
-                    transform: "translateY(1px)",
-                  },
-                }}
-              >
-                Continue to Beneficiary Selection →
+                🔒 Create MPIN
               </Button>
             )}
+
+            {/* PRIMARY ACTION — ALWAYS ALLOW TO CONTINUE TO MONEY TRANSFER */}
+            <Button
+              variant="contained"
+              onClick={onContinue}
+              endIcon={
+                <ArrowForwardIcon
+                  className="arrow-icon"
+                  sx={{
+                    color: "#080B11",
+                    transition: "transform 0.2s ease-in-out",
+                  }}
+                />
+              }
+              sx={{
+                width: { xs: "100%", sm: "auto" },
+                height: { xs: 48, sm: 52 },
+                px: 3.5,
+                borderRadius: "12px",
+                fontWeight: 900,
+                fontSize: "14.5px",
+                background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+                color: "#080B11",
+                textTransform: "none",
+                letterSpacing: "-0.2px",
+                boxShadow: "0 6px 24px rgba(245, 158, 11, 0.45), 0 0 12px rgba(245, 158, 11, 0.3)",
+                transition: "all 0.2s ease-in-out",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+                  boxShadow: "0 8px 30px rgba(245, 158, 11, 0.6), 0 0 16px rgba(245, 158, 11, 0.4)",
+                  transform: "translateY(-1px)",
+                  "& .arrow-icon": {
+                    transform: "translateX(5px)",
+                  },
+                },
+                "&:active": {
+                  transform: "translateY(1px)",
+                },
+              }}
+            >
+              Continue to Beneficiary Selection →
+            </Button>
           </Stack>
         </Paper>
       )}
