@@ -15,6 +15,7 @@ export interface CustomerData {
   mobile_number?: string;
   email?: string;
   kycStatus: "VERIFIED" | "PENDING" | "REJECTED";
+  kyc_status?: string;
   dailyLimitRemaining: number;
   monthlyLimitRemaining: number;
   preferredBank?: string;
@@ -24,11 +25,13 @@ export interface CustomerData {
   mpin_enabled?: boolean;
   category?: string;
   kycLevel?: string;
+  kyc_level?: string;
   photo_url?: string;
   photo_avatar?: string;
   aadhaar_verified?: boolean;
   aadhaarVerificationStatus?: "VERIFIED" | "PENDING" | "FAILED" | "NOT_VERIFIED";
   aadhaar_verification_status?: string;
+  aadhaar_status?: string;
   aadhaarMasked?: string;
   aadhaar_masked?: string;
   full_address?: string;
@@ -75,6 +78,18 @@ export function useCustomer() {
       if (customers.length > 0) {
         const c = customers[0];
         const currentWalletBal = useRetailerStore.getState()?.wallet?.mainBalance ?? 0;
+        const isAadhaarVerified = Boolean(
+          c.aadhaar_verified === true ||
+          c.aadhaar_verification_status === "VERIFIED" ||
+          c.aadhaarVerificationStatus === "VERIFIED" ||
+          c.aadhaar_status === "VERIFIED" ||
+          c.kyc_status === "VERIFIED" ||
+          c.kyc_status === "APPROVED" ||
+          c.kycStatus === "VERIFIED" ||
+          c.kyc_level === "FULL_KYC" ||
+          c.kycLevel === "FULL_KYC"
+        );
+
         const custData: CustomerData = {
           id: c.public_id || c.id || `CUST-${c.mobile_number?.slice(-4) || "0000"}`,
           public_id: c.public_id || c.id,
@@ -88,7 +103,9 @@ export function useCustomer() {
           photo_url: c.photo_url || c.photo_avatar || c.profile_image_url || "",
           photo_avatar: c.photo_url || c.photo_avatar || c.profile_image_url || "",
           kycStatus: c.kyc_status === "APPROVED" || c.kyc_status === "VERIFIED" ? "VERIFIED" : (c.kyc_status || "VERIFIED"),
+          kyc_status: c.kyc_status || "VERIFIED",
           kycLevel: c.kyc_level || "FULL_KYC",
+          kyc_level: c.kyc_level || "FULL_KYC",
           category: c.customer_category || c.category || "REGULAR",
           dailyLimitRemaining: Number(c.daily_limit_remaining ?? c.daily_remaining ?? 25000),
           monthlyLimitRemaining: Number(c.monthly_limit_remaining ?? c.monthly_remaining ?? 200000),
@@ -97,11 +114,12 @@ export function useCustomer() {
           walletBalance: Number(currentWalletBal),
           relationshipManager: c.relationship_manager || c.rm_name || "Account Manager",
           mpin_enabled: c.mpin_enabled !== false,
-          aadhaar_verified: Boolean(c.aadhaar_verified || c.aadhaar_verification_status === "VERIFIED"),
-          aadhaarVerificationStatus: (c.aadhaar_verified || c.aadhaar_verification_status === "VERIFIED" ? "VERIFIED" : (c.aadhaar_verification_status || "NOT_VERIFIED")) as any,
-          aadhaar_verification_status: c.aadhaar_verified || c.aadhaar_verification_status === "VERIFIED" ? "VERIFIED" : (c.aadhaar_verification_status || "NOT_VERIFIED"),
-          aadhaarMasked: c.aadhaar_masked || "",
-          aadhaar_masked: c.aadhaar_masked || "",
+          aadhaar_verified: isAadhaarVerified,
+          aadhaarVerificationStatus: (isAadhaarVerified ? "VERIFIED" : "NOT_VERIFIED") as any,
+          aadhaar_verification_status: isAadhaarVerified ? "VERIFIED" : "NOT_VERIFIED",
+          aadhaar_status: isAadhaarVerified ? "VERIFIED" : "NOT_VERIFIED",
+          aadhaarMasked: c.aadhaar_masked || c.masked_aadhaar || "",
+          aadhaar_masked: c.aadhaar_masked || c.masked_aadhaar || "",
           full_address: c.full_address || "",
           beneficiaries: c.beneficiaries || [],
         };

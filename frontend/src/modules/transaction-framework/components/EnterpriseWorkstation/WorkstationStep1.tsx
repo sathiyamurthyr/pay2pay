@@ -134,6 +134,20 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
 
   const showEmptyState = !isSearching && !customer && (Boolean(error) || hasSearched || localHasSearched);
 
+  const isAadhaarVerified = Boolean(
+    customer && (
+      customer.aadhaar_verified === true ||
+      customer.aadhaarVerificationStatus === "VERIFIED" ||
+      customer.aadhaar_verification_status === "VERIFIED" ||
+      (customer as any).aadhaar_status === "VERIFIED" ||
+      customer.kycStatus === "VERIFIED" ||
+      (customer as any).kyc_status === "VERIFIED" ||
+      (customer as any).kyc_status === "APPROVED" ||
+      customer.kycLevel === "FULL_KYC" ||
+      (customer as any).kyc_level === "FULL_KYC"
+    )
+  );
+
   return (
     <Box sx={{ maxWidth: 920, mx: "auto", pt: { xs: 1, sm: 2 }, px: { xs: 0.5, sm: 1.5 } }}>
       {/* ── 1. CUSTOMER SEARCH & IDENTIFICATION (GLASSMORPHISM CARD) ── */}
@@ -672,7 +686,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   })()}
 
                   {/* AADHAAR VERIFIED / NOT VERIFIED BADGE (DYNAMIC) */}
-                  {Boolean(customer.aadhaar_verified || customer.aadhaarVerificationStatus === "VERIFIED") ? (
+                  {isAadhaarVerified ? (
                     <Chip
                       icon={
                         <Box
@@ -926,7 +940,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 </Typography>
               </Stack>
               <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: { xs: "14px", sm: "15px" } }}>
-                {customer.kycLevel || customer.kyc_level || (customer.aadhaar_verified ? "FULL_KYC" : "MINIMUM_KYC")}
+                {customer.kycLevel || customer.kyc_level || (isAadhaarVerified ? "FULL_KYC" : "MINIMUM_KYC")}
               </Typography>
             </Box>
           </Box>
@@ -966,7 +980,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
             </Button>
 
             {/* PRIMARY ACTION — AADHAAR VERIFICATION GUARD (Requirements 17, 19, 21) */}
-            {!(customer.aadhaar_verified || customer.aadhaarVerificationStatus === "VERIFIED") ? (
+            {!isAadhaarVerified ? (
               <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "center", gap: 2, width: { xs: "100%", sm: "auto" } }}>
                 <Typography sx={{ color: "#F87171", fontSize: "13px", fontWeight: 700, textAlign: { xs: "center", sm: "right" } }}>
                   Aadhaar verification is required before money transfer.

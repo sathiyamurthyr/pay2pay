@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 import {
   Box,
@@ -28,6 +28,7 @@ import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceW
 import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
 import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
+import SecurityIcon from "@mui/icons-material/Security";
 import { CustomerData } from "../../hooks/useCustomer";
 
 export interface WorkstationStep1Props {
@@ -60,8 +61,19 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const wallet = useRetailerStore((state) => state.wallet);
+
+  // Auto-populate & search customer if mobile is passed in URL query (e.g. returning from Aadhaar verification)
+  useEffect(() => {
+    const mobileParam = searchParams.get("mobile");
+    if (mobileParam && !customer && !isSearching) {
+      setSearchInput(mobileParam);
+      setLocalHasSearched(true);
+      onSearchCustomer(mobileParam);
+    }
+  }, [searchParams, customer, isSearching, onSearchCustomer]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -121,6 +133,20 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
   }, [searchInput, canCreateCustomer]);
 
   const showEmptyState = !isSearching && !customer && (Boolean(error) || hasSearched || localHasSearched);
+
+  const isAadhaarVerified = Boolean(
+    customer && (
+      customer.aadhaar_verified === true ||
+      customer.aadhaarVerificationStatus === "VERIFIED" ||
+      customer.aadhaar_verification_status === "VERIFIED" ||
+      (customer as any).aadhaar_status === "VERIFIED" ||
+      customer.kycStatus === "VERIFIED" ||
+      (customer as any).kyc_status === "VERIFIED" ||
+      (customer as any).kyc_status === "APPROVED" ||
+      customer.kycLevel === "FULL_KYC" ||
+      (customer as any).kyc_level === "FULL_KYC"
+    )
+  );
 
   return (
     <Box sx={{ maxWidth: 920, mx: "auto", pt: { xs: 1, sm: 2 }, px: { xs: 0.5, sm: 1.5 } }}>
@@ -618,49 +644,92 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                     {customer.name}
                   </Typography>
 
-                  {/* VERIFIED GREEN GLASS BADGE */}
-                  <Chip
-                    icon={
-                      <Box
+                  {/* KYC STATUS BADGE (DYNAMIC) */}
+                  {(() => {
+                    const rawStatus = (customer.kycStatus || customer.kyc_status || "").toUpperCase();
+                    const isApproved = rawStatus === "APPROVED" || rawStatus === "VERIFIED";
+                    const isPending = rawStatus === "PENDING" || rawStatus === "UNDER_REVIEW";
+                    const isRejected = rawStatus === "REJECTED" || rawStatus === "FAILED";
+                    
+                    const label = isApproved ? "VERIFIED" : isPending ? "KYC PENDING" : isRejected ? "REJECTED" : rawStatus || "UNVERIFIED";
+                    const color = isApproved ? "#4ADE80" : isPending ? "#FBBF24" : isRejected ? "#F87171" : "#94A3B8";
+                    const bgcolor = isApproved ? "rgba(34, 197, 94, 0.15)" : isPending ? "rgba(245, 158, 11, 0.15)" : isRejected ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 255, 255, 0.08)";
+                    const border = isApproved ? "1px solid rgba(74, 222, 128, 0.4)" : isPending ? "1px solid rgba(245, 158, 11, 0.4)" : isRejected ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid rgba(255, 255, 255, 0.15)";
+
+                    return (
+                      <Chip
+                        icon={
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              bgcolor: color,
+                              boxShadow: `0 0 6px ${color}`,
+                              ml: 0.5,
+                              mr: -0.25,
+                            }}
+                          />
+                        }
+                        label={label}
+                        size="small"
                         sx={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          bgcolor: "#4ADE80",
-                          boxShadow: "0 0 6px #4ADE80",
-                          ml: 0.5,
-                          mr: -0.25,
+                          bgcolor,
+                          border,
+                          color,
+                          fontWeight: 800,
+                          fontSize: "10px",
+                          height: 22,
                         }}
                       />
-                    }
-                    label={customer.kycStatus || "VERIFIED"}
-                    size="small"
-                    sx={{
-                      bgcolor: "rgba(34, 197, 94, 0.15)",
-                      border: "1px solid rgba(74, 222, 128, 0.4)",
-                      color: "#4ADE80",
-                      fontWeight: 800,
-                      fontSize: "10px",
-                      height: 22,
-                      boxShadow: "0 0 10px rgba(34, 197, 94, 0.15)",
-                    }}
-                  />
+                    );
+                  })()}
 
-                  {/* MPIN ACTIVE / NOT CREATED BADGE */}
-                  {customer.mpin_enabled === false ? (
+                  {/* AADHAAR VERIFIED / NOT VERIFIED BADGE (DYNAMIC) */}
+                  {isAadhaarVerified ? (
                     <Chip
-                      label="MPIN NOT CREATED"
+                      icon={
+                        <Box
+                          sx={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            bgcolor: "#38BDF8",
+                            boxShadow: "0 0 6px #38BDF8",
+                            ml: 0.5,
+                            mr: -0.25,
+                          }}
+                        />
+                      }
+                      label="✓ Aadhaar Verified"
                       size="small"
                       sx={{
-                        bgcolor: "rgba(245, 158, 11, 0.15)",
-                        border: "1px solid rgba(245, 158, 11, 0.4)",
-                        color: "#FBBF24",
+                        bgcolor: "rgba(14, 165, 233, 0.15)",
+                        border: "1px solid rgba(56, 189, 248, 0.4)",
+                        color: "#38BDF8",
+                        fontWeight: 800,
+                        fontSize: "9.5px",
+                        height: 22,
+                        boxShadow: "0 0 10px rgba(14, 165, 233, 0.2)",
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      label="Aadhaar Not Verified"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(239, 68, 68, 0.15)",
+                        border: "1px solid rgba(239, 68, 68, 0.4)",
+                        color: "#F87171",
                         fontWeight: 800,
                         fontSize: "9.5px",
                         height: 22,
                       }}
                     />
-                  ) : (
+                  )}
+
+                  {/* MPIN BADGE (DYNAMIC) */}
+                  {customer.mpin_enabled ? (
                     <Chip
                       icon={
                         <Box
@@ -681,6 +750,19 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                         bgcolor: "rgba(16, 185, 129, 0.15)",
                         border: "1px solid rgba(52, 211, 153, 0.4)",
                         color: "#34D399",
+                        fontWeight: 800,
+                        fontSize: "9.5px",
+                        height: 22,
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      label="MPIN NOT CREATED"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(245, 158, 11, 0.15)",
+                        border: "1px solid rgba(245, 158, 11, 0.4)",
+                        color: "#FBBF24",
                         fontWeight: 800,
                         fontSize: "9.5px",
                         height: 22,
@@ -801,7 +883,11 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                   textShadow: "0 0 10px rgba(74, 222, 128, 0.3)",
                 }}
               >
-                ₹{Number(customer.monthlyLimitRemaining ?? 200000).toLocaleString()}
+                {customer.monthlyLimitRemaining !== undefined && customer.monthlyLimitRemaining !== null
+                  ? `₹${Number(customer.monthlyLimitRemaining).toLocaleString()}`
+                  : customer.monthly_remaining !== undefined && customer.monthly_remaining !== null
+                  ? `₹${Number(customer.monthly_remaining).toLocaleString()}`
+                  : "—"}
               </Typography>
             </Box>
 
@@ -827,7 +913,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 </Typography>
               </Stack>
               <Typography sx={{ fontWeight: 800, color: "#FFFFFF", fontSize: { xs: "15px", sm: "16px" } }}>
-                {customer.category || "REGULAR"}
+                {customer.category || customer.customer_category || "REGULAR"}
               </Typography>
             </Box>
 
@@ -854,7 +940,7 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
                 </Typography>
               </Stack>
               <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: { xs: "14px", sm: "15px" } }}>
-                {customer.kycLevel || "FULL_KYC"}
+                {customer.kycLevel || customer.kyc_level || (isAadhaarVerified ? "FULL_KYC" : "MINIMUM_KYC")}
               </Typography>
             </Box>
           </Box>
@@ -893,8 +979,49 @@ export const WorkstationStep1: React.FC<WorkstationStep1Props> = ({
               Search Another Customer
             </Button>
 
-            {/* PRIMARY ACTION */}
-            {customer.mpin_enabled === false ? (
+            {/* PRIMARY ACTION — AADHAAR VERIFICATION GUARD (Requirements 17, 19, 21) */}
+            {!isAadhaarVerified ? (
+              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "center", gap: 2, width: { xs: "100%", sm: "auto" } }}>
+                <Typography sx={{ color: "#F87171", fontSize: "13px", fontWeight: 700, textAlign: { xs: "center", sm: "right" } }}>
+                  Aadhaar verification is required before money transfer.
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    const custId = customer.id || customer.public_id || "";
+                    const mobile = customer.mobile || customer.mobile_number || "";
+                    const name = customer.name || customer.fullName || "";
+                    const params = new URLSearchParams({
+                      customer_id: custId,
+                      mobile: mobile,
+                      name: name,
+                      return_to: "/retailer/dmt",
+                    });
+                    router.push(`/retailer/customers/aadhaar-verify?${params.toString()}`);
+                  }}
+                  startIcon={<SecurityIcon sx={{ color: "#FFFFFF" }} />}
+                  sx={{
+                    width: { xs: "100%", sm: "auto" },
+                    height: { xs: 48, sm: 52 },
+                    px: 3.5,
+                    borderRadius: "12px",
+                    fontWeight: 900,
+                    fontSize: "14.5px",
+                    background: "linear-gradient(135deg, #EF4444 0%, #DC2626 50%, #B91C1C 100%)",
+                    color: "#FFFFFF",
+                    textTransform: "none",
+                    letterSpacing: "-0.2px",
+                    boxShadow: "0 6px 24px rgba(239, 68, 68, 0.45)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #F87171 0%, #DC2626 50%, #991B1B 100%)",
+                      boxShadow: "0 8px 28px rgba(239, 68, 68, 0.6)",
+                    },
+                  }}
+                >
+                  Verify Aadhaar
+                </Button>
+              </Box>
+            ) : customer.mpin_enabled === false ? (
               <Button
                 variant="contained"
                 onClick={() => {

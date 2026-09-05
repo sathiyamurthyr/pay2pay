@@ -19,8 +19,19 @@ export interface CustomerResultCardProps {
 }
 
 export function CustomerResultCard({ customer, onChangeCustomer, returnTo }: CustomerResultCardProps) {
-  const router = useRouter();
-  const aadhaarVerified = customer.aadhaarVerified ?? customer.aadhaarVerificationStatus === "VERIFIED";
+  const aadhaarVerified = Boolean(
+    customer.aadhaarVerified ||
+    customer.aadhaarVerificationStatus === "VERIFIED" ||
+    (customer as any).aadhaar_verified ||
+    (customer as any).aadhaar_verification_status === "VERIFIED" ||
+    (customer as any).aadhaar_status === "VERIFIED" ||
+    (customer as any).kyc_status === "VERIFIED" ||
+    (customer as any).kyc_status === "APPROVED" ||
+    (customer as any).kycStatus === "VERIFIED" ||
+    customer.kycStatus === "VERIFIED" ||
+    (customer as any).kyc_level === "FULL_KYC" ||
+    (customer as any).kycLevel === "FULL_KYC"
+  );
 
   const handleVerifyAadhaar = () => {
     const params = new URLSearchParams({
