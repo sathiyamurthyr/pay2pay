@@ -8,12 +8,9 @@ import {
   ChevronLeft,
   AlertTriangle,
   Flame,
-  Info,
   MessageCircle,
+  Sparkles,
 } from "lucide-react";
-
-import { BlurImage } from "@/components/ui/blur-image";
-import { KNOWN_BLURHASHES } from "@/lib/blurhash";
 
 interface AnnouncementLink {
   label: string;
@@ -49,14 +46,24 @@ function AnnouncementBannerImage({
   const resolvedUrl = imageUrl.startsWith("/uploads/") ? imageUrl : imageUrl;
 
   return (
-    <div className="relative w-full bg-slate-950/90 flex items-center justify-center border-b border-white/10">
+    <div className="relative w-full bg-gradient-to-b from-[#040711] via-[#070d1d] to-[#0a1226] flex items-center justify-center border-b border-amber-500/20 overflow-hidden max-h-[300px] sm:max-h-[360px] md:max-h-[400px]">
+      {/* Soft blurred ambient image backdrop to seamlessly fill any aspect-ratio gaps without distortion */}
+      <div
+        className="absolute inset-0 bg-cover bg-center blur-2xl opacity-20 scale-110 pointer-events-none"
+        style={{ backgroundImage: `url(${resolvedUrl})` }}
+      />
+
+      {/* Foreground Image without distortion or stretching */}
       <img
         src={resolvedUrl}
         alt={title}
-        className="w-full h-auto object-contain block select-none"
+        className="relative z-10 w-auto max-w-full h-auto max-h-[300px] sm:max-h-[360px] md:max-h-[400px] object-contain block select-none drop-shadow-[0_12px_28px_rgba(0,0,0,0.7)]"
         loading="eager"
         onError={() => setImgError(true)}
       />
+
+      {/* Subtle gold gradient accent overlay along bottom edge */}
+      <div className="pointer-events-none absolute bottom-0 inset-x-0 h-4 bg-gradient-to-t from-[#080d19] to-transparent opacity-80" />
     </div>
   );
 }
@@ -176,69 +183,79 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4"
-      style={{ backgroundColor: "rgba(15, 23, 42, 0.78)", backdropFilter: "blur(8px)" }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6"
+      style={{
+        backgroundColor: "rgba(2, 6, 17, 0.82)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+      }}
     >
       <div
-        className="relative w-full max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[92vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl border border-white/15 animate-in fade-in zoom-in-95 duration-200"
+        className="relative w-full max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[92vh] flex flex-col rounded-[26px] sm:rounded-[30px] overflow-hidden border border-amber-500/25 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.12)] animate-in fade-in zoom-in-95 duration-250"
         style={{
-          background: "linear-gradient(145deg, #0b1120 0%, #111827 50%, #1e1b4b 100%)",
+          background: "linear-gradient(150deg, #070b14 0%, #0b1122 55%, #101833 100%)",
         }}
       >
-        {/* Top Dismiss Button */}
+        {/* Subtle Top Gold Hairline Glow */}
+        <div className="pointer-events-none absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/70 to-transparent z-40" />
+
+        {/* Ambient Top Glow Reflex */}
+        <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-[340px] sm:w-[480px] h-[140px] bg-gradient-to-b from-amber-500/15 via-yellow-500/5 to-transparent blur-3xl opacity-60 z-10" />
+
+        {/* Top Dismiss Button (X) */}
         <button
           onClick={dismissCurrent}
-          className="absolute top-3.5 right-3.5 z-30 w-8 h-8 flex items-center justify-center rounded-full bg-black/60 hover:bg-black/85 text-white/90 hover:text-white border border-white/20 transition-all cursor-pointer shadow-lg backdrop-blur-sm"
+          className="absolute top-3.5 right-3.5 z-50 w-9 h-9 flex items-center justify-center rounded-full bg-[#070b14]/80 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-white/15 hover:border-amber-400/50 transition-all duration-200 cursor-pointer shadow-lg backdrop-blur-md active:scale-95 group"
           aria-label="Dismiss Announcement"
         >
-          <X className="w-4 h-4" />
+          <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90 text-slate-300 group-hover:text-amber-300" />
         </button>
 
         {/* Scrollable Container */}
-        <div className="overflow-y-auto max-h-[92vh] flex flex-col">
+        <div className="overflow-y-auto max-h-[92vh] flex flex-col relative z-20">
           {/* Full Banner / Flyer Image */}
           <AnnouncementBannerImage imageUrl={item.image_url} title={item.header} />
 
-          {/* Modal Content */}
-          <div className="p-5 sm:p-6 space-y-4 flex-1">
+          {/* Modal Content Area */}
+          <div className="p-5 sm:p-6 md:p-7 space-y-4 sm:space-y-5 flex-1">
             {/* Header Row: Priority Badge & Pagination */}
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 {item.priority === "CRITICAL" ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm shadow-rose-500/10">
-                    <Flame className="w-3.5 h-3.5 text-rose-400" />
-                    <span>CRITICAL ALERT</span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-black bg-rose-950/70 text-rose-300 border border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.2)]">
+                    <Flame className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+                    <span className="tracking-wide">CRITICAL ALERT</span>
                   </span>
                 ) : item.priority === "HIGH" ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-black bg-amber-950/70 text-amber-300 border border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                    <span>IMPORTANT NOTICE</span>
+                    <span className="tracking-wide">IMPORTANT NOTICE</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                    <Info className="w-3.5 h-3.5 text-violet-400" />
-                    <span>UPDATE NOTICE</span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold bg-amber-500/10 text-amber-200/90 border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.08)]">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="tracking-wide">ANNOUNCEMENT</span>
                   </span>
                 )}
               </div>
 
               {announcements.length > 1 && (
-                <span className="text-xs font-bold text-slate-400 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-lg">
+                <span className="text-[11px] sm:text-xs font-bold text-amber-300/90 bg-amber-500/10 border border-amber-500/25 px-3 py-0.5 rounded-full shadow-sm">
                   {current + 1} of {announcements.length}
                 </span>
               )}
             </div>
 
-            {/* Title & Body */}
+            {/* Title & Body with clear hierarchy and gold/yellow gradient typography */}
             {(item.header !== "Announcement" || item.body) && (
-              <div>
+              <div className="space-y-2">
                 {item.header && (
-                  <h2 className="text-xl font-black text-white tracking-tight leading-snug">
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-400 bg-clip-text text-transparent drop-shadow-[0_2px_8px_rgba(245,158,11,0.2)]">
                     {item.header}
                   </h2>
                 )}
                 {item.body && (
-                  <p className="text-sm text-slate-300 leading-relaxed mt-1.5 font-normal whitespace-pre-line">
+                  <p className="text-sm sm:text-[14.5px] text-slate-300/90 leading-relaxed font-normal whitespace-pre-line">
                     {item.body}
                   </p>
                 )}
@@ -254,34 +271,41 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/40 transition-all text-xs font-bold text-white group"
+                    className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.03] hover:bg-amber-500/[0.08] border border-amber-500/20 hover:border-amber-400/50 shadow-sm transition-all text-xs sm:text-sm font-semibold text-slate-100 group"
                   >
                     <div className="flex items-center gap-2.5">
                       {link.icon === "whatsapp" || link.url.includes("whatsapp") ? (
                         <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
                       ) : (
-                        <ExternalLink className="w-4 h-4 text-violet-400 shrink-0" />
+                        <ExternalLink className="w-4 h-4 text-amber-400 shrink-0" />
                       )}
-                      <span>{link.label || link.url}</span>
+                      <span className="group-hover:text-amber-200 transition-colors">
+                        {link.label || link.url}
+                      </span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-transform group-hover:translate-x-0.5" />
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-300 transition-transform group-hover:translate-x-1" />
                   </a>
                 ))}
               </div>
             )}
 
             {/* Pagination Indicators & Main Action Button */}
-            <div className="pt-2 space-y-3">
+            <div className="pt-2 sm:pt-3 space-y-3">
               {announcements.length > 1 && (
                 <div className="flex items-center justify-center gap-1.5 py-1">
                   {announcements.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setCurrent(i)}
-                      className="h-1.5 rounded-full transition-all cursor-pointer"
+                      className="h-1.5 rounded-full transition-all duration-300 cursor-pointer"
                       style={{
-                        background: i === current ? "#8b5cf6" : "rgba(255,255,255,0.2)",
-                        width: i === current ? 24 : 6,
+                        background:
+                          i === current
+                            ? "linear-gradient(90deg, #f59e0b, #fcd34d)"
+                            : "rgba(255,255,255,0.2)",
+                        width: i === current ? 26 : 7,
+                        boxShadow:
+                          i === current ? "0 0 10px rgba(245, 158, 11, 0.5)" : "none",
                       }}
                       aria-label={`Go to announcement ${i + 1}`}
                     />
@@ -289,11 +313,11 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 {announcements.length > 1 && current > 0 && (
                   <button
                     onClick={goToPrev}
-                    className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm border border-white/10 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                    className="px-4 py-3 sm:py-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-white/10 hover:border-amber-500/30 transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-[0.98]"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span>Back</span>
@@ -302,9 +326,11 @@ export const DashboardAnnouncementModal: React.FC<{ audience?: string }> = ({
 
                 <button
                   onClick={dismissCurrent}
-                  className="flex-1 py-3 px-5 rounded-2xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 hover:from-violet-700 hover:via-indigo-700 hover:to-blue-700 shadow-lg shadow-violet-600/25 border border-white/10 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 py-3 sm:py-3.5 px-5 rounded-2xl text-xs sm:text-sm font-black text-slate-950 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 hover:from-amber-300 hover:via-yellow-200 hover:to-amber-400 shadow-[0_4px_20px_rgba(245,158,11,0.35)] hover:shadow-[0_6px_25px_rgba(245,158,11,0.5)] border border-amber-200/50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] tracking-wide"
                 >
-                  <span>{current + 1 < announcements.length ? "Next Announcement →" : "Got it, Thanks!"}</span>
+                  <span>
+                    {current + 1 < announcements.length ? "Next Announcement →" : "Got it, Thanks!"}
+                  </span>
                 </button>
               </div>
             </div>

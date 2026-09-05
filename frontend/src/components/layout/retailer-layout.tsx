@@ -332,52 +332,34 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   // Activity data is loaded on-demand from the dashboard page when the user requests it.
 
   // ── DB-Backed User Favorites (PostgreSQL Stored Procedures & DB APIs) ──
+  // Backend resolves user identity from JWT Bearer token — no userRefId needed from frontend.
+  // Do NOT preload from localStorage: stale data from previous user session causes wrong favorites to appear after login.
   useEffect(() => {
     let isSubscribed = true;
 
-    // 1. Instant optimistic restore from local cache
-    try {
-      const saved = localStorage.getItem("p2p_sidebar_favorites");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setFavorites(parsed);
-        }
-      }
-    } catch {}
-
-    // 2. Fetch authoritative user favorite menus from DB via Stored Procedure
     const fetchDbFavorites = async () => {
       try {
-        const userRefId =
-          localStorage.getItem("user_ref_id") ||
-          (user as any)?.user_ref_id ||
-          (user as any)?.mobile_number ||
-          (user as any)?.phone ||
-          (user as any)?.mobile ||
-          null;
-        if (!userRefId) return;
-
-        const res = await retailerApi.getFavoriteMenus(userRefId);
+        // Call without userRefId — backend authoritative identity resolution via JWT
+        const res = await retailerApi.getFavoriteMenus();
         if (res && res.favorites && Array.isArray(res.favorites) && isSubscribed) {
           const hrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-          if (hrefs.length > 0) {
-            setFavorites(hrefs);
-            try {
-              localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(hrefs));
-            } catch {}
-          }
+          setFavorites(hrefs); // Set even if empty — clears stale state
+          try {
+            localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(hrefs));
+          } catch {}
         }
       } catch (err) {
-        console.warn("Notice: Using local favorite menus fallback:", err);
+        console.warn("Notice: DB favorites fetch notice:", err);
       }
     };
 
-    fetchDbFavorites();
+    if (isAuthenticatedSession) {
+      fetchDbFavorites();
+    }
     return () => {
       isSubscribed = false;
     };
-  }, [user]);
+  }, [isAuthenticatedSession]);
 
   // Global Lock Screen Keyboard Shortcut (Ctrl+L / Cmd+L)
   useEffect(() => {
@@ -404,18 +386,9 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch {}
 
     // Asynchronously persist to PostgreSQL DB via Stored Procedure
-    const userRefId =
-      localStorage.getItem("user_ref_id") ||
-      (user as any)?.user_ref_id ||
-      (user as any)?.mobile_number ||
-      (user as any)?.phone ||
-      (user as any)?.mobile ||
-      null;
-    if (!userRefId) return;
-
+    // Backend resolves user identity from JWT — no userRefId needed from frontend
     retailerApi
       .toggleFavoriteMenu({
-        user_ref_id: userRefId,
         menu_href: path,
         menu_label: itemLabel || path,
         menu_category: itemCategory || "General",
@@ -424,12 +397,10 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       .then((res: any) => {
         if (res && res.favorites && Array.isArray(res.favorites)) {
           const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-          if (dbHrefs.length > 0) {
-            setFavorites(dbHrefs);
-            try {
-              localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
-            } catch {}
-          }
+          setFavorites(dbHrefs);
+          try {
+            localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
+          } catch {}
         }
       })
       .catch((err: any) => {

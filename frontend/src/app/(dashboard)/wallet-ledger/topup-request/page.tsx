@@ -74,6 +74,7 @@ interface PaymentModeOption {
   name: string;
   display_order?: number;
   settlement_type?: string;
+  is_active?: boolean;
 }
 
 interface UpiQrData {
@@ -1612,6 +1613,7 @@ export default function RetailerTopupRequestPage() {
                         paymentModes.map((mode) => {
                           const isInstant = mode.code.toLowerCase().includes("instant");
                           const isSelected = paymentMethod === mode.code;
+                          const isActive = mode.is_active !== false;
                           return (
                             <button
                               type="button"
@@ -1624,19 +1626,31 @@ export default function RetailerTopupRequestPage() {
                               }`}
                             >
                               <div className="flex items-center justify-between w-full mb-1">
-</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm">{isInstant ? "⚡" : "📅"}</span>
                                   <span className={`text-xs font-bold ${isSelected ? "text-amber-300" : "text-white"}`}>
                                     {isInstant ? "POS - Instant" : "POS+T1"}
                                   </span>
                                 </div>
                                 <span
-                                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                                  className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1.5 ${
                                     isSelected
-                                      ? "bg-amber-400 text-slate-950 shadow-sm"
-                                      : "bg-slate-800 text-slate-400 border border-slate-700"
+                                      ? "bg-amber-400 text-slate-950 shadow-sm font-black"
+                                      : isActive
+                                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                      : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                                   }`}
                                 >
-                                  {isInstant ? "1.65% Total" : "1.70% Total"}
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      isSelected
+                                        ? "bg-slate-950"
+                                        : isActive
+                                        ? "bg-emerald-400"
+                                        : "bg-rose-400"
+                                    }`}
+                                  />
+                                  {isActive ? "Active" : "Inactive"}
                                 </span>
                               </div>
                               <p className="text-[11px] text-slate-400 leading-tight">
@@ -1662,108 +1676,57 @@ export default function RetailerTopupRequestPage() {
                   </div>
                 </div>
 
-                {/* MDR Breakdown Card with Animated Loader */}
+                {/* MDR Breakdown Card with Amber Glow */}
                 {parseFloat(requestedAmount || "0") > 0 && (
-                  <div className="rounded-2xl border border-amber-500/20 bg-slate-950/90 shadow-xl relative overflow-hidden">
+                  <div className="rounded-2xl border border-amber-500/20 bg-slate-950/90 p-4.5 space-y-3.5 shadow-xl relative overflow-hidden">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                      <span className="text-xs font-bold text-white flex items-center gap-2">
+                        <Calculator className="h-4 w-4 text-amber-400" />
+                        Live Fee & Settlement Breakdown
+                      </span>
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono font-bold uppercase tracking-wider">
+                        {paymentMethod.toLowerCase().includes("instant") ? "Instant" : "POS+T1"}
+                      </span>
+                    </div>
 
-                    {/* LOADING STATE */}
-                    {calculatingMdr && (
-                      <div className="p-4 space-y-3">
-                        <style>{`
-                          @keyframes mdrSweep {
-                            0%   { left: -45%; width: 45%; }
-                            100% { left: 110%; width: 45%; }
-                          }
-                        `}</style>
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                          <span className="text-xs font-bold text-white flex items-center gap-2">
-                            <span className="relative flex items-center justify-center w-5 h-5">
-                              <span className="absolute inline-flex h-6 w-6 rounded-full bg-amber-500/20 animate-ping" />
-                              <Calculator className="h-4 w-4 text-amber-400 animate-spin relative z-10" style={{ animationDuration: "1.2s" }} />
-                            </span>
-                            Calculating Charges...
-                          </span>
-                          <span className="h-5 w-32 rounded-full bg-slate-800 animate-pulse" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-y-3 text-xs">
-                          {[
-                            { label: "Payment Mode", w: "w-24" },
-                            { label: "Transaction Amount", w: "w-20" },
-                            { label: "MDR", w: "w-16" },
-                            { label: "GST (18%)", w: "w-16" },
-                            { label: "Charges", w: "w-14" },
-                          ].map(({ label, w }, i) => (
-                            <React.Fragment key={label}>
-                              <span className="text-slate-500">{label}</span>
-                              <div className="flex justify-end">
-                                <span className={`h-3.5 ${w} rounded bg-slate-800 animate-pulse block`} style={{ animationDelay: `${i * 80}ms` }} />
-                              </div>
-                            </React.Fragment>
-                          ))}
-                        </div>
-                        <div className="pt-3 mt-1 border-t border-slate-800/80 flex items-center justify-between">
-                          <div className="space-y-1.5">
-                            <span className="h-3.5 w-28 rounded bg-slate-800 animate-pulse block" />
-                            <span className="h-2.5 w-20 rounded bg-slate-800/60 animate-pulse block" />
-                          </div>
-                          <span className="h-7 w-24 rounded-lg bg-slate-800 animate-pulse block" />
-                        </div>
-                        <div className="relative h-1 rounded-full bg-slate-800 overflow-hidden">
-                          <div className="absolute inset-y-0 rounded-full bg-gradient-to-r from-amber-500 to-amber-300" style={{ animation: "mdrSweep 1.4s ease-in-out infinite" }} />
-                        </div>
-                        <p className="text-center text-[10px] text-amber-400/70 font-medium tracking-wide animate-pulse">
-                          Fetching live MDR rate from server...
-                        </p>
-                      </div>
-                    )}
+                    <div className="grid grid-cols-2 gap-y-2 text-xs">
+                      <span className="text-slate-400">Payment Mode</span>
+                      <span className="text-right font-semibold text-white">
+                        {paymentMethod.toLowerCase().includes("instant") ? "POS - Instant" : "POS+T1"}
+                      </span>
 
-                    {/* DATA READY STATE */}
-                    {!calculatingMdr && (
-                      <div className="p-4 space-y-3">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                          <span className="text-xs font-bold text-white flex items-center gap-2">
-                            <Calculator className="h-4 w-4 text-amber-400" />
-                            Live Fee &amp; Settlement Breakdown
-                          </span>
-                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono font-bold uppercase tracking-wider">
-                            {paymentMethod.toLowerCase().includes("instant") ? "Instant (1.65% Total)" : "POS+T1 (1.70% Total)"}
-                          </span>
+                      <span className="text-slate-400">Transaction Amount</span>
+                      <span className="text-right font-black text-amber-400">
+                        ₹{parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+
+                      <span className="text-slate-400">MDR</span>
+                      <span className="text-right font-semibold text-amber-300">
+                        {mdrBreakdown ? `₹${mdrBreakdown.mdr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
+                      </span>
+
+                      <span className="text-slate-400">GST (18%)</span>
+                      <span className="text-right font-semibold text-amber-300/90">
+                        {mdrBreakdown ? `₹${mdrBreakdown.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
+                      </span>
+
+                      <span className="text-slate-400">Charges</span>
+                      <span className="text-right font-semibold text-slate-300">
+                        {mdrBreakdown ? `₹${mdrBreakdown.charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : (calculatingMdr ? "..." : "₹0.00")}
+                      </span>
+
+                      <div className="col-span-2 pt-3 mt-1 border-t border-slate-800/80 flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-white block">Received Amount</span>
+                          <span className="text-[10px] text-emerald-400/80">Credited to Retailer Wallet</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-y-2 text-xs">
-                          <span className="text-slate-400">Payment Mode</span>
-                          <span className="text-right font-semibold text-white">
-                            {paymentMethod.toLowerCase().includes("instant") ? "POS - Instant (1.65%)" : "POS+T1 (1.70%)"}
-                          </span>
-                          <span className="text-slate-400">Transaction Amount</span>
-                          <span className="text-right font-black text-amber-400">
-                            {"\u20b9"}{parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                          </span>
-                          <span className="text-slate-400">MDR</span>
-                          <span className="text-right font-semibold text-amber-300">
-                            {mdrBreakdown ? `\u20b9${mdrBreakdown.mdr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "\u20b90.00"}
-                          </span>
-                          <span className="text-slate-400">GST (18%)</span>
-                          <span className="text-right font-semibold text-amber-300/90">
-                            {mdrBreakdown ? `\u20b9${mdrBreakdown.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "\u20b90.00"}
-                          </span>
-                          <span className="text-slate-400">Charges</span>
-                          <span className="text-right font-semibold text-slate-300">
-                            {mdrBreakdown ? `\u20b9${mdrBreakdown.charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "\u20b90.00"}
-                          </span>
-                          <div className="col-span-2 pt-3 mt-1 border-t border-slate-800/80 flex items-center justify-between">
-                            <div>
-                              <span className="text-xs font-bold text-white block">Received Amount</span>
-                              <span className="text-[10px] text-emerald-400/80">Credited to Retailer Wallet</span>
-                            </div>
-                            <span className="text-xl font-black text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">
-                              {mdrBreakdown
-                                ? `\u20b9${mdrBreakdown.received_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-                                : `\u20b9${parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
-                            </span>
-                          </div>
-                        </div>
+                        <span className="text-xl font-black text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">
+                          {mdrBreakdown
+                            ? `₹${mdrBreakdown.received_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                            : (calculatingMdr ? "..." : `₹${parseFloat(requestedAmount || "0").toLocaleString("en-IN", { minimumFractionDigits: 2 })}`)}
+                        </span>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
 

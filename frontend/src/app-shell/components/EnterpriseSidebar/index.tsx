@@ -87,91 +87,45 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
     });
 
     // Authoritative persistence to PostgreSQL DB via Stored Procedure sp_toggle_user_favorite_menu
-    const userRefId =
-      (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") : null) ||
-      (() => {
-        try {
-          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
-          if (raw) {
-            const u = JSON.parse(raw);
-            return u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
+    // Backend resolves user identity from JWT Bearer token — no userRefId needed
+    retailerApi
+      .toggleFavoriteMenu({
+        menu_href: path,
+        menu_label: label || path,
+        menu_category: category || "General",
+        user_role: userRole || "RETAILER",
+      })
+      .then((res: any) => {
+        if (res && res.favorites && Array.isArray(res.favorites) && res.favorites.length > 0) {
+          const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
+          if (dbHrefs.length > 0) {
+            setFavorites(dbHrefs);
+            try {
+              localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
+            } catch {}
           }
-        } catch {}
-        return null;
-      })();
-
-    if (userRefId) {
-      retailerApi
-        .toggleFavoriteMenu({
-          user_ref_id: String(userRefId),
-          menu_href: path,
-          menu_label: label || path,
-          menu_category: category || "General",
-          user_role: userRole || "RETAILER",
-        })
-        .then((res: any) => {
-          if (res && res.favorites && Array.isArray(res.favorites) && res.favorites.length > 0) {
-            const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-            if (dbHrefs.length > 0) {
-              setFavorites(dbHrefs);
-              try {
-                localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
-              } catch {}
-            }
-          }
-        })
-        .catch((err) => {
-          console.warn("DB favorite toggle notice:", err);
-        });
-    }
+        }
+      })
+      .catch((err) => {
+        console.warn("DB favorite toggle notice:", err);
+      });
   };
 
   useEffect(() => {
-    // 1. Immediate local cache load
-    try {
-      const saved = localStorage.getItem("p2p_sidebar_favorites");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const prefix = userRole === "SD" ? "/sd" : userRole === "DIST" ? "/dist" : "/retailer";
-        const clean = parsed.filter((p: string) => p.startsWith(prefix));
-        setFavorites(clean.length > 0 ? clean : [userRole === "SD" ? "/sd/dashboard" : userRole === "DIST" ? "/dist/dashboard" : "/retailer/dashboard"]);
-      } else {
-        setFavorites([userRole === "SD" ? "/sd/dashboard" : userRole === "DIST" ? "/dist/dashboard" : "/retailer/dashboard"]);
-      }
-    } catch {
-      setFavorites([userRole === "SD" ? "/sd/dashboard" : userRole === "DIST" ? "/dist/dashboard" : "/retailer/dashboard"]);
-    }
-
-    // 2. Authoritative PostgreSQL fetch via Stored Procedure sp_get_user_favorite_menus
-    const userRefId =
-      (typeof window !== "undefined" ? localStorage.getItem("user_ref_id") : null) ||
-      (() => {
-        try {
-          const raw = localStorage.getItem("pay2pay_user") || localStorage.getItem("p2p_user") || localStorage.getItem("user");
-          if (raw) {
-            const u = JSON.parse(raw);
-            return u.user_ref_id || u.retailer_ref_id || u.ref_id || u.mobile_number || u.phone || u.id || null;
-          }
-        } catch {}
-        return null;
-      })();
-
-    if (userRefId) {
-      retailerApi
-        .getFavoriteMenus(String(userRefId))
-        .then((res: any) => {
-          if (res && res.favorites && Array.isArray(res.favorites) && res.favorites.length > 0) {
-            const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
-            if (dbHrefs.length > 0) {
-              setFavorites(dbHrefs);
-              try {
-                localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
-              } catch {}
-            }
-          }
-        })
-        .catch(() => {});
-    }
+    // Authoritative PostgreSQL fetch via Stored Procedure sp_get_user_favorite_menus
+    // Backend resolves user identity from JWT Bearer token — no userRefId needed
+    retailerApi
+      .getFavoriteMenus()
+      .then((res: any) => {
+        if (res && res.favorites && Array.isArray(res.favorites)) {
+          const dbHrefs = res.favorites.map((f: any) => f.menu_href || f.path).filter(Boolean);
+          setFavorites(dbHrefs); // Set even if empty — clears stale state
+          try {
+            localStorage.setItem("p2p_sidebar_favorites", JSON.stringify(dbHrefs));
+          } catch {}
+        }
+      })
+      .catch(() => {});
   }, [userRole]);
 
   // PORTAL SPECIFIC NAVIGATION CONFIGURATIONS

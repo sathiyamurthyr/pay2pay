@@ -411,7 +411,12 @@ class BulkPePayoutEngine:
         eff_retailer_name = getattr(ret_info, "store_name", None) or getattr(ret_info, "business_name", None) or getattr(ret_info, "legal_name", None) or "Sathus Pay Store"
 
         eff_customer_ref_id = getattr(customer, "customer_ref_id", None) or 11
-        eff_bene_master_ref_id = getattr(beneficiary, "beneficiary_master_ref_id", None) or getattr(bank_account, "beneficiary_master_ref_id", None) or 3
+        eff_bene_master_ref_id = getattr(beneficiary, "beneficiary_master_ref_id", None) or getattr(bank_account, "beneficiary_master_ref_id", None)
+        if not eff_bene_master_ref_id and final_acc_num:
+            stmt_bm_acc = select(BeneficiaryMasterModel).where(BeneficiaryMasterModel.account_number == str(final_acc_num).strip())
+            bm_acc_obj = (await db.execute(stmt_bm_acc)).scalars().first()
+            if bm_acc_obj:
+                eff_bene_master_ref_id = bm_acc_obj.beneficiary_master_ref_id
 
         # Resolve active vendor provider to determine transaction prefix
         from app.application.wowpe_client import WowPeApiClient
