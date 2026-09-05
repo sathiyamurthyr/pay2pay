@@ -135,13 +135,9 @@ async def get_wallet_balance_endpoint(
             pass
 
     if not retailer:
-        r_stmt = select(RetailerModel).where(RetailerModel.retailer_code == "P2P-R404667")
-        retailer = (await db.execute(r_stmt)).scalars().first()
-
-    if not retailer:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Target user entity not found in database."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authenticated retailer session required. Please log in."
         )
 
     wal_stmt = select(RetailerWalletModel).where(
