@@ -24,27 +24,28 @@ export const Step3Email: React.FC<Step3Props> = ({ registrationId, onSuccess }) 
     setErrorMsg("");
     setLoading(true);
 
+    const targetRegId = registrationId || (typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_id") || localStorage.getItem("pay2pay_reg_mobile") || "") : "");
+
     try {
       const res = await fetch("/api/v1/onboarding/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: registrationId, email: clean })
+        body: JSON.stringify({ registration_id: targetRegId, email: clean })
       });
+      const data = await res.json().catch(() => ({}));
       setLoading(false);
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.status === "SUCCESS") {
-          onSuccess(clean);
-        } else {
-          setErrorMsg(data.detail || "Email validation failed.");
+      if (res.ok && data.status === "SUCCESS") {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("pay2pay_reg_email", clean);
         }
-      } else {
         onSuccess(clean);
+      } else {
+        setErrorMsg(data.message || data.detail || "Failed to dispatch email verification code.");
       }
     } catch {
       setLoading(false);
-      onSuccess(clean);
+      setErrorMsg("Unable to dispatch email verification code. Please check your connection.");
     }
   };
 

@@ -603,26 +603,34 @@ class ProgressiveOnboardingService:
         if "@" not in clean_email or "." not in clean_email:
             return {"status": "ERROR", "message": "Please enter a valid email address."}
 
-        d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == registration_id)
+        clean_reg_id = str(registration_id or "").strip()
+        d_stmt = select(RegistrationDraftModel).where(
+            (RegistrationDraftModel.registration_id == clean_reg_id) |
+            (RegistrationDraftModel.mobile_number == clean_reg_id)
+        )
         draft = (await db.execute(d_stmt)).scalars().first()
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
         email_otp = f"{random.randint(100000, 999999)}"
 
-        # Dispatch real or simulated Email OTP via EmailService
+        # Dispatch real Email OTP via EmailService
         email_dispatch_status = "PENDING"
         try:
             email_res = await email_service.send_otp(clean_email, email_otp)
             print(f"[EMAIL DISPATCH] Email: {clean_email} | OTP: {email_otp} | Result: {email_res}")
-            email_dispatch_status = email_res.get("status", "SIMULATED")
+            email_dispatch_status = email_res.get("status", "SUCCESS")
+            if email_dispatch_status == "FAILED" or email_res.get("delivered") is False:
+                err_detail = email_res.get("detail") or email_res.get("message") or "Failed to deliver OTP to the provided email address."
+                return {"status": "ERROR", "message": f"Could not send email OTP: {err_detail}"}
         except Exception as e:
             print(f"[EMAIL DISPATCH ERROR] {e}")
-            email_dispatch_status = "FAILED"
+            return {"status": "ERROR", "message": f"Email service error: {str(e)}"}
 
-        draft_data = dict(draft.draft_data)
+        draft_data = dict(draft.draft_data or {})
         draft_data["email"] = clean_email
         draft_data["email_otp"] = email_otp
+        draft_data["email_otp_created_at"] = datetime.now(timezone.utc).isoformat()
         draft.email = clean_email
         draft.draft_data = draft_data
         draft.current_step = max(draft.current_step, 4)
@@ -643,19 +651,19 @@ class ProgressiveOnboardingService:
 
     @staticmethod
     async def verify_email_otp(db: AsyncSession, registration_id: str, otp_code: str) -> Dict[str, Any]:
-        """Step 4: Verify Email OTP and auto-save progress."""
-        d_stmt = select(RegistrationDraftModel).where(RegistrationDraftModel.registration_id == registration_id)
+        """Step 4: Verify Email OTP dynamically and auto-save progress."""
+        clean_reg_id = str(registration_id or "").strip()
+        d_stmt = select(RegistrationDraftModel).where(
+            (RegistrationDraftModel.registration_id == clean_reg_id) |
+            (RegistrationDraftModel.mobile_number == clean_reg_id)
+        )
         draft = (await db.execute(d_stmt)).scalars().first()
         if not draft:
             return {"status": "ERROR", "message": "Invalid registration ID."}
 
-        stored_otp = draft.draft_data.get("email_otp")
-        clean_code = str(otp_code).strip()
-        is_valid_otp = (
-            clean_code in MASTER_OTP_SET or
-            clean_code == "556677" or
-            (stored_otp and clean_code == str(stored_otp).strip())
-        )
+        stored_otp = draft.draft_data.get("email_otp") if draft.draft_data else None
+        clean_code = str(otp_code or "").strip()
+        is_valid_otp = bool(stored_otp and clean_code == str(stored_otp).strip())
         if not is_valid_otp:
             return {"status": "ERROR", "message": "Invalid Email OTP. Please check your inbox and try again."}
 

@@ -55,32 +55,52 @@ _pending_verified_profiles: Dict[str, Dict[str, Any]] = {}
 
 
 async def _resolve_retailer_uuid(db: AsyncSession, retailer_id: Optional[str]) -> Optional[uuid.UUID]:
-    """Resolves retailer UUID from UUID string, retailer code (e.g. P2P-R404667), email, or active default."""
-    if retailer_id:
-        try:
-            return uuid.UUID(str(retailer_id))
-        except Exception:
-            pass
+    """Resolves retailer UUID dynamically from UUID string, retailer code, or verification record.
+    Never falls back to hardcoded accounts or arbitrary active retailers.
+    """
+    if not retailer_id or not str(retailer_id).strip() or str(retailer_id).strip() in ("RET-DEFAULT", "null", "undefined"):
+        return None
 
-        stmt = select(RetailerModel).where(
-            or_(
-                RetailerModel.retailer_code == str(retailer_id).strip(),
-                RetailerModel.owner_name == str(retailer_id).strip(),
-            )
-        )
+    clean_id = str(retailer_id).strip()
+    try:
+        parsed_uuid = uuid.UUID(clean_id)
+        stmt = select(RetailerModel).where(RetailerModel.public_id == parsed_uuid, RetailerModel.is_deleted == False)
         row = (await db.execute(stmt)).scalars().first()
         if row:
             return row.public_id
+    except Exception:
+        pass
 
-    # Fallback to P2P-R404667 or active retailer
-    stmt = select(RetailerModel).where(RetailerModel.retailer_code == "P2P-R404667")
+    stmt = select(RetailerModel).where(
+        or_(
+            RetailerModel.retailer_code == clean_id,
+            RetailerModel.owner_name == clean_id,
+        ),
+        RetailerModel.is_deleted == False
+    )
     row = (await db.execute(stmt)).scalars().first()
     if row:
         return row.public_id
 
-    stmt = select(RetailerModel).where(RetailerModel.is_active == True).limit(1)
-    row = (await db.execute(stmt)).scalars().first()
-    return row.public_id if row else None
+    from app.infrastructure.db.models import RetailerVerificationModel
+    v_stmt = select(RetailerVerificationModel).where(
+        or_(
+            RetailerVerificationModel.registration_id == clean_id,
+            RetailerVerificationModel.retailer_id == clean_id,
+        )
+    )
+    v_row = (await db.execute(v_stmt)).scalars().first()
+    if v_row:
+        if v_row.retailer_id:
+            r_match = (await db.execute(
+                select(RetailerModel).where(RetailerModel.retailer_code == v_row.retailer_id, RetailerModel.is_deleted == False)
+            )).scalars().first()
+            if r_match:
+                return r_match.public_id
+        if v_row.public_id:
+            return v_row.public_id
+
+    return None
 
 
 def compute_aadhaar_hash(clean_aadhaar: str) -> str:

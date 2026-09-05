@@ -96,9 +96,9 @@ class Settings(BaseSettings):
     # ── SMTP Email Dispatcher Credentials ────────────────────────────────────
     SMTP_SERVER: str = Field(default="smtp.gmail.com")
     SMTP_PORT: int = Field(default=587)
-    SMTP_USERNAME: str = Field(default="Paymebalu@gmail.com")
-    SMTP_PASSWORD: str = Field(default="pbcr sgsm cugn ducm")
-    SMTP_FROM_EMAIL: str = Field(default="Paymebalu@gmail.com")
+    SMTP_USERNAME: str = Field(default="")
+    SMTP_PASSWORD: str = Field(default="")
+    SMTP_FROM_EMAIL: str = Field(default="")
     SMTP_FROM_NAME: str = Field(default="Pay2Pay Enterprise")
 
     # ── Support Metadata Configuration ──────────────────────────────────────

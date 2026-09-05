@@ -111,8 +111,12 @@ export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Load saved draft from Database on mount (Database is single source of truth)
   useEffect(() => {
     const savedRegId = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_id") || "") : "";
-    const savedMobile = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile") || "7013914767") : "7013914767";
+    const savedMobile = typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_mobile") || localStorage.getItem("pay2pay_user_mobile") || "") : "";
     const queryKey = savedRegId || savedMobile;
+
+    if (!queryKey) {
+      return;
+    }
 
     fetch(`/api/v1/onboarding/resume/${queryKey}`)
       .then((res) => res.json())
@@ -122,7 +126,7 @@ export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           setMobileNumber(data.mobile_number);
 
           const loadedCompleted: number[] = data.completed_steps || [];
-          const draftD = data.draft_data || {};
+          const draftD = { ...(data.draft_data || {}), email: data.email || data.draft_data?.email || "" };
           const isStep12Done =
             loadedCompleted.includes(12) ||
             draftD.step_12_completed === true ||

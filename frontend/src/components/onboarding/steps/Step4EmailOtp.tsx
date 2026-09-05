@@ -52,6 +52,9 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
     inputRefs.current[Math.min(text.length, 5)]?.focus();
   };
 
+  const activeEmail = email || (typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_email") || "") : "");
+  const targetRegId = registrationId || (typeof window !== "undefined" ? (localStorage.getItem("pay2pay_reg_id") || localStorage.getItem("pay2pay_reg_mobile") || "") : "");
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpValue.length !== 6) {
@@ -66,15 +69,15 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
       const res = await fetch("/api/v1/onboarding/verify-email-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registration_id: registrationId, otp_code: otpValue })
+        body: JSON.stringify({ registration_id: targetRegId, otp_code: otpValue })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setLoading(false);
 
       if (res.ok && data.status === "SUCCESS") {
         onSuccess();
       } else {
-        setErrorMsg(data.detail || "Invalid Email OTP. Please try again.");
+        setErrorMsg(data.message || data.detail || "Invalid Email OTP. Please check your inbox and try again.");
       }
     } catch {
       setLoading(false);
@@ -91,7 +94,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
           Code dispatched to{" "}
           <span className="font-extrabold text-blue-600 dark:text-blue-400">
-            {email || "retailer@pay2pay.in"}
+            {activeEmail}
           </span>
         </p>
       </div>
@@ -107,7 +110,7 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
               Live Email OTP Dispatched
             </p>
             <p className="text-xs font-semibold text-violet-800 dark:text-violet-300">
-              Check your inbox at {email}
+              Check your inbox at {activeEmail}
             </p>
           </div>
         </div>
@@ -163,13 +166,17 @@ export const Step4EmailOtp: React.FC<Step4Props> = ({ registrationId, email, onS
                 setErrorMsg("");
                 setOtpDigits(["", "", "", "", "", ""]);
                 try {
-                  await fetch("/api/v1/onboarding/check-email", {
+                  const res = await fetch("/api/v1/onboarding/check-email", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ registration_id: registrationId, email })
+                    body: JSON.stringify({ registration_id: targetRegId, email: activeEmail })
                   });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok || data.status !== "SUCCESS") {
+                    setErrorMsg(data.message || data.detail || "Failed to resend Email OTP.");
+                  }
                 } catch {
-                  // Ignore
+                  setErrorMsg("Network error while resending OTP.");
                 }
               }}
               className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
