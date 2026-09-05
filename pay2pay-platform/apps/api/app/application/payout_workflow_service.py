@@ -781,29 +781,30 @@ class PayoutWorkflowService:
             raise HTTPException(status_code=400, detail="PIN must be a 4 or 6 digit number")
 
         stmt = select(CustomerPinModel).where(
-            and_(
-                CustomerPinModel.tenant_id == tenant_id,
-                CustomerPinModel.customer_id == customer_id
-            )
+            CustomerPinModel.customer_id == customer_id
         )
         cpin = (await db.execute(stmt)).scalar_one_or_none()
         
         if not cpin:
-            # Default hash for 1234
-            hashed_default = hashlib.sha256(pin.encode("utf-8")).hexdigest()
-            cpin = CustomerPinModel(
-                public_id=uuid.uuid4(),
-                tenant_id=tenant_id,
-                created_by="SYSTEM",
-                customer_id=customer_id,
-                hashed_pin=hashed_default,
-                pin_length=len(pin),
-                is_locked=False,
-                failed_attempts=0,
-                last_changed_at=datetime.now()
-            )
-            db.add(cpin)
-            await db.commit()
+            try:
+                # Default hash for 1234
+                hashed_default = hashlib.sha256(pin.encode("utf-8")).hexdigest()
+                cpin = CustomerPinModel(
+                    public_id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    created_by="SYSTEM",
+                    customer_id=customer_id,
+                    hashed_pin=hashed_default,
+                    pin_length=len(pin),
+                    is_locked=False,
+                    failed_attempts=0,
+                    last_changed_at=datetime.now()
+                )
+                db.add(cpin)
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                cpin = (await db.execute(stmt)).scalar_one_or_none()
 
         # Check if locked
         if cpin.is_locked:
