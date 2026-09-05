@@ -389,11 +389,11 @@ def validate_query_params(
         )
 
     # Status validation
-    allowed_statuses = {"ALL", "INITIATED", "PENDING", "SUCCESS", "FAILED"}
+    allowed_statuses = {"ALL", "INITIATED", "PENDING", "SUCCESS", "FAILED", "REVERSED"}
     if status_filter and status_filter.strip().upper() not in allowed_statuses:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"success": False, "error_code": "INVALID_STATUS", "message": f"Invalid status: '{status_filter}'. Allowed values: INITIATED, PENDING, SUCCESS, FAILED"}
+            detail={"success": False, "error_code": "INVALID_STATUS", "message": f"Invalid status: '{status_filter}'. Allowed values: INITIATED, PENDING, SUCCESS, FAILED, REVERSED"}
         )
 
     # Mode validation
@@ -449,8 +449,9 @@ async def get_payout_transactions_report(
     limit: int = Query(25, description="Page size limit (default: 25, max: 100)"),
     from_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD), default: TODAY"),
     to_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD), default: TODAY"),
-    status: Optional[str] = Query(None, description="Status filter (INITIATED, PENDING, SUCCESS, FAILED)"),
+    status: Optional[str] = Query(None, description="Status filter (INITIATED, PENDING, SUCCESS, FAILED, REVERSED)"),
     mode: Optional[str] = Query(None, description="Payment mode filter (IMPS, NEFT, RTGS, UPI)"),
+    payment_mode: Optional[str] = Query(None, description="Payment mode filter alias (IMPS, NEFT, RTGS, UPI)"),
     user_type: Optional[str] = Query(None, description="User type filter (ADMIN, RETAILER, DISTRIBUTOR, SD, CRM, RM, ALL)"),
     search: Optional[str] = Query(None, description="Search term for Txn ID, UTR, Beneficiary, Customer, Retailer, Company, or Account last 4"),
     retailer_id: Optional[str] = Query(None, description="Retailer ID filter (UUID, code, or integer)"),
@@ -466,6 +467,8 @@ async def get_payout_transactions_report(
     # 1. Resolve Auth & Roles (Never trust user_type_ref_id supplied by frontend)
     auth_ctx = await resolve_auth_context(request, db)
 
+    effective_mode = mode or payment_mode
+
     # 2. Validate Inputs
     start_dt, end_dt, sort_col, sort_dir = validate_query_params(
         page=page,
@@ -473,7 +476,7 @@ async def get_payout_transactions_report(
         from_date=from_date,
         to_date=to_date,
         status_filter=status,
-        mode_filter=mode,
+        mode_filter=effective_mode,
         sort_by=sort_by,
         sort_order=sort_order
     )
@@ -526,7 +529,26 @@ async def get_payout_transactions_report(
     elif auth_ctx.user_type == "RETAILER":
         # Strict Retailer isolation: Lock to authenticated retailer only
         if retailer_ref_id is None:
+            lookup_val = (retailer_id and str(retailer_id).strip()) or auth_ctx.retailer_id or auth_ctx.user_id
+            if lookup_val:
+                try:
+                    r_lookup = await db.execute(text("""
+                        SELECT retailer_ref_id, company_ref_id, tenant_ref_id
+                        FROM public.retailer
+                        WHERE public_id::text = :r_clean
+                           OR retailer_code = :r_clean
+                           OR retailer_ref_id::text = :r_clean
+                        LIMIT 1;
+                    """), {"r_clean": str(lookup_val)})
+                    r_match = r_lookup.fetchone()
+                    if r_match:
+                        retailer_ref_id = r_match[0]
+                except Exception as e:
+                    logger.warning(f"Error resolving retailer for retailer user: {e}")
+        if retailer_ref_id is None:
             retailer_ref_id = -1
+        # For RETAILERS, do NOT restrict by company_ref_id! Payout transactions may be assigned to different internal companies while belonging to this retailer.
+        company_ref_id = None
 
     from_date_parsed = start_dt.strftime("%Y-%m-%d")
     to_date_parsed = end_dt.strftime("%Y-%m-%d")
@@ -550,7 +572,7 @@ async def get_payout_transactions_report(
         count_params["company_ref_id"] = company_ref_id
 
     if retailer_ref_id is not None:
-        where_clauses.append("pt.retailer_ref_id = :retailer_ref_id")
+        where_clauses.append("(pt.retailer_ref_id = :retailer_ref_id OR (pt.user_ref_id = :retailer_ref_id AND pt.user_type_ref_id = 2))")
         count_params["retailer_ref_id"] = retailer_ref_id
 
     if rm_ref_id is not None:
@@ -565,12 +587,16 @@ async def get_payout_transactions_report(
         count_params["user_type_val"] = effective_user_type_code.upper()
 
     if status and status.strip().upper() != "ALL":
-        where_clauses.append("UPPER(pt.status) = :status_val")
-        count_params["status_val"] = status.strip().upper()
+        stat_upper = status.strip().upper()
+        if stat_upper == "FAILED":
+            where_clauses.append("UPPER(pt.status) IN ('FAILED', 'REVERSED')")
+        else:
+            where_clauses.append("UPPER(pt.status) = :status_val")
+            count_params["status_val"] = stat_upper
 
-    if mode and mode.strip().upper() != "ALL":
+    if effective_mode and effective_mode.strip().upper() != "ALL":
         where_clauses.append("UPPER(pt.mode) = :mode_val")
-        count_params["mode_val"] = mode.strip().upper()
+        count_params["mode_val"] = effective_mode.strip().upper()
 
     if search and search.strip():
         where_clauses.append("""(
@@ -622,7 +648,7 @@ async def get_payout_transactions_report(
         "from_date": start_dt.date(),
         "to_date": end_dt.date(),
         "status": status.strip().upper() if status and status.strip().upper() != "ALL" else None,
-        "mode": mode.strip().upper() if mode and mode.strip().upper() != "ALL" else None,
+        "mode": effective_mode.strip().upper() if effective_mode and effective_mode.strip().upper() != "ALL" else None,
         "search": search.strip() if search and search.strip() else None,
         "page": page,
         "limit": limit
@@ -833,6 +859,26 @@ async def get_payout_transactions_summary(
     else:
         end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
 
+    if auth_ctx.user_type == "RETAILER":
+        company_ref_id = None
+        if retailer_ref_id is None:
+            lookup_val = (retailer_id and str(retailer_id).strip()) or auth_ctx.retailer_id or auth_ctx.user_id
+            if lookup_val:
+                try:
+                    r_lookup = await db.execute(text("""
+                        SELECT retailer_ref_id, company_ref_id, tenant_ref_id
+                        FROM public.retailer
+                        WHERE public_id::text = :r_clean
+                           OR retailer_code = :r_clean
+                           OR retailer_ref_id::text = :r_clean
+                        LIMIT 1;
+                    """), {"r_clean": str(lookup_val)})
+                    r_match = r_lookup.fetchone()
+                    if r_match:
+                        retailer_ref_id = r_match[0]
+                except Exception:
+                    pass
+
     where_clauses = [
         "pt.created_date >= :start_dt",
         "pt.created_date <= :end_dt",
@@ -850,7 +896,7 @@ async def get_payout_transactions_summary(
         params["company_ref_id"] = company_ref_id
 
     if retailer_ref_id:
-        where_clauses.append("pt.retailer_ref_id = :retailer_ref_id")
+        where_clauses.append("(pt.retailer_ref_id = :retailer_ref_id OR (pt.user_ref_id = :retailer_ref_id AND pt.user_type_ref_id = 2))")
         params["retailer_ref_id"] = retailer_ref_id
 
     if user_type and str(user_type).strip() != "":
