@@ -164,7 +164,8 @@ async def list_api_logs(
         )
 
     # Server-Side Search
-    if search and search.strip():
+    has_explicit_search = bool(search and search.strip())
+    if has_explicit_search:
         s = f"%{search.strip()}%"
         conds.append(
             or_(
@@ -180,6 +181,9 @@ async def list_api_logs(
                 EnterpriseApiLogModel.client_name.ilike(s),
                 EnterpriseApiLogModel.retailer_id.ilike(s),
                 EnterpriseApiLogModel.api_name.ilike(s),
+                EnterpriseApiLogModel.error_code.ilike(s),
+                EnterpriseApiLogModel.error_message.ilike(s),
+                EnterpriseApiLogModel.failure_reason.ilike(s),
             )
         )
 
@@ -221,8 +225,12 @@ async def list_api_logs(
             )
         )
 
-    # Date Range Filter
-    s_dt, e_dt = resolve_date_filter(date_preset, start_date, end_date)
+    # Date Range Filter (only apply TODAY restriction if NOT performing an explicit cross-date search)
+    effective_preset = date_preset
+    if has_explicit_search and (not date_preset or date_preset == "TODAY") and not start_date:
+        effective_preset = "ALL"
+
+    s_dt, e_dt = resolve_date_filter(effective_preset, start_date, end_date)
     if s_dt:
         conds.append(EnterpriseApiLogModel.created_date >= s_dt)
     if e_dt:
@@ -255,7 +263,7 @@ async def list_api_logs(
             "endpoint": r.endpoint,
             "http_method": r.http_method,
             "client_name": r.client_name,
-            "provider_name": r.provider_name or ("Enterprise API" if r.direction == "INBOUND" else "Provider Gateway"),
+            "provider_name": r.provider_name or ("Enterprise Platform Core" if r.direction == "INBOUND" else "Provider Gateway"),
             "transaction_id": r.transaction_id,
             "request_id": r.request_id,
             "correlation_id": r.correlation_id,
@@ -267,7 +275,9 @@ async def list_api_logs(
             "environment": r.environment,
             "retailer_id": r.retailer_id,
             "error_code": r.error_code,
+            "error_type": r.error_type,
             "error_message": r.error_message,
+            "failure_reason": r.failure_reason,
             "payload_truncated": r.payload_truncated,
             "timestamp": r.created_date.isoformat() if r.created_date else None,
             "request_timestamp": r.request_timestamp.isoformat() if r.request_timestamp else None,
@@ -443,15 +453,23 @@ async def export_api_logs_csv(
     Secrets and passwords are guaranteed to be masked.
     """
     conds = [EnterpriseApiLogModel.is_deleted == False]
-    if search and search.strip():
+    has_explicit_search = bool(search and search.strip())
+    if has_explicit_search:
         s = f"%{search.strip()}%"
         conds.append(
             or_(
                 EnterpriseApiLogModel.log_code.ilike(s),
                 EnterpriseApiLogModel.transaction_id.ilike(s),
                 EnterpriseApiLogModel.request_id.ilike(s),
+                EnterpriseApiLogModel.correlation_id.ilike(s),
+                EnterpriseApiLogModel.client_reference_id.ilike(s),
+                EnterpriseApiLogModel.provider_reference_id.ilike(s),
                 EnterpriseApiLogModel.endpoint.ilike(s),
                 EnterpriseApiLogModel.service_name.ilike(s),
+                EnterpriseApiLogModel.provider_name.ilike(s),
+                EnterpriseApiLogModel.error_code.ilike(s),
+                EnterpriseApiLogModel.error_message.ilike(s),
+                EnterpriseApiLogModel.failure_reason.ilike(s),
             )
         )
     if service and service.upper() != "ALL":
@@ -465,7 +483,11 @@ async def export_api_logs_csv(
     if provider_name and provider_name.upper() != "ALL":
         conds.append(EnterpriseApiLogModel.provider_name.ilike(f"%{provider_name}%"))
 
-    s_dt, e_dt = resolve_date_filter(date_preset, start_date, end_date)
+    effective_preset = date_preset
+    if has_explicit_search and (not date_preset or date_preset == "TODAY") and not start_date:
+        effective_preset = "ALL"
+
+    s_dt, e_dt = resolve_date_filter(effective_preset, start_date, end_date)
     if s_dt:
         conds.append(EnterpriseApiLogModel.created_date >= s_dt)
     if e_dt:
