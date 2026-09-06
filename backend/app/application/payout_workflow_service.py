@@ -322,7 +322,7 @@ class PayoutWorkflowService:
         logger.info(f"[MOBILE OTP VERIFY] mobile={clean_mobile} | received='{clean_code}' | expected='{otp_record.otp_code}' | attempts={otp_record.attempts}")
         print(f"[MOBILE OTP VERIFY] mobile={clean_mobile} | received='{clean_code}' | expected='{otp_record.otp_code}' | attempts={otp_record.attempts}")
 
-        is_valid_otp = clean_code in {"778899", "123456", "999999", "000000", "112233", "123123", "654321"} or (otp_record and otp_record.otp_code == clean_code)
+        is_valid_otp = bool(otp_record and str(otp_record.otp_code).strip() == clean_code)
 
         if not is_valid_otp:
             otp_record.attempts += 1
