@@ -1906,12 +1906,12 @@ export default function NewCustomerWorkspacePage() {
           }}
           PaperProps={{
             sx: {
-              bgcolor: "rgba(11, 15, 25, 0.96)",
-              backgroundImage: "linear-gradient(180deg, rgba(23, 31, 50, 0.75) 0%, rgba(10, 14, 23, 0.98) 100%)",
+              bgcolor: "#0A0F1D",
+              backgroundImage: "linear-gradient(180deg, #0E1528 0%, #080C16 100%)",
               backdropFilter: "blur(24px)",
               borderRadius: { xs: "20px", sm: "24px" },
-              border: "1px solid rgba(245, 158, 11, 0.28)",
-              boxShadow: "0 28px 75px rgba(0, 0, 0, 0.92), 0 0 35px rgba(245, 158, 11, 0.12)",
+              border: "1px solid rgba(245, 158, 11, 0.25)",
+              boxShadow: "0 28px 75px rgba(0, 0, 0, 0.95), 0 0 35px rgba(245, 158, 11, 0.08)",
               color: "#FFFFFF",
               maxWidth: 440,
               width: "100%",
@@ -1926,11 +1926,11 @@ export default function NewCustomerWorkspacePage() {
             sx={{
               position: "absolute",
               top: 0,
-              left: "10%",
-              right: "10%",
+              left: "15%",
+              right: "15%",
               height: "2px",
-              background: "linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.9) 50%, transparent 100%)",
-              boxShadow: "0 0 14px rgba(245, 158, 11, 0.6)",
+              background: "linear-gradient(90deg, transparent 0%, #F59E0B 50%, transparent 100%)",
+              opacity: 0.6,
             }}
           />
 
@@ -1944,12 +1944,10 @@ export default function NewCustomerWorkspacePage() {
                     height: 46,
                     borderRadius: "14px",
                     bgcolor: "rgba(245, 158, 11, 0.12)",
-                    border: "1.5px solid rgba(245, 158, 11, 0.35)",
+                    border: "1px solid rgba(245, 158, 11, 0.35)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "#F59E0B",
-                    boxShadow: "0 0 16px rgba(245, 158, 11, 0.2)",
                     flexShrink: 0,
                   }}
                 >
@@ -1958,19 +1956,19 @@ export default function NewCustomerWorkspacePage() {
                 <Box>
                   <Typography
                     sx={{
-                      fontWeight: 900,
-                      fontSize: { xs: "16.5px", sm: "17.5px" },
+                      fontWeight: 800,
+                      fontSize: { xs: "17px", sm: "18px" },
                       color: "#FFFFFF",
-                      letterSpacing: "-0.3px",
-                      lineHeight: 1.25,
+                      letterSpacing: "-0.2px",
+                      lineHeight: 1.3,
                     }}
                   >
                     Confirm Aadhaar Verification
                   </Typography>
                   <Typography
                     sx={{
-                      color: "rgba(255, 255, 255, 0.6)",
-                      fontSize: "12px",
+                      color: "#94A3B8",
+                      fontSize: "12.5px",
                       fontWeight: 500,
                       mt: 0.35,
                     }}
@@ -1980,17 +1978,17 @@ export default function NewCustomerWorkspacePage() {
                 </Box>
               </Stack>
 
-              {/* Subtle Verification/Security Indicator */}
+              {/* UIDAI COMPLIANT Security Badge */}
               <Box
                 sx={{
                   display: { xs: "none", sm: "flex" },
                   alignItems: "center",
-                  gap: 0.6,
+                  gap: 0.75,
                   bgcolor: "rgba(34, 197, 94, 0.12)",
-                  border: "1px solid rgba(74, 222, 128, 0.3)",
+                  border: "1px solid rgba(34, 197, 94, 0.35)",
                   borderRadius: "20px",
-                  px: 1,
-                  py: 0.35,
+                  px: 1.25,
+                  py: 0.45,
                 }}
               >
                 <Box
@@ -1998,16 +1996,15 @@ export default function NewCustomerWorkspacePage() {
                     width: 6,
                     height: 6,
                     borderRadius: "50%",
-                    bgcolor: "#4ADE80",
-                    boxShadow: "0 0 6px #4ADE80",
+                    bgcolor: "#22C55E",
                   }}
                 />
                 <Typography
                   sx={{
-                    fontSize: "9.5px",
+                    fontSize: "10px",
                     fontWeight: 800,
                     color: "#4ADE80",
-                    letterSpacing: "0.04em",
+                    letterSpacing: "0.05em",
                   }}
                 >
                   UIDAI COMPLIANT
@@ -2015,39 +2012,39 @@ export default function NewCustomerWorkspacePage() {
               </Box>
             </Stack>
 
-            {/* Fee Breakdown Card (Polished Financial Summary) */}
+            {/* Fee Breakdown Card (Dark High-Contrast Financial Summary Card) */}
             <Box
               sx={{
-                bgcolor: "rgba(15, 23, 42, 0.65)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
+                bgcolor: "#070B14",
+                border: "1px solid rgba(245, 158, 11, 0.2)",
                 borderRadius: "16px",
-                p: 2,
+                p: 2.25,
               }}
             >
               <Typography
                 sx={{
                   color: "#94A3B8",
-                  fontSize: "10.5px",
+                  fontSize: "11px",
                   fontWeight: 800,
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
-                  mb: 1.5,
+                  mb: 1.75,
                 }}
               >
                 VERIFICATION FEE
               </Typography>
 
-              <Stack spacing={1.2}>
+              <Stack spacing={1.5}>
                 {/* eKYC Service Fee */}
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "13px", fontWeight: 500 }}>
+                  <Typography sx={{ color: "#E2E8F0", fontSize: "13.5px", fontWeight: 500 }}>
                     eKYC Service Fee
                   </Typography>
                   <Typography
                     sx={{
                       fontWeight: 700,
-                      fontSize: "13.5px",
-                      color: "#FFFFFF",
+                      fontSize: "14px",
+                      color: "#FBBF24",
                       fontFamily: "var(--font-geist-mono), monospace",
                     }}
                   >
@@ -2057,14 +2054,14 @@ export default function NewCustomerWorkspacePage() {
 
                 {/* GST Rate & Amount */}
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography sx={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "13px", fontWeight: 500 }}>
+                  <Typography sx={{ color: "#E2E8F0", fontSize: "13.5px", fontWeight: 500 }}>
                     GST ({Math.round(chargePreview.tax_rate * 100)}%)
                   </Typography>
                   <Typography
                     sx={{
                       fontWeight: 700,
-                      fontSize: "13.5px",
-                      color: "#FFFFFF",
+                      fontSize: "14px",
+                      color: "#FBBF24",
                       fontFamily: "var(--font-geist-mono), monospace",
                     }}
                   >
@@ -2072,32 +2069,30 @@ export default function NewCustomerWorkspacePage() {
                   </Typography>
                 </Stack>
 
-                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 0.5 }} />
+                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 0.5 }} />
 
-                {/* Total Wallet Debit (Strongest Visual Element) */}
+                {/* Total Wallet Debit */}
                 <Box
                   sx={{
-                    p: 1.25,
+                    p: 1.5,
                     borderRadius: "12px",
                     bgcolor: "rgba(245, 158, 11, 0.08)",
-                    border: "1px solid rgba(245, 158, 11, 0.22)",
+                    border: "1px solid rgba(245, 158, 11, 0.25)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
                   }}
                 >
-                  <Typography sx={{ color: "#FDE68A", fontSize: "13.5px", fontWeight: 800 }}>
+                  <Typography sx={{ color: "#FFFFFF", fontSize: "14px", fontWeight: 800, letterSpacing: "0.02em" }}>
                     Total Wallet Debit
                   </Typography>
                   <Typography
                     sx={{
                       fontWeight: 900,
-                      fontSize: { xs: "18px", sm: "20px" },
+                      fontSize: { xs: "19px", sm: "21px" },
                       fontFamily: "var(--font-geist-mono), monospace",
-                      background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      letterSpacing: "-0.4px",
+                      color: "#FBBF24",
+                      letterSpacing: "-0.3px",
                     }}
                   >
                     ₹{chargePreview.total_amount.toFixed(2)}
@@ -2109,33 +2104,33 @@ export default function NewCustomerWorkspacePage() {
             {/* Available Wallet Balance Indicator Card */}
             <Box
               sx={{
-                p: 1.5,
+                p: 1.75,
                 borderRadius: "14px",
-                bgcolor: "rgba(255, 255, 255, 0.02)",
-                border: "1px solid rgba(255, 255, 255, 0.07)",
+                bgcolor: "#070B14",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
               }}
             >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <AccountBalanceWalletIcon sx={{ fontSize: 18, color: "#94A3B8" }} />
+              <Stack direction="row" spacing={1.25} alignItems="center">
+                <AccountBalanceWalletIcon sx={{ fontSize: 20, color: "#94A3B8" }} />
                 <Typography
                   sx={{
-                    color: "#94A3B8",
-                    fontSize: "11.5px",
+                    color: "#CBD5E1",
+                    fontSize: "12px",
                     fontWeight: 700,
                     textTransform: "uppercase",
-                    letterSpacing: "0.04em",
+                    letterSpacing: "0.05em",
                   }}
                 >
-                  Available Wallet Balance
+                  AVAILABLE WALLET BALANCE
                 </Typography>
               </Stack>
               <Typography
                 sx={{
                   color: (wallet?.mainBalance ?? 0) < chargePreview.total_amount ? "#F87171" : "#4ADE80",
-                  fontSize: { xs: "14px", sm: "15px" },
+                  fontSize: { xs: "15px", sm: "16px" },
                   fontWeight: 900,
                   fontFamily: "var(--font-geist-mono), monospace",
                 }}
@@ -2148,17 +2143,17 @@ export default function NewCustomerWorkspacePage() {
             {(wallet?.mainBalance ?? 0) < chargePreview.total_amount && (
               <Box
                 sx={{
-                  p: 1.35,
+                  p: 1.5,
                   borderRadius: "12px",
-                  bgcolor: "rgba(239, 68, 68, 0.1)",
-                  border: "1px solid rgba(239, 68, 68, 0.35)",
+                  bgcolor: "rgba(239, 68, 68, 0.12)",
+                  border: "1px solid rgba(239, 68, 68, 0.4)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                   gap: 1.5,
                 }}
               >
-                <Typography sx={{ color: "#FCA5A5", fontSize: "12px", fontWeight: 700 }}>
+                <Typography sx={{ color: "#FCA5A5", fontSize: "12.5px", fontWeight: 700, lineHeight: 1.4 }}>
                   Low Balance: ₹{(chargePreview.total_amount - (wallet?.mainBalance ?? 0)).toFixed(2)} more needed for verification.
                 </Typography>
                 <Button
@@ -2171,7 +2166,7 @@ export default function NewCustomerWorkspacePage() {
                     height: 28,
                     borderRadius: "8px",
                     bgcolor: "#EF4444",
-                    color: "#FFF",
+                    color: "#FFFFFF",
                     textTransform: "none",
                     whiteSpace: "nowrap",
                     "&:hover": { bgcolor: "#DC2626" },
@@ -2182,32 +2177,32 @@ export default function NewCustomerWorkspacePage() {
               </Box>
             )}
 
-            {/* Compact Professional Information Notice Banner */}
+            {/* Redesigned Dark Important Information Card */}
             <Box
               sx={{
-                p: 1.35,
-                borderRadius: "12px",
-                bgcolor: "rgba(245, 158, 11, 0.06)",
+                p: 1.75,
+                borderRadius: "14px",
+                bgcolor: "#070B14",
                 border: "1px solid rgba(245, 158, 11, 0.2)",
                 display: "flex",
-                gap: 1.25,
+                gap: 1.5,
                 alignItems: "flex-start",
               }}
             >
-              <InfoOutlinedIcon sx={{ fontSize: 18, color: "#F59E0B", mt: 0.15, flexShrink: 0 }} />
-              <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", lineHeight: 1.5 }}>
+              <InfoOutlinedIcon sx={{ fontSize: 20, color: "#F59E0B", mt: 0.2, flexShrink: 0 }} />
+              <Typography sx={{ color: "#FFFFFF", fontSize: "12.5px", lineHeight: 1.6, fontWeight: 400 }}>
                 Verification charge of{" "}
-                <strong style={{ color: "#FDE68A" }}>
+                <strong style={{ color: "#FBBF24", fontWeight: 800 }}>
                   ₹{chargePreview.total_amount.toFixed(2)}
                 </strong>{" "}
                 will be debited from your retailer main wallet upon OTP dispatch.
-                <Box component="span" sx={{ display: "block", color: "#4ADE80", fontWeight: 700, mt: 0.35 }}>
+                <Box component="span" sx={{ display: "block", color: "#4ADE80", fontWeight: 700, mt: 0.5 }}>
                   ✓ Auto-refund is guaranteed if verification fails.
                 </Box>
               </Typography>
             </Box>
 
-            {/* Two-Button Modern Footer */}
+            {/* Two-Button Footer (Clear Contrast & Strong Readability) */}
             <Stack direction="row" spacing={1.5} sx={{ pt: 0.5 }}>
               <Button
                 variant="outlined"
@@ -2217,21 +2212,19 @@ export default function NewCustomerWorkspacePage() {
                 sx={{
                   height: 48,
                   borderRadius: "12px",
-                  borderColor: "rgba(255, 255, 255, 0.16)",
-                  bgcolor: "rgba(255, 255, 255, 0.03)",
-                  color: "rgba(255, 255, 255, 0.75)",
+                  borderColor: "rgba(255, 255, 255, 0.2)",
+                  bgcolor: "rgba(255, 255, 255, 0.04)",
+                  color: "#E2E8F0",
                   textTransform: "none",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   fontSize: "14px",
                   letterSpacing: "-0.2px",
                   transition: "all 0.2s ease-in-out",
                   "&:hover": {
-                    borderColor: "rgba(255, 255, 255, 0.3)",
-                    bgcolor: "rgba(255, 255, 255, 0.07)",
+                    borderColor: "rgba(255, 255, 255, 0.4)",
+                    bgcolor: "rgba(255, 255, 255, 0.08)",
                     color: "#FFFFFF",
-                    transform: "translateY(-1px)",
                   },
-                  "&:active": { transform: "translateY(0)" },
                 }}
               >
                 Cancel
@@ -2246,31 +2239,29 @@ export default function NewCustomerWorkspacePage() {
                   height: 48,
                   borderRadius: "12px",
                   fontWeight: 900,
-                  fontSize: "13.5px",
+                  fontSize: "14px",
                   letterSpacing: "-0.2px",
                   background: (wallet?.mainBalance ?? 0) < chargePreview.total_amount
                     ? "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
-                    : "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
-                  color: (wallet?.mainBalance ?? 0) < chargePreview.total_amount ? "#FFFFFF" : "#080B11",
+                    : "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+                  color: (wallet?.mainBalance ?? 0) < chargePreview.total_amount ? "#FFFFFF" : "#0A0F1D",
                   textTransform: "none",
                   boxShadow: (wallet?.mainBalance ?? 0) < chargePreview.total_amount
-                    ? "0 4px 18px rgba(239, 68, 68, 0.3)"
-                    : "0 4px 18px rgba(245, 158, 11, 0.35)",
+                    ? "0 4px 14px rgba(239, 68, 68, 0.3)"
+                    : "0 4px 14px rgba(245, 158, 11, 0.35)",
                   transition: "all 0.2s ease-in-out",
                   "&:hover": {
                     background: (wallet?.mainBalance ?? 0) < chargePreview.total_amount
                       ? "linear-gradient(135deg, #F87171 0%, #B91C1C 100%)"
                       : "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
                     boxShadow: (wallet?.mainBalance ?? 0) < chargePreview.total_amount
-                      ? "0 6px 24px rgba(239, 68, 68, 0.4)"
-                      : "0 6px 24px rgba(245, 158, 11, 0.5)",
-                    transform: "translateY(-1px)",
+                      ? "0 6px 20px rgba(239, 68, 68, 0.4)"
+                      : "0 6px 20px rgba(245, 158, 11, 0.5)",
                   },
-                  "&:active": { transform: "translateY(0)" },
                 }}
               >
                 {aadhaarLoading ? (
-                  <CircularProgress size={20} sx={{ color: (wallet?.mainBalance ?? 0) < chargePreview.total_amount ? "#FFF" : "#080B11" }} />
+                  <CircularProgress size={20} sx={{ color: (wallet?.mainBalance ?? 0) < chargePreview.total_amount ? "#FFF" : "#0A0F1D" }} />
                 ) : (
                   `Confirm & Debit ₹${chargePreview.total_amount.toFixed(2)}`
                 )}
