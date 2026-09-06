@@ -46,7 +46,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { retailerApi } from "@/services/retailer-api";
+import { retailerApi, apiClient } from "@/services/retailer-api";
 import { notificationEngine } from "@/services/notification-engine";
 import { useTransactionMemoryStore } from "@/stores/use-transaction-memory-store";
 import { useRetailerStore } from "@/stores/use-retailer-store";
@@ -63,7 +63,7 @@ const STEPS = [
 export default function NewCustomerWorkspacePage() {
   const router = useRouter();
   const { setSelectedCustomer, referrerUrl } = useTransactionMemoryStore();
-  const { wallet, syncBalance, refreshBalances } = useRetailerStore();
+  const { wallet, syncBalance, refreshBalances, outlet } = useRetailerStore();
 
   const [activeStep, setActiveStep] = useState(0);
 
@@ -102,15 +102,23 @@ export default function NewCustomerWorkspacePage() {
   const [aadhaarProfile, setAadhaarProfile] = useState<any | null>(null);
   const [showDebitConfirmModal, setShowDebitConfirmModal] = useState(false);
   const [chargePreview, setChargePreview] = useState<{
-    service_charge?: number;
-    tax_rate?: number;
-    cgst?: number;
-    sgst?: number;
-    tax_amount?: number;
-    total_amount?: number;
-    is_chargeable?: boolean;
+    service_charge: number;
+    tax_rate: number;
+    cgst: number;
+    sgst: number;
+    tax_amount: number;
+    total_amount: number;
+    is_chargeable: boolean;
     message?: string;
-  } | null>(null);
+  }>({
+    service_charge: 5.0,
+    tax_rate: 0.18,
+    cgst: 0.45,
+    sgst: 0.45,
+    tax_amount: 0.90,
+    total_amount: 5.90,
+    is_chargeable: true,
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
 
@@ -189,13 +197,43 @@ export default function NewCustomerWorkspacePage() {
   useEffect(() => {
     const fetchChargePreview = async () => {
       try {
-        const previewFn = retailerApi.aadhaarKyc?.chargePreview || retailerApi.aadhaar?.chargePreview;
-        if (previewFn) {
-          const data = await previewFn("CUSTOMER_VERIFICATION");
-          if (data) setChargePreview(data);
+        const res = await apiClient.get("/payout-workflow/aadhaar/charge-preview?verification_context=CUSTOMER_VERIFICATION");
+        const data = res.data?.data || res.data;
+        if (data && typeof data === "object") {
+          const serviceCharge = Number(data.service_charge ?? 5.0);
+          const taxRate = Number(data.tax_rate ?? 0.18);
+          const cgst = Number(data.cgst ?? (serviceCharge * (taxRate / 2)));
+          const sgst = Number(data.sgst ?? (serviceCharge * (taxRate / 2)));
+          const taxAmount = Number(data.tax_amount ?? (cgst + sgst));
+          const totalAmount = Number(data.total_amount ?? (serviceCharge + taxAmount));
+          setChargePreview({
+            service_charge: serviceCharge,
+            tax_rate: taxRate,
+            cgst: cgst,
+            sgst: sgst,
+            tax_amount: taxAmount,
+            total_amount: totalAmount,
+            is_chargeable: true,
+            message: data.message,
+          });
         }
       } catch (err) {
-        console.warn("Using fallback charge preview", err);
+        console.warn("Dynamic fallback charge preview applied:", err);
+        const serviceCharge = 5.0;
+        const taxRate = 0.18;
+        const cgst = serviceCharge * 0.09;
+        const sgst = serviceCharge * 0.09;
+        const taxAmount = cgst + sgst;
+        const totalAmount = serviceCharge + taxAmount;
+        setChargePreview({
+          service_charge: serviceCharge,
+          tax_rate: taxRate,
+          cgst: cgst,
+          sgst: sgst,
+          tax_amount: taxAmount,
+          total_amount: totalAmount,
+          is_chargeable: true,
+        });
       }
     };
     fetchChargePreview();
@@ -380,36 +418,51 @@ export default function NewCustomerWorkspacePage() {
   };
 
   const handleConfirmAndSendAadhaarOtp = async () => {
+    const totalRequired = chargePreview.total_amount;
+    const currentBalance = wallet?.mainBalance ?? 0;
+    if (currentBalance < totalRequired) {
+      setAadhaarError(
+        `Insufficient wallet balance for Aadhaar verification. Available: ₹${currentBalance.toFixed(2)}, Required: ₹${totalRequired.toFixed(2)}. Please top up your wallet to proceed.`
+      );
+      notificationEngine.notify(
+        "TRANSACTION_FAILED",
+        `Insufficient wallet balance (₹${currentBalance.toFixed(2)}) for Aadhaar verification (₹${totalRequired.toFixed(2)}).`
+      );
+      return;
+    }
+
     setAadhaarLoading(true);
     setAadhaarError("");
     try {
-      const res = await retailerApi.generateAadhaarOtp(
-        aadhaarNumber,
-        existingCustomer?.public_id || createdCustomer?.public_id,
-        mobileNumber,
-        "ONBOARDING"
-      );
+      const res = await apiClient.post("/payout-workflow/aadhaar-otp/generate", {
+        aadhaar_number: aadhaarNumber,
+        customer_id: existingCustomer?.public_id || createdCustomer?.public_id,
+        mobile_number: mobileNumber,
+        retailer_id: outlet?.id || outlet?.code || undefined,
+        verification_context: "CUSTOMER_VERIFICATION",
+      });
+      const data = res.data;
       setAadhaarLoading(false);
-      if (res && res.status === "SUCCESS") {
+      if (data && (data.status === "SUCCESS" || data.status === "OTP_SENT" || data.data?.status === "OTP_SENT")) {
         setShowDebitConfirmModal(false);
         setAadhaarOtpSent(true);
-        setAadhaarRefId(res.data?.ref_id || res.data?.ref_number || res.ref_id || "");
-        const totalCharged = chargePreview?.total_amount != null
-          ? chargePreview.total_amount
-          : res.data?.total_debit || 0;
+        const refId = data.data?.ref_id || data.data?.ref_number || data.ref_id || data.ref_number || "";
+        setAadhaarRefId(refId);
+        const totalCharged = data.data?.fee_debited ?? totalRequired;
         notificationEngine.notify(
           "OTP_RECEIVED",
-          `Aadhaar eKYC OTP Dispatched via UIDAI.${totalCharged > 0 ? ` Wallet debited: ₹${totalCharged.toFixed(2)}` : ""}`
+          `Aadhaar eKYC OTP Dispatched via UIDAI. Wallet debited: ₹${totalCharged.toFixed(2)}`
         );
         try {
-          if (typeof refreshBalances === "function") refreshBalances();
-          else if (typeof syncBalance === "function") syncBalance();
+          if (typeof refreshBalances === "function") await refreshBalances();
+          else if (typeof syncBalance === "function") await syncBalance();
         } catch {}
       } else {
-        const errMsg = res?.detail || res?.error || res?.message || "Failed to generate Aadhaar OTP";
-        setAadhaarError(errMsg);
+        const errMsg = data?.detail || data?.error || data?.message || "Failed to generate Aadhaar OTP";
+        const cleanMsg = typeof errMsg === "object" ? (errMsg.message || JSON.stringify(errMsg)) : errMsg;
+        setAadhaarError(cleanMsg);
         setShowDebitConfirmModal(false);
-        notificationEngine.notify("TRANSACTION_FAILED", errMsg);
+        notificationEngine.notify("TRANSACTION_FAILED", cleanMsg);
       }
     } catch (err: any) {
       setAadhaarLoading(false);
@@ -433,18 +486,21 @@ export default function NewCustomerWorkspacePage() {
     setAadhaarLoading(true);
     setAadhaarError("");
     try {
-      const res = await retailerApi.verifyAadhaarOtp({
+      const res = await apiClient.post("/payout-workflow/aadhaar-otp/verify", {
         customer_id: existingCustomer?.public_id || createdCustomer?.public_id || undefined,
         mobile_number: mobileNumber,
         ref_number: aadhaarRefId,
+        ref_id: aadhaarRefId,
         otp_code: cleanOtp,
         masked_aadhaar: `XXXX-XXXX-${aadhaarNumber.slice(-4)}`,
         aadhaar_number: aadhaarNumber,
-        verification_context: "ONBOARDING",
+        retailer_id: outlet?.id || outlet?.code || undefined,
+        verification_context: "CUSTOMER_VERIFICATION",
       });
+      const data = res.data;
       setAadhaarLoading(false);
-      if (res && res.status === "SUCCESS") {
-        const profile = res.data || res.profile || res;
+      if (data && data.status === "SUCCESS") {
+        const profile = data.data || data.profile || data;
         setAadhaarVerified(true);
         setAadhaarProfile(profile);
 
@@ -1995,14 +2051,14 @@ export default function NewCustomerWorkspacePage() {
                       fontFamily: "var(--font-geist-mono), monospace",
                     }}
                   >
-                    ₹{(chargePreview?.service_charge ?? 0).toFixed(2)}
+                    ₹{chargePreview.service_charge.toFixed(2)}
                   </Typography>
                 </Stack>
 
                 {/* GST Rate & Amount */}
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography sx={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "13px", fontWeight: 500 }}>
-                    GST ({chargePreview?.tax_rate ? Math.round(chargePreview.tax_rate * 100) : 18}%)
+                    GST ({Math.round(chargePreview.tax_rate * 100)}%)
                   </Typography>
                   <Typography
                     sx={{
@@ -2012,7 +2068,7 @@ export default function NewCustomerWorkspacePage() {
                       fontFamily: "var(--font-geist-mono), monospace",
                     }}
                   >
-                    ₹{((chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0)).toFixed(2)}
+                    ₹{(chargePreview.cgst + chargePreview.sgst).toFixed(2)}
                   </Typography>
                 </Stack>
 
@@ -2044,7 +2100,7 @@ export default function NewCustomerWorkspacePage() {
                       letterSpacing: "-0.4px",
                     }}
                   >
-                    ₹{(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}
+                    ₹{chargePreview.total_amount.toFixed(2)}
                   </Typography>
                 </Box>
               </Stack>
@@ -2078,7 +2134,7 @@ export default function NewCustomerWorkspacePage() {
               </Stack>
               <Typography
                 sx={{
-                  color: "#4ADE80",
+                  color: (wallet?.mainBalance ?? 0) < chargePreview.total_amount ? "#F87171" : "#4ADE80",
                   fontSize: { xs: "14px", sm: "15px" },
                   fontWeight: 900,
                   fontFamily: "var(--font-geist-mono), monospace",
@@ -2087,6 +2143,44 @@ export default function NewCustomerWorkspacePage() {
                 ₹{mainBalanceFormatted}
               </Typography>
             </Box>
+
+            {/* Low Balance Warning Banner with Direct Top Up Action */}
+            {(wallet?.mainBalance ?? 0) < chargePreview.total_amount && (
+              <Box
+                sx={{
+                  p: 1.35,
+                  borderRadius: "12px",
+                  bgcolor: "rgba(239, 68, 68, 0.1)",
+                  border: "1px solid rgba(239, 68, 68, 0.35)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1.5,
+                }}
+              >
+                <Typography sx={{ color: "#FCA5A5", fontSize: "12px", fontWeight: 700 }}>
+                  Low Balance: ₹{(chargePreview.total_amount - (wallet?.mainBalance ?? 0)).toFixed(2)} more needed for verification.
+                </Typography>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => router.push("/retailer/topup-request")}
+                  sx={{
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    height: 28,
+                    borderRadius: "8px",
+                    bgcolor: "#EF4444",
+                    color: "#FFF",
+                    textTransform: "none",
+                    whiteSpace: "nowrap",
+                    "&:hover": { bgcolor: "#DC2626" },
+                  }}
+                >
+                  Top Up →
+                </Button>
+              </Box>
+            )}
 
             {/* Compact Professional Information Notice Banner */}
             <Box
@@ -2104,7 +2198,7 @@ export default function NewCustomerWorkspacePage() {
               <Typography sx={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "12px", lineHeight: 1.5 }}>
                 Verification charge of{" "}
                 <strong style={{ color: "#FDE68A" }}>
-                  ₹{(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}
+                  ₹{chargePreview.total_amount.toFixed(2)}
                 </strong>{" "}
                 will be debited from your retailer main wallet upon OTP dispatch.
                 <Box component="span" sx={{ display: "block", color: "#4ADE80", fontWeight: 700, mt: 0.35 }}>
@@ -2154,23 +2248,31 @@ export default function NewCustomerWorkspacePage() {
                   fontWeight: 900,
                   fontSize: "13.5px",
                   letterSpacing: "-0.2px",
-                  background: "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
-                  color: "#080B11",
+                  background: (wallet?.mainBalance ?? 0) < chargePreview.total_amount
+                    ? "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
+                    : "linear-gradient(135deg, #FEF08A 0%, #F59E0B 50%, #D97706 100%)",
+                  color: (wallet?.mainBalance ?? 0) < chargePreview.total_amount ? "#FFFFFF" : "#080B11",
                   textTransform: "none",
-                  boxShadow: "0 4px 18px rgba(245, 158, 11, 0.35)",
+                  boxShadow: (wallet?.mainBalance ?? 0) < chargePreview.total_amount
+                    ? "0 4px 18px rgba(239, 68, 68, 0.3)"
+                    : "0 4px 18px rgba(245, 158, 11, 0.35)",
                   transition: "all 0.2s ease-in-out",
                   "&:hover": {
-                    background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
-                    boxShadow: "0 6px 24px rgba(245, 158, 11, 0.5)",
+                    background: (wallet?.mainBalance ?? 0) < chargePreview.total_amount
+                      ? "linear-gradient(135deg, #F87171 0%, #B91C1C 100%)"
+                      : "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+                    boxShadow: (wallet?.mainBalance ?? 0) < chargePreview.total_amount
+                      ? "0 6px 24px rgba(239, 68, 68, 0.4)"
+                      : "0 6px 24px rgba(245, 158, 11, 0.5)",
                     transform: "translateY(-1px)",
                   },
                   "&:active": { transform: "translateY(0)" },
                 }}
               >
                 {aadhaarLoading ? (
-                  <CircularProgress size={20} sx={{ color: "#080B11" }} />
+                  <CircularProgress size={20} sx={{ color: (wallet?.mainBalance ?? 0) < chargePreview.total_amount ? "#FFF" : "#080B11" }} />
                 ) : (
-                  `Confirm & Debit ₹${(chargePreview?.total_amount ?? ((chargePreview?.service_charge ?? 0) + (chargePreview?.cgst ?? 0) + (chargePreview?.sgst ?? 0))).toFixed(2)}`
+                  `Confirm & Debit ₹${chargePreview.total_amount.toFixed(2)}`
                 )}
               </Button>
             </Stack>
