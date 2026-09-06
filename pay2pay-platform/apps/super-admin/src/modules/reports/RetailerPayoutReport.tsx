@@ -56,8 +56,17 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import DnsIcon from "@mui/icons-material/Dns";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import PersonIcon from "@mui/icons-material/Person";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import FactCheckIcon from "@mui/icons-material/FactCheck";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 import { useCompanyBranding } from "@/hooks/useCompanyBranding";
+import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export interface PayoutReportSummary {
   todays_transactions: number;
@@ -123,6 +132,7 @@ export interface PayoutReportItem {
 
 export const RetailerPayoutReport: React.FC = () => {
   const branding = useCompanyBranding();
+  const { outlet } = useRetailerStore();
 
   // State: Authoritative Data
   const [items, setItems] = useState<PayoutReportItem[]>([]);
@@ -388,6 +398,468 @@ export const RetailerPayoutReport: React.FC = () => {
     } catch {
       return { date: dtStr, time: "" };
     }
+  };
+
+  const handlePrintReceipt = (txn?: PayoutReportItem | null) => {
+    const t = txn || selectedTxn;
+    if (!t) return;
+
+    const txnId = t.txn_id || t.transaction_number || t.transaction_id || "N/A";
+    const utr = t.utr || t.utr_number || "N/A";
+    const amt = Number(t.amount ?? t.amt ?? t.transfer_amount ?? 0);
+    const fee = Number(t.charge ?? t.fee ?? t.convenience_fee ?? 0);
+    const gst = Number(t.gst ?? t.tax ?? t.gst_amount ?? 0);
+    const totalDebit = Number(t.debit ?? t.wallet_debit ?? (amt + fee + gst));
+    const dt = formatDateTime(t.date_time || t.initiated_at);
+    const status = (t.status || "SUCCESS").toUpperCase();
+    const beneName = t.beneficiary || t.beneficiary_name || "Beneficiary";
+    const accNo = t.account || t.ac_no || t.account_number || "N/A";
+    const ifsc = t.ifsc || t.ifsc_code || "N/A";
+    const bankName = t.bank || t.bank_name || "N/A";
+    const mode = t.mode || t.payment_mode || "IMPS";
+
+    const compLogo = branding.logo_url || "/branding/logo.png";
+    const compName = branding.company_name || branding.legal_name || "SUPER REX PRODUCTS PRIVATE LIMITED";
+    const compLegal = branding.legal_name || compName;
+    const retailerShop = outlet?.name || "Pay2Pay Retail Point";
+    const retailerOwner = outlet?.ownerName || t.retailer || "Authorized Agent";
+    const retailerCode = outlet?.code || "RET-P2P";
+    const retailerMobile = outlet?.mobile || "";
+    const retailerCity = outlet?.location || "";
+
+    const statusBadgeClass =
+      status === "SUCCESS"
+        ? "badge-success"
+        : status === "PENDING"
+        ? "badge-pending"
+        : status === "REVERSED"
+        ? "badge-reversed"
+        : "badge-failed";
+
+    const statusText =
+      status === "SUCCESS"
+        ? "● TRANSACTION SUCCESSFUL"
+        : status === "PENDING"
+        ? "● TRANSACTION PENDING"
+        : status === "REVERSED"
+        ? "● TRANSACTION REVERSED"
+        : "● TRANSACTION FAILED";
+
+    const printWindow = window.open("", "_blank", "width=850,height=950");
+    if (!printWindow) {
+      showToast("Please allow popups in your browser to view and print the transaction receipt.");
+      return;
+    }
+
+    const receiptHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Payout_Receipt_${txnId}</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm; }
+            * { box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              background: #F1F5F9;
+              color: #0F172A;
+              margin: 0;
+              padding: 24px;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .actions-bar {
+              max-width: 680px;
+              margin: 0 auto 16px auto;
+              display: flex;
+              gap: 12px;
+              justify-content: flex-end;
+            }
+            .btn {
+              padding: 10px 18px;
+              border-radius: 8px;
+              font-size: 13px;
+              font-weight: 700;
+              cursor: pointer;
+              border: none;
+              transition: all 0.2s;
+            }
+            .btn-print {
+              background: linear-gradient(135deg, #FBBF24 0%, #D97706 100%);
+              color: #000;
+              box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+            }
+            .btn-download {
+              background: #0F172A;
+              color: #FFF;
+              border: 1px solid #334155;
+            }
+            .btn-close {
+              background: #E2E8F0;
+              color: #334155;
+            }
+            .receipt-wrapper {
+              max-width: 680px;
+              margin: 0 auto;
+              background: #FFFFFF;
+              border: 1px solid #CBD5E1;
+              border-radius: 16px;
+              padding: 32px;
+              box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+            }
+            .brand-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid #E2E8F0;
+              padding-bottom: 20px;
+              margin-bottom: 20px;
+            }
+            .brand-left {
+              display: flex;
+              align-items: center;
+              gap: 14px;
+            }
+            .brand-logo {
+              width: 52px;
+              height: 52px;
+              object-fit: contain;
+              border-radius: 8px;
+            }
+            .brand-name {
+              font-size: 18px;
+              font-weight: 900;
+              color: #0F172A;
+              line-height: 1.2;
+            }
+            .brand-legal {
+              font-size: 11px;
+              color: #64748B;
+              font-weight: 600;
+              margin-top: 2px;
+            }
+            .receipt-badge-title {
+              text-align: right;
+            }
+            .receipt-type-tag {
+              display: inline-block;
+              font-size: 11px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.8px;
+              color: #B45309;
+              background: #FEF3C7;
+              border: 1px solid #FDE68A;
+              padding: 4px 10px;
+              border-radius: 6px;
+            }
+            .retailer-box {
+              background: #F8FAFC;
+              border: 1px solid #E2E8F0;
+              border-radius: 12px;
+              padding: 14px 18px;
+              margin-bottom: 20px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .retailer-title {
+              font-size: 10.5px;
+              font-weight: 800;
+              color: #64748B;
+              text-transform: uppercase;
+              letter-spacing: 0.6px;
+              margin-bottom: 4px;
+            }
+            .retailer-name {
+              font-size: 14px;
+              font-weight: 800;
+              color: #0F172A;
+            }
+            .retailer-meta {
+              font-size: 12px;
+              color: #475569;
+              font-weight: 600;
+              margin-top: 2px;
+            }
+            .status-banner {
+              padding: 12px 18px;
+              border-radius: 10px;
+              font-size: 13px;
+              font-weight: 800;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 24px;
+            }
+            .badge-success { background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
+            .badge-pending { background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
+            .badge-failed { background: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; }
+            .badge-reversed { background: #F3E8FF; color: #7E22CE; border: 1px solid #D8B4FE; }
+            .amount-hero {
+              text-align: center;
+              background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+              border: 1px solid #E2E8F0;
+              border-radius: 14px;
+              padding: 20px;
+              margin-bottom: 24px;
+            }
+            .amount-label {
+              font-size: 11px;
+              font-weight: 800;
+              color: #64748B;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .amount-value {
+              font-size: 36px;
+              font-weight: 900;
+              color: #0F172A;
+              margin: 4px 0;
+            }
+            .amount-mode {
+              font-size: 12px;
+              font-weight: 700;
+              color: #2563EB;
+            }
+            .section-title {
+              font-size: 11.5px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.8px;
+              color: #475569;
+              border-bottom: 1px solid #E2E8F0;
+              padding-bottom: 6px;
+              margin: 20px 0 12px 0;
+            }
+            .grid-2 {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-bottom: 12px;
+            }
+            .item-cell {
+              background: #FFFFFF;
+              border: 1px solid #F1F5F9;
+              padding: 10px 14px;
+              border-radius: 8px;
+            }
+            .item-label {
+              font-size: 11px;
+              color: #64748B;
+              font-weight: 600;
+              margin-bottom: 3px;
+            }
+            .item-val {
+              font-size: 13px;
+              font-weight: 700;
+              color: #0F172A;
+              word-break: break-all;
+            }
+            .item-val-mono {
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              color: #1E293B;
+            }
+            .breakdown-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+              border: 1px solid #E2E8F0;
+              border-radius: 8px;
+              overflow: hidden;
+            }
+            .breakdown-table th {
+              background: #F8FAFC;
+              text-align: left;
+              padding: 10px 14px;
+              font-size: 11px;
+              font-weight: 800;
+              color: #64748B;
+              text-transform: uppercase;
+              border-bottom: 1px solid #E2E8F0;
+            }
+            .breakdown-table td {
+              padding: 10px 14px;
+              font-size: 12.5px;
+              font-weight: 600;
+              color: #1E293B;
+              border-bottom: 1px solid #F1F5F9;
+            }
+            .breakdown-table .total-row td {
+              background: #FEF3C7;
+              font-weight: 900;
+              color: #92400E;
+              font-size: 14px;
+              border-top: 2px solid #FDE68A;
+            }
+            .footer-info {
+              margin-top: 28px;
+              padding-top: 16px;
+              border-top: 1px dashed #CBD5E1;
+              text-align: center;
+              font-size: 11px;
+              color: #64748B;
+              line-height: 1.5;
+            }
+            @media print {
+              body { background: #FFF; padding: 0; }
+              .actions-bar { display: none !important; }
+              .receipt-wrapper { border: none; box-shadow: none; padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="actions-bar no-print">
+            <button class="btn btn-print" onclick="window.print()">🖨 Print Voucher / Save PDF</button>
+            <button class="btn btn-download" onclick="downloadReceiptHtml()">📥 Download Receipt (.html)</button>
+            <button class="btn btn-close" onclick="window.close()">✕ Close</button>
+          </div>
+
+          <div class="receipt-wrapper" id="receiptContent">
+            <!-- Header with Company Branding -->
+            <div class="brand-header">
+              <div class="brand-left">
+                <img src="${compLogo}" alt="${compName}" class="brand-logo" onerror="this.style.display='none'" />
+                <div>
+                  <div class="brand-name">${compName}</div>
+                  <div class="brand-legal">${compLegal}</div>
+                </div>
+              </div>
+              <div class="receipt-badge-title">
+                <span class="receipt-type-tag">Payout Voucher</span>
+                <div style="font-size: 11px; color: #64748B; margin-top: 4px; font-weight: 600;">
+                  ${dt.date} · ${dt.time}
+                </div>
+              </div>
+            </div>
+
+            <!-- Retailer Store Identification -->
+            <div class="retailer-box">
+              <div>
+                <div class="retailer-title">Issued Through Authorized Retail Point</div>
+                <div class="retailer-name">${retailerShop}</div>
+                <div class="retailer-meta">Agent: ${retailerOwner} ${retailerMobile ? "· " + retailerMobile : ""}</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="retailer-title">Outlet ID</div>
+                <div style="font-size: 13px; font-weight: 800; font-family: monospace; color: #0F172A;">${retailerCode}</div>
+                <div style="font-size: 11px; color: #64748B;">${retailerCity}</div>
+              </div>
+            </div>
+
+            <!-- Transaction Status Banner -->
+            <div class="status-banner ${statusBadgeClass}">
+              <span>${statusText}</span>
+              <span style="font-size: 12px; font-family: monospace;">UTR: ${utr}</span>
+            </div>
+
+            <!-- Payout Amount Hero -->
+            <div class="amount-hero">
+              <div class="amount-label">PAYOUT TRANSFER AMOUNT</div>
+              <div class="amount-value">₹${amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+              <div class="amount-mode">Payment Mode: ${mode} (Instant Bank Transfer)</div>
+            </div>
+
+            <!-- Transaction & Beneficiary Grid -->
+            <div class="grid-2">
+              <div class="item-cell">
+                <div class="item-label">Transaction ID</div>
+                <div class="item-val item-val-mono">${txnId}</div>
+              </div>
+              <div class="item-cell">
+                <div class="item-label">Bank UTR / Ref Number</div>
+                <div class="item-val item-val-mono">${utr}</div>
+              </div>
+              <div class="item-cell">
+                <div class="item-label">Beneficiary Name</div>
+                <div class="item-val">${beneName}</div>
+              </div>
+              <div class="item-cell">
+                <div class="item-label">Beneficiary Bank</div>
+                <div class="item-val">${bankName}</div>
+              </div>
+              <div class="item-cell">
+                <div class="item-label">Beneficiary Account Number</div>
+                <div class="item-val item-val-mono">${accNo}</div>
+              </div>
+              <div class="item-cell">
+                <div class="item-label">IFSC Code</div>
+                <div class="item-val item-val-mono">${ifsc}</div>
+              </div>
+            </div>
+
+            <!-- Financial Breakdown Table -->
+            <div class="section-title">Wallet Financial Settlement Breakdown</div>
+            <table class="breakdown-table">
+              <thead>
+                <tr>
+                  <th>Particulars</th>
+                  <th style="text-align: right;">Calculation Rate</th>
+                  <th style="text-align: right;">Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Payout Transfer Amount</td>
+                  <td style="text-align: right;">Principal</td>
+                  <td style="text-align: right; font-weight: 700;">₹${amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                </tr>
+                <tr>
+                  <td>Service / Convenience Fee</td>
+                  <td style="text-align: right;">Fixed / Slab Charge</td>
+                  <td style="text-align: right;">₹${fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                </tr>
+                <tr>
+                  <td>GST</td>
+                  <td style="text-align: right;">18% on Convenience Fee</td>
+                  <td style="text-align: right;">₹${gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                </tr>
+                <tr class="total-row">
+                  <td>TOTAL WALLET DEBIT</td>
+                  <td style="text-align: right;">Gross Settlement</td>
+                  <td style="text-align: right; font-size: 15px;">₹${totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Audit & Security Footer -->
+            <div class="footer-info">
+              <strong>Official Electronic Transaction Voucher</strong><br />
+              This is a computer-generated transaction advice issued via the Pay2Pay Platform.<br />
+              Authorized and processed through banking partner switch. No physical signature required.<br />
+              Generated on: ${new Date().toLocaleString("en-IN")}
+            </div>
+          </div>
+
+          <script>
+            function downloadReceiptHtml() {
+              var clone = document.documentElement.cloneNode(true);
+              var bars = clone.querySelectorAll('.no-print');
+              bars.forEach(function(el) { el.remove(); });
+              var blob = new Blob([clone.outerHTML], { type: 'text/html;charset=utf-8' });
+              var a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = 'Payout_Receipt_${txnId}.html';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }
+
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(receiptHtml);
+    printWindow.document.close();
   };
 
   const successPercent = useMemo(() => {
@@ -1189,8 +1661,8 @@ export const RetailerPayoutReport: React.FC = () => {
                         </TableCell>
 
                         {/* 6. Total Debit */}
-                        <TableCell sx={{ px: 1.5, fontSize: "13px", fontWeight: 900, color: "#F87171", whiteSpace: "nowrap" }}>
-                          -₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        <TableCell sx={{ px: 1.5, fontSize: "13px", fontWeight: 900, color: "#FBBF24", whiteSpace: "nowrap" }}>
+                          ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </TableCell>
 
                         {/* 7. Status */}
@@ -1294,12 +1766,12 @@ export const RetailerPayoutReport: React.FC = () => {
                               </IconButton>
                             </Tooltip>
 
-                            <Tooltip title="Print Receipt">
+                            <Tooltip title="Print / Download Receipt">
                               <IconButton
                                 size="small"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  openDetailsDrawer(row);
+                                  handlePrintReceipt(row);
                                 }}
                                 sx={{ color: "#60A5FA", p: 0.5, "&:hover": { bgcolor: "rgba(59, 130, 246, 0.15)" } }}
                               >
@@ -1574,8 +2046,8 @@ export const RetailerPayoutReport: React.FC = () => {
                       </Box>
                       <Box>
                         <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10px" }}>Total Wallet Debit</Typography>
-                        <Typography sx={{ fontWeight: 700, color: "#F87171", fontSize: "12px" }}>
-                          -₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        <Typography sx={{ fontWeight: 800, color: "#FBBF24", fontSize: "12px" }}>
+                          ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </Typography>
                       </Box>
                       <Box>
@@ -1690,7 +2162,7 @@ export const RetailerPayoutReport: React.FC = () => {
         )}
       </Box>
 
-      {/* ── 7. LUXURY GLASSMORPHISM PAYOUT DETAILS SIDE DRAWER ── */}
+      {/* ── 7. PREMIUM ENTERPRISE FINTECH TRANSACTION DETAIL DRAWER ── */}
       <Drawer
         anchor="right"
         open={drawerOpen}
@@ -1698,26 +2170,31 @@ export const RetailerPayoutReport: React.FC = () => {
         slotProps={{
           backdrop: {
             sx: {
-              bgcolor: "rgba(8, 11, 17, 0.75)",
-              backdropFilter: "blur(8px)",
+              bgcolor: "rgba(2, 6, 23, 0.82)",
+              backdropFilter: "blur(12px)",
             },
           },
         }}
         PaperProps={{
           sx: {
-            width: { xs: "100%", sm: 480, md: 500 },
-            bgcolor: "#0B0F17",
+            width: { xs: "100%", sm: 520, md: 540 },
+            maxWidth: "100vw",
+            bgcolor: "#070B14",
+            backgroundImage: "radial-gradient(ellipse at 50% 0%, rgba(245, 158, 11, 0.08) 0%, rgba(7, 11, 20, 0.98) 75%)",
             color: "#F8FAFC",
-            borderLeft: "1px solid rgba(254, 240, 138, 0.25)",
-            boxShadow: "-8px 0 40px rgba(0, 0, 0, 0.6)",
+            borderLeft: { sm: "1px solid rgba(245, 158, 11, 0.25)" },
+            boxShadow: "-12px 0 60px rgba(0, 0, 0, 0.85)",
             p: 0,
             display: "flex",
             flexDirection: "column",
+            height: "100%",
+            overflow: "hidden",
           },
         }}
       >
         {selectedTxn && (() => {
           const txnId = selectedTxn.txn_id || selectedTxn.transaction_number || selectedTxn.transaction_id || "--";
+          const utr = selectedTxn.utr || selectedTxn.utr_number || "--";
           const amt = Number(selectedTxn.amount ?? selectedTxn.amt ?? selectedTxn.transfer_amount ?? 0);
           const fee = Number(selectedTxn.charge ?? selectedTxn.fee ?? selectedTxn.convenience_fee ?? 0);
           const gst = Number(selectedTxn.gst ?? selectedTxn.tax ?? selectedTxn.gst_amount ?? 0);
@@ -1725,15 +2202,56 @@ export const RetailerPayoutReport: React.FC = () => {
           const dt = formatDateTime(selectedTxn.date_time || selectedTxn.initiated_at);
           const status = (selectedTxn.status || "SUCCESS").toUpperCase();
 
+          const beneName = selectedTxn.beneficiary || selectedTxn.beneficiary_name || "Beneficiary";
+          const accNo = selectedTxn.account || selectedTxn.ac_no || selectedTxn.account_number || "--";
+          const ifsc = selectedTxn.ifsc || selectedTxn.ifsc_code || "--";
+          const bankName = selectedTxn.bank || selectedTxn.bank_name || "--";
+          const mode = selectedTxn.mode || selectedTxn.payment_mode || "IMPS";
+          const refNumber = selectedTxn.reference_id || (selectedTxn as any).client_ref || (selectedTxn as any).order_id || "--";
+          const beneMobile = selectedTxn.beneficiary_mobile || (selectedTxn as any).mobile || "--";
+          const beneId = (selectedTxn as any).beneficiary_id || (selectedTxn as any).bene_id || "--";
+          const failureMsg = selectedTxn.remarks || selectedTxn.narration || selectedTxn.comments || (selectedTxn as any).failure_reason || (selectedTxn as any).message || "";
+
+          // Status colors
+          const statusColor =
+            status === "SUCCESS"
+              ? "#4ADE80"
+              : status === "PENDING"
+              ? "#FBBF24"
+              : status === "REVERSED"
+              ? "#C084FC"
+              : "#F87171";
+
+          const statusBg =
+            status === "SUCCESS"
+              ? "rgba(16, 185, 129, 0.15)"
+              : status === "PENDING"
+              ? "rgba(245, 158, 11, 0.15)"
+              : status === "REVERSED"
+              ? "rgba(168, 85, 247, 0.15)"
+              : "rgba(239, 68, 68, 0.15)";
+
+          const statusBorder =
+            status === "SUCCESS"
+              ? "rgba(16, 185, 129, 0.35)"
+              : status === "PENDING"
+              ? "rgba(245, 158, 11, 0.35)"
+              : status === "REVERSED"
+              ? "rgba(168, 85, 247, 0.35)"
+              : "rgba(239, 68, 68, 0.35)";
+
           return (
-            <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-              {/* Drawer Header */}
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", position: "relative" }}>
+              {/* ── 1. FIXED DRAWER HEADER ── */}
               <Box
                 sx={{
-                  p: 2.2,
-                  bgcolor: "rgba(15, 23, 42, 0.85)",
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 20,
+                  p: 2,
+                  bgcolor: "rgba(10, 15, 29, 0.95)",
                   backdropFilter: "blur(20px)",
-                  borderBottom: "1px solid rgba(254, 240, 138, 0.15)",
+                  borderBottom: "1px solid rgba(245, 158, 11, 0.22)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -1742,271 +2260,680 @@ export const RetailerPayoutReport: React.FC = () => {
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                   <Box
                     sx={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: "8px",
+                      width: 38,
+                      height: 38,
+                      borderRadius: "10px",
                       bgcolor: "rgba(245, 158, 11, 0.15)",
+                      border: "1px solid rgba(245, 158, 11, 0.35)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       color: "#FBBF24",
+                      boxShadow: "0 0 15px rgba(245, 158, 11, 0.15)",
                     }}
                   >
-                    <ReceiptIcon sx={{ fontSize: 18 }} />
+                    <ReceiptIcon sx={{ fontSize: 20 }} />
                   </Box>
                   <Box>
                     <Typography
-                      variant="h6"
                       sx={{
                         fontWeight: 900,
-                        fontSize: "17px",
-                        background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
+                        fontSize: "16.5px",
+                        letterSpacing: "-0.3px",
+                        color: "#FFFFFF",
+                        lineHeight: 1.2,
                       }}
                     >
-                      Payout Details
+                      Payout Transaction Details
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", fontSize: "11px" }}>
-                      Direct Bank Transfer Audit Summary
-                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.4 }}>
+                      <Box
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 0.6,
+                          px: 0.9,
+                          py: 0.2,
+                          borderRadius: "6px",
+                          bgcolor: statusBg,
+                          border: `1px solid ${statusBorder}`,
+                          color: statusColor,
+                          fontSize: "10.5px",
+                          fontWeight: 800,
+                          letterSpacing: "0.5px",
+                        }}
+                      >
+                        <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: statusColor }} />
+                        {status}
+                      </Box>
+                      <Typography
+                        sx={{
+                          fontSize: "11px",
+                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                          color: "#94A3B8",
+                          maxWidth: "160px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        REF: {txnId}
+                      </Typography>
+                    </Stack>
                   </Box>
                 </Stack>
 
-                <IconButton onClick={() => setDrawerOpen(false)} sx={{ color: "rgba(255,255,255,0.7)", "&:hover": { color: "#FFF" } }}>
-                  <CloseIcon sx={{ fontSize: 18 }} />
+                <IconButton
+                  onClick={() => setDrawerOpen(false)}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "8px",
+                    bgcolor: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                    color: "rgba(255, 255, 255, 0.8)",
+                    "&:hover": {
+                      bgcolor: "rgba(239, 68, 68, 0.2)",
+                      borderColor: "rgba(239, 68, 68, 0.4)",
+                      color: "#F87171",
+                    },
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 17 }} />
                 </IconButton>
               </Box>
 
-              {/* Content Body */}
-              <Box sx={{ flex: 1, overflowY: "auto", p: 2.5, scrollbarWidth: "thin" }}>
-                {/* Hero Box */}
+              {/* ── 2. SCROLLABLE DRAWER CONTENT BODY ── */}
+              <Box
+                sx={{
+                  flex: 1,
+                  overflowY: "auto",
+                  p: { xs: 2, sm: 2.5 },
+                  "&::-webkit-scrollbar": { width: "5px" },
+                  "&::-webkit-scrollbar-track": { background: "rgba(15, 23, 42, 0.5)" },
+                  "&::-webkit-scrollbar-thumb": { background: "rgba(245, 158, 11, 0.35)", borderRadius: "4px" },
+                  "&::-webkit-scrollbar-thumb:hover": { background: "rgba(245, 158, 11, 0.6)" },
+                }}
+              >
+                {/* 2A. COMPANY BRANDING & RETAILER IDENTIFIER BAR */}
+                <Box
+                  sx={{
+                    p: 1.4,
+                    borderRadius: "12px",
+                    bgcolor: "rgba(15, 23, 42, 0.7)",
+                    backdropFilter: "blur(16px)",
+                    border: "1px solid rgba(245, 158, 11, 0.22)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 2,
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1.2}>
+                    <Box
+                      component="img"
+                      src={branding.logo_url || "/branding/logo.png"}
+                      alt="Company Logo"
+                      onError={(e: any) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "8px",
+                        objectFit: "contain",
+                        bgcolor: "#FFFFFF",
+                        p: 0.3,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                      }}
+                    />
+                    <Box>
+                      <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2 }}>
+                        {branding.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED"}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontSize: "11px", color: "#94A3B8", display: "block" }}>
+                        Retailer: {outlet?.name || outlet?.ownerName || selectedTxn.retailer || "Authorized Agent"} {outlet?.code ? `· [${outlet.code}]` : ""}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  {outlet?.location && (
+                    <Chip
+                      label={outlet.location}
+                      size="small"
+                      sx={{
+                        height: "20px",
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        bgcolor: "rgba(255,255,255,0.06)",
+                        color: "#CBD5E1",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        display: { xs: "none", sm: "inline-flex" },
+                      }}
+                    />
+                  )}
+                </Box>
+
+                {/* 2B. AMOUNT SUMMARY HERO CARD */}
                 <Paper
                   elevation={0}
                   sx={{
                     p: 2.2,
-                    borderRadius: "14px",
-                    bgcolor: "rgba(15, 23, 42, 0.8)",
-                    border: "1px solid rgba(254, 240, 138, 0.25)",
-                    boxShadow: "0 8px 30px rgba(0, 0, 0, 0.3)",
+                    borderRadius: "16px",
+                    bgcolor: "rgba(15, 23, 42, 0.85)",
+                    backdropFilter: "blur(20px)",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
                     textAlign: "center",
                     mb: 2.5,
                   }}
                 >
-                  <Chip
-                    label={status}
-                    size="small"
+                  <Typography
                     sx={{
-                      height: "20px",
-                      fontSize: "10.5px",
+                      fontSize: "11px",
                       fontWeight: 800,
-                      bgcolor:
-                        status === "SUCCESS"
-                          ? "rgba(16, 185, 129, 0.15)"
-                          : status === "PENDING"
-                          ? "rgba(245, 158, 11, 0.15)"
-                          : status === "REVERSED"
-                          ? "rgba(168, 85, 247, 0.15)"
-                          : "rgba(239, 68, 68, 0.15)",
-                      color:
-                        status === "SUCCESS"
-                          ? "#34D399"
-                          : status === "PENDING"
-                          ? "#FBBF24"
-                          : status === "REVERSED"
-                          ? "#C084FC"
-                          : "#F87171",
-                      border: `1px solid ${
-                        status === "SUCCESS"
-                          ? "rgba(16, 185, 129, 0.35)"
-                          : status === "PENDING"
-                          ? "rgba(245, 158, 11, 0.35)"
-                          : status === "REVERSED"
-                          ? "rgba(168, 85, 247, 0.35)"
-                          : "rgba(239, 68, 68, 0.35)"
-                      }`,
-                      mb: 1,
+                      color: "#94A3B8",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      mb: 0.5,
                     }}
-                  />
+                  >
+                    PAYOUT AMOUNT
+                  </Typography>
 
-                  <Typography sx={{ fontWeight: 900, fontSize: "28px", lineHeight: 1.1, color: "#F8FAFC", mb: 0.5 }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 900,
+                      fontSize: { xs: "28px", sm: "32px" },
+                      lineHeight: 1.1,
+                      color: "#FFFFFF",
+                      textShadow: "0 0 20px rgba(251, 191, 36, 0.3)",
+                      mb: 0.6,
+                    }}
+                  >
                     ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </Typography>
 
-                  <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.65)", fontSize: "11.5px", fontWeight: 600 }}>
-                    Mode: {selectedTxn.mode || selectedTxn.payment_mode || "IMPS"} · Instant Transfer
-                  </Typography>
+                  <Chip
+                    label={`${mode} · Instant Transfer`}
+                    size="small"
+                    sx={{
+                      height: "22px",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      bgcolor: "rgba(59, 130, 246, 0.15)",
+                      color: "#60A5FA",
+                      border: "1px solid rgba(59, 130, 246, 0.35)",
+                      mb: 1.8,
+                    }}
+                  />
 
-                  <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.08)" }} />
+                  <Divider sx={{ mb: 1.6, borderColor: "rgba(255, 255, 255, 0.08)" }} />
 
+                  {/* 3 Compact Financial Cards */}
                   <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
-                    <Box sx={{ textAlign: "center", bgcolor: "rgba(8,11,17,0.5)", p: 1, borderRadius: "8px" }}>
-                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 600 }}>
-                        Service Charge
+                    {/* Service Charge */}
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        bgcolor: "rgba(8, 13, 24, 0.8)",
+                        p: 1.2,
+                        borderRadius: "10px",
+                        border: "1px solid rgba(255, 255, 255, 0.06)",
+                      }}
+                    >
+                      <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, textTransform: "uppercase" }}>
+                        SERVICE CHARGE
                       </Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "12.5px", mt: 0.2 }}>
+                      <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "13px", mt: 0.4 }}>
                         ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ textAlign: "center", bgcolor: "rgba(8,11,17,0.5)", p: 1, borderRadius: "8px" }}>
-                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 600 }}>
+                    {/* GST */}
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        bgcolor: "rgba(8, 13, 24, 0.8)",
+                        p: 1.2,
+                        borderRadius: "10px",
+                        border: "1px solid rgba(255, 255, 255, 0.06)",
+                      }}
+                    >
+                      <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, textTransform: "uppercase" }}>
                         GST
                       </Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#93C5FD", fontSize: "12.5px", mt: 0.2 }}>
+                      <Typography sx={{ fontWeight: 800, color: "#CBD5E1", fontSize: "13px", mt: 0.4 }}>
                         ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ textAlign: "center", bgcolor: "rgba(8,11,17,0.5)", p: 1, borderRadius: "8px" }}>
-                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 600 }}>
-                        Total Debit
+                    {/* Total Wallet Debit - Positive Formatting! */}
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        bgcolor: "rgba(245, 158, 11, 0.08)",
+                        p: 1.2,
+                        borderRadius: "10px",
+                        border: "1px solid rgba(245, 158, 11, 0.28)",
+                      }}
+                    >
+                      <Typography sx={{ color: "#FDE68A", fontSize: "10px", fontWeight: 800, textTransform: "uppercase" }}>
+                        TOTAL WALLET DEBIT
                       </Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#F87171", fontSize: "12.5px", mt: 0.2 }}>
-                        -₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "13.5px", mt: 0.4 }}>
+                        ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
                   </Box>
                 </Paper>
 
-                {/* Structured Metadata Fields */}
-                <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px", mb: 1.2 }}>
-                  Transfer Audit Information
-                </Typography>
-
-                <Stack spacing={1.2} sx={{ mb: 2.5 }}>
-                  {/* Txn ID */}
-                  <Box sx={{ p: 1.2, borderRadius: "8px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10.5px" }}>Transaction ID</Typography>
-                      <Typography sx={{ fontWeight: 700, fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: "#FBBF24" }}>
-                        {txnId}
-                      </Typography>
-                    </Box>
-                    <IconButton size="small" onClick={() => copyToClipboard(txnId, "Transaction ID")} sx={{ color: "#FBBF24", p: 0.3 }}>
-                      <ContentCopyIcon sx={{ fontSize: 15 }} />
-                    </IconButton>
-                  </Box>
-
-                  {/* UTR */}
-                  {selectedTxn.utr && (
-                    <Box sx={{ p: 1.2, borderRadius: "8px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <Box>
-                        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10.5px" }}>Bank UTR Number</Typography>
-                        <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#94A3B8" }}>
-                          {selectedTxn.utr || selectedTxn.utr_number}
-                        </Typography>
-                      </Box>
-                      <IconButton size="small" onClick={() => copyToClipboard(selectedTxn.utr || selectedTxn.utr_number || "", "UTR")} sx={{ color: "rgba(255,255,255,0.5)", p: 0.3 }}>
-                        <ContentCopyIcon sx={{ fontSize: 15 }} />
-                      </IconButton>
-                    </Box>
-                  )}
-
-                  {/* Beneficiary Name & Bank */}
-                  <Box sx={{ p: 1.2, borderRadius: "8px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10.5px" }}>Beneficiary</Typography>
-                    <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC" }}>
-                      {selectedTxn.beneficiary || selectedTxn.beneficiary_name}
+                {/* 2C. TRANSACTION INFORMATION */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.2 }}>
+                    <ReceiptIcon sx={{ fontSize: 16, color: "#FBBF24" }} />
+                    <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                      TRANSACTION INFORMATION
                     </Typography>
-                  </Box>
+                  </Stack>
 
-                  {/* Account & IFSC */}
-                  <Box sx={{ p: 1.2, borderRadius: "8px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10.5px" }}>Account Number</Typography>
-                    <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC" }}>
-                      {selectedTxn.account || selectedTxn.ac_no || selectedTxn.account_number}
-                    </Typography>
-                  </Box>
-
-                  {/* Timestamp */}
-                  <Box sx={{ p: 1.2, borderRadius: "8px", bgcolor: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)", fontSize: "10.5px" }}>Timestamp</Typography>
-                    <Typography sx={{ fontWeight: 700, fontSize: "11.5px", color: "#F8FAFC" }}>
-                      {dt.date} · {dt.time}
-                    </Typography>
-                  </Box>
-
-                  {/* API Telemetry Deep Link */}
                   <Box
                     sx={{
-                      p: 1.2,
-                      borderRadius: "8px",
-                      bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.08)" : "rgba(99, 102, 241, 0.08)",
-                      border: status === "FAILED" ? "1px solid rgba(239, 68, 68, 0.25)" : "1px solid rgba(99, 102, 241, 0.2)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
+                      bgcolor: "rgba(15, 23, 42, 0.65)",
+                      backdropFilter: "blur(14px)",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      p: 1.4,
                     }}
                   >
-                    <Box>
-                      <Typography
-                        variant="caption"
-                        sx={{ color: status === "FAILED" ? "#FCA5A5" : "#A5B4FC", fontSize: "10.5px", fontWeight: 700 }}
-                      >
-                        {status === "FAILED" ? "Vendor Gateway Error Trace" : "Gateway Telemetry"}
-                      </Typography>
-                      <Typography sx={{ fontWeight: 600, fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>
-                        {status === "FAILED" ? "Outbound switch failed · Inspect payload" : "Audited in enterprise_api_log"}
-                      </Typography>
-                    </Box>
-                    <Button
-                      size="small"
-                      onClick={() => {
-                        const url = `/operations/api-logs?transaction_id=${encodeURIComponent(txnId)}&service=PAYOUT${
-                          status === "FAILED" ? "&direction=OUTBOUND&is_error=true" : ""
-                        }`;
-                        window.open(url, "_blank");
-                      }}
-                      endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
-                      sx={{
-                        fontSize: "11px",
-                        fontWeight: 800,
-                        textTransform: "none",
-                        color: status === "FAILED" ? "#F87171" : "#818CF8",
-                        bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.15)" : "rgba(99, 102, 241, 0.15)",
-                        px: 1.2,
-                        py: 0.3,
-                        borderRadius: "6px",
-                        border: status === "FAILED" ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(99, 102, 241, 0.3)",
-                        "&:hover": {
-                          bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.25)" : "rgba(99, 102, 241, 0.25)",
-                        },
-                      }}
-                    >
-                      Inspect Logs
-                    </Button>
+                    <Stack spacing={1.2}>
+                      {/* Transaction ID */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Transaction ID</Typography>
+                        <Stack direction="row" alignItems="center" spacing={0.6}>
+                          <Typography sx={{ fontWeight: 700, fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: "#FBBF24" }}>
+                            {txnId}
+                          </Typography>
+                          <IconButton size="small" onClick={() => copyToClipboard(txnId, "Transaction ID")} sx={{ color: "#FBBF24", p: 0.3 }}>
+                            <ContentCopyIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Stack>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* Bank UTR Number */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Bank UTR Number</Typography>
+                        <Stack direction="row" alignItems="center" spacing={0.6}>
+                          <Typography sx={{ fontWeight: 700, fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: utr !== "--" ? "#93C5FD" : "#64748B" }}>
+                            {utr}
+                          </Typography>
+                          {utr !== "--" && (
+                            <IconButton size="small" onClick={() => copyToClipboard(utr, "Bank UTR")} sx={{ color: "#60A5FA", p: 0.3 }}>
+                              <ContentCopyIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          )}
+                        </Stack>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* Date & Time */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Transaction Date &amp; Time</Typography>
+                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC" }}>
+                          {dt.date} · {dt.time}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* Payout Amount */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Payout Amount</Typography>
+                        <Typography sx={{ fontWeight: 800, fontSize: "12.5px", color: "#F8FAFC" }}>
+                          ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* Payment Mode */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Payment Mode</Typography>
+                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#60A5FA" }}>
+                          {mode} (Instant Bank Transfer)
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* Transaction Status */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Transaction Status</Typography>
+                        <Box
+                          sx={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 0.6,
+                            px: 0.8,
+                            py: 0.2,
+                            borderRadius: "6px",
+                            bgcolor: statusBg,
+                            border: `1px solid ${statusBorder}`,
+                            color: statusColor,
+                            fontSize: "11px",
+                            fontWeight: 800,
+                          }}
+                        >
+                          <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: statusColor }} />
+                          {status}
+                        </Box>
+                      </Box>
+
+                      {/* Reference Number if present */}
+                      {refNumber !== "--" && (
+                        <>
+                          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Reference Number</Typography>
+                            <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#CBD5E1", fontFamily: "monospace" }}>
+                              {refNumber}
+                            </Typography>
+                          </Box>
+                        </>
+                      )}
+                    </Stack>
                   </Box>
-                </Stack>
+                </Box>
+
+                {/* 2D. BENEFICIARY INFORMATION */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.2 }}>
+                    <PersonIcon sx={{ fontSize: 16, color: "#FBBF24" }} />
+                    <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                      BENEFICIARY DETAILS
+                    </Typography>
+                  </Stack>
+
+                  <Box
+                    sx={{
+                      bgcolor: "rgba(15, 23, 42, 0.65)",
+                      backdropFilter: "blur(14px)",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      p: 1.4,
+                    }}
+                  >
+                    <Stack spacing={1.2}>
+                      {/* Beneficiary Name */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Beneficiary Name</Typography>
+                        <Typography sx={{ fontWeight: 800, fontSize: "12.5px", color: "#FFFFFF" }}>
+                          {beneName}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* Account Number */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Account Number</Typography>
+                        <Stack direction="row" alignItems="center" spacing={0.6}>
+                          <Typography sx={{ fontWeight: 700, fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: "#F8FAFC" }}>
+                            {accNo}
+                          </Typography>
+                          {accNo !== "--" && (
+                            <IconButton size="small" onClick={() => copyToClipboard(accNo, "Account Number")} sx={{ color: "#94A3B8", p: 0.3 }}>
+                              <ContentCopyIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          )}
+                        </Stack>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* IFSC Code */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>IFSC Code</Typography>
+                        <Stack direction="row" alignItems="center" spacing={0.6}>
+                          <Typography sx={{ fontWeight: 700, fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: "#60A5FA" }}>
+                            {ifsc}
+                          </Typography>
+                          {ifsc !== "--" && (
+                            <IconButton size="small" onClick={() => copyToClipboard(ifsc, "IFSC")} sx={{ color: "#60A5FA", p: 0.3 }}>
+                              <ContentCopyIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          )}
+                        </Stack>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* Bank Name */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Bank Name</Typography>
+                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC" }}>
+                          {bankName}
+                        </Typography>
+                      </Box>
+
+                      {/* Beneficiary Mobile if present */}
+                      {beneMobile !== "--" && (
+                        <>
+                          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Beneficiary Mobile</Typography>
+                            <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#F8FAFC" }}>
+                              {beneMobile}
+                            </Typography>
+                          </Box>
+                        </>
+                      )}
+
+                      {/* Beneficiary ID if present */}
+                      {beneId !== "--" && (
+                        <>
+                          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Beneficiary ID</Typography>
+                            <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#CBD5E1", fontFamily: "monospace" }}>
+                              {beneId}
+                            </Typography>
+                          </Box>
+                        </>
+                      )}
+                    </Stack>
+                  </Box>
+                </Box>
+
+                {/* 2E. WALLET ACCOUNTING INFORMATION */}
+                <Box sx={{ mb: 2.5 }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.2 }}>
+                    <AccountBalanceWalletIcon sx={{ fontSize: 16, color: "#FBBF24" }} />
+                    <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                      WALLET ACCOUNTING
+                    </Typography>
+                  </Stack>
+
+                  <Box
+                    sx={{
+                      bgcolor: "rgba(15, 23, 42, 0.65)",
+                      backdropFilter: "blur(14px)",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      p: 1.4,
+                    }}
+                  >
+                    <Stack spacing={1.2}>
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Payout Amount</Typography>
+                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC" }}>
+                          ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Service Charge</Typography>
+                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#60A5FA" }}>
+                          ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>GST</Typography>
+                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#CBD5E1" }}>
+                          ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* Total Debit - Clean Positive Formatting */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#FDE68A", fontSize: "12px", fontWeight: 800 }}>Total Wallet Debit</Typography>
+                        <Typography sx={{ fontWeight: 900, fontSize: "13px", color: "#FBBF24" }}>
+                          ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      {/* Accounting Direction Badge */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Accounting Direction</Typography>
+                        <Stack direction="row" spacing={0.8}>
+                          <Chip
+                            label="DR · Wallet Debit"
+                            size="small"
+                            sx={{
+                              height: "20px",
+                              fontSize: "10.5px",
+                              fontWeight: 800,
+                              bgcolor: "rgba(239, 68, 68, 0.15)",
+                              color: "#F87171",
+                              border: "1px solid rgba(239, 68, 68, 0.3)",
+                            }}
+                          />
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </Box>
+                </Box>
+
+                {/* 2F. TRANSACTION AUDIT INFORMATION */}
+                <Box sx={{ mb: 2 }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.2 }}>
+                    <FactCheckIcon sx={{ fontSize: 16, color: "#FBBF24" }} />
+                    <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                      TRANSACTION AUDIT
+                    </Typography>
+                  </Stack>
+
+                  <Box
+                    sx={{
+                      bgcolor: "rgba(15, 23, 42, 0.65)",
+                      backdropFilter: "blur(14px)",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      p: 1.4,
+                    }}
+                  >
+                    <Stack spacing={1.2}>
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Created At</Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#F8FAFC" }}>
+                          {dt.date} · {dt.time}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Current Status</Typography>
+                        <Typography sx={{ fontWeight: 800, fontSize: "12px", color: statusColor }}>
+                          {status}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Vendor / Provider Reference</Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#94A3B8", fontFamily: "monospace" }}>
+                          {refNumber !== "--" ? refNumber : utr !== "--" ? utr : "--"}
+                        </Typography>
+                      </Box>
+
+                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Bank UTR</Typography>
+                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#93C5FD", fontFamily: "monospace" }}>
+                          {utr}
+                        </Typography>
+                      </Box>
+
+                      {failureMsg && (
+                        <>
+                          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
+                          <Box sx={{ p: 1.2, borderRadius: "8px", bgcolor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.25)" }}>
+                            <Typography sx={{ color: "#F87171", fontSize: "11px", fontWeight: 700, mb: 0.3 }}>
+                              Response / Failure Message
+                            </Typography>
+                            <Typography sx={{ color: "#FCA5A5", fontSize: "12px", fontWeight: 500, wordBreak: "break-word" }}>
+                              {failureMsg}
+                            </Typography>
+                          </Box>
+                        </>
+                      )}
+                    </Stack>
+                  </Box>
+                </Box>
               </Box>
 
-              {/* Drawer Footer Actions */}
-              <Box sx={{ p: 2, bgcolor: "rgba(15, 23, 42, 0.85)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(254, 240, 138, 0.15)" }}>
+              {/* ── 3. FIXED DRAWER FOOTER ── */}
+              <Box
+                sx={{
+                  position: "sticky",
+                  bottom: 0,
+                  zIndex: 20,
+                  p: 2,
+                  bgcolor: "rgba(10, 15, 29, 0.95)",
+                  backdropFilter: "blur(20px)",
+                  borderTop: "1px solid rgba(245, 158, 11, 0.22)",
+                }}
+              >
                 <Stack spacing={1}>
+                  {/* Primary Action: Print / Download Receipt */}
                   <Button
                     fullWidth
                     variant="contained"
-                    onClick={() => {
-                      window.print();
-                    }}
-                    startIcon={<PrintIcon sx={{ fontSize: 17 }} />}
+                    onClick={() => handlePrintReceipt(selectedTxn)}
+                    startIcon={<PrintIcon sx={{ fontSize: 18 }} />}
                     sx={{
-                      height: "40px",
-                      fontSize: "12.5px",
-                      fontWeight: 800,
+                      height: "44px",
+                      fontSize: "13px",
+                      fontWeight: 900,
                       textTransform: "none",
-                      borderRadius: "8px",
+                      borderRadius: "10px",
                       color: "#080B11",
                       background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                      boxShadow: "0 0 15px rgba(245, 158, 11, 0.3)",
+                      boxShadow: "0 4px 20px rgba(245, 158, 11, 0.4)",
                       "&:hover": {
                         background: "linear-gradient(135deg, #FFFBEB 0%, #FDE047 50%, #F59E0B 100%)",
+                        boxShadow: "0 6px 25px rgba(245, 158, 11, 0.6)",
                       },
                     }}
                   >
                     Print / Download Receipt
                   </Button>
 
+                  {/* Super-Admin Extra Action: Inspect Gateway / Failure Logs */}
                   <Button
                     fullWidth
                     variant="outlined"
@@ -2022,7 +2949,7 @@ export const RetailerPayoutReport: React.FC = () => {
                       fontSize: "12px",
                       fontWeight: 800,
                       textTransform: "none",
-                      borderRadius: "8px",
+                      borderRadius: "10px",
                       color: status === "FAILED" ? "#F87171" : "#818CF8",
                       borderColor: status === "FAILED" ? "rgba(239, 68, 68, 0.4)" : "rgba(129, 140, 248, 0.35)",
                       bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.1)" : "rgba(99, 102, 241, 0.1)",
@@ -2035,22 +2962,23 @@ export const RetailerPayoutReport: React.FC = () => {
                     {status === "FAILED" ? "Inspect Vendor Switch Failure Logs" : "Inspect Outbound Gateway Telemetry"}
                   </Button>
 
+                  {/* Secondary Action: Close */}
                   <Button
                     fullWidth
                     variant="outlined"
                     onClick={() => setDrawerOpen(false)}
                     sx={{
-                      height: "36px",
-                      fontSize: "12px",
+                      height: "38px",
+                      fontSize: "12.5px",
                       fontWeight: 700,
                       textTransform: "none",
-                      borderRadius: "8px",
+                      borderRadius: "10px",
                       color: "#F8FAFC",
-                      borderColor: "rgba(255, 255, 255, 0.15)",
-                      bgcolor: "rgba(255, 255, 255, 0.03)",
+                      borderColor: "rgba(255, 255, 255, 0.16)",
+                      bgcolor: "rgba(255, 255, 255, 0.04)",
                       "&:hover": {
-                        borderColor: "rgba(255, 255, 255, 0.3)",
-                        bgcolor: "rgba(255, 255, 255, 0.08)",
+                        borderColor: "rgba(255, 255, 255, 0.35)",
+                        bgcolor: "rgba(255, 255, 255, 0.09)",
                       },
                     }}
                   >
