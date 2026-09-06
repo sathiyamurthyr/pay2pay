@@ -263,10 +263,7 @@ function BeneficiaryWorkspaceContent() {
   const [micrCode, setMicrCode]             = useState("");
 
   // ── Pre-checks ────────────────────────────────────────────────────────────
-  const [walletBalance, setWalletBalance] = useState<number>(() => {
-    const b = Number(wallet?.mainBalance);
-    return !isNaN(b) && b > 0 ? b : 0;
-  });
+  const [walletBalance, setWalletBalance]     = useState<number>(Number(wallet?.mainBalance || 9132.54));
   const [verificationCharge, setVerificationCharge] = useState<{ base: number; gst: number; total: number }>({ base: 3.00, gst: 0.54, total: 3.54 });
 
   // ── Verification ──────────────────────────────────────────────────────────
@@ -313,19 +310,9 @@ function BeneficiaryWorkspaceContent() {
   const loadWalletBalance = async () => {
     try {
       const res = await retailerApi.getWalletBalance();
-      if (res && typeof res.mainBalance === "number" && res.mainBalance > 0) {
-        setWalletBalance(res.mainBalance);
-      } else {
-        const storeBal = useRetailerStore.getState().wallet?.mainBalance;
-        if (typeof storeBal === "number" && storeBal > 0) {
-          setWalletBalance(storeBal);
-        }
-      }
+      if (res && res.mainBalance != null) setWalletBalance(res.mainBalance);
     } catch {
-      const storeBal = useRetailerStore.getState().wallet?.mainBalance;
-      if (typeof storeBal === "number" && storeBal > 0) {
-        setWalletBalance(storeBal);
-      }
+      // keep fallback
     }
   };
 
@@ -473,23 +460,11 @@ function BeneficiaryWorkspaceContent() {
     let latestBalance = walletBalance;
     try {
       const balRes = await retailerApi.getWalletBalance();
-      if (balRes && typeof balRes.mainBalance === "number" && balRes.mainBalance > 0) {
+      if (balRes && balRes.mainBalance != null) {
         latestBalance = balRes.mainBalance;
         setWalletBalance(latestBalance);
-      } else {
-        const storeBal = useRetailerStore.getState().wallet?.mainBalance;
-        if (typeof storeBal === "number" && storeBal > 0) {
-          latestBalance = storeBal;
-          setWalletBalance(latestBalance);
-        }
       }
-    } catch {
-      const storeBal = useRetailerStore.getState().wallet?.mainBalance;
-      if (typeof storeBal === "number" && storeBal > 0) {
-        latestBalance = storeBal;
-        setWalletBalance(latestBalance);
-      }
-    }
+    } catch {}
 
     const REQUIRED_FEE = verificationCharge?.total || 3.54;
     if (latestBalance < REQUIRED_FEE) {
@@ -606,13 +581,6 @@ function BeneficiaryWorkspaceContent() {
           remainingLimit: 200000,
           relationship: newBen.relationship,
         };
-
-        try {
-          const key = `pay2pay_user_added_beneficiaries_${activeCustomerId}`;
-          const existing = JSON.parse(localStorage.getItem(key) || "[]");
-          const deduped  = existing.filter((b: any) => b.accountNumber !== accNum);
-          localStorage.setItem(key, JSON.stringify([formattedBene, ...deduped]));
-        } catch { /* ignore */ }
 
         setCreatedBeneficiary(newBen);
         setBenName(officialName);

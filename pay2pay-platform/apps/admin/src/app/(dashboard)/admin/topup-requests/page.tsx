@@ -40,6 +40,7 @@ import {
   ListChecks,
   AlertTriangle,
   Receipt,
+  MinusSquare,
 } from "lucide-react";
 
 interface AdminOperationWallet {

@@ -699,14 +699,12 @@ export const retailerApi = {
         const mapped = rawList.map((c: any) => {
           const isAadhaarVerified = Boolean(
             c.aadhaar_verified === true ||
-            String(c.aadhaar_verified).toLowerCase() === "true" ||
-            (typeof c.aadhaar_verification_status === "string" && c.aadhaar_verification_status.toUpperCase() === "VERIFIED") ||
-            (typeof c.aadhaarVerificationStatus === "string" && c.aadhaarVerificationStatus.toUpperCase() === "VERIFIED") ||
-            (typeof c.aadhaar_status === "string" && c.aadhaar_status.toUpperCase() === "VERIFIED") ||
-            (typeof c.kyc_status === "string" && (c.kyc_status.toUpperCase() === "VERIFIED" || c.kyc_status.toUpperCase() === "APPROVED")) ||
-            (typeof c.kycStatus === "string" && (c.kycStatus.toUpperCase() === "VERIFIED" || c.kycStatus.toUpperCase() === "APPROVED")) ||
-            (typeof c.kyc_level === "string" && c.kyc_level.toUpperCase() === "FULL_KYC") ||
-            (typeof c.kycLevel === "string" && c.kycLevel.toUpperCase() === "FULL_KYC")
+            c.aadhaar_verification_status === "VERIFIED" ||
+            c.aadhaarVerificationStatus === "VERIFIED" ||
+            c.aadhaar_status === "VERIFIED" ||
+            c.kyc_status === "VERIFIED" ||
+            c.kyc_status === "APPROVED" ||
+            c.kyc_level === "FULL_KYC"
           );
           return {
             ...c,
@@ -896,101 +894,15 @@ export const retailerApi = {
   },
 
   addPayoutBeneficiary: async (payload: { customer_id: string; account_holder: string; account_number: string; confirm_account_number: string; ifsc: string; bank_name: string; nickname?: string; mobile_number?: string }) => {
-    const reqBody = {
-      retailer_id: "8c563671-037e-4764-8edb-d76f4b8afd24",
-      customer_id: payload.customer_id && payload.customer_id.includes("-") ? payload.customer_id : "011b2d7f-9426-4444-8888-000000000001",
+    return retailerApi.addAndVerifyEpic014Beneficiary({
+      customer_id: payload.customer_id,
       account_number: payload.account_number,
-      ifsc_code: payload.ifsc,
-      account_holder_name: payload.account_holder,
-      mobile_number: payload.mobile_number || "",
-      vendor_code: "CASHFREE"
-    };
-
-    try {
-      const res = await apiClient.post("/beneficiaries/verify", reqBody);
-      if (res.status === 200 && res.data && res.data.data) {
-        const vData = res.data.data;
-        const officialName = vData.registered_name_in_bank || vData.name_at_bank || payload.account_holder;
-        const verifiedBen = {
-          beneficiary_id: vData.verification_number || `ben-${Date.now()}`,
-          account_holder_name: officialName,
-          registered_name_in_bank: officialName,
-          name_at_bank: officialName,
-          full_name: officialName,
-          nickname: payload.nickname || `${payload.bank_name} Account`,
-          account_number: payload.account_number,
-          account_number_masked: vData.masked_account_number || `XXXX-XXXX-${payload.account_number.slice(-4)}`,
-          ifsc_code: payload.ifsc,
-          bank_name: payload.bank_name,
-          is_verified: vData.success || vData.status === "SUCCESS",
-          verification_status: "VERIFIED",
-          beneficiary_status: "ACTIVE",
-          penny_drop_status: "SUCCESS",
-          utr: vData.utr_number || `UTR-CF-${Date.now()}`,
-          vendor_ref_id: vData.vendor_ref_id,
-          raw_vendor_response: vData.raw_vendor_response
-        };
-
-        if (!dynamicBeneficiaryStore[payload.customer_id]) {
-          dynamicBeneficiaryStore[payload.customer_id] = [];
-        }
-        dynamicBeneficiaryStore[payload.customer_id].push(verifiedBen);
-
-        return {
-          status: "SUCCESS",
-          data: verifiedBen,
-          message: vData.message || "Bank Account Verified Successfully"
-        };
-      }
-    } catch (err) {
-      console.warn("Real /beneficiaries/verify call exception:", err);
-    }
-
-    const masked = `XXXX-XXXX-${payload.account_number.slice(-4)}`;
-    const fallbackName = payload.account_holder.toUpperCase();
-    const fallbackBen = {
-      beneficiary_id: `ben-${Date.now()}`,
-      account_holder_name: fallbackName,
-      registered_name_in_bank: fallbackName,
-      name_at_bank: fallbackName,
-      full_name: fallbackName,
-      nickname: payload.nickname || `${payload.bank_name} Account`,
-      account_number: payload.account_number,
-      account_number_masked: masked,
+      confirm_account_number: payload.confirm_account_number || payload.account_number,
       ifsc_code: payload.ifsc,
       bank_name: payload.bank_name,
-      is_verified: true,
-      verification_status: "VERIFIED",
-      beneficiary_status: "ACTIVE",
-      penny_drop_status: "SUCCESS",
-      utr: `UTR-CF-${Date.now()}`,
-      vendor_ref_id: `CF-PENNY-${Date.now()}`,
-      raw_vendor_response: {
-        status: "SUCCESS",
-        subCode: "200",
-        message: "Bank Account Verified Successfully",
-        accountStatus: "VALID",
-        data: {
-          refId: `CF-PENNY-${Date.now()}`,
-          nameAtBank: fallbackName,
-          accountNumber: payload.account_number,
-          ifsc: payload.ifsc,
-          accountExists: true,
-          utr: `UTR-CF-${Date.now()}`
-        }
-      }
-    };
-
-    if (!dynamicBeneficiaryStore[payload.customer_id]) {
-      dynamicBeneficiaryStore[payload.customer_id] = [];
-    }
-    dynamicBeneficiaryStore[payload.customer_id].push(fallbackBen);
-
-    return {
-      status: "SUCCESS",
-      data: fallbackBen,
-      message: "Beneficiary added and verified via Penny Drop"
-    };
+      account_holder_name: payload.account_holder,
+      nickname: payload.nickname,
+    });
   },
 
   createReversePennyDrop: async (payload: { name: string; phone: string; amount?: number }) => {

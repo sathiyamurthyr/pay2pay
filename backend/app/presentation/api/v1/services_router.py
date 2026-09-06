@@ -37,15 +37,10 @@ class TogglePosModeRequest(BaseModel):
 async def get_services_status(db: AsyncSession = Depends(get_db)):
     """
     Public / Retailer endpoint returning live availability status of all platform services
-    and active POS settlement modes directly from the database.
+    and active POS settlement modes directly from the database Stored Procedure (SPI).
     Zero local storage dependency.
     """
-    res = await db.execute(text(
-        "SELECT service_code, service_name, is_enabled "
-        "FROM customer_service_configuration "
-        "WHERE is_deleted = false "
-        "ORDER BY service_code;"
-    ))
+    res = await db.execute(text("SELECT out_service_code, out_service_name, out_is_enabled FROM sp_get_all_platform_services_status();"))
     rows = res.fetchall()
     services_map = {r[0]: bool(r[2]) for r in rows}
     
@@ -70,14 +65,9 @@ async def get_services_status(db: AsyncSession = Depends(get_db)):
 async def get_admin_services_status(db: AsyncSession = Depends(get_db)):
     """
     Admin endpoint returning all platform services and all POS settlement modes
-    with their enabled/disabled status.
+    with their enabled/disabled status via Stored Procedure (SPI).
     """
-    res = await db.execute(text(
-        "SELECT service_code, service_name, is_enabled, config_status "
-        "FROM customer_service_configuration "
-        "WHERE is_deleted = false "
-        "ORDER BY service_code;"
-    ))
+    res = await db.execute(text("SELECT out_service_code, out_service_name, out_is_enabled, out_config_status FROM sp_get_all_platform_services_status();"))
     services = [
         {
             "code": r[0],

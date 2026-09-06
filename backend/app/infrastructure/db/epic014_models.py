@@ -165,3 +165,22 @@ class CashfreeApiLogModel(BaseEntity, EnterpriseBaseMixin):
     utr: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     name_at_bank: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     account_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+
+from sqlalchemy import event
+from app.core.beneficiary_name_sanitizer import sanitize_beneficiary_name
+
+@event.listens_for(BeneficiaryMasterModel, "before_insert")
+@event.listens_for(BeneficiaryMasterModel, "before_update")
+def _sanitize_bene_master_event(mapper, connection, target):
+    if getattr(target, "account_holder_name", None):
+        target.account_holder_name = sanitize_beneficiary_name(target.account_holder_name)
+    if getattr(target, "registered_name_in_bank", None):
+        target.registered_name_in_bank = sanitize_beneficiary_name(target.registered_name_in_bank)
+
+@event.listens_for(BeneficiaryVerificationRecordModel, "before_insert")
+@event.listens_for(BeneficiaryVerificationRecordModel, "before_update")
+def _sanitize_bene_verification_record_event(mapper, connection, target):
+    if getattr(target, "name_returned_by_bank", None):
+        target.name_returned_by_bank = sanitize_beneficiary_name(target.name_returned_by_bank)
+

@@ -21,6 +21,8 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy import select, and_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
+import asyncio
+import time
 import logging
 
 logger = logging.getLogger("payout_workflow_service")
@@ -591,11 +593,25 @@ class PayoutWorkflowService:
         if acc_num != confirm_acc:
             raise HTTPException(status_code=400, detail="Account number and Confirm Account number do not match.")
 
+        # Resolve retailer UUID
+        ret_uuid = None
+        raw_ret = req_data.get("retailer_id")
+        if raw_ret:
+            try:
+                ret_uuid = uuid.UUID(str(raw_ret))
+            except Exception:
+                pass
+        if not ret_uuid:
+            stmt_r = select(RetailerModel).where(RetailerModel.is_deleted == False).order_by(RetailerModel.id.asc())
+            r_obj = (await db.execute(stmt_r)).scalars().first()
+            if r_obj:
+                ret_uuid = r_obj.public_id
+
         # 3. Call Epic014BeneficiaryService (Real Cashfree Penny Drop V2)
         res = await Epic014BeneficiaryService.register_and_verify_beneficiary(
             db=db,
-            tenant_id=tenant_id,
-            company_id=None,
+            tenant_id=tenant_id or getattr(cust_obj, "tenant_id", None),
+            company_id=getattr(cust_obj, "company_id", None),
             customer_id=cust_uuid,
             account_number=acc_num,
             confirm_account_number=confirm_acc,
@@ -603,7 +619,7 @@ class PayoutWorkflowService:
             bank_name=bank_name,
             account_holder_name=acc_holder,
             nickname=nickname,
-            retailer_id=None,
+            retailer_id=ret_uuid,
             current_wallet_balance=float(req_data.get("current_wallet_balance") or 5000.0),
         )
 
@@ -625,7 +641,7 @@ class PayoutWorkflowService:
                 ben_num = f"BEN{random.randint(100000, 999999)}"
                 leg_row = BeneficiaryModel(
                     public_id=master_uuid,
-                    tenant_id=tenant_id,
+                    tenant_id=tenant_id or getattr(cust_obj, "tenant_id", None) or uuid.UUID("00000000-0000-0000-0000-000000000001"),
                     created_by="RETAILER",
                     beneficiary_number=ben_num,
                     customer_id=cust_uuid,
@@ -634,15 +650,22 @@ class PayoutWorkflowService:
                     relationship="SELF",
                     verification_status="VERIFIED",
                     beneficiary_status="ACTIVE",
-                    registration_date=datetime.now(),
-                    activation_date=datetime.now()
+                    registration_date=datetime.now(timezone.utc),
+                    activation_date=datetime.now(timezone.utc),
+                    is_active=True,
+                    is_deleted=False,
+                    version_no=1,
+                    record_status="ACTIVE",
+                    beneficiary_category="REGULAR",
+                    beneficiary_type="INDIVIDUAL"
                 )
                 db.add(leg_row)
+                await db.flush()
 
                 masked_num = f"XXXX-XXXX-{acc_num[-4:]}" if len(acc_num) > 4 else acc_num
                 leg_acc = BeneficiaryBankAccountModel(
                     public_id=uuid.uuid4(),
-                    tenant_id=tenant_id,
+                    tenant_id=tenant_id or getattr(cust_obj, "tenant_id", None) or uuid.UUID("00000000-0000-0000-0000-000000000001"),
                     created_by="RETAILER",
                     beneficiary_id=leg_row.public_id,
                     account_holder_name=verified_name,
@@ -653,9 +676,20 @@ class PayoutWorkflowService:
                     verification_status="VERIFIED",
                     penny_drop_status="SUCCESS",
                     name_match_score=100.0,
-                    registered_name_in_bank=verified_name
+                    registered_name_in_bank=verified_name,
+                    is_primary=True,
+                    is_active=True,
+                    is_deleted=False,
+                    version_no=1,
+                    record_status="ACTIVE"
                 )
                 db.add(leg_acc)
+                await db.commit()
+            else:
+                leg_row.is_active = True
+                leg_row.is_deleted = False
+                leg_row.beneficiary_status = "ACTIVE"
+                leg_row.verification_status = "VERIFIED"
                 await db.commit()
 
         return res
@@ -928,6 +962,18 @@ class PayoutWorkflowService:
         ip_address: Optional[str] = None
     ) -> Dict[str, Any]:
         """Execute Cashfree Payout, update monthly counters, and return full digital receipt."""
+
+        # 0. Live Platform Service Availability Check via Stored Procedure (SPI)
+        # Guarantees no payout can be processed when admin disables DMT service.
+        sp_svc = await db.execute(
+            text("SELECT out_is_enabled, out_status_message FROM sp_check_platform_service_availability('DMT');")
+        )
+        svc_row = sp_svc.fetchone()
+        if svc_row and not svc_row[0]:
+            raise HTTPException(
+                status_code=503,
+                detail=svc_row[1] or "DMT Service is temporarily down. Please try again shortly."
+            )
 
         # Re-run validations
         val_res = await PayoutWorkflowService.validate_payout_precheck(
@@ -1278,18 +1324,71 @@ class PayoutWorkflowService:
     ) -> Dict[str, Any]:
         """
         Dispatches WhatsApp Payout Notification via Meta Cloud API template 1608819390633911 (txn_status)
-        and persists delivery audit records in notification and notification_delivery tables.
+        with multi-tier deduplication & idempotency enforcement across initiation, callbacks, and polling.
+        Guarantees that a customer receives EXACTLY ONE notification per payout transaction.
         """
         if not customer_mobile:
-            return {"status": "SKIPPED", "reason": "No customer mobile number available"}
+            return {"status": "SKIPPED", "reason": "No customer mobile number available", "delivered": False}
 
+        # ── 1. RECEIPT-LEVEL DEDUPLICATION GUARD ──────────────────────────────
+        receipt_rec = None
+        try:
+            stmt_rc = select(PayoutReceiptModel).where(
+                (PayoutReceiptModel.transaction_number == transaction_number) |
+                (PayoutReceiptModel.transaction_id == transaction_id)
+            )
+            receipt_rec = (await db.execute(stmt_rc)).scalars().first()
+            if receipt_rec and receipt_rec.whatsapp_status in ("DELIVERED", "SENT") and receipt_rec.whatsapp_message_id:
+                logger.info(
+                    f"[WHATSAPP DEDUPLICATION] Notification ALREADY DELIVERED for payout {transaction_number} "
+                    f"(MsgID: {receipt_rec.whatsapp_message_id}). Suppressing duplicate dispatch."
+                )
+                return {
+                    "delivered": True,
+                    "status": "DELIVERED",
+                    "message_id": receipt_rec.whatsapp_message_id,
+                    "receipt_token": receipt_rec.receipt_token or receipt_token,
+                    "receipt_url": f"https://receipt.pay2pay.in/r/{receipt_rec.receipt_token or receipt_token}",
+                    "deduplicated": True,
+                    "reason": "Already delivered previously for this transaction"
+                }
+        except Exception as ex_rc_chk:
+            logger.warning(f"[WHATSAPP DEDUPLICATION RECEIPT CHECK NOTICE] {ex_rc_chk}")
+
+        # ── 2. DETERMINISTIC NOTIFICATION TABLE IDEMPOTENCY GUARD ────────────
+        norm_status = str(status or "SUCCESS").upper().strip()
+        idempotency_key = f"WA-PAYOUT-{transaction_number}-{norm_status}"
+        try:
+            stmt_notif = select(NotificationModel).where(
+                NotificationModel.idempotency_key == idempotency_key
+            )
+            existing_notif = (await db.execute(stmt_notif)).scalars().first()
+            if existing_notif and existing_notif.notif_status in ("DELIVERED", "SENT"):
+                existing_msg_id = (existing_notif.metadata_json or {}).get("whatsapp_message_id")
+                logger.info(
+                    f"[WHATSAPP DEDUPLICATION] Notification with key {idempotency_key} already exists "
+                    f"(MsgID: {existing_msg_id}). Suppressing duplicate dispatch."
+                )
+                return {
+                    "delivered": True,
+                    "status": "DELIVERED",
+                    "message_id": existing_msg_id,
+                    "receipt_token": receipt_token,
+                    "receipt_url": f"https://receipt.pay2pay.in/r/{receipt_token}",
+                    "deduplicated": True,
+                    "reason": "Idempotent notification record exists"
+                }
+        except Exception as ex_notif_chk:
+            logger.warning(f"[WHATSAPP DEDUPLICATION NOTIFICATION CHECK NOTICE] {ex_notif_chk}")
+
+        # ── 3. DISPATCH NOTIFICATION VIA META CLOUD API ───────────────────────
         clean_mobile = "".join(filter(str.isdigit, str(customer_mobile)))
         if len(clean_mobile) >= 10:
             formatted_mobile = f"91{clean_mobile[-10:]}"
         else:
             formatted_mobile = f"91{clean_mobile}"
 
-        dt_str = datetime.now().strftime("%d-%m-%Y %I:%M %p")
+        dt_str = datetime.now().strftime("%d %b %Y, %I:%M %p")
         receipt_url = f"https://receipt.pay2pay.in/r/{receipt_token}"
 
         wa_res = await whatsapp_service.send_payout_status_notification(
@@ -1307,12 +1406,19 @@ class PayoutWorkflowService:
         wa_status = "DELIVERED" if wa_delivered else "FAILED"
         wa_msg_id = wa_res.get("message_id")
 
+        # ── 4. ATOMIC PERSISTENCE OF AUDIT & RECEIPT RECORDS ──────────────────
         try:
+            if receipt_rec:
+                receipt_rec.whatsapp_message_id = wa_msg_id
+                receipt_rec.whatsapp_status = wa_status
+                if receipt_token and not receipt_rec.receipt_token:
+                    receipt_rec.receipt_token = receipt_token
+
             notif = NotificationModel(
                 public_id=uuid.uuid4(),
                 tenant_id=tenant_id,
                 company_id=company_id,
-                idempotency_key=f"WA-PAYOUT-{transaction_number}-{status}-{secrets.token_hex(3).upper()}",
+                idempotency_key=idempotency_key,
                 notification_type="TRANSACTIONAL",
                 channel="WHATSAPP",
                 recipient_id=customer_id,
@@ -1337,7 +1443,7 @@ class PayoutWorkflowService:
                     "receipt_token": receipt_token,
                     "receipt_url": receipt_url
                 },
-                business_event=f"PAYOUT_{status.upper()}",
+                business_event=f"PAYOUT_{norm_status}",
                 reference_id=transaction_id,
                 reference_type="PAYOUT",
                 priority="HIGH",
@@ -1367,7 +1473,7 @@ class PayoutWorkflowService:
             db.add(delivery)
             await db.commit()
         except Exception as ex_db:
-            print(f"[WHATSAPP AUDIT PERSISTENCE NOTICE] {ex_db}")
+            logger.warning(f"[WHATSAPP AUDIT PERSISTENCE NOTICE] {ex_db}")
 
         return {
             "delivered": wa_delivered,

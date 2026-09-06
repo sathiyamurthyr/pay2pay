@@ -295,6 +295,34 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
 
             service_name = infer_service_name(path)
             api_name = infer_api_name(path, request.method)
+            provider_name = infer_provider_name(path, dict(request.headers), req_json)
+
+            # If transaction_id was not in request, extract from response body
+            client_ref_id = None
+            prov_ref_id = None
+            if isinstance(res_json, dict):
+                if not transaction_id:
+                    transaction_id = (
+                        res_json.get("transaction_number") or
+                        res_json.get("transaction_id") or
+                        res_json.get("txn_id") or
+                        res_json.get("reference_number")
+                    )
+                client_ref_id = (
+                    res_json.get("reference_number") or
+                    res_json.get("client_reference_id") or
+                    res_json.get("client_txn_id") or
+                    (req_json.get("reference_id") if isinstance(req_json, dict) else None)
+                )
+                prov_ref_id = (
+                    res_json.get("utr") or
+                    res_json.get("rrn") or
+                    res_json.get("vendor_transaction_id") or
+                    res_json.get("vendor_ref")
+                )
+                res_vendor = res_json.get("vendor_name") or res_json.get("vendor") or res_json.get("provider")
+                if res_vendor and (not provider_name or provider_name == "Enterprise Platform Core"):
+                    provider_name = str(res_vendor)
 
             # Package log data
             log_data = {
@@ -302,6 +330,8 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
                 "transaction_id": str(transaction_id) if transaction_id else None,
                 "request_id": req_id,
                 "correlation_id": corr_id,
+                "client_reference_id": str(client_ref_id) if client_ref_id else None,
+                "provider_reference_id": str(prov_ref_id) if prov_ref_id else None,
                 "service_name": service_name,
                 "api_name": api_name,
                 "http_method": request.method.upper(),
@@ -310,7 +340,7 @@ class EnterpriseApiLoggingMiddleware(BaseHTTPMiddleware):
                 "environment": "PRODUCTION",
                 "client_name": client_name,
                 "client_ip": client_ip,
-                "provider_name": infer_provider_name(path, dict(request.headers), req_json),
+                "provider_name": provider_name,
                 "retailer_id": str(retailer_id) if retailer_id else None,
                 "request_timestamp": req_timestamp,
                 "response_timestamp": res_timestamp,

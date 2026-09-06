@@ -45,6 +45,12 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import CheckIcon from "@mui/icons-material/Check";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import FirstPageIcon from "@mui/icons-material/FirstPage";
+import LastPageIcon from "@mui/icons-material/LastPage";
+import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
+import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 
 import { CustomerData } from "../../hooks/useCustomer";
 import { BeneficiaryData, deduplicateBeneficiaries } from "../../hooks/useBeneficiary";
@@ -311,7 +317,47 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
     });
   }, [filteredBeneficiaries, sortBy]);
 
-  const displayedBeneficiaries = sortedBeneficiaries;
+  // ── PAGINATION & SCROLL VIEW MODE STATE ──
+  const [page, setPage] = useState<number>(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number | "all">(5);
+  const [viewMode, setViewMode] = useState<"paginated" | "scroll">("paginated");
+
+  // Reset page to 1 whenever search, filter, or sort changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filterType, sortBy]);
+
+  const totalBeneficiariesCount = sortedBeneficiaries.length;
+  const effectivePageSize = typeof rowsPerPage === "number" ? rowsPerPage : 10;
+  const totalPages =
+    viewMode === "scroll" || rowsPerPage === "all"
+      ? 1
+      : Math.max(1, Math.ceil(totalBeneficiariesCount / effectivePageSize));
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const displayedBeneficiaries = useMemo(() => {
+    if (viewMode === "scroll" || rowsPerPage === "all") {
+      return sortedBeneficiaries;
+    }
+    const startIndex = (page - 1) * effectivePageSize;
+    return sortedBeneficiaries.slice(startIndex, startIndex + effectivePageSize);
+  }, [sortedBeneficiaries, viewMode, rowsPerPage, page, effectivePageSize]);
+
+  const startRecordIndex =
+    totalBeneficiariesCount === 0
+      ? 0
+      : viewMode === "scroll" || rowsPerPage === "all"
+      ? 1
+      : (page - 1) * effectivePageSize + 1;
+  const endRecordIndex =
+    viewMode === "scroll" || rowsPerPage === "all"
+      ? totalBeneficiariesCount
+      : Math.min(page * effectivePageSize, totalBeneficiariesCount);
 
   const handleRowClick = (b: BeneficiaryData) => {
     onSelectBeneficiary(b);
@@ -380,19 +426,19 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           }}
         />
 
-        {/* ── CONSOLE HEADER: TITLE & + ADD BENEFICIARY BUTTON ── */}
+        {/* ── CONSOLE HEADER: TITLE, VIEW TOGGLE & + ADD BENEFICIARY BUTTON ── */}
         <Stack
           direction="row"
           sx={{
             justifyContent: "space-between",
             alignItems: "center",
             mb: 1.5,
-            flexWrap: "wrap",
+            flexWrap: { xs: "wrap", sm: "nowrap" },
             gap: 1,
             width: "100%",
           }}
         >
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
             <Typography
               sx={{
                 fontWeight: 900,
@@ -401,6 +447,7 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
                 background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
+                whiteSpace: "nowrap",
               }}
             >
               Beneficiary Selection
@@ -422,31 +469,98 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             />
           </Stack>
 
-          <Button
-            size="small"
-            variant="contained"
-            startIcon={<PersonAddIcon sx={{ fontSize: 15, color: "#080B11" }} />}
-            onClick={handleNavigateToAddBeneficiary}
-            sx={{
-              height: 34,
-              px: 2,
-              borderRadius: "10px",
-              fontWeight: 900,
-              fontSize: "12px",
-              background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
-              color: "#080B11",
-              textTransform: "none",
-              boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
-              transition: "all 0.2s ease-in-out",
-              "&:hover": {
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
-                boxShadow: "0 6px 18px rgba(245, 158, 11, 0.45)",
-                transform: "translateY(-1px)",
-              },
-            }}
-          >
-            + Add Beneficiary
-          </Button>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexShrink: 0 }}>
+            {/* View Mode Toggle: Paginated vs Scroll */}
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                bgcolor: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.10)",
+                borderRadius: "8px",
+                p: 0.3,
+                gap: 0.3,
+              }}
+            >
+              <Button
+                size="small"
+                onClick={() => {
+                  setViewMode("paginated");
+                  if (rowsPerPage === "all") setRowsPerPage(5);
+                  setPage(1);
+                }}
+                startIcon={<FormatListNumberedIcon sx={{ fontSize: 13 }} />}
+                sx={{
+                  height: 28,
+                  px: 1,
+                  borderRadius: "6px",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  textTransform: "none",
+                  bgcolor: viewMode === "paginated" ? "rgba(245, 158, 11, 0.22)" : "transparent",
+                  color: viewMode === "paginated" ? "#FDE68A" : "rgba(255, 255, 255, 0.65)",
+                  border: viewMode === "paginated" ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid transparent",
+                  "&:hover": {
+                    bgcolor: viewMode === "paginated" ? "rgba(245, 158, 11, 0.32)" : "rgba(255, 255, 255, 0.08)",
+                  },
+                }}
+              >
+                Pages
+              </Button>
+
+              <Button
+                size="small"
+                onClick={() => {
+                  setViewMode("scroll");
+                  setRowsPerPage("all");
+                }}
+                startIcon={<UnfoldMoreIcon sx={{ fontSize: 13 }} />}
+                sx={{
+                  height: 28,
+                  px: 1,
+                  borderRadius: "6px",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  textTransform: "none",
+                  bgcolor: viewMode === "scroll" ? "rgba(245, 158, 11, 0.22)" : "transparent",
+                  color: viewMode === "scroll" ? "#FDE68A" : "rgba(255, 255, 255, 0.65)",
+                  border: viewMode === "scroll" ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid transparent",
+                  "&:hover": {
+                    bgcolor: viewMode === "scroll" ? "rgba(245, 158, 11, 0.32)" : "rgba(255, 255, 255, 0.08)",
+                  },
+                }}
+              >
+                Scroll
+              </Button>
+            </Box>
+
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<PersonAddIcon sx={{ fontSize: 15, color: "#080B11" }} />}
+              onClick={handleNavigateToAddBeneficiary}
+              sx={{
+                height: 34,
+                px: 2,
+                borderRadius: "10px",
+                fontWeight: 900,
+                fontSize: "12px",
+                background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)",
+                color: "#080B11",
+                textTransform: "none",
+                whiteSpace: "nowrap",
+                boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
+                transition: "all 0.2s ease-in-out",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #B45309 100%)",
+                  boxShadow: "0 6px 18px rgba(245, 158, 11, 0.45)",
+                  transform: "translateY(-1px)",
+                },
+              }}
+            >
+              + Add Beneficiary
+            </Button>
+          </Stack>
         </Stack>
 
         {/* ── SEARCH & FILTER CONTROLS ── */}
@@ -536,13 +650,32 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
             width: "100%",
             maxWidth: "100%",
             overflowX: "hidden",
-            minHeight: "280px",
-            maxHeight: { xs: "none", md: "560px", lg: "calc(100vh - 280px)" },
-            overflowY: "auto",
+            minHeight: "260px",
+            maxHeight: viewMode === "scroll" || rowsPerPage === "all" ? { xs: "520px", md: "560px", lg: "calc(100vh - 280px)" } : "none",
+            overflowY: viewMode === "scroll" || rowsPerPage === "all" ? "auto" : "visible",
             pr: { xs: 0, sm: 0.5 },
             pb: 1,
             position: "relative",
             boxSizing: "border-box",
+            // Custom & Hidden Scrollbar - removes ugly default browser scrollbar
+            scrollbarWidth: viewMode === "scroll" ? "thin" : "none",
+            scrollbarColor: viewMode === "scroll" ? "rgba(245, 158, 11, 0.45) rgba(0, 0, 0, 0.2)" : "transparent transparent",
+            msOverflowStyle: "none",
+            "&::-webkit-scrollbar": {
+              display: viewMode === "scroll" ? "block" : "none",
+              width: "5px",
+            },
+            "&::-webkit-scrollbar-track": {
+              background: "rgba(0, 0, 0, 0.2)",
+              borderRadius: "8px",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              background: "rgba(245, 158, 11, 0.35)",
+              borderRadius: "8px",
+              "&:hover": {
+                background: "rgba(245, 158, 11, 0.65)",
+              },
+            },
           }}
         >
           {isLoading ? (
@@ -1106,23 +1239,217 @@ export const WorkstationStep2: React.FC<WorkstationStep2Props> = ({
           )}
         </Box>
 
-        {/* ── FOOTER SUMMARY STRIP ── */}
-        <Stack
-          direction="row"
+        {/* ── FOOTER SUMMARY & PAGINATION TOOLBAR ── */}
+        <Box
           sx={{
             mt: 1.5,
             pt: 1.25,
             borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
             justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 1,
+            alignItems: { xs: "stretch", sm: "center" },
+            gap: 1.5,
+            width: "100%",
           }}
         >
-          <Typography sx={{ color: "rgba(255, 255, 255, 0.65)", fontSize: "12px", fontWeight: 700 }}>
-            Showing <strong>{displayedBeneficiaries.length}</strong> of <strong>{cleanBeneficiaries.length}</strong> beneficiaries
-          </Typography>
-        </Stack>
+          {/* Left: Showing Details & Rows Selector */}
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap", justifyContent: { xs: "space-between", sm: "flex-start" } }}>
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.75)", fontSize: "12px", fontWeight: 700 }}>
+              Showing{" "}
+              <strong style={{ color: "#FDE68A" }}>
+                {totalBeneficiariesCount === 0
+                  ? 0
+                  : viewMode === "scroll" || rowsPerPage === "all"
+                  ? `1–${totalBeneficiariesCount}`
+                  : `${startRecordIndex}–${endRecordIndex}`}
+              </strong>{" "}
+              of <strong style={{ color: "#FFFFFF" }}>{totalBeneficiariesCount}</strong> beneficiaries
+            </Typography>
+
+            {/* Rows Per Page Selector */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Typography sx={{ color: "rgba(255, 255, 255, 0.50)", fontSize: "11px", fontWeight: 700 }}>
+                Rows:
+              </Typography>
+              <Select
+                size="small"
+                value={rowsPerPage}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "all") {
+                    setRowsPerPage("all");
+                    setViewMode("scroll");
+                  } else {
+                    setRowsPerPage(Number(val));
+                    setViewMode("paginated");
+                  }
+                  setPage(1);
+                }}
+                sx={{
+                  height: 28,
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  color: "#FDE68A",
+                  bgcolor: "rgba(255, 255, 255, 0.06)",
+                  borderRadius: "6px",
+                  "& .MuiSelect-select": { py: 0.25, px: 1, pr: "24px !important" },
+                  "& .MuiSelect-icon": { color: "#FDE68A", fontSize: 16 },
+                }}
+              >
+                <MenuItem value={5}>5 / page</MenuItem>
+                <MenuItem value={10}>10 / page</MenuItem>
+                <MenuItem value={20}>20 / page</MenuItem>
+                <MenuItem value="all">All (Scroll)</MenuItem>
+              </Select>
+            </Box>
+          </Stack>
+
+          {/* Right: Pagination Controls */}
+          {viewMode === "paginated" && totalPages > 1 && (
+            <Stack
+              direction="row"
+              spacing={0.5}
+              sx={{
+                alignItems: "center",
+                justifyContent: { xs: "center", sm: "flex-end" },
+              }}
+            >
+              <IconButton
+                size="small"
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+                sx={{
+                  color: page <= 1 ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.8)",
+                  p: 0.5,
+                  display: { xs: "none", sm: "inline-flex" },
+                }}
+                title="First Page"
+              >
+                <FirstPageIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                startIcon={<NavigateBeforeIcon sx={{ fontSize: 16 }} />}
+                sx={{
+                  height: 28,
+                  px: 1,
+                  minWidth: "auto",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  textTransform: "none",
+                  borderRadius: "6px",
+                  color: page <= 1 ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.85)",
+                  borderColor: "rgba(255, 255, 255, 0.15)",
+                }}
+              >
+                Prev
+              </Button>
+
+              {/* Page Numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => {
+                  if (totalPages <= 5) return true;
+                  return Math.abs(p - page) <= 1 || p === 1 || p === totalPages;
+                })
+                .map((p, idx, arr) => {
+                  const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
+                  return (
+                    <React.Fragment key={p}>
+                      {showEllipsis && (
+                        <Typography sx={{ color: "rgba(255, 255, 255, 0.35)", fontSize: "11px", px: 0.25 }}>
+                          …
+                        </Typography>
+                      )}
+                      <Button
+                        size="small"
+                        onClick={() => setPage(p)}
+                        sx={{
+                          height: 28,
+                          minWidth: 28,
+                          p: 0,
+                          fontSize: "11px",
+                          fontWeight: page === p ? 900 : 700,
+                          borderRadius: "6px",
+                          bgcolor: page === p ? "rgba(245, 158, 11, 0.25)" : "transparent",
+                          color: page === p ? "#FDE68A" : "rgba(255, 255, 255, 0.75)",
+                          border: page === p ? "1px solid rgba(245, 158, 11, 0.55)" : "1px solid transparent",
+                          "&:hover": {
+                            bgcolor: page === p ? "rgba(245, 158, 11, 0.35)" : "rgba(255, 255, 255, 0.08)",
+                          },
+                        }}
+                      >
+                        {p}
+                      </Button>
+                    </React.Fragment>
+                  );
+                })}
+
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                endIcon={<NavigateNextIcon sx={{ fontSize: 16 }} />}
+                sx={{
+                  height: 28,
+                  px: 1,
+                  minWidth: "auto",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  textTransform: "none",
+                  borderRadius: "6px",
+                  color: page >= totalPages ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.85)",
+                  borderColor: "rgba(255, 255, 255, 0.15)",
+                }}
+              >
+                Next
+              </Button>
+
+              <IconButton
+                size="small"
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+                sx={{
+                  color: page >= totalPages ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.8)",
+                  p: 0.5,
+                  display: { xs: "none", sm: "inline-flex" },
+                }}
+                title="Last Page"
+              >
+                <LastPageIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Stack>
+          )}
+
+          {/* When in Scroll Mode: Quick toggle back to Pages */}
+          {viewMode === "scroll" && (
+            <Button
+              size="small"
+              variant="text"
+              onClick={() => {
+                setViewMode("paginated");
+                if (rowsPerPage === "all") setRowsPerPage(5);
+                setPage(1);
+              }}
+              startIcon={<FormatListNumberedIcon sx={{ fontSize: 14 }} />}
+              sx={{
+                height: 28,
+                fontSize: "11px",
+                fontWeight: 800,
+                color: "#60A5FA",
+                textTransform: "none",
+                alignSelf: { xs: "center", sm: "flex-end" },
+              }}
+            >
+              Switch to Paginated View
+            </Button>
+          )}
+        </Box>
       </Paper>
 
       {/* ── RIGHT PANEL (TRANSACTION MODE & TRANSFER AMOUNT - GLASSMORPHISM CARD) ── */}

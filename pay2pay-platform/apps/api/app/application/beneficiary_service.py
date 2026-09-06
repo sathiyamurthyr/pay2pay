@@ -30,6 +30,7 @@ from app.application.beneficiary_dtos import (
     Beneficiary360Response, BeneficiaryDashboardMetricsResponse,
     BeneficiarySearchRequest
 )
+from app.core.beneficiary_name_sanitizer import sanitize_beneficiary_name
 
 
 def _now() -> datetime:
@@ -183,7 +184,7 @@ class BeneficiaryService:
             public_id=uuid.uuid4(),
             beneficiary_number=_generate_beneficiary_number(),
             customer_id=req.customer_id,
-            full_name=req.full_name,
+            full_name=sanitize_beneficiary_name(req.full_name),
             nickname=req.nickname,
             relationship=req.relationship,
             mobile_number=req.mobile_number,
@@ -215,10 +216,11 @@ class BeneficiaryService:
 
         # If Bank account details provided, create bank account record
         if req.account_number and req.ifsc_code:
+            clean_holder = sanitize_beneficiary_name(req.account_holder_name or req.full_name)
             bank_acc = BeneficiaryBankAccountModel(
                 public_id=uuid.uuid4(),
                 beneficiary_id=beneficiary.public_id,
-                account_holder_name=req.account_holder_name or req.full_name,
+                account_holder_name=clean_holder,
                 account_number=req.account_number,
                 account_number_masked=_mask_account_number(req.account_number),
                 ifsc_code=req.ifsc_code,

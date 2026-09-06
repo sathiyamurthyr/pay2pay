@@ -126,8 +126,10 @@ def build_unified_transactions_query(
             outer_conditions.append(f"({' OR '.join(ret_conds)})")
 
     if service and service.upper() != "ALL":
-        outer_conditions.append("UPPER(u.service) = :service")
-        params["service"] = service.upper()
+        s_clean = service.upper().replace("-", "_").replace(" ", "_")
+        outer_conditions.append("(UPPER(u.service) = :service OR UPPER(u.service) LIKE :service_like)")
+        params["service"] = s_clean
+        params["service_like"] = f"{s_clean}%"
 
     if transaction_type and transaction_type.upper() != "ALL":
         outer_conditions.append("UPPER(u.type) = :transaction_type")
@@ -421,12 +423,12 @@ def build_unified_transactions_query(
             p.amount::float AS amount,
             CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE COALESCE(p.charges, 0.0)::float END AS charges,
             0.0 AS commission,
-            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)::float END AS gst_amount,
+            0.0 AS gst_amount,
             0.0 AS tds_amount,
-            COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)))::float AS net_amount,
+            COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0)))::float AS net_amount,
             COALESCE(p.wallet_before, 50000.0)::float AS previous_balance,
             CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN COALESCE(p.net_debit, p.amount)::float ELSE 0.0 END AS cr,
-            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0) + round((COALESCE(p.charges, 0.0) * 0.18)::numeric, 2)))::float END AS dr,
+            CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN 0.0 ELSE COALESCE(p.net_debit, (p.amount + COALESCE(p.charges, 0.0)))::float END AS dr,
             COALESCE(p.wallet_after, 
                 CASE 
                     WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN COALESCE(p.wallet_before, 50000.0) + COALESCE(p.net_debit, p.amount)
@@ -574,6 +576,9 @@ def build_unified_transactions_query(
         COALESCE(SUM(amount), 0) AS total_amount,
         COALESCE(SUM(cr), 0) AS total_cr,
         COALESCE(SUM(dr), 0) AS total_dr,
+        COALESCE(SUM(commission), 0) AS total_commission,
+        COALESCE(SUM(gst_amount), 0) AS total_gst,
+        COALESCE(SUM(charges), 0) AS total_charges,
         COALESCE(SUM(CASE WHEN UPPER(status) = 'SUCCESS' THEN 1 ELSE 0 END), 0) AS successful_count,
         COALESCE(SUM(CASE WHEN UPPER(status) IN ('PENDING', 'PROCESSING', 'INITIATED', 'VENDOR_REQUEST_SENT') THEN 1 ELSE 0 END), 0) AS pending_count,
         COALESCE(SUM(CASE WHEN UPPER(status) = 'FAILED' THEN 1 ELSE 0 END), 0) AS failed_count,
@@ -680,6 +685,9 @@ async def get_enterprise_transactions_summary(
             "total_dr": round(float(rd.get("total_dr", 0)), 2),
             "total_credit": round(float(rd.get("total_cr", 0)), 2),
             "total_debit": round(float(rd.get("total_dr", 0)), 2),
+            "total_commission": round(float(rd.get("total_commission", 0)), 2),
+            "total_gst": round(float(rd.get("total_gst", 0)), 2),
+            "total_charges": round(float(rd.get("total_charges", 0)), 2),
             "successful_transactions": int(rd.get("successful_count", 0)),
             "pending_transactions": int(rd.get("pending_count", 0)),
             "failed_transactions": int(rd.get("failed_count", 0)),

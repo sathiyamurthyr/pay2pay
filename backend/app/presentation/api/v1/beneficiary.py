@@ -538,8 +538,8 @@ async def add_and_verify_epic014_beneficiary(
 
     res = await Epic014BeneficiaryService.register_and_verify_beneficiary(
         db=db,
-        tenant_id=uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
-        company_id=None,
+        tenant_id=getattr(cust_obj, "tenant_id", None) ,
+        company_id=getattr(cust_obj, "company_id", None),
         customer_id=cust_uuid,
         account_number=req.account_number,
         confirm_account_number=req.confirm_account_number,

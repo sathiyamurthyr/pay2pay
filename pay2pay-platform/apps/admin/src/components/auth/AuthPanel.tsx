@@ -503,10 +503,12 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         setLockTimer(0);
         setShowConfetti(true);
         soundSystem.playLoginSuccess();
+        const urlRedirect = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null;
         const approveStatus = data.approve_status !== undefined ? data.approve_status : data.data?.approve_status;
         const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
         const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
-        const redirectUrl = data.data?.redirect_url || (destination === "DASHBOARD" ? (isAdminPortal ? "/dashboard" : portalDashboardUrl) : (isAdminPortal ? "/dashboard" : "/retailer/account-under-review"));
+        const defaultTarget = destination === "DASHBOARD" ? (isAdminPortal ? "/dashboard" : portalDashboardUrl) : (isAdminPortal ? "/dashboard" : "/retailer/account-under-review");
+        const redirectUrl = urlRedirect || data.data?.redirect_url || defaultTarget;
         await handleAuthSuccessRedirect(
           data.data?.access_token,
           data.data?.user,
@@ -599,7 +601,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
         const activeStatus = data.active_status !== undefined ? data.active_status : data.data?.active_status;
         const destination = data.data?.destination || (approveStatus && activeStatus ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW");
         const isNewOnboarding = flow === "NEW_ONBOARDING" || flow === "RESUME_ONBOARDING" || destination === "ONBOARDING";
-        const redirectUrl = data.data?.redirect_url || (destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? portalRegisterUrl : approveStatus && activeStatus ? (isAdminPortal ? "/dashboard" : portalDashboardUrl) : (isAdminPortal ? "/dashboard" : "/retailer/account-under-review"));
+        const urlRedirect = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null;
+        const defaultTarget = destination === "APPLICATION_REJECTED" ? "/application-rejected" : isNewOnboarding ? portalRegisterUrl : approveStatus && activeStatus ? (isAdminPortal ? "/dashboard" : portalDashboardUrl) : (isAdminPortal ? "/dashboard" : "/retailer/account-under-review");
+        const redirectUrl = urlRedirect || data.data?.redirect_url || defaultTarget;
 
         if (isNewOnboarding) {
           setSuccessMsg("✓ Mobile verified successfully. Taking you to onboarding...");

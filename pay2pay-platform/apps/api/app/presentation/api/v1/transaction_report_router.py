@@ -386,6 +386,7 @@ async def get_transaction_report(
     to_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD), default: TODAY"),
     service: Optional[str] = Query(None, description="Service filter (PAYOUT, DMT, AEPS, RECHARGE, ALL)"),
     entry_type: Optional[str] = Query(None, description="Entry type filter (CREDIT, DEBIT, ALL)"),
+    entry: Optional[str] = Query(None, description="Alias for entry_type filter (CREDIT, DEBIT, ALL)"),
     status: Optional[str] = Query(None, description="Status filter (SUCCESS, PENDING, FAILED, REVERSED, ALL)"),
     wallet: Optional[str] = Query(None, description="Wallet filter (MAIN, COMMISSION, SETTLEMENT, ALL)"),
     user_type: Optional[str] = Query(None, description="User type filter (ADMIN, RETAILER, DISTRIBUTOR, SD, CRM, RM, ALL)"),
@@ -401,13 +402,14 @@ async def get_transaction_report(
     auth_ctx = await resolve_auth_context(request, db)
 
     # 2. Validate Inputs
+    eff_entry = entry_type if (entry_type is not None and entry_type.strip() != "") else entry
     start_dt, end_dt, sort_col, sort_dir = validate_transaction_report_params(
         page=page,
         limit=limit,
         from_date=from_date,
         to_date=to_date,
         service_filter=service,
-        entry_filter=entry_type,
+        entry_filter=eff_entry,
         status_filter=status,
         wallet_filter=wallet,
         sort_by=sort_by,
@@ -511,8 +513,8 @@ async def get_transaction_report(
         where_clauses.append("UPPER(COALESCE(t.wallet_type, 'MAIN')) = :wallet_val")
         count_params["wallet_val"] = wallet.strip().upper()
 
-    if entry_type and entry_type.strip().upper() != "ALL":
-        entry_val = entry_type.strip().upper()
+    if eff_entry and eff_entry.strip().upper() != "ALL":
+        entry_val = eff_entry.strip().upper()
         if entry_val in ("CR", "CREDIT"):
             where_clauses.append("UPPER(t.entry_type) IN ('CREDIT', 'CR')")
         elif entry_val in ("DR", "DEBIT"):
@@ -574,7 +576,7 @@ async def get_transaction_report(
         "to_date": end_dt.astimezone(IST).date(),
         "service": service.strip().upper() if service and service.strip().upper() != "ALL" else None,
         "wallet": wallet.strip().upper() if wallet and wallet.strip().upper() != "ALL" else None,
-        "entry": entry_type.strip().upper() if entry_type and entry_type.strip().upper() != "ALL" else None,
+        "entry": eff_entry.strip().upper() if eff_entry and eff_entry.strip().upper() != "ALL" else None,
         "status": status.strip().upper() if status and status.strip().upper() != "ALL" else None,
         "search": search.strip() if search and search.strip() else None,
         "page": page,
@@ -615,15 +617,28 @@ async def get_transaction_report(
         else:
             formatted_dt = str(dt) if dt else ""
 
+        entry_val = (m.get("entry") or "DEBIT").upper()
+        is_credit = entry_val in ("CREDIT", "CR")
+        amt_val = round_curr(m.get("amount"))
+        op_bal_val = round_curr(m.get("opening_bal"))
+        cl_bal_val = round_curr(m.get("closing_bal"))
+
         item = {
             "txn_id": m.get("txn_id") or "",
             "ref_id": m.get("ref_id") or "",
             "service": m.get("service") or "PAYOUT",
             "wallet": m.get("wallet") or "MAIN",
-            "entry": (m.get("entry") or "DEBIT").upper(),
-            "amount": round_curr(m.get("amount")),
-            "opening_bal": round_curr(m.get("opening_bal")),
-            "closing_bal": round_curr(m.get("closing_bal")),
+            "entry": entry_val,
+            "entry_type": entry_val,
+            "cr_dr": "CR" if is_credit else "DR",
+            "type": entry_val,
+            "cr": amt_val if is_credit else 0.0,
+            "dr": 0.0 if is_credit else amt_val,
+            "cr_amt": amt_val if is_credit else 0.0,
+            "dr_amt": 0.0 if is_credit else amt_val,
+            "amount": amt_val,
+            "opening_bal": op_bal_val,
+            "closing_bal": cl_bal_val,
             "description": m.get("description") or "",
             "date_time": formatted_dt,
             "status": (m.get("status") or "SUCCESS").upper(),
@@ -1452,6 +1467,8 @@ async def get_transaction_dynamic_details(
                 "service": service_raw,
                 "wallet": (primary.get("wallet_type") or "MAIN").upper(),
                 "entry": (primary.get("entry_type") or "DEBIT").upper(),
+                "entry_type": (primary.get("entry_type") or "DEBIT").upper(),
+                "cr_dr": "CR" if (primary.get("entry_type") or "").upper() in ("CREDIT", "CR") else "DR",
                 "date_time": formatted_dt,
                 "created_at": created_at_iso,
             },

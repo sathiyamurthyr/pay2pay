@@ -758,8 +758,8 @@ class BulkPePayoutEngine:
                 correlation_id=f"CORR-{tx_number}",
                 client_reference_id=merchant_ref,
                 provider_reference_id=api_res.get("vendor_tx_id") or api_res.get("vendor_ref") or api_res.get("order_id") or utr,
-                request_body=api_res.get("request_payload"),
-                response_body=api_res.get("response_payload"),
+                request_body=api_res.get("request_payload") or api_res.get("raw_request"),
+                response_body=api_res.get("response_payload") or api_res.get("raw_response"),
                 http_status_code=int(api_res.get("http_status") or (200 if api_res.get("status") in ("SUCCESS", "PENDING") else 400)),
                 duration_ms=float(api_res.get("latency_ms", 350.0) or 350.0),
                 response_status="SUCCESS" if api_res.get("status") in ("SUCCESS", "PENDING") else "FAILED",
@@ -837,26 +837,26 @@ class BulkPePayoutEngine:
             await db.commit()
 
             # ----------------------------------------------------
-            # 5.2 DISPATCH META WHATSAPP NOTIFICATION TO CUSTOMER
+            # 5.2 DISPATCH META WHATSAPP NOTIFICATION TO CUSTOMER (DEDUPLICATED)
             # ----------------------------------------------------
             wa_dispatch_info = {}
-            if cust_mobile:
+            if cust_mobile and final_status == "SUCCESS":
                 try:
-                    dt_str = datetime.now().strftime("%d %b %Y, %I:%M %p")
-                    wa_dispatch_info = await whatsapp_service.send_payout_status_notification(
-                        mobile_number=cust_mobile,
+                    from app.application.payout_workflow_service import PayoutWorkflowService
+                    wa_dispatch_info = await PayoutWorkflowService.dispatch_payout_whatsapp_notification(
+                        db=db,
+                        tenant_id=tenant_id,
+                        company_id=eff_company_id,
+                        transaction_id=payout_tx.public_id,
+                        transaction_number=tx_number,
+                        customer_id=customer.public_id if customer else None,
                         customer_name=cust_display_name,
+                        customer_mobile=cust_mobile,
                         amount=amount,
-                        transaction_id=tx_number,
-                        date_time_str=dt_str,
                         status=final_status,
                         receipt_token=receipt_token,
-                        template_id="1608819390633911"
+                        utr_number=str(utr or "")
                     )
-                    if wa_dispatch_info.get("delivered"):
-                        receipt_rec.whatsapp_message_id = wa_dispatch_info.get("message_id")
-                        receipt_rec.whatsapp_status = "DELIVERED"
-                        await db.commit()
                 except Exception as wa_err:
                     print(f"[WHATSAPP DISPATCH EXCEPTION] {wa_err}")
 

@@ -582,13 +582,6 @@ function BeneficiaryWorkspaceContent() {
           relationship: newBen.relationship,
         };
 
-        try {
-          const key = `pay2pay_user_added_beneficiaries_${activeCustomerId}`;
-          const existing = JSON.parse(localStorage.getItem(key) || "[]");
-          const deduped  = existing.filter((b: any) => b.accountNumber !== accNum);
-          localStorage.setItem(key, JSON.stringify([formattedBene, ...deduped]));
-        } catch { /* ignore */ }
-
         setCreatedBeneficiary(newBen);
         setBenName(officialName);
 

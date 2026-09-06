@@ -2,10 +2,11 @@
 import uuid
 import time
 import json
-from datetime import datetime
+import random
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_, func, text
 from fastapi import HTTPException, status
 
 from app.infrastructure.db.epic014_models import (
@@ -21,6 +22,7 @@ from app.infrastructure.db.epic014_models import (
 )
 from app.application.cashfree_service import CashfreeVerificationService
 from app.application.wallet_balance_service import WalletBalanceAdjustmentService, WalletAdjustmentDTO
+from app.core.beneficiary_name_sanitizer import sanitize_beneficiary_name
 
 
 class Epic014BeneficiaryService:
@@ -210,17 +212,35 @@ class Epic014BeneficiaryService:
                 }
             )
 
+        # Check existing master by account number and IFSC (exact or bank prefix matching)
         stmt_master = select(BeneficiaryMasterModel).where(
             and_(
                 BeneficiaryMasterModel.account_number == clean_account,
-                BeneficiaryMasterModel.ifsc_code == clean_ifsc,
+                or_(
+                    BeneficiaryMasterModel.ifsc_code == clean_ifsc,
+                    BeneficiaryMasterModel.ifsc_code.like(f"{clean_ifsc[:4]}%"),
+                    func.substr(BeneficiaryMasterModel.ifsc_code, 1, 4) == clean_ifsc[:4]
+                ),
                 BeneficiaryMasterModel.status != "MERGED",
             )
         )
         existing_master = (await db.execute(stmt_master)).scalars().first()
 
         if existing_master and existing_master.verification_status == "VERIFIED":
-            # Reuse existing verified beneficiary master
+            # 1. Update IFSC code on master if it was generic or different branch
+            if clean_ifsc and existing_master.ifsc_code != clean_ifsc:
+                existing_master.ifsc_code = clean_ifsc
+            
+            # 2. Reactivate master
+            existing_master.is_active = True
+            existing_master.is_deleted = False
+            existing_master.status = "ACTIVE"
+            if account_holder_name:
+                clean_name = sanitize_beneficiary_name(account_holder_name)
+                if clean_name:
+                    existing_master.account_holder_name = clean_name
+            
+            # 3. Check customer mapping
             stmt_map = select(BeneficiaryCustomerMappingModel).where(
                 and_(
                     BeneficiaryCustomerMappingModel.customer_id == customer_id,
@@ -231,15 +251,31 @@ class Epic014BeneficiaryService:
 
             if not existing_map:
                 new_map = BeneficiaryCustomerMappingModel(
-                    tenant_id=tenant_id,
-                    company_id=company_id,
+                    tenant_id=tenant_id or existing_master.tenant_id,
+                    company_id=company_id or existing_master.company_id,
                     customer_id=customer_id,
                     beneficiary_id=existing_master.public_id,
                     nickname=nickname or f"{bank_name} Account",
                     is_active=True,
+                    is_deleted=False,
                 )
                 db.add(new_map)
-                await db.commit()
+            else:
+                existing_map.is_active = True
+                existing_map.is_deleted = False
+                if nickname:
+                    existing_map.nickname = nickname
+
+            # 4. Synchronize legacy BeneficiaryModel & BeneficiaryBankAccountModel
+            await cls._sync_legacy_beneficiary_records(
+                db=db,
+                tenant_id=tenant_id or existing_master.tenant_id,
+                customer_id=customer_id,
+                master=existing_master,
+                nickname=nickname or f"{bank_name} Account"
+            )
+
+            await db.commit()
 
             return {
                 "status": "SUCCESS",
@@ -382,14 +418,23 @@ class Epic014BeneficiaryService:
         # 4. PHASE 3: SUCCESS PERSISTENCE OR AUTOMATIC REVERSAL
         # ----------------------------------------------------
         if cf_res.get("status") == "SUCCESS" and cf_res.get("is_valid"):
-            # SUCCESS PATH
-            verified_name = (cf_res.get("name_at_bank") or account_holder_name or "VERIFIED HOLDER").upper()
+            raw_name = cf_res.get("name_at_bank") or account_holder_name or "VERIFIED HOLDER"
+            verified_name = sanitize_beneficiary_name(raw_name)
 
             # Create or update Beneficiary Master
+            target_master = None
             if not existing_master:
+                bene_ref_id = None
+                try:
+                    seq_res = await db.execute(text("SELECT nextval('beneficiary_master_beneficiary_master_ref_id_seq')"))
+                    bene_ref_id = seq_res.scalar()
+                except Exception:
+                    pass
+
                 master = BeneficiaryMasterModel(
                     tenant_id=tenant_id,
                     company_id=company_id,
+                    beneficiary_master_ref_id=bene_ref_id,
                     account_holder_name=verified_name,
                     account_number=clean_account,
                     account_number_masked=masked_account,
@@ -397,33 +442,65 @@ class Epic014BeneficiaryService:
                     bank_name=bank_name,
                     verification_status="VERIFIED",
                     verification_reference=cf_ref_str,
-                    verification_date=datetime.now(),
+                    verification_date=datetime.now(timezone.utc),
                     penny_drop_status="SUCCESS",
                     registered_name_in_bank=verified_name,
                     utr=str(cf_res.get("utr")) if cf_res.get("utr") is not None else None,
+                    is_active=True,
+                    is_deleted=False,
+                    status="ACTIVE",
                 )
                 db.add(master)
                 await db.flush()
                 master_id = master.public_id
+                target_master = master
             else:
                 existing_master.account_holder_name = verified_name
                 existing_master.verification_status = "VERIFIED"
                 existing_master.registered_name_in_bank = verified_name
+                existing_master.ifsc_code = clean_ifsc
                 existing_master.utr = str(cf_res.get("utr")) if cf_res.get("utr") is not None else None
                 existing_master.verification_reference = cf_ref_str
-                existing_master.verification_date = datetime.now()
+                existing_master.verification_date = datetime.now(timezone.utc)
+                existing_master.is_active = True
+                existing_master.is_deleted = False
+                existing_master.status = "ACTIVE"
                 master_id = existing_master.public_id
+                target_master = existing_master
 
-            # Create Customer Mapping
-            mapping = BeneficiaryCustomerMappingModel(
-                tenant_id=tenant_id,
-                company_id=company_id,
-                customer_id=customer_id,
-                beneficiary_id=master_id,
-                nickname=nickname or f"{bank_name} Account",
-                is_active=True,
+            # Create or reactivate Customer Mapping
+            stmt_map = select(BeneficiaryCustomerMappingModel).where(
+                and_(
+                    BeneficiaryCustomerMappingModel.customer_id == customer_id,
+                    BeneficiaryCustomerMappingModel.beneficiary_id == master_id,
+                )
             )
-            db.add(mapping)
+            existing_map = (await db.execute(stmt_map)).scalars().first()
+            if existing_map:
+                existing_map.is_active = True
+                existing_map.is_deleted = False
+                if nickname:
+                    existing_map.nickname = nickname
+            else:
+                mapping = BeneficiaryCustomerMappingModel(
+                    tenant_id=tenant_id,
+                    company_id=company_id,
+                    customer_id=customer_id,
+                    beneficiary_id=master_id,
+                    nickname=nickname or f"{bank_name} Account",
+                    is_active=True,
+                    is_deleted=False,
+                )
+                db.add(mapping)
+
+            # Synchronize legacy BeneficiaryModel & BeneficiaryBankAccountModel
+            await cls._sync_legacy_beneficiary_records(
+                db=db,
+                tenant_id=tenant_id or target_master.tenant_id,
+                customer_id=customer_id,
+                master=target_master,
+                nickname=nickname or f"{bank_name} Account"
+            )
 
             # Record Verification Result Audit
             v_record = BeneficiaryVerificationRecordModel(
@@ -438,7 +515,7 @@ class Epic014BeneficiaryService:
                 name_match_score=100.0,
                 is_name_matched=True,
                 charge_amount=charge_amount,
-                verified_at=datetime.now(),
+                verified_at=datetime.now(timezone.utc),
             )
             db.add(v_record)
 
@@ -517,3 +594,106 @@ class Epic014BeneficiaryService:
                     "wallet_balance_after": rev_result.balance_after,
                 }
             )
+
+    @classmethod
+    async def _sync_legacy_beneficiary_records(
+        cls,
+        db: AsyncSession,
+        tenant_id: Optional[uuid.UUID],
+        customer_id: uuid.UUID,
+        master: BeneficiaryMasterModel,
+        nickname: str
+    ) -> None:
+        """Ensure legacy BeneficiaryModel and BeneficiaryBankAccountModel are present and active."""
+        from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
+        resolved_tenant = tenant_id or master.tenant_id or uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+        # 1. BeneficiaryModel
+        stmt_leg = select(BeneficiaryModel).where(
+            and_(
+                BeneficiaryModel.customer_id == customer_id,
+                or_(
+                    BeneficiaryModel.public_id == master.public_id,
+                    BeneficiaryModel.full_name == master.account_holder_name,
+                    BeneficiaryModel.full_name == master.registered_name_in_bank
+                )
+            )
+        )
+        leg_row = (await db.execute(stmt_leg)).scalars().first()
+        if not leg_row:
+            stmt_taken = select(BeneficiaryModel.id).where(BeneficiaryModel.public_id == master.public_id)
+            is_taken = (await db.execute(stmt_taken)).scalars().first() is not None
+            leg_pub_id = master.public_id if not is_taken else uuid.uuid4()
+
+            ben_num = f"BEN{random.randint(100000, 999999)}"
+            leg_row = BeneficiaryModel(
+                public_id=leg_pub_id,
+                tenant_id=resolved_tenant,
+                beneficiary_number=ben_num,
+                customer_id=customer_id,
+                full_name=master.registered_name_in_bank or master.account_holder_name,
+                nickname=nickname,
+                relationship="SELF",
+                verification_status="VERIFIED",
+                beneficiary_status="ACTIVE",
+                registration_date=datetime.now(timezone.utc),
+                activation_date=datetime.now(timezone.utc),
+                is_active=True,
+                is_deleted=False,
+                created_by="SYSTEM",
+                version_no=1,
+                record_status="ACTIVE",
+                beneficiary_category="REGULAR",
+                beneficiary_type="INDIVIDUAL",
+            )
+            db.add(leg_row)
+            await db.flush()
+        else:
+            leg_row.is_active = True
+            leg_row.is_deleted = False
+            leg_row.beneficiary_status = "ACTIVE"
+            leg_row.verification_status = "VERIFIED"
+            if master.registered_name_in_bank or master.account_holder_name:
+                leg_row.full_name = master.registered_name_in_bank or master.account_holder_name
+
+        # 2. BeneficiaryBankAccountModel
+        stmt_bba = select(BeneficiaryBankAccountModel).where(
+            and_(
+                BeneficiaryBankAccountModel.beneficiary_id == leg_row.public_id,
+                BeneficiaryBankAccountModel.account_number == master.account_number
+            )
+        )
+        bba_row = (await db.execute(stmt_bba)).scalars().first()
+        if not bba_row:
+            bba_row = BeneficiaryBankAccountModel(
+                public_id=uuid.uuid4(),
+                tenant_id=resolved_tenant,
+                beneficiary_id=leg_row.public_id,
+                account_holder_name=master.account_holder_name,
+                account_number=master.account_number,
+                account_number_masked=master.account_number_masked or f"XXXX-XXXX-{master.account_number[-4:]}",
+                ifsc_code=master.ifsc_code,
+                bank_name=master.bank_name or "State Bank of India",
+                account_type="SAVINGS",
+                verification_status="VERIFIED",
+                penny_drop_status="SUCCESS",
+                name_match_score=100.0,
+                registered_name_in_bank=master.registered_name_in_bank or master.account_holder_name,
+                is_primary=True,
+                is_active=True,
+                is_deleted=False,
+                created_by="SYSTEM",
+                version_no=1,
+                record_status="ACTIVE",
+            )
+            db.add(bba_row)
+        else:
+            bba_row.is_active = True
+            bba_row.is_deleted = False
+            bba_row.ifsc_code = master.ifsc_code
+            bba_row.account_holder_name = master.account_holder_name
+            if master.registered_name_in_bank:
+                bba_row.registered_name_in_bank = master.registered_name_in_bank
+            bba_row.verification_status = "VERIFIED"
+            bba_row.bank_name = master.bank_name or bba_row.bank_name
+
