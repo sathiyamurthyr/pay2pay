@@ -2162,7 +2162,7 @@ export const RetailerPayoutReport: React.FC = () => {
         )}
       </Box>
 
-      {/* ── 7. PREMIUM ENTERPRISE FINTECH TRANSACTION DETAIL DRAWER ── */}
+      {/* ── 7. CLEAN BANKING & ENTERPRISE FINTECH TRANSACTION DETAIL DRAWER ── */}
       <Drawer
         anchor="right"
         open={drawerOpen}
@@ -2170,20 +2170,19 @@ export const RetailerPayoutReport: React.FC = () => {
         slotProps={{
           backdrop: {
             sx: {
-              bgcolor: "rgba(2, 6, 23, 0.82)",
-              backdropFilter: "blur(12px)",
+              bgcolor: "rgba(15, 23, 42, 0.6)",
+              backdropFilter: "blur(6px)",
             },
           },
         }}
         PaperProps={{
           sx: {
-            width: { xs: "100%", sm: 520, md: 540 },
+            width: { xs: "100%", sm: 540, md: 560 },
             maxWidth: "100vw",
-            bgcolor: "#070B14",
-            backgroundImage: "radial-gradient(ellipse at 50% 0%, rgba(245, 158, 11, 0.08) 0%, rgba(7, 11, 20, 0.98) 75%)",
-            color: "#F8FAFC",
-            borderLeft: { sm: "1px solid rgba(245, 158, 11, 0.25)" },
-            boxShadow: "-12px 0 60px rgba(0, 0, 0, 0.85)",
+            bgcolor: "#F8FAFC",
+            color: "#0F172A",
+            borderLeft: { sm: "1px solid #E2E8F0" },
+            boxShadow: "-8px 0 36px rgba(15, 23, 42, 0.18)",
             p: 0,
             display: "flex",
             flexDirection: "column",
@@ -2212,135 +2211,121 @@ export const RetailerPayoutReport: React.FC = () => {
           const beneId = (selectedTxn as any).beneficiary_id || (selectedTxn as any).bene_id || "--";
           const failureMsg = selectedTxn.remarks || selectedTxn.narration || selectedTxn.comments || (selectedTxn as any).failure_reason || (selectedTxn as any).message || "";
 
-          // Status colors
+          // Clean Enterprise Banking Status Colors
           const statusColor =
             status === "SUCCESS"
-              ? "#4ADE80"
+              ? "#15803D"
               : status === "PENDING"
-              ? "#FBBF24"
+              ? "#B45309"
               : status === "REVERSED"
-              ? "#C084FC"
-              : "#F87171";
+              ? "#7E22CE"
+              : "#B91C1C";
 
           const statusBg =
             status === "SUCCESS"
-              ? "rgba(16, 185, 129, 0.15)"
+              ? "#DCFCE7"
               : status === "PENDING"
-              ? "rgba(245, 158, 11, 0.15)"
+              ? "#FEF3C7"
               : status === "REVERSED"
-              ? "rgba(168, 85, 247, 0.15)"
-              : "rgba(239, 68, 68, 0.15)";
+              ? "#F3E8FF"
+              : "#FEE2E2";
 
           const statusBorder =
             status === "SUCCESS"
-              ? "rgba(16, 185, 129, 0.35)"
+              ? "#86EFAC"
               : status === "PENDING"
-              ? "rgba(245, 158, 11, 0.35)"
+              ? "#FCD34D"
               : status === "REVERSED"
-              ? "rgba(168, 85, 247, 0.35)"
-              : "rgba(239, 68, 68, 0.35)";
+              ? "#D8B4FE"
+              : "#FCA5A5";
 
           return (
-            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", position: "relative" }}>
-              {/* ── 1. FIXED DRAWER HEADER ── */}
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", position: "relative", bgcolor: "#F8FAFC" }}>
+              {/* ── 1. FIXED DEEP NAVY HEADER ── */}
               <Box
                 sx={{
                   position: "sticky",
                   top: 0,
                   zIndex: 20,
-                  p: 2,
-                  bgcolor: "rgba(10, 15, 29, 0.95)",
-                  backdropFilter: "blur(20px)",
-                  borderBottom: "1px solid rgba(245, 158, 11, 0.22)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
+                  p: { xs: 2, sm: 2.5 },
+                  bgcolor: "#0B132B",
+                  color: "#FFFFFF",
+                  borderBottom: "1px solid #1E293B",
+                  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.2)",
                 }}
               >
-                <Stack direction="row" alignItems="center" spacing={1.5}>
-                  <Box
-                    sx={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: "10px",
-                      bgcolor: "rgba(245, 158, 11, 0.15)",
-                      border: "1px solid rgba(245, 158, 11, 0.35)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#FBBF24",
-                      boxShadow: "0 0 15px rgba(245, 158, 11, 0.15)",
-                    }}
-                  >
-                    <ReceiptIcon sx={{ fontSize: 20 }} />
-                  </Box>
-                  <Box>
-                    <Typography
+                <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <Box
+                      component="img"
+                      src={branding.logo_url || "/branding/logo.png"}
+                      alt="Pay2Pay Logo"
+                      onError={(e: any) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                       sx={{
-                        fontWeight: 900,
-                        fontSize: "16.5px",
-                        letterSpacing: "-0.3px",
-                        color: "#FFFFFF",
-                        lineHeight: 1.2,
+                        width: 40,
+                        height: 40,
+                        borderRadius: "8px",
+                        objectFit: "contain",
+                        bgcolor: "#FFFFFF",
+                        p: 0.5,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                      }}
+                    />
+                    <Box>
+                      <Typography sx={{ fontWeight: 800, fontSize: "16.5px", color: "#FFFFFF", lineHeight: 1.2 }}>
+                        Payout Transaction Details
+                      </Typography>
+                      <Typography sx={{ fontSize: "12.5px", color: "#94A3B8", mt: 0.4 }}>
+                        Retailer: <strong style={{ color: "#F8FAFC" }}>{outlet?.name || outlet?.ownerName || selectedTxn.retailer || "Pay2Pay Merchant"}</strong>
+                        {outlet?.code ? ` · ID: ${outlet.code}` : ""}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    {/* Status Badge */}
+                    <Box
+                      sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 0.7,
+                        px: 1.2,
+                        py: 0.4,
+                        borderRadius: "9999px",
+                        bgcolor: statusBg,
+                        border: `1px solid ${statusBorder}`,
+                        color: statusColor,
+                        fontSize: "12px",
+                        fontWeight: 800,
+                        letterSpacing: "0.4px",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      Payout Transaction Details
-                    </Typography>
-                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.4 }}>
-                      <Box
-                        sx={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 0.6,
-                          px: 0.9,
-                          py: 0.2,
-                          borderRadius: "6px",
-                          bgcolor: statusBg,
-                          border: `1px solid ${statusBorder}`,
-                          color: statusColor,
-                          fontSize: "10.5px",
-                          fontWeight: 800,
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: statusColor }} />
-                        {status}
-                      </Box>
-                      <Typography
-                        sx={{
-                          fontSize: "11px",
-                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                          color: "#94A3B8",
-                          maxWidth: "160px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        REF: {txnId}
-                      </Typography>
-                    </Stack>
-                  </Box>
-                </Stack>
+                      <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: statusColor }} />
+                      {status}
+                    </Box>
 
-                <IconButton
-                  onClick={() => setDrawerOpen(false)}
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "8px",
-                    bgcolor: "rgba(255, 255, 255, 0.05)",
-                    border: "1px solid rgba(255, 255, 255, 0.12)",
-                    color: "rgba(255, 255, 255, 0.8)",
-                    "&:hover": {
-                      bgcolor: "rgba(239, 68, 68, 0.2)",
-                      borderColor: "rgba(239, 68, 68, 0.4)",
-                      color: "#F87171",
-                    },
-                  }}
-                >
-                  <CloseIcon sx={{ fontSize: 17 }} />
-                </IconButton>
+                    {/* Close X */}
+                    <IconButton
+                      onClick={() => setDrawerOpen(false)}
+                      sx={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: "8px",
+                        bgcolor: "rgba(255, 255, 255, 0.08)",
+                        color: "#FFFFFF",
+                        "&:hover": {
+                          bgcolor: "rgba(239, 68, 68, 0.25)",
+                          color: "#FCA5A5",
+                        },
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Stack>
+                </Box>
               </Box>
 
               {/* ── 2. SCROLLABLE DRAWER CONTENT BODY ── */}
@@ -2348,93 +2333,35 @@ export const RetailerPayoutReport: React.FC = () => {
                 sx={{
                   flex: 1,
                   overflowY: "auto",
-                  p: { xs: 2, sm: 2.5 },
-                  "&::-webkit-scrollbar": { width: "5px" },
-                  "&::-webkit-scrollbar-track": { background: "rgba(15, 23, 42, 0.5)" },
-                  "&::-webkit-scrollbar-thumb": { background: "rgba(245, 158, 11, 0.35)", borderRadius: "4px" },
-                  "&::-webkit-scrollbar-thumb:hover": { background: "rgba(245, 158, 11, 0.6)" },
+                  p: { xs: 2, sm: 3 },
+                  pb: "160px", // Strict bottom padding so fixed footer NEVER covers content!
+                  bgcolor: "#F8FAFC",
+                  "&::-webkit-scrollbar": { width: "6px" },
+                  "&::-webkit-scrollbar-track": { background: "#F1F5F9" },
+                  "&::-webkit-scrollbar-thumb": { background: "#CBD5E1", borderRadius: "4px" },
+                  "&::-webkit-scrollbar-thumb:hover": { background: "#94A3B8" },
                 }}
               >
-                {/* 2A. COMPANY BRANDING & RETAILER IDENTIFIER BAR */}
+                {/* 2A. TRANSACTION HERO AREA (CLEAN WHITE CARD, NO GRAY BOX) */}
                 <Box
                   sx={{
-                    p: 1.4,
-                    borderRadius: "12px",
-                    bgcolor: "rgba(15, 23, 42, 0.7)",
-                    backdropFilter: "blur(16px)",
-                    border: "1px solid rgba(245, 158, 11, 0.22)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: 2,
-                  }}
-                >
-                  <Stack direction="row" alignItems="center" spacing={1.2}>
-                    <Box
-                      component="img"
-                      src={branding.logo_url || "/branding/logo.png"}
-                      alt="Company Logo"
-                      onError={(e: any) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "8px",
-                        objectFit: "contain",
-                        bgcolor: "#FFFFFF",
-                        p: 0.3,
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-                      }}
-                    />
-                    <Box>
-                      <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FFFFFF", lineHeight: 1.2 }}>
-                        {branding.company_name || "SUPER REX PRODUCTS PRIVATE LIMITED"}
-                      </Typography>
-                      <Typography variant="caption" sx={{ fontSize: "11px", color: "#94A3B8", display: "block" }}>
-                        Retailer: {outlet?.name || outlet?.ownerName || selectedTxn.retailer || "Authorized Agent"} {outlet?.code ? `· [${outlet.code}]` : ""}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  {outlet?.location && (
-                    <Chip
-                      label={outlet.location}
-                      size="small"
-                      sx={{
-                        height: "20px",
-                        fontSize: "10px",
-                        fontWeight: 700,
-                        bgcolor: "rgba(255,255,255,0.06)",
-                        color: "#CBD5E1",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        display: { xs: "none", sm: "inline-flex" },
-                      }}
-                    />
-                  )}
-                </Box>
-
-                {/* 2B. AMOUNT SUMMARY HERO CARD */}
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2.2,
-                    borderRadius: "16px",
-                    bgcolor: "rgba(15, 23, 42, 0.85)",
-                    backdropFilter: "blur(20px)",
-                    border: "1px solid rgba(245, 158, 11, 0.3)",
-                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+                    bgcolor: "#FFFFFF",
+                    borderRadius: "14px",
+                    border: "1px solid #E2E8F0",
+                    p: { xs: 2.2, sm: 2.8 },
+                    boxShadow: "0 2px 12px rgba(15, 23, 42, 0.05)",
+                    mb: 3,
                     textAlign: "center",
-                    mb: 2.5,
                   }}
                 >
                   <Typography
                     sx={{
-                      fontSize: "11px",
+                      fontSize: "12px",
                       fontWeight: 800,
-                      color: "#94A3B8",
+                      color: "#64748B",
                       textTransform: "uppercase",
                       letterSpacing: "1px",
-                      mb: 0.5,
+                      mb: 0.6,
                     }}
                   >
                     PAYOUT AMOUNT
@@ -2442,12 +2369,11 @@ export const RetailerPayoutReport: React.FC = () => {
 
                   <Typography
                     sx={{
+                      fontSize: { xs: "34px", sm: "40px" },
                       fontWeight: 900,
-                      fontSize: { xs: "28px", sm: "32px" },
+                      color: "#0F172A",
                       lineHeight: 1.1,
-                      color: "#FFFFFF",
-                      textShadow: "0 0 20px rgba(251, 191, 36, 0.3)",
-                      mb: 0.6,
+                      mb: 0.8,
                     }}
                   >
                     ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -2457,441 +2383,356 @@ export const RetailerPayoutReport: React.FC = () => {
                     label={`${mode} · Instant Transfer`}
                     size="small"
                     sx={{
-                      height: "22px",
-                      fontSize: "11px",
+                      bgcolor: "#EFF6FF",
+                      color: "#1D4ED8",
+                      border: "1px solid #BFDBFE",
                       fontWeight: 800,
-                      bgcolor: "rgba(59, 130, 246, 0.15)",
-                      color: "#60A5FA",
-                      border: "1px solid rgba(59, 130, 246, 0.35)",
-                      mb: 1.8,
+                      fontSize: "12px",
+                      height: "26px",
+                      mb: 2.2,
                     }}
                   />
 
-                  <Divider sx={{ mb: 1.6, borderColor: "rgba(255, 255, 255, 0.08)" }} />
+                  <Divider sx={{ mb: 2, borderColor: "#F1F5F9" }} />
 
-                  {/* 3 Compact Financial Cards */}
-                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
-                    {/* Service Charge */}
-                    <Box
-                      sx={{
-                        textAlign: "center",
-                        bgcolor: "rgba(8, 13, 24, 0.8)",
-                        p: 1.2,
-                        borderRadius: "10px",
-                        border: "1px solid rgba(255, 255, 255, 0.06)",
-                      }}
-                    >
-                      <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, textTransform: "uppercase" }}>
+                  {/* Horizontal Accounting Summary */}
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5, textAlign: "center" }}>
+                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                      <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
                         SERVICE CHARGE
                       </Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#60A5FA", fontSize: "13px", mt: 0.4 }}>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A", mt: 0.4 }}>
                         ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
-                    {/* GST */}
-                    <Box
-                      sx={{
-                        textAlign: "center",
-                        bgcolor: "rgba(8, 13, 24, 0.8)",
-                        p: 1.2,
-                        borderRadius: "10px",
-                        border: "1px solid rgba(255, 255, 255, 0.06)",
-                      }}
-                    >
-                      <Typography sx={{ color: "#94A3B8", fontSize: "10px", fontWeight: 700, textTransform: "uppercase" }}>
+                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                      <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
                         GST
                       </Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#CBD5E1", fontSize: "13px", mt: 0.4 }}>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A", mt: 0.4 }}>
                         ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
-                    {/* Total Wallet Debit - Positive Formatting! */}
-                    <Box
-                      sx={{
-                        textAlign: "center",
-                        bgcolor: "rgba(245, 158, 11, 0.08)",
-                        p: 1.2,
-                        borderRadius: "10px",
-                        border: "1px solid rgba(245, 158, 11, 0.28)",
-                      }}
-                    >
-                      <Typography sx={{ color: "#FDE68A", fontSize: "10px", fontWeight: 800, textTransform: "uppercase" }}>
+                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "#FFFBEB", border: "1px solid #FDE68A" }}>
+                      <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#92400E", textTransform: "uppercase" }}>
                         TOTAL WALLET DEBIT
                       </Typography>
-                      <Typography sx={{ fontWeight: 900, color: "#FBBF24", fontSize: "13.5px", mt: 0.4 }}>
+                      <Typography sx={{ fontSize: "15px", fontWeight: 900, color: "#B45309", mt: 0.4 }}>
                         ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
                   </Box>
-                </Paper>
-
-                {/* 2C. TRANSACTION INFORMATION */}
-                <Box sx={{ mb: 2.5 }}>
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.2 }}>
-                    <ReceiptIcon sx={{ fontSize: 16, color: "#FBBF24" }} />
-                    <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                      TRANSACTION INFORMATION
-                    </Typography>
-                  </Stack>
-
-                  <Box
-                    sx={{
-                      bgcolor: "rgba(15, 23, 42, 0.65)",
-                      backdropFilter: "blur(14px)",
-                      borderRadius: "12px",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
-                      p: 1.4,
-                    }}
-                  >
-                    <Stack spacing={1.2}>
-                      {/* Transaction ID */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Transaction ID</Typography>
-                        <Stack direction="row" alignItems="center" spacing={0.6}>
-                          <Typography sx={{ fontWeight: 700, fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: "#FBBF24" }}>
-                            {txnId}
-                          </Typography>
-                          <IconButton size="small" onClick={() => copyToClipboard(txnId, "Transaction ID")} sx={{ color: "#FBBF24", p: 0.3 }}>
-                            <ContentCopyIcon sx={{ fontSize: 14 }} />
-                          </IconButton>
-                        </Stack>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* Bank UTR Number */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Bank UTR Number</Typography>
-                        <Stack direction="row" alignItems="center" spacing={0.6}>
-                          <Typography sx={{ fontWeight: 700, fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: utr !== "--" ? "#93C5FD" : "#64748B" }}>
-                            {utr}
-                          </Typography>
-                          {utr !== "--" && (
-                            <IconButton size="small" onClick={() => copyToClipboard(utr, "Bank UTR")} sx={{ color: "#60A5FA", p: 0.3 }}>
-                              <ContentCopyIcon sx={{ fontSize: 14 }} />
-                            </IconButton>
-                          )}
-                        </Stack>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* Date & Time */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Transaction Date &amp; Time</Typography>
-                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC" }}>
-                          {dt.date} · {dt.time}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* Payout Amount */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Payout Amount</Typography>
-                        <Typography sx={{ fontWeight: 800, fontSize: "12.5px", color: "#F8FAFC" }}>
-                          ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* Payment Mode */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Payment Mode</Typography>
-                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#60A5FA" }}>
-                          {mode} (Instant Bank Transfer)
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* Transaction Status */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Transaction Status</Typography>
-                        <Box
-                          sx={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 0.6,
-                            px: 0.8,
-                            py: 0.2,
-                            borderRadius: "6px",
-                            bgcolor: statusBg,
-                            border: `1px solid ${statusBorder}`,
-                            color: statusColor,
-                            fontSize: "11px",
-                            fontWeight: 800,
-                          }}
-                        >
-                          <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: statusColor }} />
-                          {status}
-                        </Box>
-                      </Box>
-
-                      {/* Reference Number if present */}
-                      {refNumber !== "--" && (
-                        <>
-                          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Reference Number</Typography>
-                            <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#CBD5E1", fontFamily: "monospace" }}>
-                              {refNumber}
-                            </Typography>
-                          </Box>
-                        </>
-                      )}
-                    </Stack>
-                  </Box>
                 </Box>
 
-                {/* 2D. BENEFICIARY INFORMATION */}
-                <Box sx={{ mb: 2.5 }}>
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.2 }}>
-                    <PersonIcon sx={{ fontSize: 16, color: "#FBBF24" }} />
-                    <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                      BENEFICIARY DETAILS
-                    </Typography>
-                  </Stack>
+                {/* 2B. TRANSACTION INFORMATION TABLE */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    TRANSACTION INFORMATION
+                  </Typography>
 
-                  <Box
-                    sx={{
-                      bgcolor: "rgba(15, 23, 42, 0.65)",
-                      backdropFilter: "blur(14px)",
-                      borderRadius: "12px",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
-                      p: 1.4,
-                    }}
-                  >
-                    <Stack spacing={1.2}>
-                      {/* Beneficiary Name */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Beneficiary Name</Typography>
-                        <Typography sx={{ fontWeight: 800, fontSize: "12.5px", color: "#FFFFFF" }}>
-                          {beneName}
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", overflow: "hidden", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
+                    {/* Transaction ID */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Transaction ID</Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.8}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "ui-monospace, monospace" }}>
+                          {txnId}
                         </Typography>
-                      </Box>
+                        <IconButton size="small" onClick={() => copyToClipboard(txnId, "Transaction ID")} sx={{ color: "#2563EB", p: 0.3 }}>
+                          <ContentCopyIcon sx={{ fontSize: 15 }} />
+                        </IconButton>
+                      </Stack>
+                    </Box>
 
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* Account Number */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Account Number</Typography>
-                        <Stack direction="row" alignItems="center" spacing={0.6}>
-                          <Typography sx={{ fontWeight: 700, fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: "#F8FAFC" }}>
-                            {accNo}
-                          </Typography>
-                          {accNo !== "--" && (
-                            <IconButton size="small" onClick={() => copyToClipboard(accNo, "Account Number")} sx={{ color: "#94A3B8", p: 0.3 }}>
-                              <ContentCopyIcon sx={{ fontSize: 14 }} />
-                            </IconButton>
-                          )}
-                        </Stack>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* IFSC Code */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>IFSC Code</Typography>
-                        <Stack direction="row" alignItems="center" spacing={0.6}>
-                          <Typography sx={{ fontWeight: 700, fontSize: "12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: "#60A5FA" }}>
-                            {ifsc}
-                          </Typography>
-                          {ifsc !== "--" && (
-                            <IconButton size="small" onClick={() => copyToClipboard(ifsc, "IFSC")} sx={{ color: "#60A5FA", p: 0.3 }}>
-                              <ContentCopyIcon sx={{ fontSize: 14 }} />
-                            </IconButton>
-                          )}
-                        </Stack>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* Bank Name */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Bank Name</Typography>
-                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC" }}>
-                          {bankName}
-                        </Typography>
-                      </Box>
-
-                      {/* Beneficiary Mobile if present */}
-                      {beneMobile !== "--" && (
-                        <>
-                          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Beneficiary Mobile</Typography>
-                            <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#F8FAFC" }}>
-                              {beneMobile}
-                            </Typography>
-                          </Box>
-                        </>
-                      )}
-
-                      {/* Beneficiary ID if present */}
-                      {beneId !== "--" && (
-                        <>
-                          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Beneficiary ID</Typography>
-                            <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#CBD5E1", fontFamily: "monospace" }}>
-                              {beneId}
-                            </Typography>
-                          </Box>
-                        </>
-                      )}
-                    </Stack>
-                  </Box>
-                </Box>
-
-                {/* 2E. WALLET ACCOUNTING INFORMATION */}
-                <Box sx={{ mb: 2.5 }}>
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.2 }}>
-                    <AccountBalanceWalletIcon sx={{ fontSize: 16, color: "#FBBF24" }} />
-                    <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                      WALLET ACCOUNTING
-                    </Typography>
-                  </Stack>
-
-                  <Box
-                    sx={{
-                      bgcolor: "rgba(15, 23, 42, 0.65)",
-                      backdropFilter: "blur(14px)",
-                      borderRadius: "12px",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
-                      p: 1.4,
-                    }}
-                  >
-                    <Stack spacing={1.2}>
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Payout Amount</Typography>
-                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC" }}>
-                          ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Service Charge</Typography>
-                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#60A5FA" }}>
-                          ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>GST</Typography>
-                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#CBD5E1" }}>
-                          ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* Total Debit - Clean Positive Formatting */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#FDE68A", fontSize: "12px", fontWeight: 800 }}>Total Wallet Debit</Typography>
-                        <Typography sx={{ fontWeight: 900, fontSize: "13px", color: "#FBBF24" }}>
-                          ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      {/* Accounting Direction Badge */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Accounting Direction</Typography>
-                        <Stack direction="row" spacing={0.8}>
-                          <Chip
-                            label="DR · Wallet Debit"
-                            size="small"
-                            sx={{
-                              height: "20px",
-                              fontSize: "10.5px",
-                              fontWeight: 800,
-                              bgcolor: "rgba(239, 68, 68, 0.15)",
-                              color: "#F87171",
-                              border: "1px solid rgba(239, 68, 68, 0.3)",
-                            }}
-                          />
-                        </Stack>
-                      </Box>
-                    </Stack>
-                  </Box>
-                </Box>
-
-                {/* 2F. TRANSACTION AUDIT INFORMATION */}
-                <Box sx={{ mb: 2 }}>
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.2 }}>
-                    <FactCheckIcon sx={{ fontSize: 16, color: "#FBBF24" }} />
-                    <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                      TRANSACTION AUDIT
-                    </Typography>
-                  </Stack>
-
-                  <Box
-                    sx={{
-                      bgcolor: "rgba(15, 23, 42, 0.65)",
-                      backdropFilter: "blur(14px)",
-                      borderRadius: "12px",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
-                      p: 1.4,
-                    }}
-                  >
-                    <Stack spacing={1.2}>
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Created At</Typography>
-                        <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#F8FAFC" }}>
-                          {dt.date} · {dt.time}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Current Status</Typography>
-                        <Typography sx={{ fontWeight: 800, fontSize: "12px", color: statusColor }}>
-                          {status}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Vendor / Provider Reference</Typography>
-                        <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "#94A3B8", fontFamily: "monospace" }}>
-                          {refNumber !== "--" ? refNumber : utr !== "--" ? utr : "--"}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ color: "#94A3B8", fontSize: "11.5px", fontWeight: 600 }}>Bank UTR</Typography>
-                        <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#93C5FD", fontFamily: "monospace" }}>
+                    {/* Bank UTR Number */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Bank UTR Number</Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.8}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: utr !== "--" ? "#1D4ED8" : "#94A3B8", fontFamily: "ui-monospace, monospace" }}>
                           {utr}
                         </Typography>
+                        {utr !== "--" && (
+                          <IconButton size="small" onClick={() => copyToClipboard(utr, "Bank UTR")} sx={{ color: "#2563EB", p: 0.3 }}>
+                            <ContentCopyIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        )}
+                      </Stack>
+                    </Box>
+
+                    {/* Date & Time */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Transaction Date &amp; Time</Typography>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A" }}>
+                        {dt.date} · {dt.time}
+                      </Typography>
+                    </Box>
+
+                    {/* Payout Amount */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Payout Amount</Typography>
+                      <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A" }}>
+                        ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+
+                    {/* Payment Mode */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Payment Mode</Typography>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#1D4ED8" }}>
+                        {mode} (Instant Bank Transfer)
+                      </Typography>
+                    </Box>
+
+                    {/* Transaction Status */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(refNumber !== "--" ? { borderBottom: "1px solid #F1F5F9" } : {}) }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Transaction Status</Typography>
+                      <Box
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 0.6,
+                          px: 1,
+                          py: 0.3,
+                          borderRadius: "6px",
+                          bgcolor: statusBg,
+                          border: `1px solid ${statusBorder}`,
+                          color: statusColor,
+                          fontSize: "12px",
+                          fontWeight: 800,
+                        }}
+                      >
+                        <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: statusColor }} />
+                        {status}
+                      </Box>
+                    </Box>
+
+                    {/* Reference Number if present */}
+                    {refNumber !== "--" && (
+                      <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Reference Number</Typography>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#334155", fontFamily: "ui-monospace, monospace" }}>
+                          {refNumber}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* 2C. BENEFICIARY DETAILS */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    BENEFICIARY DETAILS
+                  </Typography>
+
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", overflow: "hidden", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
+                    {/* Beneficiary Name */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Beneficiary Name</Typography>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A" }}>
+                        {beneName}
+                      </Typography>
+                    </Box>
+
+                    {/* Account Number */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Account Number</Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.8}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "ui-monospace, monospace" }}>
+                          {accNo}
+                        </Typography>
+                        {accNo !== "--" && (
+                          <IconButton size="small" onClick={() => copyToClipboard(accNo, "Account Number")} sx={{ color: "#2563EB", p: 0.3 }}>
+                            <ContentCopyIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        )}
+                      </Stack>
+                    </Box>
+
+                    {/* IFSC Code */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>IFSC Code</Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.8}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#1D4ED8", fontFamily: "ui-monospace, monospace" }}>
+                          {ifsc}
+                        </Typography>
+                        {ifsc !== "--" && (
+                          <IconButton size="small" onClick={() => copyToClipboard(ifsc, "IFSC")} sx={{ color: "#2563EB", p: 0.3 }}>
+                            <ContentCopyIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        )}
+                      </Stack>
+                    </Box>
+
+                    {/* Bank Name */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(beneMobile !== "--" || beneId !== "--" ? { borderBottom: "1px solid #F1F5F9" } : {}) }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Bank Name</Typography>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A" }}>
+                        {bankName}
+                      </Typography>
+                    </Box>
+
+                    {/* Beneficiary Mobile if present */}
+                    {beneMobile !== "--" && (
+                      <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(beneId !== "--" ? { borderBottom: "1px solid #F1F5F9" } : {}) }}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Beneficiary Mobile</Typography>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A" }}>
+                          {beneMobile}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* Beneficiary ID if present */}
+                    {beneId !== "--" && (
+                      <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Beneficiary ID</Typography>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#334155", fontFamily: "ui-monospace, monospace" }}>
+                          {beneId}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* 2D. WALLET ACCOUNTING */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    WALLET ACCOUNTING
+                  </Typography>
+
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", overflow: "hidden", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Payout Amount</Typography>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 700, color: "#0F172A" }}>
+                        ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Service Charge</Typography>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 700, color: "#0F172A" }}>
+                        ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>GST (18%)</Typography>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 700, color: "#0F172A" }}>
+                        ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+
+                    {/* Total Debit Row */}
+                    <Box sx={{ px: 2.2, py: 1.6, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #FDE68A", bgcolor: "#FFFBEB" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#92400E" }}>Total Wallet Debit</Typography>
+                      <Typography sx={{ fontSize: "15.5px", fontWeight: 900, color: "#B45309" }}>
+                        ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+
+                    {/* CR / DR Accounting Rows */}
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#15803D" }}>CR (Credit)</Typography>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#15803D" }}>₹0.00</Typography>
+                    </Box>
+
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#DC2626" }}>DR (Debit)</Typography>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#DC2626" }}>
+                        ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                {/* 2E. TRANSACTION AUDIT TIMELINE */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    TRANSACTION AUDIT TIMELINE
+                  </Typography>
+
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", p: 2.5, boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
+                    <Box sx={{ position: "relative", pl: 3.5 }}>
+                      {/* Vertical line connecting nodes */}
+                      <Box sx={{ position: "absolute", left: 11, top: 8, bottom: 8, width: 2, bgcolor: "#E2E8F0" }} />
+
+                      {/* Node 1: Request Created */}
+                      <Box sx={{ position: "relative", mb: 2.5 }}>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: "#15803D", border: "2px solid #FFFFFF", boxShadow: "0 0 0 2px #86EFAC" }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#0F172A" }}>Request Created</Typography>
+                        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.2 }}>{dt.date} · {dt.time}</Typography>
                       </Box>
 
-                      {failureMsg && (
-                        <>
-                          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)" }} />
-                          <Box sx={{ p: 1.2, borderRadius: "8px", bgcolor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.25)" }}>
-                            <Typography sx={{ color: "#F87171", fontSize: "11px", fontWeight: 700, mb: 0.3 }}>
-                              Response / Failure Message
-                            </Typography>
-                            <Typography sx={{ color: "#FCA5A5", fontSize: "12px", fontWeight: 500, wordBreak: "break-word" }}>
-                              {failureMsg}
-                            </Typography>
-                          </Box>
-                        </>
-                      )}
-                    </Stack>
+                      {/* Node 2: Processing */}
+                      <Box sx={{ position: "relative", mb: 2.5 }}>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: status === "PENDING" ? "#F59E0B" : "#15803D", border: "2px solid #FFFFFF", boxShadow: `0 0 0 2px ${status === "PENDING" ? "#FCD34D" : "#86EFAC"}` }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#0F172A" }}>Switch Processing &amp; Validation</Typography>
+                        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.2 }}>Mode: {mode} · Route: Direct Bank IMPS Switch</Typography>
+                      </Box>
+
+                      {/* Node 3: Bank Response / UTR */}
+                      <Box sx={{ position: "relative", mb: 2.5 }}>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: utr !== "--" ? "#15803D" : status === "PENDING" ? "#F59E0B" : "#EF4444", border: "2px solid #FFFFFF", boxShadow: `0 0 0 2px ${utr !== "--" ? "#86EFAC" : status === "PENDING" ? "#FCD34D" : "#FCA5A5"}` }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#0F172A" }}>Bank Response &amp; Settlement</Typography>
+                        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.2 }}>
+                          {utr !== "--" ? `Bank UTR: ${utr}` : "Awaiting Bank Settlement Acknowledgement"}
+                        </Typography>
+                      </Box>
+
+                      {/* Node 4: Final Status */}
+                      <Box sx={{ position: "relative" }}>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: statusColor, border: "2px solid #FFFFFF", boxShadow: `0 0 0 2px ${statusBorder}` }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 800, color: statusColor }}>
+                          {status === "SUCCESS" ? "Transaction Completed Successfully" : status === "PENDING" ? "Transaction Processing / Pending" : `Transaction ${status}`}
+                        </Typography>
+                        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.2 }}>
+                          Reference: {refNumber !== "--" ? refNumber : txnId}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Failure / remarks notice if present */}
+                    {failureMsg && (
+                      <Box sx={{ mt: 2.5, p: 1.5, borderRadius: "8px", bgcolor: "#FEF2F2", border: "1px solid #FCA5A5" }}>
+                        <Typography sx={{ color: "#B91C1C", fontSize: "12px", fontWeight: 700, mb: 0.3 }}>
+                          Response / Failure Remarks
+                        </Typography>
+                        <Typography sx={{ color: "#991B1B", fontSize: "13px", fontWeight: 500, wordBreak: "break-word" }}>
+                          {failureMsg}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* 2F. REFERENCE DETAILS */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    REFERENCE DETAILS
+                  </Typography>
+
+                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", overflow: "hidden", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Vendor Reference</Typography>
+                      <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#334155", fontFamily: "ui-monospace, monospace" }}>
+                        {refNumber !== "--" ? refNumber : "—"}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Bank Reference / UTR</Typography>
+                      <Typography sx={{ fontSize: "13px", fontWeight: 700, color: utr !== "--" ? "#1D4ED8" : "#64748B", fontFamily: "ui-monospace, monospace" }}>
+                        {utr !== "--" ? utr : "—"}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Response Message</Typography>
+                      <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#334155" }}>
+                        {failureMsg ? failureMsg : status === "SUCCESS" ? "Transaction Processed Successfully" : status === "PENDING" ? "Request under banking switch process" : "—"}
+                      </Typography>
+                    </Box>
                   </Box>
                 </Box>
               </Box>
@@ -2902,13 +2743,13 @@ export const RetailerPayoutReport: React.FC = () => {
                   position: "sticky",
                   bottom: 0,
                   zIndex: 20,
-                  p: 2,
-                  bgcolor: "rgba(10, 15, 29, 0.95)",
-                  backdropFilter: "blur(20px)",
-                  borderTop: "1px solid rgba(245, 158, 11, 0.22)",
+                  p: { xs: 2, sm: 2.5 },
+                  bgcolor: "#FFFFFF",
+                  borderTop: "1px solid #E2E8F0",
+                  boxShadow: "0 -4px 16px rgba(15, 23, 42, 0.06)",
                 }}
               >
-                <Stack spacing={1}>
+                <Stack spacing={1.2}>
                   {/* Primary Action: Print / Download Receipt */}
                   <Button
                     fullWidth
@@ -2916,17 +2757,17 @@ export const RetailerPayoutReport: React.FC = () => {
                     onClick={() => handlePrintReceipt(selectedTxn)}
                     startIcon={<PrintIcon sx={{ fontSize: 18 }} />}
                     sx={{
-                      height: "44px",
-                      fontSize: "13px",
+                      height: "46px",
+                      fontSize: "14px",
                       fontWeight: 900,
                       textTransform: "none",
                       borderRadius: "10px",
-                      color: "#080B11",
+                      color: "#0F172A",
                       background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                      boxShadow: "0 4px 20px rgba(245, 158, 11, 0.4)",
+                      boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
                       "&:hover": {
                         background: "linear-gradient(135deg, #FFFBEB 0%, #FDE047 50%, #F59E0B 100%)",
-                        boxShadow: "0 6px 25px rgba(245, 158, 11, 0.6)",
+                        boxShadow: "0 6px 18px rgba(245, 158, 11, 0.5)",
                       },
                     }}
                   >
@@ -2946,16 +2787,16 @@ export const RetailerPayoutReport: React.FC = () => {
                     startIcon={status === "FAILED" ? <BugReportIcon sx={{ fontSize: 17 }} /> : <DnsIcon sx={{ fontSize: 17 }} />}
                     sx={{
                       height: "38px",
-                      fontSize: "12px",
-                      fontWeight: 800,
+                      fontSize: "12.5px",
+                      fontWeight: 700,
                       textTransform: "none",
                       borderRadius: "10px",
-                      color: status === "FAILED" ? "#F87171" : "#818CF8",
-                      borderColor: status === "FAILED" ? "rgba(239, 68, 68, 0.4)" : "rgba(129, 140, 248, 0.35)",
-                      bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.1)" : "rgba(99, 102, 241, 0.1)",
+                      color: status === "FAILED" ? "#DC2626" : "#4F46E5",
+                      borderColor: status === "FAILED" ? "#FCA5A5" : "#C7D2FE",
+                      bgcolor: status === "FAILED" ? "#FEF2F2" : "#EEF2FF",
                       "&:hover": {
-                        borderColor: status === "FAILED" ? "#F87171" : "#818CF8",
-                        bgcolor: status === "FAILED" ? "rgba(239, 68, 68, 0.2)" : "rgba(99, 102, 241, 0.2)",
+                        borderColor: status === "FAILED" ? "#EF4444" : "#6366F1",
+                        bgcolor: status === "FAILED" ? "#FEE2E2" : "#E0E7FF",
                       },
                     }}
                   >
@@ -2968,17 +2809,17 @@ export const RetailerPayoutReport: React.FC = () => {
                     variant="outlined"
                     onClick={() => setDrawerOpen(false)}
                     sx={{
-                      height: "38px",
-                      fontSize: "12.5px",
+                      height: "40px",
+                      fontSize: "13.5px",
                       fontWeight: 700,
                       textTransform: "none",
                       borderRadius: "10px",
-                      color: "#F8FAFC",
-                      borderColor: "rgba(255, 255, 255, 0.16)",
-                      bgcolor: "rgba(255, 255, 255, 0.04)",
+                      color: "#0F172A",
+                      borderColor: "#CBD5E1",
+                      bgcolor: "#FFFFFF",
                       "&:hover": {
-                        borderColor: "rgba(255, 255, 255, 0.35)",
-                        bgcolor: "rgba(255, 255, 255, 0.09)",
+                        borderColor: "#94A3B8",
+                        bgcolor: "#F8FAFC",
                       },
                     }}
                   >
