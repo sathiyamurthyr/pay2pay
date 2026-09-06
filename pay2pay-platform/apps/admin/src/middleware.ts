@@ -155,7 +155,7 @@ export function middleware(request: NextRequest) {
   if (!isAuthenticated) {
     const loginUrl = new URL("/login", request.url);
     if (pathname !== "/" && pathname !== "/dashboard" && pathname !== "/retailer-dashboard") {
-      loginUrl.searchParams.set("redirect", pathname);
+      loginUrl.searchParams.set("redirect", pathname + (request.nextUrl.search || ""));
     }
     return applySecurityHeaders(NextResponse.redirect(loginUrl));
   }

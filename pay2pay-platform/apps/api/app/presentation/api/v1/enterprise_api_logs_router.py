@@ -12,6 +12,7 @@ from sqlalchemy import select, func, and_, or_, desc, asc
 
 from app.core.database import get_db
 from app.infrastructure.db.enterprise_api_log_model import EnterpriseApiLogModel
+from app.infrastructure.db.payout_workflow_models import PayoutWorkflowTransactionModel
 
 router = APIRouter(prefix="/api-logs", tags=["Enterprise API Request & Response Logs"])
 
@@ -114,6 +115,36 @@ async def get_api_log_metrics(
     }
 
 
+async def get_correlated_transaction_ids(db: AsyncSession, identifier: str) -> List[str]:
+    """Expands a transaction ID, reference number, or UTR to all correlated platform IDs."""
+    if not identifier or not identifier.strip():
+        return []
+    clean_id = identifier.strip()
+    correlated = [clean_id]
+    try:
+        p_q = select(
+            PayoutWorkflowTransactionModel.transaction_number,
+            PayoutWorkflowTransactionModel.reference_number,
+            PayoutWorkflowTransactionModel.utr_number,
+            PayoutWorkflowTransactionModel.cashfree_transfer_id
+        ).where(
+            or_(
+                PayoutWorkflowTransactionModel.transaction_number == clean_id,
+                PayoutWorkflowTransactionModel.reference_number == clean_id,
+                PayoutWorkflowTransactionModel.utr_number == clean_id,
+                PayoutWorkflowTransactionModel.cashfree_transfer_id == clean_id
+            )
+        ).limit(10)
+        p_res = await db.execute(p_q)
+        for row in p_res.fetchall():
+            for item in row:
+                if item and str(item).strip() and str(item).strip() not in correlated:
+                    correlated.append(str(item).strip())
+    except Exception:
+        pass
+    return correlated
+
+
 @router.get("/services")
 async def list_distinct_services(db: AsyncSession = Depends(get_db)):
     """Returns dynamic list of service names found in the platform and logs."""
@@ -122,6 +153,27 @@ async def list_distinct_services(db: AsyncSession = Depends(get_db)):
     db_services = [r[0] for r in res.fetchall() if r[0]]
     combined = sorted(list(set(DEFAULT_SERVICES + db_services)))
     return {"services": combined}
+
+
+@router.get("/providers")
+async def list_distinct_providers(db: AsyncSession = Depends(get_db)):
+    """Returns dynamic list of distinct provider and vendor switch names."""
+    q = select(EnterpriseApiLogModel.provider_name).distinct().where(
+        and_(
+            EnterpriseApiLogModel.is_deleted == False,
+            EnterpriseApiLogModel.provider_name.isnot(None),
+            EnterpriseApiLogModel.provider_name != "",
+            EnterpriseApiLogModel.provider_name != "Enterprise Platform Core"
+        )
+    )
+    res = await db.execute(q)
+    db_providers = [r[0] for r in res.fetchall() if r[0]]
+    known_defaults = [
+        "UrbanRupee", "BulkPe", "WowPe", "UtkalDigital", "Cashfree",
+        "Aadhaar / UIDAI", "NSDL / Protean", "Eko", "Paysprint", "Fingpay", "InstantPay", "ICICI Bank"
+    ]
+    combined = sorted(list(set(known_defaults + db_providers)), key=lambda x: x.lower())
+    return {"providers": combined}
 
 
 @router.get("")
@@ -150,42 +202,55 @@ async def list_api_logs(
     Search and multi-filter enterprise API logs with server-side pagination.
     """
     conds = [EnterpriseApiLogModel.is_deleted == False]
-
-    # Specific transaction filter
-    if transaction_id:
-        conds.append(
-            or_(
-                EnterpriseApiLogModel.transaction_id == transaction_id,
-                EnterpriseApiLogModel.correlation_id == transaction_id,
-                EnterpriseApiLogModel.request_id == transaction_id,
-                EnterpriseApiLogModel.client_reference_id == transaction_id,
-                EnterpriseApiLogModel.provider_reference_id == transaction_id
-            )
-        )
-
-    # Server-Side Search
     has_explicit_search = bool(search and search.strip())
-    if has_explicit_search:
-        s = f"%{search.strip()}%"
-        conds.append(
-            or_(
-                EnterpriseApiLogModel.log_code.ilike(s),
-                EnterpriseApiLogModel.transaction_id.ilike(s),
-                EnterpriseApiLogModel.request_id.ilike(s),
-                EnterpriseApiLogModel.correlation_id.ilike(s),
-                EnterpriseApiLogModel.client_reference_id.ilike(s),
-                EnterpriseApiLogModel.provider_reference_id.ilike(s),
-                EnterpriseApiLogModel.endpoint.ilike(s),
-                EnterpriseApiLogModel.service_name.ilike(s),
-                EnterpriseApiLogModel.provider_name.ilike(s),
-                EnterpriseApiLogModel.client_name.ilike(s),
-                EnterpriseApiLogModel.retailer_id.ilike(s),
-                EnterpriseApiLogModel.api_name.ilike(s),
-                EnterpriseApiLogModel.error_code.ilike(s),
-                EnterpriseApiLogModel.error_message.ilike(s),
-                EnterpriseApiLogModel.failure_reason.ilike(s),
-            )
-        )
+
+    # 1. Transaction Correlation Filter
+    if transaction_id:
+        correlated = await get_correlated_transaction_ids(db, transaction_id)
+        txn_clauses = []
+        for cid in correlated:
+            txn_clauses.extend([
+                EnterpriseApiLogModel.transaction_id == cid,
+                EnterpriseApiLogModel.correlation_id == cid,
+                EnterpriseApiLogModel.request_id == cid,
+                EnterpriseApiLogModel.client_reference_id == cid,
+                EnterpriseApiLogModel.provider_reference_id == cid,
+            ])
+        conds.append(or_(*txn_clauses))
+
+    # 2. Server-Side Comprehensive Search
+    elif has_explicit_search:
+        search_term = search.strip()
+        correlated = await get_correlated_transaction_ids(db, search_term)
+        search_clauses = []
+        for cid in correlated:
+            search_clauses.extend([
+                EnterpriseApiLogModel.transaction_id == cid,
+                EnterpriseApiLogModel.correlation_id == cid,
+                EnterpriseApiLogModel.request_id == cid,
+                EnterpriseApiLogModel.client_reference_id == cid,
+                EnterpriseApiLogModel.provider_reference_id == cid,
+            ])
+
+        s = f"%{search_term}%"
+        search_clauses.extend([
+            EnterpriseApiLogModel.transaction_id.ilike(s),
+            EnterpriseApiLogModel.client_reference_id.ilike(s),
+            EnterpriseApiLogModel.provider_reference_id.ilike(s),
+            EnterpriseApiLogModel.request_id.ilike(s),
+            EnterpriseApiLogModel.correlation_id.ilike(s),
+            EnterpriseApiLogModel.log_code.ilike(s),
+            EnterpriseApiLogModel.endpoint.ilike(s),
+            EnterpriseApiLogModel.service_name.ilike(s),
+            EnterpriseApiLogModel.provider_name.ilike(s),
+            EnterpriseApiLogModel.client_name.ilike(s),
+            EnterpriseApiLogModel.retailer_id.ilike(s),
+            EnterpriseApiLogModel.api_name.ilike(s),
+            EnterpriseApiLogModel.error_code.ilike(s),
+            EnterpriseApiLogModel.error_message.ilike(s),
+            EnterpriseApiLogModel.failure_reason.ilike(s),
+        ])
+        conds.append(or_(*search_clauses))
 
     # Multi-Filters
     if service and service.upper() != "ALL":
@@ -225,9 +290,10 @@ async def list_api_logs(
             )
         )
 
-    # Date Range Filter (only apply TODAY restriction if NOT performing an explicit cross-date search)
+    # Date Range Filter: If user explicitly provided transaction_id or search, expand date preset to ALL
+    # so historical transaction lookups are never masked by today's date range.
     effective_preset = date_preset
-    if has_explicit_search and (not date_preset or date_preset == "TODAY") and not start_date:
+    if (transaction_id or has_explicit_search) and (not date_preset or date_preset == "TODAY") and not start_date:
         effective_preset = "ALL"
 
     s_dt, e_dt = resolve_date_filter(effective_preset, start_date, end_date)
@@ -278,6 +344,15 @@ async def list_api_logs(
             "error_type": r.error_type,
             "error_message": r.error_message,
             "failure_reason": r.failure_reason,
+            "stack_trace": r.stack_trace,
+            "provider_response_code": r.provider_response_code,
+            "provider_response_message": r.provider_response_message,
+            "request_body": r.request_body,
+            "request_body_raw": r.request_body_raw,
+            "response_body": r.response_body,
+            "response_body_raw": r.response_body_raw,
+            "request_headers": r.request_headers,
+            "response_headers": r.response_headers,
             "payload_truncated": r.payload_truncated,
             "timestamp": r.created_date.isoformat() if r.created_date else None,
             "request_timestamp": r.request_timestamp.isoformat() if r.request_timestamp else None,
@@ -305,18 +380,23 @@ async def get_transaction_trace(
     Enables tracing: App Request -> Enterprise API -> Wallet -> Provider -> Response -> Ledger.
     """
     clean_id = transaction_id.strip()
+    correlated = await get_correlated_transaction_ids(db, clean_id)
+    trace_clauses = []
+    for cid in correlated:
+        trace_clauses.extend([
+            EnterpriseApiLogModel.transaction_id == cid,
+            EnterpriseApiLogModel.correlation_id == cid,
+            EnterpriseApiLogModel.request_id == cid,
+            EnterpriseApiLogModel.client_reference_id == cid,
+            EnterpriseApiLogModel.provider_reference_id == cid,
+        ])
+
     q = (
         select(EnterpriseApiLogModel)
         .where(
             and_(
                 EnterpriseApiLogModel.is_deleted == False,
-                or_(
-                    EnterpriseApiLogModel.transaction_id == clean_id,
-                    EnterpriseApiLogModel.correlation_id == clean_id,
-                    EnterpriseApiLogModel.request_id == clean_id,
-                    EnterpriseApiLogModel.client_reference_id == clean_id,
-                    EnterpriseApiLogModel.provider_reference_id == clean_id,
-                )
+                or_(*trace_clauses)
             )
         )
         .order_by(asc(EnterpriseApiLogModel.created_date))
@@ -455,23 +535,34 @@ async def export_api_logs_csv(
     conds = [EnterpriseApiLogModel.is_deleted == False]
     has_explicit_search = bool(search and search.strip())
     if has_explicit_search:
-        s = f"%{search.strip()}%"
-        conds.append(
-            or_(
-                EnterpriseApiLogModel.log_code.ilike(s),
-                EnterpriseApiLogModel.transaction_id.ilike(s),
-                EnterpriseApiLogModel.request_id.ilike(s),
-                EnterpriseApiLogModel.correlation_id.ilike(s),
-                EnterpriseApiLogModel.client_reference_id.ilike(s),
-                EnterpriseApiLogModel.provider_reference_id.ilike(s),
-                EnterpriseApiLogModel.endpoint.ilike(s),
-                EnterpriseApiLogModel.service_name.ilike(s),
-                EnterpriseApiLogModel.provider_name.ilike(s),
-                EnterpriseApiLogModel.error_code.ilike(s),
-                EnterpriseApiLogModel.error_message.ilike(s),
-                EnterpriseApiLogModel.failure_reason.ilike(s),
-            )
-        )
+        search_term = search.strip()
+        correlated = await get_correlated_transaction_ids(db, search_term)
+        search_clauses = []
+        for cid in correlated:
+            search_clauses.extend([
+                EnterpriseApiLogModel.transaction_id == cid,
+                EnterpriseApiLogModel.correlation_id == cid,
+                EnterpriseApiLogModel.request_id == cid,
+                EnterpriseApiLogModel.client_reference_id == cid,
+                EnterpriseApiLogModel.provider_reference_id == cid,
+            ])
+
+        s = f"%{search_term}%"
+        search_clauses.extend([
+            EnterpriseApiLogModel.transaction_id.ilike(s),
+            EnterpriseApiLogModel.client_reference_id.ilike(s),
+            EnterpriseApiLogModel.provider_reference_id.ilike(s),
+            EnterpriseApiLogModel.request_id.ilike(s),
+            EnterpriseApiLogModel.correlation_id.ilike(s),
+            EnterpriseApiLogModel.log_code.ilike(s),
+            EnterpriseApiLogModel.endpoint.ilike(s),
+            EnterpriseApiLogModel.service_name.ilike(s),
+            EnterpriseApiLogModel.provider_name.ilike(s),
+            EnterpriseApiLogModel.error_code.ilike(s),
+            EnterpriseApiLogModel.error_message.ilike(s),
+            EnterpriseApiLogModel.failure_reason.ilike(s),
+        ])
+        conds.append(or_(*search_clauses))
     if service and service.upper() != "ALL":
         conds.append(EnterpriseApiLogModel.service_name == service.upper())
     if direction and direction.upper() != "ALL":

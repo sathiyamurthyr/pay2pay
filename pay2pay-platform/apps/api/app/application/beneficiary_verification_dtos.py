@@ -6,8 +6,12 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator
 
 
+from app.core.beneficiary_name_sanitizer import sanitize_beneficiary_name
+
+
 class BeneficiaryVerifyRequest(BaseModel):
-    retailer_id: uuid.UUID = Field(..., description="Retailer Operator UUID")
+    tenant_id: Optional[uuid.UUID] = Field(None, description="Dynamic Tenant UUID (injected from JWT context)")
+    retailer_id: Optional[uuid.UUID] = Field(None, description="Retailer Operator UUID (injected from JWT if not provided)")
     customer_id: Optional[uuid.UUID] = Field(None, description="Customer UUID")
     beneficiary_id: Optional[uuid.UUID] = Field(None, description="Beneficiary UUID")
     
@@ -18,6 +22,11 @@ class BeneficiaryVerifyRequest(BaseModel):
     
     vendor_code: str = Field("CASHFREE", description="Vendor Gateway Code (CASHFREE, INTERNAL_SWITCH)")
     idempotency_key: Optional[str] = Field(None, max_length=128, description="Idempotency Unique Token")
+
+    @field_validator("account_holder_name", mode="before")
+    @classmethod
+    def sanitize_account_holder_name(cls, v: str) -> str:
+        return sanitize_beneficiary_name(v)
 
     @field_validator("account_number")
     @classmethod

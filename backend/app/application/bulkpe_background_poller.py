@@ -99,7 +99,8 @@ async def poll_pending_bulkpe_transactions():
                             elif new_status in ("FAILED", "REVERSED"):
                                 rc_obj.status_text = f"TRANSACTION {new_status} · REFUND PROCESSED"
 
-                            if rc_obj.customer_mobile:
+                            # Deduplication guard: Only dispatch if not already delivered
+                            if rc_obj.customer_mobile and rc_obj.whatsapp_status != "DELIVERED" and new_status in ("SUCCESS", "FAILED", "REVERSED"):
                                 from app.application.payout_workflow_service import PayoutWorkflowService
                                 wa_info = await PayoutWorkflowService.dispatch_payout_whatsapp_notification(
                                     db=db,

@@ -38,7 +38,9 @@ import {
   Radio,
   Building,
   Shield,
-  Send
+  Send,
+  ChevronsUpDown,
+  Maximize2
 } from "lucide-react";
 
 interface ApiLogItem {
@@ -62,7 +64,18 @@ interface ApiLogItem {
   environment: string;
   retailer_id?: string;
   error_code?: string;
+  error_type?: string;
   error_message?: string;
+  failure_reason?: string;
+  stack_trace?: string;
+  provider_response_code?: string;
+  provider_response_message?: string;
+  request_body?: any;
+  request_body_raw?: string;
+  response_body?: any;
+  response_body_raw?: string;
+  request_headers?: Record<string, any>;
+  response_headers?: Record<string, any>;
   payload_truncated?: boolean;
   timestamp: string;
   request_timestamp?: string;
@@ -75,19 +88,8 @@ interface ApiLogDetail extends ApiLogItem {
   customer_id?: string;
   performed_by?: string;
   parent_request_id?: string;
-  provider_response_code?: string;
-  provider_response_message?: string;
-  error_type?: string;
-  stack_trace?: string;
   retry_attempt?: number;
-  failure_reason?: string;
-  request_headers?: Record<string, any>;
   request_query?: Record<string, any>;
-  request_body?: any;
-  request_body_raw?: string;
-  response_headers?: Record<string, any>;
-  response_body?: any;
-  response_body_raw?: string;
   original_size_bytes?: number;
   stored_size_bytes?: number;
   created_date?: string;
@@ -143,9 +145,15 @@ function EnterpriseApiLogsContent() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
   const [servicesList, setServicesList] = useState<string[]>([]);
+  const [providersList, setProvidersList] = useState<string[]>([]);
   const [metrics, setMetrics] = useState<ApiLogMetrics | null>(null);
 
+  // Inline Row Expansion State
+  const [expandedRowIds, setExpandedRowIds] = useState<Record<string, boolean>>({});
+  const [rowPayloadModes, setRowPayloadModes] = useState<Record<string, "formatted" | "raw">>({});
+
   // Filters
+  const [searchInput, setSearchInput] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [selectedService, setSelectedService] = useState<string>("ALL");
   const [selectedDirection, setSelectedDirection] = useState<string>("ALL");
@@ -167,6 +175,7 @@ function EnterpriseApiLogsContent() {
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
   const [logDetail, setLogDetail] = useState<ApiLogDetail | null>(null);
   const [activeDrawerTab, setActiveDrawerTab] = useState<"overview" | "request" | "response" | "error" | "trace">("overview");
+  const [payloadViewMode, setPayloadViewMode] = useState<"formatted" | "raw">("formatted");
   const [traceLoading, setTraceLoading] = useState<boolean>(false);
   const [traceSteps, setTraceSteps] = useState<TraceStep[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -177,6 +186,27 @@ function EnterpriseApiLogsContent() {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  // Toggle Row Expansion
+  const toggleRowExpand = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setExpandedRowIds((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const expandAllRows = () => {
+    const all: Record<string, boolean> = {};
+    logs.forEach((l) => {
+      all[l.id] = true;
+    });
+    setExpandedRowIds(all);
+  };
+
+  const collapseAllRows = () => {
+    setExpandedRowIds({});
   };
 
   // 2. Parse URL Search Params on Mount or Change
@@ -229,10 +259,13 @@ function EnterpriseApiLogsContent() {
 
     if (txnParam) {
       setSearch(txnParam);
+      setSearchInput(txnParam);
       setActiveDeepLinkTxn(txnParam);
       setSelectedDatePreset("ALL");
     } else if (searchParam) {
       setSearch(searchParam);
+      setSearchInput(searchParam);
+      setSelectedDatePreset("ALL");
     }
   }, [searchParams]);
 
@@ -273,7 +306,19 @@ function EnterpriseApiLogsContent() {
     }
   };
 
-  // 5. Load Metrics
+  // 5. Load Dynamic Providers / Gateways
+  const fetchProviders = async () => {
+    try {
+      const res = await api.get("/api-logs/providers");
+      if (res.data?.providers) {
+        setProvidersList(res.data.providers);
+      }
+    } catch (err) {
+      console.warn("Failed to load distinct providers:", err);
+    }
+  };
+
+  // 6. Load Metrics
   const fetchMetrics = async () => {
     try {
       const res = await api.get("/api-logs/metrics");
@@ -285,7 +330,7 @@ function EnterpriseApiLogsContent() {
     }
   };
 
-  // 6. Load API Logs List
+  // 7. Load API Logs List
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
@@ -338,8 +383,21 @@ function EnterpriseApiLogsContent() {
   // Initial Load
   useEffect(() => {
     fetchServices();
+    fetchProviders();
     fetchMetrics();
   }, []);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      if (searchInput.trim() && selectedDatePreset === "TODAY") {
+        setSelectedDatePreset("ALL");
+      }
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     fetchLogs();
@@ -355,7 +413,7 @@ function EnterpriseApiLogsContent() {
     return () => clearInterval(interval);
   }, [autoRefreshSec, fetchLogs]);
 
-  // 7. Open Log Detail Drawer
+  // 8. Open Log Detail Drawer
   const openDetailDrawer = async (logId: string) => {
     setSelectedLogId(logId);
     setDetailLoading(true);
@@ -375,7 +433,7 @@ function EnterpriseApiLogsContent() {
     }
   };
 
-  // 8. Fetch Trace for Transaction
+  // 9. Fetch Trace for Transaction
   const fetchTrace = async (txnId: string) => {
     if (!txnId) return;
     setTraceLoading(true);
@@ -391,7 +449,7 @@ function EnterpriseApiLogsContent() {
     }
   };
 
-  // 9. Export CSV
+  // 10. Export CSV
   const handleExportCsv = () => {
     const params = new URLSearchParams();
     if (search.trim()) params.append("search", search.trim());
@@ -419,7 +477,7 @@ function EnterpriseApiLogsContent() {
         typeof data === "string" ? JSON.stringify(JSON.parse(data), null, 2) : JSON.stringify(data, null, 2);
       return (
         <pre
-          className={`p-4 bg-slate-950 font-mono text-xs rounded-lg overflow-x-auto border leading-relaxed ${
+          className={`p-3 bg-slate-950 font-mono text-xs rounded-lg overflow-x-auto border leading-relaxed ${
             isError
               ? "text-rose-300 border-rose-500/30 selection:bg-rose-900 selection:text-white"
               : "text-emerald-400 border-slate-800 selection:bg-emerald-900 selection:text-white"
@@ -431,7 +489,7 @@ function EnterpriseApiLogsContent() {
     } catch (e) {
       return (
         <pre
-          className={`p-4 bg-slate-950 font-mono text-xs rounded-lg overflow-x-auto border leading-relaxed ${
+          className={`p-3 bg-slate-950 font-mono text-xs rounded-lg overflow-x-auto border leading-relaxed whitespace-pre-wrap ${
             isError ? "text-rose-300 border-rose-500/30" : "text-slate-300 border-slate-800"
           }`}
         >
@@ -441,9 +499,15 @@ function EnterpriseApiLogsContent() {
     }
   };
 
-  // Helper: Provider Pill Color
+  // Helper: Provider Pill Color & Label
   const getProviderBadge = (provider?: string) => {
     const p = (provider || "").toLowerCase();
+    if (p.includes("urbanrupee")) {
+      return {
+        bg: "bg-violet-500/15 text-violet-300 border-violet-500/30",
+        label: "UrbanRupee Switch",
+      };
+    }
     if (p.includes("bulkpe")) {
       return {
         bg: "bg-indigo-500/10 text-indigo-400 border-indigo-500/30",
@@ -493,11 +557,11 @@ function EnterpriseApiLogsContent() {
               <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                 Enterprise API &amp; Vendor Gateway Logs
                 <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  Super Admin Live Audit
+                  Live Audit &amp; Payload Inspector
                 </span>
               </h1>
               <p className="text-sm text-slate-400">
-                End-to-end technical telemetry: outbound bank switches (BulkPe/WowPe), inbound merchant API traffic, and failure diagnostics.
+                End-to-end telemetry: UrbanRupee, BulkPe, WowPe switches, inbound merchant APIs, full Request &amp; Response payloads.
               </p>
             </div>
           </div>
@@ -525,6 +589,7 @@ function EnterpriseApiLogsContent() {
             onClick={() => {
               fetchLogs();
               fetchMetrics();
+              fetchProviders();
             }}
             disabled={loading}
             className="flex items-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-lg text-xs font-medium transition-all"
@@ -557,8 +622,8 @@ function EnterpriseApiLogsContent() {
         >
           <Terminal className="w-4 h-4 text-indigo-400" />
           <span>All API Logs</span>
-          <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-950/80 text-slate-300 border border-slate-800">
-            {metrics ? (metrics.total_calls_today).toLocaleString() : "Live"}
+          <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-950/80 text-slate-300 border border-slate-800 font-mono">
+            {metrics ? metrics.total_calls_today.toLocaleString() : "Live"}
           </span>
         </button>
 
@@ -572,9 +637,9 @@ function EnterpriseApiLogsContent() {
           }`}
         >
           <ArrowUpRight className="w-4 h-4 text-purple-400" />
-          <span>Vendor API Logs (Outbound)</span>
+          <span>Vendor Gateway (Outbound)</span>
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
-            {metrics ? metrics.outbound_count : "Gateways"}
+            {metrics ? metrics.outbound_count : "Switches"}
           </span>
         </button>
 
@@ -588,7 +653,7 @@ function EnterpriseApiLogsContent() {
           }`}
         >
           <ArrowDownLeft className="w-4 h-4 text-blue-400" />
-          <span>Internal API Logs (Inbound)</span>
+          <span>Internal API (Inbound)</span>
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-500/10 text-blue-300 border border-blue-500/20 font-mono">
             {metrics ? metrics.inbound_count : "Portals"}
           </span>
@@ -607,7 +672,7 @@ function EnterpriseApiLogsContent() {
             <AlertTriangle className="w-4 h-4 text-rose-400" />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
           </div>
-          <span>Payout Vendor Failures</span>
+          <span>Payout Gateway Failures</span>
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-mono font-bold">
             Audit
           </span>
@@ -623,10 +688,10 @@ function EnterpriseApiLogsContent() {
             </div>
             <div>
               <span className="font-bold text-indigo-200 text-sm block">
-                Filtered by Payout Transaction: {activeDeepLinkTxn}
+                Filtered by Transaction ID: {activeDeepLinkTxn}
               </span>
               <span className="text-slate-400">
-                Displaying all correlated Inbound retailer requests, Outbound vendor attempts, and gateway responses for this transfer.
+                Displaying all correlated Inbound requests, Outbound vendor attempts, and gateway responses for this transaction.
               </span>
             </div>
           </div>
@@ -634,6 +699,7 @@ function EnterpriseApiLogsContent() {
             onClick={() => {
               setActiveDeepLinkTxn(null);
               setSearch("");
+              setSearchInput("");
               setSelectedDatePreset("TODAY");
               setPage(1);
             }}
@@ -641,60 +707,6 @@ function EnterpriseApiLogsContent() {
           >
             Clear Filter
           </button>
-        </div>
-      )}
-
-      {/* Payout Vendor Failure Context Banner */}
-      {activeTab === "PAYOUT_FAILURES" && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-rose-500/20 text-rose-400 mt-0.5">
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-rose-200 text-sm flex items-center gap-2">
-                Payout Vendor API Failure Telemetry
-                <span className="text-[10px] font-mono px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded border border-rose-500/30">
-                  BulkPe • WowPe • Bank Gateways
-                </span>
-              </h3>
-              <p className="text-xs text-rose-300/80 mt-1">
-                Displaying outbound bank transfer attempts that returned rejections, invalid beneficiary bank codes, timeout exceptions, or insufficient switch balances. Full request &amp; response payloads are retained for reconciliation.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => setSelectedProvider("ALL")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                selectedProvider === "ALL"
-                  ? "bg-rose-600 text-white shadow-sm"
-                  : "bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800"
-              }`}
-            >
-              All Providers
-            </button>
-            <button
-              onClick={() => setSelectedProvider("BulkPe")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                selectedProvider === "BulkPe"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800"
-              }`}
-            >
-              BulkPe Failures
-            </button>
-            <button
-              onClick={() => setSelectedProvider("WowPe")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                selectedProvider === "WowPe"
-                  ? "bg-amber-600 text-white shadow-sm"
-                  : "bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800"
-              }`}
-            >
-              WowPe Failures
-            </button>
-          </div>
         </div>
       )}
 
@@ -713,16 +725,16 @@ function EnterpriseApiLogsContent() {
             <span className="text-xs text-slate-400">requests</span>
           </div>
           <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400 border-t border-slate-800/60 pt-2">
-            <span className="text-blue-400 font-medium">{metrics?.inbound_count || 0} Inbound (Retailer)</span>
+            <span className="text-blue-400 font-medium">{metrics?.inbound_count || 0} Inbound</span>
             <span>•</span>
-            <span className="text-purple-400 font-medium">{metrics?.outbound_count || 0} Outbound (Vendor)</span>
+            <span className="text-purple-400 font-medium">{metrics?.outbound_count || 0} Outbound</span>
           </div>
         </div>
 
-        {/* Success vs Error Rate */}
+        {/* Error Rate */}
         <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Error Rate &amp; Gateway Failures</span>
+            <span className="text-xs font-medium text-slate-400">Gateway Failures &amp; Errors</span>
             <AlertTriangle className="w-4 h-4 text-amber-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
@@ -733,7 +745,7 @@ function EnterpriseApiLogsContent() {
           </div>
           <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400 border-t border-slate-800/60 pt-2">
             <span className={`font-medium ${(metrics?.error_count || 0) > 0 ? "text-rose-400" : "text-emerald-400"}`}>
-              {metrics?.error_count || 0} Failed API Calls
+              {metrics?.error_count || 0} Failed Calls
             </span>
             <span>•</span>
             <span className="text-emerald-400">
@@ -745,26 +757,26 @@ function EnterpriseApiLogsContent() {
         {/* Avg Latency */}
         <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Avg Provider Round-Trip Time</span>
+            <span className="text-xs font-medium text-slate-400">Avg Round-Trip Latency</span>
             <Clock className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-cyan-400">
               {metrics?.avg_duration_ms ? `${metrics.avg_duration_ms} ms` : "0 ms"}
             </span>
-            <span className="text-xs text-slate-400">avg latency</span>
+            <span className="text-xs text-slate-400">avg response</span>
           </div>
           <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400 border-t border-slate-800/60 pt-2">
-            <span className="text-slate-300 font-medium">BulkPe / WowPe SLA Target: &lt; 800 ms</span>
+            <span className="text-slate-300 font-medium">UrbanRupee / BulkPe SLA: &lt; 800 ms</span>
           </div>
         </div>
 
-        {/* Filtered Logs Active */}
+        {/* Filtered Records */}
         <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-400">
               {activeTab === "PAYOUT_FAILURES"
-                ? "Failed Payout Transfers"
+                ? "Failed Payout Calls"
                 : activeTab === "VENDOR"
                 ? "Outbound Vendor Calls"
                 : activeTab === "INTERNAL"
@@ -792,30 +804,53 @@ function EnterpriseApiLogsContent() {
         {/* Search & Main Row */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
           {/* Search Box */}
-          <div className="lg:col-span-4 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <div className="lg:col-span-4 relative flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setSearch(searchInput);
+                  if (searchInput.trim() && selectedDatePreset === "TODAY") {
+                    setSelectedDatePreset("ALL");
+                  }
+                  setPage(1);
+                }
               }}
-              placeholder="Search Log ID, Txn ID, Req ID, Endpoint, Provider..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 transition-all font-mono"
+              placeholder="Search Txn ID, UTR, Req ID, Log Code, Endpoint, Error..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-16 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 transition-all font-mono"
             />
-            {search && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searchInput && (
+                <button
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearch("");
+                    setActiveDeepLinkTxn(null);
+                    setPage(1);
+                  }}
+                  className="p-1 text-slate-500 hover:text-slate-300"
+                  title="Clear Search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 onClick={() => {
-                  setSearch("");
-                  setActiveDeepLinkTxn(null);
+                  setSearch(searchInput);
+                  if (searchInput.trim() && selectedDatePreset === "TODAY") {
+                    setSelectedDatePreset("ALL");
+                  }
                   setPage(1);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-semibold transition-all shadow-sm"
+                title="Search Logs"
               >
-                <X className="w-3.5 h-3.5" />
+                Go
               </button>
-            )}
+            </div>
           </div>
 
           {/* Service Dropdown */}
@@ -848,13 +883,13 @@ function EnterpriseApiLogsContent() {
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/60"
             >
               <option value="ALL">All Directions</option>
-              <option value="OUTBOUND">OUTBOUND (Us → Provider/Gateway)</option>
+              <option value="OUTBOUND">OUTBOUND (Us → Vendor/Gateway)</option>
               <option value="INBOUND">INBOUND (Retailer → Us)</option>
               <option value="INTERNAL">INTERNAL (System/Workers)</option>
             </select>
           </div>
 
-          {/* Provider / Gateway Filter */}
+          {/* Dynamic Provider / Vendor Filter */}
           <div className="lg:col-span-2">
             <select
               value={selectedProvider}
@@ -864,11 +899,22 @@ function EnterpriseApiLogsContent() {
               }}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/60"
             >
-              <option value="ALL">All Providers</option>
-              <option value="BulkPe">BulkPe</option>
-              <option value="WowPe">WowPe</option>
-              <option value="Utkal">UtkalDigital</option>
-              <option value="Cashfree">Cashfree</option>
+              <option value="ALL">All Providers / Vendors</option>
+              {providersList.length > 0 ? (
+                providersList.map((prov) => (
+                  <option key={prov} value={prov}>
+                    {prov}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="UrbanRupee">UrbanRupee</option>
+                  <option value="BulkPe">BulkPe</option>
+                  <option value="WowPe">WowPe</option>
+                  <option value="UtkalDigital">UtkalDigital</option>
+                  <option value="Cashfree">Cashfree</option>
+                </>
+              )}
             </select>
           </div>
 
@@ -959,10 +1005,30 @@ function EnterpriseApiLogsContent() {
               </span>
             </label>
 
+            {/* Quick Expand All Payloads */}
+            <button
+              onClick={() => {
+                if (Object.keys(expandedRowIds).length === logs.length && logs.length > 0) {
+                  collapseAllRows();
+                } else {
+                  expandAllRows();
+                }
+              }}
+              className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-all flex items-center gap-1"
+            >
+              <ChevronsUpDown className="w-3.5 h-3.5" />
+              <span>
+                {Object.keys(expandedRowIds).length === logs.length && logs.length > 0
+                  ? "Collapse All Payloads"
+                  : "Expand All Payloads"}
+              </span>
+            </button>
+
             {/* Reset Filters */}
             <button
               onClick={() => {
                 setSearch("");
+                setSearchInput("");
                 setActiveDeepLinkTxn(null);
                 setSelectedService("ALL");
                 setSelectedDirection("ALL");
@@ -976,6 +1042,7 @@ function EnterpriseApiLogsContent() {
                 setIsErrorOnly(false);
                 setActiveTab("ALL");
                 setPage(1);
+                setExpandedRowIds({});
               }}
               className="text-xs text-slate-400 hover:text-slate-200 underline transition-all"
             >
@@ -985,17 +1052,20 @@ function EnterpriseApiLogsContent() {
         </div>
       </div>
 
-      {/* 5. Enterprise Logs Data Table */}
+      {/* 5. Enterprise Logs Data Table with Inline Request/Response Accordion */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-950/90 border-b border-slate-800 text-slate-400 uppercase font-semibold tracking-wider">
-                <th className="py-3.5 px-4">Log ID</th>
+                <th className="py-3.5 px-3 w-8 text-center">#</th>
+                <th className="py-3.5 px-3">Log ID</th>
                 <th className="py-3.5 px-3">Direction</th>
                 <th className="py-3.5 px-3">Service</th>
                 <th className="py-3.5 px-3">
-                  {activeTab === "VENDOR" || activeTab === "PAYOUT_FAILURES" ? "Target Gateway / Provider" : "Client / Provider"}
+                  {activeTab === "VENDOR" || activeTab === "PAYOUT_FAILURES"
+                    ? "Target Gateway / Vendor"
+                    : "Client / Vendor"}
                 </th>
                 <th className="py-3.5 px-4">API Route / Target Endpoint</th>
                 <th className="py-3.5 px-3">Transaction / Req ID</th>
@@ -1003,13 +1073,13 @@ function EnterpriseApiLogsContent() {
                 <th className="py-3.5 px-3">Response Status</th>
                 <th className="py-3.5 px-3 text-right">Duration</th>
                 <th className="py-3.5 px-4">Timestamp</th>
-                <th className="py-3.5 px-4 text-center">Inspect</th>
+                <th className="py-3.5 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-16 text-slate-500">
+                  <td colSpan={12} className="text-center py-16 text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
                       <span>Loading Enterprise API Logs...</span>
@@ -1018,233 +1088,621 @@ function EnterpriseApiLogsContent() {
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-16 text-slate-500">
+                  <td colSpan={12} className="text-center py-16 text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Terminal className="w-8 h-8 text-slate-600" />
                       <span className="font-medium text-slate-400">No API logs found matching current filters</span>
-                      <span className="text-xs text-slate-600">Try adjusting your search criteria, provider filter, or date range.</span>
+                      <span className="text-xs text-slate-600">
+                        Try clearing search, changing provider, or switching date range to All Time.
+                      </span>
                     </div>
                   </td>
                 </tr>
               ) : (
                 logs.map((log) => {
-                  const isSuccess = log.http_status >= 200 && log.http_status < 400 && log.response_status === "SUCCESS";
+                  const isSuccess =
+                    log.http_status >= 200 && log.http_status < 400 && log.response_status === "SUCCESS";
                   const isError =
                     log.http_status >= 400 ||
                     log.response_status === "FAILED" ||
                     log.response_status === "HTTP_ERROR" ||
                     log.response_status === "TIMEOUT" ||
-                    log.response_status === "VALIDATION_ERROR";
+                    log.response_status === "VALIDATION_ERROR" ||
+                    Boolean(log.error_message) ||
+                    Boolean(log.failure_reason);
 
+                  const isExpanded = Boolean(expandedRowIds[log.id]);
                   const providerBadge = getProviderBadge(log.provider_name);
+                  const payloadMode = rowPayloadModes[log.id] || "formatted";
+
+                  // Parse payloads
+                  const reqPayload = log.request_body || log.request_body_raw;
+                  const resPayload =
+                    log.response_body ||
+                    log.response_body_raw ||
+                    (isError
+                      ? {
+                          status: log.response_status || "FAILED",
+                          statusCode: log.http_status || 500,
+                          error: log.error_type || "GatewayError",
+                          errorCode: log.error_code || "ERR_GATEWAY",
+                          message:
+                            log.error_message ||
+                            log.provider_response_message ||
+                            "Failure captured during API execution.",
+                          failureReason: log.failure_reason || "Error",
+                          endpoint: log.endpoint,
+                          timestamp: log.response_timestamp || log.timestamp,
+                          stackTrace: log.stack_trace || undefined,
+                        }
+                      : null);
 
                   return (
-                    <tr
-                      key={log.id}
-                      className={`hover:bg-slate-800/50 transition-colors group cursor-pointer ${
-                        isError ? "bg-rose-950/10" : ""
-                      }`}
-                      onClick={() => openDetailDrawer(log.id)}
-                    >
-                      {/* Log ID */}
-                      <td className="py-3 px-4 font-mono font-medium text-indigo-400">
-                        <div className="flex items-center gap-1.5">
-                          <span>{log.log_id}</span>
+                    <React.Fragment key={log.id}>
+                      <tr
+                        className={`hover:bg-slate-800/50 transition-colors group cursor-pointer ${
+                          isError ? "bg-rose-950/15" : isExpanded ? "bg-slate-850" : ""
+                        }`}
+                        onClick={() => toggleRowExpand(log.id)}
+                      >
+                        {/* Expand Chevron */}
+                        <td className="py-3 px-3 text-center" onClick={(e) => toggleRowExpand(log.id, e)}>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopy(log.log_id, `log_${log.id}`);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-300 transition-opacity"
-                            title="Copy Log ID"
+                            className="p-1 rounded text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition-all"
+                            title={isExpanded ? "Collapse Row Payload" : "Expand Row Payload"}
                           >
-                            {copiedKey === `log_${log.id}` ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
+                            <ChevronRight
+                              className={`w-4 h-4 transition-transform duration-200 ${
+                                isExpanded ? "rotate-90 text-indigo-400" : ""
+                              }`}
+                            />
                           </button>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Direction Badge */}
-                      <td className="py-3 px-3">
-                        {log.direction === "OUTBOUND" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-300 border border-purple-500/25">
-                            <ArrowUpRight className="w-3 h-3 text-purple-400" />
-                            OUTBOUND
-                          </span>
-                        ) : log.direction === "INBOUND" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-300 border border-blue-500/25">
-                            <ArrowDownLeft className="w-3 h-3 text-blue-400" />
-                            INBOUND
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700/20 text-slate-300 border border-slate-700/30">
-                            INTERNAL
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Service */}
-                      <td className="py-3 px-3">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
-                            log.service === "PAYOUT"
-                              ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/25"
-                              : "bg-slate-800 text-slate-200 border-slate-700"
-                          }`}
-                        >
-                          {log.service}
-                        </span>
-                      </td>
-
-                      {/* Client / Provider */}
-                      <td className="py-3 px-3">
-                        {log.direction === "OUTBOUND" ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold border ${providerBadge.bg}`}>
-                            <Globe className="w-3 h-3" />
-                            {log.provider_name || providerBadge.label}
-                          </span>
-                        ) : (
-                          <div className="flex items-center gap-1.5 text-slate-300 font-medium">
-                            <Building className="w-3.5 h-3.5 text-slate-500" />
-                            <span className="truncate max-w-[120px]" title={log.client_name || log.retailer_id || "Retailer Portal"}>
-                              {log.client_name || (log.retailer_id ? `Retailer: ${log.retailer_id}` : "Retailer Portal")}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-
-                      {/* API / Endpoint */}
-                      <td className="py-3 px-4 max-w-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`font-mono text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                              log.http_method === "POST"
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                : log.http_method === "GET"
-                                ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
-                                : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                            }`}
-                          >
-                            {log.http_method}
-                          </span>
-                          <span className="font-mono text-slate-300 truncate" title={log.endpoint}>
-                            {log.endpoint}
-                          </span>
-                        </div>
-
-                        {/* If Failed, render clear error snippet right here for fast troubleshooting */}
-                        {isError && (log.error_message || log.error_code) && (
-                          <div className="mt-1 flex items-center gap-1 text-[10.5px] text-rose-400 font-mono truncate" title={log.error_message}>
-                            <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                            <span className="truncate">{log.error_code ? `[${log.error_code}] ` : ""}{log.error_message || "Gateway Error"}</span>
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Txn ID / Request ID */}
-                      <td className="py-3 px-3 font-mono text-[11px]">
-                        {log.transaction_id ? (
-                          <div className="flex items-center gap-1 text-slate-200">
-                            <span className="truncate max-w-[110px]" title={log.transaction_id}>
-                              {log.transaction_id}
-                            </span>
+                        {/* Log ID */}
+                        <td className="py-3 px-3 font-mono font-medium text-indigo-400">
+                          <div className="flex items-center gap-1.5">
+                            <span>{log.log_id}</span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSearch(log.transaction_id!);
-                                setActiveDeepLinkTxn(log.transaction_id!);
-                                setSelectedDatePreset("ALL");
-                                setPage(1);
+                                handleCopy(log.log_id, `log_${log.id}`);
                               }}
-                              className="text-indigo-400 hover:text-indigo-300"
-                              title="Filter all logs for this Transaction"
+                              className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-300 transition-opacity"
+                              title="Copy Log ID"
                             >
-                              <ExternalLink className="w-3 h-3" />
+                              {copiedKey === `log_${log.id}` ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           </div>
-                        ) : (
-                          <span className="text-slate-500 truncate max-w-[110px] block" title={log.request_id}>
-                            {log.request_id}
+                        </td>
+
+                        {/* Direction Badge */}
+                        <td className="py-3 px-3">
+                          {log.direction === "OUTBOUND" ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                              <ArrowUpRight className="w-3 h-3 text-purple-400" />
+                              OUTBOUND
+                            </span>
+                          ) : log.direction === "INBOUND" ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                              <ArrowDownLeft className="w-3 h-3 text-blue-400" />
+                              INBOUND
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700/20 text-slate-300 border border-slate-700/30">
+                              INTERNAL
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Service */}
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                              log.service === "PAYOUT"
+                                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/25"
+                                : "bg-slate-800 text-slate-200 border-slate-700"
+                            }`}
+                          >
+                            {log.service}
                           </span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* HTTP Status */}
-                      <td className="py-3 px-3 text-center">
-                        <span
-                          className={`inline-block font-mono font-bold px-1.5 py-0.5 rounded text-[11px] ${
-                            log.http_status >= 200 && log.http_status < 300
-                              ? "bg-emerald-500/10 text-emerald-400"
-                              : log.http_status < 500
-                              ? "bg-amber-500/10 text-amber-400"
-                              : "bg-rose-500/10 text-rose-400"
-                          }`}
-                        >
-                          {log.http_status || "-"}
-                        </span>
-                      </td>
+                        {/* Client / Vendor */}
+                        <td className="py-3 px-3">
+                          {log.direction === "OUTBOUND" ? (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold border ${providerBadge.bg}`}>
+                              <Globe className="w-3 h-3" />
+                              {log.provider_name || providerBadge.label}
+                            </span>
+                          ) : (
+                            <div className="space-y-1">
+                              {log.provider_name &&
+                                log.provider_name !== "Enterprise Platform Core" &&
+                                log.provider_name !== "Enterprise API" && (
+                                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${providerBadge.bg}`}>
+                                    <Globe className="w-2.5 h-2.5" />
+                                    {log.provider_name}
+                                  </span>
+                                )}
+                              <div className="flex items-center gap-1.5 text-slate-300 font-medium">
+                                <Building className="w-3.5 h-3.5 text-slate-500" />
+                                <span className="truncate max-w-[120px]" title={log.client_name || log.retailer_id || "Retailer Portal"}>
+                                  {log.client_name || (log.retailer_id ? `Retailer: ${log.retailer_id}` : "Retailer Portal")}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </td>
 
-                      {/* Response Status */}
-                      <td className="py-3 px-3">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            isSuccess
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                              : log.response_status === "TIMEOUT"
-                              ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                              : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                          }`}
-                        >
-                          {isSuccess && <CheckCircle2 className="w-2.5 h-2.5" />}
-                          {isError && <AlertCircle className="w-2.5 h-2.5" />}
-                          {log.response_status}
-                        </span>
-                      </td>
+                        {/* API Route / Endpoint */}
+                        <td className="py-3 px-4 max-w-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`font-mono text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                log.http_method === "POST"
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                  : log.http_method === "GET"
+                                  ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                                  : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                              }`}
+                            >
+                              {log.http_method}
+                            </span>
+                            <span className="font-mono text-slate-300 truncate" title={log.endpoint}>
+                              {log.endpoint}
+                            </span>
+                          </div>
 
-                      {/* Duration */}
-                      <td className="py-3 px-3 text-right font-mono">
-                        <span
-                          className={`font-semibold ${
-                            log.duration_ms < 500
-                              ? "text-emerald-400"
-                              : log.duration_ms < 2000
-                              ? "text-amber-400"
-                              : "text-rose-400"
-                          }`}
-                        >
-                          {log.duration_ms} ms
-                        </span>
-                      </td>
+                          {/* Fast error snippet */}
+                          {isError && (log.error_message || log.error_code || log.failure_reason) && (
+                            <div
+                              className="mt-1 flex items-center gap-1 text-[10.5px] text-rose-400 font-mono truncate"
+                              title={log.error_message || log.failure_reason}
+                            >
+                              <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">
+                                {log.error_code ? `[${log.error_code}] ` : ""}
+                                {log.error_message || log.failure_reason || "Gateway Error"}
+                              </span>
+                            </div>
+                          )}
+                        </td>
 
-                      {/* Date & Time */}
-                      <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
-                        {log.timestamp
-                          ? new Date(log.timestamp).toLocaleString("en-IN", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              second: "2-digit",
-                              hour12: false,
-                            })
-                          : "-"}
-                      </td>
+                        {/* Txn ID / Request ID */}
+                        <td className="py-3 px-3 font-mono text-[11px]">
+                          {log.transaction_id ? (
+                            <div className="flex items-center gap-1 text-slate-200">
+                              <span className="truncate max-w-[110px]" title={log.transaction_id}>
+                                {log.transaction_id}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSearch(log.transaction_id!);
+                                  setSearchInput(log.transaction_id!);
+                                  setActiveDeepLinkTxn(log.transaction_id!);
+                                  setSelectedDatePreset("ALL");
+                                  setPage(1);
+                                }}
+                                className="text-indigo-400 hover:text-indigo-300"
+                                title="Filter all logs for this Transaction"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 truncate max-w-[110px] block" title={log.request_id}>
+                              {log.request_id}
+                            </span>
+                          )}
+                        </td>
 
-                      {/* Action */}
-                      <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => openDetailDrawer(log.id)}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-[11px] font-medium transition-all flex items-center gap-1 mx-auto"
-                        >
-                          <Eye className="w-3 h-3 text-indigo-400" />
-                          View
-                        </button>
-                      </td>
-                    </tr>
+                        {/* HTTP Status */}
+                        <td className="py-3 px-3 text-center">
+                          <span
+                            className={`inline-block font-mono font-bold px-1.5 py-0.5 rounded text-[11px] ${
+                              log.http_status >= 200 && log.http_status < 300
+                                ? "bg-emerald-500/10 text-emerald-400"
+                                : log.http_status < 500
+                                ? "bg-amber-500/10 text-amber-400"
+                                : "bg-rose-500/10 text-rose-400"
+                            }`}
+                          >
+                            {log.http_status || "-"}
+                          </span>
+                        </td>
+
+                        {/* Response Status */}
+                        <td className="py-3 px-3">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isSuccess
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                : log.response_status === "TIMEOUT"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                            }`}
+                          >
+                            {isSuccess && <CheckCircle2 className="w-2.5 h-2.5" />}
+                            {isError && <AlertCircle className="w-2.5 h-2.5" />}
+                            {log.response_status}
+                          </span>
+                        </td>
+
+                        {/* Duration */}
+                        <td className="py-3 px-3 text-right font-mono">
+                          <span
+                            className={`font-semibold ${
+                              log.duration_ms < 500
+                                ? "text-emerald-400"
+                                : log.duration_ms < 2000
+                                ? "text-amber-400"
+                                : "text-rose-400"
+                            }`}
+                          >
+                            {log.duration_ms} ms
+                          </span>
+                        </td>
+
+                        {/* Date & Time */}
+                        <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                          {log.timestamp
+                            ? new Date(log.timestamp).toLocaleString("en-IN", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                                hour12: false,
+                              })
+                            : "-"}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => toggleRowExpand(log.id)}
+                              className={`px-2.5 py-1 rounded text-[11px] font-semibold flex items-center gap-1 transition-all ${
+                                isExpanded
+                                  ? "bg-indigo-600 text-white shadow-sm"
+                                  : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                              }`}
+                              title="Toggle Request & Response Payloads"
+                            >
+                              <FileCode className="w-3 h-3 text-indigo-400" />
+                              <span>{isExpanded ? "Hide" : "Payload"}</span>
+                            </button>
+                            <button
+                              onClick={() => openDetailDrawer(log.id)}
+                              className="p-1 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded border border-slate-700/60"
+                              title="Open Full Detailed Drawer & Trace"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* ----------------- INLINE REQUEST & RESPONSE ACCORDION ----------------- */}
+                      {isExpanded && (
+                        <tr className="bg-slate-950/90 border-b border-indigo-500/20">
+                          <td colSpan={12} className="p-4 sm:p-5">
+                            <div className="space-y-4 rounded-xl bg-slate-900/90 border border-slate-800 p-4 shadow-2xl">
+                              {/* Accordion Header Bar */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono font-bold text-indigo-300 text-sm">
+                                    {log.log_id}
+                                  </span>
+                                  <span className="text-slate-500">•</span>
+                                  <span className="font-mono text-xs text-slate-300 font-semibold">
+                                    {log.http_method} {log.endpoint}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${providerBadge.bg}`}>
+                                    {log.provider_name || providerBadge.label}
+                                  </span>
+                                  <span className="text-xs text-emerald-400 font-mono">
+                                    {log.duration_ms} ms
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  {/* Format Toggle */}
+                                  <div className="flex items-center bg-slate-950 border border-slate-800 rounded p-0.5 text-[10px]">
+                                    <button
+                                      onClick={() =>
+                                        setRowPayloadModes((prev) => ({ ...prev, [log.id]: "formatted" }))
+                                      }
+                                      className={`px-2 py-0.5 rounded transition-all ${
+                                        payloadMode === "formatted"
+                                          ? "bg-indigo-600 text-white font-semibold"
+                                          : "text-slate-400 hover:text-slate-200"
+                                      }`}
+                                    >
+                                      JSON
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        setRowPayloadModes((prev) => ({ ...prev, [log.id]: "raw" }))
+                                      }
+                                      className={`px-2 py-0.5 rounded transition-all ${
+                                        payloadMode === "raw"
+                                          ? "bg-indigo-600 text-white font-semibold"
+                                          : "text-slate-400 hover:text-slate-200"
+                                      }`}
+                                    >
+                                      Raw
+                                    </button>
+                                  </div>
+
+                                  {/* Open in Full Drawer */}
+                                  <button
+                                    onClick={() => openDetailDrawer(log.id)}
+                                    className="px-2.5 py-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded text-xs font-medium transition-all flex items-center gap-1"
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                    Full Trace &amp; Headers
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Correlated Transaction Identifiers */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+                                <div className="p-2 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+                                  <div>
+                                    <span className="text-slate-500 block text-[10px] uppercase font-bold">
+                                      Transaction ID
+                                    </span>
+                                    <span className="font-mono text-indigo-300 font-semibold">
+                                      {log.transaction_id || "None"}
+                                    </span>
+                                  </div>
+                                  {log.transaction_id && (
+                                    <button
+                                      onClick={() => handleCopy(log.transaction_id!, `row_txn_${log.id}`)}
+                                      className="p-1 text-slate-400 hover:text-white"
+                                      title="Copy Transaction ID"
+                                    >
+                                      {copiedKey === `row_txn_${log.id}` ? (
+                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                      ) : (
+                                        <Copy className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="p-2 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+                                  <div>
+                                    <span className="text-slate-500 block text-[10px] uppercase font-bold">
+                                      Client Reference ID
+                                    </span>
+                                    <span className="font-mono text-slate-200">
+                                      {log.client_reference_id || "None"}
+                                    </span>
+                                  </div>
+                                  {log.client_reference_id && (
+                                    <button
+                                      onClick={() => handleCopy(log.client_reference_id!, `row_cliref_${log.id}`)}
+                                      className="p-1 text-slate-400 hover:text-white"
+                                      title="Copy Client Ref"
+                                    >
+                                      {copiedKey === `row_cliref_${log.id}` ? (
+                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                      ) : (
+                                        <Copy className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="p-2 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+                                  <div>
+                                    <span className="text-slate-500 block text-[10px] uppercase font-bold">
+                                      Provider Ref / UTR
+                                    </span>
+                                    <span className="font-mono text-emerald-400 font-bold">
+                                      {log.provider_reference_id || "Pending"}
+                                    </span>
+                                  </div>
+                                  {log.provider_reference_id && (
+                                    <button
+                                      onClick={() => handleCopy(log.provider_reference_id!, `row_provref_${log.id}`)}
+                                      className="p-1 text-slate-400 hover:text-white"
+                                      title="Copy Provider Ref / UTR"
+                                    >
+                                      {copiedKey === `row_provref_${log.id}` ? (
+                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                      ) : (
+                                        <Copy className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="p-2 rounded bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+                                  <div>
+                                    <span className="text-slate-500 block text-[10px] uppercase font-bold">
+                                      Request ID
+                                    </span>
+                                    <span className="font-mono text-slate-400 truncate max-w-[140px] block" title={log.request_id}>
+                                      {log.request_id}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => handleCopy(log.request_id, `row_reqid_${log.id}`)}
+                                    className="p-1 text-slate-400 hover:text-white"
+                                    title="Copy Request ID"
+                                  >
+                                    {copiedKey === `row_reqid_${log.id}` ? (
+                                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Error Diagnostics Banner (If Failed/Error) */}
+                              {isError && (log.error_message || log.failure_reason || log.error_code) && (
+                                <div className="p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-rose-400 font-bold">
+                                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                                      <span>
+                                        {log.error_type || "Gateway Error / Rejection"}
+                                        {log.error_code ? ` [${log.error_code}]` : ""}
+                                      </span>
+                                    </div>
+                                    {log.provider_response_code && (
+                                      <span className="font-mono text-[10px] text-amber-300 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-500/30">
+                                        Provider Code: {log.provider_response_code}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {log.error_message && (
+                                    <div className="font-mono text-rose-200 bg-slate-950/80 p-2.5 rounded border border-rose-500/20 break-words">
+                                      {log.error_message}
+                                    </div>
+                                  )}
+
+                                  {log.failure_reason && (
+                                    <div className="text-slate-300">
+                                      <span className="text-slate-500 font-semibold">Failure Reason:</span>{" "}
+                                      <span className="font-mono text-rose-300">{log.failure_reason}</span>
+                                    </div>
+                                  )}
+
+                                  {log.stack_trace && (
+                                    <details className="text-slate-400 cursor-pointer">
+                                      <summary className="text-[11px] text-rose-400 hover:text-rose-300 font-medium">
+                                        View Server Stack Trace
+                                      </summary>
+                                      <pre className="mt-2 p-3 bg-slate-950 text-rose-300 font-mono text-[10.5px] rounded border border-rose-500/20 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                                        {log.stack_trace}
+                                      </pre>
+                                    </details>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Side-by-Side Request and Response Payloads */}
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                {/* Left Column: Request Payload */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                                        <Code className="w-3.5 h-3.5 text-indigo-400" />
+                                        Request Payload
+                                      </span>
+                                      <span className="text-[10px] font-mono px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded">
+                                        {log.http_method}
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        const reqStr =
+                                          typeof reqPayload === "string"
+                                            ? reqPayload
+                                            : JSON.stringify(reqPayload || {}, null, 2);
+                                        handleCopy(reqStr, `row_req_${log.id}`);
+                                      }}
+                                      className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                                      title="Copy Request Payload"
+                                    >
+                                      {copiedKey === `row_req_${log.id}` ? (
+                                        <>
+                                          <Check className="w-3 h-3 text-emerald-400" />
+                                          <span className="text-emerald-400 text-[11px]">Copied</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="w-3 h-3" />
+                                          <span className="text-[11px]">Copy Request</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+
+                                  <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 shadow-inner">
+                                    {payloadMode === "raw" && log.request_body_raw ? (
+                                      <pre className="p-3 font-mono text-xs text-slate-200 whitespace-pre-wrap">
+                                        {log.request_body_raw}
+                                      </pre>
+                                    ) : (
+                                      renderFormattedJson(reqPayload, false)
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Right Column: Response Payload */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                                        <FileCode className="w-3.5 h-3.5 text-emerald-400" />
+                                        Response Payload
+                                      </span>
+                                      <span
+                                        className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-bold ${
+                                          isSuccess
+                                            ? "bg-emerald-500/10 text-emerald-400"
+                                            : "bg-rose-500/10 text-rose-400"
+                                        }`}
+                                      >
+                                        HTTP {log.http_status} • {log.response_status}
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        const resStr =
+                                          typeof resPayload === "string"
+                                            ? resPayload
+                                            : JSON.stringify(resPayload || {}, null, 2);
+                                        handleCopy(resStr, `row_res_${log.id}`);
+                                      }}
+                                      className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                                      title="Copy Response Payload"
+                                    >
+                                      {copiedKey === `row_res_${log.id}` ? (
+                                        <>
+                                          <Check className="w-3 h-3 text-emerald-400" />
+                                          <span className="text-emerald-400 text-[11px]">Copied</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="w-3 h-3" />
+                                          <span className="text-[11px]">Copy Response</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+
+                                  <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 shadow-inner">
+                                    {payloadMode === "raw" && log.response_body_raw ? (
+                                      <pre className="p-3 font-mono text-xs text-slate-200 whitespace-pre-wrap">
+                                        {log.response_body_raw}
+                                      </pre>
+                                    ) : (
+                                      renderFormattedJson(resPayload, isError)
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })
               )}
@@ -1380,8 +1838,8 @@ function EnterpriseApiLogsContent() {
                 { id: "overview", label: "Overview & Identifiers" },
                 { id: "request", label: "Request Payload" },
                 { id: "response", label: "Response Payload" },
-                { id: "error", label: "Error & Rejection Reason" },
-                { id: "trace", label: `Full Transaction Trace (${traceSteps.length || 0})` },
+                { id: "error", label: "Error & Diagnostics" },
+                { id: "trace", label: `Transaction Flow (${traceSteps.length || 0})` },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1534,6 +1992,26 @@ function EnterpriseApiLogsContent() {
                             </button>
                           </div>
 
+                          {/* Client Reference */}
+                          {logDetail.client_reference_id && (
+                            <div className="flex items-center justify-between p-2 rounded bg-slate-900 border border-slate-800">
+                              <div>
+                                <span className="text-slate-500 block text-[10px]">Client Reference ID:</span>
+                                <span className="font-mono text-slate-200">{logDetail.client_reference_id}</span>
+                              </div>
+                              <button
+                                onClick={() => handleCopy(logDetail.client_reference_id!, "cliref_copy")}
+                                className="p-1 text-slate-400 hover:text-slate-200"
+                              >
+                                {copiedKey === "cliref_copy" ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          )}
+
                           {/* Provider Reference / UTR */}
                           {logDetail.provider_reference_id && (
                             <div className="flex items-center justify-between p-2 rounded bg-slate-900 border border-slate-800">
@@ -1651,21 +2129,52 @@ function EnterpriseApiLogsContent() {
                               </span>
                             )}
                           </div>
-                          <button
-                            onClick={() =>
-                              handleCopy(
-                                typeof logDetail.request_body === "string"
-                                  ? logDetail.request_body
-                                  : JSON.stringify(logDetail.request_body || {}, null, 2),
-                                "req_body_copy"
-                              )
-                            }
-                            className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                          >
-                            <Copy className="w-3 h-3" /> Copy Body
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center bg-slate-950 border border-slate-800 rounded p-0.5 text-[11px]">
+                              <button
+                                onClick={() => setPayloadViewMode("formatted")}
+                                className={`px-2 py-0.5 rounded transition-all ${
+                                  payloadViewMode === "formatted"
+                                    ? "bg-indigo-600 text-white font-semibold"
+                                    : "text-slate-400 hover:text-slate-200"
+                                }`}
+                              >
+                                JSON
+                              </button>
+                              <button
+                                onClick={() => setPayloadViewMode("raw")}
+                                className={`px-2 py-0.5 rounded transition-all ${
+                                  payloadViewMode === "raw"
+                                    ? "bg-indigo-600 text-white font-semibold"
+                                    : "text-slate-400 hover:text-slate-200"
+                                }`}
+                              >
+                                Raw
+                              </button>
+                            </div>
+                            <button
+                              onClick={() =>
+                                handleCopy(
+                                  logDetail.request_body_raw ||
+                                    (typeof logDetail.request_body === "string"
+                                      ? logDetail.request_body
+                                      : JSON.stringify(logDetail.request_body || {}, null, 2)),
+                                  "req_body_copy"
+                                )
+                              }
+                              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                            >
+                              <Copy className="w-3 h-3" /> Copy Body
+                            </button>
+                          </div>
                         </div>
-                        {renderFormattedJson(logDetail.request_body || logDetail.request_body_raw)}
+                        {payloadViewMode === "raw" && logDetail.request_body_raw ? (
+                          <pre className="p-4 bg-slate-950 font-mono text-xs text-slate-200 rounded-lg overflow-x-auto border border-slate-800 leading-relaxed whitespace-pre-wrap max-h-96">
+                            {logDetail.request_body_raw}
+                          </pre>
+                        ) : (
+                          renderFormattedJson(logDetail.request_body || logDetail.request_body_raw)
+                        )}
                       </div>
                     </div>
                   )}
@@ -1728,36 +2237,60 @@ function EnterpriseApiLogsContent() {
                           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                             Response Body Payload
                           </h3>
-                          <button
-                            onClick={() => {
-                              const effPayload =
-                                logDetail.response_body ||
-                                logDetail.response_body_raw ||
-                                (logDetail.http_status >= 400 || logDetail.response_status === "FAILED" || logDetail.error_message || logDetail.stack_trace
-                                  ? {
-                                      status: logDetail.response_status || "FAILED",
-                                      statusCode: logDetail.http_status || 500,
-                                      error: logDetail.error_type || "InternalServerError",
-                                      errorCode: logDetail.error_code || "ERR_500",
-                                      message: logDetail.error_message || logDetail.provider_response_message || "Internal server error occurred during request execution.",
-                                      failureReason: logDetail.failure_reason || "Unhandled Exception",
-                                      endpoint: logDetail.endpoint,
-                                      requestId: logDetail.request_id,
-                                      timestamp: logDetail.response_timestamp || logDetail.timestamp,
-                                      stackTrace: logDetail.stack_trace || "No server stack trace provided."
-                                    }
-                                  : null);
-                              handleCopy(
-                                typeof effPayload === "string"
-                                  ? effPayload
-                                  : JSON.stringify(effPayload || {}, null, 2),
-                                "res_body_copy"
-                              );
-                            }}
-                            className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                          >
-                            <Copy className="w-3 h-3" /> Copy Body
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center bg-slate-950 border border-slate-800 rounded p-0.5 text-[11px]">
+                              <button
+                                onClick={() => setPayloadViewMode("formatted")}
+                                className={`px-2 py-0.5 rounded transition-all ${
+                                  payloadViewMode === "formatted"
+                                    ? "bg-indigo-600 text-white font-semibold"
+                                    : "text-slate-400 hover:text-slate-200"
+                                }`}
+                              >
+                                JSON
+                              </button>
+                              <button
+                                onClick={() => setPayloadViewMode("raw")}
+                                className={`px-2 py-0.5 rounded transition-all ${
+                                  payloadViewMode === "raw"
+                                    ? "bg-indigo-600 text-white font-semibold"
+                                    : "text-slate-400 hover:text-slate-200"
+                                }`}
+                              >
+                                Raw
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const effPayload =
+                                  logDetail.response_body_raw ||
+                                  logDetail.response_body ||
+                                  (logDetail.http_status >= 400 || logDetail.response_status === "FAILED" || logDetail.error_message || logDetail.stack_trace
+                                    ? {
+                                        status: logDetail.response_status || "FAILED",
+                                        statusCode: logDetail.http_status || 500,
+                                        error: logDetail.error_type || "InternalServerError",
+                                        errorCode: logDetail.error_code || "ERR_500",
+                                        message: logDetail.error_message || logDetail.provider_response_message || "Internal server error occurred during request execution.",
+                                        failureReason: logDetail.failure_reason || "Unhandled Exception",
+                                        endpoint: logDetail.endpoint,
+                                        requestId: logDetail.request_id,
+                                        timestamp: logDetail.response_timestamp || logDetail.timestamp,
+                                        stackTrace: logDetail.stack_trace || "No server stack trace provided."
+                                      }
+                                    : null);
+                                handleCopy(
+                                  typeof effPayload === "string"
+                                    ? effPayload
+                                    : JSON.stringify(effPayload || {}, null, 2),
+                                  "res_body_copy"
+                                );
+                              }}
+                              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                            >
+                              <Copy className="w-3 h-3" /> Copy Body
+                            </button>
+                          </div>
                         </div>
 
                         {(logDetail.http_status >= 400 || logDetail.response_status === "FAILED") && (
@@ -1779,26 +2312,32 @@ function EnterpriseApiLogsContent() {
                           </div>
                         )}
 
-                        {(() => {
-                          const effPayload =
-                            logDetail.response_body ||
-                            logDetail.response_body_raw ||
-                            (logDetail.http_status >= 400 || logDetail.response_status === "FAILED" || logDetail.error_message || logDetail.stack_trace
-                              ? {
-                                  status: logDetail.response_status || "FAILED",
-                                  statusCode: logDetail.http_status || 500,
-                                  error: logDetail.error_type || "InternalServerError",
-                                  errorCode: logDetail.error_code || "ERR_500",
-                                  message: logDetail.error_message || logDetail.provider_response_message || "Internal server error occurred during request execution.",
-                                  failureReason: logDetail.failure_reason || "Unhandled Exception",
-                                  endpoint: logDetail.endpoint,
-                                  requestId: logDetail.request_id,
-                                  timestamp: logDetail.response_timestamp || logDetail.timestamp,
-                                  stackTrace: logDetail.stack_trace || "No server stack trace provided."
-                                }
-                              : null);
-                          return renderFormattedJson(effPayload, logDetail.http_status >= 400 || logDetail.response_status === "FAILED");
-                        })()}
+                        {payloadViewMode === "raw" && logDetail.response_body_raw ? (
+                          <pre className="p-4 bg-slate-950 font-mono text-xs text-slate-200 rounded-lg overflow-x-auto border border-slate-800 leading-relaxed whitespace-pre-wrap max-h-96">
+                            {logDetail.response_body_raw}
+                          </pre>
+                        ) : (
+                          (() => {
+                            const effPayload =
+                              logDetail.response_body ||
+                              logDetail.response_body_raw ||
+                              (logDetail.http_status >= 400 || logDetail.response_status === "FAILED" || logDetail.error_message || logDetail.stack_trace
+                                ? {
+                                    status: logDetail.response_status || "FAILED",
+                                    statusCode: logDetail.http_status || 500,
+                                    error: logDetail.error_type || "InternalServerError",
+                                    errorCode: logDetail.error_code || "ERR_500",
+                                    message: logDetail.error_message || logDetail.provider_response_message || "Internal server error occurred during request execution.",
+                                    failureReason: logDetail.failure_reason || "Unhandled Exception",
+                                    endpoint: logDetail.endpoint,
+                                    requestId: logDetail.request_id,
+                                    timestamp: logDetail.response_timestamp || logDetail.timestamp,
+                                    stackTrace: logDetail.stack_trace || "No server stack trace provided."
+                                  }
+                                : null);
+                            return renderFormattedJson(effPayload, logDetail.http_status >= 400 || logDetail.response_status === "FAILED");
+                          })()
+                        )}
                       </div>
                     </div>
                   )}
@@ -1829,6 +2368,13 @@ function EnterpriseApiLogsContent() {
                               <div className="text-xs text-slate-300">
                                 <span className="text-slate-500">Provider Message:</span>{" "}
                                 <span className="font-mono text-amber-300">{logDetail.provider_response_message}</span>
+                              </div>
+                            )}
+
+                            {logDetail.failure_reason && (
+                              <div className="text-xs text-slate-300">
+                                <span className="text-slate-500">Failure Reason:</span>{" "}
+                                <span className="font-mono text-rose-300 font-semibold">{logDetail.failure_reason}</span>
                               </div>
                             )}
 
@@ -1876,10 +2422,10 @@ function EnterpriseApiLogsContent() {
                     <div className="space-y-6">
                       <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
                         <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
-                          End-to-End Payout Transaction Flow
+                          End-to-End Transaction Flow
                         </h4>
                         <p className="text-xs text-slate-400 mt-1">
-                          Sequential lifecycle trace linking the Inbound merchant request with Outbound vendor gateway calls (primary &amp; failovers):{" "}
+                          Sequential lifecycle trace linking the Inbound merchant request with Outbound vendor gateway calls:{" "}
                           <span className="font-mono text-indigo-400 font-semibold">
                             {logDetail.transaction_id || logDetail.correlation_id || "N/A"}
                           </span>
@@ -1897,7 +2443,7 @@ function EnterpriseApiLogsContent() {
                         </div>
                       ) : (
                         <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-800">
-                          {traceSteps.map((step, idx) => {
+                          {traceSteps.map((step) => {
                             const isCurrent = step.log_id === logDetail.log_id;
                             const isStepFailed =
                               step.http_status >= 400 ||

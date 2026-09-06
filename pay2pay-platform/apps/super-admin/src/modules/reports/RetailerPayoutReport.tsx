@@ -2167,27 +2167,33 @@ export const RetailerPayoutReport: React.FC = () => {
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        slotProps={{
-          backdrop: {
-            sx: {
-              bgcolor: "rgba(15, 23, 42, 0.6)",
-              backdropFilter: "blur(6px)",
-            },
+        sx={{
+          zIndex: 1400,
+          "& .MuiBackdrop-root": {
+            zIndex: 1400,
           },
-        }}
-        PaperProps={{
-          sx: {
-            width: { xs: "100%", sm: 540, md: 560 },
+          "& .MuiDrawer-paper": {
+            zIndex: 1401,
+            width: { xs: "100%", sm: 540, md: 580 },
             maxWidth: "100vw",
             bgcolor: "#F8FAFC",
             color: "#0F172A",
             borderLeft: { sm: "1px solid #E2E8F0" },
-            boxShadow: "-8px 0 36px rgba(15, 23, 42, 0.18)",
+            boxShadow: "-8px 0 36px rgba(15, 23, 42, 0.25)",
             p: 0,
             display: "flex",
             flexDirection: "column",
             height: "100%",
             overflow: "hidden",
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              zIndex: 1400,
+              bgcolor: "rgba(15, 23, 42, 0.65)",
+              backdropFilter: "blur(6px)",
+            },
           },
         }}
       >

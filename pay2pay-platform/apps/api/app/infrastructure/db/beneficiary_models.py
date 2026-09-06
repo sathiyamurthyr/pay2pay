@@ -382,3 +382,20 @@ class BeneficiarySessionModel(BaseEntity, EnterpriseBaseMixin):
     trace_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     request_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     session_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+
+from sqlalchemy import event
+from app.core.beneficiary_name_sanitizer import sanitize_beneficiary_name
+
+@event.listens_for(BeneficiaryModel, "before_insert")
+@event.listens_for(BeneficiaryModel, "before_update")
+def _sanitize_beneficiary_full_name(mapper, connection, target):
+    if getattr(target, "full_name", None):
+        target.full_name = sanitize_beneficiary_name(target.full_name)
+
+@event.listens_for(BeneficiaryBankAccountModel, "before_insert")
+@event.listens_for(BeneficiaryBankAccountModel, "before_update")
+def _sanitize_beneficiary_bank_account_holder(mapper, connection, target):
+    if getattr(target, "account_holder_name", None):
+        target.account_holder_name = sanitize_beneficiary_name(target.account_holder_name)
+

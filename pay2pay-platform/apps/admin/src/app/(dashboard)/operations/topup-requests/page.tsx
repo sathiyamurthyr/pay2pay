@@ -2,7 +2,8 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import {
   ArrowLeftRight,
@@ -40,6 +41,7 @@ import {
   ListChecks,
   AlertTriangle,
   Receipt,
+  MinusSquare,
 } from "lucide-react";
 
 interface AdminOperationWallet {
@@ -120,14 +122,14 @@ interface TopupItem {
   };
 }
 
-export function isPosT1Mode(item: TopupItem | null | undefined): boolean {
+function isPosT1Mode(item: TopupItem | null | undefined): boolean {
   if (!item) return false;
   if (item.is_pos_t1 !== undefined) return item.is_pos_t1;
   const mode = (item.payment_mode || item.payment_method || "").toUpperCase().replace(/[\s\-_+]/g, "");
   return mode.includes("T1") || mode === "POST1" || mode === "POS_T1";
 }
 
-export function isPosInstantMode(item: TopupItem | null | undefined): boolean {
+function isPosInstantMode(item: TopupItem | null | undefined): boolean {
   if (!item) return false;
   if (item.is_pos_instant !== undefined) return item.is_pos_instant;
   const mode = (item.payment_mode || item.payment_method || "").toUpperCase().replace(/[\s\-_+]/g, "");
@@ -156,7 +158,11 @@ const REJECTION_PRESETS = [
   "Incorrect Beneficiary Account",
 ];
 
-export default function AdminTopupRequestsPage() {
+function AdminTopupRequestsContent() {
+  const searchParams = useSearchParams();
+  const deepLinkRequestId = searchParams?.get("requestId") || searchParams?.get("id") || searchParams?.get("search");
+  const [deepLinkHandled, setDeepLinkHandled] = useState<boolean>(false);
+
   const [requests, setRequests] = useState<TopupItem[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -356,6 +362,39 @@ export default function AdminTopupRequestsPage() {
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
+
+  // Deep-Link auto-selection & drawer trigger
+  useEffect(() => {
+    if (deepLinkRequestId && !deepLinkHandled) {
+      setSearch(deepLinkRequestId);
+      async function loadDeepLinkRequest() {
+        try {
+          const res = await api.get("/api/v1/topup/requests", {
+            params: { search: deepLinkRequestId, page: 1, page_size: 10 }
+          });
+          if (res.data?.success && res.data.items?.length > 0) {
+            const cleanTarget = (deepLinkRequestId || "").trim().toLowerCase();
+            const matched = res.data.items.find(
+              (it: TopupItem) =>
+                (it.topup_request_id && it.topup_request_id.toLowerCase() === cleanTarget) ||
+                (it.id && it.id.toLowerCase() === cleanTarget) ||
+                (it.payment_reference && it.payment_reference.toLowerCase() === cleanTarget) ||
+                (it.transaction_reference && it.transaction_reference.toLowerCase() === cleanTarget)
+            ) || res.data.items[0];
+
+            if (matched) {
+              setSelectedRequest(matched);
+              setDrawerOpen(true);
+              setDeepLinkHandled(true);
+            }
+          }
+        } catch (err) {
+          console.warn("[TOPUP_DEEP_LINK] Error loading deep-linked request:", err);
+        }
+      }
+      loadDeepLinkRequest();
+    }
+  }, [deepLinkRequestId, deepLinkHandled]);
 
   // Derived Multi-Select collections
   const selectedItems = useMemo(() => {
@@ -2668,5 +2707,20 @@ export default function AdminTopupRequestsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminTopupRequestsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-slate-400 font-bold text-sm">Loading Top-Up Requests Console...</p>
+        </div>
+      }
+    >
+      <AdminTopupRequestsContent />
+    </Suspense>
   );
 }

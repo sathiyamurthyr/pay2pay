@@ -75,6 +75,7 @@ export interface TransactionReportItem {
   raw_service?: string;
   type?: string;
   wallet?: string;
+  entry?: string;
   entry_type?: string;
   cr_dr?: string;
   amount?: number;
@@ -264,8 +265,10 @@ export const RetailerTransactionReport: React.FC = () => {
           let totVol = 0, totCr = 0, totDr = 0, succCount = 0;
           rawItems.forEach((r: any) => {
             const amt = Number(r.amount ?? r.txn_amt ?? 0);
-            const entry = (r.entry_type || r.cr_dr || r.type || "").toUpperCase();
-            const isCredit = entry === "CR" || entry === "CREDIT" || (r.cr_amt || r.cr || 0) > 0;
+            const opBal = Number(r.opening_bal ?? r.pre_bal ?? r.previous_balance ?? 0);
+            const clBal = Number(r.closing_bal ?? r.cls_bal ?? r.current_balance ?? 0);
+            const entry = (r.entry || r.entry_type || r.cr_dr || r.type || "").toUpperCase();
+            const isCredit = entry === "CR" || entry === "CREDIT" || (r.cr_amt || r.cr || 0) > 0 || (clBal > opBal && amt > 0);
             if (isCredit) {
               totCr += (r.cr_amt || r.cr || amt);
             } else {
@@ -368,16 +371,19 @@ export const RetailerTransactionReport: React.FC = () => {
       "Description",
     ];
     const rows = items.map((r) => {
-      const entry = (r.entry_type || r.cr_dr || r.type || "").toUpperCase();
-      const isCr = entry === "CR" || entry === "CREDIT" || (r.cr_amt || r.cr || 0) > 0;
+      const amt = Number(r.amount ?? r.txn_amt ?? 0);
+      const opBal = Number(r.opening_bal ?? r.pre_bal ?? r.previous_balance ?? 0);
+      const clBal = Number(r.closing_bal ?? r.cls_bal ?? r.current_balance ?? 0);
+      const entry = (r.entry || r.entry_type || r.cr_dr || r.type || "").toUpperCase();
+      const isCr = entry === "CR" || entry === "CREDIT" || (r.cr_amt || r.cr || 0) > 0 || (clBal > opBal && amt > 0);
       return [
         r.txn_id,
         r.ref_id || r.client_ref_id || "",
         r.service,
         r.wallet || "MAIN",
-        (r.opening_bal ?? r.pre_bal ?? r.previous_balance ?? 0).toFixed(2),
-        (r.amount ?? r.txn_amt ?? 0).toFixed(2),
-        (r.closing_bal ?? r.cls_bal ?? r.current_balance ?? 0).toFixed(2),
+        opBal.toFixed(2),
+        amt.toFixed(2),
+        clBal.toFixed(2),
         isCr ? "CR" : "DR",
         r.status,
         r.date_time || r.transaction_datetime || r.created_at || "",
@@ -1105,14 +1111,14 @@ export const RetailerTransactionReport: React.FC = () => {
                 ) : (
                   items.map((row, idx) => {
                     const rowKey = row.id || row.txn_id || `txn-${idx}`;
-                    const entry = (row.entry_type || row.cr_dr || row.type || "").toUpperCase();
-                    const isCr = entry === "CR" || entry === "CREDIT" || (row.cr_amt || row.cr || 0) > 0;
-                    const dt = formatDateTime(row.date_time || row.transaction_datetime || row.created_at);
-                    const svc = row.service || "General";
-                    const svcBadge = SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" };
                     const amt = Number(row.amount ?? row.txn_amt ?? 0);
                     const openingBal = Number(row.opening_bal ?? row.pre_bal ?? row.previous_balance ?? 0);
                     const closingBal = Number(row.closing_bal ?? row.cls_bal ?? row.current_balance ?? 0);
+                    const entry = (row.entry || row.entry_type || row.cr_dr || row.type || "").toUpperCase();
+                    const isCr = entry === "CR" || entry === "CREDIT" || (row.cr_amt || row.cr || 0) > 0 || (closingBal > openingBal && amt > 0);
+                    const dt = formatDateTime(row.date_time || row.transaction_datetime || row.created_at);
+                    const svc = row.service || "General";
+                    const svcBadge = SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" };
 
                     return (
                       <TableRow
@@ -1377,15 +1383,15 @@ export const RetailerTransactionReport: React.FC = () => {
           <Stack spacing={1.5}>
             {items.map((row, idx) => {
               const rowKey = row.id || row.txn_id || `card-${idx}`;
-              const entry = (row.entry_type || row.cr_dr || row.type || "").toUpperCase();
-              const isCr = entry === "CR" || entry === "CREDIT" || (row.cr_amt || row.cr || 0) > 0;
+              const amt = Number(row.amount ?? row.txn_amt ?? 0);
+              const openingBal = Number(row.opening_bal ?? row.pre_bal ?? row.previous_balance ?? 0);
+              const closingBal = Number(row.closing_bal ?? row.cls_bal ?? row.current_balance ?? 0);
+              const entry = (row.entry || row.entry_type || row.cr_dr || row.type || "").toUpperCase();
+              const isCr = entry === "CR" || entry === "CREDIT" || (row.cr_amt || row.cr || 0) > 0 || (closingBal > openingBal && amt > 0);
               const dt = formatDateTime(row.date_time || row.transaction_datetime || row.created_at);
               const isExpanded = !!expandedCards[rowKey];
               const svc = row.service || "General";
               const svcBadge = SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" };
-              const amt = Number(row.amount ?? row.txn_amt ?? 0);
-              const openingBal = Number(row.opening_bal ?? row.pre_bal ?? row.previous_balance ?? 0);
-              const closingBal = Number(row.closing_bal ?? row.cls_bal ?? row.current_balance ?? 0);
 
               return (
                 <Paper
@@ -1663,14 +1669,14 @@ export const RetailerTransactionReport: React.FC = () => {
         }}
       >
         {selectedTxn && (() => {
-          const entry = (selectedTxn.entry_type || selectedTxn.cr_dr || selectedTxn.type || "").toUpperCase();
-          const isCr = entry === "CR" || entry === "CREDIT" || (selectedTxn.cr_amt || selectedTxn.cr || 0) > 0;
-          const dt = formatDateTime(selectedTxn.date_time || selectedTxn.transaction_datetime || selectedTxn.created_at);
-          const svc = selectedTxn.service || "General";
-          const svcBadge = SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" };
           const amt = Number(selectedTxn.amount ?? selectedTxn.txn_amt ?? 0);
           const openingBal = Number(selectedTxn.opening_bal ?? selectedTxn.pre_bal ?? selectedTxn.previous_balance ?? 0);
           const closingBal = Number(selectedTxn.closing_bal ?? selectedTxn.cls_bal ?? selectedTxn.current_balance ?? 0);
+          const entry = (selectedTxn.entry || selectedTxn.entry_type || selectedTxn.cr_dr || selectedTxn.type || "").toUpperCase();
+          const isCr = entry === "CR" || entry === "CREDIT" || (selectedTxn.cr_amt || selectedTxn.cr || 0) > 0 || (closingBal > openingBal && amt > 0);
+          const dt = formatDateTime(selectedTxn.date_time || selectedTxn.transaction_datetime || selectedTxn.created_at);
+          const svc = selectedTxn.service || "General";
+          const svcBadge = SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" };
 
           return (
             <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>

@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.dependencies import get_db, get_current_user
+from app.application.dependencies import get_db, get_current_user, get_current_tenant_id
 from app.infrastructure.db.models import AdminUserModel
 from app.application.dtos import APIResponse
 from app.application.beneficiary_verification_dtos import (
@@ -28,12 +28,23 @@ router = APIRouter(prefix="/beneficiaries/verify", tags=["Beneficiary Verificati
 async def verify_beneficiary_account(
     req: BeneficiaryVerifyRequest,
     db: AsyncSession = Depends(get_db),
+    tenant_id: uuid.UUID = Depends(get_current_tenant_id),
     current_user: AdminUserModel = Depends(get_current_user)
 ):
     """
     Execute Banking-grade Beneficiary Account Verification (Penny Drop Engine).
     Wrapped inside ONE Single ACID Database Transaction.
+    retailer_id is injected from the authenticated JWT if not present in the request body.
+    tenant_id is resolved dynamically from JWT / authenticated context.
     """
+    # Inject retailer_id from authenticated user if not provided in request body
+    if req.retailer_id is None:
+        req.retailer_id = getattr(current_user, "public_id", None) or getattr(current_user, "id", None)
+
+    # Inject dynamic tenant_id from JWT or authenticated user
+    if req.tenant_id is None:
+        req.tenant_id = tenant_id or getattr(current_user, "tenant_id", None)
+
     try:
         result: BeneficiaryVerifyResponse = await BeneficiaryVerificationService.verify_beneficiary_account(
             db=db, req=req

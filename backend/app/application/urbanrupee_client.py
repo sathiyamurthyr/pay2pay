@@ -122,6 +122,7 @@ class UrbanRupeeApiClient:
                     vendor_tx_id = res_json.get("transaction_id") or res_json.get("id") or merchant_ref
                     utr = res_json.get("utr") or ""
 
+                    masked_req = {**payload, "token": "******"}
                     if is_status_true:
                         if curr_status == "success" or "settlement completed" in msg.lower() or "success" in msg.lower():
                             return {
@@ -131,7 +132,9 @@ class UrbanRupeeApiClient:
                                 "reference_id": merchant_ref,
                                 "utr": utr,
                                 "message": msg,
-                                "raw_response": res_json
+                                "raw_response": res_json,
+                                "request_payload": masked_req,
+                                "response_payload": res_json,
                             }
                         else:
                             # Accepted / Pending
@@ -142,7 +145,9 @@ class UrbanRupeeApiClient:
                                 "reference_id": merchant_ref,
                                 "utr": utr,
                                 "message": msg,
-                                "raw_response": res_json
+                                "raw_response": res_json,
+                                "request_payload": masked_req,
+                                "response_payload": res_json,
                             }
                     else:
                         # Rejected (e.g. Insufficient balance, invalid account)
@@ -153,10 +158,13 @@ class UrbanRupeeApiClient:
                             "reference_id": merchant_ref,
                             "utr": "",
                             "message": msg,
-                            "raw_response": res_json
+                            "raw_response": res_json,
+                            "request_payload": masked_req,
+                            "response_payload": res_json,
                         }
                 else:
                     err_msg = res_json.get("message") or f"UrbanRupee HTTP {response.status_code} Error"
+                    masked_req = {**payload, "token": "******"}
                     return {
                         "status": "FAILED",
                         "vendor_name": "UrbanRupee",
@@ -164,11 +172,14 @@ class UrbanRupeeApiClient:
                         "reference_id": merchant_ref,
                         "utr": None,
                         "message": err_msg,
-                        "raw_response": res_json
+                        "raw_response": res_json,
+                        "request_payload": masked_req,
+                        "response_payload": res_json,
                     }
 
         except httpx.TimeoutException:
             logger.error(f"[URBANRUPEE INITIATE] Gateway Timeout for orderid {merchant_ref}")
+            masked_req = {**payload, "token": "******"}
             return {
                 "status": "PENDING",
                 "vendor_name": "UrbanRupee",
@@ -176,10 +187,13 @@ class UrbanRupeeApiClient:
                 "reference_id": merchant_ref,
                 "utr": None,
                 "message": "UrbanRupee gateway timeout - request submitted, awaiting callback.",
-                "raw_response": {"error": "Timeout"}
+                "raw_response": {"error": "Timeout"},
+                "request_payload": masked_req,
+                "response_payload": {"error": "Timeout", "status": "PENDING"},
             }
         except Exception as e:
             logger.error(f"[URBANRUPEE INITIATE] Network Exception for {merchant_ref}: {e}")
+            masked_req = {**payload, "token": "******"}
             return {
                 "status": "FAILED",
                 "vendor_name": "UrbanRupee",
@@ -187,7 +201,9 @@ class UrbanRupeeApiClient:
                 "reference_id": merchant_ref,
                 "utr": None,
                 "message": f"Network error connecting to UrbanRupee Payout API: {str(e)}",
-                "raw_response": {"error": str(e)}
+                "raw_response": {"error": str(e)},
+                "request_payload": masked_req,
+                "response_payload": {"error": str(e), "status": "FAILED"},
             }
 
     @classmethod

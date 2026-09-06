@@ -142,24 +142,6 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
         const resData = response.data?.data || response.data;
 
         if (isMounted) {
-          const custMobile = selectedCustomer.mobile || (selectedCustomer as any).mobile_number;
-          const custId = (selectedCustomer as any).public_id || selectedCustomer.id;
-
-          let userAddedList: BeneficiaryData[] = [];
-          try {
-            const storedStr =
-              (custId ? localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`) : null) ||
-              (custMobile ? localStorage.getItem(`pay2pay_user_added_beneficiaries_${custMobile}`) : null);
-            if (storedStr) {
-              const parsed = JSON.parse(storedStr);
-              if (Array.isArray(parsed)) {
-                userAddedList = parsed;
-              }
-            }
-          } catch {
-            // Ignore
-          }
-
           let customerPreloadedList: BeneficiaryData[] = [];
           if (Array.isArray((selectedCustomer as any)?.beneficiaries) && (selectedCustomer as any).beneficiaries.length > 0) {
             customerPreloadedList = (selectedCustomer as any).beneficiaries.map((b: any, index: number) => {
@@ -220,8 +202,8 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
             });
           }
 
-          // Combine and strictly deduplicate beneficiaries
-          const combinedRaw = [...customerPreloadedList, ...userAddedList, ...mapped];
+          // Combine and strictly deduplicate beneficiaries (DB is authoritative source of truth)
+          const combinedRaw = [...customerPreloadedList, ...mapped];
           const dedupedList = deduplicateBeneficiaries(combinedRaw);
 
           // Sort Favourite DESC, Transfer Count DESC
@@ -272,67 +254,10 @@ export function useBeneficiary(selectedCustomer: CustomerData | null) {
           }
         }
       } catch (err: any) {
-        console.warn("Multi-tenant Beneficiary API fetch warning:", err);
+        console.warn("Multi-tenant Beneficiary API fetch error:", err);
         if (isMounted) {
-          const custMobile = selectedCustomer.mobile || (selectedCustomer as any).mobile_number;
-          const custId = (selectedCustomer as any).public_id || selectedCustomer.id;
-
-          let userAddedList: BeneficiaryData[] = [];
-          try {
-            const storedStr =
-              (custId ? localStorage.getItem(`pay2pay_user_added_beneficiaries_${custId}`) : null) ||
-              (custMobile ? localStorage.getItem(`pay2pay_user_added_beneficiaries_${custMobile}`) : null);
-            if (storedStr) {
-              const parsed = JSON.parse(storedStr);
-              if (Array.isArray(parsed)) {
-                userAddedList = parsed;
-              }
-            }
-          } catch {
-            // Ignore
-          }
-
-          const dedupedList = deduplicateBeneficiaries(userAddedList);
-          setBeneficiaries(dedupedList);
-
-          const memorySelected = useTransactionMemoryStore.getState().selectedBeneficiary;
-          const sessionSelectedAcc = typeof window !== "undefined" ? sessionStorage.getItem("selectedBeneficiaryAccount") : null;
-
-          let matchedBene: BeneficiaryData | null = null;
-
-          if (sessionSelectedAcc) {
-            const cleanSessionDigits = sessionSelectedAcc.replace(/\D/g, "");
-            matchedBene = dedupedList.find((b) => {
-              const bDigits = (b.accountNumber || "").replace(/\D/g, "");
-              return (
-                b.accountNumber === sessionSelectedAcc ||
-                (cleanSessionDigits && bDigits === cleanSessionDigits) ||
-                (cleanSessionDigits.length >= 4 && bDigits.slice(-4) === cleanSessionDigits.slice(-4))
-              );
-            }) || null;
-          }
-
-          if (!matchedBene && memorySelected) {
-            const cleanMemDigits = (memorySelected.accountNumber || "").replace(/\D/g, "");
-            matchedBene = dedupedList.find((b) => {
-              const bDigits = (b.accountNumber || "").replace(/\D/g, "");
-              return (
-                b.id === memorySelected.id ||
-                b.accountNumber === memorySelected.accountNumber ||
-                (cleanMemDigits && bDigits === cleanMemDigits) ||
-                (cleanMemDigits.length >= 4 && bDigits.slice(-4) === cleanMemDigits.slice(-4))
-              );
-            }) || null;
-          }
-
-          if (matchedBene) {
-            setSelectedBeneficiary(matchedBene);
-            useTransactionMemoryStore.getState().setSelectedBeneficiary(matchedBene);
-          } else if (dedupedList.length > 0) {
-            setSelectedBeneficiary(dedupedList[0]);
-          } else {
-            setSelectedBeneficiary(null);
-          }
+          setError(err?.message || "Failed to load beneficiaries from server.");
+          setSelectedBeneficiary(null);
         }
       } finally {
         if (isMounted) {

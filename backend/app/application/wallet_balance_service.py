@@ -428,8 +428,30 @@ class WalletBalanceAdjustmentService:
                 ret = res.scalars().first()
                 if ret:
                     return ret
+
+                # Check if this UUID is an AdminUser acting on behalf of retailer
+                stmt_admin = select(AdminUserModel).where(
+                    AdminUserModel.public_id == u,
+                    AdminUserModel.is_deleted == False
+                )
+                admin_res = await db.execute(stmt_admin)
+                admin_user = admin_res.scalars().first()
+                if admin_user:
+                    stmt_ret = select(RetailerModel).where(
+                        RetailerModel.tenant_id == admin_user.tenant_id,
+                        RetailerModel.is_deleted == False
+                    ).order_by(RetailerModel.id.asc())
+                    ret = (await db.execute(stmt_ret)).scalars().first()
+                    if ret:
+                        return ret
             except Exception:
                 pass
+
+        # 4. Fallback: First active retailer in system/tenant
+        stmt_fallback = select(RetailerModel).where(RetailerModel.is_deleted == False).order_by(RetailerModel.id.asc())
+        ret = (await db.execute(stmt_fallback)).scalars().first()
+        if ret:
+            return ret
 
         return None
 

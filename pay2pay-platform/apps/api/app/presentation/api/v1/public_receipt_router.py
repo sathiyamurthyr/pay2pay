@@ -241,7 +241,11 @@ async def get_public_receipt(
                 "beneficiaryAccount": f"Wallet A/C: {ret_code}" if ret_code else "Retailer Primary Wallet",
                 "signature": f"SIG-SHA256-{clean_sig}982A1B7C",
                 "downloadUrl": f"https://receipt.pay2pay.in/r/{clean_token}",
-                "proofSlipUrl": topup_req.slip_url
+                "proofSlipUrl": topup_req.slip_url,
+                "isTopup": True,
+                "receiptType": "TOPUP_REQUEST",
+                "topupRequestId": topup_req.topup_request_id or clean_token,
+                "adminApprovalUrl": f"https://admin.pay2pay.in/operations/topup-requests?requestId={topup_req.topup_request_id or clean_token}"
             }
     except Exception as e:
         logger.warning(f"[PUBLIC_RECEIPT] TopupRequestModel lookup notice: {e}")

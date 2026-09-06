@@ -29,9 +29,22 @@ import {
   Alert,
   Tooltip,
   Collapse,
+  Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControlLabel,
+  Popover,
 } from "@mui/material";
 
 // Icons
+import FilterListIcon from "@mui/icons-material/FilterList";
+import TableRowsIcon from "@mui/icons-material/TableRows";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import SearchIcon from "@mui/icons-material/Search";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -165,6 +178,19 @@ export const RetailerPayoutReport: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [exportAnchorEl, setExportAnchorEl] = useState<HTMLButtonElement | null>(null);
 
+  // New Enterprise Grid Controls
+  const [density, setDensity] = useState<"compact" | "medium" | "comfortable">("medium");
+  const [densityAnchorEl, setDensityAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [columnsAnchorEl, setColumnsAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [customDateOpen, setCustomDateOpen] = useState<boolean>(false);
+  const [customFrom, setCustomFrom] = useState<string>("");
+  const [customTo, setCustomTo] = useState<string>("");
+
   // Toast
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
   const [snackbarMsg, setSnackbarMsg] = useState<string>("");
@@ -288,6 +314,52 @@ export const RetailerPayoutReport: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
+  // Auto-refresh effect (30s)
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const timer = setInterval(() => {
+      fetchData();
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [autoRefresh, fetchData]);
+
+  const toggleColumn = (colKey: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(colKey)) {
+        next.delete(colKey);
+      } else {
+        next.add(colKey);
+      }
+      return next;
+    });
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
+
+  const formatDisplayDateRange = (from: string, to: string, preset: string) => {
+    if (preset === "TODAY") {
+      const d = new Date();
+      return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    }
+    if (preset === "YESTERDAY") {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    }
+    if (!from && !to) return "All Time";
+    return `${from || "Start"} to ${to || "Today"}`;
+  };
+
+
   const openDetailsDrawer = (item: PayoutReportItem) => {
     setSelectedTxn(item);
     setDrawerOpen(true);
@@ -298,26 +370,36 @@ export const RetailerPayoutReport: React.FC = () => {
     const dNow = new Date();
     const today = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, "0")}-${String(dNow.getDate()).padStart(2, "0")}`;
     setPage(0);
-    if (preset === "ALL") {
+    if (preset === "ALL" || preset === "all") {
       setFromDate("");
       setToDate("");
-    } else if (preset === "TODAY") {
+    } else if (preset === "TODAY" || preset === "today") {
       setFromDate(today);
       setToDate(today);
-    } else if (preset === "YESTERDAY") {
+    } else if (preset === "YESTERDAY" || preset === "yesterday") {
       const y = new Date();
       y.setDate(y.getDate() - 1);
       const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
       setFromDate(yStr);
       setToDate(yStr);
-    } else if (preset === "7_DAYS") {
+    } else if (preset === "7D" || preset === "7_DAYS") {
       const d = new Date();
       d.setDate(d.getDate() - 7);
       setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
       setToDate(today);
-    } else if (preset === "30_DAYS") {
+    } else if (preset === "30D" || preset === "30_DAYS") {
       const d = new Date();
       d.setDate(d.getDate() - 30);
+      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+      setToDate(today);
+    } else if (preset === "60D") {
+      const d = new Date();
+      d.setDate(d.getDate() - 60);
+      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+      setToDate(today);
+    } else if (preset === "90D") {
+      const d = new Date();
+      d.setDate(d.getDate() - 90);
       setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
       setToDate(today);
     } else if (preset === "THIS_MONTH") {
@@ -869,8 +951,8 @@ export const RetailerPayoutReport: React.FC = () => {
       sx={{
         width: "100%",
         maxWidth: "100%",
-        bgcolor: "#080B11",
-        color: "#F8FAFC",
+        bgcolor: "transparent",
+        color: "#0F172A",
         pt: { xs: 1, md: 1.5 },
         pb: { xs: 16, md: 6 },
         overflowX: "hidden",
@@ -1148,105 +1230,137 @@ export const RetailerPayoutReport: React.FC = () => {
         </Paper>
       </Box>
 
-      {/* ── 3. DEDICATED GLASS DATE FILTERS BAR ── */}
+      {/* ── 3. ENTERPRISE DATE RANGE BAR ── */}
       <Paper
         elevation={0}
         sx={{
-          p: 1,
-          px: 2,
+          p: 1.2,
+          px: { xs: 1.5, sm: 2 },
           borderRadius: "12px",
           bgcolor: "rgba(15, 23, 42, 0.75)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(254, 240, 138, 0.2)",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
           mb: 2,
           display: "flex",
-          alignItems: "center",
-          gap: 1,
-          overflowX: "auto",
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
+          flexDirection: { xs: "column", lg: "row" },
+          alignItems: { xs: "flex-start", lg: "center" },
+          justifyContent: "space-between",
+          gap: 1.5,
         }}
       >
-        <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px", mr: 1, display: { xs: "none", sm: "block" } }}>
-          Date Range:
-        </Typography>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ overflowX: "auto", maxWidth: "100%", width: "100%", pb: { xs: 0.5, lg: 0 } }}>
+          <Stack direction="row" alignItems="center" spacing={0.8} sx={{ color: "#FBBF24", mr: 1, flexShrink: 0 }}>
+            <CalendarMonthIcon sx={{ fontSize: 18 }} />
+            <Typography sx={{ fontSize: "12.5px", fontWeight: 800, color: "#FBBF24", whiteSpace: "nowrap" }}>
+              Date Range:
+            </Typography>
+          </Stack>
 
-        {[
-          { key: "ALL", label: "All" },
-          { key: "TODAY", label: "Today" },
-          { key: "YESTERDAY", label: "Yesterday" },
-          { key: "7_DAYS", label: "7 Days" },
-          { key: "30_DAYS", label: "30 Days" },
-          { key: "THIS_MONTH", label: "This Month" },
-        ].map((preset) => {
-          const isSelected = activePreset === preset.key;
-          return (
-            <Box
-              key={preset.key}
-              onClick={() => handleDatePreset(preset.key)}
-              sx={{
-                px: 2,
-                py: 0.6,
-                borderRadius: "999px",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                fontSize: "12.5px",
-                fontWeight: isSelected ? 800 : 600,
-                color: isSelected ? "#080B11" : "rgba(255, 255, 255, 0.8)",
-                background: isSelected ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "rgba(255, 255, 255, 0.05)",
-                border: isSelected ? "1px solid #FEF08A" : "1px solid rgba(255, 255, 255, 0.1)",
-                boxShadow: isSelected ? "0 0 15px rgba(245, 158, 11, 0.35)" : "none",
-                transition: "all 0.15s ease-in-out",
-                "&:hover": {
-                  bgcolor: isSelected ? undefined : "rgba(255, 255, 255, 0.12)",
-                  color: isSelected ? "#080B11" : "#FFFFFF",
-                  borderColor: isSelected ? undefined : "rgba(254, 240, 138, 0.3)",
-                },
-              }}
-            >
-              {preset.label}
-            </Box>
-          );
-        })}
+          {[
+            { key: "TODAY", label: "Today" },
+            { key: "YESTERDAY", label: "Yesterday" },
+            { key: "7D", label: "7D" },
+            { key: "30D", label: "30D" },
+            { key: "60D", label: "60D" },
+            { key: "90D", label: "90D" },
+            { key: "ALL", label: "All Time" },
+            { key: "CUSTOM", label: "Custom Range" },
+          ].map((preset) => {
+            const isSelected = activePreset === preset.key;
+            return (
+              <Button
+                key={preset.key}
+                size="small"
+                onClick={() => {
+                  if (preset.key === "CUSTOM") {
+                    setCustomDateOpen(true);
+                  } else {
+                    handleDatePreset(preset.key);
+                  }
+                }}
+                sx={{
+                  px: 1.6,
+                  py: 0.5,
+                  minWidth: "auto",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  fontWeight: isSelected ? 800 : 600,
+                  textTransform: "none",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                  bgcolor: isSelected ? undefined : "rgba(255, 255, 255, 0.05)",
+                  background: isSelected ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
+                  color: isSelected ? "#080B11" : "rgba(255, 255, 255, 0.8)",
+                  border: isSelected ? "1px solid #FEF08A" : "1px solid rgba(255, 255, 255, 0.12)",
+                  boxShadow: isSelected ? "0 0 12px rgba(245, 158, 11, 0.35)" : "none",
+                  "&:hover": {
+                    bgcolor: isSelected ? undefined : "rgba(255, 255, 255, 0.1)",
+                    borderColor: isSelected ? "#FEF08A" : "rgba(254, 240, 138, 0.35)",
+                    color: isSelected ? "#080B11" : "#F8FAFC",
+                  },
+                }}
+              >
+                {preset.label}
+              </Button>
+            );
+          })}
+        </Stack>
+
+        <Typography sx={{ fontSize: "11.5px", color: "rgba(255, 255, 255, 0.65)", fontWeight: 600, flexShrink: 0, whiteSpace: "nowrap" }}>
+          Showing records for <strong style={{ color: "#FDE68A" }}>{formatDisplayDateRange(fromDate, toDate, activePreset)}</strong> ⚡
+        </Typography>
       </Paper>
 
-      {/* ── 4. SEARCH + FILTER TOOLBAR (FULL DESKTOP WORKSPACE) ── */}
+      {/* ── 4. MASTER CONTROLS TOOLBAR ── */}
       <Paper
         elevation={0}
         sx={{
-          p: 1.5,
-          borderRadius: "14px",
+          p: 1.2,
+          px: { xs: 1.5, sm: 2 },
+          borderRadius: "12px",
           bgcolor: "rgba(15, 23, 42, 0.75)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(254, 240, 138, 0.2)",
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
-          mb: 2.5,
+          mb: 2,
+          display: "flex",
+          flexDirection: { xs: "column", lg: "row" },
+          alignItems: { xs: "stretch", lg: "center" },
+          justifyContent: "space-between",
+          gap: 1.5,
         }}
       >
-        <Stack
-          direction={{ xs: "column", lg: "row" }}
-          alignItems={{ xs: "stretch", lg: "center" }}
-          justifyContent="space-between"
-          spacing={1.5}
-        >
-          {/* Search Bar */}
+        {/* Search Input */}
+        <Box sx={{ flex: 1, minWidth: { xs: "100%", lg: "320px" }, maxWidth: { lg: "440px" } }}>
           <TextField
-            placeholder="Search by Transaction ID, UTR, Beneficiary, Customer, Account…"
+            fullWidth
+            size="small"
+            placeholder="Search Serial Number, Mobile, Txn ID, UTR..."
             value={globalSearch}
             onChange={(e) => {
               setGlobalSearch(e.target.value);
               setPage(0);
             }}
-            size="small"
-            sx={{
-              flex: 1,
-              minWidth: { xs: "100%", lg: "300px" },
-              "& .MuiOutlinedInput-root": {
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: "#FBBF24", fontSize: 18 }} />
+                </InputAdornment>
+              ),
+              endAdornment: globalSearch ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setGlobalSearch("")} sx={{ color: "rgba(255,255,255,0.6)" }}>
+                    <ClearIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+              sx: {
                 bgcolor: "rgba(8, 11, 17, 0.85)",
-                borderRadius: "10px",
-                fontSize: "13px",
                 color: "#F8FAFC",
-                height: "40px",
+                borderRadius: "8px",
+                fontSize: "12.5px",
+                height: "38px",
                 border: "1px solid rgba(255, 255, 255, 0.14)",
                 "& fieldset": { border: "none" },
                 "&:hover": { borderColor: "rgba(254, 240, 138, 0.4)" },
@@ -1256,196 +1370,402 @@ export const RetailerPayoutReport: React.FC = () => {
                 },
               },
             }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: "#FBBF24", fontSize: 20 }} />
-                  </InputAdornment>
-                ),
-                endAdornment: globalSearch ? (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setGlobalSearch("")} sx={{ color: "rgba(255,255,255,0.6)" }}>
-                      <ClearIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-              },
-            }}
           />
+        </Box>
 
-          {/* Filters & Action Buttons */}
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            sx={{ flexWrap: "wrap", alignItems: "center", gap: 1 }}
+        {/* Action Controls & Record Count */}
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap", justifyContent: { xs: "flex-start", lg: "flex-end" } }}>
+          {/* Filter */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setFilterAnchorEl(e.currentTarget)}
+            startIcon={<FilterListIcon sx={{ fontSize: 16, color: statusFilter !== "ALL" || paymentModeFilter !== "ALL" ? "#FBBF24" : "rgba(255,255,255,0.7)" }} />}
+            sx={{
+              height: "38px",
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "8px",
+              color: statusFilter !== "ALL" || paymentModeFilter !== "ALL" ? "#FBBF24" : "#F8FAFC",
+              borderColor: statusFilter !== "ALL" || paymentModeFilter !== "ALL" ? "#FBBF24" : "rgba(255, 255, 255, 0.14)",
+              bgcolor: statusFilter !== "ALL" || paymentModeFilter !== "ALL" ? "rgba(245, 158, 11, 0.18)" : "rgba(8, 11, 17, 0.85)",
+              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)" },
+            }}
           >
-            {/* Status Filter */}
-            <FormControl size="small" sx={{ minWidth: 135, flexGrow: { xs: 1, sm: 0 } }}>
-              <Select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(0);
-                }}
-                displayEmpty
-                sx={{
-                  height: "40px",
-                  fontSize: "12.5px",
-                  fontWeight: 600,
-                  bgcolor: "rgba(8, 11, 17, 0.85)",
-                  color: "#F8FAFC",
-                  borderRadius: "8px",
-                  border: "1px solid rgba(255, 255, 255, 0.14)",
-                  "& fieldset": { border: "none" },
-                  "& .MuiSvgIcon-root": { color: "#FBBF24" },
-                }}
-              >
-                <MenuItem value="ALL" sx={{ fontSize: "12.5px" }}>All Statuses</MenuItem>
-                <MenuItem value="SUCCESS" sx={{ fontSize: "12.5px", color: "#34D399" }}>Success</MenuItem>
-                <MenuItem value="PENDING" sx={{ fontSize: "12.5px", color: "#FBBF24" }}>Pending</MenuItem>
-                <MenuItem value="FAILED" sx={{ fontSize: "12.5px", color: "#F87171" }}>Failed</MenuItem>
-                <MenuItem value="REVERSED" sx={{ fontSize: "12.5px", color: "#A78BFA" }}>Reversed</MenuItem>
-              </Select>
-            </FormControl>
+            Filter {statusFilter !== "ALL" || paymentModeFilter !== "ALL" ? "•" : ""}
+          </Button>
 
-            {/* Payment Mode Filter */}
-            <FormControl size="small" sx={{ minWidth: 130, flexGrow: { xs: 1, sm: 0 } }}>
-              <Select
-                value={paymentModeFilter}
-                onChange={(e) => {
-                  setPaymentModeFilter(e.target.value);
-                  setPage(0);
-                }}
-                displayEmpty
-                sx={{
-                  height: "40px",
-                  fontSize: "12.5px",
-                  fontWeight: 600,
-                  bgcolor: "rgba(8, 11, 17, 0.85)",
-                  color: "#F8FAFC",
-                  borderRadius: "8px",
-                  border: "1px solid rgba(255, 255, 255, 0.14)",
-                  "& fieldset": { border: "none" },
-                  "& .MuiSvgIcon-root": { color: "#FBBF24" },
-                }}
-              >
-                <MenuItem value="ALL" sx={{ fontSize: "12.5px" }}>All Modes</MenuItem>
-                <MenuItem value="IMPS" sx={{ fontSize: "12.5px" }}>IMPS</MenuItem>
-                <MenuItem value="NEFT" sx={{ fontSize: "12.5px" }}>NEFT</MenuItem>
-                <MenuItem value="RTGS" sx={{ fontSize: "12.5px" }}>RTGS</MenuItem>
-                <MenuItem value="UPI" sx={{ fontSize: "12.5px" }}>UPI</MenuItem>
-              </Select>
-            </FormControl>
+          {/* Density */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setDensityAnchorEl(e.currentTarget)}
+            startIcon={<TableRowsIcon sx={{ fontSize: 16, color: "#FBBF24" }} />}
+            sx={{
+              height: "38px",
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "8px",
+              color: "#F8FAFC",
+              borderColor: "rgba(255, 255, 255, 0.14)",
+              bgcolor: "rgba(8, 11, 17, 0.85)",
+              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)" },
+            }}
+          >
+            {density === "compact" ? "Compact" : density === "comfortable" ? "Comfortable" : "Medium"}
+          </Button>
 
-            {/* Reset Filters */}
-            <Button
-              variant="outlined"
+          {/* Columns */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setColumnsAnchorEl(e.currentTarget)}
+            startIcon={<ViewColumnIcon sx={{ fontSize: 16, color: "#FBBF24" }} />}
+            sx={{
+              height: "38px",
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "8px",
+              color: "#F8FAFC",
+              borderColor: "rgba(255, 255, 255, 0.14)",
+              bgcolor: "rgba(8, 11, 17, 0.85)",
+              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)" },
+            }}
+          >
+            Columns
+          </Button>
+
+          {/* Export */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => setExportAnchorEl(e.currentTarget)}
+            startIcon={<FileDownloadIcon sx={{ fontSize: 16, color: "#FBBF24" }} />}
+            endIcon={<ArrowDropDownIcon sx={{ fontSize: 16, color: "rgba(255,255,255,0.7)" }} />}
+            sx={{
+              height: "38px",
+              fontSize: "12px",
+              fontWeight: 700,
+              textTransform: "none",
+              borderRadius: "8px",
+              color: "#F8FAFC",
+              borderColor: "rgba(255, 255, 255, 0.14)",
+              bgcolor: "rgba(8, 11, 17, 0.85)",
+              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)" },
+            }}
+          >
+            Export
+          </Button>
+
+          {/* Refresh */}
+          <Tooltip title="Refresh Data">
+            <IconButton
               size="small"
-              onClick={handleResetFilters}
-              startIcon={<RestartAltIcon sx={{ fontSize: 16 }} />}
+              onClick={() => {
+                setIsRefreshing(true);
+                fetchData();
+              }}
+              disabled={isLoading || isRefreshing}
               sx={{
-                height: "40px",
-                px: 1.8,
-                fontSize: "12px",
-                fontWeight: 700,
-                textTransform: "none",
+                width: 38,
+                height: 38,
                 borderRadius: "8px",
-                color: "#F87171",
-                borderColor: "rgba(239, 68, 68, 0.35)",
-                bgcolor: "rgba(239, 68, 68, 0.08)",
-                "&:hover": {
-                  borderColor: "#EF4444",
-                  bgcolor: "rgba(239, 68, 68, 0.18)",
-                },
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                bgcolor: "rgba(8, 11, 17, 0.85)",
+                color: "#FBBF24",
+                "&:hover": { bgcolor: "rgba(245, 158, 11, 0.15)", borderColor: "rgba(254, 240, 138, 0.35)" },
               }}
             >
-              Reset
-            </Button>
+              <RefreshIcon sx={{ fontSize: 18, animation: isRefreshing || isLoading ? "spin 0.8s linear infinite" : "none" }} />
+            </IconButton>
+          </Tooltip>
 
-            {/* Refresh */}
-            <Tooltip title="Refresh Payouts">
-              <IconButton
-                onClick={() => {
-                  setIsRefreshing(true);
-                  fetchData();
-                }}
-                disabled={isLoading || isRefreshing}
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "8px",
-                  bgcolor: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                  color: "#FBBF24",
-                  "&:hover": { bgcolor: "rgba(245, 158, 11, 0.15)", borderColor: "rgba(254, 240, 138, 0.35)" },
-                }}
-              >
-                <RefreshIcon
-                  sx={{
-                    fontSize: 18,
-                    animation: isRefreshing || isLoading ? "spin 0.8s linear infinite" : "none",
-                    "@keyframes spin": { "0%": { transform: "rotate(0deg)" }, "100%": { transform: "rotate(360deg)" } },
-                  }}
-                />
-              </IconButton>
-            </Tooltip>
-
-            {/* Primary Gold Export Button */}
-            <Button
-              variant="contained"
+          {/* Auto Refresh */}
+          <Tooltip title={autoRefresh ? "Auto-refresh active (every 30s)" : "Enable auto-refresh (30s)"}>
+            <IconButton
               size="small"
-              onClick={(e) => setExportAnchorEl(e.currentTarget)}
-              startIcon={<FileDownloadIcon sx={{ fontSize: 18 }} />}
-              endIcon={<ArrowDropDownIcon sx={{ fontSize: 18 }} />}
+              onClick={() => setAutoRefresh(!autoRefresh)}
               sx={{
-                height: "40px",
-                px: 2.2,
-                fontSize: "13px",
-                fontWeight: 800,
-                textTransform: "none",
+                width: 38,
+                height: 38,
                 borderRadius: "8px",
-                color: "#080B11",
-                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
-                boxShadow: "0 0 16px rgba(245, 158, 11, 0.3)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #FFFBEB 0%, #FDE047 50%, #F59E0B 100%)",
-                  boxShadow: "0 0 24px rgba(245, 158, 11, 0.5)",
-                },
+                border: autoRefresh ? "1px solid #FBBF24" : "1px solid rgba(255, 255, 255, 0.14)",
+                bgcolor: autoRefresh ? "rgba(245, 158, 11, 0.2)" : "rgba(8, 11, 17, 0.85)",
+                color: autoRefresh ? "#FBBF24" : "rgba(255, 255, 255, 0.6)",
+                "&:hover": { bgcolor: "rgba(245, 158, 11, 0.15)", borderColor: "rgba(254, 240, 138, 0.35)" },
               }}
             >
-              Export
-            </Button>
+              <AccessTimeIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
 
-            <Menu
-              anchorEl={exportAnchorEl}
-              open={Boolean(exportAnchorEl)}
-              onClose={() => setExportAnchorEl(null)}
-              slotProps={{
-                paper: {
-                  sx: {
-                    bgcolor: "#0F172A",
-                    border: "1px solid rgba(254, 240, 138, 0.25)",
-                    borderRadius: "10px",
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
-                  },
-                },
+          {/* Fullscreen */}
+          <Tooltip title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+            <IconButton
+              size="small"
+              onClick={toggleFullscreen}
+              sx={{
+                width: 38,
+                height: 38,
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                bgcolor: "rgba(8, 11, 17, 0.85)",
+                color: "rgba(255, 255, 255, 0.6)",
+                "&:hover": { bgcolor: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(254, 240, 138, 0.35)", color: "#F8FAFC" },
               }}
             >
-              <MenuItem onClick={handleExportCsv} sx={{ fontSize: "12.5px", color: "#F8FAFC", gap: 1.5, py: 1, px: 2 }}>
-                <TableChartIcon sx={{ fontSize: 17, color: "#34D399" }} />
-                Export to CSV / Excel
-              </MenuItem>
-              <MenuItem onClick={handleExportPdf} sx={{ fontSize: "12.5px", color: "#F8FAFC", gap: 1.5, py: 1, px: 2 }}>
-                <PrintIcon sx={{ fontSize: 17, color: "#60A5FA" }} />
-                Print / Save as PDF
-              </MenuItem>
-            </Menu>
-          </Stack>
+              {isFullscreen ? <FullscreenExitIcon sx={{ fontSize: 18 }} /> : <FullscreenIcon sx={{ fontSize: 18 }} />}
+            </IconButton>
+          </Tooltip>
+
+          {/* Record Count */}
+          <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.65)", fontWeight: 700, pl: 1, whiteSpace: "nowrap" }}>
+            Showing <strong style={{ color: "#F8FAFC" }}>{totalRecords}</strong> records
+          </Typography>
         </Stack>
       </Paper>
 
-      {/* ── 5. PROFESSIONAL ENTERPRISE DATA TABLE (DESKTOP >= 900PX) ── */}
+      {/* Density Menu */}
+      <Menu
+        anchorEl={densityAnchorEl}
+        open={Boolean(densityAnchorEl)}
+        onClose={() => setDensityAnchorEl(null)}
+        slotProps={{ paper: { sx: { borderRadius: "10px", width: 150, p: 0.5, bgcolor: "#0F172A", border: "1px solid rgba(254, 240, 138, 0.25)", color: "#F8FAFC" } } }}
+      >
+        <MenuItem onClick={() => { setDensity("compact"); setDensityAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: density === "compact" ? 800 : 500, color: density === "compact" ? "#FBBF24" : "#F8FAFC" }}>
+          Compact
+        </MenuItem>
+        <MenuItem onClick={() => { setDensity("medium"); setDensityAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: density === "medium" ? 800 : 500, color: density === "medium" ? "#FBBF24" : "#F8FAFC" }}>
+          Medium
+        </MenuItem>
+        <MenuItem onClick={() => { setDensity("comfortable"); setDensityAnchorEl(null); }} sx={{ fontSize: "12px", fontWeight: density === "comfortable" ? 800 : 500, color: density === "comfortable" ? "#FBBF24" : "#F8FAFC" }}>
+          Comfortable
+        </MenuItem>
+      </Menu>
+
+      {/* Columns Chooser Menu */}
+      <Menu
+        anchorEl={columnsAnchorEl}
+        open={Boolean(columnsAnchorEl)}
+        onClose={() => setColumnsAnchorEl(null)}
+        slotProps={{ paper: { sx: { borderRadius: "10px", width: 220, p: 1, bgcolor: "#0F172A", border: "1px solid rgba(254, 240, 138, 0.25)", maxHeight: 360, color: "#F8FAFC" } } }}
+      >
+        <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", px: 1, mb: 0.5 }}>
+          Toggle Columns
+        </Typography>
+        <Divider sx={{ my: 0.5, borderColor: "rgba(255, 255, 255, 0.08)" }} />
+        {[
+          { id: "s_no", label: "S.No" },
+          { id: "txn_id", label: "Txn ID & Ref ID" },
+          { id: "amount", label: "Amount" },
+          { id: "tax", label: "Tax & Charges" },
+          { id: "net_amount", label: "Net Amount" },
+          { id: "bene_name", label: "Bene Name" },
+          { id: "account", label: "Account & Bank" },
+          { id: "utr", label: "UTR" },
+          { id: "status", label: "Status" },
+          { id: "retailer", label: "Retailer Name" },
+          { id: "date_time", label: "Date & Time" },
+        ].map((col) => (
+          <MenuItem
+            key={col.id}
+            onClick={() => toggleColumn(col.id)}
+            sx={{ fontSize: "12px", py: 0.5, px: 1, display: "flex", alignItems: "center", gap: 1, color: "#F8FAFC" }}
+          >
+            <Checkbox size="small" checked={!hiddenColumns.has(col.id)} sx={{ p: 0.2, color: "rgba(255,255,255,0.4)", "&.Mui-checked": { color: "#FBBF24" } }} />
+            <Typography sx={{ fontSize: "12px", fontWeight: !hiddenColumns.has(col.id) ? 700 : 400, color: "#F8FAFC" }}>
+              {col.label}
+            </Typography>
+          </MenuItem>
+        ))}
+      </Menu>
+
+      {/* Filter Popover */}
+      <Popover
+        anchorEl={filterAnchorEl}
+        open={Boolean(filterAnchorEl)}
+        onClose={() => setFilterAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        slotProps={{ paper: { sx: { borderRadius: "12px", width: 280, p: 2, bgcolor: "#0F172A", border: "1px solid rgba(254, 240, 138, 0.25)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", color: "#F8FAFC" } } }}
+      >
+        <Typography sx={{ fontSize: "13px", fontWeight: 800, color: "#F8FAFC", mb: 1.5 }}>
+          Filter Payout Records
+        </Typography>
+        <Stack spacing={1.5}>
+          <Box>
+            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FBBF24", mb: 0.5 }}>STATUS</Typography>
+            <FormControl fullWidth size="small">
+              <Select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+                sx={{
+                  height: 36,
+                  fontSize: "12px",
+                  bgcolor: "rgba(8, 11, 17, 0.85)",
+                  color: "#F8FAFC",
+                  border: "1px solid rgba(255, 255, 255, 0.14)",
+                  "& fieldset": { border: "none" },
+                  "& .MuiSvgIcon-root": { color: "#FBBF24" },
+                }}
+              >
+                <MenuItem value="ALL" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>All Statuses</MenuItem>
+                <MenuItem value="SUCCESS" sx={{ bgcolor: "#0F172A", color: "#34D399" }}>Success</MenuItem>
+                <MenuItem value="PENDING" sx={{ bgcolor: "#0F172A", color: "#FBBF24" }}>Pending</MenuItem>
+                <MenuItem value="FAILED" sx={{ bgcolor: "#0F172A", color: "#F87171" }}>Failed</MenuItem>
+                <MenuItem value="REVERSED" sx={{ bgcolor: "#0F172A", color: "#C084FC" }}>Reversed</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#FBBF24", mb: 0.5 }}>PAYMENT MODE</Typography>
+            <FormControl fullWidth size="small">
+              <Select
+                value={paymentModeFilter}
+                onChange={(e) => { setPaymentModeFilter(e.target.value); setPage(0); }}
+                sx={{
+                  height: 36,
+                  fontSize: "12px",
+                  bgcolor: "rgba(8, 11, 17, 0.85)",
+                  color: "#F8FAFC",
+                  border: "1px solid rgba(255, 255, 255, 0.14)",
+                  "& fieldset": { border: "none" },
+                  "& .MuiSvgIcon-root": { color: "#FBBF24" },
+                }}
+              >
+                <MenuItem value="ALL" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>All Modes</MenuItem>
+                <MenuItem value="IMPS" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>IMPS</MenuItem>
+                <MenuItem value="NEFT" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>NEFT</MenuItem>
+                <MenuItem value="RTGS" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>RTGS</MenuItem>
+                <MenuItem value="UPI" sx={{ bgcolor: "#0F172A", color: "#F8FAFC" }}>UPI</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => { handleResetFilters(); setFilterAnchorEl(null); }}
+            sx={{
+              textTransform: "none",
+              fontSize: "11.5px",
+              fontWeight: 700,
+              mt: 0.5,
+              color: "#F87171",
+              borderColor: "rgba(239, 68, 68, 0.35)",
+              bgcolor: "rgba(239, 68, 68, 0.08)",
+              "&:hover": { borderColor: "#EF4444", bgcolor: "rgba(239, 68, 68, 0.18)" },
+            }}
+          >
+            Reset Filters
+          </Button>
+        </Stack>
+      </Popover>
+
+      {/* Custom Date Range Dialog */}
+      <Dialog
+        open={customDateOpen}
+        onClose={() => setCustomDateOpen(false)}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "14px",
+              p: 1,
+              width: 340,
+              bgcolor: "#0F172A",
+              border: "1px solid rgba(254, 240, 138, 0.25)",
+              color: "#F8FAFC",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.7)",
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontSize: "15px", color: "#F8FAFC" }}>Select Custom Date Range</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: "8px !important" }}>
+          <TextField
+            label="From Date"
+            type="date"
+            size="small"
+            InputLabelProps={{ shrink: true, sx: { color: "rgba(255,255,255,0.7)" } }}
+            value={customFrom}
+            onChange={(e) => setCustomFrom(e.target.value)}
+            InputProps={{
+              sx: {
+                bgcolor: "rgba(8, 11, 17, 0.85)",
+                color: "#F8FAFC",
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                "& fieldset": { border: "none" },
+              },
+            }}
+          />
+          <TextField
+            label="To Date"
+            type="date"
+            size="small"
+            InputLabelProps={{ shrink: true, sx: { color: "rgba(255,255,255,0.7)" } }}
+            value={customTo}
+            onChange={(e) => setCustomTo(e.target.value)}
+            InputProps={{
+              sx: {
+                bgcolor: "rgba(8, 11, 17, 0.85)",
+                color: "#F8FAFC",
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                "& fieldset": { border: "none" },
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button onClick={() => setCustomDateOpen(false)} sx={{ textTransform: "none", color: "rgba(255,255,255,0.7)" }}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (customFrom) setFromDate(customFrom);
+              if (customTo) setToDate(customTo);
+              setActivePreset("CUSTOM");
+              setCustomDateOpen(false);
+              setPage(0);
+            }}
+            sx={{
+              background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+              color: "#080B11",
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            Apply Range
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Export Dropdown Menu */}
+      <Menu
+        anchorEl={exportAnchorEl}
+        open={Boolean(exportAnchorEl)}
+        onClose={() => setExportAnchorEl(null)}
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: "#0F172A",
+              border: "1px solid rgba(254, 240, 138, 0.25)",
+              borderRadius: "10px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
+            },
+          },
+        }}
+      >
+        <MenuItem onClick={() => { handleExportCsv(); setExportAnchorEl(null); }} sx={{ fontSize: "12.5px", color: "#F8FAFC", gap: 1.5, py: 1, px: 2 }}>
+          <TableChartIcon sx={{ fontSize: 17, color: "#34D399" }} />
+          Export to CSV / Excel
+        </MenuItem>
+        <MenuItem onClick={() => { handleExportPdf(); setExportAnchorEl(null); }} sx={{ fontSize: "12.5px", color: "#F8FAFC", gap: 1.5, py: 1, px: 2 }}>
+          <PrintIcon sx={{ fontSize: 17, color: "#60A5FA" }} />
+          Print / Save as PDF
+        </MenuItem>
+      </Menu>
+
+      {/* ── 5. PROFESSIONAL ENTERPRISE DATA TABLE ── */}
       <Box sx={{ display: { xs: "none", md: "block" } }}>
         <Paper
           elevation={0}
@@ -1462,33 +1782,83 @@ export const RetailerPayoutReport: React.FC = () => {
           <TableContainer sx={{ overflowX: "auto" }}>
             <Table sx={{ minWidth: 1050, tableLayout: "auto" }}>
               <TableHead>
-                <TableRow sx={{ bgcolor: "#0A0E17" }}>
-                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap", py: 1.4, px: 2, minWidth: 180 }}>
-                    TXN ID / UTR
+                <TableRow sx={{ bgcolor: "#0A0E17", borderBottom: "1px solid rgba(254, 240, 138, 0.2)" }}>
+                  <TableCell padding="checkbox" sx={{ py: 1.2, pl: 2, borderBottom: "1px solid rgba(254, 240, 138, 0.2)" }}>
+                    <Checkbox
+                      size="small"
+                      checked={items.length > 0 && selectedIds.size === items.length}
+                      indeterminate={selectedIds.size > 0 && selectedIds.size < items.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(new Set(items.map((_, i) => String(i))));
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                      sx={{
+                        color: "rgba(255, 255, 255, 0.4)",
+                        "&.Mui-checked": { color: "#FBBF24" },
+                        "&.MuiCheckbox-indeterminate": { color: "#FBBF24" },
+                      }}
+                    />
                   </TableCell>
-                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap", py: 1.4, px: 1.5, minWidth: 140 }}>
-                    BENEFICIARY
-                  </TableCell>
-                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap", py: 1.4, px: 1.5, minWidth: 110 }}>
-                    MODE / ACC
-                  </TableCell>
-                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap", py: 1.4, px: 1.5, minWidth: 115 }}>
-                    AMOUNT
-                  </TableCell>
-                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap", py: 1.4, px: 1.5, minWidth: 110 }}>
-                    FEE &amp; GST
-                  </TableCell>
-                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap", py: 1.4, px: 1.5, minWidth: 115 }}>
-                    TOTAL DEBIT
-                  </TableCell>
-                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap", py: 1.4, px: 1.5, minWidth: 100 }}>
-                    STATUS
-                  </TableCell>
-                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap", py: 1.4, px: 1.5, minWidth: 125 }}>
-                    DATE &amp; TIME
-                  </TableCell>
-                  <TableCell align="center" sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap", py: 1.4, px: 1.5, minWidth: 80 }}>
-                    ACTIONS
+                  {!hiddenColumns.has("s_no") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      S.NO
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("txn_id") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      TXN ID &amp; REF ID ⇅
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("amount") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      AMOUNT (₹) ⇅
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("tax") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      TAX &amp; CHARGES
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("net_amount") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      NET AMOUNT (₹) ⇅
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("bene_name") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      BENE NAME
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("account") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      ACCOUNT &amp; BANK
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("utr") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      UTR ⇅
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("status") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      STATUS ⇅
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("retailer") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      RETAILER NAME
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("date_time") && (
+                    <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                      DATE &amp; TIME ⇅
+                    </TableCell>
+                  )}
+                  <TableCell sx={{ color: "#FBBF24", fontWeight: 800, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", py: 1.4, pr: 2, textAlign: "right", borderBottom: "1px solid rgba(254, 240, 138, 0.2)", whiteSpace: "nowrap" }}>
+                    ACTION
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -1496,15 +1866,15 @@ export const RetailerPayoutReport: React.FC = () => {
                 {isLoading ? (
                   [1, 2, 3, 4, 5].map((n) => (
                     <TableRow key={n}>
-                      <TableCell colSpan={9} sx={{ py: 2, borderColor: "rgba(255,255,255,0.06)" }}>
-                        <Skeleton variant="text" height={24} sx={{ bgcolor: "rgba(255,255,255,0.06)", borderRadius: "4px" }} />
+                      <TableCell colSpan={13} sx={{ py: 2.5, borderColor: "rgba(255,255,255,0.06)" }}>
+                        <Skeleton variant="text" height={26} sx={{ bgcolor: "rgba(255,255,255,0.06)", borderRadius: "4px" }} />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center" sx={{ py: 6, borderColor: "rgba(255,255,255,0.06)" }}>
-                      <SendIcon sx={{ fontSize: 40, color: "rgba(254, 240, 138, 0.3)", mb: 1 }} />
+                    <TableCell colSpan={13} align="center" sx={{ py: 8, borderColor: "rgba(255,255,255,0.06)" }}>
+                      <SendIcon sx={{ fontSize: 44, color: "rgba(254, 240, 138, 0.3)", mb: 1 }} />
                       <Typography sx={{ fontWeight: 800, fontSize: "15px", color: "#F8FAFC" }}>
                         No Payout Records Found
                       </Typography>
@@ -1515,198 +1885,245 @@ export const RetailerPayoutReport: React.FC = () => {
                   </TableRow>
                 ) : (
                   items.map((row, idx) => {
+                    const isRowSelected = selectedIds.has(String(idx));
+                    const sNo = page * rowsPerPage + idx + 1;
                     const txnId = row.txn_id || row.transaction_number || row.transaction_id || `PO-${idx + 1}`;
-                    const utr = row.utr || row.utr_number || "--";
-                    const beneName = row.beneficiary || row.beneficiary_name || "Beneficiary";
-                    const bankName = row.bank || row.bank_name || "";
-                    const accNo = row.account || row.ac_no || row.account_number || "--";
-                    const mode = row.mode || row.payment_mode || "IMPS";
+                    const refId = row.reference_id || "--";
                     const amt = Number(row.amount ?? row.amt ?? row.transfer_amount ?? 0);
                     const fee = Number(row.charge ?? row.fee ?? row.convenience_fee ?? 0);
                     const gst = Number(row.gst ?? row.tax ?? row.gst_amount ?? 0);
                     const totalDebit = Number(row.debit ?? row.wallet_debit ?? (amt + fee + gst));
                     const dt = formatDateTime(row.date_time || row.initiated_at);
                     const status = (row.status || "SUCCESS").toUpperCase();
+                    const beneName = row.beneficiary || row.beneficiary_name || "Beneficiary";
+                    const accNo = row.account || row.ac_no || row.account_number || "--";
+                    const bankName = row.bank || row.bank_name || "--";
+                    const utr = row.utr || row.utr_number || "--";
+                    const retailerName = row.retailer || outlet?.name || "Retailer Store";
+
+                    const pyVal = density === "compact" ? 0.8 : density === "comfortable" ? 2.0 : 1.4;
 
                     return (
                       <TableRow
-                        key={txnId}
+                        key={idx}
                         hover
-                        onClick={() => openDetailsDrawer(row)}
+                        selected={isRowSelected}
                         sx={{
                           cursor: "pointer",
                           transition: "all 0.15s ease",
-                          "&:hover": {
-                            bgcolor: "rgba(254, 240, 138, 0.04) !important",
-                          },
-                          "& td": { borderColor: "rgba(255,255,255,0.06)", py: 1.2 },
+                          "&:hover": { bgcolor: "rgba(254, 240, 138, 0.04) !important" },
+                          "&.Mui-selected": { bgcolor: "rgba(245, 158, 11, 0.12) !important" },
+                          "& td": { borderColor: "rgba(255, 255, 255, 0.06)", py: pyVal },
                         }}
+                        onClick={() => openDetailsDrawer(row)}
                       >
-                        {/* 1. Txn ID / UTR */}
-                        <TableCell sx={{ px: 2 }}>
-                          <Stack direction="row" alignItems="center" spacing={0.6}>
-                            <Typography
-                              sx={{
-                                fontSize: "12px",
-                                fontWeight: 700,
-                                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                                color: "#FBBF24",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {txnId}
-                            </Typography>
-                            <Tooltip title="Copy TXN ID">
+                        <TableCell padding="checkbox" sx={{ py: pyVal, pl: 2, borderBottom: "1px solid rgba(255,255,255,0.06)" }} onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            size="small"
+                            checked={isRowSelected}
+                            onChange={(e) => {
+                              const next = new Set(selectedIds);
+                              if (e.target.checked) next.add(String(idx));
+                              else next.delete(String(idx));
+                              setSelectedIds(next);
+                            }}
+                            sx={{
+                              color: "rgba(255, 255, 255, 0.4)",
+                              "&.Mui-checked": { color: "#FBBF24" },
+                            }}
+                          />
+                        </TableCell>
+
+                        {/* S.NO */}
+                        {!hiddenColumns.has("s_no") && (
+                          <TableCell sx={{ py: pyVal, color: "rgba(255, 255, 255, 0.65)", fontWeight: 700, fontSize: "12px", fontFamily: "monospace", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                            {sNo}
+                          </TableCell>
+                        )}
+
+                        {/* TXN ID & REF ID */}
+                        {!hiddenColumns.has("txn_id") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                            <Stack direction="row" alignItems="center" spacing={0.6}>
+                              <Typography sx={{ fontWeight: 800, fontSize: "12.5px", color: "#FBBF24", fontFamily: "monospace", whiteSpace: "nowrap" }}>
+                                {txnId}
+                              </Typography>
                               <IconButton
                                 size="small"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  copyToClipboard(txnId, "TXN ID");
+                                  copyToClipboard(txnId, "Transaction ID");
                                 }}
-                                sx={{ p: 0.2, color: "rgba(254, 240, 138, 0.6)" }}
+                                sx={{ p: 0.2, color: "rgba(254, 240, 138, 0.6)", "&:hover": { color: "#FEF08A" } }}
                               >
                                 <ContentCopyIcon sx={{ fontSize: 13 }} />
                               </IconButton>
-                            </Tooltip>
-                          </Stack>
-                          {utr !== "--" && (
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontSize: "10.5px",
-                                color: "#94A3B8",
-                                display: "block",
-                                maxWidth: 180,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              UTR: {utr}
-                            </Typography>
-                          )}
-                        </TableCell>
+                            </Stack>
+                            {refId !== "--" && (
+                              <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "11px", display: "block" }}>
+                                Ref: {refId}
+                              </Typography>
+                            )}
+                          </TableCell>
+                        )}
 
-                        {/* 2. Beneficiary */}
-                        <TableCell sx={{ px: 1.5, whiteSpace: "nowrap" }}>
-                          <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#F8FAFC" }}>
-                            {beneName}
-                          </Typography>
-                          {bankName && (
-                            <Typography variant="caption" sx={{ fontSize: "10.5px", color: "#94A3B8" }}>
+                        {/* AMOUNT (₹) */}
+                        {!hiddenColumns.has("amount") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontWeight: 900, fontSize: "13px", color: "#F8FAFC" }}>
+                              ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </Typography>
+                          </TableCell>
+                        )}
+
+                        {/* TAX & CHARGES */}
+                        {!hiddenColumns.has("tax") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontWeight: 600, fontSize: "12px", color: "rgba(255, 255, 255, 0.85)" }}>
+                              ₹{(fee + gst).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "10.5px", display: "block" }}>
+                              Fee: ₹{fee.toFixed(2)} · GST: ₹{gst.toFixed(2)}
+                            </Typography>
+                          </TableCell>
+                        )}
+
+                        {/* NET AMOUNT (₹) / WALLET DEBIT */}
+                        {!hiddenColumns.has("net_amount") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontWeight: 800, fontSize: "13px", color: "#FBBF24" }}>
+                              ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </Typography>
+                          </TableCell>
+                        )}
+
+                        {/* BENE NAME */}
+                        {!hiddenColumns.has("bene_name") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontWeight: 700, fontSize: "12.5px", color: "#F8FAFC" }}>
+                              {beneName}
+                            </Typography>
+                          </TableCell>
+                        )}
+
+                        {/* ACCOUNT & BANK */}
+                        {!hiddenColumns.has("account") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "#F8FAFC", fontFamily: "monospace" }}>
+                              {accNo}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px", display: "block" }}>
                               {bankName}
                             </Typography>
-                          )}
-                        </TableCell>
+                          </TableCell>
+                        )}
 
-                        {/* 3. Mode / Account */}
-                        <TableCell sx={{ px: 1.5, whiteSpace: "nowrap" }}>
-                          <Chip
-                            label={mode}
-                            size="small"
-                            sx={{
-                              height: "20px",
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              bgcolor: "rgba(59, 130, 246, 0.15)",
-                              color: "#60A5FA",
-                              border: "1px solid rgba(59, 130, 246, 0.3)",
-                            }}
-                          />
-                          <Typography variant="caption" sx={{ fontSize: "10.5px", color: "rgba(255,255,255,0.7)", display: "block", mt: 0.2 }}>
-                            {accNo}
-                          </Typography>
-                        </TableCell>
+                        {/* UTR */}
+                        {!hiddenColumns.has("utr") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontWeight: 700, fontSize: "12px", color: utr !== "--" ? "#60A5FA" : "rgba(255, 255, 255, 0.4)", fontFamily: "monospace" }}>
+                              {utr}
+                            </Typography>
+                          </TableCell>
+                        )}
 
-                        {/* 4. Amount */}
-                        <TableCell sx={{ px: 1.5, fontSize: "13px", fontWeight: 800, color: "#F8FAFC", whiteSpace: "nowrap" }}>
-                          ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </TableCell>
+                        {/* STATUS */}
+                        {!hiddenColumns.has("status") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                            <Chip
+                              label={status}
+                              size="small"
+                              sx={{
+                                height: "24px",
+                                fontSize: "11px",
+                                fontWeight: 800,
+                                borderRadius: "6px",
+                                bgcolor:
+                                  status === "SUCCESS"
+                                    ? "rgba(16, 185, 129, 0.15)"
+                                    : status === "PENDING"
+                                    ? "rgba(245, 158, 11, 0.15)"
+                                    : status === "REVERSED"
+                                    ? "rgba(168, 85, 247, 0.15)"
+                                    : "rgba(239, 68, 68, 0.15)",
+                                color:
+                                  status === "SUCCESS"
+                                    ? "#34D399"
+                                    : status === "PENDING"
+                                    ? "#FBBF24"
+                                    : status === "REVERSED"
+                                    ? "#C084FC"
+                                    : "#F87171",
+                                border: `1px solid ${
+                                  status === "SUCCESS"
+                                    ? "rgba(16, 185, 129, 0.35)"
+                                    : status === "PENDING"
+                                    ? "rgba(245, 158, 11, 0.35)"
+                                    : status === "REVERSED"
+                                    ? "rgba(168, 85, 247, 0.35)"
+                                    : "rgba(239, 68, 68, 0.35)"
+                                }`,
+                              }}
+                            />
+                          </TableCell>
+                        )}
 
-                        {/* 5. Fee & GST */}
-                        <TableCell sx={{ px: 1.5, fontSize: "12px", color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap" }}>
-                          ₹{(fee + gst).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </TableCell>
+                        {/* RETAILER NAME */}
+                        {!hiddenColumns.has("retailer") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontWeight: 700, fontSize: "12px", color: "rgba(255, 255, 255, 0.85)" }}>
+                              {retailerName}
+                            </Typography>
+                          </TableCell>
+                        )}
 
-                        {/* 6. Total Debit */}
-                        <TableCell sx={{ px: 1.5, fontSize: "13px", fontWeight: 900, color: "#FBBF24", whiteSpace: "nowrap" }}>
-                          ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </TableCell>
+                        {/* DATE & TIME */}
+                        {!hiddenColumns.has("date_time") && (
+                          <TableCell sx={{ py: pyVal, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                            <Typography sx={{ fontSize: "12px", color: "#F8FAFC", fontWeight: 600 }}>
+                              {dt.date}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.55)", fontSize: "11px", display: "block" }}>
+                              {dt.time}
+                            </Typography>
+                          </TableCell>
+                        )}
 
-                        {/* 7. Status */}
-                        <TableCell sx={{ px: 1.5, whiteSpace: "nowrap" }}>
-                          <Chip
-                            label={status}
-                            size="small"
-                            sx={{
-                              height: "22px",
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              bgcolor:
-                                status === "SUCCESS"
-                                  ? "rgba(16, 185, 129, 0.15)"
-                                  : status === "PENDING"
-                                  ? "rgba(245, 158, 11, 0.15)"
-                                  : status === "REVERSED"
-                                  ? "rgba(168, 85, 247, 0.15)"
-                                  : "rgba(239, 68, 68, 0.15)",
-                              color:
-                                status === "SUCCESS"
-                                  ? "#34D399"
-                                  : status === "PENDING"
-                                  ? "#FBBF24"
-                                  : status === "REVERSED"
-                                  ? "#C084FC"
-                                  : "#F87171",
-                              border: `1px solid ${
-                                status === "SUCCESS"
-                                  ? "rgba(16, 185, 129, 0.35)"
-                                  : status === "PENDING"
-                                  ? "rgba(245, 158, 11, 0.35)"
-                                  : status === "REVERSED"
-                                  ? "rgba(168, 85, 247, 0.35)"
-                                  : "rgba(239, 68, 68, 0.35)"
-                              }`,
-                            }}
-                          />
-                        </TableCell>
-
-                        {/* 8. Date & Time */}
-                        <TableCell sx={{ px: 1.5, whiteSpace: "nowrap" }}>
-                          <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#F8FAFC", lineHeight: 1.2 }}>
-                            {dt.date}
-                          </Typography>
-                          <Typography variant="caption" sx={{ fontSize: "10.5px", color: "#94A3B8", display: "block" }}>
-                            {dt.time}
-                          </Typography>
-                        </TableCell>
-
-                        {/* 9. Actions */}
-                        <TableCell align="center" sx={{ px: 1.5, whiteSpace: "nowrap" }}>
-                          <Stack direction="row" spacing={0.3} justifyContent="center" alignItems="center">
-                            <Tooltip title="View Payout Details">
+                        {/* ACTION */}
+                        <TableCell align="right" sx={{ py: pyVal, pr: 2, borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <Tooltip title="View Receipt &amp; Audit Timeline">
                               <IconButton
                                 size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openDetailsDrawer(row);
+                                onClick={() => openDetailsDrawer(row)}
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "6px",
+                                  bgcolor: "rgba(59, 130, 246, 0.15)",
+                                  color: "#60A5FA",
+                                  border: "1px solid rgba(59, 130, 246, 0.35)",
+                                  "&:hover": { bgcolor: "rgba(59, 130, 246, 0.25)" },
                                 }}
-                                sx={{ color: "#FBBF24", p: 0.5, "&:hover": { bgcolor: "rgba(254, 240, 138, 0.15)" } }}
                               >
-                                <VisibilityIcon sx={{ fontSize: 17 }} />
+                                <ReceiptIcon sx={{ fontSize: 16 }} />
                               </IconButton>
                             </Tooltip>
-
-                            <Tooltip title="Print / Download Receipt">
+                            <Tooltip title="Print Voucher">
                               <IconButton
                                 size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlePrintReceipt(row);
+                                onClick={() => printVoucher(row)}
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "6px",
+                                  bgcolor: "rgba(255, 255, 255, 0.05)",
+                                  color: "#F8FAFC",
+                                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                                  "&:hover": { bgcolor: "rgba(255, 255, 255, 0.1)", color: "#FBBF24" },
                                 }}
-                                sx={{ color: "#60A5FA", p: 0.5, "&:hover": { bgcolor: "rgba(59, 130, 246, 0.15)" } }}
                               >
-                                <ReceiptIcon sx={{ fontSize: 17 }} />
+                                <PrintIcon sx={{ fontSize: 16 }} />
                               </IconButton>
                             </Tooltip>
                           </Stack>
@@ -1732,12 +2149,14 @@ export const RetailerPayoutReport: React.FC = () => {
             }}
             rowsPerPageOptions={[10, 20, 50, 100]}
             sx={{
-              color: "rgba(255,255,255,0.85)",
-              borderTop: "1px solid rgba(255,255,255,0.08)",
-              bgcolor: "rgba(10, 14, 23, 0.6)",
+              color: "rgba(255, 255, 255, 0.7)",
+              borderTop: "1px solid rgba(254, 240, 138, 0.2)",
+              bgcolor: "#0A0E17",
               "& .MuiSvgIcon-root": { color: "#FBBF24" },
               "& .MuiTablePagination-select": {
-                bgcolor: "rgba(255,255,255,0.05)",
+                bgcolor: "rgba(15, 23, 42, 0.75)",
+                color: "#F8FAFC",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
                 borderRadius: "6px",
                 py: 0.3,
               },
@@ -1745,8 +2164,7 @@ export const RetailerPayoutReport: React.FC = () => {
           />
         </Paper>
       </Box>
-
-      {/* ── 6. MOBILE CARD LIST (< 900PX) ── */}
+{/* ── 6. MOBILE CARD LIST (< 900PX) ── */}
       <Box sx={{ display: { xs: "block", md: "none" } }}>
         {isLoading ? (
           <Stack spacing={2}>
@@ -2049,27 +2467,33 @@ export const RetailerPayoutReport: React.FC = () => {
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        slotProps={{
-          backdrop: {
-            sx: {
-              bgcolor: "rgba(15, 23, 42, 0.6)",
-              backdropFilter: "blur(6px)",
-            },
+        sx={{
+          zIndex: 1400,
+          "& .MuiBackdrop-root": {
+            zIndex: 1400,
           },
-        }}
-        PaperProps={{
-          sx: {
-            width: { xs: "100%", sm: 540, md: 560 },
+          "& .MuiDrawer-paper": {
+            zIndex: 1401,
+            width: { xs: "100%", sm: 540, md: 580 },
             maxWidth: "100vw",
-            bgcolor: "#F8FAFC",
-            color: "#0F172A",
-            borderLeft: { sm: "1px solid #E2E8F0" },
-            boxShadow: "-8px 0 36px rgba(15, 23, 42, 0.18)",
+            bgcolor: "#0B0F17",
+            color: "#F8FAFC",
+            borderLeft: { sm: "1px solid rgba(254, 240, 138, 0.25)" },
+            boxShadow: "-8px 0 36px rgba(0, 0, 0, 0.5)",
             p: 0,
             display: "flex",
             flexDirection: "column",
             height: "100%",
             overflow: "hidden",
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              zIndex: 1400,
+              bgcolor: "rgba(15, 23, 42, 0.65)",
+              backdropFilter: "blur(6px)",
+            },
           },
         }}
       >
@@ -2093,36 +2517,36 @@ export const RetailerPayoutReport: React.FC = () => {
           const beneId = (selectedTxn as any).beneficiary_id || (selectedTxn as any).bene_id || "--";
           const failureMsg = selectedTxn.remarks || selectedTxn.narration || selectedTxn.comments || (selectedTxn as any).failure_reason || (selectedTxn as any).message || "";
 
-          // Clean Enterprise Banking Status Colors
+          // Status colors for dark theme
           const statusColor =
             status === "SUCCESS"
-              ? "#15803D"
+              ? "#34D399"
               : status === "PENDING"
-              ? "#B45309"
+              ? "#FBBF24"
               : status === "REVERSED"
-              ? "#7E22CE"
-              : "#B91C1C";
+              ? "#C084FC"
+              : "#F87171";
 
           const statusBg =
             status === "SUCCESS"
-              ? "#DCFCE7"
+              ? "rgba(16, 185, 129, 0.15)"
               : status === "PENDING"
-              ? "#FEF3C7"
+              ? "rgba(245, 158, 11, 0.15)"
               : status === "REVERSED"
-              ? "#F3E8FF"
-              : "#FEE2E2";
+              ? "rgba(168, 85, 247, 0.15)"
+              : "rgba(239, 68, 68, 0.15)";
 
           const statusBorder =
             status === "SUCCESS"
-              ? "#86EFAC"
+              ? "rgba(16, 185, 129, 0.35)"
               : status === "PENDING"
-              ? "#FCD34D"
+              ? "rgba(245, 158, 11, 0.35)"
               : status === "REVERSED"
-              ? "#D8B4FE"
-              : "#FCA5A5";
+              ? "rgba(168, 85, 247, 0.35)"
+              : "rgba(239, 68, 68, 0.35)";
 
           return (
-            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", position: "relative", bgcolor: "#F8FAFC" }}>
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", position: "relative", bgcolor: "#0B0F17" }}>
               {/* ── 1. FIXED DEEP NAVY HEADER ── */}
               <Box
                 sx={{
@@ -2130,10 +2554,10 @@ export const RetailerPayoutReport: React.FC = () => {
                   top: 0,
                   zIndex: 20,
                   p: { xs: 2, sm: 2.5 },
-                  bgcolor: "#0B132B",
+                  bgcolor: "#080B11",
                   color: "#FFFFFF",
-                  borderBottom: "1px solid #1E293B",
-                  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.2)",
+                  borderBottom: "1px solid rgba(254, 240, 138, 0.2)",
+                  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
@@ -2159,8 +2583,8 @@ export const RetailerPayoutReport: React.FC = () => {
                       <Typography sx={{ fontWeight: 800, fontSize: "16.5px", color: "#FFFFFF", lineHeight: 1.2 }}>
                         Payout Transaction Details
                       </Typography>
-                      <Typography sx={{ fontSize: "12.5px", color: "#94A3B8", mt: 0.4 }}>
-                        Retailer: <strong style={{ color: "#F8FAFC" }}>{outlet?.name || outlet?.ownerName || selectedTxn.retailer || "Pay2Pay Merchant"}</strong>
+                      <Typography sx={{ fontSize: "12.5px", color: "rgba(255, 255, 255, 0.65)", mt: 0.4 }}>
+                        Retailer: <strong style={{ color: "#FDE68A" }}>{outlet?.name || outlet?.ownerName || selectedTxn.retailer || "Pay2Pay Merchant"}</strong>
                         {outlet?.code ? ` · ID: ${outlet.code}` : ""}
                       </Typography>
                     </Box>
@@ -2216,22 +2640,22 @@ export const RetailerPayoutReport: React.FC = () => {
                   flex: 1,
                   overflowY: "auto",
                   p: { xs: 2, sm: 3 },
-                  pb: "160px", // Strict bottom padding so fixed footer NEVER covers content!
-                  bgcolor: "#F8FAFC",
+                  pb: "160px",
+                  bgcolor: "#0B0F17",
                   "&::-webkit-scrollbar": { width: "6px" },
-                  "&::-webkit-scrollbar-track": { background: "#F1F5F9" },
-                  "&::-webkit-scrollbar-thumb": { background: "#CBD5E1", borderRadius: "4px" },
-                  "&::-webkit-scrollbar-thumb:hover": { background: "#94A3B8" },
+                  "&::-webkit-scrollbar-track": { background: "#080B11" },
+                  "&::-webkit-scrollbar-thumb": { background: "#334155", borderRadius: "4px" },
+                  "&::-webkit-scrollbar-thumb:hover": { background: "#475569" },
                 }}
               >
-                {/* 2A. TRANSACTION HERO AREA (CLEAN WHITE CARD, NO GRAY BOX) */}
+                {/* 2A. TRANSACTION HERO AREA */}
                 <Box
                   sx={{
-                    bgcolor: "#FFFFFF",
+                    bgcolor: "rgba(15, 23, 42, 0.75)",
                     borderRadius: "14px",
-                    border: "1px solid #E2E8F0",
+                    border: "1px solid rgba(254, 240, 138, 0.2)",
                     p: { xs: 2.2, sm: 2.8 },
-                    boxShadow: "0 2px 12px rgba(15, 23, 42, 0.05)",
+                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.35)",
                     mb: 3,
                     textAlign: "center",
                   }}
@@ -2240,7 +2664,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     sx={{
                       fontSize: "12px",
                       fontWeight: 800,
-                      color: "#64748B",
+                      color: "rgba(255, 255, 255, 0.6)",
                       textTransform: "uppercase",
                       letterSpacing: "1px",
                       mb: 0.6,
@@ -2253,7 +2677,7 @@ export const RetailerPayoutReport: React.FC = () => {
                     sx={{
                       fontSize: { xs: "34px", sm: "40px" },
                       fontWeight: 900,
-                      color: "#0F172A",
+                      color: "#F8FAFC",
                       lineHeight: 1.1,
                       mb: 0.8,
                     }}
@@ -2265,9 +2689,9 @@ export const RetailerPayoutReport: React.FC = () => {
                     label={`${mode} · Instant Transfer`}
                     size="small"
                     sx={{
-                      bgcolor: "#EFF6FF",
-                      color: "#1D4ED8",
-                      border: "1px solid #BFDBFE",
+                      bgcolor: "rgba(59, 130, 246, 0.15)",
+                      color: "#60A5FA",
+                      border: "1px solid rgba(59, 130, 246, 0.35)",
                       fontWeight: 800,
                       fontSize: "12px",
                       height: "26px",
@@ -2275,33 +2699,33 @@ export const RetailerPayoutReport: React.FC = () => {
                     }}
                   />
 
-                  <Divider sx={{ mb: 2, borderColor: "#F1F5F9" }} />
+                  <Divider sx={{ mb: 2, borderColor: "rgba(255, 255, 255, 0.08)" }} />
 
                   {/* Horizontal Accounting Summary */}
                   <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5, textAlign: "center" }}>
-                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                      <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "rgba(8, 11, 17, 0.65)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                      <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase" }}>
                         SERVICE CHARGE
                       </Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A", mt: 0.4 }}>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#F8FAFC", mt: 0.4 }}>
                         ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                      <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "rgba(8, 11, 17, 0.65)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                      <Typography sx={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase" }}>
                         GST
                       </Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A", mt: 0.4 }}>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#F8FAFC", mt: 0.4 }}>
                         ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "#FFFBEB", border: "1px solid #FDE68A" }}>
-                      <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#92400E", textTransform: "uppercase" }}>
+                    <Box sx={{ p: 1.2, borderRadius: "10px", bgcolor: "rgba(245, 158, 11, 0.12)", border: "1px solid rgba(254, 240, 138, 0.3)" }}>
+                      <Typography sx={{ fontSize: "11px", fontWeight: 800, color: "#FDE68A", textTransform: "uppercase" }}>
                         TOTAL WALLET DEBIT
                       </Typography>
-                      <Typography sx={{ fontSize: "15px", fontWeight: 900, color: "#B45309", mt: 0.4 }}>
+                      <Typography sx={{ fontSize: "15px", fontWeight: 900, color: "#FBBF24", mt: 0.4 }}>
                         ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
@@ -2310,66 +2734,66 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2B. TRANSACTION INFORMATION TABLE */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     TRANSACTION INFORMATION
                   </Typography>
 
-                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", overflow: "hidden", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
+                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", overflow: "hidden" }}>
                     {/* Transaction ID */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Transaction ID</Typography>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Transaction ID</Typography>
                       <Stack direction="row" alignItems="center" spacing={0.8}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#FBBF24", fontFamily: "ui-monospace, monospace" }}>
                           {txnId}
                         </Typography>
-                        <IconButton size="small" onClick={() => copyToClipboard(txnId, "Transaction ID")} sx={{ color: "#2563EB", p: 0.3 }}>
-                          <ContentCopyIcon sx={{ fontSize: 15 }} />
+                        <IconButton size="small" onClick={() => copyToClipboard(txnId, "Transaction ID")} sx={{ color: "rgba(254, 240, 138, 0.6)", p: 0.3 }}>
+                          <ContentCopyIcon sx={{ fontSize: 14 }} />
                         </IconButton>
                       </Stack>
                     </Box>
 
                     {/* Bank UTR Number */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Bank UTR Number</Typography>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Bank UTR Number</Typography>
                       <Stack direction="row" alignItems="center" spacing={0.8}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: utr !== "--" ? "#1D4ED8" : "#94A3B8", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: utr !== "--" ? "#60A5FA" : "rgba(255, 255, 255, 0.4)", fontFamily: "ui-monospace, monospace" }}>
                           {utr}
                         </Typography>
                         {utr !== "--" && (
-                          <IconButton size="small" onClick={() => copyToClipboard(utr, "Bank UTR")} sx={{ color: "#2563EB", p: 0.3 }}>
-                            <ContentCopyIcon sx={{ fontSize: 15 }} />
+                          <IconButton size="small" onClick={() => copyToClipboard(utr, "Bank UTR")} sx={{ color: "#60A5FA", p: 0.3 }}>
+                            <ContentCopyIcon sx={{ fontSize: 14 }} />
                           </IconButton>
                         )}
                       </Stack>
                     </Box>
 
                     {/* Date & Time */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Transaction Date &amp; Time</Typography>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Transaction Date &amp; Time</Typography>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>
                         {dt.date} · {dt.time}
                       </Typography>
                     </Box>
 
                     {/* Payout Amount */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Payout Amount</Typography>
-                      <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Payout Amount</Typography>
+                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#F8FAFC" }}>
                         ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
                     {/* Payment Mode */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Payment Mode</Typography>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#1D4ED8" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Payment Mode</Typography>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#60A5FA" }}>
                         {mode} (Instant Bank Transfer)
                       </Typography>
                     </Box>
 
                     {/* Transaction Status */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(refNumber !== "--" ? { borderBottom: "1px solid #F1F5F9" } : {}) }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Transaction Status</Typography>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(refNumber !== "--" ? { borderBottom: "1px solid rgba(255, 255, 255, 0.06)" } : {}) }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Transaction Status</Typography>
                       <Box
                         sx={{
                           display: "inline-flex",
@@ -2393,8 +2817,8 @@ export const RetailerPayoutReport: React.FC = () => {
                     {/* Reference Number if present */}
                     {refNumber !== "--" && (
                       <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Reference Number</Typography>
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#334155", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Reference Number</Typography>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC", fontFamily: "ui-monospace, monospace" }}>
                           {refNumber}
                         </Typography>
                       </Box>
@@ -2404,62 +2828,62 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2C. BENEFICIARY DETAILS */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     BENEFICIARY DETAILS
                   </Typography>
 
-                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", overflow: "hidden", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
+                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", overflow: "hidden" }}>
                     {/* Beneficiary Name */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Beneficiary Name</Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#0F172A" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Beneficiary Name</Typography>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#F8FAFC" }}>
                         {beneName}
                       </Typography>
                     </Box>
 
                     {/* Account Number */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Account Number</Typography>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Account Number</Typography>
                       <Stack direction="row" alignItems="center" spacing={0.8}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC", fontFamily: "ui-monospace, monospace" }}>
                           {accNo}
                         </Typography>
                         {accNo !== "--" && (
-                          <IconButton size="small" onClick={() => copyToClipboard(accNo, "Account Number")} sx={{ color: "#2563EB", p: 0.3 }}>
-                            <ContentCopyIcon sx={{ fontSize: 15 }} />
+                          <IconButton size="small" onClick={() => copyToClipboard(accNo, "Account Number")} sx={{ color: "rgba(254, 240, 138, 0.6)", p: 0.3 }}>
+                            <ContentCopyIcon sx={{ fontSize: 14 }} />
                           </IconButton>
                         )}
                       </Stack>
                     </Box>
 
                     {/* IFSC Code */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>IFSC Code</Typography>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>IFSC Code</Typography>
                       <Stack direction="row" alignItems="center" spacing={0.8}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#1D4ED8", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#60A5FA", fontFamily: "ui-monospace, monospace" }}>
                           {ifsc}
                         </Typography>
                         {ifsc !== "--" && (
-                          <IconButton size="small" onClick={() => copyToClipboard(ifsc, "IFSC")} sx={{ color: "#2563EB", p: 0.3 }}>
-                            <ContentCopyIcon sx={{ fontSize: 15 }} />
+                          <IconButton size="small" onClick={() => copyToClipboard(ifsc, "IFSC")} sx={{ color: "#60A5FA", p: 0.3 }}>
+                            <ContentCopyIcon sx={{ fontSize: 14 }} />
                           </IconButton>
                         )}
                       </Stack>
                     </Box>
 
                     {/* Bank Name */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(beneMobile !== "--" || beneId !== "--" ? { borderBottom: "1px solid #F1F5F9" } : {}) }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Bank Name</Typography>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(beneMobile !== "--" || beneId !== "--" ? { borderBottom: "1px solid rgba(255, 255, 255, 0.06)" } : {}) }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Bank Name</Typography>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>
                         {bankName}
                       </Typography>
                     </Box>
 
                     {/* Beneficiary Mobile if present */}
                     {beneMobile !== "--" && (
-                      <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(beneId !== "--" ? { borderBottom: "1px solid #F1F5F9" } : {}) }}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Beneficiary Mobile</Typography>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#0F172A" }}>
+                      <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", ...(beneId !== "--" ? { borderBottom: "1px solid rgba(255, 255, 255, 0.06)" } : {}) }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Beneficiary Mobile</Typography>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>
                           {beneMobile}
                         </Typography>
                       </Box>
@@ -2468,8 +2892,8 @@ export const RetailerPayoutReport: React.FC = () => {
                     {/* Beneficiary ID if present */}
                     {beneId !== "--" && (
                       <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Beneficiary ID</Typography>
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#334155", fontFamily: "ui-monospace, monospace" }}>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Beneficiary ID</Typography>
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC", fontFamily: "ui-monospace, monospace" }}>
                           {beneId}
                         </Typography>
                       </Box>
@@ -2479,49 +2903,49 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2D. WALLET ACCOUNTING */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     WALLET ACCOUNTING
                   </Typography>
 
-                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", overflow: "hidden", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Payout Amount</Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 700, color: "#0F172A" }}>
+                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", overflow: "hidden" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Payout Amount</Typography>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFC" }}>
                         ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Service Charge</Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 700, color: "#0F172A" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Service Charge</Typography>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFC" }}>
                         ₹{fee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>GST (18%)</Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 700, color: "#0F172A" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>GST (18%)</Typography>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#F8FAFC" }}>
                         ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
                     {/* Total Debit Row */}
-                    <Box sx={{ px: 2.2, py: 1.6, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #FDE68A", bgcolor: "#FFFBEB" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#92400E" }}>Total Wallet Debit</Typography>
-                      <Typography sx={{ fontSize: "15.5px", fontWeight: 900, color: "#B45309" }}>
+                    <Box sx={{ px: 2.2, py: 1.6, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(254, 240, 138, 0.25)", bgcolor: "rgba(245, 158, 11, 0.12)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 800, color: "#FDE68A" }}>Total Wallet Debit</Typography>
+                      <Typography sx={{ fontSize: "15px", fontWeight: 900, color: "#FBBF24" }}>
                         ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
                     {/* CR / DR Accounting Rows */}
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#15803D" }}>CR (Credit)</Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#15803D" }}>₹0.00</Typography>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#34D399" }}>CR (Credit)</Typography>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#34D399" }}>₹0.00</Typography>
                     </Box>
 
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#DC2626" }}>DR (Debit)</Typography>
-                      <Typography sx={{ fontSize: "14.5px", fontWeight: 800, color: "#DC2626" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F87171" }}>DR (Debit)</Typography>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#F87171" }}>
                         ₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
@@ -2530,45 +2954,45 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2E. TRANSACTION AUDIT TIMELINE */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     TRANSACTION AUDIT TIMELINE
                   </Typography>
 
-                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", p: 2.5, boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
+                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", p: 2.5 }}>
                     <Box sx={{ position: "relative", pl: 3.5 }}>
                       {/* Vertical line connecting nodes */}
-                      <Box sx={{ position: "absolute", left: 11, top: 8, bottom: 8, width: 2, bgcolor: "#E2E8F0" }} />
+                      <Box sx={{ position: "absolute", left: 11, top: 8, bottom: 8, width: 2, bgcolor: "rgba(255, 255, 255, 0.15)" }} />
 
                       {/* Node 1: Request Created */}
                       <Box sx={{ position: "relative", mb: 2.5 }}>
-                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: "#15803D", border: "2px solid #FFFFFF", boxShadow: "0 0 0 2px #86EFAC" }} />
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#0F172A" }}>Request Created</Typography>
-                        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.2 }}>{dt.date} · {dt.time}</Typography>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: "#34D399", border: "2px solid #0F172A", boxShadow: "0 0 0 2px rgba(16, 185, 129, 0.4)" }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>Request Created</Typography>
+                        <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.55)", mt: 0.2 }}>{dt.date} · {dt.time}</Typography>
                       </Box>
 
                       {/* Node 2: Processing */}
                       <Box sx={{ position: "relative", mb: 2.5 }}>
-                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: status === "PENDING" ? "#F59E0B" : "#15803D", border: "2px solid #FFFFFF", boxShadow: `0 0 0 2px ${status === "PENDING" ? "#FCD34D" : "#86EFAC"}` }} />
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#0F172A" }}>Switch Processing &amp; Validation</Typography>
-                        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.2 }}>Mode: {mode} · Route: Direct Bank IMPS Switch</Typography>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: status === "PENDING" ? "#FBBF24" : "#34D399", border: "2px solid #0F172A", boxShadow: `0 0 0 2px ${status === "PENDING" ? "rgba(245, 158, 11, 0.4)" : "rgba(16, 185, 129, 0.4)"}` }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>Switch Processing &amp; Validation</Typography>
+                        <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.55)", mt: 0.2 }}>Mode: {mode} · Route: Direct Bank IMPS Switch</Typography>
                       </Box>
 
                       {/* Node 3: Bank Response / UTR */}
                       <Box sx={{ position: "relative", mb: 2.5 }}>
-                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: utr !== "--" ? "#15803D" : status === "PENDING" ? "#F59E0B" : "#EF4444", border: "2px solid #FFFFFF", boxShadow: `0 0 0 2px ${utr !== "--" ? "#86EFAC" : status === "PENDING" ? "#FCD34D" : "#FCA5A5"}` }} />
-                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#0F172A" }}>Bank Response &amp; Settlement</Typography>
-                        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.2 }}>
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: utr !== "--" ? "#34D399" : status === "PENDING" ? "#FBBF24" : "#F87171", border: "2px solid #0F172A", boxShadow: `0 0 0 2px ${utr !== "--" ? "rgba(16, 185, 129, 0.4)" : status === "PENDING" ? "rgba(245, 158, 11, 0.4)" : "rgba(239, 68, 68, 0.4)"}` }} />
+                        <Typography sx={{ fontSize: "13.5px", fontWeight: 700, color: "#F8FAFC" }}>Bank Response &amp; Settlement</Typography>
+                        <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.55)", mt: 0.2 }}>
                           {utr !== "--" ? `Bank UTR: ${utr}` : "Awaiting Bank Settlement Acknowledgement"}
                         </Typography>
                       </Box>
 
                       {/* Node 4: Final Status */}
                       <Box sx={{ position: "relative" }}>
-                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: statusColor, border: "2px solid #FFFFFF", boxShadow: `0 0 0 2px ${statusBorder}` }} />
+                        <Box sx={{ position: "absolute", left: -28, top: 4, width: 10, height: 10, borderRadius: "50%", bgcolor: statusColor, border: "2px solid #0F172A", boxShadow: `0 0 0 2px ${statusBorder}` }} />
                         <Typography sx={{ fontSize: "13.5px", fontWeight: 800, color: statusColor }}>
                           {status === "SUCCESS" ? "Transaction Completed Successfully" : status === "PENDING" ? "Transaction Processing / Pending" : `Transaction ${status}`}
                         </Typography>
-                        <Typography sx={{ fontSize: "12px", color: "#64748B", mt: 0.2 }}>
+                        <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.55)", mt: 0.2 }}>
                           Reference: {refNumber !== "--" ? refNumber : txnId}
                         </Typography>
                       </Box>
@@ -2576,11 +3000,11 @@ export const RetailerPayoutReport: React.FC = () => {
 
                     {/* Failure / remarks notice if present */}
                     {failureMsg && (
-                      <Box sx={{ mt: 2.5, p: 1.5, borderRadius: "8px", bgcolor: "#FEF2F2", border: "1px solid #FCA5A5" }}>
-                        <Typography sx={{ color: "#B91C1C", fontSize: "12px", fontWeight: 700, mb: 0.3 }}>
+                      <Box sx={{ mt: 2.5, p: 1.5, borderRadius: "8px", bgcolor: "rgba(239, 68, 68, 0.12)", border: "1px solid rgba(239, 68, 68, 0.35)" }}>
+                        <Typography sx={{ color: "#F87171", fontSize: "12px", fontWeight: 700, mb: 0.3 }}>
                           Response / Failure Remarks
                         </Typography>
-                        <Typography sx={{ color: "#991B1B", fontSize: "13px", fontWeight: 500, wordBreak: "break-word" }}>
+                        <Typography sx={{ color: "#FCA5A5", fontSize: "13px", fontWeight: 500, wordBreak: "break-word" }}>
                           {failureMsg}
                         </Typography>
                       </Box>
@@ -2590,28 +3014,28 @@ export const RetailerPayoutReport: React.FC = () => {
 
                 {/* 2F. REFERENCE DETAILS */}
                 <Box sx={{ mb: 2 }}>
-                  <Typography sx={{ fontSize: "15px", fontWeight: 800, color: "#0F172A", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <Typography sx={{ fontSize: "14px", fontWeight: 800, color: "#FBBF24", mb: 1.2, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     REFERENCE DETAILS
                   </Typography>
 
-                  <Box sx={{ bgcolor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0", overflow: "hidden", boxShadow: "0 1px 4px rgba(15, 23, 42, 0.04)" }}>
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Vendor Reference</Typography>
-                      <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#334155", fontFamily: "ui-monospace, monospace" }}>
+                  <Box sx={{ bgcolor: "rgba(15, 23, 42, 0.75)", borderRadius: "12px", border: "1px solid rgba(255, 255, 255, 0.08)", overflow: "hidden" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Vendor Reference</Typography>
+                      <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "rgba(255, 255, 255, 0.8)", fontFamily: "ui-monospace, monospace" }}>
                         {refNumber !== "--" ? refNumber : "—"}
                       </Typography>
                     </Box>
 
-                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #F1F5F9" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Bank Reference / UTR</Typography>
-                      <Typography sx={{ fontSize: "13px", fontWeight: 700, color: utr !== "--" ? "#1D4ED8" : "#64748B", fontFamily: "ui-monospace, monospace" }}>
+                    <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Bank Reference / UTR</Typography>
+                      <Typography sx={{ fontSize: "13px", fontWeight: 700, color: utr !== "--" ? "#60A5FA" : "rgba(255, 255, 255, 0.5)", fontFamily: "ui-monospace, monospace" }}>
                         {utr !== "--" ? utr : "—"}
                       </Typography>
                     </Box>
 
                     <Box sx={{ px: 2.2, py: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#64748B" }}>Response Message</Typography>
-                      <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#334155" }}>
+                      <Typography sx={{ fontSize: "13.5px", fontWeight: 600, color: "rgba(255, 255, 255, 0.6)" }}>Response Message</Typography>
+                      <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "rgba(255, 255, 255, 0.85)" }}>
                         {failureMsg ? failureMsg : status === "SUCCESS" ? "Transaction Processed Successfully" : status === "PENDING" ? "Request under banking switch process" : "—"}
                       </Typography>
                     </Box>
@@ -2626,9 +3050,9 @@ export const RetailerPayoutReport: React.FC = () => {
                   bottom: 0,
                   zIndex: 20,
                   p: { xs: 2, sm: 2.5 },
-                  bgcolor: "#FFFFFF",
-                  borderTop: "1px solid #E2E8F0",
-                  boxShadow: "0 -4px 16px rgba(15, 23, 42, 0.06)",
+                  bgcolor: "#080B11",
+                  borderTop: "1px solid rgba(254, 240, 138, 0.2)",
+                  boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.5)",
                 }}
               >
                 <Stack spacing={1.2}>
@@ -2644,7 +3068,7 @@ export const RetailerPayoutReport: React.FC = () => {
                       fontWeight: 900,
                       textTransform: "none",
                       borderRadius: "10px",
-                      color: "#0F172A",
+                      color: "#080B11",
                       background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
                       boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
                       "&:hover": {
@@ -2667,12 +3091,12 @@ export const RetailerPayoutReport: React.FC = () => {
                       fontWeight: 700,
                       textTransform: "none",
                       borderRadius: "10px",
-                      color: "#0F172A",
-                      borderColor: "#CBD5E1",
-                      bgcolor: "#FFFFFF",
+                      color: "#F8FAFC",
+                      borderColor: "rgba(255, 255, 255, 0.15)",
+                      bgcolor: "rgba(255, 255, 255, 0.05)",
                       "&:hover": {
-                        borderColor: "#94A3B8",
-                        bgcolor: "#F8FAFC",
+                        borderColor: "rgba(254, 240, 138, 0.4)",
+                        bgcolor: "rgba(255, 255, 255, 0.1)",
                       },
                     }}
                   >

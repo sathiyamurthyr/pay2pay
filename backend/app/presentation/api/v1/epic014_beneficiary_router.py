@@ -1,7 +1,7 @@
 """EPIC-014 — Enterprise Beneficiary Registration & Cashfree V2 API Router"""
 import uuid
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
@@ -12,6 +12,7 @@ from app.infrastructure.db.models import AdminUserModel
 from app.infrastructure.db.customer_models import CustomerModel
 from app.infrastructure.db.bank_master_models import BankMasterModel
 from app.application.epic014_beneficiary_service import Epic014BeneficiaryService
+from app.core.beneficiary_name_sanitizer import sanitize_beneficiary_name
 
 router = APIRouter(prefix="/epic014", tags=["EPIC-014 Enterprise Beneficiary Registration"])
 
@@ -28,6 +29,13 @@ class AddAndVerifyBeneficiaryReq(BaseModel):
     account_holder_name: Optional[str] = None
     nickname: Optional[str] = None
     current_wallet_balance: Optional[float] = 5000.0
+
+    @field_validator("account_holder_name", mode="before")
+    @classmethod
+    def sanitize_account_holder_name(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            return sanitize_beneficiary_name(v)
+        return v
 
 
 @router.post("/beneficiaries/add-and-verify")

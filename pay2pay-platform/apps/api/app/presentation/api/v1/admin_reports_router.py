@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, and_, or_, desc, asc
+from sqlalchemy import select, func, and_, or_, desc, asc, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -98,8 +98,116 @@ def parse_financial_year(fy_str: Optional[str]):
 
 
 # ==============================================================================
-# 1. PAYOUT TRANSACTION REPORT ENDPOINTS
+# 1. PAYOUT TRANSACTION REPORT ENDPOINTS (DYNAMIC VIEW & SP POWERED)
 # ==============================================================================
+
+PAYOUT_VIEW_DDL = """
+CREATE OR REPLACE VIEW public.view_admin_payout_reports AS
+SELECT 
+    pt.id,
+    pt.public_id,
+    pt.transaction_number,
+    pt.payout_id,
+    pt.gateway_reference,
+    pt.bank_reference,
+    COALESCE(NULLIF(pt.utr_number, ''), NULLIF(pt.bank_reference, ''), 'PENDING') AS utr_number,
+    COALESCE(pt.mode, 'IMPS') AS payment_mode,
+    UPPER(pt.status) AS status,
+    pt.created_date,
+    pt.updated_date,
+    pt.created_by,
+    pt.vendor_name,
+    pt.retailer_id,
+    pt.retailer_ref_id,
+    pt.beneficiary_id,
+    pt.tenant_id,
+    pt.company_id,
+    -- Beneficiary details from beneficiary_master
+    COALESCE(bm.account_holder_name, 'N/A') AS bene_name,
+    COALESCE(bm.account_number, 'N/A') AS account_number,
+    COALESCE(bm.ifsc_code, 'N/A') AS ifsc_code,
+    COALESCE(bm.bank_name, 'N/A') AS bank_name,
+    -- Retailer details from retailer table
+    COALESCE(r.store_name, r.owner_name, r.retailer_code, 'Direct Merchant') AS retailer_name,
+    r.retailer_code,
+    -- Financials from transactions table
+    COALESCE(t_amt.amount, 0.00) AS amount,
+    COALESCE(t_chg.charge, 0.00) AS charges,
+    COALESCE(t_gst.gst, 0.00) AS tax,
+    (COALESCE(t_amt.amount, 0.00) + COALESCE(t_chg.charge, 0.00) + COALESCE(t_gst.gst, 0.00)) AS net_amount
+FROM public.payout_transaction pt
+LEFT JOIN public.beneficiary_master bm ON (bm.public_id = pt.beneficiary_id OR bm.id = pt.beneficiary_master_ref_id)
+LEFT JOIN public.retailer r ON (r.public_id = pt.retailer_id)
+LEFT JOIN LATERAL (
+    SELECT COALESCE(SUM(t.amount), 0.00) AS amount
+    FROM public.transactions t
+    WHERE t.txn_id = pt.transaction_number
+      AND UPPER(t.narration) = 'PAYOUT AMOUNT'
+) t_amt ON TRUE
+LEFT JOIN LATERAL (
+    SELECT COALESCE(SUM(t.amount), 0.00) AS charge
+    FROM public.transactions t
+    WHERE t.txn_id = pt.transaction_number
+      AND UPPER(t.narration) = 'PAYOUT CHARGE'
+) t_chg ON TRUE
+LEFT JOIN LATERAL (
+    SELECT COALESCE(SUM(t.amount), 0.00) AS gst
+    FROM public.transactions t
+    WHERE t.txn_id = pt.transaction_number
+      AND UPPER(t.narration) = 'PAYOUT GST'
+) t_gst ON TRUE
+WHERE (pt.is_deleted IS NULL OR pt.is_deleted = FALSE);
+"""
+
+PAYOUT_SP_DDL = """
+CREATE OR REPLACE FUNCTION fn_admin_payout_summary(p_start_dt timestamptz, p_end_dt timestamptz)
+RETURNS TABLE (
+    total_transactions bigint,
+    total_payout_amount numeric,
+    total_charges numeric,
+    total_gst numeric,
+    total_commission numeric,
+    successful_count bigint,
+    successful_amount numeric,
+    pending_count bigint,
+    pending_amount numeric,
+    failed_count bigint,
+    failed_amount numeric
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*)::bigint,
+        COALESCE(SUM(amount), 0.00)::numeric,
+        COALESCE(SUM(charges), 0.00)::numeric,
+        COALESCE(SUM(tax), 0.00)::numeric,
+        0.00::numeric,
+        COUNT(CASE WHEN UPPER(status) = 'SUCCESS' THEN 1 END)::bigint,
+        COALESCE(SUM(CASE WHEN UPPER(status) = 'SUCCESS' THEN amount ELSE 0 END), 0.00)::numeric,
+        COUNT(CASE WHEN UPPER(status) IN ('INITIATED', 'PENDING', 'PROCESSING') THEN 1 END)::bigint,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('INITIATED', 'PENDING', 'PROCESSING') THEN amount ELSE 0 END), 0.00)::numeric,
+        COUNT(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'REVERSED') THEN 1 END)::bigint,
+        COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'REVERSED') THEN amount ELSE 0 END), 0.00)::numeric
+    FROM public.view_admin_payout_reports
+    WHERE created_date >= p_start_dt AND created_date <= p_end_dt;
+END;
+$$ LANGUAGE plpgsql;
+"""
+
+_view_ensured = False
+
+async def ensure_payout_views(db: AsyncSession):
+    global _view_ensured
+    if not _view_ensured:
+        try:
+            await db.execute(text(PAYOUT_VIEW_DDL))
+            await db.execute(text(PAYOUT_SP_DDL))
+            await db.commit()
+            _view_ensured = True
+        except Exception:
+            await db.rollback()
+            _view_ensured = True
+
 
 @router.get("/payout-transactions/summary")
 async def get_payout_transactions_summary(
@@ -109,64 +217,67 @@ async def get_payout_transactions_summary(
     to_date: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
+    await ensure_payout_views(db)
     start_dt, end_dt = parse_date_range(from_date, to_date)
 
-    filters = [
-        EnterprisePayoutTransactionModel.initiated_at >= start_dt,
-        EnterprisePayoutTransactionModel.initiated_at <= end_dt
-    ]
-    if tenant_id:
-        filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
-    if company_id:
-        filters.append(EnterprisePayoutTransactionModel.company_id == company_id)
+    try:
+        sp_res = await db.execute(
+            text("SELECT * FROM fn_admin_payout_summary(:start_dt, :end_dt)"),
+            {"start_dt": start_dt, "end_dt": end_dt}
+        )
+        row = sp_res.fetchone()
+        if row:
+            return {
+                "status": "SUCCESS",
+                "data": {
+                    "total_transactions": int(row[0] or 0),
+                    "total_payout_amount": float(row[1] or 0.0),
+                    "total_charges": float(row[2] or 0.0),
+                    "total_gst": float(row[3] or 0.0),
+                    "total_commission": float(row[4] or 0.0),
+                    "successful_count": int(row[5] or 0),
+                    "successful_amount": float(row[6] or 0.0),
+                    "pending_count": int(row[7] or 0),
+                    "pending_amount": float(row[8] or 0.0),
+                    "failed_count": int(row[9] or 0),
+                    "failed_amount": float(row[10] or 0.0),
+                    "date_range": {"from": start_dt.strftime("%Y-%m-%d"), "to": end_dt.strftime("%Y-%m-%d")}
+                }
+            }
+    except Exception:
+        pass
 
-    stmt = select(
-        func.count(EnterprisePayoutTransactionModel.id).label("total_txns"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.amount), 0.0).label("total_payout_amount"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.charges), 0.0).label("total_charges"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.gst_amount), 0.0).label("total_gst"),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.commission), 0.0).label("total_commission"),
-    ).where(and_(*filters))
-
-    res = (await db.execute(stmt)).fetchone()
-
-    status_stmt = select(
-        EnterprisePayoutTransactionModel.status,
-        func.count(EnterprisePayoutTransactionModel.id),
-        func.coalesce(func.sum(EnterprisePayoutTransactionModel.amount), 0.0)
-    ).where(and_(*filters)).group_by(EnterprisePayoutTransactionModel.status)
-
-    status_rows = (await db.execute(status_stmt)).fetchall()
-    status_counts = {}
-    status_amounts = {}
-    for r in status_rows:
-        st_val = r[0].value if hasattr(r[0], "value") else str(r[0])
-        status_counts[st_val] = r[1]
-        status_amounts[st_val] = float(r[2])
-
-    successful_count = status_counts.get("SUCCESS", 0)
-    successful_amount = status_amounts.get("SUCCESS", 0.0)
-
-    pending_count = status_counts.get("PENDING", 0) + status_counts.get("PROCESSING", 0) + status_counts.get("INITIATED", 0)
-    pending_amount = status_amounts.get("PENDING", 0.0) + status_amounts.get("PROCESSING", 0.0) + status_amounts.get("INITIATED", 0.0)
-
-    failed_count = status_counts.get("FAILED", 0) + status_counts.get("REJECTED", 0)
-    failed_amount = status_amounts.get("FAILED", 0.0) + status_amounts.get("REJECTED", 0.0)
-
+    # Direct query fallback
+    q_res = await db.execute(text("""
+        SELECT 
+            COUNT(*) as cnt,
+            COALESCE(SUM(amount), 0.00) as total_volume,
+            COALESCE(SUM(charges), 0.00) as total_charges,
+            COALESCE(SUM(tax), 0.00) as total_gst,
+            COUNT(CASE WHEN UPPER(status) = 'SUCCESS' THEN 1 END) as success_count,
+            COALESCE(SUM(CASE WHEN UPPER(status) = 'SUCCESS' THEN amount ELSE 0 END), 0.00) as success_volume,
+            COUNT(CASE WHEN UPPER(status) IN ('INITIATED', 'PENDING', 'PROCESSING') THEN 1 END) as pending_count,
+            COALESCE(SUM(CASE WHEN UPPER(status) IN ('INITIATED', 'PENDING', 'PROCESSING') THEN amount ELSE 0 END), 0.00) as pending_volume,
+            COUNT(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'REVERSED') THEN 1 END) as failed_count,
+            COALESCE(SUM(CASE WHEN UPPER(status) IN ('FAILED', 'REJECTED', 'REVERSED') THEN amount ELSE 0 END), 0.00) as failed_volume
+        FROM public.view_admin_payout_reports
+        WHERE created_date >= :start_dt AND created_date <= :end_dt
+    """), {"start_dt": start_dt, "end_dt": end_dt})
+    row = q_res.fetchone()
     return {
         "status": "SUCCESS",
         "data": {
-            "total_transactions": res[0] if res else 0,
-            "total_payout_amount": float(res[1]) if res else 0.0,
-            "total_charges": float(res[2]) if res else 0.0,
-            "total_gst": float(res[3]) if res else 0.0,
-            "total_commission": float(res[4]) if res else 0.0,
-            "successful_count": successful_count,
-            "successful_amount": successful_amount,
-            "pending_count": pending_count,
-            "pending_amount": pending_amount,
-            "failed_count": failed_count,
-            "failed_amount": failed_amount,
+            "total_transactions": int(row[0] or 0) if row else 0,
+            "total_payout_amount": float(row[1] or 0.0) if row else 0.0,
+            "total_charges": float(row[2] or 0.0) if row else 0.0,
+            "total_gst": float(row[3] or 0.0) if row else 0.0,
+            "total_commission": 0.0,
+            "successful_count": int(row[4] or 0) if row else 0,
+            "successful_amount": float(row[5] or 0.0) if row else 0.0,
+            "pending_count": int(row[6] or 0) if row else 0,
+            "pending_amount": float(row[7] or 0.0) if row else 0.0,
+            "failed_count": int(row[8] or 0) if row else 0,
+            "failed_amount": float(row[9] or 0.0) if row else 0.0,
             "date_range": {"from": start_dt.strftime("%Y-%m-%d"), "to": end_dt.strftime("%Y-%m-%d")}
         }
     }
@@ -194,89 +305,125 @@ async def list_payout_transactions_report(
     limit: int = Query(20, ge=1, le=200),
     db: AsyncSession = Depends(get_db)
 ):
+    await ensure_payout_views(db)
     start_dt, end_dt = parse_date_range(from_date, to_date)
-    filters = [
-        EnterprisePayoutTransactionModel.initiated_at >= start_dt,
-        EnterprisePayoutTransactionModel.initiated_at <= end_dt
-    ]
 
-    if tenant_id:
-        filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
-    if company_id:
-        filters.append(EnterprisePayoutTransactionModel.company_id == company_id)
-    if retailer_id:
-        filters.append(EnterprisePayoutTransactionModel.retailer_id == retailer_id)
-    if transaction_id:
-        filters.append(EnterprisePayoutTransactionModel.transaction_number.ilike(f"%{transaction_id}%"))
-    if payout_id:
-        filters.append(EnterprisePayoutTransactionModel.vendor_ref.ilike(f"%{payout_id}%"))
-    if utr:
-        filters.append(EnterprisePayoutTransactionModel.utr_number.ilike(f"%{utr}%"))
-    if isinstance(status, str) and status:
-        filters.append(EnterprisePayoutTransactionModel.status == status.upper())
-    if isinstance(payment_mode, str) and payment_mode:
-        filters.append(EnterprisePayoutTransactionModel.mode == payment_mode.upper())
-    if min_amount is not None:
-        filters.append(EnterprisePayoutTransactionModel.amount >= min_amount)
-    if max_amount is not None:
-        filters.append(EnterprisePayoutTransactionModel.amount <= max_amount)
+    where_clauses = ["created_date >= :start_dt", "created_date <= :end_dt"]
+    params = {"start_dt": start_dt, "end_dt": end_dt}
 
-    if search:
-        search_term = f"%{search}%"
-        filters.append(or_(
-            EnterprisePayoutTransactionModel.transaction_number.ilike(search_term),
-            EnterprisePayoutTransactionModel.utr_number.ilike(search_term),
-            EnterprisePayoutTransactionModel.vendor_ref.ilike(search_term)
-        ))
+    if isinstance(status, str) and status.strip():
+        st_clean = status.strip().upper()
+        if st_clean == "PENDING":
+            where_clauses.append("UPPER(status) IN ('PENDING', 'INITIATED', 'PROCESSING')")
+        elif st_clean == "FAILED":
+            where_clauses.append("UPPER(status) IN ('FAILED', 'REJECTED', 'REVERSED')")
+        else:
+            where_clauses.append("UPPER(status) = :st")
+            params["st"] = st_clean
 
-    count_stmt = select(func.count(EnterprisePayoutTransactionModel.id)).where(and_(*filters))
-    total_records = (await db.execute(count_stmt)).scalar() or 0
+    if isinstance(payment_mode, str) and payment_mode.strip():
+        where_clauses.append("UPPER(payment_mode) = :pm")
+        params["pm"] = payment_mode.strip().upper()
+
+    if isinstance(transaction_id, str) and transaction_id.strip():
+        where_clauses.append("transaction_number ILIKE :tid")
+        params["tid"] = f"%{transaction_id.strip()}%"
+
+    if isinstance(utr, str) and utr.strip():
+        where_clauses.append("utr_number ILIKE :utr")
+        params["utr"] = f"%{utr.strip()}%"
+
+    if isinstance(min_amount, (int, float)):
+        where_clauses.append("amount >= :min_amt")
+        params["min_amt"] = min_amount
+
+    if isinstance(max_amount, (int, float)):
+        where_clauses.append("amount <= :max_amt")
+        params["max_amt"] = max_amount
+
+    if isinstance(search, str) and search.strip():
+        s_term = f"%{search.strip()}%"
+        where_clauses.append("""(
+            transaction_number ILIKE :sterm OR 
+            utr_number ILIKE :sterm OR 
+            bene_name ILIKE :sterm OR 
+            account_number ILIKE :sterm OR 
+            retailer_name ILIKE :sterm OR 
+            retailer_code ILIKE :sterm OR
+            bank_name ILIKE :sterm
+        )""")
+        params["sterm"] = s_term
+
+    where_sql = " AND ".join(where_clauses)
+
+    count_res = await db.execute(text(f"SELECT COUNT(*) FROM public.view_admin_payout_reports WHERE {where_sql}"), params)
+    total_records = count_res.scalar() or 0
 
     offset = (page - 1) * limit
-    stmt = (
-        select(EnterprisePayoutTransactionModel)
-        .where(and_(*filters))
-        .order_by(desc(EnterprisePayoutTransactionModel.initiated_at))
-        .offset(offset)
-        .limit(limit)
-    )
+    list_params = dict(params)
+    list_params["offset"] = offset
+    list_params["limit"] = limit
 
-    rows = (await db.execute(stmt)).scalars().all()
+    list_res = await db.execute(text(f"""
+        SELECT 
+            id, public_id, transaction_number, payout_id, gateway_reference, bank_reference,
+            utr_number, payment_mode, status, created_date, updated_date, created_by, vendor_name,
+            retailer_id, retailer_ref_id, beneficiary_id, tenant_id, company_id,
+            bene_name, account_number, ifsc_code, bank_name, retailer_name, retailer_code,
+            amount, charges, tax, net_amount
+        FROM public.view_admin_payout_reports
+        WHERE {where_sql}
+        ORDER BY id DESC
+        OFFSET :offset LIMIT :limit
+    """), list_params)
+
+    cols = list(list_res.keys())
+    rows = list_res.fetchall()
 
     report_items = []
-    for r in rows:
-        st_val = r.status.value if hasattr(r.status, "value") else str(r.status)
-        init_dt = get_created_dt(r)
-        comp_dt = getattr(r, "completed_at", None)
+    for idx, r in enumerate(rows):
+        d = dict(zip(cols, r))
+        c_dt = d["created_date"]
+        u_dt = d["updated_date"]
 
         report_items.append({
-            "id": str(r.public_id),
-            "transaction_id": r.transaction_number,
-            "payout_id": r.vendor_ref or f"PAY-{str(r.public_id)[:8]}",
-            "transaction_date": init_dt.strftime("%Y-%m-%d") if init_dt else None,
-            "transaction_time": init_dt.strftime("%H:%M:%S") if init_dt else None,
-            "tenant_id": str(r.tenant_id) if r.tenant_id else "Default Tenant",
-            "company_id": str(r.company_id) if r.company_id else "Default Company",
-            "sd_name": "Super Distributor Alpha",
-            "distributor_name": "Distributor Metro",
-            "retailer_name": "Sathiya Traders",
-            "customer_name": "Pay2Pay Merchant",
-            "service": "DMT Payout",
-            "amount": float(r.amount),
-            "charges": float(r.charges),
-            "gst": float(r.gst_amount),
-            "commission": float(r.commission),
-            "net_amount": float(r.net_debit),
-            "payout_amount": float(r.amount),
-            "bank_name": "HDFC Bank",
-            "account_masked": mask_account_number("50100012345678"),
-            "ifsc": "HDFC0001234",
-            "utr": r.utr_number or "PENDING",
-            "payment_mode": r.mode,
-            "status": st_val,
-            "settlement_status": "SETTLED" if st_val == "SUCCESS" else "PENDING",
-            "created_at": safe_iso(init_dt),
-            "completed_at": safe_iso(comp_dt),
+            "s_no": offset + idx + 1,
+            "id": str(d["public_id"] or d["id"]),
+            "transaction_id": d["transaction_number"],
+            "payout_id": str(d["payout_id"] or d["gateway_reference"] or f"PAY-{d['id']}"),
+            "transaction_date": c_dt.strftime("%Y-%m-%d") if c_dt else None,
+            "transaction_time": c_dt.strftime("%H:%M:%S") if c_dt else None,
+            "tenant_id": str(d["tenant_id"]) if d["tenant_id"] else "Default Tenant",
+            "company_id": str(d["company_id"]) if d["company_id"] else "Default Company",
+            "service": "PAYOUT",
+            "amount": float(d["amount"] or 0.0),
+            "charges": float(d["charges"] or 0.0),
+            "gst": float(d["tax"] or 0.0),
+            "tax": float(d["tax"] or 0.0),
+            "commission": 0.0,
+            "net_amount": float(d["net_amount"] or 0.0),
+            "payout_amount": float(d["amount"] or 0.0),
+            "bene_name": d["bene_name"],
+            "account_number": d["account_number"],
+            "account_masked": mask_account_number(d["account_number"]),
+            "bank_name": d["bank_name"],
+            "ifsc": d["ifsc_code"],
+            "utr": d["utr_number"],
+            "payment_mode": d["payment_mode"],
+            "status": d["status"],
+            "settlement_status": "SETTLED" if d["status"] == "SUCCESS" else d["status"],
+            "retailer_name": d["retailer_name"],
+            "retailer_code": d["retailer_code"] or "RET-DIRECT",
+            "created_at": safe_iso(c_dt),
+            "updated_at": safe_iso(u_dt),
+            "audit": {
+                "created_by": d["created_by"] or "System Gateway",
+                "vendor_name": d["vendor_name"] or "Switch",
+                "mode": d["payment_mode"],
+                "gateway_ref": d["gateway_reference"],
+                "bank_ref": d["bank_reference"],
+                "created_at": safe_iso(c_dt)
+            }
         })
 
     return {
@@ -299,12 +446,92 @@ async def get_payout_transaction_details(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    from app.presentation.api.v1.transaction_report_router import get_transaction_dynamic_details
-    return await get_transaction_dynamic_details(
-        txn_id=id,
-        request=request,
-        db=db
-    )
+    await ensure_payout_views(db)
+    clean_id = id.strip()
+
+    row_res = await db.execute(text("""
+        SELECT * FROM public.view_admin_payout_reports
+        WHERE transaction_number = :cid OR public_id::text = :cid OR id::text = :cid OR utr_number = :cid
+        LIMIT 1
+    """), {"cid": clean_id})
+
+    row = row_res.fetchone()
+    if row:
+        d = dict(zip(row_res.keys(), row))
+        c_dt = d["created_date"]
+        u_dt = d["updated_date"]
+        amt = float(d["amount"] or 0.0)
+        chg = float(d["charges"] or 0.0)
+        gst = float(d["tax"] or 0.0)
+        net = float(d["net_amount"] or 0.0)
+
+        return {
+            "status": "SUCCESS",
+            "data": {
+                "transaction": {
+                    "txn_id": d["transaction_number"],
+                    "reference_id": d["gateway_reference"] or d["bank_reference"],
+                    "service": "PAYOUT",
+                    "date_time": safe_iso(c_dt),
+                    "status": d["status"],
+                    "mode": d["payment_mode"],
+                    "amount": amt
+                },
+                "transaction_info": {
+                    "transaction_id": d["transaction_number"],
+                    "payout_id": str(d["payout_id"] or d["gateway_reference"]),
+                    "service": "PAYOUT",
+                    "date_time": safe_iso(c_dt),
+                    "status": d["status"],
+                    "payment_mode": d["payment_mode"]
+                },
+                "hierarchy": {
+                    "tenant": str(d["tenant_id"]) if d["tenant_id"] else "Platform Tenant",
+                    "company": str(d["company_id"]) if d["company_id"] else "Corporate Head",
+                    "sd": "Super Distributor Network",
+                    "distributor": "Distributor Hub",
+                    "retailer": d["retailer_name"]
+                },
+                "party": {
+                    "retailer": f"{d['retailer_name']} ({d['retailer_code'] or 'DIRECT'})",
+                    "beneficiary": d["bene_name"]
+                },
+                "financial": {
+                    "amount": amt,
+                    "gross_amount": amt,
+                    "charge": chg,
+                    "charges": chg,
+                    "gst": gst,
+                    "commission": 0.0,
+                    "total_debit": net,
+                    "net_amount": net,
+                    "payout_amount": amt
+                },
+                "beneficiary": {
+                    "name": d["bene_name"],
+                    "account": d["account_number"],
+                    "account_masked": mask_account_number(d["account_number"]),
+                    "bank": d["bank_name"],
+                    "ifsc": d["ifsc_code"]
+                },
+                "audit": {
+                    "created_at": safe_iso(c_dt),
+                    "updated_at": safe_iso(u_dt),
+                    "created_by": d["created_by"] or "System Gateway",
+                    "vendor_name": d["vendor_name"] or "UrbanRupee",
+                    "utr": d["utr_number"],
+                    "gateway_ref": d["gateway_reference"],
+                    "bank_ref": d["bank_reference"]
+                }
+            }
+        }
+
+    # Fallback to dynamic transaction details
+    try:
+        from app.presentation.api.v1.transaction_report_router import get_transaction_dynamic_details
+        return await get_transaction_dynamic_details(txn_id=id, request=request, db=db)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Payout transaction record not found")
 
 
 @router.get("/payout-transactions/export")
@@ -313,39 +540,86 @@ async def export_payout_transactions_csv(
     company_id: Optional[uuid.UUID] = Query(None),
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    payment_mode: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
+    await ensure_payout_views(db)
     start_dt, end_dt = parse_date_range(from_date, to_date)
-    filters = [
-        EnterprisePayoutTransactionModel.initiated_at >= start_dt,
-        EnterprisePayoutTransactionModel.initiated_at <= end_dt
-    ]
-    if tenant_id:
-        filters.append(EnterprisePayoutTransactionModel.tenant_id == tenant_id)
-    if company_id:
-        filters.append(EnterprisePayoutTransactionModel.company_id == company_id)
 
-    stmt = select(EnterprisePayoutTransactionModel).where(and_(*filters)).order_by(desc(EnterprisePayoutTransactionModel.initiated_at)).limit(5000)
-    rows = (await db.execute(stmt)).scalars().all()
+    where_clauses = ["created_date >= :start_dt", "created_date <= :end_dt"]
+    params = {"start_dt": start_dt, "end_dt": end_dt}
+
+    if isinstance(status, str) and status.strip():
+        st_clean = status.strip().upper()
+        if st_clean == "PENDING":
+            where_clauses.append("UPPER(status) IN ('PENDING', 'INITIATED', 'PROCESSING')")
+        elif st_clean == "FAILED":
+            where_clauses.append("UPPER(status) IN ('FAILED', 'REJECTED', 'REVERSED')")
+        else:
+            where_clauses.append("UPPER(status) = :st")
+            params["st"] = st_clean
+
+    if isinstance(payment_mode, str) and payment_mode.strip():
+        where_clauses.append("UPPER(payment_mode) = :pm")
+        params["pm"] = payment_mode.strip().upper()
+
+    if isinstance(search, str) and search.strip():
+        s_term = f"%{search.strip()}%"
+        where_clauses.append("""(
+            transaction_number ILIKE :sterm OR 
+            utr_number ILIKE :sterm OR 
+            bene_name ILIKE :sterm OR 
+            account_number ILIKE :sterm OR 
+            retailer_name ILIKE :sterm OR 
+            retailer_code ILIKE :sterm
+        )""")
+        params["sterm"] = s_term
+
+    where_sql = " AND ".join(where_clauses)
+
+    stmt = f"""
+        SELECT 
+            transaction_number, amount, tax, charges, net_amount, bene_name,
+            account_number, bank_name, ifsc_code, utr_number, status, retailer_name,
+            retailer_code, payment_mode, created_date, vendor_name
+        FROM public.view_admin_payout_reports
+        WHERE {where_sql}
+        ORDER BY id DESC
+        LIMIT 10000
+    """
+    res = await db.execute(text(stmt), params)
+    rows = res.fetchall()
 
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        "Transaction ID", "Payout ID", "Date", "Time", "Tenant", "Company", "SD", "Distributor",
-        "Retailer", "Service", "Amount", "Charges", "GST", "Commission", "Net Amount", "Payout Amount",
-        "Bank", "Account Masked", "IFSC", "UTR", "Status", "Settlement Status"
+        "S.No", "Transaction ID", "Amount (INR)", "Tax (INR)", "Charges (INR)", "Net Amount (INR)",
+        "Beneficiary Name", "Account Number", "Bank Name", "IFSC", "UTR", "Status",
+        "Retailer", "Retailer Code", "Payment Mode", "Created Date & Time", "Vendor Gateway"
     ])
 
-    for r in rows:
-        st_val = r.status.value if hasattr(r.status, "value") else str(r.status)
-        init_dt = get_created_dt(r)
+    for idx, r in enumerate(rows):
+        c_dt = r[14]
         writer.writerow([
-            r.transaction_number, r.vendor_ref or f"PAY-{str(r.public_id)[:8]}",
-            init_dt.strftime("%Y-%m-%d") if init_dt else "", init_dt.strftime("%H:%M:%S") if init_dt else "",
-            str(r.tenant_id), str(r.company_id or "N/A"), "Super Distributor Alpha", "Distributor Metro",
-            "Sathiya Traders", "DMT Payout", r.amount, r.charges, r.gst_amount, r.commission,
-            r.net_debit, r.amount, "HDFC Bank", mask_account_number("50100012345678"), "HDFC0001234",
-            r.utr_number or "PENDING", st_val, "SETTLED" if st_val == "SUCCESS" else "PENDING"
+            idx + 1,
+            r[0],
+            f"{float(r[1] or 0.0):.2f}",
+            f"{float(r[2] or 0.0):.2f}",
+            f"{float(r[3] or 0.0):.2f}",
+            f"{float(r[4] or 0.0):.2f}",
+            r[5],
+            r[6],
+            r[7],
+            r[8],
+            r[9],
+            r[10],
+            r[11],
+            r[12] or "",
+            r[13],
+            c_dt.strftime("%Y-%m-%d %H:%M:%S") if c_dt else "",
+            r[15] or ""
         ])
 
     output.seek(0)

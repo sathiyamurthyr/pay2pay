@@ -67,7 +67,8 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
     <Paper
       elevation={0}
       sx={{
-        p: { xs: 1.5, sm: 2 },
+        p: { xs: 1.25, sm: 1.5, md: 1.25 },
+        px: { xs: 1.5, md: 2 },
         mb: 2,
         borderRadius: "16px",
         bgcolor: darkTheme ? "rgba(11, 15, 25, 0.88)" : "#F0F9FF",
@@ -76,10 +77,10 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
           ? "1px solid rgba(245, 158, 11, 0.25)"
           : "1px solid #BAE6FD",
         display: "flex",
-        flexDirection: { xs: "column", sm: "row" },
-        alignItems: { xs: "flex-start", sm: "center" },
+        flexDirection: { xs: "column", md: "row" },
+        alignItems: "center",
         justifyContent: "space-between",
-        gap: 1.5,
+        gap: { xs: 1.25, md: 1.5 },
         width: "100%",
         maxWidth: "100%",
         boxSizing: "border-box",
@@ -88,82 +89,124 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
           : "0 2px 10px rgba(2, 132, 199, 0.08)",
       }}
     >
-      {/* LEFT: AVATAR & CUSTOMER DETAILS */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.25, sm: 1.75 }, minWidth: 0, width: "100%" }}>
+      {/* ── DESKTOP SINGLE-LINE VIEW (md and up) ── */}
+      <Box
+        sx={{
+          display: { xs: "none", md: "flex" },
+          alignItems: "center",
+          gap: 1.25,
+          minWidth: 0,
+          flex: 1,
+          overflow: "hidden",
+        }}
+      >
         <Avatar
           src={photoUrl}
           alt={name}
           sx={{
-            width: { xs: 44, sm: 52 },
-            height: { xs: 44, sm: 52 },
+            width: 38,
+            height: 38,
             background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
             color: "#FDE68A",
             fontWeight: 900,
-            fontSize: { xs: "16px", sm: "19px" },
-            border: darkTheme
-              ? "2px solid #F59E0B"
-              : "2px solid #0284C7",
-            boxShadow: darkTheme ? "0 0 12px rgba(245, 158, 11, 0.35)" : "0 2px 8px rgba(0,0,0,0.2)",
+            fontSize: "14px",
+            border: darkTheme ? "2px solid #F59E0B" : "2px solid #0284C7",
+            boxShadow: darkTheme ? "0 0 10px rgba(245, 158, 11, 0.35)" : "0 2px 8px rgba(0,0,0,0.2)",
             flexShrink: 0,
           }}
         >
           {initials}
         </Avatar>
 
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-            <Typography
-              sx={{
-                fontWeight: 900,
-                fontSize: { xs: "15px", sm: "18px" },
-                letterSpacing: "-0.2px",
-                lineHeight: 1.2,
-                background: darkTheme ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
-                WebkitBackgroundClip: darkTheme ? "text" : "unset",
-                WebkitTextFillColor: darkTheme ? "transparent" : "inherit",
-                color: darkTheme ? "inherit" : "#0F172A",
-              }}
-            >
-              {name}
-            </Typography>
-            <Chip
-              icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 12 } }} />}
-              label={`KYC: ${kycStatus}`}
-              size="small"
-              sx={{
-                height: 20,
-                bgcolor: "rgba(34, 197, 94, 0.15)",
-                color: "#4ADE80",
-                fontWeight: 800,
-                fontSize: "9.5px",
-                border: "1px solid rgba(74, 222, 128, 0.4)",
-              }}
-            />
-            <Chip
-              icon={<CheckCircleIcon sx={{ "&&": { color: "#38BDF8", fontSize: 12 } }} />}
-              label="VERIFIED"
-              size="small"
-              sx={{
-                height: 20,
-                bgcolor: "rgba(56, 189, 248, 0.15)",
-                color: "#38BDF8",
-                fontWeight: 800,
-                fontSize: "9.5px",
-                border: "1px solid rgba(56, 189, 248, 0.4)",
-              }}
-            />
-          </Box>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            minWidth: 0,
+            flexWrap: "nowrap",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+          }}
+        >
+          <Typography
+            sx={{
+              fontWeight: 900,
+              fontSize: "15px",
+              letterSpacing: "-0.2px",
+              lineHeight: 1,
+              background: darkTheme ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
+              WebkitBackgroundClip: darkTheme ? "text" : "unset",
+              WebkitTextFillColor: darkTheme ? "transparent" : "inherit",
+              color: darkTheme ? "inherit" : "#0F172A",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {name}
+          </Typography>
+
+          <Chip
+            icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 11 } }} />}
+            label={`KYC: ${kycStatus}`}
+            size="small"
+            sx={{
+              height: 20,
+              bgcolor: "rgba(34, 197, 94, 0.15)",
+              color: "#4ADE80",
+              fontWeight: 800,
+              fontSize: "9.5px",
+              border: "1px solid rgba(74, 222, 128, 0.4)",
+              flexShrink: 0,
+            }}
+          />
+
+          <Chip
+            icon={<CheckCircleIcon sx={{ "&&": { color: "#38BDF8", fontSize: 11 } }} />}
+            label="VERIFIED"
+            size="small"
+            sx={{
+              height: 20,
+              bgcolor: "rgba(56, 189, 248, 0.15)",
+              color: "#38BDF8",
+              fontWeight: 800,
+              fontSize: "9.5px",
+              border: "1px solid rgba(56, 189, 248, 0.4)",
+              flexShrink: 0,
+            }}
+          />
+
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.35)", fontWeight: 800, mx: 0.25, userSelect: "none" }}>
+            ·
+          </Typography>
 
           <Typography
             sx={{
-              color: darkTheme ? "rgba(255, 255, 255, 0.80)" : "#475569",
-              fontSize: { xs: "11.5px", sm: "13px" },
-              mt: 0.3,
-              fontWeight: 600,
-              lineHeight: 1.3,
+              color: darkTheme ? "rgba(255, 255, 255, 0.90)" : "#334155",
+              fontSize: "12.5px",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
-            <strong>+91 {mobile}</strong> · Customer ID:{" "}
+            +91 {mobile}
+          </Typography>
+
+          <Typography sx={{ color: "rgba(255, 255, 255, 0.35)", fontWeight: 800, mx: 0.25, userSelect: "none" }}>
+            ·
+          </Typography>
+
+          <Typography
+            sx={{
+              color: darkTheme ? "rgba(255, 255, 255, 0.70)" : "#475569",
+              fontSize: "12px",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              textOverflow: "ellipsis",
+              overflow: "hidden",
+            }}
+          >
+            Customer ID:{" "}
             <span style={{ color: darkTheme ? "#FDE68A" : "#0284C7", fontFamily: "monospace", fontWeight: 800 }}>
               {customerCode}
             </span>
@@ -171,15 +214,100 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
         </Box>
       </Box>
 
-      {/* RIGHT: QUICK ACTIONS */}
+      {/* ── MOBILE VIEW (xs to md) ── */}
+      <Box sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 0.75, width: "100%" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, width: "100%" }}>
+          <Avatar
+            src={photoUrl}
+            alt={name}
+            sx={{
+              width: 38,
+              height: 38,
+              background: "linear-gradient(135deg, #1E293B 0%, #0F172A 100%)",
+              color: "#FDE68A",
+              fontWeight: 900,
+              fontSize: "14px",
+              border: darkTheme ? "2px solid #F59E0B" : "2px solid #0284C7",
+              boxShadow: darkTheme ? "0 0 10px rgba(245, 158, 11, 0.35)" : "0 2px 8px rgba(0,0,0,0.2)",
+              flexShrink: 0,
+            }}
+          >
+            {initials}
+          </Avatar>
+
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+              <Typography
+                sx={{
+                  fontWeight: 900,
+                  fontSize: "14.5px",
+                  letterSpacing: "-0.2px",
+                  background: darkTheme ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "none",
+                  WebkitBackgroundClip: darkTheme ? "text" : "unset",
+                  WebkitTextFillColor: darkTheme ? "transparent" : "inherit",
+                  color: darkTheme ? "inherit" : "#0F172A",
+                }}
+              >
+                {name}
+              </Typography>
+              <Chip
+                icon={<ShieldIcon sx={{ "&&": { color: "#4ADE80", fontSize: 10 } }} />}
+                label={`KYC: ${kycStatus}`}
+                size="small"
+                sx={{
+                  height: 18,
+                  bgcolor: "rgba(34, 197, 94, 0.15)",
+                  color: "#4ADE80",
+                  fontWeight: 800,
+                  fontSize: "8.5px",
+                  border: "1px solid rgba(74, 222, 128, 0.4)",
+                }}
+              />
+              <Chip
+                icon={<CheckCircleIcon sx={{ "&&": { color: "#38BDF8", fontSize: 10 } }} />}
+                label="VERIFIED"
+                size="small"
+                sx={{
+                  height: 18,
+                  bgcolor: "rgba(56, 189, 248, 0.15)",
+                  color: "#38BDF8",
+                  fontWeight: 800,
+                  fontSize: "8.5px",
+                  border: "1px solid rgba(56, 189, 248, 0.4)",
+                }}
+              />
+            </Box>
+            <Typography
+              sx={{
+                color: darkTheme ? "rgba(255, 255, 255, 0.80)" : "#475569",
+                fontSize: "11px",
+                mt: 0.25,
+                fontWeight: 600,
+              }}
+            >
+              <strong>+91 {mobile}</strong> · ID:{" "}
+              <span style={{ color: darkTheme ? "#FDE68A" : "#0284C7", fontFamily: "monospace", fontWeight: 800 }}>
+                {customerCode}
+              </span>
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* ── RIGHT: QUICK ACTIONS (Single row on desktop, 50/50 full width on mobile) ── */}
       <Stack
         direction="row"
         spacing={1}
         sx={{
-          width: { xs: "100%", sm: "auto" },
-          justifyContent: { xs: "flex-start", sm: "flex-end" },
-          flexWrap: "wrap",
+          width: { xs: "100%", md: "auto" },
+          justifyContent: { xs: "space-between", md: "flex-end" },
+          alignItems: "center",
+          flexWrap: "nowrap",
+          flexShrink: 0,
           gap: 1,
+          "& > *": {
+            flex: { xs: 1, md: "none" },
+          },
         }}
       >
         {onEditCustomer && (
@@ -195,6 +323,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: 800,
+                whiteSpace: "nowrap",
                 color: darkTheme ? "#FDE68A" : "#0369A1",
                 borderColor: darkTheme ? "rgba(245, 158, 11, 0.35)" : "#BAE6FD",
                 bgcolor: darkTheme ? "rgba(245, 158, 11, 0.08)" : "#E0F2FE",
@@ -223,6 +352,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: 800,
+                whiteSpace: "nowrap",
                 color: darkTheme ? "#93C5FD" : "#0369A1",
                 borderColor: darkTheme ? "rgba(147, 197, 253, 0.4)" : "#BAE6FD",
                 bgcolor: darkTheme ? "rgba(37, 99, 235, 0.15)" : "#E0F2FE",
@@ -251,6 +381,7 @@ export const CustomerSummaryHeader: React.FC<CustomerSummaryHeaderProps> = ({
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: 800,
+                whiteSpace: "nowrap",
                 color: darkTheme ? "#FCA5A5" : "#B91C1C",
                 borderColor: darkTheme ? "rgba(252, 165, 165, 0.4)" : "#FECACA",
                 bgcolor: darkTheme ? "rgba(239, 68, 68, 0.15)" : "#FEF2F2",

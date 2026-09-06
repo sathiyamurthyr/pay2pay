@@ -11,8 +11,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.infrastructure.db.models import AdminUserModel, TenantModel
+from app.infrastructure.db.customer_models import CustomerModel
 
 from app.infrastructure.db.beneficiary_verification_models import (
     BeneficiaryVerificationRequestModel,
@@ -39,6 +42,7 @@ from app.application.beneficiary_verification_dtos import (
     VerificationPricingBreakdown,
     FraudRiskEvaluationResult,
 )
+from app.core.beneficiary_name_sanitizer import sanitize_beneficiary_name
 
 logger = logging.getLogger("beneficiary_verification_service")
 
@@ -82,6 +86,48 @@ class BeneficiaryVerificationService:
         return FraudRiskEvaluationResult(is_allowed=True, risk_score=5.0, risk_category="LOW")
 
     @classmethod
+    async def _resolve_tenant_id(
+        cls,
+        db: AsyncSession,
+        req: BeneficiaryVerifyRequest
+    ) -> uuid.UUID:
+        """Resolve dynamic tenant UUID from request, retailer, customer, or active DB tenant."""
+        if req.tenant_id:
+            return req.tenant_id
+
+        if req.retailer_id:
+            try:
+                stmt_user = select(AdminUserModel.tenant_id).where(
+                    or_(AdminUserModel.public_id == req.retailer_id, AdminUserModel.id == req.retailer_id)
+                )
+                tid = (await db.execute(stmt_user)).scalar()
+                if tid:
+                    return tid
+            except Exception:
+                pass
+
+        if req.customer_id:
+            try:
+                stmt_cust = select(CustomerModel.tenant_id).where(
+                    or_(CustomerModel.public_id == req.customer_id, CustomerModel.id == req.customer_id)
+                )
+                tid = (await db.execute(stmt_cust)).scalar()
+                if tid:
+                    return tid
+            except Exception:
+                pass
+
+        try:
+            stmt_t = select(TenantModel.public_id).where(TenantModel.is_active == True).limit(1)
+            tid = (await db.execute(stmt_t)).scalar()
+            if tid:
+                return tid
+        except Exception:
+            pass
+
+        return uuid.uuid4()
+
+    @classmethod
     async def verify_beneficiary_account(
         cls,
         db: AsyncSession,
@@ -110,6 +156,7 @@ class BeneficiaryVerificationService:
 
         pricing = VerificationPricingBreakdown()
         now = datetime.now(timezone.utc)
+        resolved_tenant_id = await cls._resolve_tenant_id(db, req)
 
         # ── 1. FRAUD ENGINE EVALUATION ──
         fraud_result = await cls.evaluate_fraud_risk(db, req)
@@ -129,7 +176,7 @@ class BeneficiaryVerificationService:
         try:
             # 2a. Save Verification Request Record
             req_record = BeneficiaryVerificationRequestModel(
-                tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                tenant_id=resolved_tenant_id,
                 public_id=uuid.uuid4(),
                 verification_number=verification_num,
                 correlation_id=correlation_id,
@@ -160,7 +207,7 @@ class BeneficiaryVerificationService:
 
             # 2b. Post Double-Entry Wallet Balance History
             wb_history = WalletBalanceHistoryModel(
-                tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                tenant_id=resolved_tenant_id,
                 public_id=uuid.uuid4(),
                 retailer_id=req.retailer_id,
                 transaction_ref=verification_num,
@@ -175,7 +222,7 @@ class BeneficiaryVerificationService:
 
             # 2c. Post Double-Entry General Ledgers
             gl_debit = GeneralLedgerModel(
-                tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                tenant_id=resolved_tenant_id,
                 public_id=uuid.uuid4(),
                 ledger_id=f"GL-DR-{verification_num}",
                 transaction_id=verification_num,
@@ -188,7 +235,7 @@ class BeneficiaryVerificationService:
                 created_by="SYSTEM"
             )
             gl_credit = GeneralLedgerModel(
-                tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                tenant_id=resolved_tenant_id,
                 public_id=uuid.uuid4(),
                 ledger_id=f"GL-CR-{verification_num}",
                 transaction_id=verification_num,
@@ -205,7 +252,7 @@ class BeneficiaryVerificationService:
 
             # 2d. Post GST & Commission Ledgers
             gst_entry = GstLedgerModel(
-                tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                tenant_id=resolved_tenant_id,
                 public_id=uuid.uuid4(),
                 ledger_id=f"GST-{verification_num}",
                 transaction_id=verification_num,
@@ -217,7 +264,7 @@ class BeneficiaryVerificationService:
                 created_by="SYSTEM"
             )
             comm_entry = CommissionLedgerModel(
-                tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                tenant_id=resolved_tenant_id,
                 public_id=uuid.uuid4(),
                 ledger_id=f"COM-{verification_num}",
                 transaction_id=verification_num,
@@ -247,7 +294,7 @@ class BeneficiaryVerificationService:
 
             # 2f. Save Vendor Response Record
             resp_record = BeneficiaryVerificationResponseModel(
-                tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                tenant_id=resolved_tenant_id,
                 public_id=uuid.uuid4(),
                 verification_request_id=req_record.public_id,
                 verification_number=verification_num,
@@ -257,7 +304,7 @@ class BeneficiaryVerificationService:
                 response_body=vendor_res.raw_response,
                 latency_ms=vendor_res.latency_ms,
                 bank_account_exists=vendor_res.account_exists,
-                name_at_bank=vendor_res.name_at_bank,
+                name_at_bank=sanitize_beneficiary_name(vendor_res.name_at_bank) if vendor_res.name_at_bank else None,
                 name_match_score=vendor_res.name_match_score,
                 name_match_status=vendor_res.name_match_status,
                 utr=vendor_res.utr,
@@ -270,8 +317,11 @@ class BeneficiaryVerificationService:
             final_status = "SUCCESS" if vendor_res.account_exists else "FAILED"
 
             # 2g. Save Master Beneficiary Verification Record
+            clean_input_name = sanitize_beneficiary_name(req.account_holder_name)
+            clean_bank_name = sanitize_beneficiary_name(vendor_res.name_at_bank) if vendor_res.name_at_bank else None
+
             main_record = BeneficiaryVerificationRecordModel(
-                tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                tenant_id=resolved_tenant_id,
                 public_id=uuid.uuid4(),
                 verification_number=verification_num,
                 retailer_id=req.retailer_id,
@@ -279,8 +329,8 @@ class BeneficiaryVerificationService:
                 masked_account_number=masked_acc,
                 ifsc_code=req.ifsc_code,
                 bank_name="HDFC Bank",
-                input_name=req.account_holder_name,
-                registered_bank_name=vendor_res.name_at_bank,
+                input_name=clean_input_name,
+                registered_bank_name=clean_bank_name,
                 name_match_score=vendor_res.name_match_score,
                 verification_status=final_status,
                 failure_reason=vendor_res.error_message,
@@ -296,19 +346,163 @@ class BeneficiaryVerificationService:
             )
             db.add(main_record)
 
-            # 2h. Audit History Record
-            history_record = BeneficiaryVerificationHistoryModel(
-                tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
-                public_id=uuid.uuid4(),
-                verification_number=verification_num,
-                from_status="INITIATED",
-                to_status=final_status,
-                action_by="SYSTEM",
-                remarks=f"Verified via {req.vendor_code}. Name Match Score: {vendor_res.name_match_score}%",
-                timestamp=datetime.now(timezone.utc),
-                created_by="SYSTEM"
-            )
-            db.add(history_record)
+            # 2i. If customer_id provided, persist to BeneficiaryMasterModel, CustomerMapping & Legacy Tables
+            if getattr(req, "customer_id", None) and vendor_res.account_exists:
+                try:
+                    from app.infrastructure.db.epic014_models import BeneficiaryMasterModel, BeneficiaryCustomerMappingModel
+                    from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
+                    import random
+                    
+                    cust_u = None
+                    try:
+                        cust_u = uuid.UUID(str(req.customer_id))
+                    except Exception:
+                        c_lookup = select(CustomerModel).where(
+                            or_(
+                                CustomerModel.customer_number == str(req.customer_id),
+                                CustomerModel.mobile_number == str(req.customer_id)
+                            )
+                        )
+                        c_obj = (await db.execute(c_lookup)).scalars().first()
+                        if c_obj:
+                            cust_u = c_obj.public_id
+
+                    if cust_u:
+                        clean_acc = req.account_number.strip()
+                        clean_ifsc = req.ifsc_code.strip().upper()
+                        clean_name = clean_bank_name or clean_input_name or "VERIFIED BENEFICIARY"
+                        
+                        stmt_bm = select(BeneficiaryMasterModel).where(
+                            BeneficiaryMasterModel.account_number == clean_acc
+                        )
+                        bm_row = (await db.execute(stmt_bm)).scalars().first()
+                        if not bm_row:
+                            bm_row = BeneficiaryMasterModel(
+                                tenant_id=resolved_tenant_id,
+                                account_holder_name=clean_name,
+                                registered_name_in_bank=clean_bank_name or clean_input_name,
+                                account_number=clean_acc,
+                                account_number_masked=masked_acc,
+                                ifsc_code=clean_ifsc,
+                                bank_name="State Bank of India" if clean_ifsc.startswith("SBIN") else "Partner Bank",
+                                verification_status="VERIFIED",
+                                verification_reference=vendor_res.vendor_ref_id,
+                                verification_date=datetime.now(timezone.utc),
+                                penny_drop_status="SUCCESS",
+                                utr=vendor_res.utr,
+                                is_active=True,
+                                is_deleted=False,
+                                status="ACTIVE"
+                            )
+                            db.add(bm_row)
+                            await db.flush()
+                        else:
+                            bm_row.is_active = True
+                            bm_row.is_deleted = False
+                            bm_row.status = "ACTIVE"
+                            bm_row.ifsc_code = clean_ifsc
+                            bm_row.verification_status = "VERIFIED"
+                            if clean_bank_name:
+                                bm_row.registered_name_in_bank = clean_bank_name
+
+                        stmt_m = select(BeneficiaryCustomerMappingModel).where(
+                            BeneficiaryCustomerMappingModel.customer_id == cust_u,
+                            BeneficiaryCustomerMappingModel.beneficiary_id == bm_row.public_id
+                        )
+                        m_row = (await db.execute(stmt_m)).scalars().first()
+                        if not m_row:
+                            m_row = BeneficiaryCustomerMappingModel(
+                                tenant_id=resolved_tenant_id,
+                                customer_id=cust_u,
+                                beneficiary_id=bm_row.public_id,
+                                nickname=f"{bm_row.bank_name or 'Bank'} Account",
+                                is_active=True,
+                                is_deleted=False
+                            )
+                            db.add(m_row)
+                        else:
+                            m_row.is_active = True
+                            m_row.is_deleted = False
+
+                        stmt_leg = select(BeneficiaryModel).where(
+                            and_(
+                                BeneficiaryModel.customer_id == cust_u,
+                                or_(
+                                    BeneficiaryModel.public_id == bm_row.public_id,
+                                    BeneficiaryModel.full_name == clean_name
+                                )
+                            )
+                        )
+                        leg_r = (await db.execute(stmt_leg)).scalars().first()
+                        if not leg_r:
+                            stmt_taken = select(BeneficiaryModel.id).where(BeneficiaryModel.public_id == bm_row.public_id)
+                            is_taken = (await db.execute(stmt_taken)).scalars().first() is not None
+                            leg_pub_id = bm_row.public_id if not is_taken else uuid.uuid4()
+
+                            leg_r = BeneficiaryModel(
+                                public_id=leg_pub_id,
+                                tenant_id=resolved_tenant_id,
+                                created_by="SYSTEM",
+                                beneficiary_number=f"BEN{random.randint(100000, 999999)}",
+                                customer_id=cust_u,
+                                full_name=clean_name,
+                                nickname=f"{bm_row.bank_name or 'Bank'} Account",
+                                relationship="SELF",
+                                verification_status="VERIFIED",
+                                beneficiary_status="ACTIVE",
+                                registration_date=datetime.now(timezone.utc),
+                                activation_date=datetime.now(timezone.utc),
+                                is_active=True,
+                                is_deleted=False,
+                                version_no=1,
+                                record_status="ACTIVE",
+                                beneficiary_category="REGULAR",
+                                beneficiary_type="INDIVIDUAL"
+                            )
+                            db.add(leg_r)
+                            await db.flush()
+                        else:
+                            leg_r.is_active = True
+                            leg_r.is_deleted = False
+                            leg_r.beneficiary_status = "ACTIVE"
+                            leg_r.verification_status = "VERIFIED"
+
+                        stmt_bba = select(BeneficiaryBankAccountModel).where(
+                            and_(
+                                BeneficiaryBankAccountModel.beneficiary_id == leg_r.public_id,
+                                BeneficiaryBankAccountModel.account_number == clean_acc
+                            )
+                        )
+                        bba_r = (await db.execute(stmt_bba)).scalars().first()
+                        if not bba_r:
+                            bba_r = BeneficiaryBankAccountModel(
+                                public_id=uuid.uuid4(),
+                                tenant_id=resolved_tenant_id,
+                                created_by="SYSTEM",
+                                beneficiary_id=leg_r.public_id,
+                                account_holder_name=clean_name,
+                                account_number=clean_acc,
+                                account_number_masked=masked_acc,
+                                ifsc_code=clean_ifsc,
+                                bank_name="State Bank of India" if clean_ifsc.startswith("SBIN") else "Partner Bank",
+                                verification_status="VERIFIED",
+                                penny_drop_status="SUCCESS",
+                                name_match_score=vendor_res.name_match_score or 100.0,
+                                registered_name_in_bank=clean_bank_name or clean_input_name,
+                                is_primary=True,
+                                is_active=True,
+                                is_deleted=False,
+                                version_no=1,
+                                record_status="ACTIVE"
+                            )
+                            db.add(bba_r)
+                        else:
+                            bba_r.is_active = True
+                            bba_r.is_deleted = False
+                            bba_r.ifsc_code = clean_ifsc
+                            bba_r.verification_status = "VERIFIED"
+                except Exception as sync_err:
+                    logger.warning(f"Failed to auto-sync beneficiary master during verify: {sync_err}")
 
             # Commit transaction permanently to DB
             await db.commit()
@@ -316,7 +510,7 @@ class BeneficiaryVerificationService:
             # ── 3. AUTOMATIC REFUND REVERSAL IF VENDOR FAILED ──
             if not vendor_res.account_exists:
                 logger.info(f"Vendor verification failed for {verification_num}. Triggering automatic refund reversal.")
-                await cls._execute_automatic_refund_reversal(db, req, verification_num, wallet_after, pricing)
+                await cls._execute_automatic_refund_reversal(db, req, verification_num, wallet_after, pricing, resolved_tenant_id)
                 final_status = "REVERSED"
 
             latency_ms = round((time.time() - start_time) * 1000, 2)
@@ -358,7 +552,8 @@ class BeneficiaryVerificationService:
         req: BeneficiaryVerifyRequest,
         verification_num: str,
         current_wallet: float,
-        pricing: VerificationPricingBreakdown
+        pricing: VerificationPricingBreakdown,
+        tenant_id: uuid.UUID
     ) -> None:
         """Post atomic refund reversal ledgers & credit wallet back upon vendor failure."""
         now = datetime.now(timezone.utc)
@@ -366,7 +561,7 @@ class BeneficiaryVerificationService:
 
         # Reversal Wallet History
         wb_reversal = WalletBalanceHistoryModel(
-            tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            tenant_id=tenant_id,
             public_id=uuid.uuid4(),
             retailer_id=req.retailer_id,
             transaction_ref=f"REV-{verification_num}",
@@ -381,7 +576,7 @@ class BeneficiaryVerificationService:
 
         # Reversal General Ledgers
         gl_rev_debit = GeneralLedgerModel(
-            tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            tenant_id=tenant_id,
             public_id=uuid.uuid4(),
             ledger_id=f"GL-REV-DR-{verification_num}",
             transaction_id=verification_num,
@@ -394,7 +589,7 @@ class BeneficiaryVerificationService:
             created_by="SYSTEM_REVERSAL"
         )
         gl_rev_credit = GeneralLedgerModel(
-            tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            tenant_id=tenant_id,
             public_id=uuid.uuid4(),
             ledger_id=f"GL-REV-CR-{verification_num}",
             transaction_id=verification_num,
