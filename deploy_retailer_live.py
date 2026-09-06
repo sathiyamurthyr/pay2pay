@@ -61,9 +61,14 @@ def package_app(app_dir: Path, zip_name: str, app_rel_name: str):
     return zip_path
 
 def deploy_to_server(retailer_zip: Path):
-    print("\n🚀 Uploading retailer package to 129.225.91.190 via SCP...")
+    print("\n🚀 Uploading retailer package and backend updates to 129.225.91.190 via SCP...")
     scp_cmd = f'scp -o StrictHostKeyChecking=no -i "{KEY_PATH}" "{retailer_zip}" {SERVER_HOST}:/home/ubuntu/'
     subprocess.run(scp_cmd, shell=True, check=True)
+    backend_file = BASE_DIR / "backend" / "app" / "application" / "payout_workflow_service.py"
+    if backend_file.exists():
+        scp_backend = f'scp -o StrictHostKeyChecking=no -i "{KEY_PATH}" "{backend_file}" {SERVER_HOST}:/home/ubuntu/pay2pay/backend/app/application/payout_workflow_service.py'
+        subprocess.run(scp_backend, shell=True, check=True)
+        print("✅ Uploaded payout_workflow_service.py to backend successfully!")
     print("✅ Uploaded retailer archive successfully!")
 
     print("\n🔄 Extracting packages and restarting services on production server...")
