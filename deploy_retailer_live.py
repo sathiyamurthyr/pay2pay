@@ -50,6 +50,8 @@ def package_app(app_dir: Path, zip_name: str, app_rel_name: str):
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
         for root, dirs, files in os.walk(standalone_dir):
             for file in files:
+                if file.endswith(('.zip', '.tar.gz', '.tsbuildinfo')):
+                    continue
                 full_path = Path(root) / file
                 rel_path = full_path.relative_to(standalone_dir)
                 z.write(full_path, str(rel_path))
