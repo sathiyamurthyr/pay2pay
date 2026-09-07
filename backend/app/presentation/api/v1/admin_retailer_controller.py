@@ -349,24 +349,80 @@ async def update_retailer_status_controller(
         "REACTIVATE": "ACTIVE"
     }[action]
 
-    # Update in database
+    is_active_val = action in ["APPROVE", "REACTIVATE"]
+
+    # Update RetailerModel in database
+    ret_public_id = None
+    ret_mobiles = []
     try:
-        u_id = uuid.UUID(retailer_id)
-        stmt = update(RetailerModel).where(RetailerModel.public_id == u_id).values(
-            status=new_status,
-            updated_date=datetime.datetime.utcnow()
-        )
-        await db.execute(stmt)
-        await db.commit()
-    except (ValueError, TypeError):
-        stmt = update(RetailerModel).where(RetailerModel.retailer_code == retailer_id).values(
-            status=new_status,
-            updated_date=datetime.datetime.utcnow()
-        )
-        await db.execute(stmt)
-        await db.commit()
-    except Exception:
-        # Fallback simulation if ID is symbolic
+        from app.infrastructure.db.models import RetailerContactModel
+        from app.infrastructure.db.verification_models import RetailerVerificationModel
+        from app.infrastructure.db.auth_models import AuthUserModel
+        import re
+
+        try:
+            u_id = uuid.UUID(retailer_id)
+            r_obj = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == u_id))).scalars().first()
+        except (ValueError, TypeError):
+            r_obj = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == retailer_id))).scalars().first()
+
+        if r_obj:
+            ret_public_id = r_obj.public_id
+            r_obj.status = new_status
+            r_obj.is_active = is_active_val
+            if is_active_val:
+                r_obj.mpin_locked = False
+            r_obj.updated_date = datetime.datetime.now(datetime.timezone.utc)
+
+            # Get linked contacts
+            c_rows = (await db.execute(select(RetailerContactModel).where(RetailerContactModel.retailer_id == r_obj.public_id))).scalars().all()
+            for c in c_rows:
+                if c.mobile:
+                    clean_m = re.sub(r"\D", "", str(c.mobile))[-10:]
+                    if clean_m:
+                        ret_mobiles.extend([clean_m, f"+91{clean_m}", f"91{clean_m}"])
+
+            # Synchronize RetailerVerificationModel
+            v_conds = [
+                RetailerVerificationModel.retailer_id == r_obj.retailer_code,
+                RetailerVerificationModel.public_id == r_obj.public_id
+            ]
+            if ret_mobiles:
+                v_conds.append(RetailerVerificationModel.mobile_number.in_(ret_mobiles))
+            
+            v_vals = {
+                "retailer_status": new_status,
+                "account_status": "ACTIVE" if is_active_val else ("SUSPENDED" if action == "SUSPEND" else "ONBOARDING"),
+                "is_active": is_active_val,
+                "updated_date": datetime.datetime.now(datetime.timezone.utc)
+            }
+            if action in ["APPROVE", "REACTIVATE"]:
+                v_vals["verification_status"] = "APPROVED"
+            elif action == "REJECT":
+                v_vals["verification_status"] = "REJECTED"
+
+            await db.execute(update(RetailerVerificationModel).where(or_(*v_conds)).values(**v_vals))
+
+            # Synchronize AuthUserModel
+            a_conds = [
+                AuthUserModel.user_id == r_obj.public_id,
+                AuthUserModel.public_id == r_obj.public_id
+            ]
+            if ret_mobiles:
+                a_conds.append(AuthUserModel.mobile_number.in_(ret_mobiles))
+            
+            a_vals = {
+                "account_status": new_status,
+                "is_active": is_active_val,
+                "updated_date": datetime.datetime.now(datetime.timezone.utc)
+            }
+            if is_active_val:
+                a_vals["failed_attempts"] = 0
+                a_vals["locked_until"] = None
+
+            await db.execute(update(AuthUserModel).where(or_(*a_conds)).values(**a_vals))
+            await db.commit()
+    except Exception as upd_err:
         pass
 
     return {

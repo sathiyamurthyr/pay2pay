@@ -3,8 +3,9 @@ import random
 import re
 from datetime import datetime, date, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
-from sqlalchemy import select, func, or_, update, delete
+from sqlalchemy import select, func, or_, update, delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
@@ -525,138 +526,165 @@ class UserService:
     @staticmethod
     async def create_user(
         db: AsyncSession, tenant_id: uuid.UUID, req: UserCreate, actor_user: AdminUserModel
-    ) -> AdminUserModel:
-        stmt = select(AdminUserModel).where(
-            AdminUserModel.tenant_id == tenant_id,
-            (AdminUserModel.email == req.email) | (AdminUserModel.username == req.username),
-            AdminUserModel.is_deleted == False
-        )
-        existing = (await db.execute(stmt)).scalar_one_or_none()
-        if existing:
-            raise ConflictException("Email or username already exists in this tenant")
+    ) -> Dict[str, Any]:
+        validated_user_type = UserTypeService.validate_user_type(req.user_type, allow_none=True) or "ADMIN"
+        hashed_pwd = hash_password(req.password)
+        role_ids = [str(r) for r in req.role_ids] if req.role_ids else []
 
-        user = AdminUserModel(
-            public_id=uuid.uuid4(),
-            tenant_id=tenant_id,
-            company_id=req.company_id,
-            email=req.email,
-            username=req.username,
-            hashed_password=hash_password(req.password),
-            full_name=req.full_name,
-            phone=req.phone,
-            user_type=UserTypeService.validate_user_type(req.user_type, allow_none=True) or "ADMIN",
-            status="ACTIVE",
-            created_by=actor_user.email
-        )
-        db.add(user)
-        await db.flush()
-
-        # Assign roles
-        if req.role_ids:
-            role_stmt = select(RoleModel).where(RoleModel.public_id.in_(req.role_ids))
-            roles = (await db.execute(role_stmt)).scalars().all()
-            for r in roles:
-                user_role = UserRoleModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=tenant_id,
-                    user_id=user.id,
-                    role_id=r.id,
-                    created_by=actor_user.email
-                )
-                db.add(user_role)
-
-        await db.commit()
-        await db.refresh(user)
+        stmt = text("""
+            SELECT sp_create_admin_user(
+                :p_tenant_id,
+                :p_company_id,
+                :p_email,
+                :p_username,
+                :p_hashed_password,
+                :p_full_name,
+                :p_phone,
+                :p_user_type,
+                :p_role_ids,
+                :p_created_by
+            )
+        """)
+        try:
+            res = await db.execute(stmt, {
+                "p_tenant_id": tenant_id,
+                "p_company_id": req.company_id or actor_user.company_id,
+                "p_email": req.email,
+                "p_username": req.username,
+                "p_hashed_password": hashed_pwd,
+                "p_full_name": req.full_name,
+                "p_phone": req.phone,
+                "p_user_type": validated_user_type,
+                "p_role_ids": role_ids,
+                "p_created_by": actor_user.email or "ADMIN",
+            })
+            user_data = res.scalar()
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            err_msg = str(getattr(e, "orig", e))
+            if "already exists" in err_msg.lower() or "unique" in err_msg.lower():
+                raise ConflictException("Email or username already exists in this tenant")
+            raise
 
         await AuditLogger.log_action(
             db=db,
             tenant_id=tenant_id,
-            company_id=req.company_id,
+            company_id=req.company_id or actor_user.company_id,
             actor_id=actor_user.public_id,
             actor_email=actor_user.email,
             action="CREATE",
             resource_type="ADMIN_USER",
-            resource_id=str(user.public_id),
-            details={"email": user.email, "username": user.username, "user_type": user.user_type}
+            resource_id=str(user_data.get("public_id", "")),
+            details={"email": user_data.get("email"), "username": user_data.get("username"), "user_type": user_data.get("user_type")}
         )
-        return user
+        return user_data
 
     @staticmethod
-    async def list_users(db: AsyncSession, tenant_id: uuid.UUID) -> List[AdminUserModel]:
-        stmt = (
-            select(AdminUserModel)
-            .options(selectinload(AdminUserModel.user_roles).selectinload(UserRoleModel.role))
-            .where(AdminUserModel.tenant_id == tenant_id, AdminUserModel.is_deleted == False)
-            .order_by(AdminUserModel.created_date.desc())
-        )
-        res = await db.execute(stmt)
-        return res.scalars().all()
+    async def list_users(db: AsyncSession, tenant_id: uuid.UUID) -> List[Dict[str, Any]]:
+        stmt = text("SELECT sp_list_admin_users(:tenant_id)")
+        res = await db.execute(stmt, {"tenant_id": tenant_id})
+        users = res.scalar() or []
+        return users
 
     @staticmethod
     async def update_user_status(
         db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, status: str, actor_user: AdminUserModel
-    ) -> AdminUserModel:
-        stmt = select(AdminUserModel).where(
-            AdminUserModel.public_id == user_id,
-            AdminUserModel.tenant_id == tenant_id,
-            AdminUserModel.is_deleted == False
-        )
-        user = (await db.execute(stmt)).scalar_one_or_none()
-        if not user:
-            raise NotFoundException("User not found.")
+    ) -> Dict[str, Any]:
+        stmt = text("SELECT sp_update_admin_user_status(:tenant_id, :user_public_id, :status, :updated_by)")
+        try:
+            res = await db.execute(stmt, {
+                "tenant_id": tenant_id,
+                "user_public_id": user_id,
+                "status": status.upper(),
+                "updated_by": actor_user.email or "ADMIN",
+            })
+            user_data = res.scalar()
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            err_msg = str(getattr(e, "orig", e))
+            if "not found" in err_msg.lower():
+                raise NotFoundException("User not found.")
+            raise
 
-        user.status = status.upper()
-        await db.commit()
-        await db.refresh(user)
+        if not user_data:
+            raise NotFoundException("User not found.")
 
         await AuditLogger.log_action(
             db=db,
             tenant_id=tenant_id,
-            company_id=user.company_id,
+            company_id=actor_user.company_id,
             actor_id=actor_user.public_id,
             actor_email=actor_user.email,
             action="UPDATE_STATUS",
             resource_type="ADMIN_USER",
-            resource_id=str(user.public_id),
-            details={"email": user.email, "new_status": user.status}
+            resource_id=str(user_id),
+            details={"email": user_data.get("email"), "new_status": user_data.get("status")}
         )
-        return user
+        return user_data
 
     @staticmethod
     async def reset_user_password(
         db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, new_password: str, actor_user: AdminUserModel
-    ) -> AdminUserModel:
-        stmt = select(AdminUserModel).where(
-            AdminUserModel.public_id == user_id,
-            AdminUserModel.tenant_id == tenant_id,
-            AdminUserModel.is_deleted == False
-        )
-        user = (await db.execute(stmt)).scalar_one_or_none()
-        if not user:
-            raise NotFoundException("User not found.")
+    ) -> Dict[str, Any]:
+        hashed_pwd = hash_password(new_password)
+        stmt = text("SELECT sp_reset_admin_user_password(:tenant_id, :user_public_id, :hashed_password, :updated_by)")
+        try:
+            res = await db.execute(stmt, {
+                "tenant_id": tenant_id,
+                "user_public_id": user_id,
+                "hashed_password": hashed_pwd,
+                "updated_by": actor_user.email or "ADMIN",
+            })
+            user_data = res.scalar()
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            err_msg = str(getattr(e, "orig", e))
+            if "not found" in err_msg.lower():
+                raise NotFoundException("User not found.")
+            raise
 
-        user.hashed_password = hash_password(new_password)
-        await db.commit()
-        await db.refresh(user)
+        if not user_data:
+            raise NotFoundException("User not found.")
 
         await AuditLogger.log_action(
             db=db,
             tenant_id=tenant_id,
-            company_id=user.company_id,
+            company_id=actor_user.company_id,
             actor_id=actor_user.public_id,
             actor_email=actor_user.email,
             action="RESET_PASSWORD",
             resource_type="ADMIN_USER",
-            resource_id=str(user.public_id),
-            details={"email": user.email}
+            resource_id=str(user_id),
+            details={"email": user_data.get("email")}
         )
-        return user
+        return user_data
 
     @staticmethod
-    async def list_user_types(db: AsyncSession, tenant_id: Optional[uuid.UUID] = None) -> List[UserTypeModel]:
-        stmt = select(UserTypeModel).where(UserTypeModel.is_deleted == False).order_by(UserTypeModel.user_type_ref_id.asc())
-        types = (await db.execute(stmt)).scalars().all()
-        return types
+    async def list_user_types(db: AsyncSession, tenant_id: Optional[uuid.UUID] = None) -> List[Dict[str, Any]]:
+        stmt = text("SELECT sp_list_user_types()")
+        res = await db.execute(stmt)
+        return res.scalar() or []
+
+    @staticmethod
+    async def get_menu_access(db: AsyncSession, current_user: AdminUserModel) -> Dict[str, Any]:
+        user_type = getattr(current_user, "user_type", "ADMIN") or "ADMIN"
+        role_codes = []
+        if hasattr(current_user, "user_roles") and current_user.user_roles:
+            for ur in current_user.user_roles:
+                if hasattr(ur, "role") and ur.role and hasattr(ur.role, "code"):
+                    role_codes.append(ur.role.code)
+
+        stmt = text("SELECT sp_get_user_menu_access(:user_type, :roles)")
+        res = await db.execute(stmt, {
+            "user_type": user_type,
+            "roles": role_codes
+        })
+        menu_data = res.scalar() or {"user_type": user_type, "categories": []}
+        return menu_data
+
 
 
 
@@ -3035,10 +3063,14 @@ class RetailerManagementService:
 
         if action_upper in ["APPROVE", "APPROVED", "ACTIVE"]:
             retailer.status = "ACTIVE"
+            retailer.is_active = True
+            retailer.mpin_locked = False
             if retailer.kyc:
                 retailer.kyc.verification_status = "VERIFIED"
+                retailer.kyc.is_active = True
             for b in retailer.banks:
                 b.verification_status = "VERIFIED"
+                b.is_active = True
             
             # Automatically provision Default POS MDR configurations if not present
             try:
@@ -3058,31 +3090,47 @@ class RetailerManagementService:
                 retailer.kyc.verification_status = "PENDING"
         else:
             retailer.status = "BLOCKED"
+            retailer.is_active = False
             if retailer.kyc:
                 retailer.kyc.verification_status = "REJECTED"
                 retailer.kyc.rejection_reason = comments
 
-        # Also sync to RetailerVerificationModel and RegistrationDraftModel
+        # Also sync to RetailerVerificationModel, AuthUserModel, and RegistrationDraftModel
         from app.infrastructure.db.verification_models import RetailerVerificationModel
         from app.infrastructure.db.registration_models import RegistrationDraftModel
+        from app.infrastructure.db.auth_models import AuthUserModel
 
-        ret_mobiles = [c.mobile for c in retailer.contacts if c.mobile]
-        v_stmt = select(RetailerVerificationModel).where(
-            or_(
-                RetailerVerificationModel.retailer_id == retailer.retailer_code,
-                RetailerVerificationModel.mobile_number.in_(ret_mobiles)
-            )
-        )
+        ret_mobiles = []
+        for c in retailer.contacts:
+            if c.mobile:
+                cm = re.sub(r"\D", "", str(c.mobile))[-10:]
+                if cm:
+                    ret_mobiles.extend([cm, f"+91{cm}", f"91{cm}"])
+
+        v_conds = [
+            RetailerVerificationModel.retailer_id == retailer.retailer_code,
+            RetailerVerificationModel.public_id == retailer.public_id
+        ]
+        if ret_mobiles:
+            v_conds.append(RetailerVerificationModel.mobile_number.in_(ret_mobiles))
+
+        v_stmt = select(RetailerVerificationModel).where(or_(*v_conds))
         verifs = (await db.execute(v_stmt)).scalars().all()
         for v in verifs:
             if action_upper in ["APPROVE", "APPROVED", "ACTIVE"]:
                 v.verification_status = "APPROVED"
                 v.account_status = "ACTIVE"
                 v.retailer_status = "ACTIVE"
+                v.is_active = True
                 try:
                     await db.execute(
                         update(RegistrationDraftModel)
-                        .where(RegistrationDraftModel.registration_id == v.registration_id)
+                        .where(
+                            or_(
+                                RegistrationDraftModel.registration_id == v.registration_id,
+                                RegistrationDraftModel.mobile_number == v.mobile_number
+                            )
+                        )
                         .values(status="KYC_APPROVED")
                     )
                 except Exception:
@@ -3095,6 +3143,29 @@ class RetailerManagementService:
                 v.verification_status = "REJECTED"
                 v.account_status = "ONBOARDING"
                 v.retailer_status = "REJECTED"
+
+        # Synchronize AuthUserModel
+        if action_upper in ["APPROVE", "APPROVED", "ACTIVE"]:
+            try:
+                u_conds = [
+                    AuthUserModel.user_id == retailer.public_id,
+                    AuthUserModel.public_id == retailer.public_id
+                ]
+                if ret_mobiles:
+                    u_conds.append(AuthUserModel.mobile_number.in_(ret_mobiles))
+                await db.execute(
+                    update(AuthUserModel)
+                    .where(or_(*u_conds))
+                    .values(
+                        account_status="ACTIVE",
+                        is_active=True,
+                        failed_attempts=0,
+                        locked_until=None,
+                        updated_date=datetime.now(timezone.utc)
+                    )
+                )
+            except Exception as u_sync_err:
+                logger.warning(f"Failed to sync AuthUserModel on retailer approval: {u_sync_err}")
 
         # Status History
         history = RetailerStatusHistoryModel(

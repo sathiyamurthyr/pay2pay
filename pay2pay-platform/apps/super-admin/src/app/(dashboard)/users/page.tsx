@@ -28,10 +28,23 @@ const DEFAULT_USER_TYPES = [
   { code: "AUDIT_VIEWER", name: "Audit Viewer", description: "Read-only audit & reports access" },
 ];
 
-export default function UsersPage() {
+export default function UsersPage({ initialOpenModal = false }: { initialOpenModal?: boolean } = {}) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(initialOpenModal);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isCreateUrl =
+        window.location.pathname.endsWith("/create") ||
+        window.location.search.includes("action=create") ||
+        window.location.search.includes("create=true");
+      if (isCreateUrl) {
+        setIsModalOpen(true);
+      }
+    }
+  }, []);
+
   const [formData, setFormData] = useState({
     email: "", username: "", password: "", full_name: "", phone: "", user_type: "PLATFORM_ADMIN", role_ids: [] as string[],
   });

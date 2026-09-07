@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Building2, Users, ShieldCheck, Key,
+  LayoutDashboard, Building2, Users, UserPlus, ShieldCheck, Key,
   ScrollText, Settings, UserCircle, CreditCard, ChevronRight, ChevronDown, Network,
   ArrowLeftRight, Store, TrendingUp, Receipt, Code, Webhook, ShieldAlert, FileText,
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
@@ -37,6 +37,14 @@ const ADMIN_NAV: NavCategory[] = [
     ],
   },
   {
+    category: "User Management",
+    items: [
+      { label: "User Management", href: "/users", icon: Users, badge: "Admin" },
+      { label: "User Creation", href: "/users/create", icon: UserPlus, badge: "New" },
+      { label: "Roles & Permissions", href: "/roles", icon: ShieldCheck },
+    ],
+  },
+  {
     category: "Administration",
     items: [
       { label: "Company", href: "/companies", icon: Building2 },
@@ -48,8 +56,6 @@ const ADMIN_NAV: NavCategory[] = [
       { label: "Entity User", href: "/wallet-ledger/wallets", icon: Wallet },
       { label: "Manual Top-up", href: "/wallet-ledger/manual-topup", icon: ArrowLeftRight },
       { label: "POS Machine", href: "/machines", icon: CreditCard },
-      { label: "Users", href: "/users", icon: Users },
-      { label: "Roles", href: "/roles", icon: ShieldCheck },
     ],
   },
   {

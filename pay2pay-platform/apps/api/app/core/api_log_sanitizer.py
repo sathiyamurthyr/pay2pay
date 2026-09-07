@@ -159,17 +159,21 @@ def process_and_truncate_payload(
         except Exception:
             raw_str = str(sanitized)
     elif isinstance(body_data, (bytes, bytearray)):
-        try:
-            decoded = body_data.decode("utf-8", errors="replace")
-        except Exception:
-            decoded = str(body_data)
-        try:
-            loaded = json.loads(decoded)
-            sanitized = sanitize_payload_obj(loaded)
-            parsed_obj = sanitized
-            raw_str = json.dumps(sanitized)
-        except Exception:
-            raw_str = decoded
+        if body_data.startswith(b"%PDF-") or b"\x00" in body_data[:64]:
+            raw_str = f"[BINARY DOCUMENT / PDF: {len(body_data)} bytes]"
+            parsed_obj = None
+        else:
+            try:
+                decoded = body_data.decode("utf-8", errors="replace").replace("\x00", "")
+            except Exception:
+                decoded = str(body_data).replace("\x00", "")
+            try:
+                loaded = json.loads(decoded)
+                sanitized = sanitize_payload_obj(loaded)
+                parsed_obj = sanitized
+                raw_str = json.dumps(sanitized)
+            except Exception:
+                raw_str = decoded
     elif isinstance(body_data, str):
         try:
             loaded = json.loads(body_data)

@@ -264,12 +264,23 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
             r_res_a = (await db.execute(r_stmt_a)).first()
             if r_res_a:
                 _, existing_retailer = r_res_a
-        if clean_mobile == "9176669426":
-            r_sathus = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == "P2P-R404667", RetailerModel.is_deleted == False))).scalars().first()
-            if not r_sathus:
-                r_sathus = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == "RET-10928", RetailerModel.is_deleted == False))).scalars().first()
-            if r_sathus:
-                existing_retailer = r_sathus
+        if not existing_retailer and mobile_variants:
+            r_stmt_c = (
+                select(RetailerContactModel, RetailerModel)
+                .join(RetailerModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                .where(
+                    RetailerContactModel.mobile.in_(mobile_variants),
+                    RetailerModel.is_deleted == False
+                )
+            )
+            r_res_c = (await db.execute(r_stmt_c)).first()
+            if r_res_c:
+                _, existing_retailer = r_res_c
+            else:
+                from app.infrastructure.db.verification_models import RetailerVerificationModel
+                v_row = (await db.execute(select(RetailerVerificationModel).where(RetailerVerificationModel.mobile_number.in_(mobile_variants)))).scalars().first()
+                if v_row and v_row.retailer_id:
+                    existing_retailer = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == v_row.retailer_id, RetailerModel.is_deleted == False))).scalars().first()
 
     is_admin = False
     is_valid_pass = False
@@ -399,10 +410,10 @@ async def login_with_password(payload: PasswordLoginPayload, request: Request, d
             pass
 
         # Retailer User details
-        full_name = existing_retailer.owner_name if (existing_retailer and existing_retailer.owner_name) else (existing_retailer.store_name if existing_retailer and existing_retailer.store_name else "Sathiya Murthy")
-        outlet_name = existing_retailer.store_name if (existing_retailer and existing_retailer.store_name) else (existing_retailer.owner_name if existing_retailer and existing_retailer.owner_name else "Sathus Pay Store")
-        ret_code = existing_retailer.retailer_code if (existing_retailer and existing_retailer.retailer_code) else "P2P-R404667"
-        ret_public_id = str(existing_retailer.public_id) if existing_retailer else "e238fb8b-beb3-4cd4-862b-319b5d05d24e"
+        full_name = getattr(existing_retailer, "owner_name", None) or getattr(existing_retailer, "store_name", None) or (auth_user.full_name if auth_user else "Retailer Partner")
+        outlet_name = getattr(existing_retailer, "store_name", None) or getattr(existing_retailer, "owner_name", None) or "Retailer Outlet"
+        ret_code = getattr(existing_retailer, "retailer_code", None) or f"RET-{clean_mobile[-6:]}"
+        ret_public_id = str(existing_retailer.public_id) if existing_retailer else str(auth_user.user_id if auth_user else uuid.uuid4())
         ret_status = (existing_retailer.status if existing_retailer else "ACTIVE").upper()
 
         # Authoritative Status Calculation

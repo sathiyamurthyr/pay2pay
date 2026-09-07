@@ -1,11 +1,11 @@
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.application.dtos import UserCreate, UserResponse, UserTypeResponse
+from app.application.dtos import UserCreate, UserResponse, UserTypeResponse, UserMenuAccessResponse
 from app.application.services import UserService
 from app.application.dependencies import get_current_user, get_current_tenant_id, require_permission
 from app.infrastructure.db.models import AdminUserModel
@@ -14,11 +14,24 @@ router = APIRouter(prefix="/users", tags=["User Management"])
 
 
 class UserStatusUpdateRequest(BaseModel):
-    status: str = Field(..., example="ACTIVE", description="User status: ACTIVE or INACTIVE/SUSPENDED")
+    status: str = Field(..., example="ACTIVE", description="User status: ACTIVE, INACTIVE, SUSPENDED, BLOCKED")
 
 
 class UserResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6, description="New account password")
+
+
+@router.get("/menu-access", response_model=UserMenuAccessResponse)
+async def get_user_menu_access(
+    current_user: AdminUserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns dynamic auto-access menu categories and items for the authenticated user
+    based on PostgreSQL Stored Procedure sp_get_user_menu_access.
+    """
+    menu_data = await UserService.get_menu_access(db, current_user)
+    return UserMenuAccessResponse(**menu_data)
 
 
 @router.get("/user-types", response_model=List[UserTypeResponse])
@@ -26,21 +39,24 @@ async def list_user_types(
     tenant_id: Optional[uuid.UUID] = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Returns supported user types using PostgreSQL Stored Procedure sp_list_user_types.
+    """
     types = await UserService.list_user_types(db, tenant_id)
     return [
         UserTypeResponse(
-            user_type_ref_id=getattr(ut, "user_type_ref_id", 1),
-            user_type_code=getattr(ut, "user_type_code", None) or getattr(ut, "code", "ADMIN"),
-            user_type_name=getattr(ut, "user_type_name", None) or getattr(ut, "name", "Admin"),
-            code=getattr(ut, "user_type_code", None) or getattr(ut, "code", "ADMIN"),
-            name=getattr(ut, "user_type_name", None) or getattr(ut, "name", "Admin"),
-            description=getattr(ut, "description", None),
-            is_active=getattr(ut, "is_active", True),
-            is_deleted=getattr(ut, "is_deleted", False),
-            public_id=getattr(ut, "public_id", None),
-            is_system=getattr(ut, "is_system", True),
+            user_type_ref_id=t.get("user_type_ref_id", 1) if isinstance(t, dict) else getattr(t, "user_type_ref_id", 1),
+            user_type_code=t.get("user_type_code") if isinstance(t, dict) else getattr(t, "user_type_code", "ADMIN"),
+            user_type_name=t.get("user_type_name") if isinstance(t, dict) else getattr(t, "user_type_name", "Admin"),
+            code=t.get("code") if isinstance(t, dict) else getattr(t, "code", "ADMIN"),
+            name=t.get("name") if isinstance(t, dict) else getattr(t, "name", "Admin"),
+            description=t.get("description") if isinstance(t, dict) else getattr(t, "description", None),
+            is_active=t.get("is_active", True) if isinstance(t, dict) else getattr(t, "is_active", True),
+            is_deleted=t.get("is_deleted", False) if isinstance(t, dict) else getattr(t, "is_deleted", False),
+            public_id=t.get("public_id") if isinstance(t, dict) else getattr(t, "public_id", None),
+            is_system=t.get("is_system", True) if isinstance(t, dict) else getattr(t, "is_system", True),
         )
-        for ut in types
+        for t in types
     ]
 
 
@@ -52,23 +68,13 @@ async def create_user(
     db: AsyncSession = Depends(get_db),
     _: bool = require_permission("create:user")
 ):
-    user = await UserService.create_user(db, tenant_id, req, current_user)
-    created_dt = getattr(user, "created_date", getattr(user, "created_at", None))
-    return UserResponse(
-        public_id=user.public_id,
-        tenant_id=user.tenant_id,
-        company_id=user.company_id,
-        email=user.email,
-        username=user.username,
-        full_name=user.full_name,
-        phone=user.phone,
-        user_type=user.user_type,
-        status=user.status,
-        mfa_enabled=user.mfa_enabled,
-        last_login_at=user.last_login_at,
-        version_no=getattr(user, "version_no", 1),
-        created_date=created_dt
-    )
+    """
+    Creates an admin user via PostgreSQL Stored Procedure sp_create_admin_user.
+    """
+    user_data = await UserService.create_user(db, tenant_id, req, current_user)
+    if isinstance(user_data, dict):
+        return UserResponse(**user_data)
+    return user_data
 
 
 @router.get("", response_model=List[UserResponse])
@@ -77,26 +83,11 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     _: bool = require_permission("read:user")
 ):
+    """
+    Lists admin users via PostgreSQL Stored Procedure sp_list_admin_users.
+    """
     users = await UserService.list_users(db, tenant_id)
-    return [
-        UserResponse(
-            public_id=u.public_id,
-            tenant_id=u.tenant_id,
-            company_id=u.company_id,
-            email=u.email,
-            username=u.username,
-            full_name=u.full_name,
-            phone=u.phone,
-            user_type=u.user_type,
-            status=u.status,
-            mfa_enabled=u.mfa_enabled,
-            last_login_at=u.last_login_at,
-            roles=[{"public_id": str(ur.role.public_id), "name": ur.role.name, "code": ur.role.code} for ur in u.user_roles],
-            version_no=getattr(u, "version_no", 1),
-            created_date=getattr(u, "created_date", getattr(u, "created_at", None))
-        )
-        for u in users
-    ]
+    return [UserResponse(**u) if isinstance(u, dict) else u for u in users]
 
 
 @router.patch("/{user_id}/status", response_model=UserResponse)
@@ -108,22 +99,13 @@ async def update_user_status(
     db: AsyncSession = Depends(get_db),
     _: bool = require_permission("update:user")
 ):
-    user = await UserService.update_user_status(db, tenant_id, user_id, req.status, current_user)
-    return UserResponse(
-        public_id=user.public_id,
-        tenant_id=user.tenant_id,
-        company_id=user.company_id,
-        email=user.email,
-        username=user.username,
-        full_name=user.full_name,
-        phone=user.phone,
-        user_type=user.user_type,
-        status=user.status,
-        mfa_enabled=user.mfa_enabled,
-        last_login_at=user.last_login_at,
-        version_no=getattr(user, "version_no", 1),
-        created_date=getattr(user, "created_date", getattr(user, "created_at", None))
-    )
+    """
+    Updates user status via PostgreSQL Stored Procedure sp_update_admin_user_status.
+    """
+    user_data = await UserService.update_user_status(db, tenant_id, user_id, req.status, current_user)
+    if isinstance(user_data, dict):
+        return UserResponse(**user_data)
+    return user_data
 
 
 @router.post("/{user_id}/reset-password", response_model=UserResponse)
@@ -135,19 +117,10 @@ async def reset_user_password(
     db: AsyncSession = Depends(get_db),
     _: bool = require_permission("update:user")
 ):
-    user = await UserService.reset_user_password(db, tenant_id, user_id, req.new_password, current_user)
-    return UserResponse(
-        public_id=user.public_id,
-        tenant_id=user.tenant_id,
-        company_id=user.company_id,
-        email=user.email,
-        username=user.username,
-        full_name=user.full_name,
-        phone=user.phone,
-        user_type=user.user_type,
-        status=user.status,
-        mfa_enabled=user.mfa_enabled,
-        last_login_at=user.last_login_at,
-        version_no=getattr(user, "version_no", 1),
-        created_date=getattr(user, "created_date", getattr(user, "created_at", None))
-    )
+    """
+    Resets user password via PostgreSQL Stored Procedure sp_reset_admin_user_password.
+    """
+    user_data = await UserService.reset_user_password(db, tenant_id, user_id, req.new_password, current_user)
+    if isinstance(user_data, dict):
+        return UserResponse(**user_data)
+    return user_data

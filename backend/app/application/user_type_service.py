@@ -27,6 +27,10 @@ class UserTypeService:
         "SD",
         "CRM",
         "RM",
+        "AUDIT",
+        "OPERATIONS",
+        "FINANCE",
+        "SUPPORT",
     }
 
     # In-memory lookup caches populated from database
@@ -37,6 +41,10 @@ class UserTypeService:
         "SD": 4,
         "CRM": 5,
         "RM": 6,
+        "AUDIT": 7,
+        "OPERATIONS": 8,
+        "FINANCE": 9,
+        "SUPPORT": 10,
     }
 
     _ref_id_to_code: Dict[int, str] = {
@@ -46,6 +54,10 @@ class UserTypeService:
         4: "SD",
         5: "CRM",
         6: "RM",
+        7: "AUDIT",
+        8: "OPERATIONS",
+        9: "FINANCE",
+        10: "SUPPORT",
     }
 
     _code_to_name: Dict[str, str] = {
@@ -55,6 +67,10 @@ class UserTypeService:
         "SD": "Super Distributor",
         "CRM": "CRM",
         "RM": "Regional Manager",
+        "AUDIT": "Audit",
+        "OPERATIONS": "Operations",
+        "FINANCE": "Finance",
+        "SUPPORT": "Support",
     }
 
     @classmethod
@@ -71,11 +87,20 @@ class UserTypeService:
                 detail={
                     "success": False,
                     "error_code": "INVALID_USER_TYPE",
-                    "message": "User type cannot be empty. Allowed user types: ADMIN, RETAILER, DISTRIBUTOR, SD, CRM, RM"
+                    "message": "User type cannot be empty. Allowed user types: ADMIN, RM, CRM, AUDIT, OPERATIONS, FINANCE, SUPPORT, RETAILER, DISTRIBUTOR, SD"
                 }
             )
 
         cleaned = str(user_type).strip().upper()
+        if cleaned in ("PLATFORM_ADMIN", "COMPANY_ADMIN", "ADMIN_USER"):
+            cleaned = "ADMIN"
+        elif cleaned == "AUDITOR":
+            cleaned = "AUDIT"
+        elif cleaned == "CRM_EXECUTIVE":
+            cleaned = "CRM"
+        elif cleaned == "REGIONAL_MANAGER":
+            cleaned = "RM"
+
         if allow_all and cleaned == "ALL":
             return "ALL"
 
@@ -85,7 +110,7 @@ class UserTypeService:
                 detail={
                     "success": False,
                     "error_code": "INVALID_USER_TYPE",
-                    "message": f"Invalid user type '{user_type}'. Only ADMIN, RETAILER, DISTRIBUTOR, SD, CRM, RM are allowed."
+                    "message": f"Invalid user type '{user_type}'. Allowed user types: ADMIN, RM, CRM, AUDIT, OPERATIONS, FINANCE, SUPPORT, RETAILER, DISTRIBUTOR, SD."
                 }
             )
 

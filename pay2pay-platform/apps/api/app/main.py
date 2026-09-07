@@ -72,6 +72,8 @@ async def startup_db():
     except Exception as e:
         print(f"[STARTUP DB WARNING] Table creation notice: {str(e)}")
     asyncio.create_task(background_pending_reconciliation_poller())
+    from app.core.statement_scheduler import background_daily_statement_scheduler
+    asyncio.create_task(background_daily_statement_scheduler())
 
 
 # Enterprise CORS Configuration
@@ -374,6 +376,15 @@ app.include_router(recharge_router.router, prefix="/v1")
 app.include_router(recharge_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(recharge_router.router, prefix="/api")
 app.include_router(recharge_router.router, prefix="")
+
+from app.presentation.api.v1 import daily_statements
+app.include_router(daily_statements.router, prefix=settings.API_V1_STR)
+app.include_router(daily_statements.router, prefix="/v1")
+app.include_router(daily_statements.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(daily_statements.router, prefix="/api")
+app.include_router(daily_statements.router, prefix="")
+app.include_router(daily_statements.router, prefix=f"{settings.API_V1_STR}/admin")
+app.include_router(daily_statements.router, prefix="/admin")
 
 
 @app.get("/health", tags=["Health"])
