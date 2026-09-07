@@ -130,46 +130,89 @@ async def unlock_screen_session(
             detail="Security PIN must be exactly 4 numeric digits."
         )
 
-    # 1. Resolve exact authenticated user context from token payload
-    user_sub = payload.get("sub")
+    # 1. Resolve authenticated user context from token payload
+    user_sub = str(payload.get("sub") or "").strip()
     user_role = (payload.get("role") or "RETAILER").upper()
     mobile = payload.get("mobile_number") or payload.get("mobile") or payload.get("phone")
-    clean_mobile = "".join(filter(str.isdigit, str(mobile)))[-10:] if mobile else None
+    clean_mobile = "".join(filter(str.isdigit, str(mobile)))[-10:] if mobile else ""
+    retailer_id_claim = str(payload.get("retailer_id") or payload.get("retailer_code") or "").strip()
 
-    uid: Optional[uuid.UUID] = None
-    if user_sub and user_sub != "default":
-        try:
-            uid = uuid.UUID(str(user_sub))
-        except Exception:
-            uid = None
+    # 2. Query Authoritative View: vw_retailer_pin_security
+    # This view queries public.retailer (same table as onboarding) with joins to drafts & security settings
+    view_row = None
+    try:
+        query_parts = []
+        params: dict = {}
+        
+        if user_sub and user_sub != "default":
+            try:
+                sub_uuid = uuid.UUID(user_sub)
+                query_parts.append("retailer_id = :sub_uuid")
+                params["sub_uuid"] = sub_uuid
+            except Exception:
+                query_parts.append("retailer_code = :user_sub")
+                params["user_sub"] = user_sub
 
-    # 2. Lookup Retailer if role/portal is RETAILER
-    ret: Optional[RetailerModel] = None
-    if uid:
-        ret = (await db.execute(select(RetailerModel).where(RetailerModel.public_id == uid))).scalars().first()
-    if not ret and user_sub:
-        ret = (await db.execute(select(RetailerModel).where(RetailerModel.retailer_code == str(user_sub)))).scalars().first()
+        if retailer_id_claim:
+            try:
+                ret_uuid = uuid.UUID(retailer_id_claim)
+                query_parts.append("retailer_id = :ret_uuid")
+                params["ret_uuid"] = ret_uuid
+            except Exception:
+                query_parts.append("retailer_code = :ret_code")
+                params["ret_code"] = retailer_id_claim
 
-    effective_uid = uid or (ret.public_id if ret else None)
-    effective_tenant = (ret.tenant_id if ret and ret.tenant_id else None) or DEFAULT_TENANT_ID
+        if clean_mobile:
+            query_parts.append("mobile_number = :clean_mobile")
+            query_parts.append("mobile_number = :plus_clean_mobile")
+            params["clean_mobile"] = clean_mobile
+            params["plus_clean_mobile"] = f"+91{clean_mobile}"
 
-    # 3. User-Scoped Lookup in user_security_settings
-    user_sec: Optional[UserSecuritySettingsModel] = None
-    if effective_uid:
-        stmt_sec = select(UserSecuritySettingsModel).where(
-            UserSecuritySettingsModel.user_id == effective_uid,
-            UserSecuritySettingsModel.portal == user_role
-        )
-        user_sec = (await db.execute(stmt_sec)).scalars().first()
+        if query_parts:
+            stmt = text(f"""
+                SELECT retailer_ref_id, retailer_id, retailer_code, mpin_hash, 
+                       onboarding_raw_pin, mpin_locked, mpin_failed_attempts, mpin_max_attempts
+                FROM public.vw_retailer_pin_security
+                WHERE {" OR ".join(query_parts)}
+                LIMIT 1;
+            """)
+            res = await db.execute(stmt, params)
+            view_row = res.mappings().first()
+    except Exception as e:
+        logger.warning(f"vw_retailer_pin_security lookup notice: {e}")
 
-    # 4. If user_sec has a configured security PIN hash, verify against it
-    if user_sec and user_sec.security_pin_hash:
-        if verify_password(clean_pin, user_sec.security_pin_hash):
-            user_sec.failed_attempt_count = 0
-            user_sec.last_pin_verified_at = datetime.now(timezone.utc)
-            if ret and not ret.mpin_hash:
-                ret.mpin_hash = user_sec.security_pin_hash
-            await db.commit()
+    # 3. Verify against Authoritative View & Stored Procedures
+    if view_row:
+        r_id = view_row["retailer_id"]
+        is_locked = bool(view_row["mpin_locked"])
+        if is_locked:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Transaction PIN is locked due to repeated incorrect attempts. Please reset your PIN via WhatsApp authorization."
+            )
+
+        mpin_hash = view_row["mpin_hash"]
+        raw_pin = view_row["onboarding_raw_pin"]
+
+        is_pin_valid = False
+        if mpin_hash:
+            is_pin_valid = verify_password(clean_pin, mpin_hash) or (_hash_mpin(clean_pin, str(r_id)) == mpin_hash)
+        if not is_pin_valid and raw_pin:
+            is_pin_valid = (clean_pin == str(raw_pin).strip())
+
+        if is_pin_valid:
+            # Stored Procedure: Record successful PIN attempt
+            try:
+                await db.execute(text("SELECT public.sp_record_retailer_pin_attempt(:rid, TRUE)"), {"rid": r_id})
+                # If mpin_hash was missing or only plain raw_pin matched, store new hash via Stored Procedure
+                if not mpin_hash or mpin_hash == raw_pin:
+                    new_h = hash_password(clean_pin)
+                    await db.execute(text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'ONBOARDING_VERIFY')"), {"rid": r_id, "nh": new_h})
+                await db.commit()
+            except Exception as sp_err:
+                logger.warning(f"Error calling sp_record_retailer_pin_attempt: {sp_err}")
+                await db.commit()
+
             return {
                 "status": "UNLOCKED",
                 "success": True,
@@ -178,35 +221,30 @@ async def unlock_screen_session(
                 "verified_at": datetime.now(timezone.utc).isoformat()
             }
         else:
-            # Also check if retailer MPIN matches (if set separately)
-            if ret and ret.mpin_hash and (
-                verify_password(clean_pin, ret.mpin_hash) or _hash_mpin(clean_pin, str(ret.public_id)) == ret.mpin_hash
-            ):
-                user_sec.security_pin_hash = hash_password(clean_pin)
-                user_sec.failed_attempt_count = 0
-                user_sec.last_pin_verified_at = datetime.now(timezone.utc)
+            # Stored Procedure: Record failed attempt and lock if threshold exceeded
+            try:
+                await db.execute(text("SELECT public.sp_record_retailer_pin_attempt(:rid, FALSE)"), {"rid": r_id})
                 await db.commit()
-                return {
-                    "status": "UNLOCKED",
-                    "success": True,
-                    "unlocked": True,
-                    "message": "Session unlocked successfully.",
-                    "verified_at": datetime.now(timezone.utc).isoformat()
-                }
+            except Exception as sp_err:
+                logger.warning(f"Error calling sp_record_retailer_pin_attempt: {sp_err}")
+                await db.commit()
 
-            user_sec.failed_attempt_count = (user_sec.failed_attempt_count or 0) + 1
-            await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Incorrect Security PIN. Please enter your valid 4-digit PIN."
             )
 
-    # 5. Check Retailer MPIN hash if user_sec was not yet populated
-    if ret and ret.mpin_hash:
-        if verify_password(clean_pin, ret.mpin_hash) or _hash_mpin(clean_pin, str(ret.public_id)) == ret.mpin_hash:
-            sec = await get_or_create_user_security_settings(db, ret.public_id, effective_tenant, portal=user_role)
-            sec.security_pin_hash = hash_password(clean_pin)
-            sec.pin_enabled = True
+    # 4. Fallback for admin / non-retailer user_security_settings
+    uid = None
+    if user_sub and user_sub != "default":
+        try:
+            uid = uuid.UUID(user_sub)
+        except Exception:
+            uid = None
+
+    if uid:
+        sec = (await db.execute(select(UserSecuritySettingsModel).where(UserSecuritySettingsModel.user_id == uid))).scalars().first()
+        if sec and sec.security_pin_hash and verify_password(clean_pin, sec.security_pin_hash):
             sec.failed_attempt_count = 0
             sec.last_pin_verified_at = datetime.now(timezone.utc)
             await db.commit()
@@ -217,63 +255,6 @@ async def unlock_screen_session(
                 "message": "Session unlocked successfully.",
                 "verified_at": datetime.now(timezone.utc).isoformat()
             }
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Incorrect Security PIN. Please enter your valid 4-digit PIN."
-            )
-
-    # 6. Check CustomerModel by mobile number
-    if clean_mobile:
-        mobile_variants = [clean_mobile, f"91{clean_mobile}", f"+91{clean_mobile}"]
-        c_stmt = select(CustomerModel).where(CustomerModel.mobile_number.in_(mobile_variants))
-        cust = (await db.execute(c_stmt)).scalars().first()
-        if cust and cust.mpin_hash:
-            if _hash_mpin(clean_pin, str(cust.public_id)) == cust.mpin_hash or verify_password(clean_pin, cust.mpin_hash):
-                sync_uid = effective_uid or cust.public_id
-                sec = await get_or_create_user_security_settings(db, sync_uid, effective_tenant, portal=user_role)
-                sec.security_pin_hash = hash_password(clean_pin)
-                sec.pin_enabled = True
-                sec.failed_attempt_count = 0
-                sec.last_pin_verified_at = datetime.now(timezone.utc)
-                await db.commit()
-                return {
-                    "status": "UNLOCKED",
-                    "success": True,
-                    "unlocked": True,
-                    "message": "Session unlocked successfully.",
-                    "verified_at": datetime.now(timezone.utc).isoformat()
-                }
-
-    # 7. First-time Retailer PIN initialization:
-    # If retailer has no PIN set anywhere, register this 4-digit PIN for future unlocks
-    if ret or effective_uid:
-        reg_uid = effective_uid or uuid.UUID("1072b5d2-0fd1-4323-a02a-03809d58b005")
-        sec = await get_or_create_user_security_settings(db, reg_uid, effective_tenant, portal=user_role)
-        sec.security_pin_hash = hash_password(clean_pin)
-        sec.pin_enabled = True
-        sec.failed_attempt_count = 0
-        sec.last_pin_verified_at = datetime.now(timezone.utc)
-        if ret:
-            ret.mpin_hash = hash_password(clean_pin)
-        await db.commit()
-        return {
-            "status": "UNLOCKED",
-            "success": True,
-            "unlocked": True,
-            "message": "Security PIN registered and workstation unlocked successfully.",
-            "verified_at": datetime.now(timezone.utc).isoformat()
-        }
-
-    # 8. Standard demo / default PIN fallback ("1234" or "0000")
-    if clean_pin in ["1234", "0000"]:
-        return {
-            "status": "UNLOCKED",
-            "success": True,
-            "unlocked": True,
-            "message": "Session unlocked successfully.",
-            "verified_at": datetime.now(timezone.utc).isoformat()
-        }
 
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,

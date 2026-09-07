@@ -300,8 +300,30 @@ async def resolve_retailer_context(request: Request, retailer_id: Optional[str],
             clean_mobile = str(v_row["mobile_number"])[-10:]
             session_email = v_row.get("email") or session_email
 
+        # 4. Check retailer_contact
+        if not clean_mobile:
+            c_res = await db.execute(text("SELECT mobile, email FROM public.retailer_contact WHERE retailer_id::text = :sub"), {"sub": str(sub)})
+            c_row = c_res.mappings().first()
+            if c_row and c_row.get("mobile"):
+                clean_mobile = "".join(filter(str.isdigit, str(c_row["mobile"])))[-10:]
+                session_email = c_row.get("email") or session_email
+
+        # 5. Check registration_drafts
+        if not clean_mobile:
+            d_res = await db.execute(text("SELECT mobile_number, email FROM public.registration_drafts WHERE registration_id = :sub"), {"sub": str(sub)})
+            d_row = d_res.mappings().first()
+            if d_row and d_row.get("mobile_number"):
+                clean_mobile = "".join(filter(str.isdigit, str(d_row["mobile_number"])))[-10:]
+                session_email = d_row.get("email") or session_email
+
     if not target_ident and not clean_mobile:
         target_ident = str(sub)
+
+    if target_ident and not clean_mobile:
+        rc_res = await db.execute(text("SELECT mobile FROM public.retailer_contact WHERE retailer_id::text = :tid"), {"tid": str(target_ident)})
+        rc_row = rc_res.mappings().first()
+        if rc_row and rc_row.get("mobile"):
+            clean_mobile = "".join(filter(str.isdigit, str(rc_row["mobile"])))[-10:]
 
     # Map target_ident or clean_mobile to exact registration_id if not already REG-*
     if target_ident or clean_mobile:
@@ -2023,7 +2045,18 @@ async def change_mpin(
         )
         db.add(user_sec)
 
-    # 9. Update CustomerModel if present
+    # 9. Update RetailerModel via Stored Procedure sp_update_retailer_mpin
+    ret_uuid = r_uuid or (target_uid if user_sec else None)
+    if ret_uuid:
+        try:
+            await db.execute(
+                text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
+                {"rid": ret_uuid, "nh": new_argon_hash}
+            )
+        except Exception as sp_err:
+            logger.warning(f"Error executing sp_update_retailer_mpin: {sp_err}")
+
+    # 10. Update CustomerModel if present
     if cust:
         cust_mpin_hash = _hash_mpin(req.new_pin, str(cust.public_id))
         cust.mpin_hash = cust_mpin_hash
@@ -2032,9 +2065,10 @@ async def change_mpin(
         cust.is_locked = False
         cust.mpin_last_changed_at = datetime.now(timezone.utc)
 
-    # 10. Update DraftModel if present
+    # 11. Update DraftModel if present
     if draft:
         cdata = dict(draft.draft_data or {})
+        cdata["mpin"] = req.new_pin
         cdata["mpin_hash"] = new_argon_hash
         cdata["last_pin_changed_at"] = datetime.now(timezone.utc).isoformat()
         draft.draft_data = cdata
