@@ -254,9 +254,6 @@ export async function verifyAndRoutePostLogin(
       if (typeof window !== "undefined") {
         document.cookie = `p2p_destination=${status.destination}; path=/; max-age=2592000; SameSite=Lax`;
         document.cookie = `p2p_account_access=${status.account_access}; path=/; max-age=2592000; SameSite=Lax`;
-        localStorage.setItem("p2p_account_access", status.account_access);
-        localStorage.setItem("p2p_retailer_approval_status", isApproved ? "APPROVED" : "UNDER_REVIEW");
-        localStorage.setItem("pay2pay_onboarding_status", isApproved ? "APPROVED" : "UNDER_REVIEW");
       }
 
       if (status.destination === "ONBOARDING") {

@@ -258,9 +258,6 @@ export async function verifyAndRoutePostLogin(
       if (typeof window !== "undefined") {
         document.cookie = `p2p_destination=${status.destination}; path=/; max-age=2592000; SameSite=Lax`;
         document.cookie = `p2p_account_access=${status.account_access}; path=/; max-age=2592000; SameSite=Lax`;
-        localStorage.setItem("p2p_account_access", status.account_access);
-        localStorage.setItem("p2p_retailer_approval_status", isApproved ? "APPROVED" : "UNDER_REVIEW");
-        localStorage.setItem("pay2pay_onboarding_status", isApproved ? "APPROVED" : "UNDER_REVIEW");
       }
 
       if (status.destination === "ONBOARDING") {
@@ -292,13 +289,8 @@ export async function verifyAndRoutePostLogin(
       }
     }
 
-    // Default for unapproved fallback check
+    // Default navigation to target dashboard
     if (typeof window !== "undefined") {
-      const storedStatus = localStorage.getItem("p2p_retailer_approval_status");
-      if (storedStatus === "UNDER_REVIEW" || storedStatus === "PENDING") {
-        window.location.href = "/retailer/account-under-review";
-        return { success: true, destination: "ACCOUNT_UNDER_REVIEW" };
-      }
       window.location.href = targetDashboard;
     } else {
       router.replace(targetDashboard);

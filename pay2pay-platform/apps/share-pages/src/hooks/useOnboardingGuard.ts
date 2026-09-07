@@ -66,9 +66,6 @@ export function useOnboardingGuard() {
           // Lock to UNDER_REVIEW if backend says is_approved is false
           if (!isApproved) {
             setApprovalStatus("UNDER_REVIEW");
-            if (typeof window !== "undefined") {
-              localStorage.setItem("p2p_retailer_approval_status", "UNDER_REVIEW");
-            }
           } else {
             setApprovalStatus("APPROVED");
           }

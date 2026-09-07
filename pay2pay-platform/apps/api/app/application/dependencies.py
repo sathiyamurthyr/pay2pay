@@ -169,7 +169,9 @@ async def get_current_user(
         auth_user = (await db.execute(auth_u_stmt)).scalar_one_or_none()
         if auth_user:
             status_val = (auth_user.account_status or "ACTIVE").upper()
-            if status_val in ("BLOCKED", "SUSPENDED", "DEACTIVATED", "LOCKED"):
+            token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
+            is_admin = any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "COMPLIANCE_OFFICER") for r in token_roles)
+            if status_val in ("BLOCKED", "SUSPENDED", "DEACTIVATED", "LOCKED") and not is_admin:
                 raise UnauthorizedException("User account is inactive or locked")
             return AdminUserModel(
                 id=auth_user.id or 1,
@@ -192,7 +194,9 @@ async def get_current_user(
     retailer = (await db.execute(ret_stmt)).scalar_one_or_none()
     if retailer:
         ret_status = (retailer.status or "ACTIVE").upper()
-        if ret_status in ("BLOCKED", "SUSPENDED", "DEACTIVATED"):
+        token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
+        is_admin = any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "COMPLIANCE_OFFICER") for r in token_roles)
+        if ret_status in ("BLOCKED", "SUSPENDED", "DEACTIVATED") and not is_admin:
             raise UnauthorizedException("Retailer account has been blocked or suspended")
         email_val = payload.get("email") or f"{retailer.retailer_code}@pay2pay.in"
         phone_val = payload.get("mobile") or payload.get("phone")

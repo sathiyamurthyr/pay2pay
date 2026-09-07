@@ -706,49 +706,103 @@ class VerificationService:
             verif.verification_status = "APPROVED"
             verif.account_status = "ACTIVE"
             verif.retailer_status = "ACTIVE"
+            verif.is_active = True
+
+            clean_m = re.sub(r"\D", "", str(verif.mobile_number))[-10:] if verif.mobile_number else ""
+            mobile_variants = [clean_m, f"91{clean_m}", f"+91{clean_m}"] if clean_m else []
+
+            # 1. Update RegistrationDraftModel
             try:
-                await db.execute(
-                    update(RegistrationDraftModel)
-                    .where(
-                        or_(
-                            RegistrationDraftModel.registration_id == verif.registration_id,
-                            RegistrationDraftModel.mobile_number == verif.mobile_number
+                d_conds = []
+                if verif.registration_id:
+                    d_conds.append(RegistrationDraftModel.registration_id == verif.registration_id)
+                if mobile_variants:
+                    d_conds.append(RegistrationDraftModel.mobile_number.in_(mobile_variants))
+                if d_conds:
+                    await db.execute(
+                        update(RegistrationDraftModel)
+                        .where(or_(*d_conds))
+                        .values(status="KYC_APPROVED")
+                    )
+            except Exception as d_err:
+                logger.warning(f"RegistrationDraftModel update error during approval: {d_err}")
+
+            # 2. Comprehensive update for RetailerModel and child relations
+            matched_ret_ids = []
+            try:
+                from app.infrastructure.db.models import RetailerModel, RetailerContactModel, RetailerKycModel, RetailerBankModel
+                if mobile_variants:
+                    c_stmt = select(RetailerContactModel.retailer_id).where(RetailerContactModel.mobile.in_(mobile_variants))
+                    c_rows = (await db.execute(c_stmt)).scalars().all()
+                    matched_ret_ids.extend([c for c in c_rows if c])
+
+                r_conds = []
+                if verif.retailer_id:
+                    r_conds.append(RetailerModel.retailer_code == verif.retailer_id)
+                if verif.registration_id:
+                    r_conds.append(RetailerModel.retailer_code == verif.registration_id)
+                if verif.public_id:
+                    r_conds.append(RetailerModel.public_id == verif.public_id)
+                if matched_ret_ids:
+                    r_conds.append(RetailerModel.public_id.in_(matched_ret_ids))
+
+                if r_conds:
+                    await db.execute(
+                        update(RetailerModel)
+                        .where(or_(*r_conds))
+                        .values(
+                            status="ACTIVE",
+                            is_active=True,
+                            mpin_locked=False,
+                            updated_date=datetime.now(timezone.utc)
                         )
                     )
-                    .values(status="KYC_APPROVED")
-                )
-            except Exception:
-                pass
-            try:
-                from app.infrastructure.db.models import RetailerModel
-                await db.execute(
-                    update(RetailerModel)
-                    .where(
-                        or_(
-                            RetailerModel.retailer_code == verif.retailer_id,
-                            RetailerModel.retailer_code == verif.registration_id,
-                            RetailerModel.public_id == verif.public_id
-                        )
-                    )
-                    .values(status="ACTIVE", is_active=True)
-                )
-            except Exception:
-                pass
+
+                    # Also update RetailerKycModel and RetailerBankModel
+                    target_ret_stmt = select(RetailerModel.public_id).where(or_(*r_conds))
+                    ret_uuids = (await db.execute(target_ret_stmt)).scalars().all()
+                    for r_u in ret_uuids:
+                        try:
+                            await db.execute(
+                                update(RetailerKycModel)
+                                .where(RetailerKycModel.retailer_id == r_u)
+                                .values(verification_status="VERIFIED", is_active=True)
+                            )
+                            await db.execute(
+                                update(RetailerBankModel)
+                                .where(RetailerBankModel.retailer_id == r_u)
+                                .values(verification_status="VERIFIED", is_active=True)
+                            )
+                        except Exception:
+                            pass
+            except Exception as r_err:
+                logger.warning(f"RetailerModel update error during approval: {r_err}")
+
+            # 3. Comprehensive update for AuthUserModel
             try:
                 from app.infrastructure.db.auth_models import AuthUserModel
-                clean_m = re.sub(r"\D", "", verif.mobile_number)[-10:]
-                await db.execute(
-                    update(AuthUserModel)
-                    .where(
-                        or_(
-                            AuthUserModel.user_id == verif.public_id,
-                            AuthUserModel.mobile_number.in_([clean_m, f"91{clean_m}", f"+91{clean_m}"])
+                u_conds = []
+                if verif.public_id:
+                    u_conds.append(AuthUserModel.user_id == verif.public_id)
+                    u_conds.append(AuthUserModel.public_id == verif.public_id)
+                if mobile_variants:
+                    u_conds.append(AuthUserModel.mobile_number.in_(mobile_variants))
+                if matched_ret_ids:
+                    u_conds.append(AuthUserModel.user_id.in_(matched_ret_ids))
+                if u_conds:
+                    await db.execute(
+                        update(AuthUserModel)
+                        .where(or_(*u_conds))
+                        .values(
+                            account_status="ACTIVE",
+                            is_active=True,
+                            failed_attempts=0,
+                            locked_until=None,
+                            updated_date=datetime.now(timezone.utc)
                         )
                     )
-                    .values(account_status="ACTIVE")
-                )
-            except Exception:
-                pass
+            except Exception as u_err:
+                logger.warning(f"AuthUserModel update error during approval: {u_err}")
         elif action_clean in ("REJECT", "REJECTED"):
             verif.verification_status = "REJECTED"
             verif.account_status = "ONBOARDING"

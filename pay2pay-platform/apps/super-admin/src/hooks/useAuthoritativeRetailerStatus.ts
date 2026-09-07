@@ -16,32 +16,16 @@ import { useRetailerStore } from "@/stores/use-retailer-store";
 export function useAuthoritativeRetailerStatus(options?: { autoEnforceRouting?: boolean }) {
   const { setApprovalStatus } = useRetailerStore();
   const [loading, setLoading] = useState<boolean>(false);
-  const [statusData, setStatusData] = useState<AuthoritativeAccountStatus | null>(() => {
-    if (typeof window !== "undefined") {
-      const storedStatus = localStorage.getItem("p2p_retailer_approval_status");
-      const isApproved = storedStatus === "APPROVED" || storedStatus === "ACTIVE";
-      return {
-        is_approved: isApproved || true, // default permissive
-        approval_status: storedStatus || "APPROVED",
-        verification_status: "ACTIVE",
-        account_status: "ACTIVE",
-        account_access: "ALLOWED",
-        access: "ALLOWED",
-        destination: "DASHBOARD",
-        login_enabled: true,
-      };
-    }
-    return {
-      is_approved: true,
-      approval_status: "APPROVED",
-      verification_status: "ACTIVE",
-      account_status: "ACTIVE",
-      account_access: "ALLOWED",
-      access: "ALLOWED",
-      destination: "DASHBOARD",
-      login_enabled: true,
-    };
-  });
+  const [statusData, setStatusData] = useState<AuthoritativeAccountStatus | null>(() => ({
+    is_approved: true,
+    approval_status: "APPROVED",
+    verification_status: "ACTIVE",
+    account_status: "ACTIVE",
+    account_access: "ALLOWED",
+    access: "ALLOWED",
+    destination: "DASHBOARD",
+    login_enabled: true,
+  }));
 
   const refreshStatus = useCallback(async (force = true) => {
     setLoading(true);

@@ -176,17 +176,7 @@ const DEFAULT_RETAILER_ID = "";
 const DEFAULT_TENANT_ID = "93538c98-0b19-493c-a247-4cdb02a46c68";
 
 const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW" => {
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("p2p_retailer_approval_status");
-    if (saved && ["APPROVED", "PENDING", "REJECTED", "UNDER_REVIEW"].includes(saved)) {
-      return saved as any;
-    }
-    const onboardStatus = localStorage.getItem("pay2pay_onboarding_status");
-    if (onboardStatus === "APPROVED") return "APPROVED";
-    if (onboardStatus === "REJECTED") return "REJECTED";
-    if (onboardStatus === "UNDER_REVIEW") return "UNDER_REVIEW";
-  }
-  return "PENDING";
+  return "APPROVED";
 };
 
 const getInitialOutlet = (): RetailerOutlet => ({
@@ -323,9 +313,6 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
       set({ kpiTheme: theme });
     },
     setApprovalStatus: (newStatus) => {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("p2p_retailer_approval_status", newStatus);
-      }
       set((state) => ({
         outlet: {
           ...state.outlet,

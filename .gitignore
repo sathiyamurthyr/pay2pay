@@ -54,3 +54,5 @@ sync_*.py
 uploads/
 backend/uploads/
 pay2pay-platform/apps/api/uploads/
+storage/
+backend/storage/

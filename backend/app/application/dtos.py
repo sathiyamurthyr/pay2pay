@@ -335,13 +335,31 @@ class UserResponse(BaseModel):
     username: str
     full_name: str
     phone: Optional[str] = None
-    user_type: Optional[str] = "PLATFORM_ADMIN"
+    user_type: Optional[str] = "ADMIN"
     status: str
-    mfa_enabled: bool
+    mfa_enabled: bool = False
     last_login_at: Optional[datetime] = None
     roles: List[Dict[str, Any]] = []
-    version_no: int
-    created_date: datetime
+    version_no: int = 1
+    created_date: Optional[datetime] = None
+
+
+class MenuItemResponse(BaseModel):
+    label: str
+    href: str
+    icon: Optional[str] = None
+    badge: Optional[str] = None
+
+
+class MenuCategoryResponse(BaseModel):
+    category: str
+    items: List[MenuItemResponse] = []
+
+
+class UserMenuAccessResponse(BaseModel):
+    user_type: str
+    categories: List[MenuCategoryResponse] = []
+
 
 
 # Role & Permission DTOs

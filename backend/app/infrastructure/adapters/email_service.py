@@ -8,6 +8,7 @@ import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 from typing import Dict, Any, Optional
 
 from app.core.config import settings
@@ -505,6 +506,198 @@ class EmailService:
                 logger.error(f"[EMAIL SERVICE ERROR] Failed to send topup approval email to {recipient_email}: {ex465}")
                 return {"status": "FAILED", "delivered": False, "detail": str(ex465)}
 
+    def send_statement_email_sync(
+        self,
+        recipient_email: str,
+        recipient_name: str,
+        statement_date_str: str,
+        opening_balance: float,
+        total_credit: float,
+        total_debit: float,
+        closing_balance: float,
+        pdf_bytes: bytes,
+        filename: str = "Pay2Pay_Statement.pdf",
+        is_admin: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Dispatches daily account statement email with password-protected PDF attachment.
+        Subject: Pay2Pay Account Statement – [Statement Date]
+        """
+        if not recipient_email or "@" not in recipient_email:
+            return {"status": "ERROR", "delivered": False, "message": "Invalid recipient email address."}
+
+        smtp_server = self.smtp_server or getattr(settings, "SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = self.smtp_port or getattr(settings, "SMTP_PORT", 587)
+        smtp_username = self.smtp_username or getattr(settings, "SMTP_USERNAME", "")
+        smtp_password = self.smtp_password or getattr(settings, "SMTP_PASSWORD", "")
+        from_email = self.from_email or getattr(settings, "SMTP_FROM_EMAIL", "") or smtp_username or "statements@pay2pay.in"
+        from_name = self.from_name or getattr(settings, "SMTP_FROM_NAME", "Pay2Pay")
+
+        if smtp_password:
+            smtp_password = smtp_password.strip()
+
+        subject = f"Pay2Pay Account Statement – {statement_date_str}"
+
+        # Plain text exact body
+        plain_body = f"""Dear {recipient_name},
+
+Please find attached your Pay2Pay Account Statement for
+{statement_date_str}.
+
+Opening Balance: ₹{opening_balance:,.2f}
+Total Credit: ₹{total_credit:,.2f}
+Total Debit: ₹{total_debit:,.2f}
+Closing Balance: ₹{closing_balance:,.2f}
+
+This is a system-generated statement.
+
+Regards,
+Pay2Pay
+SUPER REX PRODUCTS PRIVATE LIMITED
+"""
+
+        # HTML styled body
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }}
+            .card {{ max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }}
+            .header {{ background-color: #0f172a; padding: 24px; text-align: center; color: #ffffff; }}
+            .logo {{ font-size: 24px; font-weight: 800; letter-spacing: 1px; }}
+            .company {{ font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-top: 4px; }}
+            .body-content {{ padding: 28px 24px; }}
+            .greeting {{ font-size: 15px; font-weight: 600; margin-bottom: 12px; }}
+            .intro {{ font-size: 13px; color: #475569; line-height: 1.6; margin-bottom: 20px; }}
+            .summary-box {{ background-color: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px; border: 1px solid #cbd5e1; }}
+            .summary-row {{ display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed #cbd5e1; }}
+            .summary-row:last-child {{ border-bottom: none; }}
+            .closing-row {{ display: flex; justify-content: space-between; font-size: 15px; font-weight: 800; color: #0284c7; padding-top: 10px; margin-top: 6px; border-top: 2px solid #94a3b8; }}
+            .attachment-info {{ background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; font-size: 12px; color: #1e40af; border-radius: 4px; margin-bottom: 20px; }}
+            .footer {{ background-color: #f8fafc; padding: 16px 24px; font-size: 11px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; }}
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="header">
+              <div class="logo">PAY2PAY</div>
+              <div class="company">SUPER REX PRODUCTS PRIVATE LIMITED</div>
+              <div style="font-size: 12px; color: #38bdf8; margin-top: 6px; font-weight: bold;">ACCOUNT STATEMENT</div>
+            </div>
+            <div class="body-content">
+              <div class="greeting">Dear {recipient_name},</div>
+              <div class="intro">
+                Please find attached your Pay2Pay Account Statement for <strong>{statement_date_str}</strong>.
+              </div>
+              <div class="summary-box">
+                <div class="summary-row">
+                  <span>Opening Balance:</span>
+                  <strong>₹{opening_balance:,.2f}</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Total Credit:</span>
+                  <strong style="color: #16a34a;">+ ₹{total_credit:,.2f}</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Total Debit:</span>
+                  <strong style="color: #dc2626;">- ₹{total_debit:,.2f}</strong>
+                </div>
+                <div class="closing-row">
+                  <span>Closing Balance:</span>
+                  <span>₹{closing_balance:,.2f}</span>
+                </div>
+              </div>
+              <div class="attachment-info">
+                📎 <strong>Protected Statement Attached:</strong> Your statement has been attached as a password-protected PDF.
+              </div>
+              <p style="font-size: 11px; color: #94a3b8; margin: 0;">This is a system-generated statement.</p>
+            </div>
+            <div class="footer">
+              Regards,<br>
+              <strong>Pay2Pay</strong><br>
+              SUPER REX PRODUCTS PRIVATE LIMITED
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+
+        msg = MIMEMultipart("mixed")
+        msg["Subject"] = subject
+        msg["From"] = f"{from_name} <{from_email}>"
+        msg["To"] = recipient_email
+
+        alt_part = MIMEMultipart("alternative")
+        alt_part.attach(MIMEText(plain_body, "plain"))
+        alt_part.attach(MIMEText(html_body, "html"))
+        msg.attach(alt_part)
+
+        if pdf_bytes:
+            pdf_attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
+            pdf_attachment.add_header("Content-Disposition", "attachment", filename=filename)
+            msg.attach(pdf_attachment)
+
+        if not smtp_username or not smtp_password:
+            logger.info(f"[EMAIL SERVICE SIMULATED] Daily statement email for {recipient_email} | Closing: ₹{closing_balance:,.2f}")
+            return {"status": "SIMULATED", "delivered": True, "recipient": recipient_email}
+
+        try:
+            with smtplib.SMTP(smtp_server, int(smtp_port), timeout=15.0) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp_username, smtp_password)
+                server.send_message(msg)
+            logger.info(f"[EMAIL SERVICE SUCCESS] Statement email sent to {recipient_email}")
+            return {"status": "SUCCESS", "delivered": True, "recipient": recipient_email}
+        except Exception as ex587:
+            logger.warning(f"[EMAIL SERVICE 587 FAILED] Attempting Port 465 SSL: {ex587}")
+            try:
+                with smtplib.SMTP_SSL(smtp_server, 465, timeout=15.0) as ssl_server:
+                    ssl_server.ehlo()
+                    ssl_server.login(smtp_username, smtp_password)
+                    ssl_server.send_message(msg)
+                logger.info(f"[EMAIL SERVICE SUCCESS] Statement email sent to {recipient_email} via Port 465 SSL")
+                return {"status": "SUCCESS", "delivered": True, "recipient": recipient_email}
+            except Exception as ex465:
+                logger.error(f"[EMAIL SERVICE ERROR] Failed to send statement email to {recipient_email}: {ex465}")
+                return {"status": "FAILED", "delivered": False, "detail": str(ex465)}
+
+    async def send_statement_email(
+        self,
+        recipient_email: str,
+        recipient_name: str,
+        statement_date_str: str,
+        opening_balance: float,
+        total_credit: float,
+        total_debit: float,
+        closing_balance: float,
+        pdf_bytes: bytes,
+        filename: str = "Pay2Pay_Statement.pdf",
+        is_admin: bool = False
+    ) -> Dict[str, Any]:
+        """Async wrapper for dispatching daily account statement email."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            self.send_statement_email_sync,
+            recipient_email,
+            recipient_name,
+            statement_date_str,
+            opening_balance,
+            total_credit,
+            total_debit,
+            closing_balance,
+            pdf_bytes,
+            filename,
+            is_admin
+        )
+
     async def send_topup_approval_email(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Async wrapper for dispatching topup approval email."""
         try:
@@ -514,3 +707,4 @@ class EmailService:
         return await loop.run_in_executor(None, self.send_topup_approval_email_sync, payload)
 
 email_service = EmailService()
+

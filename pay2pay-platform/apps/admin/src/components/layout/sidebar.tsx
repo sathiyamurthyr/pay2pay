@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Building2, Users, ShieldCheck, Key,
+  LayoutDashboard, Building2, Users, UserPlus, ShieldCheck, Key,
   ScrollText, Settings, UserCircle, CreditCard, ChevronRight, ChevronDown, Network,
   ArrowLeftRight, Store, TrendingUp, Receipt, Code, Webhook, ShieldAlert, FileText,
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
@@ -73,12 +73,49 @@ interface FavoriteItem {
   display_order?: number;
 }
 
+const ICON_MAP: Record<string, React.ElementType> = {
+  LayoutDashboard,
+  Users,
+  UserPlus,
+  ShieldCheck,
+  ShieldAlert,
+  Store,
+  Receipt,
+  ArrowLeftRight,
+  Send,
+  Fingerprint,
+  Zap,
+  CreditCard,
+  QrCode,
+  Wallet,
+  TrendingUp,
+  Scale,
+  Activity,
+  Sliders,
+  FileText,
+  ScrollText,
+  Layers,
+  BookOpen,
+  Bell,
+  Terminal,
+  Settings,
+  CheckSquare,
+};
+
 // ─── ADMIN PORTAL MENU STRUCTURE (Strict Governance & Administration - Section 20) ───
 const ADMIN_NAV: NavCategory[] = [
   {
     category: "Dashboard",
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    category: "User Management",
+    items: [
+      { label: "User Management", href: "/users", icon: Users, badge: "Admin" },
+      { label: "User Creation", href: "/users/create", icon: UserPlus, badge: "New" },
+      { label: "Role & Permissions", href: "/roles", icon: ShieldCheck },
     ],
   },
   {
@@ -124,6 +161,7 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Reports",
     items: [
+      { label: "Daily Statements", href: "/admin/statements", icon: FileText, badge: "3:00 AM" },
       { label: "Transaction Reports", href: "/admin/reports/transactions", icon: FileText },
       { label: "Wallet Reports", href: "/admin/reports/transaction-ledger", icon: ScrollText },
       { label: "Commission Reports", href: "/retailer/reports", icon: FileText },
@@ -195,6 +233,39 @@ export const Sidebar: React.FC = () => {
     }
   }, [user]);
 
+  // ── Auto-Access Menus (Server-driven via PostgreSQL SP) ──
+  const [serverMenuAccess, setServerMenuAccess] = useState<NavCategory[] | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+    api.get("/users/menu-access")
+      .then((res) => {
+        if (!isMounted) return;
+        const categories = res.data?.categories;
+        if (Array.isArray(categories) && categories.length > 0) {
+          const mapped: NavCategory[] = categories.map((cat: any) => ({
+            category: cat.category,
+            items: (cat.items || []).map((item: any) => {
+              const matchedNav = allItemsMap[item.href];
+              const IconComp = (item.icon && ICON_MAP[item.icon]) || matchedNav?.icon || LayoutDashboard;
+              return {
+                label: item.label || item.name || matchedNav?.label || "Page",
+                href: item.href,
+                icon: IconComp,
+                badge: item.badge || matchedNav?.badge,
+              };
+            }),
+          })).filter((c) => c.items.length > 0);
+          setServerMenuAccess(mapped);
+        }
+      })
+      .catch((err) => {
+        console.warn("Using role-based fallback navigation:", err?.message);
+      });
+    return () => { isMounted = false; };
+  }, [user, allItemsMap]);
+
   // Handle Toggle Favorite
   const handleToggleFavorite = async (item: NavItem, categoryName: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -236,76 +307,63 @@ export const Sidebar: React.FC = () => {
   };
 
   const navigation = useMemo(() => {
+    if (serverMenuAccess && serverMenuAccess.length > 0) {
+      let baseNav = serverMenuAccess;
+      if (favorites.length > 0) {
+        const favCategory: NavCategory = {
+          category: "Favorites",
+          icon: Star,
+          items: favorites.map((fav) => {
+            const originalItem = allItemsMap[fav.menu_href];
+            return {
+              label: fav.menu_label || originalItem?.label || fav.menu_href,
+              href: fav.menu_href,
+              icon: originalItem?.icon || Star,
+              badge: originalItem?.badge,
+            };
+          }),
+        };
+        return [favCategory, ...baseNav];
+      }
+      return baseNav;
+    }
+
     const email = (user?.email || "").toLowerCase();
     const roles = (user?.roles || []).map((r) => r.toLowerCase());
-    const uType = (user?.user_type || "").toLowerCase();
+    const uType = (user?.user_type || "").toUpperCase();
 
-    const isCrm = email.includes("crm") || roles.includes("crm_executive") || roles.includes("crm_manager") || uType.includes("crm");
-    const isRm = email.includes("rm.") || email.startsWith("rm_") || roles.includes("regional_manager") || uType.includes("regional");
-    const isFinance = roles.includes("finance") || roles.includes("settlement_mgr") || uType.includes("finance");
-    const isCompliance = roles.includes("compliance") || uType.includes("compliance");
+    const isAdmin =
+      uType === "ADMIN" ||
+      uType === "PLATFORM_ADMIN" ||
+      uType === "SUPER_ADMIN" ||
+      roles.includes("platform_admin") ||
+      roles.includes("super_admin") ||
+      roles.includes("admin") ||
+      (!uType && !roles.length);
 
-    let baseNav = ADMIN_NAV;
+    const isRm = uType === "RM" || uType === "REGIONAL_MANAGER" || roles.includes("regional_manager") || email.includes("rm.") || email.startsWith("rm_");
+    const isCrm = uType === "CRM" || uType === "CRM_EXECUTIVE" || uType === "CRM_MANAGER" || roles.includes("crm_executive") || roles.includes("crm_manager") || email.includes("crm");
+    const isAudit = uType === "AUDIT" || uType === "AUDITOR" || roles.includes("auditor") || roles.includes("compliance") || uType === "COMPLIANCE";
+    const isOps = uType === "OPERATIONS" || uType === "OPERATIONS_ADMIN" || roles.includes("operations_admin");
+    const isFinance = uType === "FINANCE" || uType === "FINANCE_ADMIN" || roles.includes("finance_admin") || roles.includes("settlement_mgr") || uType.includes("FINANCE");
 
-    if (isCrm) {
-      const allowedLabels: Record<string, string[]> = {
-        "Main": ["Dashboard"],
-        "Administration": ["Super Distributor", "Distributor", "Retailer", "POS Machine"],
-        "Configuration": ["Customer Policy", "Notifications", "Announcements"],
-        "Approvals": ["KYC & Onboarding"],
-        "Reports": ["Transaction Report", "Transaction Ledger", "Settlement", "Wallet", "Retailers", "Machines", "Audit", "Reconciliation"],
-      };
+    let allowedCategories: string[] = ["Dashboard", "User Management", "Governance", "Retailers", "Transactions", "Wallet", "Services", "Reports", "Configuration", "System"];
 
-      baseNav = ADMIN_NAV.map((cat) => {
-        const allowed = allowedLabels[cat.category];
-        if (!allowed) return null;
-        const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
-        return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
-      }).filter(Boolean) as NavCategory[];
+    if (isAdmin) {
+      allowedCategories = ["Dashboard", "User Management", "Governance", "Retailers", "Transactions", "Wallet", "Services", "Reports", "Configuration", "System"];
     } else if (isRm) {
-      const allowedLabels: Record<string, string[]> = {
-        "Main": ["Dashboard"],
-        "Administration": ["Organization", "RM", "Super Distributor", "Distributor", "Retailer", "POS Machine"],
-        "Approvals": ["KYC & Onboarding"],
-        "Reports": ["Transaction Report", "Retailers", "Machines"],
-      };
-
-      baseNav = ADMIN_NAV.map((cat) => {
-        const allowed = allowedLabels[cat.category];
-        if (!allowed) return null;
-        const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
-        return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
-      }).filter(Boolean) as NavCategory[];
+      allowedCategories = ["Dashboard", "Retailers", "Transactions", "Reports"];
+    } else if (isCrm) {
+      allowedCategories = ["Dashboard", "Retailers", "Transactions", "Wallet", "Configuration", "Reports"];
+    } else if (isAudit) {
+      allowedCategories = ["Dashboard", "Reports", "System"];
+    } else if (isOps) {
+      allowedCategories = ["Dashboard", "User Management", "Governance", "Services", "Wallet", "Transactions", "System"];
     } else if (isFinance) {
-      const allowedLabels: Record<string, string[]> = {
-        "Main": ["Dashboard"],
-        "Administration": ["Entity User", "Manual Top-up", "Topup Requests"],
-        "Configuration": ["Payout Switch", "Wallet", "Chart of Accounts", "Transactions", "Commission", "Charges"],
-        "Approvals": ["Topup Requests", "Settlement", "Wallet Adjustments"],
-        "Reports": ["Transaction Report", "Transaction Ledger", "Settlement", "Wallet", "Reconciliation"],
-      };
-
-      baseNav = ADMIN_NAV.map((cat) => {
-        const allowed = allowedLabels[cat.category];
-        if (!allowed) return null;
-        const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
-        return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
-      }).filter(Boolean) as NavCategory[];
-    } else if (isCompliance) {
-      const allowedLabels: Record<string, string[]> = {
-        "Main": ["Dashboard"],
-        "Configuration": ["Customer Policy", "Beneficiary Policy", "Risk", "AML", "Security"],
-        "Approvals": ["KYC & Onboarding", "High Value"],
-        "Reports": ["Transaction Report", "Audit"],
-      };
-
-      baseNav = ADMIN_NAV.map((cat) => {
-        const allowed = allowedLabels[cat.category];
-        if (!allowed) return null;
-        const filteredItems = cat.items.filter((item) => allowed.includes(item.label));
-        return filteredItems.length > 0 ? { ...cat, items: filteredItems } : null;
-      }).filter(Boolean) as NavCategory[];
+      allowedCategories = ["Dashboard", "Wallet", "Configuration", "Reports"];
     }
+
+    let baseNav = ADMIN_NAV.filter((cat) => allowedCategories.includes(cat.category));
 
     // Prepend Dynamic Favorites Category if any are saved in DB
     if (favorites.length > 0) {
@@ -326,7 +384,7 @@ export const Sidebar: React.FC = () => {
     }
 
     return baseNav;
-  }, [user, favorites, allItemsMap]);
+  }, [user, favorites, allItemsMap, serverMenuAccess]);
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
