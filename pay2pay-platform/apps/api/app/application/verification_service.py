@@ -141,6 +141,137 @@ class VerificationService:
         }
 
     @staticmethod
+    async def sync_retailers_to_verifications(db: AsyncSession) -> int:
+        """
+        Synchronizes registered merchants from RetailerModel into RetailerVerificationModel
+        so they are visible in Admin Approvals and Verification portals.
+        """
+        import re
+        import logging
+        from sqlalchemy.orm import selectinload
+        logger = logging.getLogger(__name__)
+
+        try:
+            from app.infrastructure.db.models import RetailerModel
+            r_stmt = (
+                select(RetailerModel)
+                .where(RetailerModel.is_deleted == False)
+                .options(
+                    selectinload(RetailerModel.contacts),
+                    selectinload(RetailerModel.addresses),
+                    selectinload(RetailerModel.kyc)
+                )
+            )
+            retailers = (await db.execute(r_stmt)).scalars().all()
+            if not retailers:
+                return 0
+
+            v_q = await db.execute(
+                select(
+                    RetailerVerificationModel.mobile_number,
+                    RetailerVerificationModel.retailer_id,
+                    RetailerVerificationModel.registration_id,
+                    RetailerVerificationModel.public_id
+                )
+            )
+            v_rows = v_q.all()
+            existing_mobiles = set()
+            existing_codes = set()
+            existing_public_ids = set()
+            for row in v_rows:
+                if row[0]:
+                    clean = re.sub(r"\D", "", str(row[0]))[-10:]
+                    if clean:
+                        existing_mobiles.add(clean)
+                if row[1]:
+                    existing_codes.add(str(row[1]).strip().upper())
+                if row[2]:
+                    existing_codes.add(str(row[2]).strip().upper())
+                if row[3]:
+                    existing_public_ids.add(row[3])
+
+            synced_count = 0
+            for r in retailers:
+                contact = r.contacts[0] if getattr(r, "contacts", None) and len(r.contacts) > 0 else None
+                address = r.addresses[0] if getattr(r, "addresses", None) and len(r.addresses) > 0 else None
+                kyc = getattr(r, "kyc", None)
+
+                raw_mob = contact.mobile if contact and contact.mobile else ""
+                clean_mob = re.sub(r"\D", "", str(raw_mob))[-10:] if raw_mob else ""
+                r_code = (r.retailer_code or "").strip().upper()
+
+                if (clean_mob and clean_mob in existing_mobiles) or (r_code and r_code in existing_codes):
+                    continue
+
+                r_status = (r.status or "").upper()
+                if r_status in ("ACTIVE", "APPROVED", "VERIFIED"):
+                    verif_status = "APPROVED"
+                    acc_status = "ACTIVE"
+                    ret_status = "ACTIVE"
+                elif r_status in ("REJECTED", "BLOCKED"):
+                    verif_status = "REJECTED"
+                    acc_status = "ONBOARDING"
+                    ret_status = "REJECTED"
+                elif r_status in ("HOLD", "ON_HOLD"):
+                    verif_status = "ON_HOLD"
+                    acc_status = "ONBOARDING"
+                    ret_status = "HOLD"
+                else:
+                    verif_status = "PENDING"
+                    acc_status = "ONBOARDING"
+                    ret_status = "UNDER_REVIEW"
+
+                reg_id = r.retailer_code if r.retailer_code and r.retailer_code.startswith("REG-") else f"REG-{r.retailer_code or str(r.id)}"
+                counter = 1
+                base_reg_id = reg_id
+                while reg_id.upper() in existing_codes:
+                    reg_id = f"{base_reg_id}-{counter}"
+                    counter += 1
+                existing_codes.add(reg_id.upper())
+
+                verif_pub_id = uuid.uuid4()
+                while verif_pub_id in existing_public_ids:
+                    verif_pub_id = uuid.uuid4()
+                existing_public_ids.add(verif_pub_id)
+
+                new_verif = RetailerVerificationModel(
+                    tenant_id=r.tenant_id or DEFAULT_TENANT_ID,
+                    public_id=verif_pub_id,
+                    registration_id=reg_id,
+                    retailer_id=r.retailer_code or f"RET-{r.id}",
+                    mobile_number=clean_mob or raw_mob or "N/A",
+                    email=contact.email if contact and contact.email else f"{clean_mob or r.retailer_code}@pay2pay.in",
+                    retailer_name=r.owner_name or r.legal_name or r.store_name or "Retailer Merchant",
+                    shop_name=r.store_name or "Retailer Store",
+                    verification_status=verif_status,
+                    account_status=acc_status,
+                    retailer_status=ret_status,
+                    is_business=False,
+                    pan_number=kyc.pan_number if kyc and hasattr(kyc, "pan_number") else None,
+                    gst_number=kyc.gst_number if kyc and hasattr(kyc, "gst_number") else None,
+                    state=address.state if address and hasattr(address, "state") and address.state else "Tamil Nadu",
+                    district=address.city if address and hasattr(address, "city") and address.city else "Chennai",
+                    risk_score=15,
+                    risk_category="LOW",
+                    priority="NORMAL",
+                    submitted_at=r.created_date or datetime.now(timezone.utc)
+                )
+                db.add(new_verif)
+                if clean_mob:
+                    existing_mobiles.add(clean_mob)
+                if r_code:
+                    existing_codes.add(r_code)
+                synced_count += 1
+
+            if synced_count > 0:
+                await db.commit()
+            return synced_count
+        except Exception as e:
+            logger.error(f"Error syncing retailers to verifications: {e}")
+            await db.rollback()
+            return 0
+
+    @staticmethod
     async def list_verification_requests(
         db: AsyncSession,
         status_tab: Optional[str] = "PENDING",
@@ -151,6 +282,7 @@ class VerificationService:
         page_size: int = 20
     ) -> Dict[str, Any]:
         """Admin Verification Dashboard request listing with filters & pagination."""
+        await VerificationService.sync_retailers_to_verifications(db)
 
         query = select(RetailerVerificationModel)
 
@@ -594,10 +726,26 @@ class VerificationService:
                     .where(
                         or_(
                             RetailerModel.retailer_code == verif.retailer_id,
-                            RetailerModel.retailer_code == verif.registration_id
+                            RetailerModel.retailer_code == verif.registration_id,
+                            RetailerModel.public_id == verif.public_id
                         )
                     )
-                    .values(status="ACTIVE")
+                    .values(status="ACTIVE", is_active=True)
+                )
+            except Exception:
+                pass
+            try:
+                from app.infrastructure.db.auth_models import AuthUserModel
+                clean_m = re.sub(r"\D", "", verif.mobile_number)[-10:]
+                await db.execute(
+                    update(AuthUserModel)
+                    .where(
+                        or_(
+                            AuthUserModel.user_id == verif.public_id,
+                            AuthUserModel.mobile_number.in_([clean_m, f"91{clean_m}", f"+91{clean_m}"])
+                        )
+                    )
+                    .values(account_status="ACTIVE")
                 )
             except Exception:
                 pass
@@ -618,10 +766,40 @@ class VerificationService:
                 )
             except Exception:
                 pass
+            try:
+                from app.infrastructure.db.models import RetailerModel
+                await db.execute(
+                    update(RetailerModel)
+                    .where(
+                        or_(
+                            RetailerModel.retailer_code == verif.retailer_id,
+                            RetailerModel.retailer_code == verif.registration_id,
+                            RetailerModel.public_id == verif.public_id
+                        )
+                    )
+                    .values(status="REJECTED", is_active=False)
+                )
+            except Exception:
+                pass
         elif action_clean in ("ON_HOLD", "HOLD"):
             verif.verification_status = "ON_HOLD"
             verif.account_status = "ONBOARDING"
             verif.retailer_status = "ON_HOLD"
+            try:
+                from app.infrastructure.db.models import RetailerModel
+                await db.execute(
+                    update(RetailerModel)
+                    .where(
+                        or_(
+                            RetailerModel.retailer_code == verif.retailer_id,
+                            RetailerModel.retailer_code == verif.registration_id,
+                            RetailerModel.public_id == verif.public_id
+                        )
+                    )
+                    .values(status="HOLD")
+                )
+            except Exception:
+                pass
         elif action_clean in ("NEED_INFO", "NEEDINFO"):
             verif.verification_status = "NEED_INFO"
             verif.account_status = "ONBOARDING"
