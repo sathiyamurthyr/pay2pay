@@ -62,6 +62,10 @@ interface AdminOperationWallet {
 interface TopupItem {
   id: string;
   topup_request_id: string;
+  retailer_name?: string;
+  retailer_code?: string;
+  retailer_mobile?: string;
+  retailer_email?: string;
   requested_amount: number;
   approved_amount?: number;
   received_amount?: number;
@@ -369,24 +373,47 @@ function AdminTopupRequestsContent() {
       setSearch(deepLinkRequestId);
       async function loadDeepLinkRequest() {
         try {
-          const res = await api.get("/api/v1/topup/requests", {
-            params: { search: deepLinkRequestId, page: 1, page_size: 10 }
-          });
-          if (res.data?.success && res.data.items?.length > 0) {
-            const cleanTarget = (deepLinkRequestId || "").trim().toLowerCase();
-            const matched = res.data.items.find(
-              (it: TopupItem) =>
-                (it.topup_request_id && it.topup_request_id.toLowerCase() === cleanTarget) ||
-                (it.id && it.id.toLowerCase() === cleanTarget) ||
-                (it.payment_reference && it.payment_reference.toLowerCase() === cleanTarget) ||
-                (it.transaction_reference && it.transaction_reference.toLowerCase() === cleanTarget)
-            ) || res.data.items[0];
+          const cleanTarget = (deepLinkRequestId || "").trim();
+          let matched: TopupItem | null = null;
 
-            if (matched) {
-              setSelectedRequest(matched);
-              setDrawerOpen(true);
-              setDeepLinkHandled(true);
+          // 1. First attempt authoritative single-item lookup
+          try {
+            const singleRes = await api.get(`/api/v1/topup/requests/${encodeURIComponent(cleanTarget)}`);
+            if (singleRes.data?.data && (singleRes.data.data.id || singleRes.data.data.topup_request_id)) {
+              matched = singleRes.data.data;
+            } else if (singleRes.data && (singleRes.data.id || singleRes.data.topup_request_id)) {
+              matched = singleRes.data;
             }
+          } catch {}
+
+          // 2. Fallback to list search with requestId & search query params
+          if (!matched) {
+            const res = await api.get("/api/v1/topup/requests", {
+              params: { search: cleanTarget, requestId: cleanTarget, page: 1, page_size: 10 }
+            });
+            if (res.data?.success && res.data.items?.length > 0) {
+              const lowerTarget = cleanTarget.toLowerCase();
+              matched = res.data.items.find(
+                (it: TopupItem) =>
+                  (it.topup_request_id && it.topup_request_id.toLowerCase() === lowerTarget) ||
+                  (it.id && it.id.toLowerCase() === lowerTarget) ||
+                  (it.payment_reference && it.payment_reference.toLowerCase() === lowerTarget) ||
+                  (it.transaction_reference && it.transaction_reference.toLowerCase() === lowerTarget)
+              ) || res.data.items[0];
+            }
+          }
+
+          if (matched) {
+            setSelectedRequest(matched);
+            setDrawerOpen(true);
+            setDeepLinkHandled(true);
+            // Prepend the matched top-up into the table list so it's directly visible
+            setRequests((prev) => {
+              if (prev.some((r) => r.id === matched!.id || r.topup_request_id === matched!.topup_request_id)) {
+                return prev;
+              }
+              return [matched!, ...prev];
+            });
           }
         } catch (err) {
           console.warn("[TOPUP_DEEP_LINK] Error loading deep-linked request:", err);
@@ -793,11 +820,11 @@ function AdminTopupRequestsContent() {
 
       return [
         r.topup_request_id,
-        r.retailer?.retailer_code || "",
-        `"${(r.retailer?.retailer_name || "").replace(/"/g, '""')}"`,
+        r.retailer?.retailer_code || r.retailer_code || "",
+        `"${(r.retailer?.retailer_name || r.retailer_name || "").replace(/"/g, '""')}"`,
         r.service || "Payout",
         r.vendor || "Utkal",
-        r.retailer?.mobile_number || "",
+        r.retailer?.mobile_number || r.retailer_mobile || "",
         r.requested_amount,
         rMdrPct > 0 ? `${rMdrPct.toFixed(2)}%` : "0%",
         r.mdr_charge || (r.charges ? (r.gst_amount ? r.charges - r.gst_amount : r.charges) : 0),
@@ -1303,7 +1330,7 @@ function AdminTopupRequestsContent() {
                 </tr>
               ) : (
                 requests.map((item) => {
-                  const initialLetter = (item.retailer?.retailer_name || "R").charAt(0).toUpperCase();
+                  const initialLetter = (item.retailer?.retailer_name || item.retailer_name || "R").charAt(0).toUpperCase();
                   const isApproved = item.status === "APPROVED";
                   const isPending = item.status === "PENDING" || item.status === "UNDER_REVIEW";
                   const isRejected = item.status === "REJECTED";
@@ -1379,16 +1406,16 @@ function AdminTopupRequestsContent() {
                           </div>
                           <div>
                             <div className="font-bold text-slate-900 text-sm group-hover:text-amber-600 transition-colors">
-                              {item.retailer?.retailer_name || "Unknown Retailer"}
+                              {item.retailer?.retailer_name || item.retailer_name || "Unknown Retailer"}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mt-0.5">
                               <span className="font-mono font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" title="Retailer Code">
-                                {item.retailer?.retailer_code || "RET-N/A"}
+                                {item.retailer?.retailer_code || item.retailer_code || "RET-N/A"}
                               </span>
-                              {item.retailer?.mobile_number && (
+                              {(item.retailer?.mobile_number || item.retailer_mobile) && (
                                 <span className="text-slate-600 font-medium flex items-center gap-1">
                                   <Phone className="h-3 w-3 text-slate-400" />
-                                  {item.retailer.mobile_number}
+                                  {item.retailer?.mobile_number || item.retailer_mobile}
                                 </span>
                               )}
                             </div>
@@ -2249,15 +2276,15 @@ function AdminTopupRequestsContent() {
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
                       <span className="text-slate-500 text-[11px]">Retailer Name:</span>
-                      <p className="font-bold text-slate-900">{selectedRequest.retailer?.retailer_name || "Unknown"}</p>
+                      <p className="font-bold text-slate-900">{selectedRequest.retailer?.retailer_name || selectedRequest.retailer_name || "Unknown"}</p>
                     </div>
                     <div>
                       <span className="text-slate-500 text-[11px]">Retailer Code:</span>
-                      <p className="font-mono font-bold text-amber-800">{selectedRequest.retailer?.retailer_code || "N/A"}</p>
+                      <p className="font-mono font-bold text-amber-800">{selectedRequest.retailer?.retailer_code || selectedRequest.retailer_code || "N/A"}</p>
                     </div>
                     <div>
                       <span className="text-slate-500 text-[11px]">Mobile Number:</span>
-                      <p className="font-medium text-slate-800">{selectedRequest.retailer?.mobile_number || "N/A"}</p>
+                      <p className="font-medium text-slate-800">{selectedRequest.retailer?.mobile_number || selectedRequest.retailer_mobile || "N/A"}</p>
                     </div>
                     <div>
                       <span className="text-slate-500 text-[11px]">Current Wallet Balance:</span>

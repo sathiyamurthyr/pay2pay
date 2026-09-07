@@ -193,6 +193,7 @@ async def get_public_receipt(
                     if ret:
                         ret_name = getattr(ret, "owner_name", None) or getattr(ret, "store_name", None) or "Retailer"
                         ret_code = getattr(ret, "retailer_code", "") or ""
+                        ret_mob = getattr(ret, "mobile_number", getattr(ret, "phone_number", "")) or ""
                 except Exception as ret_err:
                     logger.warning(f"[PUBLIC_RECEIPT] Retailer lookup notice: {ret_err}")
 
@@ -212,6 +213,14 @@ async def get_public_receipt(
             else:
                 st_norm = st_raw
                 st_text = f"WALLET TOP-UP {st_raw}"
+
+            slip_link = topup_req.slip_url
+            if slip_link and not str(slip_link).startswith("http"):
+                try:
+                    from app.application.backblaze_storage_service import BackblazeStorageService
+                    slip_link = BackblazeStorageService.get_b2_download_url(slip_link)
+                except Exception:
+                    pass
 
             clean_sig = str(clean_token).replace("-", "").upper()[-8:]
             return {
@@ -241,7 +250,7 @@ async def get_public_receipt(
                 "beneficiaryAccount": f"Wallet A/C: {ret_code}" if ret_code else "Retailer Primary Wallet",
                 "signature": f"SIG-SHA256-{clean_sig}982A1B7C",
                 "downloadUrl": f"https://receipt.pay2pay.in/r/{clean_token}",
-                "proofSlipUrl": topup_req.slip_url,
+                "proofSlipUrl": slip_link,
                 "isTopup": True,
                 "receiptType": "TOPUP_REQUEST",
                 "topupRequestId": topup_req.topup_request_id or clean_token,

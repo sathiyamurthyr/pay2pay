@@ -149,18 +149,11 @@ export default function RetailerTopupRequestPage() {
     const timer = setTimeout(async () => {
       try {
         setCalculatingMdr(true);
-        const activeCode =
-          retailerInfo?.code ||
-          (typeof window !== "undefined"
-            ? localStorage.getItem("p2p_active_retailer_id") ||
-              localStorage.getItem("retailer_code") ||
-              localStorage.getItem("pay2pay_reg_mobile") ||
-              ""
-            : "");
+        const activeCode = retailerInfo?.code || undefined;
         const res = await api.post("/api/v1/pos/calculate-mdr", {
           payment_mode: paymentMethod,
           transaction_amount: amt,
-          retailer_id: activeCode || undefined
+          retailer_id: activeCode
         });
         if (isMounted && res.data) {
           setMdrBreakdown(res.data);
@@ -187,13 +180,7 @@ export default function RetailerTopupRequestPage() {
   const fetchMyTopups = useCallback(async () => {
     try {
       setLoadingRequests(true);
-      const activeCode =
-        (typeof window !== "undefined"
-          ? localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("retailer_code") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            ""
-          : "");
+      const activeCode = retailerInfo?.code;
       const query = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
       const res = await api.get(`/api/v1/topup/my-requests${query}`, {
         headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}
@@ -308,14 +295,7 @@ export default function RetailerTopupRequestPage() {
         mdr_config_id: mdrBreakdown?.mdr_config_id
       };
 
-      const activeCode =
-        retailerInfo?.code ||
-        (typeof window !== "undefined"
-          ? localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("retailer_code") ||
-            localStorage.getItem("pay2pay_reg_mobile") ||
-            ""
-          : "");
+      const activeCode = retailerInfo?.code;
       const queryParam = activeCode ? `?retailer_id=${encodeURIComponent(activeCode)}` : "";
       const res = await api.post(`/api/v1/topup/request${queryParam}`, payload, {
         headers: activeCode ? { "x-retailer-code": activeCode, "x-retailer-id": activeCode } : {}

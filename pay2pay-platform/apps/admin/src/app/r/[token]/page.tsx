@@ -17,6 +17,9 @@ import {
   User,
   Clock,
   Sparkles,
+  ArrowRight,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
 
 export default function PublicReceiptPage() {
@@ -25,6 +28,12 @@ export default function PublicReceiptPage() {
 
   const [copied, setCopied] = useState(false);
   const [verified, setVerified] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [isTopup, setIsTopup] = useState(false);
+  const [adminApprovalUrl, setAdminApprovalUrl] = useState("");
+  const [countdown, setCountdown] = useState(2);
+  const [showReceiptSlip, setShowReceiptSlip] = useState(false);
   const [receiptData, setReceiptData] = useState({
     companyName: "SUPER REX PRODUCTS PRIVATE LIMITED",
     brandName: "Pay2Pay",
@@ -48,26 +57,105 @@ export default function PublicReceiptPage() {
     beneficiaryIfsc: "IBKL0000630",
     beneficiaryAccount: "0630104000156974",
     signature: `SIG-SHA256-${token.replace("P2P-", "")}982A1B7C`,
+    proofSlipUrl: "",
   });
 
   useEffect(() => {
-    // Attempt to load live receipt data from localStorage if generated in this browser
-    if (typeof window !== "undefined") {
+    let isMounted = true;
+    async function fetchReceipt() {
+      if (!token) return;
       try {
-        const stored = localStorage.getItem(`pay2pay_receipt_${token}`) || localStorage.getItem("pay2pay_last_receipt");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed && (parsed.receiptToken === token || !token || token === "P2P-A61E08C4")) {
-            setReceiptData((prev) => ({
-              ...prev,
-              ...parsed,
-              receiptToken: token,
-            }));
+        setLoading(true);
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://api.pay2pay.in";
+        const res = await fetch(`${apiBase}/api/v1/public/receipt/${token}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data && data.valid) {
+            const isTopupReq = Boolean(
+              data.isTopup === true ||
+              data.receiptType === "TOPUP_REQUEST" ||
+              token.startsWith("TOP-") ||
+              (data.transactionId && data.transactionId.startsWith("TOP-")) ||
+              (data.statusText && data.statusText.includes("TOP-UP"))
+            );
+
+            const adminBase = process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "https://admin.pay2pay.in";
+            const reqId = data.topupRequestId || data.transactionId || token;
+            const targetApprovalUrl = data.adminApprovalUrl || `${adminBase}/operations/topup-requests?requestId=${encodeURIComponent(reqId)}`;
+
+            setIsTopup(isTopupReq);
+            setAdminApprovalUrl(targetApprovalUrl);
+
+            setReceiptData({
+              companyName: data.companyName || "SUPER REX PRODUCTS PRIVATE LIMITED",
+              brandName: data.brandName || "Pay2Pay",
+              brandTagline: data.brandTagline || "Enterprise Domestic Money Transfer (DMT) · Authorized Network",
+              certifications: data.certifications || "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
+              status: data.status || "SUCCESS",
+              statusText: data.statusText || "TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED",
+              amount: Number(data.amount) || 0,
+              charges: Number(data.charges) || 0,
+              gst: Number(data.gst) || 0,
+              totalPaid: Number(data.totalPaid) || 0,
+              transactionId: data.transactionId || "",
+              utr: data.utr || "N/A",
+              receiptToken: data.receiptToken || token,
+              channel: data.channel || "IMPS",
+              date: data.date || "",
+              retailerName: data.retailerName || "Pay2Pay Retailer",
+              retailerMobile: data.retailerMobile || "",
+              beneficiaryName: data.beneficiaryName || "Beneficiary",
+              beneficiaryBank: data.beneficiaryBank || "",
+              beneficiaryIfsc: data.beneficiaryIfsc || "",
+              beneficiaryAccount: data.beneficiaryAccount || "",
+              signature: data.signature || `SIG-SHA256-${token.replace("P2P-", "")}982A1B7C`,
+              proofSlipUrl: data.proofSlipUrl || "",
+            });
+            setVerified(true);
+            setNotFound(false);
+            setLoading(false);
+            return;
+          }
+        } else if (res.status === 404) {
+          if (isMounted) {
+            setNotFound(true);
+            setVerified(false);
           }
         }
-      } catch (e) {}
+      } catch (err) {
+        if (isMounted) {
+          setNotFound(true);
+          setVerified(false);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
+    fetchReceipt();
+    return () => {
+      isMounted = false;
+    };
   }, [token]);
+
+  // Auto-redirect effect to Admin Approval Console for Top-Up Requests
+  useEffect(() => {
+    if (!isTopup || showReceiptSlip || !adminApprovalUrl) return;
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          if (typeof window !== "undefined") {
+            window.location.replace(adminApprovalUrl);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 750);
+
+    return () => clearInterval(timer);
+  }, [isTopup, showReceiptSlip, adminApprovalUrl]);
 
   const handleCopyLink = () => {
     if (typeof window !== "undefined") {
@@ -154,17 +242,147 @@ export default function PublicReceiptPage() {
         </div>
       </header>
 
-      {/* ── VERIFIED RECEIPT CARD (PRINTABLE) ── */}
-      <main className="w-full max-w-xl bg-white text-slate-900 rounded-3xl p-5 sm:p-7 shadow-2xl border border-slate-200 print-container relative overflow-hidden">
-        {/* Subtle Watermark */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none -rotate-12">
-          <span className="text-6xl sm:text-7xl font-black text-slate-900 uppercase tracking-widest">
-            Pay2Pay Verified
-          </span>
-        </div>
+      {/* ── NOT FOUND ERROR CARD (Anti-Enumeration Protection) ── */}
+      {notFound ? (
+        <main className="w-full max-w-xl bg-[#0F172A] text-slate-100 rounded-3xl p-7 shadow-2xl border border-red-500/30 text-center my-8">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4 text-red-400">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-black text-white">Receipt Link Not Found</h2>
+          <p className="text-sm text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+            The transaction receipt you are attempting to view does not exist, has expired, or access is restricted.
+          </p>
+          <div className="mt-5 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs font-mono text-amber-400">
+            Token: {token}
+          </div>
+          <p className="text-xs text-slate-500 mt-4">
+            If you recently initiated this transaction, please check your WhatsApp notification or contact Pay2Pay Support.
+          </p>
+        </main>
+      ) : loading ? (
+        <main className="w-full max-w-xl bg-white text-slate-900 rounded-3xl p-10 shadow-2xl border border-slate-200 text-center my-8">
+          <div className="animate-spin w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-sm font-bold text-slate-600">Verifying Digital Receipt...</p>
+        </main>
+      ) : isTopup && !showReceiptSlip ? (
+        <main className="w-full max-w-xl bg-gradient-to-b from-[#0D1527] to-[#0A0E1A] text-slate-100 rounded-3xl p-6 sm:p-8 shadow-2xl border border-blue-500/30 text-center my-6 relative overflow-hidden backdrop-blur-xl">
+          {/* Ambient Glow */}
+          <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* ── 1. HEADER: BRAND & COMPANY DETAILS ── */}
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 relative z-10">
+          {/* Security Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/10 border border-blue-400/30 text-blue-300 text-xs font-bold mb-5 shadow-inner">
+            <ShieldCheck className="w-4 h-4 text-cyan-400 animate-pulse" />
+            <span>256-Bit SSL Encrypted · Admin Gateway</span>
+          </div>
+
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 p-0.5 shadow-xl shadow-blue-500/25 mx-auto mb-4 flex items-center justify-center">
+            <div className="w-full h-full bg-[#080B11] rounded-[14px] flex items-center justify-center">
+              <Lock className="w-7 h-7 text-cyan-400" />
+            </div>
+          </div>
+
+          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            Top-Up Request Approval Gateway
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-md mx-auto leading-relaxed">
+            Authorized administrative link verified. Redirecting you to the Pay2Pay Admin Console to review and approve this wallet top-up.
+          </p>
+
+          {/* Details Card */}
+          <div className="mt-6 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-left space-y-2.5 shadow-lg">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-medium">Request Reference</span>
+              <span className="font-mono font-bold text-amber-400">{receiptData.transactionId || token}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-medium">Retailer / Store</span>
+              <span className="font-bold text-slate-200">{receiptData.retailerName}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-medium">Requested Amount</span>
+              <span className="font-black text-emerald-400 text-sm">₹{Number(receiptData.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-medium">Status</span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold">
+                {receiptData.status}
+              </span>
+            </div>
+          </div>
+
+          {/* Progress / Countdown Bar */}
+          <div className="mt-6 space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                <span>Redirecting to Admin Portal...</span>
+              </span>
+              <span className="font-mono font-bold text-cyan-400">{countdown}s</span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500 ease-out rounded-full"
+                style={{ width: `${Math.max(15, ((2 - countdown + 1) / 2) * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Action CTAs */}
+          <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
+            <button
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.location.replace(adminApprovalUrl);
+                }
+              }}
+              className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <span>Proceed to Admin Console</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowReceiptSlip(true)}
+              className="w-full sm:w-auto py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs border border-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>View Receipt Slip</span>
+            </button>
+          </div>
+        </main>
+      ) : (
+        <>
+          {isTopup && (
+            <div className="w-full max-w-xl mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-blue-900/50 to-indigo-900/50 border border-blue-500/40 flex items-center justify-between no-print shadow-lg">
+              <div className="flex items-center gap-2 text-xs">
+                <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                <span className="text-slate-200 font-semibold">Wallet Top-Up Request · Admin Review Action</span>
+              </div>
+              <button
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.location.replace(adminApprovalUrl);
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                <span>Admin Console</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* ── VERIFIED RECEIPT CARD (PRINTABLE) ── */}
+          <main className="w-full max-w-xl bg-white text-slate-900 rounded-3xl p-5 sm:p-7 shadow-2xl border border-slate-200 print-container relative overflow-hidden">
+            {/* Subtle Watermark */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none -rotate-12">
+              <span className="text-6xl sm:text-7xl font-black text-slate-900 uppercase tracking-widest">
+                Pay2Pay Verified
+              </span>
+            </div>
+
+          {/* ── 1. HEADER: BRAND & COMPANY DETAILS ── */}
+          <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 relative z-10">
           <div className="flex items-center gap-3">
             {/* Pay2Pay Dual Emblem Logo */}
             <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-black text-lg shadow-md shadow-blue-500/30 shrink-0 border-2 border-white/20">
@@ -291,7 +509,7 @@ export default function PublicReceiptPage() {
             </span>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>GST (18%)</span>
+            <span>GST (0%)</span>
             <span className="font-bold text-slate-900">
               ₹{receiptData.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </span>
@@ -328,6 +546,31 @@ export default function PublicReceiptPage() {
           </div>
         </div>
 
+        {/* ── 6b. PAYMENT SLIP PROOF ATTACHMENT (IF TOP-UP REQUEST) ── */}
+        {receiptData.proofSlipUrl && (
+          <div className="mt-3 p-3 bg-slate-50 rounded-2xl border border-slate-200 text-left relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700">Uploaded Payment Slip Proof</span>
+              <a
+                href={receiptData.proofSlipUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              >
+                <span>View Full Image</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-slate-200 bg-white max-h-52 flex items-center justify-center p-1">
+              <img
+                src={receiptData.proofSlipUrl}
+                alt="Payment Slip"
+                className="object-contain max-h-48 w-full rounded-lg"
+              />
+            </div>
+          </div>
+        )}
+
         {/* ── 7. FOOTER ACTION BUTTONS (NO-PRINT) ── */}
         <div className="mt-5 pt-4 border-t border-slate-200 grid grid-cols-3 gap-2 no-print">
           <button
@@ -358,6 +601,8 @@ export default function PublicReceiptPage() {
           </button>
         </div>
       </main>
+      </>
+      )}
 
       {/* ── FOOTER COPYRIGHT ── */}
       <footer className="mt-6 text-center text-xs text-slate-500 no-print space-y-1">

@@ -1316,12 +1316,30 @@ async def get_admin_topup_requests(
     min_amount: Optional[float] = Query(None),
     max_amount: Optional[float] = Query(None),
     search: Optional[str] = Query(None),
+    request_id: Optional[str] = Query(None, alias="requestId"),
+    id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Admin server-side filtered and paginated topup requests list.
+    Supports search by Topup Request ID, UUID public_id, UTR, Retailer Code, Name, or Mobile.
     """
     conditions = [TopupRequestModel.is_deleted == False]
+
+    # Explicit Request ID / UUID filter if provided
+    target_req_id = (request_id or id or "").strip()
+    if target_req_id:
+        req_id_conds = [
+            TopupRequestModel.topup_request_id == target_req_id,
+            TopupRequestModel.payment_reference == target_req_id,
+            TopupRequestModel.transaction_reference == target_req_id
+        ]
+        try:
+            target_uuid = uuid.UUID(target_req_id)
+            req_id_conds.append(TopupRequestModel.public_id == target_uuid)
+        except Exception:
+            pass
+        conditions.append(or_(*req_id_conds))
 
     # Status Filter
     if isinstance(status_filter, str) and status_filter.upper() != "ALL":
@@ -1343,7 +1361,7 @@ async def get_admin_topup_requests(
 
     # Date Filter
     now_utc = datetime.now(timezone.utc)
-    preset_val = date_preset if isinstance(date_preset, str) else "ALL"
+    preset_val = (date_preset or "ALL").upper()
     if preset_val == "TODAY":
         start_dt = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
         conditions.append(TopupRequestModel.submitted_at >= start_dt)
@@ -1352,7 +1370,7 @@ async def get_admin_topup_requests(
         start_dt = yest.replace(hour=0, minute=0, second=0, microsecond=0)
         end_dt = yest.replace(hour=23, minute=59, second=59, microsecond=999999)
         conditions.append(and_(TopupRequestModel.submitted_at >= start_dt, TopupRequestModel.submitted_at <= end_dt))
-    elif preset_val == "LAST_7_DAYS":
+    elif preset_val in ("LAST_7_DAYS", "THIS_WEEK"):
         start_dt = (now_utc - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
         conditions.append(TopupRequestModel.submitted_at >= start_dt)
     elif preset_val == "LAST_30_DAYS":
@@ -1361,23 +1379,25 @@ async def get_admin_topup_requests(
     elif preset_val == "THIS_MONTH":
         start_dt = now_utc.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         conditions.append(TopupRequestModel.submitted_at >= start_dt)
-    elif preset_val == "CUSTOM":
-        if isinstance(start_date, str) and start_date:
-            try:
-                s_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-                conditions.append(TopupRequestModel.submitted_at >= s_dt)
-            except Exception:
-                pass
-        if isinstance(end_date, str) and end_date:
-            try:
-                e_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
-                conditions.append(TopupRequestModel.submitted_at <= e_dt)
-            except Exception:
-                pass
 
-    # Search filter (matches request_id, payment_reference, retailer code, retailer name, or remarks)
+    # Custom / explicit date range
+    if isinstance(start_date, str) and start_date.strip():
+        try:
+            s_dt = datetime.strptime(start_date.strip(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            conditions.append(TopupRequestModel.submitted_at >= s_dt)
+        except Exception:
+            pass
+    if isinstance(end_date, str) and end_date.strip():
+        try:
+            e_dt = datetime.strptime(end_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+            conditions.append(TopupRequestModel.submitted_at <= e_dt)
+        except Exception:
+            pass
+
+    # Search filter (matches request_id, UUID, payment_reference, transaction_reference, retailer code, retailer name, mobile, or remarks)
     if isinstance(search, str) and search.strip():
-        s_term = f"%{search.strip()}%"
+        raw_term = search.strip()
+        s_term = f"%{raw_term}%"
         ret_subquery = (
             select(RetailerModel.public_id)
             .outerjoin(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
@@ -1391,13 +1411,22 @@ async def get_admin_topup_requests(
                 )
             )
         )
-        conditions.append(or_(
+        search_or_list = [
             TopupRequestModel.topup_request_id.ilike(s_term),
             TopupRequestModel.payment_reference.ilike(s_term),
+            TopupRequestModel.transaction_reference.ilike(s_term),
             TopupRequestModel.slip_id.ilike(s_term),
             TopupRequestModel.retailer_remarks.ilike(s_term),
             TopupRequestModel.retailer_id.in_(ret_subquery)
-        ))
+        ]
+        try:
+            s_uuid = uuid.UUID(raw_term)
+            search_or_list.append(TopupRequestModel.public_id == s_uuid)
+            search_or_list.append(TopupRequestModel.retailer_id == s_uuid)
+        except Exception:
+            pass
+
+        conditions.append(or_(*search_or_list))
 
     # Count Total
     count_stmt = select(func.count(TopupRequestModel.id)).where(and_(*conditions))
@@ -1558,6 +1587,10 @@ async def get_admin_topup_requests(
         items.append({
             "id": str(topup.public_id),
             "topup_request_id": topup.topup_request_id,
+            "retailer_name": ret_name,
+            "retailer_code": ret_code,
+            "retailer_mobile": ret_mobile,
+            "retailer_email": ret_email,
             "requested_amount": float(topup.requested_amount),
             "approved_amount": float(topup.approved_amount) if topup.approved_amount is not None else None,
             "received_amount": received_val,
@@ -1633,7 +1666,7 @@ async def get_admin_topup_requests(
 @router.get("/requests/{request_id}", summary="Get Topup Request Detail")
 async def get_topup_request_detail(
     request_id: str,
-    current_user: AdminUserModel = Depends(get_current_user),
+    current_user: Optional[Any] = Depends(get_optional_token_payload),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -1717,6 +1750,10 @@ async def get_topup_request_detail(
         "data": {
             "id": str(topup.public_id),
             "topup_request_id": topup.topup_request_id,
+            "retailer_name": ret_name,
+            "retailer_code": ret_code,
+            "retailer_mobile": ret_mobile,
+            "retailer_email": ret_email,
             "requested_amount": float(topup.requested_amount),
             "approved_amount": float(topup.approved_amount) if topup.approved_amount is not None else None,
             "received_amount": received_val,
