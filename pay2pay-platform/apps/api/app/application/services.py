@@ -2470,6 +2470,7 @@ class RetailerManagementService:
                         store_type="PHYSICAL",
                         status=ret_status,
                         created_by="Self-Onboarding Registration",
+                        mpin_hash=(draft_rec.draft_data or {}).get("mpin_hash") if draft_rec else None,
                         is_deleted=False
                     )
                     db.add(new_ret)

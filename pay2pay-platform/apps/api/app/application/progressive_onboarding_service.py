@@ -728,6 +728,34 @@ class ProgressiveOnboardingService:
         draft.completed_steps = sorted(list(completed))
         draft.last_activity_at = datetime.now(timezone.utc)
 
+        # Sync immediately into public.retailer table using Stored Procedure
+        try:
+            from sqlalchemy import text
+            clean_m = re.sub(r"\D", "", str(draft.mobile_number))[-10:]
+            c_stmt = select(RetailerContactModel.retailer_id).where(
+                RetailerContactModel.mobile.in_([clean_m, f"91{clean_m}", f"+91{clean_m}"])
+            )
+            ret_uuid = (await db.execute(c_stmt)).scalars().first()
+            if ret_uuid:
+                await db.execute(
+                    text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'ONBOARDING_STEP5')"),
+                    {"rid": ret_uuid, "nh": draft_data["mpin_hash"]}
+                )
+        except Exception as e:
+            pass
+
+        # Also sync AuthUserModel password_hash
+        try:
+            clean_m = re.sub(r"\D", "", str(draft.mobile_number))[-10:]
+            u_stmt = select(AuthUserModel).where(
+                AuthUserModel.mobile_number.in_([clean_m, f"91{clean_m}", f"+91{clean_m}"])
+            )
+            au = (await db.execute(u_stmt)).scalars().first()
+            if au:
+                au.password_hash = draft_data["password_hash"]
+        except Exception:
+            pass
+
         await db.commit()
 
         return {
