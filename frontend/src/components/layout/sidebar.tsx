@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Building2, Users, ShieldCheck, Key,
+  LayoutDashboard, Building2, Users, UserPlus, ShieldCheck, Key,
   ScrollText, Settings, UserCircle, CreditCard, ChevronRight, ChevronDown, Network,
   ArrowLeftRight, Store, TrendingUp, Receipt, Code, Webhook, ShieldAlert, FileText,
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
@@ -95,6 +95,7 @@ const ADMIN_NAV: NavCategory[] = [
       { label: "Topup Requests", href: "/operations/topup-requests", icon: ArrowLeftRight, badge: "Live" },
       { label: "POS Machine", href: "/machines", icon: CreditCard },
       { label: "Users", href: "/users", icon: Users },
+      { label: "User Creation", href: "/users/create", icon: UserPlus, badge: "New" },
       { label: "Roles", href: "/roles", icon: ShieldCheck },
     ],
   },

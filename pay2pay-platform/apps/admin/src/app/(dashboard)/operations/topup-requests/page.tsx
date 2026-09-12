@@ -74,6 +74,9 @@ interface TopupItem {
   gst_amount?: number;
   charges?: number;
   mdr_config_id?: string;
+  card_type?: string;
+  card_last_4?: string;
+  card_last_4_masked?: string;
   currency: string;
   payment_reference: string;
   payment_method: string;
@@ -797,6 +800,8 @@ function AdminTopupRequestsContent() {
       "Received Amount",
       "Admin Wallet Balance",
       "Payment Method",
+      "Card Type",
+      "Card Last 4",
       "Payment Reference (UTR)",
       "Status",
       "Approval Eligibility",
@@ -833,6 +838,8 @@ function AdminTopupRequestsContent() {
         received,
         r.admin_available_balance || 0,
         r.payment_method,
+        r.card_type || "",
+        r.card_last_4 ? `****${r.card_last_4}` : (r.card_last_4_masked || ""),
         `"${(r.payment_reference || "").replace(/"/g, '""')}"`,
         r.status,
         r.can_approve ? "Eligible" : `Blocked (${r.approval_block_reason || "Rule Lock"})`,
@@ -1448,6 +1455,18 @@ function AdminTopupRequestsContent() {
                               {item.payment_mode || item.payment_method || "POS - Instant"}
                             </span>
                           </div>
+                          {item.card_type && (
+                            <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-600">
+                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded font-bold text-[10px]">
+                                {item.card_type}
+                              </span>
+                              {(item.card_last_4 || item.card_last_4_masked) && (
+                                <span className="text-slate-700 font-bold">
+                                  {item.card_last_4 ? `****${item.card_last_4}` : item.card_last_4_masked}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           <span
                             className="font-mono text-slate-800 truncate max-w-[130px] font-bold text-[11px]"
                             title={item.payment_reference}
@@ -2102,6 +2121,28 @@ function AdminTopupRequestsContent() {
                     </span>
                   </div>
 
+                  {/* Card Details (Card Type & Card Last 4) */}
+                  {selectedRequest.card_type && (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-blue-700 block tracking-wider">
+                          Card Type
+                        </span>
+                        <span className="font-bold text-blue-950 text-sm">
+                          {selectedRequest.card_type}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block tracking-wider">
+                          Card Last 4
+                        </span>
+                        <span className="font-mono font-black text-slate-900 text-sm">
+                          {selectedRequest.card_last_4 ? `****${selectedRequest.card_last_4}` : (selectedRequest.card_last_4_masked || "N/A")}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Primary Reference ID with 1-click Copy */}
                   <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
                     <div>
@@ -2452,6 +2493,14 @@ function AdminTopupRequestsContent() {
                 <span>Payment Mode:</span>
                 <span className="font-bold text-slate-700">{selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}</span>
               </div>
+              {selectedRequest.card_type && (
+                <div className="flex items-center justify-between text-slate-500">
+                  <span>Card Details:</span>
+                  <span className="font-bold text-blue-900 font-mono">
+                    {selectedRequest.card_type} {selectedRequest.card_last_4 ? `(****${selectedRequest.card_last_4})` : (selectedRequest.card_last_4_masked ? `(${selectedRequest.card_last_4_masked})` : "")}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between border-t border-slate-200/80 pt-1.5">
                 <span className="text-slate-600 font-bold">Bank UTR / Ref ID:</span>
                 <div className="flex items-center gap-1.5">

@@ -163,6 +163,15 @@ def get_retailer_display_name(retailer: Optional[RetailerModel]) -> str:
 
 from app.application.pos_mdr_service import PosMdrService
 
+# Dynamic POS Card Types Config
+ALLOWED_CARD_TYPES = ["VISA", "MASTER", "RUPAY", "AMEX / DINERS"]
+CARD_TYPES_CONFIG = [
+    {"code": "VISA", "name": "VISA", "display_order": 1},
+    {"code": "MASTER", "name": "MASTER", "display_order": 2},
+    {"code": "RUPAY", "name": "RUPAY", "display_order": 3},
+    {"code": "AMEX / DINERS", "name": "AMEX / DINERS", "display_order": 4},
+]
+
 # ==============================================================================
 # SCHEMAS
 # ==============================================================================
@@ -192,6 +201,9 @@ class TopupCreateRequest(BaseModel):
     payer_upi_id: Optional[str] = Field(None, description="Detected or entered payer UPI VPA")
     qr_request_id: Optional[str] = Field(None, description="Original dynamic QR request reference ID")
     ocr_extracted_data: Optional[Dict[str, Any]] = Field(None, description="OCR telemetry extracted from screenshot")
+    # POS Card Details (VISA, MASTER, RUPAY, AMEX / DINERS)
+    card_type: Optional[str] = Field(None, description="POS Card Type: VISA, MASTER, RUPAY, AMEX / DINERS")
+    card_last_4: Optional[str] = Field(None, description="Optional card last 4 digits (numeric only, exactly 4 digits)")
 
 
 class UpiGenerateQrRequest(BaseModel):
@@ -327,15 +339,7 @@ async def get_authenticated_retailer(
                     if ret:
                         return ret
 
-                # Fallback to primary platform retailer (RET-10928) for admin
-                def_ret_stmt = select(RetailerModel).where(
-                    RetailerModel.retailer_code == "RET-10928",
-                    RetailerModel.is_deleted == False
-                )
-                def_res = await db.execute(def_ret_stmt)
-                def_ret = def_res.scalars().first()
-                if def_ret:
-                    return def_ret
+
         except Exception:
             pass
 
@@ -408,22 +412,7 @@ async def get_authenticated_retailer(
         except Exception:
             pass
 
-    # 4. Fallback to active retailer P2P-R404667 or primary retailer
-    try:
-        default_stmt = select(RetailerModel).where(
-            or_(
-                RetailerModel.retailer_code == "P2P-R404667",
-                RetailerModel.retailer_ref_id == 24,
-                RetailerModel.retailer_code == "RET-10928"
-            ),
-            RetailerModel.is_deleted == False
-        ).order_by(RetailerModel.retailer_ref_id.asc())
-        def_res = await db.execute(default_stmt)
-        def_ret = def_res.scalars().first()
-        if def_ret:
-            return def_ret
-    except Exception:
-        pass
+
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -997,7 +986,42 @@ async def create_topup_request(
                 received_amount_val = req.requested_amount
                 charges_val = 0.0
 
-    # 3. Create TopupRequestModel with pricing snapshot
+    # 3. Process & Validate POS Card Details (VISA, MASTER, RUPAY, AMEX / DINERS)
+    clean_card_type: Optional[str] = None
+    clean_card_last_4: Optional[str] = None
+
+    if not is_upi:
+        if req.card_type and req.card_type.strip():
+            raw_card_type = req.card_type.strip().upper()
+            matched_card_type = None
+            for opt in ALLOWED_CARD_TYPES:
+                if opt.upper() == raw_card_type:
+                    matched_card_type = opt
+                    break
+            if not matched_card_type:
+                norm_in = re.sub(r"[\s\-_/]", "", raw_card_type)
+                for opt in ALLOWED_CARD_TYPES:
+                    if re.sub(r"[\s\-_/]", "", opt.upper()) == norm_in:
+                        matched_card_type = opt
+                        break
+            if not matched_card_type:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid Card Type '{req.card_type}'. Allowed options: {', '.join(ALLOWED_CARD_TYPES)}"
+                )
+            clean_card_type = matched_card_type
+
+        # Optional Card Last 4 Digits: numeric only, exactly 4 digits
+        if req.card_last_4 is not None and str(req.card_last_4).strip():
+            raw_last_4 = str(req.card_last_4).strip()
+            if not (raw_last_4.isdigit() and len(raw_last_4) == 4):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Card Last 4 Digits must be numeric and contain exactly 4 digits."
+                )
+            clean_card_last_4 = raw_last_4
+
+    # 3b. Create TopupRequestModel with pricing snapshot and card information
     ret_ref = getattr(retailer, "retailer_ref_id", None) or getattr(retailer, "user_ref_id", None) or 24
     wal_ref = getattr(wallet, "retailer_wallet_ref_id", None) or getattr(wallet, "wallet_ref_id", None)
     ten_ref = getattr(retailer, "tenant_ref_id", None) or 1
@@ -1027,6 +1051,8 @@ async def create_topup_request(
         payment_reference=req.payment_reference,
         payment_method=selected_mode,
         payment_date=pay_dt or now_utc,
+        card_type=clean_card_type,
+        card_last_4=clean_card_last_4,
         slip_id=req.slip_id,
         slip_url=resolved_slip_url,
         slip_original_filename=req.slip_original_filename,
@@ -1050,6 +1076,9 @@ async def create_topup_request(
             "payer_upi_id": req.payer_upi_id,
             "qr_request_id": req.qr_request_id,
             "ocr_extracted": req.ocr_extracted_data,
+            "card_type": clean_card_type,
+            "card_last_4": clean_card_last_4,
+            "card_last_4_masked": f"****{clean_card_last_4}" if clean_card_last_4 else None,
             "mdr": mdr_charge_val,
             "gst": gst_amount_val,
             "charges": charges_val,
@@ -1077,12 +1106,16 @@ async def create_topup_request(
                 t_id = str(cfg_row.get("out_template_id") or "1043386768499813")
                 t_name = str(cfg_row.get("out_template_name") or "topup_request_admin")
                 p_id = str(cfg_row.get("out_phone_number_id") or "497102120160245")
-                admin_numbers_raw = str(cfg_row.get("out_admin_phone_numbers") or "7013914767")
+                admin_numbers_raw = str(cfg_row.get("out_admin_phone_numbers") or "")
                 lang_code = str(cfg_row.get("out_language_code") or "en")
 
-                admin_numbers = [n.strip() for n in admin_numbers_raw.replace("\n", ",").split(",") if n.strip()]
+                admin_numbers = [
+                    n.strip() for n in admin_numbers_raw.replace("\n", ",").split(",")
+                    if n.strip() and len("".join(filter(str.isdigit, n))) >= 10
+                ]
                 if not admin_numbers:
-                    admin_numbers = ["7013914767"]
+                    logger.warning("[WHATSAPP ALERT] No valid admin phone numbers configured in sp_get_whatsapp_topup_config; skipping dispatch.")
+                    return
 
                 ret_name = getattr(retailer, "owner_name", None) or getattr(retailer, "store_name", "Retailer")
                 ret_code = getattr(retailer, "retailer_code", None) or str(getattr(retailer, "retailer_ref_id", "N/A"))
@@ -1098,12 +1131,17 @@ async def create_topup_request(
                     dt_str = dt_obj.strftime("%d-%m-%Y %H:%M")
 
                 st_val = "Pending Approval"
-                view_id_val = topup_model.topup_request_id or str(topup_model.public_id)
+                # Template 1043386768499813 is specifically for Admin Alert on Topup Request.
+                # When admin opens this link, source=admin_approval directs to the Admin Approval Console.
+                view_id_val = f"{req_id_val}?source=admin_approval"
 
                 for admin_num in admin_numbers:
+                    clean_admin = "".join(filter(str.isdigit, str(admin_num)))
+                    if len(clean_admin) < 10:
+                        continue
                     try:
                         await whatsapp_service.send_admin_topup_alert(
-                            mobile_number=admin_num,
+                            mobile_number=clean_admin,
                             retailer_name=ret_name,
                             retailer_id=ret_code,
                             request_id=req_id_val,
@@ -1118,9 +1156,9 @@ async def create_topup_request(
                             phone_number_id=p_id
                         )
                     except Exception as err_one:
-                        print(f"[WHATSAPP ALERT ERROR] Failed sending to {admin_num}: {err_one}")
+                        logger.error(f"[WHATSAPP ALERT ERROR] Failed sending to {admin_num}: {err_one}")
         except Exception as bg_ex:
-            print(f"[WHATSAPP ALERT BACKGROUND ERROR] {bg_ex}")
+            logger.error(f"[WHATSAPP ALERT BACKGROUND ERROR] {bg_ex}")
 
     asyncio.create_task(_dispatch_admin_whatsapp_alert())
 
@@ -1129,6 +1167,9 @@ async def create_topup_request(
         "message": f"Topup request {topup_req_id} submitted successfully and is pending admin verification.",
         "topup_request_id": topup_model.topup_request_id,
         "id": str(topup_model.public_id),
+        "card_type": topup_model.card_type,
+        "card_last_4": topup_model.card_last_4,
+        "card_last_4_masked": f"****{topup_model.card_last_4}" if topup_model.card_last_4 else None,
         "data": {
             "id": str(topup_model.public_id),
             "topup_request_id": topup_model.topup_request_id,
@@ -1141,6 +1182,9 @@ async def create_topup_request(
             "status": topup_model.status,
             "payment_reference": topup_model.payment_reference,
             "payment_method": topup_model.payment_method,
+            "card_type": topup_model.card_type,
+            "card_last_4": topup_model.card_last_4,
+            "card_last_4_masked": f"****{topup_model.card_last_4}" if topup_model.card_last_4 else None,
             "slip_url": topup_model.slip_url,
             "submitted_at": topup_model.submitted_at.isoformat(),
             **vendor_calc_meta
@@ -1159,9 +1203,19 @@ async def get_topup_payment_modes(db: AsyncSession = Depends(get_db)):
     1. POS - Instant
     2. POS+T1
     3. POS+T2
+    Also returns active card_types config.
     """
     modes = await PosMdrService.get_active_payment_modes(db)
-    return {"items": modes, "total": len(modes)}
+    return {"items": modes, "total": len(modes), "card_types": CARD_TYPES_CONFIG}
+
+
+@router.get("/card-types")
+async def get_topup_card_types():
+    """
+    Returns dynamically configured POS Card Types for POS Settlement Top-Up:
+    VISA, MASTER, RUPAY, AMEX / DINERS.
+    """
+    return {"items": CARD_TYPES_CONFIG, "total": len(CARD_TYPES_CONFIG)}
 
 
 @router.post("/calculate-mdr")
@@ -1223,6 +1277,10 @@ async def get_my_topup_requests(
 
     items = []
     for r in records:
+        c_type = getattr(r, "card_type", None) or (r.metadata_json or {}).get("card_type") if hasattr(r, "metadata_json") else getattr(r, "card_type", None)
+        c_last4 = getattr(r, "card_last_4", None) or (r.metadata_json or {}).get("card_last_4") if hasattr(r, "metadata_json") else getattr(r, "card_last_4", None)
+        c_masked = f"****{c_last4}" if c_last4 else None
+
         items.append({
             "id": str(r.public_id),
             "topup_request_id": r.topup_request_id,
@@ -1236,6 +1294,9 @@ async def get_my_topup_requests(
             "payment_reference": r.payment_reference,
             "payment_method": r.payment_method,
             "payment_mode": r.payment_method,
+            "card_type": c_type,
+            "card_last_4": c_last4,
+            "card_last_4_masked": c_masked,
             "mdr_config_id": str(r.mdr_config_id) if r.mdr_config_id else None,
             "payment_date": r.payment_date.isoformat() if r.payment_date else None,
             "slip_id": r.slip_id,
@@ -1603,6 +1664,9 @@ async def get_admin_topup_requests(
             "payment_reference": topup.payment_reference,
             "payment_method": topup.payment_method or "POS - Instant",
             "payment_mode": topup.payment_method or "POS - Instant",
+            "card_type": getattr(topup, "card_type", None) or meta.get("card_type"),
+            "card_last_4": getattr(topup, "card_last_4", None) or meta.get("card_last_4"),
+            "card_last_4_masked": f"****{getattr(topup, 'card_last_4', None) or meta.get('card_last_4')}" if (getattr(topup, "card_last_4", None) or meta.get("card_last_4")) else None,
             "service": matched_service,
             "service_code": matched_service_code,
             "vendor": matched_vendor,
@@ -1765,6 +1829,9 @@ async def get_topup_request_detail(
             "payment_reference": topup.payment_reference,
             "payment_method": topup.payment_method or "POS - Instant",
             "payment_mode": topup.payment_method or "POS - Instant",
+            "card_type": getattr(topup, "card_type", None) or meta.get("card_type"),
+            "card_last_4": getattr(topup, "card_last_4", None) or meta.get("card_last_4"),
+            "card_last_4_masked": f"****{getattr(topup, 'card_last_4', None) or meta.get('card_last_4')}" if (getattr(topup, "card_last_4", None) or meta.get("card_last_4")) else None,
             "service": sp_val.get("service", "Payout"),
             "service_code": sp_val.get("service_code", "PAYOUT"),
             "vendor": sp_val.get("vendor", "UrbanRupee"),
@@ -2117,7 +2184,23 @@ async def approve_topup_request(
             detail="Approved / received amount must be greater than zero."
         )
 
-    admin_email = getattr(current_admin, "email", "admin@pay2pay.in") or "admin@pay2pay.in"
+    raw_admin_email = getattr(current_admin, "email", None) or getattr(current_admin, "username", None)
+    raw_admin_id = getattr(current_admin, "public_id", None)
+
+    if not raw_admin_email or not str(raw_admin_email).strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized: Admin user account has no valid email or username identifier."
+        )
+
+    if not raw_admin_id or not str(raw_admin_id).strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized: Admin user account has no valid public ID."
+        )
+
+    admin_email = str(raw_admin_email).strip()
+    admin_id = str(raw_admin_id).strip()
     now_utc = datetime.now(timezone.utc)
 
     # 4. Attempt Direct Atomic Execution via Stored Procedure: public.sp_approve_pos_topup_request
@@ -2284,16 +2367,16 @@ async def approve_topup_request(
         txn_id=txn_ref,
         ref_id=topup_record.payment_reference or txn_ref,
         table_ref_id=str(topup_record.public_id),
-        narration=f"Topup Approved by Admin ({current_admin.email}) for Req {topup_record.topup_request_id} [UTR: {topup_record.payment_reference or 'N/A'}]",
+        narration=f"Topup Approved by Admin ({admin_email}) for Req {topup_record.topup_request_id} [UTR: {topup_record.payment_reference or 'N/A'}]",
         admin_notes=req.admin_notes,
-        actor_id=str(current_admin.public_id),
-        actor_name=current_admin.email
+        actor_id=admin_id,
+        actor_name=admin_email
     )
 
     sp_result = await WalletBalanceAdjustmentService.execute_wallet_balance_update(
         db=db,
         dto=adj_dto,
-        actor_user=current_admin
+        actor_user=None
     )
 
     if not sp_result.success:
@@ -2306,12 +2389,12 @@ async def approve_topup_request(
     topup_record.status = "APPROVED"
     topup_record.approved_amount = final_approved_amount
     topup_record.received_amount = final_approved_amount
-    topup_record.approved_by = current_admin.email
+    topup_record.approved_by = admin_email
     topup_record.approved_at = now_utc
     topup_record.transaction_reference = sp_result.txn_id
     topup_record.admin_notes = req.admin_notes
     topup_record.updated_date = now_utc
-    topup_record.updated_by = current_admin.email
+    topup_record.updated_by = admin_email
 
     await db.commit()
     await db.refresh(topup_record)
@@ -2368,7 +2451,7 @@ async def approve_topup_request(
                 "received_amount": final_approved_amount,
                 "previous_balance": sp_result.balance_before,
                 "current_balance": sp_result.balance_after,
-                "approved_by": current_admin.email,
+                "approved_by": admin_email,
                 "approved_at": now_utc.strftime("%d-%m-%Y %H:%M:%S IST"),
                 "admin_notes": req.admin_notes
             }
@@ -2401,7 +2484,7 @@ async def approve_topup_request(
             "credited_amount": sp_result.amount,
             "current_balance": sp_result.balance_after,
             "status": "APPROVED",
-            "approved_by": current_admin.email,
+            "approved_by": admin_email,
             "approved_at": now_utc.isoformat(),
             "email_sent": email_dispatched,
             "recipient_email": recipient_email
@@ -2448,14 +2531,31 @@ async def reject_topup_request(
             detail="Cannot reject an already approved topup request."
         )
 
+    raw_admin_email = getattr(current_admin, "email", None) or getattr(current_admin, "username", None)
+    raw_admin_id = getattr(current_admin, "public_id", None)
+
+    if not raw_admin_email or not str(raw_admin_email).strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized: Admin user account has no valid email or username identifier."
+        )
+
+    if not raw_admin_id or not str(raw_admin_id).strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized: Admin user account has no valid public ID."
+        )
+
+    admin_email = str(raw_admin_email).strip()
+    admin_id = str(raw_admin_id).strip()
     now_utc = datetime.now(timezone.utc)
     topup_record.status = "REJECTED"
     topup_record.rejection_reason = req.rejection_reason
     topup_record.admin_notes = req.admin_notes
-    topup_record.rejected_by = current_admin.email
+    topup_record.rejected_by = admin_email
     topup_record.rejected_at = now_utc
     topup_record.updated_date = now_utc
-    topup_record.updated_by = current_admin.email
+    topup_record.updated_by = admin_email
 
     await db.commit()
 
@@ -2471,7 +2571,7 @@ async def reject_topup_request(
             "topup_request_id": topup_record.topup_request_id,
             "status": "REJECTED",
             "rejection_reason": topup_record.rejection_reason,
-            "rejected_by": current_admin.email,
+            "rejected_by": admin_email,
             "rejected_at": now_utc.isoformat()
         }
     }

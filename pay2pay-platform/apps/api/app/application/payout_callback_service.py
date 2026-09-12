@@ -20,12 +20,13 @@ import json
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Tuple
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.db.payout_workflow_models import (
     PayoutWorkflowTransactionModel,
-    PayoutAuditModel
+    PayoutAuditModel,
+    PayoutReceiptModel
 )
 from app.infrastructure.db.enterprise_payout_models import (
     EnterprisePayoutTransactionModel,
@@ -171,7 +172,8 @@ class PayoutCallbackService:
         message = None
 
         # 1. UrbanRupee Format
-        if v in ("urbanrupee", "urban_rupee", "ur") or "client_txn_id" in merged or ("transaction_id" in merged and "orderid" in merged):
+        if v in ("urbanrupee", "urban_rupee", "ur") or "client_txn_id" in merged or ("transaction_id" in merged and ("orderid" in merged or str(merged.get("transaction_id", "")).startswith("TXN"))):
+            v = "URBANRUPEE"
             ref_id = merged.get("client_txn_id") or merged.get("orderid") or merged.get("order_id")
             vendor_tx_id = merged.get("transaction_id") or merged.get("id")
             raw_st = str(merged.get("current_status") or merged.get("status") or "").lower()
@@ -320,12 +322,24 @@ class PayoutCallbackService:
             elif s_up in ("PENDING", "PROCESSING", "IN_PROCESS", "QUEUED", "INITIATED"):
                 normalized_status = "PENDING"
 
+        # Extract amount if present in merged
+        amount = None
+        amount_raw = merged.get("amount") or merged.get("payout_amount") or merged.get("transfer_amount")
+        if isinstance(amount_raw, dict):
+            amount_raw = amount_raw.get("value") or amount_raw.get("amount")
+        if amount_raw is not None:
+            try:
+                amount = float(str(amount_raw).replace(",", "").strip())
+            except Exception:
+                amount = None
+
         return {
             "vendor_code": v or "universal",
             "reference_id": str(ref_id).strip() if ref_id is not None else None,
             "vendor_tx_id": str(vendor_tx_id).strip() if vendor_tx_id is not None else None,
             "status": normalized_status,
             "raw_status": raw_status,
+            "amount": amount,
             "utr": str(utr).strip() if utr is not None else None,
             "message": str(message) if message else None,
             "raw_payload": merged
@@ -340,12 +354,13 @@ class PayoutCallbackService:
         query_params: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Main processor for incoming payout callbacks:
-        1. Normalizes vendor payload
-        2. Queries database for matching transaction
-        3. Updates transaction state (SUCCESS, FAILED, REVERSED)
-        4. Triggers automatic retailer wallet reversal/refund if failed
-        5. Writes audit log & commits transaction safely
+        Universal processor for all payout callbacks and webhooks.
+        Uses Stored Procedure public.sp_process_payout_webhook to:
+        1. Persist audit log in public.payout_webhook
+        2. Match transaction across payout_transaction, payout_workflow_transactions, and transactions
+        3. Atomically update transaction status, UTR, bank reference, vendor name, and API response
+        4. Execute wallet reversal/refund automatically via wallet_balance_update if status is FAILED
+        5. Return standardized HTTP 200 payload
         """
         normalized = cls.normalize_vendor_payload(vendor_hint, payload, query_params)
         ref_id = normalized["reference_id"]
@@ -353,172 +368,205 @@ class PayoutCallbackService:
         new_status = normalized["status"]
         utr = normalized["utr"]
         message = normalized["message"]
+        amount = normalized["amount"]
         vendor_code = normalized["vendor_code"]
+        raw_payload = normalized["raw_payload"]
 
         logger.info(
-            f"[PAYOUT CALLBACK] Vendor: '{vendor_code}' | Ref: '{ref_id}' | VendorTx: '{vendor_tx_id}' | Status: {new_status} | UTR: {utr}"
+            f"[PAYOUT WEBHOOK/CALLBACK] Gateway: '{vendor_code}' | Ref: '{ref_id}' | VendorTx: '{vendor_tx_id}' | Status: {new_status} | Amount: {amount} | UTR: {utr}"
         )
 
-        if not ref_id and not vendor_tx_id:
-            logger.warning("[PAYOUT CALLBACK] Ignored: Neither reference_id nor vendor_tx_id found in callback payload.")
-            return {
-                "status": "ACK",
-                "code": 200,
-                "message": "Callback received but ignored (no reference or vendor tx id found)",
-                "normalized": normalized
-            }
+        signature = (
+            query_params.get("signature") or
+            payload.get("signature") or
+            payload.get("sign") or
+            payload.get("checksum") or
+            "NONE"
+        )
 
-        matched_record_type = None
-        matched_tx = None
+        initial_response = {
+            "status": "SUCCESS",
+            "code": 200,
+            "message": f"Webhook acknowledged for vendor {vendor_code}",
+            "vendor": vendor_code,
+            "client_txn_id": ref_id,
+            "vendor_tx_id": vendor_tx_id,
+            "payout_status": new_status,
+            "amount": amount,
+            "utr": utr
+        }
 
-        # 1. Search in PayoutWorkflowTransactionModel
-        query_conditions_pw = []
-        if ref_id:
-            query_conditions_pw.append(PayoutWorkflowTransactionModel.reference_number == ref_id)
-            query_conditions_pw.append(PayoutWorkflowTransactionModel.transaction_number == ref_id)
-        if vendor_tx_id:
-            query_conditions_pw.append(PayoutWorkflowTransactionModel.cashfree_transfer_id == vendor_tx_id)
+        # Execute Stored Procedure: public.sp_process_payout_webhook
+        sp_result = None
+        try:
+            sp_query = text("""
+                SELECT 
+                    success,
+                    status,
+                    transaction_number,
+                    is_reversed,
+                    is_matched,
+                    message
+                FROM public.sp_process_payout_webhook(
+                    p_gateway_code      => :p_gateway_code,
+                    p_client_txn_id     => :p_client_txn_id,
+                    p_vendor_tx_id      => :p_vendor_tx_id,
+                    p_status            => :p_status,
+                    p_amount            => :p_amount,
+                    p_utr               => :p_utr,
+                    p_message           => :p_message,
+                    p_raw_payload       => :p_raw_payload,
+                    p_response_payload  => :p_response_payload,
+                    p_signature         => :p_signature
+                );
+            """)
 
-        stmt_pw = select(PayoutWorkflowTransactionModel).where(or_(*query_conditions_pw))
-        tx_pw = (await db.execute(stmt_pw)).scalars().first()
-
-        if tx_pw:
-            matched_record_type = "payout_workflow"
-            matched_tx = tx_pw
-        else:
-            # 2. Search in EnterprisePayoutTransactionModel
-            query_conditions_ep = []
-            if ref_id:
-                query_conditions_ep.append(EnterprisePayoutTransactionModel.transaction_number == ref_id)
-                query_conditions_ep.append(EnterprisePayoutTransactionModel.idempotency_key == ref_id)
-                query_conditions_ep.append(EnterprisePayoutTransactionModel.vendor_ref == ref_id)
-                query_conditions_ep.append(EnterprisePayoutTransactionModel.vendor_order_id == ref_id)
-                try:
-                    query_conditions_ep.append(EnterprisePayoutTransactionModel.public_id == uuid.UUID(ref_id))
-                except Exception:
-                    pass
-            if vendor_tx_id:
-                query_conditions_ep.append(EnterprisePayoutTransactionModel.vendor_ref == vendor_tx_id)
-                query_conditions_ep.append(EnterprisePayoutTransactionModel.vendor_order_id == vendor_tx_id)
-                query_conditions_ep.append(EnterprisePayoutTransactionModel.rrn == vendor_tx_id)
-
-            stmt_ep = select(EnterprisePayoutTransactionModel).where(or_(*query_conditions_ep))
-            tx_ep = (await db.execute(stmt_ep)).scalars().first()
-            if tx_ep:
-                matched_record_type = "enterprise_payout"
-                matched_tx = tx_ep
-
-        if not matched_tx:
-            logger.warning(f"[PAYOUT CALLBACK] No database transaction matched for ref: '{ref_id}' / vendor_tx: '{vendor_tx_id}'.")
-            return {
-                "status": "ACK",
-                "code": 200,
-                "message": "Callback acknowledged. Transaction not found in local database.",
-                "normalized": normalized
-            }
-
-        # Handle PayoutWorkflowTransactionModel update
-        if matched_record_type == "payout_workflow":
-            old_status = matched_tx.status
-            if new_status == "SUCCESS":
-                matched_tx.status = "SUCCESS"
-                if utr:
-                    matched_tx.utr_number = utr
-                matched_tx.completed_at = datetime.now(timezone.utc)
-
-            elif new_status in ("FAILED", "REVERSED") and old_status not in ("FAILED", "REVERSED"):
-                matched_tx.status = new_status
-                matched_tx.failure_reason = message or f"Callback status {new_status} from vendor {vendor_code}"
-                matched_tx.completed_at = datetime.now(timezone.utc)
-
-                # Execute automatic wallet reversal refund via Stored Procedure: public.wallet_balance_update
-                adj_dto = WalletAdjustmentDTO(
-                    user_id=str(matched_tx.retailer_id),
-                    entry_type="CREDIT",
-                    amount=float(matched_tx.net_debit),
-                    service_name="PAYOUT_REFUND",
-                    wallet_type="MAIN",
-                    user_type="RETAILER",
-                    txn_id=f"REF-CB-{uuid.uuid4().hex[:6].upper()}",
-                    ref_id=str(matched_tx.public_id),
-                    narration=f"Callback Auto Refund [{new_status}] for Payout {matched_tx.public_id}"
-                )
-                sp_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
-                if sp_res.success:
-                    audit = PayoutAuditModel(
-                        public_id=uuid.uuid4(),
-                        transaction_id=matched_tx.public_id,
-                        customer_id=matched_tx.customer_id,
-                        beneficiary_id=matched_tx.beneficiary_id,
-                        retailer_id=matched_tx.retailer_id,
-                        tenant_id=matched_tx.tenant_id,
-                        action=f"CALLBACK_AUTO_REFUND_{new_status}",
-                        wallet_before=sp_res.balance_before,
-                        wallet_after=sp_res.balance_after,
-                        timestamp=datetime.now(timezone.utc),
-                        is_active=True,
-                        is_deleted=False
-                    )
-                    db.add(audit)
-                    logger.info(
-                        f"[PAYOUT CALLBACK] Wallet refunded via SP for retailer {matched_tx.retailer_id}: ₹{matched_tx.net_debit}"
-                    )
-
-            await db.commit()
-
-        # Handle EnterprisePayoutTransactionModel update
-        elif matched_record_type == "enterprise_payout":
-            old_status = str(matched_tx.status)
-            if new_status == "SUCCESS":
-                matched_tx.status = PayoutTransactionStatus.SUCCESS
-                if utr:
-                    matched_tx.utr_number = utr
-                matched_tx.completed_at = datetime.now(timezone.utc)
-
-            elif new_status in ("FAILED", "REVERSED") and old_status not in ("FAILED", "REVERSED"):
-                matched_tx.status = PayoutTransactionStatus.FAILED if new_status == "FAILED" else PayoutTransactionStatus.REVERSED
-                matched_tx.status_description = message or f"Callback status {new_status} from vendor {vendor_code}"
-                matched_tx.completed_at = datetime.now(timezone.utc)
-
-                # Reversal via Stored Procedure: public.wallet_balance_update
-                adj_dto = WalletAdjustmentDTO(
-                    user_id=str(matched_tx.retailer_id),
-                    entry_type="CREDIT",
-                    amount=float(matched_tx.net_debit),
-                    service_name="PAYOUT_REFUND",
-                    wallet_type="MAIN",
-                    user_type="RETAILER",
-                    txn_id=f"REV-CB-{uuid.uuid4().hex[:6].upper()}",
-                    ref_id=str(matched_tx.public_id),
-                    narration=f"Automatic Callback Reversal for {new_status} payout {matched_tx.transaction_number}"
-                )
-                sp_res = await WalletBalanceAdjustmentService.execute_wallet_balance_update(db=db, dto=adj_dto)
-
-            audit_log = PayoutAuditLogModel(
-                public_id=uuid.uuid4(),
-                transaction_id=matched_tx.public_id,
-                action="VENDOR_WEBHOOK_CALLBACK_PROCESSED",
-                previous_status=old_status,
-                new_status=new_status,
-                actor_type="VENDOR_WEBHOOK",
-                actor_id=vendor_code,
-                timestamp=datetime.now(timezone.utc),
-                details={
-                    "vendor": vendor_code,
-                    "utr": utr,
-                    "message": message,
-                    "status": new_status
+            cursor = await db.execute(
+                sp_query,
+                {
+                    "p_gateway_code": vendor_code,
+                    "p_client_txn_id": ref_id,
+                    "p_vendor_tx_id": vendor_tx_id,
+                    "p_status": new_status,
+                    "p_amount": amount,
+                    "p_utr": utr,
+                    "p_message": message,
+                    "p_raw_payload": json.dumps(raw_payload, default=str),
+                    "p_response_payload": json.dumps(initial_response, default=str),
+                    "p_signature": str(signature)
                 }
             )
-            db.add(audit_log)
+            row = cursor.mappings().first()
             await db.commit()
+
+            if row:
+                sp_result = dict(row)
+                logger.info(f"[PAYOUT WEBHOOK SP RESULT] {sp_result}")
+        except Exception as ex_sp:
+            logger.error(f"[PAYOUT WEBHOOK SP EXECUTION ERROR] {ex_sp}", exc_info=True)
+            await db.rollback()
+
+        # Build final response payload
+        final_response = {
+            "status": "SUCCESS",
+            "code": 200,
+            "message": (sp_result.get("message") if sp_result else "Webhook received and logged"),
+            "vendor": vendor_code,
+            "transaction_number": (sp_result.get("transaction_number") if sp_result else ref_id),
+            "client_txn_id": ref_id,
+            "vendor_tx_id": vendor_tx_id,
+            "payout_status": (sp_result.get("status") if sp_result else new_status),
+            "is_matched": (sp_result.get("is_matched") if sp_result else False),
+            "is_reversed": (sp_result.get("is_reversed") if sp_result else False),
+            "utr": utr,
+            "amount": amount
+        }
+
+        # Dispatch real-time WhatsApp receipt update if matched and customer mobile exists
+        if sp_result and sp_result.get("is_matched"):
+            matched_txn = sp_result.get("transaction_number")
+            try:
+                stmt_rc = select(PayoutReceiptModel).where(
+                    PayoutReceiptModel.transaction_number == matched_txn
+                )
+                rc_obj = (await db.execute(stmt_rc)).scalars().first()
+                if rc_obj and rc_obj.customer_mobile and rc_obj.whatsapp_status != "DELIVERED":
+                    from app.application.payout_workflow_service import PayoutWorkflowService
+                    wa_info = await PayoutWorkflowService.dispatch_payout_whatsapp_notification(
+                        db=db,
+                        tenant_id=rc_obj.tenant_id,
+                        company_id=rc_obj.company_id,
+                        transaction_id=rc_obj.transaction_id,
+                        transaction_number=rc_obj.transaction_number,
+                        customer_id=rc_obj.customer_id,
+                        customer_name=rc_obj.customer_name or "Customer",
+                        customer_mobile=rc_obj.customer_mobile,
+                        amount=float(amount or rc_obj.amount or 0),
+                        status=new_status,
+                        receipt_token=rc_obj.receipt_token,
+                        utr_number=utr or rc_obj.utr_number
+                    )
+                    rc_obj.whatsapp_message_id = wa_info.get("message_id")
+                    rc_obj.whatsapp_status = wa_info.get("status")
+                    await db.commit()
+            except Exception as ex_rc:
+                logger.warning(f"[PAYOUT WEBHOOK WHATSAPP NOTICE] {ex_rc}")
+
+        return final_response
+
+    @classmethod
+    async def get_webhook_logs(
+        cls,
+        db: AsyncSession,
+        gateway: Optional[str] = None,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Queries incoming webhook logs directly from public.view_payout_webhook_logs.
+        Supports pagination, filtering by gateway/status, and search across client_txn_id,
+        vendor_tx_id, transaction_number, and retailer name.
+        """
+        where_clauses = ["1=1"]
+        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+
+        if gateway:
+            where_clauses.append("UPPER(gateway_code) = UPPER(:gateway)")
+            params["gateway"] = gateway.strip()
+        if status:
+            where_clauses.append("UPPER(webhook_status) = UPPER(:status)")
+            params["status"] = status.strip()
+        if search:
+            where_clauses.append(
+                "(client_txn_id ILIKE :search OR vendor_tx_id ILIKE :search OR transaction_number ILIKE :search OR retailer_name ILIKE :search OR retailer_code ILIKE :search)"
+            )
+            params["search"] = f"%{search.strip()}%"
+
+        where_sql = " AND ".join(where_clauses)
+
+        count_sql = f"SELECT COUNT(*) FROM public.view_payout_webhook_logs WHERE {where_sql}"
+        total = (await db.execute(text(count_sql), params)).scalar() or 0
+
+        query_sql = f"""
+            SELECT 
+                webhook_id,
+                received_at,
+                gateway_code,
+                client_txn_id,
+                vendor_tx_id,
+                webhook_status,
+                amount,
+                utr,
+                transaction_number,
+                current_txn_status,
+                retailer_name,
+                retailer_code,
+                request_payload,
+                response_payload,
+                validation_result
+            FROM public.view_payout_webhook_logs
+            WHERE {where_sql}
+            ORDER BY received_at DESC
+            LIMIT :limit OFFSET :offset
+        """
+        rows = (await db.execute(text(query_sql), params)).mappings().all()
+
+        items = []
+        for r in rows:
+            d = dict(r)
+            if isinstance(d.get("received_at"), datetime):
+                d["received_at"] = d["received_at"].isoformat()
+            if d.get("amount") is not None:
+                d["amount"] = float(d["amount"])
+            items.append(d)
 
         return {
             "status": "SUCCESS",
-            "code": 200,
-            "message": f"Payout callback processed successfully for vendor '{vendor_code}'.",
-            "transaction_number": getattr(matched_tx, "transaction_number", None),
-            "reference_number": getattr(matched_tx, "reference_number", None),
-            "new_status": new_status,
-            "utr": utr
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "items": items
         }
+

@@ -803,7 +803,7 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
                 onFocus={() => setMobileFocused(true)}
                 onBlur={() => setMobileFocused(false)}
                 onChange={(e) => handleMobileChange(e.target.value)}
-                placeholder={isAdminPortal ? "admin / 9176669426 / 9999999999" : "9876543210"}
+                placeholder={isAdminPortal ? "Enter username or mobile" : "Enter mobile number"}
                 required
                 className={`${inputBase} ${isAdminPortal ? "pl-12" : "pl-20"} pr-10 py-3`}
               />

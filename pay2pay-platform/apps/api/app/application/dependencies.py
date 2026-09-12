@@ -173,6 +173,29 @@ async def get_current_user(
             is_admin = any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "COMPLIANCE_OFFICER") for r in token_roles)
             if status_val in ("BLOCKED", "SUSPENDED", "DEACTIVATED", "LOCKED") and not is_admin:
                 raise UnauthorizedException("User account is inactive or locked")
+            import re
+            clean_mob = re.sub(r"\D", "", str(auth_user.mobile_number or ""))[-10:] if auth_user.mobile_number else ""
+            resolved_type = "PLATFORM_ADMIN" if is_admin else "RETAILER"
+            resolved_roles = []
+            if clean_mob:
+                adm_stmt = (
+                    select(AdminUserModel)
+                    .options(
+                        selectinload(AdminUserModel.user_roles)
+                        .selectinload(UserRoleModel.role)
+                        .selectinload(RoleModel.role_permissions)
+                        .selectinload(RolePermissionModel.permission)
+                    )
+                    .where(
+                        AdminUserModel.phone.ilike(f"%{clean_mob}%"),
+                        AdminUserModel.is_deleted == False,
+                        AdminUserModel.status == "ACTIVE"
+                    )
+                )
+                admin_match = (await db.execute(adm_stmt)).scalars().first()
+                if admin_match:
+                    return admin_match
+
             return AdminUserModel(
                 id=auth_user.id or 1,
                 public_id=auth_user.user_id or auth_user.public_id or user_uuid,
@@ -181,6 +204,7 @@ async def get_current_user(
                 email=auth_user.email or f"{auth_user.mobile_number}@pay2pay.in",
                 full_name=auth_user.full_name or "Retailer User",
                 status=status_val,
+                user_type=resolved_type,
                 user_roles=[]
             )
     except Exception:
@@ -200,6 +224,48 @@ async def get_current_user(
             raise UnauthorizedException("Retailer account has been blocked or suspended")
         email_val = payload.get("email") or f"{retailer.retailer_code}@pay2pay.in"
         phone_val = payload.get("mobile") or payload.get("phone")
+
+        import re
+        from app.infrastructure.db.models import RetailerContactModel
+        resolved_user_type = "PLATFORM_ADMIN" if is_admin else "RETAILER"
+        resolved_roles = []
+        raw_phone = phone_val
+        if not raw_phone:
+            rc_stmt = select(RetailerContactModel.mobile).where(RetailerContactModel.retailer_id == retailer.public_id)
+            raw_phone = (await db.execute(rc_stmt)).scalars().first()
+            if raw_phone and not phone_val:
+                phone_val = raw_phone
+        clean_mob = re.sub(r"\D", "", str(raw_phone or ""))[-10:] if raw_phone else ""
+
+        conds = []
+        if clean_mob:
+            conds.append(AdminUserModel.phone.ilike(f"%{clean_mob}%"))
+        if email_val and "@" in email_val and not email_val.endswith("@pay2pay.in"):
+            conds.append(AdminUserModel.email.ilike(email_val))
+        rc_email_stmt = select(RetailerContactModel.email).where(RetailerContactModel.retailer_id == retailer.public_id)
+        rc_email = (await db.execute(rc_email_stmt)).scalars().first()
+        if rc_email and "@" in str(rc_email):
+            conds.append(AdminUserModel.email.ilike(str(rc_email)))
+
+        if conds:
+            adm_stmt = (
+                select(AdminUserModel)
+                .options(
+                    selectinload(AdminUserModel.user_roles)
+                    .selectinload(UserRoleModel.role)
+                    .selectinload(RoleModel.role_permissions)
+                    .selectinload(RolePermissionModel.permission)
+                )
+                .where(
+                    or_(*conds),
+                    AdminUserModel.is_deleted == False,
+                    AdminUserModel.status == "ACTIVE"
+                )
+            )
+            admin_match = (await db.execute(adm_stmt)).scalars().first()
+            if admin_match:
+                return admin_match
+
         return AdminUserModel(
             id=retailer.id,
             public_id=retailer.public_id,
@@ -209,11 +275,15 @@ async def get_current_user(
             full_name=retailer.owner_name or "Retailer Partner",
             status=ret_status,
             phone=phone_val,
+            user_type=resolved_user_type,
             user_roles=[]
         )
 
     # 4. Fallback from validated token claims if user was signed in with valid session
     if payload.get("roles") or payload.get("sub"):
+        token_roles = [str(r).upper() for r in (payload.get("roles") or [])]
+        is_admin = any(r in ("ADMIN", "SUPER_ADMIN", "PLATFORM_ADMIN", "COMPLIANCE_OFFICER") for r in token_roles)
+        user_type_val = "PLATFORM_ADMIN" if is_admin else "RETAILER"
         return AdminUserModel(
             id=1,
             public_id=user_uuid,
@@ -222,6 +292,7 @@ async def get_current_user(
             email=payload.get("email") or f"{user_id_str[:8]}@pay2pay.in",
             full_name=payload.get("name") or "Retailer Partner",
             status="ACTIVE",
+            user_type=user_type_val,
             user_roles=[]
         )
 
@@ -237,13 +308,17 @@ class PermissionChecker:
         current_user: AdminUserModel = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
     ) -> bool:
-        # Platform Admin bypass check
-        for ur in current_user.user_roles:
-            if ur.role and ur.role.code == "PLATFORM_ADMIN":
+        # Platform Admin / Super Admin bypass check
+        user_type = (getattr(current_user, "user_type", "") or "").upper()
+        if user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN"):
+            return True
+
+        for ur in getattr(current_user, "user_roles", []) or []:
+            if ur.role and ur.role.code in ("PLATFORM_ADMIN", "SUPER_ADMIN"):
                 return True
 
         # Check explicit role permissions
-        user_role_ids = [ur.role_id for ur in current_user.user_roles if ur.role]
+        user_role_ids = [ur.role_id for ur in getattr(current_user, "user_roles", []) or [] if ur.role]
         if not user_role_ids:
             raise ForbiddenException(f"Missing required permission: {self.required_permission}")
 

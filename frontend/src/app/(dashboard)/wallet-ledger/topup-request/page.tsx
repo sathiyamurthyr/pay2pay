@@ -42,7 +42,7 @@ interface TopupRequestItem {
   topup_request_id: string;
   requested_amount: number;
   approved_amount?: number;
-  currency: string;
+  currency?: string;
   payment_reference: string;
   payment_method: string;
   payment_mode?: string;
@@ -66,6 +66,15 @@ interface TopupRequestItem {
   gst_amount?: number;
   charges?: number;
   received_amount?: number;
+  card_type?: string;
+  card_last_4?: string;
+  card_last_4_masked?: string;
+}
+
+interface CardTypeOption {
+  code: string;
+  name: string;
+  display_order?: number;
 }
 
 interface PaymentModeOption {
@@ -160,6 +169,9 @@ export default function RetailerTopupRequestPage() {
 
   // ── POS Settlement States (Existing Workflow) ─────────────────────────────────
   const [paymentModes, setPaymentModes] = useState<PaymentModeOption[]>([]);
+  const [cardTypes, setCardTypes] = useState<CardTypeOption[]>([]);
+  const [selectedCardType, setSelectedCardType] = useState<string>("");
+  const [cardLast4, setCardLast4] = useState<string>("");
   const [requestedAmount, setRequestedAmount] = useState<string>("");
   const [paymentReference, setPaymentReference] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split("T")[0]);
@@ -228,9 +240,9 @@ export default function RetailerTopupRequestPage() {
     return () => clearInterval(interval);
   }, [upiStep, upiQrData]);
 
-  // Load POS Payment Modes
+  // Load POS Payment Modes & Dynamic Card Types from Existing Backend Config
   useEffect(() => {
-    const fetchPaymentModes = async () => {
+    const fetchPaymentModesAndCardTypes = async () => {
       try {
         const res = await api.get("/api/v1/pos/payment-modes");
         const items = res.data?.items || [];
@@ -241,11 +253,27 @@ export default function RetailerTopupRequestPage() {
             return exists ? prev : items[0].code;
           });
         }
+        if (res.data?.card_types && Array.isArray(res.data.card_types) && res.data.card_types.length > 0) {
+          setCardTypes(res.data.card_types);
+        } else {
+          const cardRes = await api.get("/api/v1/pos/card-types");
+          if (cardRes.data?.items && Array.isArray(cardRes.data.items)) {
+            setCardTypes(cardRes.data.items);
+          }
+        }
       } catch (err) {
         console.warn("Failed to load payment modes dynamically:", err);
+        try {
+          const cardRes = await api.get("/api/v1/pos/card-types");
+          if (cardRes.data?.items && Array.isArray(cardRes.data.items)) {
+            setCardTypes(cardRes.data.items);
+          }
+        } catch (cardErr) {
+          console.warn("Failed to load card types:", cardErr);
+        }
       }
     };
-    fetchPaymentModes();
+    fetchPaymentModesAndCardTypes();
   }, []);
 
   // POS MDR Calculation
@@ -648,6 +676,16 @@ export default function RetailerTopupRequestPage() {
       return;
     }
 
+    if (!selectedCardType) {
+      setErrorMessage("Please select a Card Type (VISA, MASTER, RUPAY, AMEX / DINERS).");
+      return;
+    }
+
+    if (cardLast4 && cardLast4.length !== 4) {
+      setErrorMessage("Card Last 4 Digits must contain exactly 4 digits if entered.");
+      return;
+    }
+
     if (!paymentReference.trim()) {
       setErrorMessage("Please provide the Bank Reference / UTR Number from your payment receipt.");
       return;
@@ -665,6 +703,8 @@ export default function RetailerTopupRequestPage() {
         payment_reference: paymentReference.trim(),
         payment_method: paymentMethod,
         payment_mode: paymentMethod,
+        card_type: selectedCardType,
+        card_last_4: cardLast4 ? cardLast4 : undefined,
         payment_date: paymentDate ? new Date(paymentDate).toISOString() : undefined,
         slip_id: uploadedPosSlipData?.slip_id,
         slip_url: uploadedPosSlipData?.slip_url,
@@ -712,6 +752,9 @@ export default function RetailerTopupRequestPage() {
         payment_reference: paymentReference.trim(),
         payment_method: paymentMethod,
         payment_mode: paymentMethod,
+        card_type: selectedCardType,
+        card_last_4: cardLast4 || undefined,
+        card_last_4_masked: cardLast4 ? `****${cardLast4}` : undefined,
         payment_date: paymentDate ? new Date(paymentDate).toISOString() : new Date().toISOString(),
         slip_id: uploadedPosSlipData?.slip_id,
         slip_url: uploadedPosSlipData?.slip_url,
@@ -726,6 +769,8 @@ export default function RetailerTopupRequestPage() {
 
       setRequestedAmount("");
       setPaymentReference("");
+      setSelectedCardType("");
+      setCardLast4("");
       setRetailerRemarks("");
       setPosSlipFile(null);
       setPosSlipPreview(null);
@@ -1730,6 +1775,51 @@ export default function RetailerTopupRequestPage() {
                   </div>
                 )}
 
+                {/* ── POS Card Details (Card Type & Card Last 4 Digits) ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                  {/* Card Type */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                      <span>Card Type <span className="text-amber-400">*</span></span>
+                      <span className="text-[10px] text-slate-400 font-normal">Select Card</span>
+                    </label>
+                    <select
+                      value={selectedCardType}
+                      onChange={(e) => setSelectedCardType(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all cursor-pointer"
+                      required
+                    >
+                      <option value="" disabled className="text-slate-500">-- Select Card Type --</option>
+                      {cardTypes.map((c) => (
+                        <option key={c.code} value={c.code} className="bg-slate-900 text-white font-semibold">
+                          {c.name || c.code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Card Last 4 Digits (Optional) */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                      <span>Card Last 4 Digits</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      placeholder="e.g. 4521"
+                      value={cardLast4}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        setCardLast4(val);
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl text-xs font-mono font-bold text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all tracking-wider"
+                    />
+                  </div>
+                </div>
+
                 {/* Bank Reference */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-300">
@@ -1861,9 +1951,9 @@ export default function RetailerTopupRequestPage() {
               <p className="text-xs text-slate-400 mt-0.5">Live status of your submitted UPI & POS requests</p>
             </div>
             <button
-              onClick={fetchMyTopups}
+              onClick={() => fetchMyTopups()}
               disabled={loadingRequests}
-              className="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition-colors inline-flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             >
               <RefreshCw className={`h-3 w-3 ${loadingRequests ? "animate-spin text-amber-400" : ""}`} />
               Refresh
@@ -1919,15 +2009,29 @@ export default function RetailerTopupRequestPage() {
                         </div>
                       </td>
 
-                      {/* Payment Mode */}
+                      {/* Payment Mode & Card Info */}
                       <td className="py-3 px-3 font-medium text-slate-300">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-mono border ${
-                          (item.payment_mode || item.payment_method || "").toUpperCase().includes("UPI")
-                            ? "bg-amber-500/10 text-amber-300 border-amber-500/30 font-semibold"
-                            : "bg-amber-500/10 text-amber-400 border-amber-500/20 font-semibold"
-                        }`}>
-                          {item.payment_mode || item.payment_method}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-mono border w-fit ${
+                            (item.payment_mode || item.payment_method || "").toUpperCase().includes("UPI")
+                              ? "bg-amber-500/10 text-amber-300 border-amber-500/30 font-semibold"
+                              : "bg-amber-500/10 text-amber-400 border-amber-500/20 font-semibold"
+                          }`}>
+                            {item.payment_mode || item.payment_method}
+                          </span>
+                          {item.card_type && (
+                            <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold">
+                                {item.card_type}
+                              </span>
+                              {(item.card_last_4 || item.card_last_4_masked) && (
+                                <span className="text-slate-400 font-bold">
+                                  {item.card_last_4 ? `****${item.card_last_4}` : item.card_last_4_masked}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Requested Amount */}

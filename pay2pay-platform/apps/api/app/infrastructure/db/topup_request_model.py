@@ -61,6 +61,8 @@ class TopupRequestModel(BaseEntity, EnterpriseBaseMixin):
     payment_reference: Mapped[Optional[str]] = mapped_column(String(100), unique=True, nullable=True, index=True) # UTR or Bank Ref #
     payment_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default="UPI")   # UPI, IMPS, NEFT, RTGS, CASH_DEPOSIT, BANK_TRANSFER
     payment_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    card_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True) # VISA, MASTER, RUPAY, AMEX / DINERS
+    card_last_4: Mapped[Optional[str]] = mapped_column(String(4), nullable=True) # Last 4 digits only
 
     # Slip Storage Metadata
     slip_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)

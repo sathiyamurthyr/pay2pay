@@ -83,12 +83,7 @@ class BulkPePayoutEngine:
                     ret_uuid = r_obj.public_id
         
         if not ret_uuid:
-            stmt_r = select(RetailerModel).where(RetailerModel.retailer_code == "RET-10928")
-            r_obj = (await db.execute(stmt_r)).scalars().first()
-            if r_obj:
-                ret_uuid = r_obj.public_id
-            else:
-                ret_uuid = uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e")
+            raise ValueError("Valid retailer identity could not be verified from request context.")
 
         retailer_id = ret_uuid
 
@@ -605,7 +600,7 @@ class BulkPePayoutEngine:
         acc_num = final_acc_num
         ifsc = final_ifsc or "IBKL0000630"
         acc_holder = final_acc_holder or "Beneficiary"
-        cust_mobile = getattr(customer, "mobile_number", "9176669426")
+        cust_mobile = getattr(customer, "mobile_number", "") or ""
         target_bank = final_bank_name or "IDBI Bank"
 
         api_res = None

@@ -244,6 +244,31 @@ export function classifyApiError(err: any, endpoint: string) {
   return errorInfo;
 }
 
+export function resolveActiveRetailerId(): string {
+  if (typeof document !== "undefined") {
+    const cookies = document.cookie ? document.cookie.split("; ") : [];
+    const retCookie = cookies.find((row) =>
+      row.startsWith("p2p_active_retailer_id=") ||
+      row.startsWith("p2p_retailer_code=")
+    );
+    if (retCookie) {
+      const val = retCookie.split("=")[1]?.trim();
+      if (val) return val;
+    }
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        if (u.retailer_id || u.id) return u.retailer_id || u.id;
+      }
+      return localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
+    } catch {}
+  }
+  return "";
+}
+
 export const retailerApi = {
   // ── Live Wallet Balance ──
   // User Requirement: Live Balance: GET /api/v1/wallet/balance
@@ -311,19 +336,7 @@ export const retailerApi = {
   // ── Retailer Comprehensive Profile ──
   getProfile: async () => {
     try {
-      let activeRetailerId = "";
-      if (typeof window !== "undefined") {
-        try {
-          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            activeRetailerId = u.retailer_id || u.id || "";
-          }
-        } catch {}
-        if (!activeRetailerId) {
-          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
-        }
-      }
+      const activeRetailerId = resolveActiveRetailerId();
       const params: any = {};
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
@@ -337,19 +350,7 @@ export const retailerApi = {
 
   updateContact: async (data: { alternate_mobile?: string; whatsapp_number?: string; email?: string }) => {
     try {
-      let activeRetailerId = "";
-      if (typeof window !== "undefined") {
-        try {
-          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            activeRetailerId = u.retailer_id || u.id || "";
-          }
-        } catch {}
-        if (!activeRetailerId) {
-          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
-        }
-      }
+      const activeRetailerId = resolveActiveRetailerId();
       const params: any = {};
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 
@@ -363,19 +364,7 @@ export const retailerApi = {
 
   updateAddress: async (data: any) => {
     try {
-      let activeRetailerId = "";
-      if (typeof window !== "undefined") {
-        try {
-          const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            activeRetailerId = u.retailer_id || u.id || "";
-          }
-        } catch {}
-        if (!activeRetailerId) {
-          activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
-        }
-      }
+      const activeRetailerId = resolveActiveRetailerId();
       const params: any = {};
       if (activeRetailerId) params.retailer_id = activeRetailerId;
 

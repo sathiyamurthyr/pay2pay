@@ -100,6 +100,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = Field(default="")
     SMTP_FROM_EMAIL: str = Field(default="")
     SMTP_FROM_NAME: str = Field(default="Pay2Pay Enterprise")
+    ADMIN_STATEMENT_EMAIL: str = Field(default="")
 
     # ── Support Metadata Configuration ──────────────────────────────────────
     COMPANY_NAME: str = Field(default="SUPER REX PRODUCTS PRIVATE LIMITED")

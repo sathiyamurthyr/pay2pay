@@ -177,43 +177,54 @@ export const RetailerDashboardView: React.FC = () => {
     setLoading(true);
     setHasLoaded(true);
     try {
-      const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
-      let activeRetailerId = "";
-      let resolvedUserId = "";
+      // Build auth header from cookie → localStorage fallback (same pattern as apiClient interceptor)
+      let authHeader: Record<string, string> = {};
       if (typeof window !== "undefined") {
-        try {
-          const userStr =
-            localStorage.getItem("user_info") ||
-            localStorage.getItem("user") ||
-            localStorage.getItem("auth_user") ||
-            localStorage.getItem("pay2pay_user_data");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            resolvedUserId = u.id || u.public_id || u.retailer_id || "";
-          }
-        } catch {}
-        activeRetailerId = localStorage.getItem("p2p_active_retailer_id") || localStorage.getItem("pay2pay_reg_id") || "";
-        if (!resolvedUserId) {
-          resolvedUserId = activeRetailerId || localStorage.getItem("p2p_user_id") || "";
+        const cookies = document.cookie ? document.cookie.split("; ") : [];
+        const tokenCookie = cookies.find(
+          (row) =>
+            row.startsWith("p2p_access_token=") ||
+            row.startsWith("pay2pay_access_token=") ||
+            row.startsWith("pay2pay_auth_token=") ||
+            row.startsWith("access_token=") ||
+            row.startsWith("token=")
+        );
+        const token =
+          (tokenCookie ? tokenCookie.split("=").slice(1).join("=") : null) ||
+          localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("pay2pay_access_token") ||
+          localStorage.getItem("pay2pay_auth_token") ||
+          localStorage.getItem("retailer_token") ||
+          localStorage.getItem("token") ||
+          "";
+        if (token && token.trim().length > 10) {
+          authHeader = { Authorization: `Bearer ${token.trim()}` };
         }
       }
-      const queryParam = activeRetailerId ? `retailer_id=${activeRetailerId}` : "";
-      const qPrefix = queryParam ? `?${queryParam}` : "";
-      const qAnd = queryParam ? `&${queryParam}` : "";
 
-      const notifParams = new URLSearchParams();
-      if (resolvedUserId) notifParams.set("user_id", resolvedUserId);
-      notifParams.set("limit", "15");
+      // Authenticated fetch helper — sends cookie + Bearer token so the
+      // backend's resolve_retailer_context can identify the logged-in retailer.
+      // No localStorage identity reads are needed; the JWT carries the identity.
+      const fetchAuth = (url: string) =>
+        fetch(url, { credentials: "include", headers: { ...authHeader } });
+
+      const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
+      // user_type_ref_id=2 → RETAILER. Backend resolves exact retailer from JWT.
+      const qPrefix = "?user_type_ref_id=2";
+      const qAnd = "&user_type_ref_id=2";
+
+      const notifParams = new URLSearchParams({ limit: "15" });
 
       const [finRes, opsRes, chRes, feedRes, altRes, actRes, sysRes, notifRes] = await Promise.allSettled([
-        fetch(`${baseUrl}/financial-kpis${qPrefix}`),
-        fetch(`${baseUrl}/operations-kpis${qPrefix}`),
-        fetch(`${baseUrl}/charts?timeframe=${timeframe}${qAnd}`),
-        fetch(`${baseUrl}/live-feed${qPrefix}`),
-        fetch(`${baseUrl}/business-alerts${qPrefix}`),
-        fetch(`${baseUrl}/recent-activity${qPrefix}`),
-        fetch(`${baseUrl}/system-health`),
-        fetch(`/api/v1/notifications/recent?${notifParams.toString()}`)
+        fetchAuth(`${baseUrl}/financial-kpis${qPrefix}`),
+        fetchAuth(`${baseUrl}/operations-kpis${qPrefix}`),
+        fetchAuth(`${baseUrl}/charts?timeframe=${timeframe}${qAnd}`),
+        fetchAuth(`${baseUrl}/live-feed${qPrefix}`),
+        fetchAuth(`${baseUrl}/business-alerts${qPrefix}`),
+        fetchAuth(`${baseUrl}/recent-activity${qPrefix}`),
+        fetchAuth(`${baseUrl}/system-health`),
+        fetchAuth(`/api/v1/notifications/recent?${notifParams.toString()}`)
       ]);
 
       if (finRes.status === "fulfilled" && finRes.value.ok) setFinKpis(await finRes.value.json());

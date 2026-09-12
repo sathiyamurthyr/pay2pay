@@ -64,12 +64,28 @@ def deploy_to_server(retailer_zip: Path):
     print("\n🚀 Uploading retailer package and backend updates to 129.225.91.190 via SCP...")
     scp_cmd = f'scp -o StrictHostKeyChecking=no -i "{KEY_PATH}" "{retailer_zip}" {SERVER_HOST}:/home/ubuntu/'
     subprocess.run(scp_cmd, shell=True, check=True)
-    backend_file = BASE_DIR / "backend" / "app" / "application" / "payout_workflow_service.py"
-    if backend_file.exists():
-        scp_backend = f'scp -o StrictHostKeyChecking=no -i "{KEY_PATH}" "{backend_file}" {SERVER_HOST}:/home/ubuntu/pay2pay/backend/app/application/payout_workflow_service.py'
-        subprocess.run(scp_backend, shell=True, check=True)
-        print("✅ Uploaded payout_workflow_service.py to backend successfully!")
-    print("✅ Uploaded retailer archive successfully!")
+    backend_files_to_sync = [
+        ("backend/app/presentation/api/v1/enterprise_auth_router.py", "pay2pay/backend/app/presentation/api/v1/enterprise_auth_router.py"),
+        ("backend/app/presentation/api/v1/retailer_dashboard_router.py", "pay2pay/backend/app/presentation/api/v1/retailer_dashboard_router.py"),
+        ("backend/app/presentation/api/v1/retailer_profile_router.py", "pay2pay/backend/app/presentation/api/v1/retailer_profile_router.py"),
+        ("backend/app/presentation/api/v1/bulkpe_payout_router.py", "pay2pay/backend/app/presentation/api/v1/bulkpe_payout_router.py"),
+        ("backend/app/presentation/api/v1/topup_router.py", "pay2pay/backend/app/presentation/api/v1/topup_router.py"),
+        ("backend/app/presentation/api/v1/notifications.py", "pay2pay/backend/app/presentation/api/v1/notifications.py"),
+        ("backend/app/application/bulkpe_payout_engine.py", "pay2pay/backend/app/application/bulkpe_payout_engine.py"),
+        ("backend/app/presentation/api/v1/public_receipt_router.py", "pay2pay/backend/app/presentation/api/v1/public_receipt_router.py"),
+        ("backend/app/presentation/api/v1/whatsapp_config_router.py", "pay2pay/backend/app/presentation/api/v1/whatsapp_config_router.py"),
+        ("backend/app/infrastructure/adapters/whatsapp_service.py", "pay2pay/backend/app/infrastructure/adapters/whatsapp_service.py"),
+        ("backend/app/presentation/api/v1/transaction_report_router.py", "pay2pay/backend/app/presentation/api/v1/transaction_report_router.py"),
+    ]
+
+    for rel_src, rel_dst in backend_files_to_sync:
+        src_path = BASE_DIR / rel_src
+        if src_path.exists():
+            scp_f = f'scp -o StrictHostKeyChecking=no -i "{KEY_PATH}" "{src_path}" {SERVER_HOST}:/home/ubuntu/{rel_dst}'
+            subprocess.run(scp_f, shell=True, check=True)
+            print(f"✅ Uploaded {rel_src} successfully!")
+
+    print("✅ Uploaded retailer archive and backend updates successfully!")
 
     print("\n🔄 Extracting packages and restarting services on production server...")
     remote_script = """#!/bin/bash

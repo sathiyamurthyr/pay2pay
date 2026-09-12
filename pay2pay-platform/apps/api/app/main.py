@@ -40,24 +40,6 @@ uploads_dir = Path("uploads")
 uploads_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-async def background_pending_reconciliation_poller():
-    """
-    Background job executing every 60 seconds (1 minute).
-    Polls vendor status API for all PENDING transactions, updates DB status,
-    and notifies retailer automatically on completion.
-    """
-    while True:
-        try:
-            await asyncio.sleep(60)
-            from app.core.database import AsyncSessionLocal
-            from app.application.enterprise_payout_execution_service import EnterprisePayoutExecutionService
-            async with AsyncSessionLocal() as db:
-                await EnterprisePayoutExecutionService.reconcile_pending_transactions(db)
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            print(f"[BACKGROUND POLLER WARNING] Pending reconciliation loop error: {str(e)}")
-
 @app.on_event("startup")
 async def startup_db():
     # Reload trigger for bank master 1000 limit
@@ -69,11 +51,11 @@ async def startup_db():
         await asyncio.wait_for(_create_tables(), timeout=5.0)
     except asyncio.TimeoutError:
         print("[STARTUP DB WARNING] Table creation timed out (DB may be locked) — continuing startup.")
-    except Exception as e:
-        print(f"[STARTUP DB WARNING] Table creation notice: {str(e)}")
-    asyncio.create_task(background_pending_reconciliation_poller())
     from app.core.statement_scheduler import background_daily_statement_scheduler
     asyncio.create_task(background_daily_statement_scheduler())
+    from app.core.urbanrupee_scheduler import background_urbanrupee_status_poller
+    # Official UrbanRupee automated 5-minute status check (runs only if UrbanRupee priority is 1)
+    asyncio.create_task(background_urbanrupee_status_poller(300))
 
 
 # Enterprise CORS Configuration
@@ -275,6 +257,13 @@ app.include_router(topup_router.router, prefix="/v1")
 app.include_router(topup_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
 app.include_router(topup_router.router, prefix="/api")
 app.include_router(topup_router.router, prefix="")
+
+from app.presentation.api.v1 import admin_transaction_operations_router
+app.include_router(admin_transaction_operations_router.router, prefix=settings.API_V1_STR)
+app.include_router(admin_transaction_operations_router.router, prefix="/v1")
+app.include_router(admin_transaction_operations_router.router, prefix=f"{settings.API_V1_STR}/api/v1")
+app.include_router(admin_transaction_operations_router.router, prefix="/api")
+app.include_router(admin_transaction_operations_router.router, prefix="")
 
 from app.presentation.api.v1 import whatsapp_config_router
 app.include_router(whatsapp_config_router.router, prefix=settings.API_V1_STR)

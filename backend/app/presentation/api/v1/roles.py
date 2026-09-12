@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +28,7 @@ async def list_roles(
             code=r.code,
             description=r.description,
             is_system=r.is_system,
-            version=r.version,
+            version_no=getattr(r, "version_no", 1) or 1,
             permissions=[
                 PermissionResponse(
                     public_id=rp.permission.public_id,
@@ -38,8 +39,9 @@ async def list_roles(
                     description=rp.permission.description
                 )
                 for rp in r.role_permissions
+                if rp and getattr(rp, "permission", None)
             ],
-            created_at=r.created_at
+            created_date=getattr(r, "created_date", None) or getattr(r, "created_at", None) or datetime.utcnow()
         )
         for r in roles
     ]
@@ -61,9 +63,9 @@ async def create_role(
         code=role.code,
         description=role.description,
         is_system=role.is_system,
-        version=role.version,
+        version_no=getattr(role, "version_no", 1) or 1,
         permissions=[],
-        created_at=role.created_at
+        created_date=getattr(role, "created_date", None) or getattr(role, "created_at", None) or datetime.utcnow()
     )
 
 
@@ -78,7 +80,11 @@ async def get_permission_matrix(
 
     matrix = {}
     for r in roles:
-        matrix[r.code] = [rp.permission.code for rp in r.role_permissions]
+        matrix[r.code] = [
+            rp.permission.code
+            for rp in r.role_permissions
+            if rp and getattr(rp, "permission", None)
+        ]
 
     role_responses = [
         RoleResponse(
@@ -88,9 +94,9 @@ async def get_permission_matrix(
             code=r.code,
             description=r.description,
             is_system=r.is_system,
-            version=r.version,
+            version_no=getattr(r, "version_no", 1) or 1,
             permissions=[],
-            created_at=r.created_at
+            created_date=getattr(r, "created_date", None) or getattr(r, "created_at", None) or datetime.utcnow()
         )
         for r in roles
     ]

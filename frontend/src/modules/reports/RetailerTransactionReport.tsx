@@ -30,6 +30,10 @@ import {
   Alert,
   Tooltip,
   Collapse,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 
 // Icons
@@ -53,6 +57,15 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+
+export const formatToIstYmd = (dateObj: Date = new Date()): string => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(dateObj);
+};
 
 export interface TransactionReportSummary {
   total_transactions: number;
@@ -171,14 +184,11 @@ export const RetailerTransactionReport: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [creditDebitFilter, setCreditDebitFilter] = useState<string>("ALL");
   const [activePreset, setActivePreset] = useState<string>("TODAY");
-  const [fromDate, setFromDate] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  });
-  const [toDate, setToDate] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  });
+  const [fromDate, setFromDate] = useState<string>(() => formatToIstYmd());
+  const [toDate, setToDate] = useState<string>(() => formatToIstYmd());
+  const [customDateOpen, setCustomDateOpen] = useState<boolean>(false);
+  const [customFrom, setCustomFrom] = useState<string>(() => formatToIstYmd());
+  const [customTo, setCustomTo] = useState<string>(() => formatToIstYmd());
 
   // Drawer / Side Panel
   const [selectedTxn, setSelectedTxn] = useState<TransactionReportItem | null>(null);
@@ -223,12 +233,12 @@ export const RetailerTransactionReport: React.FC = () => {
       if (creditDebitFilter !== "ALL") q.append("entry_type", creditDebitFilter);
 
       const token = typeof window !== "undefined" ? (
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("pay2pay_auth_token") ||
-        localStorage.getItem("access_token") ||
-        document.cookie.split("; ").find(r => r.startsWith("p2p_access_token=") || r.startsWith("pay2pay_access_token="))?.split("=")[1] ||
-        ""
+        document.cookie.split("; ").find(r => 
+          r.startsWith("p2p_access_token=") || 
+          r.startsWith("pay2pay_access_token=") ||
+          r.startsWith("pay2pay_auth_token=") ||
+          r.startsWith("access_token=")
+        )?.split("=")[1] || ""
       ) : "";
 
       const headers: Record<string, string> = {};
@@ -290,6 +300,9 @@ export const RetailerTransactionReport: React.FC = () => {
         }
         setLastUpdatedTime(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
       } else {
+        const errJson = await res.json().catch(() => null);
+        const errMsg = errJson?.detail?.message || errJson?.message || "Failed to load transactions for selected date range";
+        showToast(errMsg);
         setItems([]);
         setTotalRecords(0);
       }
@@ -314,37 +327,115 @@ export const RetailerTransactionReport: React.FC = () => {
 
   const handleDatePreset = (preset: string) => {
     setActivePreset(preset);
-    const dNow = new Date();
-    const today = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, "0")}-${String(dNow.getDate()).padStart(2, "0")}`;
+    const today = formatToIstYmd();
     setPage(0);
     if (preset === "ALL") {
       setFromDate("");
       setToDate("");
+      setCustomFrom("");
+      setCustomTo("");
     } else if (preset === "TODAY") {
       setFromDate(today);
       setToDate(today);
+      setCustomFrom(today);
+      setCustomTo(today);
     } else if (preset === "YESTERDAY") {
       const y = new Date();
       y.setDate(y.getDate() - 1);
-      const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
+      const yStr = formatToIstYmd(y);
       setFromDate(yStr);
       setToDate(yStr);
+      setCustomFrom(yStr);
+      setCustomTo(yStr);
     } else if (preset === "7_DAYS") {
       const d = new Date();
       d.setDate(d.getDate() - 7);
-      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+      const fromStr = formatToIstYmd(d);
+      setFromDate(fromStr);
       setToDate(today);
+      setCustomFrom(fromStr);
+      setCustomTo(today);
     } else if (preset === "30_DAYS") {
       const d = new Date();
       d.setDate(d.getDate() - 30);
-      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+      const fromStr = formatToIstYmd(d);
+      setFromDate(fromStr);
       setToDate(today);
+      setCustomFrom(fromStr);
+      setCustomTo(today);
     } else if (preset === "THIS_MONTH") {
-      const d = new Date();
-      d.setDate(1);
-      setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+      const fromStr = `${today.slice(0, 7)}-01`;
+      setFromDate(fromStr);
       setToDate(today);
+      setCustomFrom(fromStr);
+      setCustomTo(today);
     }
+  };
+
+  const handleApplyCustomDates = () => {
+    let f = customFrom?.trim() || "";
+    let t = customTo?.trim() || "";
+    const today = formatToIstYmd();
+
+    if (!f && !t) {
+      handleDatePreset("ALL");
+      setCustomDateOpen(false);
+      return;
+    }
+
+    if (!f && t) {
+      f = t;
+      setCustomFrom(t);
+    } else if (f && !t) {
+      t = today;
+      setCustomTo(today);
+    }
+
+    if (f > t) {
+      showToast("From Date cannot be later than To Date");
+      return;
+    }
+
+    setFromDate(f);
+    setToDate(t);
+    setActivePreset("CUSTOM");
+    setPage(0);
+    setCustomDateOpen(false);
+    showToast("Custom date range applied");
+  };
+
+  const formatDisplayDateRange = (from: string, to: string, preset: string) => {
+    const today = formatToIstYmd();
+    if (preset === "TODAY" || (from === today && to === today)) {
+      const d = new Date();
+      return `${d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })} (Today)`;
+    }
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yesterday = formatToIstYmd(y);
+    if (preset === "YESTERDAY" || (from === yesterday && to === yesterday)) {
+      return `${y.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })} (Yesterday)`;
+    }
+    if (preset === "ALL" || (!from && !to)) {
+      return "All Time";
+    }
+    const formatStr = (s: string) => {
+      if (!s) return "";
+      try {
+        const parts = s.split("-");
+        if (parts.length === 3) {
+          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+        }
+        return s;
+      } catch {
+        return s;
+      }
+    };
+    if (from === to && from) {
+      return formatStr(from);
+    }
+    return `${formatStr(from) || "Start"} – ${formatStr(to) || "Today"}`;
   };
 
   const handleResetFilters = () => {
@@ -497,7 +588,8 @@ export const RetailerTransactionReport: React.FC = () => {
           {/* Header Metadata Pills */}
           <Stack direction="row" spacing={1.2} sx={{ flexWrap: "wrap", alignItems: "center" }}>
             <Chip
-              label={activePreset === "TODAY" ? "Today's View" : activePreset.replace("_", " ")}
+              icon={<CalendarMonthIcon sx={{ fontSize: "14px !important", color: "#FDE68A" }} />}
+              label={formatDisplayDateRange(fromDate, toDate, activePreset)}
               size="small"
               sx={{
                 height: "26px",
@@ -712,65 +804,180 @@ export const RetailerTransactionReport: React.FC = () => {
       </Box>
 
       {/* ── 3. DEDICATED GLASS DATE FILTERS BAR ── */}
+      {/* ── 3. REAL-TIME DATE RANGE & PRESET CONTROLS ── */}
       <Paper
         elevation={0}
         sx={{
-          p: 1,
-          px: 2,
-          borderRadius: "12px",
+          p: 1.2,
+          px: { xs: 1.5, sm: 2 },
+          borderRadius: "14px",
           bgcolor: "rgba(15, 23, 42, 0.75)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(254, 240, 138, 0.2)",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.35)",
           mb: 2,
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          overflowX: "auto",
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
         }}
       >
-        <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px", mr: 1, display: { xs: "none", sm: "block" } }}>
-          Date Range:
-        </Typography>
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          alignItems={{ xs: "stretch", lg: "center" }}
+          justifyContent="space-between"
+          spacing={1.5}
+        >
+          {/* Presets List */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.8,
+              overflowX: "auto",
+              scrollbarWidth: "thin",
+              scrollbarColor: "rgba(254, 240, 138, 0.2) transparent",
+              "&::-webkit-scrollbar": { height: "4px" },
+              "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(254, 240, 138, 0.2)", borderRadius: "4px" },
+              pb: { xs: 0.5, lg: 0 },
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={0.6} sx={{ color: "#FBBF24", mr: 0.8, flexShrink: 0 }}>
+              <CalendarMonthIcon sx={{ fontSize: 18 }} />
+              <Typography sx={{ fontSize: "11.5px", fontWeight: 800, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                Date Range:
+              </Typography>
+            </Stack>
 
-        {[
-          { key: "ALL", label: "All" },
-          { key: "TODAY", label: "Today" },
-          { key: "YESTERDAY", label: "Yesterday" },
-          { key: "7_DAYS", label: "7 Days" },
-          { key: "30_DAYS", label: "30 Days" },
-          { key: "THIS_MONTH", label: "This Month" },
-        ].map((preset) => {
-          const isSelected = activePreset === preset.key;
-          return (
-            <Box
-              key={preset.key}
-              onClick={() => handleDatePreset(preset.key)}
+            {[
+              { key: "ALL", label: "All" },
+              { key: "TODAY", label: "Today" },
+              { key: "YESTERDAY", label: "Yesterday" },
+              { key: "7_DAYS", label: "7 Days" },
+              { key: "30_DAYS", label: "30 Days" },
+              { key: "THIS_MONTH", label: "This Month" },
+              { key: "CUSTOM", label: "Custom Range" },
+            ].map((preset) => {
+              const isSelected = activePreset === preset.key;
+              return (
+                <Box
+                  key={preset.key}
+                  onClick={() => {
+                    if (preset.key === "CUSTOM") {
+                      setCustomDateOpen(true);
+                    } else {
+                      handleDatePreset(preset.key);
+                    }
+                  }}
+                  sx={{
+                    px: 1.8,
+                    py: 0.55,
+                    borderRadius: "999px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    fontSize: "12px",
+                    fontWeight: isSelected ? 800 : 600,
+                    color: isSelected ? "#080B11" : "rgba(255, 255, 255, 0.8)",
+                    background: isSelected
+                      ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)"
+                      : "rgba(255, 255, 255, 0.05)",
+                    border: isSelected ? "1px solid #FEF08A" : "1px solid rgba(255, 255, 255, 0.1)",
+                    boxShadow: isSelected ? "0 0 15px rgba(245, 158, 11, 0.35)" : "none",
+                    transition: "all 0.15s ease-in-out",
+                    flexShrink: 0,
+                    "&:hover": {
+                      bgcolor: isSelected ? undefined : "rgba(255, 255, 255, 0.12)",
+                      color: isSelected ? "#080B11" : "#FFFFFF",
+                      borderColor: isSelected ? undefined : "rgba(240, 240, 138, 0.3)",
+                    },
+                  }}
+                >
+                  {preset.label}
+                </Box>
+              );
+            })}
+          </Box>
+
+          {/* Inline Custom Date Pickers (From / To / Apply) */}
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{
+              flexShrink: 0,
+              flexWrap: "nowrap",
+              justifyContent: { xs: "space-between", sm: "flex-end" },
+              pt: { xs: 1, lg: 0 },
+              borderTop: { xs: "1px solid rgba(255,255,255,0.08)", lg: "none" },
+            }}
+          >
+            <TextField
+              type="date"
+              size="small"
+              label="From Date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleApplyCustomDates(); }}
+              InputLabelProps={{ shrink: true, sx: { color: "rgba(255,255,255,0.7)", fontSize: "11px", fontWeight: 700 } }}
+              inputProps={{ sx: { color: "#F8FAFC", fontSize: "12px", py: 0.5, px: 1, height: "18px" } }}
               sx={{
-                px: 2,
+                width: { xs: "40%", sm: 145 },
+                bgcolor: "rgba(8, 11, 17, 0.85)",
+                borderRadius: "8px",
+                border: "1px solid rgba(254, 240, 138, 0.2)",
+                "& fieldset": { border: "none" },
+                "&:hover": { borderColor: "rgba(254, 240, 138, 0.4)" },
+              }}
+            />
+            <TextField
+              type="date"
+              size="small"
+              label="To Date"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleApplyCustomDates(); }}
+              InputLabelProps={{ shrink: true, sx: { color: "rgba(255,255,255,0.7)", fontSize: "11px", fontWeight: 700 } }}
+              inputProps={{ sx: { color: "#F8FAFC", fontSize: "12px", py: 0.5, px: 1, height: "18px" } }}
+              sx={{
+                width: { xs: "40%", sm: 145 },
+                bgcolor: "rgba(8, 11, 17, 0.85)",
+                borderRadius: "8px",
+                border: "1px solid rgba(254, 240, 138, 0.2)",
+                "& fieldset": { border: "none" },
+                "&:hover": { borderColor: "rgba(254, 240, 138, 0.4)" },
+              }}
+            />
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleApplyCustomDates}
+              sx={{
+                minWidth: "auto",
+                px: 1.8,
                 py: 0.6,
-                borderRadius: "999px",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                fontSize: "12.5px",
-                fontWeight: isSelected ? 800 : 600,
-                color: isSelected ? "#080B11" : "rgba(255, 255, 255, 0.8)",
-                background: isSelected ? "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)" : "rgba(255, 255, 255, 0.05)",
-                border: isSelected ? "1px solid #FEF08A" : "1px solid rgba(255, 255, 255, 0.1)",
-                boxShadow: isSelected ? "0 0 15px rgba(245, 158, 11, 0.35)" : "none",
-                transition: "all 0.15s ease-in-out",
+                fontSize: "12px",
+                fontWeight: 800,
+                textTransform: "none",
+                borderRadius: "8px",
+                background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+                color: "#080B11",
+                boxShadow: "0 0 10px rgba(245, 158, 11, 0.3)",
                 "&:hover": {
-                  bgcolor: isSelected ? undefined : "rgba(255, 255, 255, 0.12)",
-                  color: isSelected ? "#080B11" : "#FFFFFF",
-                  borderColor: isSelected ? undefined : "rgba(254, 240, 138, 0.3)",
+                  background: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)",
                 },
               }}
             >
-              {preset.label}
-            </Box>
-          );
-        })}
+              Apply
+            </Button>
+          </Stack>
+        </Stack>
+
+        {/* Active Range Context Feedback */}
+        <Divider sx={{ my: 1, borderColor: "rgba(255,255,255,0.06)" }} />
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ flexWrap: "wrap", gap: 1 }}>
+          <Typography sx={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.7)", fontWeight: 500 }}>
+            Showing records for <strong style={{ color: "#FDE68A" }}>{formatDisplayDateRange(fromDate, toDate, activePreset)}</strong>
+          </Typography>
+          <Typography sx={{ fontSize: "11.5px", color: "#34D399", fontWeight: 700 }}>
+            {totalRecords} {totalRecords === 1 ? "transaction" : "transactions"} found
+          </Typography>
+        </Stack>
       </Paper>
 
       {/* ── 4. SEARCH + FILTER TOOLBAR (FULL DESKTOP WORKSPACE) ── */}
@@ -1110,7 +1317,7 @@ export const RetailerTransactionReport: React.FC = () => {
                   </TableRow>
                 ) : (
                   items.map((row, idx) => {
-                    const rowKey = row.id || row.txn_id || `txn-${idx}`;
+                    const rowKey = `${row.txn_id}-${row.entry || ''}-${row.amount ?? ''}-${row.description || ''}-${idx}`;
                     const amt = Number(row.amount ?? row.txn_amt ?? 0);
                     const openingBal = Number(row.opening_bal ?? row.pre_bal ?? row.previous_balance ?? 0);
                     const closingBal = Number(row.closing_bal ?? row.cls_bal ?? row.current_balance ?? 0);
@@ -1118,7 +1325,13 @@ export const RetailerTransactionReport: React.FC = () => {
                     const isCr = entry === "CR" || entry === "CREDIT" || (row.cr_amt || row.cr || 0) > 0 || (closingBal > openingBal && amt > 0);
                     const dt = formatDateTime(row.date_time || row.transaction_datetime || row.created_at);
                     const svc = row.service || "General";
-                    const svcBadge = SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" };
+                    const isReversal = (row.status || "").toUpperCase() === "REVERSED" ||
+                      (row.description || "").toLowerCase().includes("reversal") ||
+                      (row.narration || "").toLowerCase().includes("reversal") ||
+                      (svc.toUpperCase() === "PAYOUT" && isCr);
+                    const svcBadge = isReversal
+                      ? { label: "Payout Reversal", bg: "rgba(168, 85, 247, 0.18)", text: "#C084FC", border: "rgba(168, 85, 247, 0.4)" }
+                      : (SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" });
 
                     return (
                       <TableRow
@@ -1261,12 +1474,24 @@ export const RetailerTransactionReport: React.FC = () => {
 
                         {/* 7. Date & Time */}
                         <TableCell sx={{ px: 1.5, whiteSpace: "nowrap" }}>
-                          <Typography sx={{ fontSize: "12px", fontWeight: 700, color: "#F8FAFC", lineHeight: 1.2 }}>
-                            {dt.date}
-                          </Typography>
-                          <Typography variant="caption" sx={{ fontSize: "10.5px", color: "#94A3B8", display: "block" }}>
-                            {dt.time}
-                          </Typography>
+                          <Box
+                            sx={{
+                              display: "inline-flex",
+                              flexDirection: "column",
+                              bgcolor: "rgba(255, 255, 255, 0.03)",
+                              border: "1px solid rgba(255, 255, 255, 0.08)",
+                              borderRadius: "6px",
+                              px: 1,
+                              py: 0.4,
+                            }}
+                          >
+                            <Typography sx={{ fontSize: "12px", fontWeight: 800, color: "#FDE68A", lineHeight: 1.2 }}>
+                              {dt.date}
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontSize: "10.5px", color: "#94A3B8", display: "block" }}>
+                              {dt.time}
+                            </Typography>
+                          </Box>
                         </TableCell>
 
                         {/* 8. Description */}
@@ -1382,7 +1607,7 @@ export const RetailerTransactionReport: React.FC = () => {
         ) : (
           <Stack spacing={1.5}>
             {items.map((row, idx) => {
-              const rowKey = row.id || row.txn_id || `card-${idx}`;
+              const rowKey = `card-${row.txn_id}-${row.entry || ''}-${row.amount ?? ''}-${row.description || ''}-${idx}`;
               const amt = Number(row.amount ?? row.txn_amt ?? 0);
               const openingBal = Number(row.opening_bal ?? row.pre_bal ?? row.previous_balance ?? 0);
               const closingBal = Number(row.closing_bal ?? row.cls_bal ?? row.current_balance ?? 0);
@@ -1391,7 +1616,13 @@ export const RetailerTransactionReport: React.FC = () => {
               const dt = formatDateTime(row.date_time || row.transaction_datetime || row.created_at);
               const isExpanded = !!expandedCards[rowKey];
               const svc = row.service || "General";
-              const svcBadge = SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" };
+              const isReversal = (row.status || "").toUpperCase() === "REVERSED" ||
+                (row.description || "").toLowerCase().includes("reversal") ||
+                (row.narration || "").toLowerCase().includes("reversal") ||
+                (svc.toUpperCase() === "PAYOUT" && isCr);
+              const svcBadge = isReversal
+                ? { label: "Payout Reversal", bg: "rgba(168, 85, 247, 0.18)", text: "#C084FC", border: "rgba(168, 85, 247, 0.4)" }
+                : (SERVICE_BADGES[svc] || { label: svc, bg: "rgba(59, 130, 246, 0.15)", text: "#60A5FA", border: "rgba(59, 130, 246, 0.35)" });
 
               return (
                 <Paper
@@ -1960,6 +2191,78 @@ export const RetailerTransactionReport: React.FC = () => {
           {snackbarMsg}
         </Alert>
       </Snackbar>
+
+      {/* ── 9. CUSTOM DATE RANGE MODAL DIALOG ── */}
+      <Dialog
+        open={customDateOpen}
+        onClose={() => setCustomDateOpen(false)}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "14px",
+              p: 1,
+              width: 340,
+              bgcolor: "#0F172A",
+              border: "1px solid rgba(254, 240, 138, 0.25)",
+              color: "#F8FAFC",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.7)",
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontSize: "15px", color: "#F8FAFC" }}>Select Custom Date Range</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: "8px !important" }}>
+          <TextField
+            label="From Date"
+            type="date"
+            size="small"
+            InputLabelProps={{ shrink: true, sx: { color: "rgba(255,255,255,0.7)" } }}
+            value={customFrom}
+            onChange={(e) => setCustomFrom(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleApplyCustomDates(); }}
+            InputProps={{
+              sx: {
+                bgcolor: "rgba(8, 11, 17, 0.85)",
+                color: "#F8FAFC",
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                "& fieldset": { border: "none" },
+              },
+            }}
+          />
+          <TextField
+            label="To Date"
+            type="date"
+            size="small"
+            InputLabelProps={{ shrink: true, sx: { color: "rgba(255,255,255,0.7)" } }}
+            value={customTo}
+            onChange={(e) => setCustomTo(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleApplyCustomDates(); }}
+            InputProps={{
+              sx: {
+                bgcolor: "rgba(8, 11, 17, 0.85)",
+                color: "#F8FAFC",
+                border: "1px solid rgba(255, 255, 255, 0.14)",
+                "& fieldset": { border: "none" },
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button onClick={() => setCustomDateOpen(false)} sx={{ textTransform: "none", color: "rgba(255,255,255,0.7)" }}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleApplyCustomDates}
+            sx={{
+              background: "linear-gradient(135deg, #FEF08A 0%, #FBBF24 50%, #F59E0B 100%)",
+              color: "#080B11",
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            Apply Range
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -196,53 +196,45 @@ export const RetailerDashboardView: React.FC = () => {
     setLoading(true);
     setHasLoaded(true);
     try {
-      const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
-      let userRefId: any = null;
-      let userTypeRefId: any = 2;
-      let resolvedUserId: string = "";
+      // Build auth header from cookie or localStorage token
+      let authHeader: Record<string, string> = {};
       if (typeof window !== "undefined") {
-        try {
-          const userStr =
-            localStorage.getItem("user_info") ||
-            localStorage.getItem("user") ||
-            localStorage.getItem("auth_user") ||
-            localStorage.getItem("pay2pay_user_data");
-          if (userStr) {
-            const u = JSON.parse(userStr);
-            userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
-            userTypeRefId = u.user_type_ref_id || 2;
-            resolvedUserId = u.id || u.public_id || u.retailer_id || "";
-          }
-        } catch {}
-        if (!resolvedUserId) {
-          resolvedUserId =
-            localStorage.getItem("p2p_active_retailer_id") ||
-            localStorage.getItem("p2p_retailer_code") ||
-            localStorage.getItem("p2p_user_id") ||
-            "";
+        const cookies = document.cookie.split("; ");
+        const tokenCookie = cookies.find(
+          (row) =>
+            row.startsWith("p2p_access_token=") ||
+            row.startsWith("pay2pay_access_token=") ||
+            row.startsWith("pay2pay_auth_token=")
+        );
+        const token =
+          (tokenCookie ? tokenCookie.split("=").slice(1).join("=") : null) ||
+          localStorage.getItem("p2p_access_token") ||
+          localStorage.getItem("pay2pay_access_token") ||
+          localStorage.getItem("pay2pay_auth_token") ||
+          localStorage.getItem("access_token");
+        if (token && token.trim().length > 10) {
+          authHeader = { Authorization: `Bearer ${token.trim()}` };
         }
       }
 
-      const qParams = new URLSearchParams();
-      qParams.set("user_type_ref_id", String(userTypeRefId || 2));
-      if (userRefId) {
-        qParams.set("user_ref_id", String(userRefId));
-      }
-      const qPrefix = `?${qParams.toString()}`;
-      const qAnd = `&${qParams.toString()}`;
+      const fetchAuth = (url: string) =>
+        fetch(url, { credentials: "include", headers: { ...authHeader } });
 
-      const notifParams = new URLSearchParams();
-      if (resolvedUserId) notifParams.set("user_id", resolvedUserId);
-      notifParams.set("limit", "15");
+      const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
+      // Backend resolves the retailer from JWT – no localStorage identity reads needed
+      const qPrefix = "?user_type_ref_id=2";
+      const qAnd = "&user_type_ref_id=2";
+
+      const notifParams = new URLSearchParams({ limit: "15" });
 
       const [finRes, opsRes, chRes, feedRes, altRes, actRes, notifRes] = await Promise.allSettled([
-        fetch(`${baseUrl}/financial-kpis${qPrefix}`),
-        fetch(`${baseUrl}/operations-kpis${qPrefix}`),
-        fetch(`${baseUrl}/charts?timeframe=${timeframe}${qAnd}`),
-        fetch(`${baseUrl}/live-feed${qPrefix}`),
-        fetch(`${baseUrl}/business-alerts${qPrefix}`),
-        fetch(`${baseUrl}/recent-activity${qPrefix}`),
-        fetch(`/api/v1/notifications/recent?${notifParams.toString()}`),
+        fetchAuth(`${baseUrl}/financial-kpis${qPrefix}`),
+        fetchAuth(`${baseUrl}/operations-kpis${qPrefix}`),
+        fetchAuth(`${baseUrl}/charts?timeframe=${timeframe}${qAnd}`),
+        fetchAuth(`${baseUrl}/live-feed${qPrefix}`),
+        fetchAuth(`${baseUrl}/business-alerts${qPrefix}`),
+        fetchAuth(`${baseUrl}/recent-activity${qPrefix}`),
+        fetchAuth(`/api/v1/notifications/recent?${notifParams.toString()}`),
       ]);
 
       if (finRes.status === "fulfilled" && finRes.value.ok) setFinKpis(await finRes.value.json());

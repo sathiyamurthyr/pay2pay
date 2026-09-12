@@ -131,9 +131,32 @@ interface SystemHealthTelemetry {
   last_checked: string;
 }
 
+interface TopRetailerItem {
+  name: string;
+  code: string;
+  count: number;
+  volume: number;
+  cr: number;
+  dr: number;
+  commission: number;
+  success: number;
+  success_rate?: number;
+}
+
 // ==============================================================================
 // FORMATTING UTILITIES
 // ==============================================================================
+
+const parseMetricValue = (val: any): number => {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === "number") return isNaN(val) ? 0 : val;
+  if (typeof val === "object" && val !== null) {
+    if (val.value !== undefined) return parseMetricValue(val.value);
+  }
+  const clean = String(val).replace(/[^0-9.-]+/g, "");
+  const num = parseFloat(clean);
+  return isNaN(num) ? 0 : num;
+};
 
 const formatINR = (val: number | null | undefined): string => {
   if (val === null || val === undefined || isNaN(val)) return "₹0.00";
@@ -247,6 +270,7 @@ export function AdminOperationsDashboard() {
   });
 
   const [recentTransactions, setRecentTransactions] = useState<RecentTransactionItem[]>([]);
+  const [topRetailersList, setTopRetailersList] = useState<TopRetailerItem[]>([]);
   const [healthTelemetry, setHealthTelemetry] = useState<SystemHealthTelemetry>({
     api_status: "ONLINE",
     db_status: "ONLINE",
@@ -329,6 +353,7 @@ export function AdminOperationsDashboard() {
         widgetsRes,
         recentTxnRes,
         healthRes,
+        topRetailersRes,
       ] = await Promise.allSettled([
         // Main Txn Summary
         apiClient.get("/reports/transactions/summary", { params: txnSummaryParams }),
@@ -358,6 +383,14 @@ export function AdminOperationsDashboard() {
         }),
         // System Health
         apiClient.get("/health"),
+        // Top Performing Retailers Leaderboard SP API
+        apiClient.get("/admin/reports/top-retailers", {
+          params: {
+            from_date: fromDate,
+            to_date: toDate,
+            limit: 5,
+          },
+        }),
       ]);
 
       // Handle Txn Summary
@@ -457,13 +490,13 @@ export function AdminOperationsDashboard() {
       if (widgetsRes.status === "fulfilled" && widgetsRes.value?.data) {
         const wData = widgetsRes.value.data;
         setWidgetMetrics({
-          total_companies: Number(wData.total_companies || 1),
-          active_retailers: Number(wData.active_retailers || 0),
-          total_machines: Number(wData.total_machines || 0),
-          wallet_liability: Number(wData.wallet_liability || 0),
-          pending_payouts: Number(wData.pending_payouts || 0),
-          pending_approvals: Number(wData.pending_approvals || 0),
-          today_settlement: Number(wData.today_settlement || 0),
+          total_companies: parseMetricValue(wData.total_companies) || 1,
+          active_retailers: parseMetricValue(wData.active_retailers),
+          total_machines: parseMetricValue(wData.total_machines),
+          wallet_liability: parseMetricValue(wData.wallet_liability),
+          pending_payouts: parseMetricValue(wData.pending_payouts),
+          pending_approvals: parseMetricValue(wData.pending_approvals),
+          today_settlement: parseMetricValue(wData.todays_settlement || wData.today_settlement),
         });
       }
 
@@ -473,6 +506,14 @@ export function AdminOperationsDashboard() {
         const items = rData.items || rData.data?.items || [];
         setRecentTransactions(items);
       }
+
+      // Handle Top Retailers from SP API
+      if (topRetailersRes.status === "fulfilled" && topRetailersRes.value?.data) {
+        const trData = topRetailersRes.value.data;
+        const list = Array.isArray(trData.data) ? trData.data : Array.isArray(trData) ? trData : [];
+        setTopRetailersList(list);
+      } 
+
 
       // Handle System Health & Latency
       const t1 = performance.now();
@@ -591,13 +632,13 @@ export function AdminOperationsDashboard() {
     });
   }, [recentTransactions]);
 
-  // Top Retailers Leaderboard aggregated from recent transactions
+  // Top Retailers Leaderboard aggregated from recent transactions fallback
   const topRetailers = useMemo(() => {
     const retMap: Record<string, { name: string; code: string; count: number; volume: number; cr: number; dr: number; commission: number; success: number }> = {};
 
     recentTransactions.forEach((t) => {
-      const code = t.retailer_code || "RET-1001";
-      const name = t.retailer_name || `Retailer ${code}`;
+      const code = t.retailer_code || "Direct Retailer";
+      const name = t.retailer_name || (t.retailer_code ? `Retailer ${t.retailer_code}` : "Direct Retailer");
       if (!retMap[code]) {
         retMap[code] = { name, code, count: 0, volume: 0, cr: 0, dr: 0, commission: 0, success: 0 };
       }
@@ -613,6 +654,14 @@ export function AdminOperationsDashboard() {
       .sort((a, b) => b.volume - a.volume)
       .slice(0, 5);
   }, [recentTransactions]);
+
+  // Primary authoritative Top Retailers list (from PostgreSQL SP)
+  const finalTopRetailers = useMemo(() => {
+    if (topRetailersList && topRetailersList.length > 0) {
+      return topRetailersList;
+    }
+    return topRetailers;
+  }, [topRetailersList, topRetailers]);
 
   // Filtered recent transactions list
   const filteredTransactions = useMemo(() => {
@@ -1016,7 +1065,7 @@ export function AdminOperationsDashboard() {
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-black text-purple-700 font-mono tracking-tight">
-                {formatINR(widgetMetrics.wallet_liability || 1845230.50)}
+                {formatINR(widgetMetrics.wallet_liability)}
               </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
@@ -1037,14 +1086,14 @@ export function AdminOperationsDashboard() {
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-black text-slate-900 font-mono tracking-tight">
-                {formatCount(widgetMetrics.active_retailers || verificationCounts.approved || 142)}
+                {formatCount(widgetMetrics.active_retailers)}
               </span>
               <span className="text-xs text-slate-400 font-medium">
-                / {formatCount(verificationCounts.total || 188)} Total
+                / {formatCount(verificationCounts.total)} Total
               </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
-              <span>New Today: <strong className="text-emerald-600 font-mono font-bold">+{verificationCounts.pending > 0 ? 3 : 1}</strong></span>
+              <span>New Today: <strong className="text-emerald-600 font-mono font-bold">+{verificationCounts.pending}</strong></span>
               <Link href="/retailers" className="text-amber-600 hover:text-amber-700 font-bold hover:underline flex items-center gap-1">
                 Manage <ChevronRight className="h-3 w-3" />
               </Link>
@@ -1082,11 +1131,11 @@ export function AdminOperationsDashboard() {
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-black text-blue-700 font-mono tracking-tight">
-                {formatINR(widgetMetrics.today_settlement || 842150.00)}
+                {formatINR(widgetMetrics.today_settlement)}
               </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
-              <span>Machines: <strong className="text-slate-800 font-mono font-bold">{widgetMetrics.total_machines || 18}</strong></span>
+              <span>Machines: <strong className="text-slate-800 font-mono font-bold">{widgetMetrics.total_machines}</strong></span>
               <Link href="/settlements/transactions" className="text-amber-600 hover:text-amber-700 font-bold hover:underline flex items-center gap-1">
                 Settlements <ChevronRight className="h-3 w-3" />
               </Link>
@@ -1452,11 +1501,11 @@ export function AdminOperationsDashboard() {
           <div className="grid grid-cols-2 gap-2.5">
             <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200/80 shadow-xs">
               <span className="text-[10px] text-slate-500 uppercase font-bold">TOTAL RETAILERS</span>
-              <p className="text-xl font-black text-slate-900 font-mono mt-0.5">{formatCount(verificationCounts.total || 188)}</p>
+              <p className="text-xl font-black text-slate-900 font-mono mt-0.5">{formatCount(verificationCounts.total)}</p>
             </div>
             <div className="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 shadow-xs">
               <span className="text-[10px] text-emerald-700 uppercase font-bold">ACTIVE</span>
-              <p className="text-xl font-black text-emerald-700 font-mono mt-0.5">{formatCount(widgetMetrics.active_retailers || 142)}</p>
+              <p className="text-xl font-black text-emerald-700 font-mono mt-0.5">{formatCount(widgetMetrics.active_retailers)}</p>
             </div>
             <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 shadow-xs">
               <span className="text-[10px] text-amber-800 uppercase font-bold">PENDING APPROVAL</span>
@@ -1479,15 +1528,15 @@ export function AdminOperationsDashboard() {
           <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 space-y-1 font-medium">
             <div className="flex items-center justify-between">
               <span>New Retailers Today:</span>
-              <strong className="text-emerald-600 font-mono font-bold">+{verificationCounts.pending > 0 ? 3 : 1}</strong>
+              <strong className="text-emerald-600 font-mono font-bold">+{verificationCounts.pending}</strong>
             </div>
             <div className="flex items-center justify-between">
-              <span>New This Month:</span>
-              <strong className="text-slate-800 font-mono font-bold">24</strong>
+              <span>Pending Review:</span>
+              <strong className="text-slate-800 font-mono font-bold">{verificationCounts.under_review}</strong>
             </div>
             <div className="flex items-center justify-between">
-              <span>Transacting Today:</span>
-              <strong className="text-blue-600 font-mono font-bold">{formatCount(topRetailers.length || 12)}</strong>
+              <span>Top Transacting:</span>
+              <strong className="text-blue-600 font-mono font-bold">{formatCount(finalTopRetailers.length)}</strong>
             </div>
           </div>
         </div>
@@ -1517,8 +1566,8 @@ export function AdminOperationsDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono">
-                  {topRetailers.length > 0 ? (
-                    topRetailers.map((ret, idx) => (
+                  {finalTopRetailers.length > 0 ? (
+                    finalTopRetailers.map((ret, idx) => (
                       <tr key={ret.code} className="hover:bg-amber-50/40 transition-colors">
                         <td className="py-2.5 pl-2 font-sans font-bold text-slate-900 flex items-center gap-2">
                           <span className="h-5 w-5 rounded-full bg-amber-500/15 text-amber-800 flex items-center justify-center font-bold text-[10px] border border-amber-300/40">
@@ -1795,8 +1844,8 @@ export function AdminOperationsDashboard() {
                     </td>
                     <td className="py-3 font-sans text-slate-800">
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-900">{t.retailer_name || t.customer_name || "Direct Merchant"}</span>
-                        <span className="text-[10px] text-slate-400 font-mono font-medium">{t.retailer_code || "RET-1001"}</span>
+                        <span className="font-bold text-slate-900">{t.retailer_name || (t as any).customer_name || "Direct Merchant"}</span>
+                        <span className="text-[10px] text-slate-400 font-mono font-medium">{t.retailer_code || "--"}</span>
                       </div>
                     </td>
                     <td className="py-3 font-sans">

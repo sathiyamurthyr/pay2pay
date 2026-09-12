@@ -13,7 +13,7 @@ logger = logging.getLogger("retailer_dashboard_router")
 from app.core.database import get_db, AsyncSessionLocal
 from app.infrastructure.db.models import (
     RetailerModel, RetailerWalletModel, RetailerAddressModel, RetailerKycModel,
-    RetailerBankModel, RetailerContactModel
+    RetailerBankModel, RetailerContactModel, AdminUserModel
 )
 from app.infrastructure.db.auth_models import LoginHistoryModel, AuthUserModel
 from app.infrastructure.db.verification_models import RetailerVerificationModel
@@ -417,8 +417,6 @@ async def get_retailer_header_wallet(
             if reg_id_target:
                 v_conds.append(RetailerVerificationModel.retailer_id == str(reg_id_target))
                 v_conds.append(RetailerVerificationModel.registration_id == str(reg_id_target))
-                if str(reg_id_target) == "RET-10928":
-                    v_conds.append(RetailerVerificationModel.mobile_number.like("%9176669426%"))
             if clean_mob and len(clean_mob) >= 10:
                 cm = clean_mob[-10:]
                 v_conds.append(RetailerVerificationModel.mobile_number.like(f"%{cm}"))
@@ -428,9 +426,6 @@ async def get_retailer_header_wallet(
                     actual_reg_id = v_row.registration_id
         except Exception:
             pass
-
-    if not actual_reg_id and (reg_id_target == "RET-10928" or not reg_id_target):
-        actual_reg_id = "REG-4E92DB60"
 
     # 2. Query RegistrationAadhaarModel or RegistrationDraftModel for photo_url
     if actual_reg_id:
@@ -442,7 +437,8 @@ async def get_retailer_header_wallet(
         except Exception:
             pass
 
-    resolved_photo = direct_photo_url or (f"/api/v1/retailer/profile/photo-image?retailer_id={actual_reg_id or reg_id_target or 'REG-4E92DB60'}")
+    target_id_for_photo = actual_reg_id or reg_id_target or ""
+    resolved_photo = direct_photo_url or (f"/api/v1/retailer/profile/photo-image?retailer_id={target_id_for_photo}" if target_id_for_photo else None)
 
     return {
         # Top-level flattened fields for WalletSyncProvider compatibility
