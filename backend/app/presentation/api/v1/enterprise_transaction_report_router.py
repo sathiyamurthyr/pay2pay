@@ -277,7 +277,8 @@ def build_unified_transactions_query(
             CASE WHEN UPPER(t.entry_type) = 'CREDIT' THEN t.created_at ELSE NULL END AS reversal_datetime,
             'CENTRAL_TXN' AS source_table,
             COALESCE(ret_t.public_id::text, t.retailer_id::text, '') AS retailer_id,
-            COALESCE(ret_t.retailer_code, '') AS retailer_code
+            COALESCE(ret_t.retailer_code, '') AS retailer_code,
+            COALESCE(ret_t.store_name, ret_t.owner_name, ret_t.legal_name, t.retailer_name, '') AS retailer_name
         FROM transactions t
         LEFT JOIN retailer ret_t ON (t.retailer_id = ret_t.public_id OR t.retailer_id::text = ret_t.retailer_code OR t.retailer_ref_id = ret_t.retailer_ref_id OR t.user_ref_id = ret_t.retailer_ref_id)
         LEFT JOIN payout_workflow_transactions p ON p.transaction_number = t.txn_id
@@ -340,7 +341,8 @@ def build_unified_transactions_query(
             e.reversal_at AS reversal_datetime,
             'ENTERPRISE_PAYOUT' AS source_table,
             COALESCE(ret_e.public_id::text, e.retailer_id::text, '') AS retailer_id,
-            COALESCE(ret_e.retailer_code, '') AS retailer_code
+            COALESCE(ret_e.retailer_code, '') AS retailer_code,
+            COALESCE(ret_e.store_name, ret_e.owner_name, ret_e.legal_name, '') AS retailer_name
         FROM enterprise_payout_transactions e
         LEFT JOIN retailer ret_e ON (e.retailer_id = ret_e.public_id OR e.retailer_id::text = ret_e.retailer_code)
         LEFT JOIN customer c2 ON e.customer_id = c2.public_id
@@ -400,7 +402,8 @@ def build_unified_transactions_query(
             e_rev.reversal_at AS reversal_datetime,
             'ENTERPRISE_PAYOUT_REVERSAL' AS source_table,
             COALESCE(ret_erev.public_id::text, e_rev.retailer_id::text, '') AS retailer_id,
-            COALESCE(ret_erev.retailer_code, '') AS retailer_code
+            COALESCE(ret_erev.retailer_code, '') AS retailer_code,
+            COALESCE(ret_erev.store_name, ret_erev.owner_name, ret_erev.legal_name, '') AS retailer_name
         FROM enterprise_payout_transactions e_rev
         LEFT JOIN retailer ret_erev ON (e_rev.retailer_id = ret_erev.public_id OR e_rev.retailer_id::text = ret_erev.retailer_code)
         LEFT JOIN customer c2_rev ON e_rev.customer_id = c2_rev.public_id
@@ -466,7 +469,8 @@ def build_unified_transactions_query(
             CASE WHEN UPPER(p.status) = 'REVERSED' OR p.transaction_number LIKE 'REV-%' THEN p.completed_at ELSE NULL END AS reversal_datetime,
             'WORKFLOW_TXN' AS source_table,
             COALESCE(ret_p.public_id::text, p.retailer_id::text, '') AS retailer_id,
-            COALESCE(ret_p.retailer_code, '') AS retailer_code
+            COALESCE(ret_p.retailer_code, '') AS retailer_code,
+            COALESCE(ret_p.store_name, ret_p.owner_name, ret_p.legal_name, '') AS retailer_name
         FROM payout_workflow_transactions p
         LEFT JOIN retailer ret_p ON (p.retailer_id = ret_p.public_id OR p.retailer_id::text = ret_p.retailer_code)
         LEFT JOIN customer c3 ON p.customer_id = c3.public_id
@@ -537,7 +541,8 @@ def build_unified_transactions_query(
             NULL AS reversal_datetime,
             'STANDALONE_LEDGER' AS source_table,
             COALESCE(ret4.public_id::text, l4.account_number, '') AS retailer_id,
-            COALESCE(ret4.retailer_code, '') AS retailer_code
+            COALESCE(ret4.retailer_code, '') AS retailer_code,
+            COALESCE(ret4.store_name, ret4.owner_name, ret4.legal_name, '') AS retailer_name
         FROM transaction_ledger_entries l4
         LEFT JOIN retailer ret4 ON (l4.account_number = ret4.public_id::text OR l4.account_number = ret4.retailer_code)
         WHERE l4.account_type = 'RETAILER_WALLET'
@@ -925,6 +930,9 @@ async def list_enterprise_transactions_report(
             "provider_txn_id": str(d.get("provider_txn_id") or ""),
             "provider_ref": ref_id,
             "channel": str(d.get("channel") or "RETAILER_PORTAL"),
+            "retailer_name": str(d.get("retailer_name") or ""),
+            "retailer_code": str(d.get("retailer_code") or ""),
+            "retailer_id": str(d.get("retailer_id") or ""),
         })
 
     return {

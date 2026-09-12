@@ -40,7 +40,7 @@ async def get_recent_notifications(
     Scoped by tenant & user isolation with automatic graceful fallback.
     """
     u_id_str = user_id or payload.get("sub")
-    t_id_str = tenant_id or payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+    t_id_str = tenant_id or payload.get("tenant_id")
 
     # If retailer code is passed (e.g. RET-10928), resolve to retailer public_id
     u_uuid = None
@@ -57,12 +57,25 @@ async def get_recent_notifications(
                 pass
 
     if not u_uuid or str(u_uuid) == "00000000-0000-0000-0000-000000000000":
-        u_uuid = uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e")  # Default to active retailer
+        return {"status": "SUCCESS", "unread_count": 0, "total": 0, "data": []}
 
-    try:
-        t_uuid = uuid.UUID(str(t_id_str))
-    except Exception:
-        t_uuid = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+    t_uuid = None
+    if t_id_str:
+        try:
+            t_uuid = uuid.UUID(str(t_id_str))
+        except Exception:
+            pass
+
+    if not t_uuid and u_uuid:
+        from app.infrastructure.db.models import RetailerModel
+        from app.infrastructure.db.auth_models import AuthUserModel
+        ret_t = (await db.execute(select(RetailerModel.tenant_id).where(RetailerModel.public_id == u_uuid).limit(1))).scalar_one_or_none()
+        if ret_t:
+            t_uuid = ret_t
+        else:
+            auth_t = (await db.execute(select(AuthUserModel.tenant_id).where(AuthUserModel.user_id == u_uuid).limit(1))).scalar_one_or_none()
+            if auth_t:
+                t_uuid = auth_t
 
     formatted_data = []
 
@@ -93,18 +106,11 @@ async def get_recent_notifications(
     # 2. Fallback to ORM query if SP didn't return or errored
     if not formatted_data:
         filters = [
-            or_(
-                UserNotificationAlertModel.user_id == u_uuid,
-                UserNotificationAlertModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000001"),
-                UserNotificationAlertModel.user_id == uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e"),
-            ),
-            or_(
-                UserNotificationAlertModel.tenant_id == t_uuid,
-                UserNotificationAlertModel.tenant_id == uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8"),
-                UserNotificationAlertModel.tenant_id == uuid.UUID("00000000-0000-0000-0000-000000000001")
-            ),
+            UserNotificationAlertModel.user_id == u_uuid,
             UserNotificationAlertModel.is_deleted == False
         ]
+        if t_uuid:
+            filters.append(UserNotificationAlertModel.tenant_id == t_uuid)
         if unread_only:
             filters.append(UserNotificationAlertModel.is_read == False)
 
@@ -223,12 +229,25 @@ async def mark_all_notifications_read(
                 pass
 
     if not u_uuid or str(u_uuid) == "00000000-0000-0000-0000-000000000000":
-        u_uuid = uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e")
+        return {"status": "SUCCESS", "message": "No active user notifications to mark."}
 
-    try:
-        t_uuid = uuid.UUID(str(tenant_id or payload.get("tenant_id", "547aa7bb-a790-4fe2-bd5b-27214ed176c8")))
-    except Exception:
-        t_uuid = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+    t_id_str = tenant_id or payload.get("tenant_id")
+    t_uuid = None
+    if t_id_str:
+        try:
+            t_uuid = uuid.UUID(str(t_id_str))
+        except Exception:
+            pass
+    if not t_uuid and u_uuid:
+        from app.infrastructure.db.models import RetailerModel
+        from app.infrastructure.db.auth_models import AuthUserModel
+        ret_t = (await db.execute(select(RetailerModel.tenant_id).where(RetailerModel.public_id == u_uuid).limit(1))).scalar_one_or_none()
+        if ret_t:
+            t_uuid = ret_t
+        else:
+            auth_t = (await db.execute(select(AuthUserModel.tenant_id).where(AuthUserModel.user_id == u_uuid).limit(1))).scalar_one_or_none()
+            if auth_t:
+                t_uuid = auth_t
 
     # Call Stored Procedure: sp_mark_all_notifications_read
     try:
@@ -240,18 +259,15 @@ async def mark_all_notifications_read(
     except Exception as sp_err:
         print("[notifications.py] SP mark_all_notifications_read error:", sp_err)
         # Fallback ORM
+        conds = [
+            UserNotificationAlertModel.user_id == u_uuid,
+            UserNotificationAlertModel.is_read == False
+        ]
+        if t_uuid:
+            conds.append(UserNotificationAlertModel.tenant_id == t_uuid)
         stmt = (
             update(UserNotificationAlertModel)
-            .where(
-                and_(
-                    or_(
-                        UserNotificationAlertModel.user_id == u_uuid,
-                        UserNotificationAlertModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000001"),
-                        UserNotificationAlertModel.user_id == uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e"),
-                    ),
-                    UserNotificationAlertModel.is_read == False
-                )
-            )
+            .where(and_(*conds))
             .values(is_read=True, updated_date=func.now())
         )
         await db.execute(stmt)

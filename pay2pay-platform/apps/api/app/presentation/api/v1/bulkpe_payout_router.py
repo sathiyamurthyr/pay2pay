@@ -87,21 +87,20 @@ async def initiate_bulkpe_payout(
             stmt = select(RetailerModel).where(RetailerModel.retailer_code == str(ret_identifier).strip().upper(), RetailerModel.is_deleted == False)
             ret_obj = (await db.execute(stmt)).scalars().first()
 
-    # 4. Fallback to primary active platform retailer P2P-R404667
     if not ret_obj:
-        stmt = select(RetailerModel).where(RetailerModel.retailer_code == "P2P-R404667", RetailerModel.is_deleted == False)
-        ret_obj = (await db.execute(stmt)).scalars().first()
-    if not ret_obj:
-        stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == 24, RetailerModel.is_deleted == False)
-        ret_obj = (await db.execute(stmt)).scalars().first()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authenticated retailer identity not found. Please log in again."
+        )
 
-    retailer_uuid = ret_obj.public_id if ret_obj else uuid.UUID("e238fb8b-beb3-4cd4-862b-319b5d05d24e")
-    tenant_uuid = (ret_obj.tenant_id if ret_obj and ret_obj.tenant_id else None) or req.tenant_id or uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
-    if isinstance(tenant_uuid, str):
+    retailer_uuid = ret_obj.public_id
+    raw_tenant = ret_obj.tenant_id or req.tenant_id
+    tenant_uuid = None
+    if raw_tenant:
         try:
-            tenant_uuid = uuid.UUID(tenant_uuid)
+            tenant_uuid = uuid.UUID(str(raw_tenant))
         except Exception:
-            tenant_uuid = uuid.UUID("547aa7bb-a790-4fe2-bd5b-27214ed176c8")
+            tenant_uuid = None
 
     return await BulkPePayoutEngine.process_payout(
         db=db,

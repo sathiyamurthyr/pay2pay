@@ -97,6 +97,14 @@ async def resolve_auth_context(request: Request, db: AsyncSession) -> AuthContex
 
     payload = decode_access_token(token)
     if not payload:
+        try:
+            import jwt
+            from app.core.config import settings
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        except Exception:
+            payload = None
+
+    if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"success": False, "error_code": "UNAUTHORIZED", "message": "Invalid or expired authentication token"}
@@ -282,7 +290,7 @@ def validate_transaction_report_params(
     wallet_filter: Optional[str],
     sort_by: Optional[str],
     sort_order: Optional[str]
-) -> Tuple[datetime, datetime, str, str]:
+) -> Tuple[Optional[datetime], Optional[datetime], str, str]:
     """
     Validates query parameters for Transaction Report API.
     Raises 400 Bad Request on invalid values.
@@ -299,10 +307,11 @@ def validate_transaction_report_params(
             detail={"success": False, "error_code": "INVALID_LIMIT", "message": "Limit parameter must be between 1 and 100"}
         )
 
-    now_ist = datetime.now(IST)
+    start_dt: Optional[datetime] = None
+    end_dt: Optional[datetime] = None
 
-    # Date validation: default TODAY
-    if from_date and from_date.strip():
+    # Date validation: If empty, None, or 'ALL', leave start_dt / end_dt as None (returns all records)
+    if from_date and from_date.strip() and from_date.strip().upper() not in ("ALL", "NONE", "NULL", "UNDEFINED"):
         try:
             start_dt = datetime.strptime(from_date.strip(), "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=IST).astimezone(timezone.utc)
         except ValueError:
@@ -310,10 +319,8 @@ def validate_transaction_report_params(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"success": False, "error_code": "INVALID_DATE", "message": "Invalid from_date. Expected format: YYYY-MM-DD"}
             )
-    else:
-        start_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0, tzinfo=IST).astimezone(timezone.utc)
 
-    if to_date and to_date.strip():
+    if to_date and to_date.strip() and to_date.strip().upper() not in ("ALL", "NONE", "NULL", "UNDEFINED"):
         try:
             end_dt = datetime.strptime(to_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
         except ValueError:
@@ -321,10 +328,8 @@ def validate_transaction_report_params(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"success": False, "error_code": "INVALID_DATE", "message": "Invalid to_date. Expected format: YYYY-MM-DD"}
             )
-    else:
-        end_dt = datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
 
-    if start_dt > end_dt:
+    if start_dt and end_dt and start_dt > end_dt:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"success": False, "error_code": "INVALID_DATE", "message": "from_date cannot be later than to_date"}
@@ -465,45 +470,61 @@ async def get_transaction_report(
     elif auth_ctx.user_type == "SD":
         effective_user_ref_id = auth_ctx.super_distributor_ref_id or -1
 
+    # Company scoping:
+    # Only enforce company_ref_id if explicitly requested in query parameters OR for company-admin roles.
+    # For a RETAILER, their transactions belong to them across all company IDs (e.g. payout vs recharge vs topup) - do NOT filter out retailer's own transactions by company.
+    effective_company_ref_id = None
+    if request.query_params.get("company_ref_id"):
+        try:
+            effective_company_ref_id = int(request.query_params["company_ref_id"])
+        except (ValueError, TypeError):
+            pass
+    elif auth_ctx.user_type not in ("RETAILER", "DISTRIBUTOR", "SD"):
+        effective_company_ref_id = company_ref_id
+
     rm_ref_id = auth_ctx.regional_manager_ref_id
 
-    # Format from_date and to_date as YYYY-MM-DD
-    from_d_str = start_dt.strftime("%Y-%m-%d")
-    to_d_str = end_dt.strftime("%Y-%m-%d")
-
-    # Dynamic Count Query
+    # Dynamic Count & Summary Query
     where_clauses = [
         "COALESCE(t.tenant_ref_id, ret.tenant_ref_id, 1) = :tenant_ref_id",
         "(t.is_deleted IS NULL OR t.is_deleted = FALSE)",
-        "(t.is_active IS NULL OR t.is_active = TRUE)",
-        "t.created_at >= :start_dt",
-        "t.created_at <= :end_dt"
+        "(t.is_active IS NULL OR t.is_active = TRUE)"
     ]
     count_params: Dict[str, Any] = {
         "tenant_ref_id": tenant_ref_id,
-        "start_dt": start_dt,
-        "end_dt": end_dt
     }
 
-    if company_ref_id is not None:
+    if start_dt is not None:
+        where_clauses.append("t.created_at >= :start_dt")
+        count_params["start_dt"] = start_dt
+
+    if end_dt is not None:
+        where_clauses.append("t.created_at <= :end_dt")
+        count_params["end_dt"] = end_dt
+
+    if effective_company_ref_id is not None:
         where_clauses.append("COALESCE(t.company_ref_id, ret.company_ref_id, 1) = :company_ref_id")
-        count_params["company_ref_id"] = company_ref_id
+        count_params["company_ref_id"] = effective_company_ref_id
 
     if effective_user_ref_id is not None:
-        where_clauses.append("t.user_ref_id = :user_ref_id")
-        count_params["user_ref_id"] = effective_user_ref_id
+        if auth_ctx.user_type == "RETAILER":
+            where_clauses.append("(t.user_ref_id = :user_ref_id AND t.user_type_ref_id = 2)")
+            count_params["user_ref_id"] = effective_user_ref_id
+        else:
+            where_clauses.append("t.user_ref_id = :user_ref_id")
+            count_params["user_ref_id"] = effective_user_ref_id
 
     if rm_ref_id is not None:
         where_clauses.append("COALESCE(t.regional_manager_ref_id, ret.regional_manager_ref_id) = :rm_ref_id")
         count_params["rm_ref_id"] = rm_ref_id
 
-    if effective_user_type_ref_id is not None:
-        where_clauses.append("t.user_type_ref_id = :user_type_ref_id")
-        count_params["user_type_ref_id"] = effective_user_type_ref_id
-        count_params["user_type_ref_id"] = effective_user_type_ref_id
-    elif effective_user_type_code is not None:
-        where_clauses.append("UPPER(COALESCE(t.user_type, 'RETAILER')) = :user_type_val")
-        count_params["user_type_val"] = effective_user_type_code.upper()
+    if auth_ctx.user_type != "RETAILER":
+        if effective_user_type_ref_id is not None:
+            where_clauses.append("t.user_type_ref_id = :user_type_ref_id")
+            count_params["user_type_ref_id"] = effective_user_type_ref_id
+        elif effective_user_type_code is not None:
+            where_clauses.append("UPPER(COALESCE(t.user_type, 'RETAILER')) = :user_type_val")
+            count_params["user_type_val"] = effective_user_type_code.upper()
 
     if service and service.strip().upper() != "ALL":
         where_clauses.append("UPPER(t.service_name) = :service_val")
@@ -540,23 +561,44 @@ async def get_transaction_report(
         )""")
         count_params["search_val"] = f"%{search.strip()}%"
 
-    count_sql = f"""
-    SELECT COUNT(*) 
+    summary_sql = f"""
+    SELECT 
+        COUNT(*) AS total_transactions,
+        COALESCE(SUM(t.amount), 0.0) AS total_volume,
+        COALESCE(SUM(CASE WHEN UPPER(t.entry_type) IN ('CREDIT', 'CR') THEN t.amount ELSE 0.0 END), 0.0) AS total_credit,
+        COALESCE(SUM(CASE WHEN UPPER(t.entry_type) IN ('DEBIT', 'DR') THEN t.amount ELSE 0.0 END), 0.0) AS total_debit,
+        COALESCE(SUM(CASE WHEN UPPER(t.status) = 'SUCCESS' THEN 1 ELSE 0 END), 0) AS successful_transactions,
+        COALESCE(SUM(CASE WHEN UPPER(t.status) IN ('PENDING', 'PROCESSING', 'INITIATED') THEN 1 ELSE 0 END), 0) AS pending_transactions,
+        COALESCE(SUM(CASE WHEN UPPER(t.status) = 'FAILED' THEN 1 ELSE 0 END), 0) AS failed_transactions,
+        COALESCE(SUM(CASE WHEN UPPER(t.status) IN ('REVERSED', 'REFUNDED') THEN 1 ELSE 0 END), 0) AS reversed_transactions
     FROM public.transactions t
-    LEFT JOIN public.retailer ret ON (ret.public_id = t.retailer_id OR (ret.retailer_ref_id = t.user_ref_id AND t.user_type_ref_id = 2) OR ret.retailer_ref_id = t.retailer_ref_id)
+    LEFT JOIN public.retailer ret ON (ret.retailer_ref_id = t.user_ref_id AND t.user_type_ref_id = 2)
     LEFT JOIN public.company c ON c.company_ref_id = COALESCE(t.company_ref_id, ret.company_ref_id)
     WHERE {" AND ".join(where_clauses)};
     """
 
-    count_res = await db.execute(text(count_sql), count_params)
-    total_records = int(count_res.scalar() or 0)
+    summary_res = await db.execute(text(summary_sql), count_params)
+    summary_row = summary_res.fetchone()
+    total_records = int(summary_row[0] if summary_row else 0)
     total_pages = math.ceil(total_records / limit) if total_records > 0 else 0
+
+    summary_data = {
+        "total_transactions": total_records,
+        "total_volume": round_curr(summary_row[1] if summary_row else 0),
+        "total_credit": round_curr(summary_row[2] if summary_row else 0),
+        "total_debit": round_curr(summary_row[3] if summary_row else 0),
+        "successful_transactions": int(summary_row[4] if summary_row else 0),
+        "pending_transactions": int(summary_row[5] if summary_row else 0),
+        "failed_transactions": int(summary_row[6] if summary_row else 0),
+        "reversed_transactions": int(summary_row[7] if summary_row else 0),
+    }
 
     if total_records == 0:
         return {
             "success": True,
             "message": "No transactions found",
             "data": [],
+            "summary": summary_data,
             "pagination": {
                 "page": page,
                 "limit": limit,
@@ -565,15 +607,19 @@ async def get_transaction_report(
             }
         }
 
+    now_ist = datetime.now(IST)
+    sp_from_date = start_dt.astimezone(IST).date() if start_dt is not None else date(2000, 1, 1)
+    sp_to_date = end_dt.astimezone(IST).date() if end_dt is not None else (now_ist.date() + timedelta(days=1))
+
     sp_params = {
         "tenant_ref_id": tenant_ref_id,
-        "company_ref_id": company_ref_id,
+        "company_ref_id": effective_company_ref_id,
         "user_ref_id": effective_user_ref_id,
         "rm_ref_id": rm_ref_id,
-        "user_type_ref_id": effective_user_type_ref_id,
+        "user_type_ref_id": 2 if auth_ctx.user_type == "RETAILER" else effective_user_type_ref_id,
         "user_type": effective_user_type_code,
-        "from_date": start_dt.astimezone(IST).date(),
-        "to_date": end_dt.astimezone(IST).date(),
+        "from_date": sp_from_date,
+        "to_date": sp_to_date,
         "service": service.strip().upper() if service and service.strip().upper() != "ALL" else None,
         "wallet": wallet.strip().upper() if wallet and wallet.strip().upper() != "ALL" else None,
         "entry": eff_entry.strip().upper() if eff_entry and eff_entry.strip().upper() != "ALL" else None,
@@ -656,6 +702,7 @@ async def get_transaction_report(
         "success": True,
         "message": "Transaction report retrieved successfully",
         "data": output_items,
+        "summary": summary_data,
         "pagination": {
             "page": page,
             "limit": limit,

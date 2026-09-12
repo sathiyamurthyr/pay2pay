@@ -80,6 +80,7 @@ async def create_user(
 @router.get("", response_model=List[UserResponse])
 async def list_users(
     tenant_id: uuid.UUID = Depends(get_current_tenant_id),
+    current_user: AdminUserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     _: bool = require_permission("read:user")
 ):
@@ -87,6 +88,9 @@ async def list_users(
     Lists admin users via PostgreSQL Stored Procedure sp_list_admin_users.
     """
     users = await UserService.list_users(db, tenant_id)
+    user_type = (getattr(current_user, "user_type", "") or "").upper()
+    if not users and user_type in ("PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN"):
+        users = await UserService.list_users(db, None)
     return [UserResponse(**u) if isinstance(u, dict) else u for u in users]
 
 

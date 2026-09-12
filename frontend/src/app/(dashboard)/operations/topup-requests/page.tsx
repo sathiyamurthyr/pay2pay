@@ -2,7 +2,8 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import {
   ArrowLeftRight,
@@ -29,11 +30,42 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  Wallet,
+  PlusCircle,
+  ShieldAlert,
+  ArrowUpRight,
+  Lock,
+  Building2,
+  CheckSquare,
+  Square,
+  ListChecks,
+  AlertTriangle,
+  Receipt,
+  MinusSquare,
 } from "lucide-react";
+
+interface AdminOperationWallet {
+  id: string;
+  public_id: string;
+  service_code: string;
+  service_name: string;
+  vendor_code: string;
+  vendor_name: string;
+  wallet_number: string;
+  available_balance: number;
+  hold_balance: number;
+  currency: string;
+  is_active: boolean;
+  updated_date?: string;
+}
 
 interface TopupItem {
   id: string;
   topup_request_id: string;
+  retailer_name?: string;
+  retailer_code?: string;
+  retailer_mobile?: string;
+  retailer_email?: string;
   requested_amount: number;
   approved_amount?: number;
   received_amount?: number;
@@ -42,10 +74,30 @@ interface TopupItem {
   gst_amount?: number;
   charges?: number;
   mdr_config_id?: string;
+  card_type?: string;
+  card_last_4?: string;
+  card_last_4_masked?: string;
   currency: string;
   payment_reference: string;
   payment_method: string;
   payment_mode?: string;
+  service?: string;
+  service_code?: string;
+  vendor?: string;
+  vendor_code?: string;
+  admin_wallet_id?: string;
+  admin_available_balance?: number;
+  pos_type?: string;
+  is_pos_t1?: boolean;
+  is_pos_instant?: boolean;
+  is_date_eligible?: boolean;
+  is_balance_eligible?: boolean;
+  is_wallet_eligible?: boolean;
+  can_approve?: boolean;
+  approval_block_reason?: string;
+  shortfall_amount?: number;
+  request_date?: string;
+  current_business_date?: string;
   payment_date?: string;
   slip_id?: string;
   slip_url?: string;
@@ -77,6 +129,20 @@ interface TopupItem {
   };
 }
 
+function isPosT1Mode(item: TopupItem | null | undefined): boolean {
+  if (!item) return false;
+  if (item.is_pos_t1 !== undefined) return item.is_pos_t1;
+  const mode = (item.payment_mode || item.payment_method || "").toUpperCase().replace(/[\s\-_+]/g, "");
+  return mode.includes("T1") || mode === "POST1" || mode === "POS_T1";
+}
+
+function isPosInstantMode(item: TopupItem | null | undefined): boolean {
+  if (!item) return false;
+  if (item.is_pos_instant !== undefined) return item.is_pos_instant;
+  const mode = (item.payment_mode || item.payment_method || "").toUpperCase().replace(/[\s\-_+]/g, "");
+  return mode.includes("INSTANT") || mode === "POSINSTANT" || mode === "POS_INSTANT";
+}
+
 interface Metrics {
   pending_count: number;
   pending_volume: number;
@@ -99,11 +165,25 @@ const REJECTION_PRESETS = [
   "Incorrect Beneficiary Account",
 ];
 
-export default function AdminTopupRequestsPage() {
+function AdminTopupRequestsContent() {
+  const searchParams = useSearchParams();
+  const deepLinkRequestId = searchParams?.get("requestId") || searchParams?.get("id") || searchParams?.get("search");
+  const [deepLinkHandled, setDeepLinkHandled] = useState<boolean>(false);
+
   const [requests, setRequests] = useState<TopupItem[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [metricsLoading, setMetricsLoading] = useState<boolean>(true);
+
+  // Admin Service + Vendor Operation Wallets
+  const [adminWallets, setAdminWallets] = useState<AdminOperationWallet[]>([]);
+  const [walletsLoading, setWalletsLoading] = useState<boolean>(true);
+  const [showAddFundModal, setShowAddFundModal] = useState<boolean>(false);
+  const [selectedWalletForFund, setSelectedWalletForFund] = useState<AdminOperationWallet | null>(null);
+  const [fundAmount, setFundAmount] = useState<string>("50000");
+  const [fundRemarks, setFundRemarks] = useState<string>("Operational fund added for POS payout settlement");
+  const [addingFund, setAddingFund] = useState<boolean>(false);
+  const [fundSuccessMsg, setFundSuccessMsg] = useState<string | null>(null);
 
   // Filters & Pagination
   const [search, setSearch] = useState<string>("");
@@ -115,6 +195,21 @@ export default function AdminTopupRequestsPage() {
   const [pageSize, setPageSize] = useState<number>(15);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
+
+  // Multi-Select Operations State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkApproveModal, setShowBulkApproveModal] = useState<boolean>(false);
+  const [showBulkRejectModal, setShowBulkRejectModal] = useState<boolean>(false);
+  const [bulkAdminNotes, setBulkAdminNotes] = useState<string>("Bulk approval verified against payment proof & Admin wallet");
+  const [bulkRejectionReason, setBulkRejectionReason] = useState<string>("Invalid UTR / Reference Number");
+  const [bulkProcessing, setBulkProcessing] = useState<boolean>(false);
+  const [bulkProgress, setBulkProgress] = useState<{
+    current: number;
+    total: number;
+    successCount: number;
+    failCount: number;
+    errors: string[];
+  }>({ current: 0, total: 0, successCount: 0, failCount: 0, errors: [] });
 
   // Drawer & Action Modals
   const [selectedRequest, setSelectedRequest] = useState<TopupItem | null>(null);
@@ -134,6 +229,77 @@ export default function AdminTopupRequestsPage() {
   const [rotation, setRotation] = useState<number>(0);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Slip OCR & Bank Reference Verification State
+  const [ocrLoading, setOcrLoading] = useState<boolean>(false);
+  const [ocrResult, setOcrResult] = useState<{
+    status: string;
+    is_match: boolean | null;
+    retailer_reference: string;
+    detected_reference: string | null;
+    detected_candidates: string[];
+    message: string;
+    extracted_text_preview?: string;
+  } | null>(null);
+
+  const runSlipOcr = useCallback(async (requestId: string) => {
+    if (!requestId) return;
+    setOcrLoading(true);
+    try {
+      const res = await api.get(`/api/v1/topup/requests/${requestId}/ocr-verify`);
+      if (res.data) {
+        setOcrResult(res.data);
+      }
+    } catch (err) {
+      console.warn("Slip OCR verification check failed:", err);
+      setOcrResult({
+        status: "ERROR",
+        is_match: null,
+        retailer_reference: selectedRequest?.payment_reference || "",
+        detected_reference: null,
+        detected_candidates: [],
+        message: "Automatic slip scan failed to reach service. Please verify manually."
+      });
+    } finally {
+      setOcrLoading(false);
+    }
+  }, [selectedRequest?.payment_reference]);
+
+  useEffect(() => {
+    if (drawerOpen && selectedRequest) {
+      if (selectedRequest.slip_url) {
+        runSlipOcr(selectedRequest.id || selectedRequest.topup_request_id);
+      } else {
+        setOcrResult({
+          status: "NO_SLIP",
+          is_match: null,
+          retailer_reference: selectedRequest.payment_reference || "",
+          detected_reference: null,
+          detected_candidates: [],
+          message: "No payment proof slip attached to this request."
+        });
+        setOcrLoading(false);
+      }
+    } else if (!drawerOpen) {
+      setOcrResult(null);
+      setOcrLoading(false);
+    }
+  }, [drawerOpen, selectedRequest?.id, selectedRequest?.topup_request_id, selectedRequest?.slip_url, runSlipOcr]);
+
+  // Fetch Admin Operation Wallets (Dynamic Service + Vendor mapping)
+  const fetchAdminWallets = useCallback(async () => {
+    setWalletsLoading(true);
+    try {
+      const res = await api.get("/api/v1/admin/operation-wallets");
+      if (res.data?.success) {
+        setAdminWallets(res.data.items || []);
+      }
+    } catch (err) {
+      console.error("Failed to load admin operation wallets:", err);
+    } finally {
+      setWalletsLoading(false);
+    }
+  }, []);
 
   // Fetch Dashboard Real-Time Metrics
   const fetchMetrics = useCallback(async () => {
@@ -196,12 +362,137 @@ export default function AdminTopupRequestsPage() {
   }, [page, pageSize, statusFilter, datePreset, search, customStartDate, customEndDate]);
 
   useEffect(() => {
+    fetchAdminWallets();
     fetchMetrics();
-  }, [fetchMetrics]);
+  }, [fetchAdminWallets, fetchMetrics]);
 
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
+
+  // Deep-Link auto-selection & drawer trigger
+  useEffect(() => {
+    if (deepLinkRequestId && !deepLinkHandled) {
+      setSearch(deepLinkRequestId);
+      async function loadDeepLinkRequest() {
+        try {
+          const cleanTarget = (deepLinkRequestId || "").trim();
+          let matched: TopupItem | null = null;
+
+          // 1. First attempt authoritative single-item lookup
+          try {
+            const singleRes = await api.get(`/api/v1/topup/requests/${encodeURIComponent(cleanTarget)}`);
+            if (singleRes.data?.data && (singleRes.data.data.id || singleRes.data.data.topup_request_id)) {
+              matched = singleRes.data.data;
+            } else if (singleRes.data && (singleRes.data.id || singleRes.data.topup_request_id)) {
+              matched = singleRes.data;
+            }
+          } catch {}
+
+          // 2. Fallback to list search with requestId & search query params
+          if (!matched) {
+            const res = await api.get("/api/v1/topup/requests", {
+              params: { search: cleanTarget, requestId: cleanTarget, page: 1, page_size: 10 }
+            });
+            if (res.data?.success && res.data.items?.length > 0) {
+              const lowerTarget = cleanTarget.toLowerCase();
+              matched = res.data.items.find(
+                (it: TopupItem) =>
+                  (it.topup_request_id && it.topup_request_id.toLowerCase() === lowerTarget) ||
+                  (it.id && it.id.toLowerCase() === lowerTarget) ||
+                  (it.payment_reference && it.payment_reference.toLowerCase() === lowerTarget) ||
+                  (it.transaction_reference && it.transaction_reference.toLowerCase() === lowerTarget)
+              ) || res.data.items[0];
+            }
+          }
+
+          if (matched) {
+            setSelectedRequest(matched);
+            setDrawerOpen(true);
+            setDeepLinkHandled(true);
+            // Prepend the matched top-up into the table list so it's directly visible
+            setRequests((prev) => {
+              if (prev.some((r) => r.id === matched!.id || r.topup_request_id === matched!.topup_request_id)) {
+                return prev;
+              }
+              return [matched!, ...prev];
+            });
+          }
+        } catch (err) {
+          console.warn("[TOPUP_DEEP_LINK] Error loading deep-linked request:", err);
+        }
+      }
+      loadDeepLinkRequest();
+    }
+  }, [deepLinkRequestId, deepLinkHandled]);
+
+  // Derived Multi-Select collections
+  const selectedItems = useMemo(() => {
+    return requests.filter((r) => selectedIds.has(r.id));
+  }, [requests, selectedIds]);
+
+  const selectedPendingItems = useMemo(() => {
+    return selectedItems.filter((r) => r.status === "PENDING" || r.status === "UNDER_REVIEW");
+  }, [selectedItems]);
+
+  const selectedEligibleItems = useMemo(() => {
+    return selectedPendingItems.filter((r) => r.can_approve === true);
+  }, [selectedPendingItems]);
+
+  const selectedIneligibleItems = useMemo(() => {
+    return selectedPendingItems.filter((r) => r.can_approve === false);
+  }, [selectedPendingItems]);
+
+  const selectedTotalAmount = useMemo(() => {
+    return selectedItems.reduce((sum, r) => sum + (r.requested_amount || 0), 0);
+  }, [selectedItems]);
+
+  const selectedEligibleAmount = useMemo(() => {
+    return selectedEligibleItems.reduce((sum, r) => {
+      const amt = r.received_amount !== undefined && r.received_amount !== null
+        ? r.received_amount
+        : (r.approved_amount !== undefined && r.approved_amount !== null ? r.approved_amount : r.requested_amount);
+      return sum + amt;
+    }, 0);
+  }, [selectedEligibleItems]);
+
+  const isAllSelected = requests.length > 0 && requests.every((r) => selectedIds.has(r.id));
+  const isSomeSelected = selectedIds.size > 0 && !isAllSelected;
+
+  // Toggle selection functions
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(requests.map((r) => r.id)));
+    }
+  };
+
+  const toggleSelectAllPending = () => {
+    const pendingOnPage = requests.filter((r) => r.status === "PENDING" || r.status === "UNDER_REVIEW");
+    const newSet = new Set(selectedIds);
+    const allPendingSelected = pendingOnPage.length > 0 && pendingOnPage.every((r) => newSet.has(r.id));
+    if (allPendingSelected) {
+      pendingOnPage.forEach((r) => newSet.delete(r.id));
+    } else {
+      pendingOnPage.forEach((r) => newSet.add(r.id));
+    }
+    setSelectedIds(newSet);
+  };
+
+  const toggleSelectItem = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -224,8 +515,71 @@ export default function AdminTopupRequestsPage() {
     setDrawerOpen(true);
   };
 
+  // Quick Topup Admin Service+Vendor Wallet
+  const handleAddFund = async () => {
+    if (!selectedWalletForFund) return;
+    const amount = parseFloat(fundAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid fund amount greater than 0");
+      return;
+    }
+    setAddingFund(true);
+    setFundSuccessMsg(null);
+    try {
+      const res = await api.put(`/api/v1/admin/operation-wallets/${selectedWalletForFund.id}/topup`, {
+        amount: amount,
+        remarks: fundRemarks || undefined
+      });
+      if (res.data?.success) {
+        setFundSuccessMsg(`Successfully added ₹${amount.toLocaleString("en-IN")} to ${selectedWalletForFund.service_name} - ${selectedWalletForFund.vendor_name} wallet.`);
+        fetchAdminWallets();
+        fetchRequests();
+        setTimeout(() => {
+          setShowAddFundModal(false);
+          setFundSuccessMsg(null);
+        }, 1500);
+      } else {
+        alert(res.data?.message || "Failed to add funds.");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.detail || err.message || "Failed to add funds to Admin wallet.");
+    } finally {
+      setAddingFund(false);
+    }
+  };
+
+  const openFundModalForWallet = (w: AdminOperationWallet) => {
+    setSelectedWalletForFund(w);
+    setFundAmount("50000");
+    setFundRemarks(`Operational fund added for ${w.service_name} (${w.vendor_name}) payout clearance`);
+    setShowAddFundModal(true);
+  };
+
+  // Primary Payout Wallet: UrbanRupee (Priority 1) -> Utkal (Priority 2) -> active Payout wallet
+  const primaryPayoutWallet = useMemo(() => {
+    return (
+      adminWallets.find(
+        (w) =>
+          w.service_code.toUpperCase() === "PAYOUT" &&
+          (w.vendor_code.toUpperCase().includes("URBAN") || w.vendor_name.toUpperCase().includes("URBAN"))
+      ) ||
+      adminWallets.find(
+        (w) =>
+          w.service_code.toUpperCase() === "PAYOUT" &&
+          (w.vendor_code.toUpperCase().includes("UTKAL") || w.vendor_name.toUpperCase().includes("UTKAL"))
+      ) ||
+      adminWallets.find((w) => w.service_code.toUpperCase() === "PAYOUT") ||
+      adminWallets[0]
+    );
+  }, [adminWallets]);
+
+  // Single Approve
   const handleApprove = async () => {
     if (!selectedRequest) return;
+    if (selectedRequest.can_approve === false) {
+      setActionErrorMsg(selectedRequest.approval_block_reason || "Approval blocked due to policy validation.");
+      return;
+    }
     setApproving(true);
     setActionSuccessMsg(null);
     setActionErrorMsg(null);
@@ -237,24 +591,22 @@ export default function AdminTopupRequestsPage() {
         return;
       }
 
-      const res = await api.post(`/api/v1/topup/requests/${selectedRequest.id}/approve`, {
+      const res = await api.put(`/api/v1/topup/requests/${selectedRequest.id}/approve`, {
         approved_amount: amount,
         received_amount: amount,
         admin_notes: adminNotes.trim() || undefined,
       });
 
       if (res.data?.success) {
-        const emailNotice = res.data.email_sent
-          ? ` • Confirmation email sent to ${res.data.recipient_email || selectedRequest.retailer?.email || "retailer"}`
-          : "";
         setActionSuccessMsg(
           `Successfully approved & credited Received Amount ₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })} to ${
             selectedRequest.retailer?.retailer_name || "Retailer"
-          }${emailNotice}`
+          }.`
         );
         setShowApproveModal(false);
         fetchRequests();
         fetchMetrics();
+        fetchAdminWallets();
         setSelectedRequest((prev) =>
           prev
             ? {
@@ -285,6 +637,7 @@ export default function AdminTopupRequestsPage() {
     }
   };
 
+  // Single Reject
   const handleReject = async () => {
     if (!selectedRequest) return;
     if (!rejectionReason.trim()) {
@@ -326,12 +679,118 @@ export default function AdminTopupRequestsPage() {
     }
   };
 
-  const exportToCSV = () => {
-    if (!requests || requests.length === 0) return;
+  // ── MULTI-SELECT BATCH APPROVE EXECUTION ──
+  const handleExecuteBulkApprove = async () => {
+    if (selectedEligibleItems.length === 0) return;
+    setBulkProcessing(true);
+    const total = selectedEligibleItems.length;
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    setBulkProgress({ current: 0, total, successCount: 0, failCount: 0, errors: [] });
+
+    for (let i = 0; i < total; i++) {
+      const item = selectedEligibleItems[i];
+      const approveAmount = item.received_amount !== undefined && item.received_amount !== null
+        ? item.received_amount
+        : (item.approved_amount !== undefined && item.approved_amount !== null ? item.approved_amount : item.requested_amount);
+
+      try {
+        const res = await api.put(`/api/v1/topup/requests/${item.id}/approve`, {
+          approved_amount: approveAmount,
+          received_amount: approveAmount,
+          admin_notes: bulkAdminNotes.trim() || undefined,
+        });
+
+        if (res.data?.success) {
+          successCount++;
+        } else {
+          failCount++;
+          errors.push(`${item.topup_request_id}: ${res.data?.message || "Approval failed"}`);
+        }
+      } catch (err: any) {
+        failCount++;
+        const msg = err.response?.data?.detail || err.message || "Error processing request";
+        errors.push(`${item.topup_request_id}: ${msg}`);
+      }
+
+      setBulkProgress({
+        current: i + 1,
+        total,
+        successCount,
+        failCount,
+        errors,
+      });
+    }
+
+    setBulkProcessing(false);
+    fetchRequests();
+    fetchMetrics();
+    fetchAdminWallets();
+    clearSelection();
+  };
+
+  // ── MULTI-SELECT BATCH REJECT EXECUTION ──
+  const handleExecuteBulkReject = async () => {
+    if (selectedPendingItems.length === 0) return;
+    if (!bulkRejectionReason.trim()) {
+      alert("A rejection reason is required for bulk rejection.");
+      return;
+    }
+    setBulkProcessing(true);
+    const total = selectedPendingItems.length;
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    setBulkProgress({ current: 0, total, successCount: 0, failCount: 0, errors: [] });
+
+    for (let i = 0; i < total; i++) {
+      const item = selectedPendingItems[i];
+      try {
+        const res = await api.post(`/api/v1/topup/requests/${item.id}/reject`, {
+          rejection_reason: bulkRejectionReason.trim(),
+          admin_notes: bulkAdminNotes.trim() || undefined,
+        });
+
+        if (res.data?.success) {
+          successCount++;
+        } else {
+          failCount++;
+          errors.push(`${item.topup_request_id}: ${res.data?.message || "Rejection failed"}`);
+        }
+      } catch (err: any) {
+        failCount++;
+        const msg = err.response?.data?.detail || err.message || "Error processing rejection";
+        errors.push(`${item.topup_request_id}: ${msg}`);
+      }
+
+      setBulkProgress({
+        current: i + 1,
+        total,
+        successCount,
+        failCount,
+        errors,
+      });
+    }
+
+    setBulkProcessing(false);
+    fetchRequests();
+    fetchMetrics();
+    clearSelection();
+  };
+
+  const exportToCSV = (onlySelected = false) => {
+    const exportData = onlySelected ? selectedItems : requests;
+    if (!exportData || exportData.length === 0) return;
+
     const headers = [
       "Request ID",
       "Retailer Code",
       "Retailer Name",
+      "Service",
+      "Vendor",
       "Mobile",
       "Requested Amount",
       "MDR (%)",
@@ -339,17 +798,19 @@ export default function AdminTopupRequestsPage() {
       "GST Amount",
       "Total Deductions",
       "Received Amount",
-      "Approved Amount",
+      "Admin Wallet Balance",
       "Payment Method",
+      "Card Type",
+      "Card Last 4",
       "Payment Reference (UTR)",
-      "Payment Date",
       "Status",
+      "Approval Eligibility",
       "Submitted At",
       "Approved At",
       "Transaction Reference",
     ];
 
-    const rows = requests.map((r) => {
+    const rows = exportData.map((r) => {
       const rMdrPct = r.mdr_percentage !== undefined && r.mdr_percentage !== null
         ? r.mdr_percentage
         : (r.requested_amount > 0
@@ -364,20 +825,24 @@ export default function AdminTopupRequestsPage() {
 
       return [
         r.topup_request_id,
-        r.retailer?.retailer_code || "",
-        `"${(r.retailer?.retailer_name || "").replace(/"/g, '""')}"`,
-        r.retailer?.mobile_number || "",
+        r.retailer?.retailer_code || r.retailer_code || "",
+        `"${(r.retailer?.retailer_name || r.retailer_name || "").replace(/"/g, '""')}"`,
+        r.service || "Payout",
+        r.vendor || "Utkal",
+        r.retailer?.mobile_number || r.retailer_mobile || "",
         r.requested_amount,
         rMdrPct > 0 ? `${rMdrPct.toFixed(2)}%` : "0%",
         r.mdr_charge || (r.charges ? (r.gst_amount ? r.charges - r.gst_amount : r.charges) : 0),
         r.gst_amount || 0,
         deductions,
         received,
-        r.approved_amount || "",
+        r.admin_available_balance || 0,
         r.payment_method,
+        r.card_type || "",
+        r.card_last_4 ? `****${r.card_last_4}` : (r.card_last_4_masked || ""),
         `"${(r.payment_reference || "").replace(/"/g, '""')}"`,
-        r.payment_date ? new Date(r.payment_date).toISOString().split("T")[0] : "",
         r.status,
+        r.can_approve ? "Eligible" : `Blocked (${r.approval_block_reason || "Rule Lock"})`,
         r.submitted_at ? new Date(r.submitted_at).toISOString() : "",
         r.approved_at ? new Date(r.approved_at).toISOString() : "",
         r.transaction_reference || "",
@@ -394,44 +859,35 @@ export default function AdminTopupRequestsPage() {
     document.body.removeChild(link);
   };
 
-  const simulatedClosingBalance =
-    (selectedRequest?.retailer?.current_wallet_balance || 0) + (parseFloat(customApprovedAmount) || 0);
-
-  const selectedMdrPct = selectedRequest
-    ? (selectedRequest.mdr_percentage !== undefined && selectedRequest.mdr_percentage !== null
-        ? selectedRequest.mdr_percentage
-        : (selectedRequest.requested_amount > 0
-            ? (selectedRequest.mdr_charge !== undefined && selectedRequest.mdr_charge !== null
-                ? (selectedRequest.mdr_charge / selectedRequest.requested_amount) * 100
-                : (selectedRequest.charges ? ((selectedRequest.gst_amount ? selectedRequest.charges - selectedRequest.gst_amount : selectedRequest.charges) / selectedRequest.requested_amount) * 100 : 0))
-            : 0))
-    : 0;
-
   return (
-    <div className="space-y-6 pb-16 font-sans min-h-screen bg-slate-50 text-slate-900 p-2 sm:p-4">
+    <div className="space-y-5 pb-24 font-sans min-h-screen bg-slate-50 text-slate-900">
       {/* ── Top Header Cockpit ── */}
       <div className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6 shadow-xs relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-xs shrink-0">
+            <div className="h-12 w-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-xs shrink-0">
               <ArrowLeftRight className="h-6 w-6" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-                  Retailer Topup Requests
+                  POS Top-up Request Approvals
                 </h1>
                 <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold flex items-center gap-1.5 shadow-xs">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Verified Settlement Engine
+                  Dual-Rule Governance
                 </span>
                 <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-bold flex items-center gap-1.5">
-                  <Layers className="h-3.5 w-3.5" />
-                  Double-Entry Ledger
+                  <ShieldAlert className="h-3.5 w-3.5 text-blue-600" />
+                  Service + Vendor Wallet
+                </span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 font-bold flex items-center gap-1.5">
+                  <ListChecks className="h-3.5 w-3.5 text-purple-600" />
+                  Multi-Select Operations
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1 max-w-3xl leading-relaxed">
-                Review payment slips, verify bank reference UTRs, adjust approval amounts, and atomically credit retailer wallets with instant transaction ledger posting.
+                Approve POS machine top-up requests with multi-select bulk operations, enforcing <strong>POS Approval Date Rule</strong> (Instant vs T+1) and <strong>Admin Service/Vendor Wallet Balance</strong>.
               </p>
             </div>
           </div>
@@ -440,26 +896,133 @@ export default function AdminTopupRequestsPage() {
             {/* Manual Refresh Button */}
             <button
               onClick={() => {
+                fetchAdminWallets();
                 fetchMetrics();
                 fetchRequests();
               }}
-              disabled={loading || metricsLoading}
-              className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl transition-all shadow-xs active:scale-95 disabled:opacity-50"
+              disabled={loading || metricsLoading || walletsLoading}
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl transition-all shadow-xs active:scale-95 disabled:opacity-50 cursor-pointer"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading || metricsLoading ? "animate-spin text-amber-600" : "text-slate-500"}`} />
-              Refresh
+              <RefreshCw className={`h-3.5 w-3.5 ${loading || metricsLoading || walletsLoading ? "animate-spin text-amber-600" : "text-slate-500"}`} />
+              Refresh Data
             </button>
 
             {/* Export CSV */}
             <button
-              onClick={exportToCSV}
+              onClick={() => exportToCSV(false)}
               disabled={requests.length === 0}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               <Download className="h-3.5 w-3.5" />
               Export CSV
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* ── ADMIN SERVICE + VENDOR OPERATION WALLET CARDS (LIVE DATABASE MAPPING) ── */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white border border-slate-700/60 shadow-lg relative overflow-hidden">
+        <div className="absolute -right-10 -bottom-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 -top-10 w-60 h-60 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/80 pb-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-400">
+              <Wallet className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-white tracking-tight">
+                  ADMIN OPERATION WALLET
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  LIVE DB MAPPING
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Top-up request approval balance validation is mapped dynamically by <strong>Service + Vendor</strong>.
+              </p>
+            </div>
+          </div>
+
+          {primaryPayoutWallet && (
+            <button
+              onClick={() => openFundModalForWallet(primaryPayoutWallet)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              <PlusCircle className="h-4 w-4" />
+              + Add Fund to Admin Wallet
+            </button>
+          )}
+        </div>
+
+        {/* Dynamic Service + Vendor Wallets Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {adminWallets.map((w) => {
+            const isUrbanRupee =
+              w.service_code.toUpperCase() === "PAYOUT" &&
+              (w.vendor_code.toUpperCase().includes("URBAN") || w.vendor_name.toUpperCase().includes("URBAN"));
+            const isPrimaryPayout =
+              isUrbanRupee ||
+              (!adminWallets.some(
+                (x) =>
+                  x.service_code.toUpperCase() === "PAYOUT" &&
+                  (x.vendor_code.toUpperCase().includes("URBAN") || x.vendor_name.toUpperCase().includes("URBAN"))
+              ) &&
+                w.service_code.toUpperCase() === "PAYOUT" &&
+                w.vendor_name.toUpperCase().includes("UTKAL"));
+
+            return (
+              <div
+                key={w.id}
+                className={`rounded-xl p-4 border transition-all ${
+                  isUrbanRupee
+                    ? "bg-slate-800/95 border-emerald-500/70 shadow-lg ring-1 ring-emerald-500/40"
+                    : isPrimaryPayout
+                    ? "bg-slate-800/90 border-amber-400/50 shadow-md ring-1 ring-amber-400/30"
+                    : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">
+                      Service: <strong className="text-amber-400">{w.service_name}</strong>
+                    </span>
+                  </div>
+                  {isUrbanRupee ? (
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 flex items-center gap-1 shadow-xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      PRIORITY 1 POS
+                    </span>
+                  ) : isPrimaryPayout ? (
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                      PRIMARY POS
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
+                  <span>Vendor: <strong className="text-white">{w.vendor_name}</strong></span>
+                  <span className="text-[10px] text-slate-400 font-mono">{w.wallet_number}</span>
+                </div>
+
+                <div className="mt-2.5 flex items-baseline justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Available Balance</span>
+                    <div className="text-xl font-black text-emerald-400 tracking-tight font-mono">
+                      ₹{w.available_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => openFundModalForWallet(w)}
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-700/80 hover:bg-slate-600 text-amber-300 border border-slate-600 transition-colors cursor-pointer"
+                  >
+                    + Add Fund
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -585,7 +1148,7 @@ export default function AdminTopupRequestsPage() {
         </div>
       </div>
 
-      {/* ── Filters & Search Control Bar ── */}
+      {/* ── Filters & Multi-Select Quick Operations Bar ── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
           {/* Search Box */}
@@ -593,7 +1156,7 @@ export default function AdminTopupRequestsPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by Request ID, Retailer Code, Name, UTR / Ref..."
+              placeholder="Search by Request ID, Retailer Code, Name, UTR / Ref, Vendor..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -604,7 +1167,7 @@ export default function AdminTopupRequestsPage() {
             {search && (
               <button
                 onClick={() => setSearch("")}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -626,7 +1189,7 @@ export default function AdminTopupRequestsPage() {
                     setStatusFilter(st.id);
                     setPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                     statusFilter === st.id
                       ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-extrabold"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
@@ -661,7 +1224,7 @@ export default function AdminTopupRequestsPage() {
                     setDatePreset(preset.id);
                     setPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                     datePreset === preset.id
                       ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-extrabold"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
@@ -673,6 +1236,52 @@ export default function AdminTopupRequestsPage() {
             </div>
           </div>
         </div>
+
+        {/* Multi-Select Toolbar Strip */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleSelectAll}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 font-bold text-slate-700 transition-colors cursor-pointer"
+            >
+              {isAllSelected ? (
+                <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+              ) : isSomeSelected ? (
+                <MinusSquare className="w-3.5 h-3.5 text-blue-600" />
+              ) : (
+                <Square className="w-3.5 h-3.5 text-slate-400" />
+              )}
+              <span>{isAllSelected ? "Deselect Page" : "Select Page"}</span>
+            </button>
+
+            <button
+              onClick={toggleSelectAllPending}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 font-bold text-amber-800 transition-colors cursor-pointer"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
+              <span>Select Pending on Page</span>
+            </button>
+
+            {selectedIds.size > 0 && (
+              <button
+                onClick={clearSelection}
+                className="text-slate-500 hover:text-slate-800 font-medium underline px-1 cursor-pointer"
+              >
+                Clear ({selectedIds.size})
+              </button>
+            )}
+          </div>
+
+          <div className="text-xs text-slate-500">
+            {selectedIds.size > 0 ? (
+              <span className="font-bold text-blue-700">
+                {selectedIds.size} request{selectedIds.size > 1 ? "s" : ""} selected • ₹{selectedTotalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+            ) : (
+              <span>Showing {requests.length} of {totalCount.toLocaleString()} records</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ── Table & Data View ── */}
@@ -681,18 +1290,30 @@ export default function AdminTopupRequestsPage() {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50/90 text-slate-700 uppercase font-black text-[11px] tracking-wider border-b border-slate-200">
               <tr>
+                {/* Multi-select Header Checkbox */}
+                <th className="py-3.5 px-3 w-10 text-center sticky left-0 bg-slate-50/95 z-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(el) => { if (el) el.indeterminate = isSomeSelected; }}
+                    onChange={toggleSelectAll}
+                    className="rounded text-blue-600 focus:ring-0 cursor-pointer h-4 w-4"
+                  />
+                </th>
                 <th className="py-3.5 px-4 font-black">REQUEST ID</th>
                 <th className="py-3.5 px-4 font-black">RETAILER</th>
+                <th className="py-3.5 px-4 font-black">SERVICE / VENDOR</th>
                 <th className="py-3.5 px-4 font-black">MODE &amp; REF</th>
                 <th className="py-3.5 px-4 text-right font-black">
-                  TRANSACTION AMOUNT (₹) <span className="text-rose-500">*</span>
+                  TRANSACTION AMOUNT (₹)
                 </th>
-                <th className="py-3.5 px-4 text-right font-black">MDR % / CHARGES</th>
+                <th className="py-3.5 px-4 text-right font-black">MDR / CHARGES</th>
                 <th className="py-3.5 px-4 text-right font-black text-emerald-800">
                   RECEIVED AMOUNT (₹)
                 </th>
-                <th className="py-3.5 px-4 text-center font-black">SLIP PROOF</th>
-                <th className="py-3.5 px-4 font-black">SUBMITTED AT</th>
+                <th className="py-3.5 px-4 text-center font-black">ADMIN WALLET BAL</th>
+                <th className="py-3.5 px-4 text-center font-black">ELIGIBILITY</th>
+                <th className="py-3.5 px-4 text-center font-black">SLIP</th>
                 <th className="py-3.5 px-4 text-center font-black">STATUS</th>
                 <th className="py-3.5 px-4 text-right font-black">ACTION</th>
               </tr>
@@ -700,15 +1321,15 @@ export default function AdminTopupRequestsPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-20 text-center text-slate-500">
+                  <td colSpan={13} className="py-20 text-center text-slate-500">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-amber-500" />
                     <p className="font-bold text-sm text-slate-800">Loading live topup requests...</p>
-                    <p className="text-xs text-slate-400 mt-1">Directly retrieving PostgreSQL database records</p>
+                    <p className="text-xs text-slate-400 mt-1">Directly querying PostgreSQL database with dual-rule governance</p>
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-20 text-center text-slate-500">
+                  <td colSpan={13} className="py-20 text-center text-slate-500">
                     <AlertCircle className="h-10 w-10 text-slate-400 mx-auto mb-2" />
                     <p className="font-bold text-base text-slate-800">No topup requests found</p>
                     <p className="text-xs text-slate-400 mt-1">Try adjusting your search query or status filters.</p>
@@ -716,14 +1337,16 @@ export default function AdminTopupRequestsPage() {
                 </tr>
               ) : (
                 requests.map((item) => {
-                  const initialLetter = (item.retailer?.retailer_name || "R").charAt(0).toUpperCase();
+                  const initialLetter = (item.retailer?.retailer_name || item.retailer_name || "R").charAt(0).toUpperCase();
                   const isApproved = item.status === "APPROVED";
                   const isPending = item.status === "PENDING" || item.status === "UNDER_REVIEW";
                   const isRejected = item.status === "REJECTED";
+                  const isSelected = selectedIds.has(item.id);
                   const totalDeductions = (item.charges || item.mdr_charge || 0) + (item.gst_amount || 0);
                   const displayReceived = item.received_amount !== undefined && item.received_amount !== null
                     ? item.received_amount
                     : (item.approved_amount !== undefined && item.approved_amount !== null ? item.approved_amount : item.requested_amount);
+
                   const itemMdrPct = item.mdr_percentage !== undefined && item.mdr_percentage !== null
                     ? item.mdr_percentage
                     : (item.requested_amount > 0
@@ -732,22 +1355,45 @@ export default function AdminTopupRequestsPage() {
                             : (item.charges ? ((item.gst_amount ? item.charges - item.gst_amount : item.charges) / item.requested_amount) * 100 : 0))
                         : 0);
 
+                  const isT1 = isPosT1Mode(item);
+
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-slate-50/90 transition-colors group cursor-pointer"
                       onClick={() => openDrawer(item)}
+                      className={`cursor-pointer transition-colors group ${
+                        isSelected
+                          ? "bg-blue-50/80 hover:bg-blue-50"
+                          : selectedRequest?.id === item.id
+                          ? "bg-amber-50/50"
+                          : "hover:bg-slate-50/80"
+                      }`}
                     >
+                      {/* Row Checkbox */}
+                      <td
+                        className={`py-3.5 px-3 text-center sticky left-0 z-10 ${
+                          isSelected ? "bg-blue-50/90" : "bg-white group-hover:bg-slate-50"
+                        }`}
+                        onClick={(e) => toggleSelectItem(item.id, e)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => toggleSelectItem(item.id, e as any)}
+                          className="rounded text-blue-600 focus:ring-0 cursor-pointer h-4 w-4"
+                        />
+                      </td>
+
                       {/* Request ID */}
-                      <td className="py-3.5 px-4 font-mono font-medium text-slate-800">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 tracking-wide">{item.topup_request_id}</span>
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span>{item.topup_request_id}</span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               copyToClipboard(item.topup_request_id, item.id);
                             }}
-                            className="text-slate-400 hover:text-amber-600 p-1 rounded-md hover:bg-slate-100 transition-colors"
+                            className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                             title="Copy Request ID"
                           >
                             {copiedId === item.id ? (
@@ -757,121 +1403,147 @@ export default function AdminTopupRequestsPage() {
                             )}
                           </button>
                         </div>
-                        {item.transaction_reference && (
-                          <div className="text-[10px] text-emerald-700 font-mono mt-0.5">
-                            Ref: {item.transaction_reference}
-                          </div>
-                        )}
                       </td>
 
-                      {/* Retailer Details */}
+                      {/* Retailer Info */}
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-xl bg-amber-100/70 border border-amber-200 flex items-center justify-center font-black text-amber-800 text-sm shrink-0">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-8 w-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
                             {initialLetter}
                           </div>
                           <div>
                             <div className="font-bold text-slate-900 text-sm group-hover:text-amber-600 transition-colors">
-                              {item.retailer?.retailer_name || "Unknown Retailer"}
+                              {item.retailer?.retailer_name || item.retailer_name || "Unknown Retailer"}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mt-0.5">
                               <span className="font-mono font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200" title="Retailer Code">
-                                {item.retailer?.retailer_code || "RET-N/A"}
+                                {item.retailer?.retailer_code || item.retailer_code || "RET-N/A"}
                               </span>
-                              {item.retailer?.account_status && item.retailer.account_status !== "ACTIVE" && (
-                                <span
-                                  className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
-                                    item.retailer.account_status === "HOLD"
-                                      ? "bg-amber-100 text-amber-900 border-amber-300"
-                                      : item.retailer.account_status === "REJECTED"
-                                      ? "bg-rose-100 text-rose-900 border-rose-300"
-                                      : "bg-slate-100 text-slate-800 border-slate-300"
-                                  }`}
-                                  title={`Retailer KYC / Onboarding Status: ${item.retailer.account_status}`}
-                                >
-                                  KYC: {item.retailer.account_status}
-                                </span>
-                              )}
-                              {item.retailer?.mobile_number && (
+                              {(item.retailer?.mobile_number || item.retailer_mobile) && (
                                 <span className="text-slate-600 font-medium flex items-center gap-1">
                                   <Phone className="h-3 w-3 text-slate-400" />
-                                  {item.retailer.mobile_number}
-                                </span>
-                              )}
-                              {item.retailer?.current_wallet_balance !== undefined && (
-                                <span className="text-slate-600 font-semibold">
-                                  • Bal: <strong className="text-emerald-700">₹{item.retailer.current_wallet_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+                                  {item.retailer?.mobile_number || item.retailer_mobile}
                                 </span>
                               )}
                             </div>
                           </div>
+                        </div>
+                      </td>
+
+                      {/* Service & Vendor Mapping */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            <span className="text-amber-600 font-black">{item.service || "Payout"}</span>
+                            <span className="text-slate-400">·</span>
+                            <span className="text-slate-900 font-extrabold">{item.vendor || "Utkal"}</span>
+                          </span>
                         </div>
                       </td>
 
                       {/* Payment Mode & Reference */}
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5 font-medium text-slate-700">
-                          <span className="px-2 py-0.5 text-[10px] font-black rounded bg-slate-100 text-slate-700 border border-slate-200">
-                            {item.payment_mode || item.payment_method || "POS - Instant"}
-                          </span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                            <span
+                              className={`px-2 py-0.5 text-[10px] font-black rounded border ${
+                                isT1
+                                  ? "bg-purple-50 text-purple-800 border-purple-200"
+                                  : "bg-slate-100 text-slate-700 border-slate-200"
+                              }`}
+                            >
+                              {item.payment_mode || item.payment_method || "POS - Instant"}
+                            </span>
+                          </div>
+                          {item.card_type && (
+                            <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-600">
+                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded font-bold text-[10px]">
+                                {item.card_type}
+                              </span>
+                              {(item.card_last_4 || item.card_last_4_masked) && (
+                                <span className="text-slate-700 font-bold">
+                                  {item.card_last_4 ? `****${item.card_last_4}` : item.card_last_4_masked}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           <span
-                            className="font-mono text-slate-800 truncate max-w-[140px] font-bold"
+                            className="font-mono text-slate-800 truncate max-w-[130px] font-bold text-[11px]"
                             title={item.payment_reference}
                           >
                             {item.payment_reference || "No Ref"}
                           </span>
                         </div>
-                        {item.payment_date && (
-                          <div className="text-[11px] text-slate-500 mt-0.5">
-                            {new Date(item.payment_date).toLocaleDateString("en-IN")}
-                          </div>
-                        )}
                       </td>
 
-                      {/* Transaction Amount (Gross Requested) */}
+                      {/* Transaction Amount */}
                       <td className="py-3.5 px-4 text-right font-black text-slate-900 text-sm tracking-wide">
                         ₹{item.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
 
-                      {/* MDR % / Deductions */}
+                      {/* MDR / Deductions */}
                       <td className="py-3.5 px-4 text-right font-medium">
                         {totalDeductions > 0 ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-1.5 justify-end">
-                              {itemMdrPct > 0 && (
-                                <span className="text-[10px] font-black font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs" title={`Configured MDR Rate: ${itemMdrPct.toFixed(2)}%`}>
-                                  {itemMdrPct.toFixed(2)}%
-                                </span>
-                              )}
-                              <span className="text-amber-800 font-mono font-bold text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block">
-                                -₹{totalDeductions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-slate-500 block font-sans">
-                              {item.mdr_charge ? `MDR ₹${item.mdr_charge.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : ""} {item.gst_amount ? `+ GST` : "incl. GST"}
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-amber-800 font-mono font-bold text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block">
+                              -₹{totalDeductions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-sans">
+                              {itemMdrPct > 0 ? `${itemMdrPct.toFixed(2)}% MDR` : ""}
                             </span>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-end gap-0.5">
-                            {itemMdrPct > 0 && (
-                              <span className="text-[10px] font-black font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                                {itemMdrPct.toFixed(2)}%
-                              </span>
-                            )}
-                            <span className="text-slate-400 text-xs font-mono">₹0.00</span>
-                          </div>
+                          <span className="text-slate-400 text-xs font-mono">₹0.00</span>
                         )}
                       </td>
 
-                      {/* Received Amount (Net Credited / Creditable) */}
+                      {/* Received Amount */}
                       <td className="py-3.5 px-4 text-right font-black">
                         {isApproved ? (
                           <span className="text-emerald-700 text-sm bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-block font-mono">
                             ₹{displayReceived.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </span>
                         ) : (
-                          <span className="text-blue-700 text-sm bg-blue-50/90 px-2.5 py-1 rounded-lg border border-blue-200 inline-block font-mono font-bold" title="Received Amount (Editable upon approval)">
+                          <span className="text-blue-700 text-sm bg-blue-50/90 px-2.5 py-1 rounded-lg border border-blue-200 inline-block font-mono font-bold">
                             ₹{displayReceived.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Admin Wallet Available Balance */}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-mono font-bold text-xs text-slate-900">
+                            ₹{(item.admin_available_balance ?? primaryPayoutWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {item.vendor || "UrbanRupee"}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Approval Eligibility Badge */}
+                      <td className="py-3.5 px-4 text-center">
+                        {item.status !== "PENDING" ? (
+                          <span className="text-slate-400 text-[11px] font-medium">—</span>
+                        ) : item.can_approve ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                            Eligible
+                          </span>
+                        ) : item.is_date_eligible === false ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs" title={item.approval_block_reason}>
+                            <Lock className="h-3 w-3 text-amber-700" />
+                            POS T1 Locked
+                          </span>
+                        ) : item.is_balance_eligible === false ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-900 border border-rose-300 shadow-2xs" title={`Low Admin Balance. Shortfall: ₹${item.shortfall_amount || 0}`}>
+                            <AlertCircle className="h-3 w-3 text-rose-600" />
+                            Balance Low
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+                            Locked
                           </span>
                         )}
                       </td>
@@ -881,35 +1553,20 @@ export default function AdminTopupRequestsPage() {
                         {item.slip_url ? (
                           <button
                             onClick={() => openDrawer(item)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200 transition-all shadow-xs"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200 transition-all shadow-xs cursor-pointer"
                           >
                             <FileImage className="h-3.5 w-3.5 text-amber-600" />
-                            View Slip
+                            Slip
                           </button>
                         ) : (
-                          <span className="text-slate-400 text-[11px] font-semibold">No Slip</span>
-                        )}
-                      </td>
-
-                      {/* Submitted At */}
-                      <td className="py-3.5 px-4 text-slate-500 text-[11px] whitespace-nowrap font-medium">
-                        {item.submitted_at ? (
-                          new Date(item.submitted_at).toLocaleString("en-IN", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        ) : (
-                          "N/A"
+                          <span className="text-slate-400 text-[11px] font-semibold">—</span>
                         )}
                       </td>
 
                       {/* Status Badge */}
                       <td className="py-3.5 px-4 text-center">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black border uppercase tracking-wider ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black border uppercase tracking-wider ${
                             isPending
                               ? "bg-amber-50 text-amber-800 border-amber-200 shadow-xs"
                               : isApproved
@@ -919,9 +1576,9 @@ export default function AdminTopupRequestsPage() {
                               : "bg-slate-100 text-slate-600 border-slate-200"
                           }`}
                         >
-                          {isPending && <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />}
-                          {isApproved && <Check className="h-3.5 w-3.5 text-emerald-600" />}
-                          {isRejected && <X className="h-3.5 w-3.5 text-rose-600" />}
+                          {isPending && <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />}
+                          {isApproved && <Check className="h-3 w-3 text-emerald-600" />}
+                          {isRejected && <X className="h-3 w-3 text-rose-600" />}
                           {item.status}
                         </span>
                       </td>
@@ -930,14 +1587,14 @@ export default function AdminTopupRequestsPage() {
                       <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => openDrawer(item)}
-                          className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-xs ${
+                          className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-xs cursor-pointer ${
                             isPending
                               ? "bg-amber-500 hover:bg-amber-600 text-slate-950 font-black shadow-amber-500/20"
                               : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
                           }`}
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          {isPending ? "Verify & Review" : "View Details"}
+                          <span>Review</span>
                         </button>
                       </td>
                     </tr>
@@ -948,67 +1605,410 @@ export default function AdminTopupRequestsPage() {
           </table>
         </div>
 
-        {/* ── Pagination ── */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-slate-50/90 border-t border-slate-200 text-xs text-slate-600 font-medium">
-          <div>
-            Showing <strong className="text-slate-900">{requests.length}</strong> of{" "}
-            <strong className="text-slate-900">{totalCount}</strong> topup requests
+        {/* ── Pagination Footer ── */}
+        <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
+          <div className="text-xs text-slate-500 flex items-center gap-2">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              {[15, 30, 50, 100].map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+            <span className="ml-2">
+              Showing {requests.length > 0 ? (page - 1) * pageSize + 1 : 0} to{" "}
+              {Math.min(page * pageSize, totalCount)} of {totalCount} records
+            </span>
           </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
-              className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 disabled:opacity-40 transition-colors font-bold shadow-xs flex items-center gap-1"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs cursor-pointer"
             >
-              <ChevronLeft className="h-3.5 w-3.5" />
-              Previous
+              <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="px-3.5 py-1 bg-white border border-slate-200 rounded-xl font-black text-slate-900 shadow-xs">
+            <span className="text-xs font-bold text-slate-700 px-2">
               Page {page} of {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
-              className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 disabled:opacity-40 transition-colors font-bold shadow-xs flex items-center gap-1"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs cursor-pointer"
             >
-              Next
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Slide-Over Inspection & Verification Drawer ── */}
-      {drawerOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-fadeIn"
-            onClick={() => setDrawerOpen(false)}
-          />
+      {/* ─────────────────────────────────────────────────────────────
+          FLOATING BOTTOM MULTI-SELECT BULK ACTIONS DOCK
+      ───────────────────────────────────────────────────────────── */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-6 duration-200 max-w-4xl w-[92%]">
+          <div className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl p-3.5 sm:px-5 sm:py-4 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-3.5">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="h-9 w-9 rounded-xl bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-blue-400 shrink-0 font-black text-sm">
+                {selectedIds.size}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-white tracking-wide">
+                    {selectedIds.size} Request{selectedIds.size > 1 ? "s" : ""} Selected
+                  </span>
+                  <span className="text-xs font-bold text-emerald-400 font-mono">
+                    (₹{selectedTotalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-slate-300 mt-0.5">
+                  <span className="text-emerald-300 font-bold">
+                    ✓ {selectedEligibleItems.length} Eligible
+                  </span>
+                  {selectedIneligibleItems.length > 0 && (
+                    <span className="text-amber-300 font-bold">
+                      • {selectedIneligibleItems.length} Blocked
+                    </span>
+                  )}
+                  {selectedItems.length - selectedPendingItems.length > 0 && (
+                    <span className="text-slate-400">
+                      • {selectedItems.length - selectedPendingItems.length} Processed
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
 
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-4xl bg-white border-l border-slate-200 shadow-2xl flex flex-col justify-between text-slate-800">
+            <div className="flex flex-wrap items-center justify-end gap-2.5 w-full md:w-auto">
+              {/* Bulk Approve Button */}
+              <button
+                onClick={() => {
+                  setBulkAdminNotes("Bulk approval verified against payment proofs & Admin wallet");
+                  setShowBulkApproveModal(true);
+                }}
+                disabled={selectedEligibleItems.length === 0}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                title={selectedEligibleItems.length === 0 ? "No eligible pending requests selected" : "Bulk approve eligible requests"}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Bulk Approve ({selectedEligibleItems.length})</span>
+              </button>
+
+              {/* Bulk Reject Button */}
+              <button
+                onClick={() => {
+                  setBulkRejectionReason(REJECTION_PRESETS[0]);
+                  setShowBulkRejectModal(true);
+                }}
+                disabled={selectedPendingItems.length === 0}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                title="Bulk reject selected pending requests"
+              >
+                <XCircle className="h-4 w-4" />
+                <span>Bulk Reject ({selectedPendingItems.length})</span>
+              </button>
+
+              {/* Export Selected CSV */}
+              <button
+                onClick={() => exportToCSV(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Export</span>
+              </button>
+
+              {/* Clear Selection */}
+              <button
+                onClick={clearSelection}
+                className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title="Deselect All"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          BULK APPROVAL CONFIRMATION MODAL
+      ───────────────────────────────────────────────────────────── */}
+      {showBulkApproveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !bulkProcessing && setShowBulkApproveModal(false)} />
+          <div className="relative z-10 w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Bulk Approve Top-up Requests</h3>
+                  <p className="text-xs text-slate-500 font-medium">{selectedEligibleItems.length} requests ready for immediate credit</p>
+                </div>
+              </div>
+              {!bulkProcessing && (
+                <button
+                  onClick={() => setShowBulkApproveModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            {/* Financial Overview */}
+            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Eligible Requests Count:</span>
+                <span className="font-bold text-slate-900 text-sm">{selectedEligibleItems.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Total Credit Volume (Received Amount):</span>
+                <span className="font-mono font-black text-emerald-800 text-base">
+                  ₹{selectedEligibleAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-emerald-200/80">
+                <span className="text-slate-600">Primary Admin Operation Wallet:</span>
+                <span className="font-mono font-bold text-slate-900">
+                  {primaryPayoutWallet?.service_name || "Payout"} ({primaryPayoutWallet?.vendor_name || "UrbanRupee"}) • ₹{(primaryPayoutWallet?.available_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            {/* Ineligible notices if any */}
+            {selectedIneligibleItems.length > 0 && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span>{selectedIneligibleItems.length} Selected Request{selectedIneligibleItems.length > 1 ? "s" : ""} will be SKIPPED:</span>
+                </div>
+                <p className="text-[11px] text-amber-800 pl-5">
+                  Blocked by policy (e.g. POS T+1 calendar rule or low Admin balance). Only the {selectedEligibleItems.length} eligible requests will be approved.
+                </p>
+              </div>
+            )}
+
+            {/* Admin Notes Input */}
+            <div className="space-y-1.5 text-xs">
+              <label className="block text-slate-700 font-bold">Admin Audit Notes</label>
+              <textarea
+                value={bulkAdminNotes}
+                onChange={(e) => setBulkAdminNotes(e.target.value)}
+                disabled={bulkProcessing}
+                placeholder="Audit remarks for bulk settlement..."
+                className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 h-16 resize-none"
+              />
+            </div>
+
+            {/* Progress Display during batch run */}
+            {bulkProcessing && (
+              <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-slate-700 flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                    Processing {bulkProgress.current} of {bulkProgress.total}...
+                  </span>
+                  <span className="text-emerald-700 font-mono">
+                    {Math.round((bulkProgress.current / bulkProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-emerald-600 h-2 transition-all duration-200"
+                    style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Summary Results when finished */}
+            {!bulkProcessing && bulkProgress.total > 0 && (
+              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-xs">
+                <span className="font-bold text-slate-800">Results: </span>
+                <span className="text-emerald-700 font-bold">{bulkProgress.successCount} Approved</span>
+                {bulkProgress.failCount > 0 && (
+                  <span className="text-rose-700 font-bold ml-2">• {bulkProgress.failCount} Failed</span>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowBulkApproveModal(false)}
+                disabled={bulkProcessing}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteBulkApprove}
+                disabled={bulkProcessing || selectedEligibleItems.length === 0}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              >
+                {bulkProcessing ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Executing Bulk Approval...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Execute Bulk Approval ({selectedEligibleItems.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          BULK REJECTION CONFIRMATION MODAL
+      ───────────────────────────────────────────────────────────── */}
+      {showBulkRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !bulkProcessing && setShowBulkRejectModal(false)} />
+          <div className="relative z-10 w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                  <XCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Bulk Reject Top-up Requests</h3>
+                  <p className="text-xs text-slate-500 font-medium">{selectedPendingItems.length} pending requests to reject</p>
+                </div>
+              </div>
+              {!bulkProcessing && (
+                <button
+                  onClick={() => setShowBulkRejectModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Select Rejection Preset</label>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {REJECTION_PRESETS.map((reason) => (
+                    <button
+                      key={reason}
+                      onClick={() => setBulkRejectionReason(reason)}
+                      disabled={bulkProcessing}
+                      className={`w-full text-left p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                        bulkRejectionReason === reason
+                          ? "bg-rose-50 border-rose-400 text-rose-800 font-bold"
+                          : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Rejection Reason / Notes *</label>
+                <textarea
+                  value={bulkRejectionReason}
+                  onChange={(e) => setBulkRejectionReason(e.target.value)}
+                  disabled={bulkProcessing}
+                  placeholder="Provide reason for bulk rejection..."
+                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-rose-500 h-16 resize-none"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium">
+                ⚠️ Zero wallet deduction will occur. Requests will be marked REJECTED immediately.
+              </div>
+            </div>
+
+            {/* Progress Display */}
+            {bulkProcessing && (
+              <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-slate-700 flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-rose-600" />
+                    Rejecting {bulkProgress.current} of {bulkProgress.total}...
+                  </span>
+                  <span className="text-rose-700 font-mono">
+                    {Math.round((bulkProgress.current / bulkProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-rose-600 h-2 transition-all duration-200"
+                    style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowBulkRejectModal(false)}
+                disabled={bulkProcessing}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteBulkReject}
+                disabled={bulkProcessing || selectedPendingItems.length === 0 || !bulkRejectionReason.trim()}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              >
+                {bulkProcessing ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Processing Bulk Rejection...</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-4 w-4" />
+                    <span>Confirm Bulk Rejection ({selectedPendingItems.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Single Request Detailed Slide-Over Drawer ── */}
+      {drawerOpen && selectedRequest && (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-2xl bg-white shadow-2xl border-l border-slate-200 flex flex-col">
               {/* Drawer Header */}
-              <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                  <div className="h-10 w-10 rounded-xl bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center font-bold">
                     <ArrowLeftRight className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-black text-slate-900 font-mono">
+                      <h2 className="text-base font-black text-slate-900 font-mono">
                         {selectedRequest.topup_request_id}
                       </h2>
-                      <span
-                        className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase border ${
-                          selectedRequest.status === "PENDING"
-                            ? "bg-amber-50 text-amber-800 border-amber-200"
-                            : selectedRequest.status === "APPROVED"
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                            : "bg-rose-50 text-rose-800 border-rose-200"
-                        }`}
-                      >
+                      <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border ${
+                        selectedRequest.status === "PENDING"
+                          ? "bg-amber-50 text-amber-800 border-amber-200"
+                          : selectedRequest.status === "APPROVED"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : "bg-rose-50 text-rose-800 border-rose-200"
+                      }`}>
                         {selectedRequest.status}
                       </span>
                     </div>
@@ -1020,396 +2020,362 @@ export default function AdminTopupRequestsPage() {
 
                 <button
                   onClick={() => setDrawerOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Drawer Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Alert Messages */}
-                {actionSuccessMsg && (
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-3 shadow-xs">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                    <span>{actionSuccessMsg}</span>
-                  </div>
-                )}
-                {actionErrorMsg && (
-                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-3 shadow-xs">
-                    <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
-                    <span>{actionErrorMsg}</span>
-                  </div>
-                )}
+              {/* Action Banners */}
+              {actionSuccessMsg && (
+                <div className="p-4 bg-emerald-50 border-b border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>{actionSuccessMsg}</span>
+                </div>
+              )}
+              {actionErrorMsg && (
+                <div className="p-4 bg-rose-50 border-b border-rose-200 text-rose-900 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>{actionErrorMsg}</span>
+                </div>
+              )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Left Column: Proof Slip Image Viewer */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                        <FileImage className="h-4 w-4 text-amber-600" />
-                        Uploaded Payment Proof
-                      </span>
-                      {selectedRequest.slip_url && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setZoomLevel((z) => Math.min(3, z + 0.25))}
-                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                            title="Zoom In"
-                          >
-                            <ZoomIn className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setZoomLevel((z) => Math.max(0.75, z - 0.25))}
-                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                            title="Zoom Out"
-                          >
-                            <ZoomOut className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setRotation((r) => (r + 90) % 360)}
-                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                            title="Rotate 90°"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setFullscreenImage(selectedRequest.slip_url || null)}
-                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                            title="Fullscreen"
-                          >
-                            <Maximize2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="h-80 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center relative group p-2">
-                      {selectedRequest.slip_url ? (
-                        <div className="overflow-auto w-full h-full flex items-center justify-center">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={selectedRequest.slip_url}
-                            alt="Payment Slip Proof"
-                            style={{
-                              transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
-                              transition: "transform 0.2s ease-in-out",
-                            }}
-                            className="max-h-full max-w-full object-contain rounded-lg shadow-sm cursor-pointer"
-                            onClick={() => setFullscreenImage(selectedRequest.slip_url || null)}
-                          />
-                        </div>
-                      ) : (
-                        <div className="text-center text-slate-400">
-                          <FileImage className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                          <p className="text-xs font-bold text-slate-600">No physical slip attached</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">Retailer submitted reference without file</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {selectedRequest.slip_url && (
-                      <div className="flex items-center justify-between text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 font-mono">
-                        <span className="truncate max-w-[200px]" title={selectedRequest.slip_original_filename}>
-                          {selectedRequest.slip_original_filename || "payment_slip.jpg"}
-                        </span>
-                        <a
-                          href={selectedRequest.slip_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-amber-700 hover:text-amber-800 font-bold flex items-center gap-1"
-                        >
-                          <Download className="h-3 w-3" />
-                          Download Original
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right Column: Financial & Entity Audit */}
-                  <div className="space-y-4">
-                    {/* Retailer Profile Card */}
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                          Retailer Profile
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded border border-amber-200" title="Retailer Code">
-                            {selectedRequest.retailer?.retailer_code || "RET-N/A"}
-                          </span>
-                          {selectedRequest.retailer?.account_status && selectedRequest.retailer.account_status !== "ACTIVE" && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-900 border border-rose-300">
-                              KYC: {selectedRequest.retailer.account_status}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {selectedRequest.retailer?.account_status && selectedRequest.retailer.account_status !== "ACTIVE" && (
-                        <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 font-semibold flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                          <span>This retailer account is not approved (Status: <strong>{selectedRequest.retailer.account_status}</strong>). The account must be approved before funds can be credited.</span>
-                        </div>
-                      )}
-
-                      <div>
-                        <h4 className="text-base font-black text-slate-900">
-                          {selectedRequest.retailer?.retailer_name || "Unknown Retailer"}
-                        </h4>
-                        {selectedRequest.retailer?.mobile_number && (
-                          <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-1.5 font-medium">
-                            <Phone className="h-3.5 w-3.5 text-slate-400" />
-                            <span className="text-slate-800 font-bold">{selectedRequest.retailer.mobile_number}</span>
-                          </p>
-                        )}
-                        {selectedRequest.retailer?.company_name && (
-                          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
-                            <Store className="h-3.5 w-3.5 text-slate-400" />
-                            <span>{selectedRequest.retailer.company_name}</span>
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Current Wallet Balance */}
-                      <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between">
-                        <span className="text-xs text-slate-600 font-medium">Current Wallet Balance</span>
-                        <span className="text-sm font-black text-emerald-700">
-                          ₹{(selectedRequest.retailer?.current_wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Payment Details & Fee Breakdown Card */}
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                        Payment &amp; Calculation Breakdown
-                      </span>
-
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <span className="text-slate-500 block text-[10px] uppercase font-bold">Payment Method / Mode</span>
-                          <span className="font-bold text-slate-900 px-2 py-0.5 rounded bg-white border border-slate-200 inline-block mt-0.5">
-                            {selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[10px] uppercase font-bold">Payment Date</span>
-                          <span className="font-bold text-slate-900 block mt-0.5">
-                            {selectedRequest.payment_date
-                              ? new Date(selectedRequest.payment_date).toLocaleDateString("en-IN")
-                              : "N/A"}
-                          </span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-slate-500 block text-[10px] uppercase font-bold">UTR / Bank Reference</span>
-                          <span className="font-mono font-bold text-amber-800 text-sm block mt-0.5">
-                            {selectedRequest.payment_reference || "No Reference Provided"}
-                          </span>
-                        </div>
-
-                        {/* Amount & Fee Breakdown Summary */}
-                        <div className="col-span-2 p-3 bg-white rounded-xl border border-slate-200 space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-600 font-medium">Transaction Amount (Gross):</span>
-                            <span className="font-black text-slate-900">
-                              ₹{selectedRequest.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                          {(selectedRequest.charges || selectedRequest.mdr_charge || 0) > 0 && (
-                            <>
-                              <div className="flex items-center justify-between text-xs text-amber-800">
-                                <span className="flex items-center gap-1.5">
-                                  <span>MDR Fee:</span>
-                                  {selectedMdrPct > 0 && (
-                                    <span className="font-mono text-[10px] font-black bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded border border-amber-300">
-                                      {selectedMdrPct.toFixed(2)}%
-                                    </span>
-                                  )}
-                                </span>
-                                <span className="font-mono font-bold">
-                                  -₹{(selectedRequest.mdr_charge || (selectedRequest.gst_amount ? selectedRequest.charges! - selectedRequest.gst_amount : selectedRequest.charges) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                </span>
-                              </div>
-                              {selectedRequest.gst_amount ? (
-                                <div className="flex items-center justify-between text-xs text-amber-800">
-                                  <span>GST on MDR (18%):</span>
-                                  <span className="font-mono">
-                                    -₹{selectedRequest.gst_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              ) : null}
-                              <div className="flex items-center justify-between text-xs text-amber-900 font-bold pt-1 border-t border-slate-100">
-                                <span>Total Deductions:</span>
-                                <span className="font-mono">
-                                  -₹{((selectedRequest.charges || selectedRequest.mdr_charge || 0) + (selectedRequest.gst_amount || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                          <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-xs font-black">
-                            <span className="text-slate-700">Calculated Received Amount:</span>
-                            <span className="text-emerald-700 font-mono text-sm">
-                              ₹{(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        </div>
-
-                        {selectedRequest.retailer_remarks && (
-                          <div className="col-span-2 pt-1 border-t border-slate-200">
-                            <span className="text-slate-500 block text-[10px] uppercase font-bold">Retailer Remarks</span>
-                            <p className="text-xs text-slate-700 italic mt-0.5">
-                              &ldquo;{selectedRequest.retailer_remarks}&rdquo;
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Approve Amount & Live Balance Simulation Card */}
+              {/* Drawer Content */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                {/* Dual Governance Compliance Badge */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+                      <ShieldAlert className="h-4 w-4 text-blue-600" />
+                      Approval Governance Verification
+                    </span>
                     {selectedRequest.status === "PENDING" && (
-                      <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200 shadow-xs space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                            <Sparkles className="h-4 w-4 text-emerald-600" />
-                            Received Amount Configuration
-                          </span>
-                          <div className="flex items-center gap-2 text-[10px]">
-                            {selectedMdrPct > 0 && (
-                              <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                MDR: {selectedMdrPct.toFixed(2)}%
-                              </span>
-                            )}
-                            <span className="text-slate-600 font-medium">
-                              Txn Gross: <strong className="text-slate-900">₹{selectedRequest.requested_amount.toLocaleString("en-IN")}</strong>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Editable Received Amount Input */}
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                            <span>Received Amount to Credit (INR) *</span>
-                            {parseFloat(customApprovedAmount) !== (selectedRequest.received_amount || selectedRequest.requested_amount) && (
-                              <span className="text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
-                                ✏️ Custom Edited Amount
-                              </span>
-                            )}
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-emerald-700 text-sm">₹</span>
-                            <input
-                              type="number"
-                              step="any"
-                              value={customApprovedAmount}
-                              onChange={(e) => setCustomApprovedAmount(e.target.value)}
-                              placeholder="Enter received amount to credit"
-                              className="w-full pl-8 pr-4 py-2.5 bg-white border-2 border-emerald-300 rounded-xl text-base font-black text-emerald-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-mono shadow-xs"
-                            />
-                          </div>
-
-                          {/* Quick Adjust Buttons */}
-                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => setCustomApprovedAmount((selectedRequest.received_amount || selectedRequest.requested_amount).toString())}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                                parseFloat(customApprovedAmount) === (selectedRequest.received_amount || selectedRequest.requested_amount)
-                                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                              }`}
-                            >
-                              Received (₹{(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setCustomApprovedAmount(selectedRequest.requested_amount.toString())}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
-                                parseFloat(customApprovedAmount) === selectedRequest.requested_amount
-                                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                              }`}
-                            >
-                              Gross (₹{selectedRequest.requested_amount.toLocaleString("en-IN")})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setCustomApprovedAmount(((selectedRequest.received_amount || selectedRequest.requested_amount) / 2).toString())}
-                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
-                            >
-                              50%
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Admin Notes */}
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-700">
-                            Admin Approval Remarks / Reference (Optional)
-                          </label>
-                          <input
-                            type="text"
-                            value={adminNotes}
-                            onChange={(e) => setAdminNotes(e.target.value)}
-                            placeholder="e.g. Verified UTR on bank portal, credited received amount"
-                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-amber-500 transition-colors shadow-xs"
-                          />
-                        </div>
-
-                        {/* Live Balance Simulation Grid */}
-                        <div className="pt-2 border-t border-slate-200">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                            Simulated Balance Impact
-                          </span>
-                          <div className="grid grid-cols-3 gap-2 text-center">
-                            <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-xs">
-                              <span className="text-[10px] text-slate-500 block font-bold">Opening</span>
-                              <span className="text-xs font-black text-slate-900">
-                                ₹{(selectedRequest.retailer?.current_wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
-                              <span className="text-[10px] text-emerald-700 block font-bold">+ Received</span>
-                              <span className="text-xs font-black text-emerald-700 font-mono">
-                                ₹{(parseFloat(customApprovedAmount) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                            <div className="p-2 rounded-xl bg-blue-50 border border-blue-200">
-                              <span className="text-[10px] text-blue-700 block font-bold">Closing</span>
-                              <span className="text-xs font-black text-blue-800 font-mono">
-                                ₹{simulatedClosingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Automated Email Notice */}
-                        <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-[11px] flex items-center gap-2">
-                          <span className="text-sm">📧</span>
-                          <span>An automated email with transaction details, MDR deductions, and updated balance will be sent to the retailer immediately upon approval.</span>
-                        </div>
-                      </div>
+                      selectedRequest.can_approve ? (
+                        <span className="px-2.5 py-1 text-xs font-black rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          Ready for Approval
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 text-xs font-black rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                          <Lock className="h-3.5 w-3.5 text-amber-700" />
+                          Approval Blocked
+                        </span>
+                      )
                     )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs pt-1">
+                    {/* Condition 1: POS Approval Date */}
+                    <div className="p-2.5 rounded-xl bg-white/80 border border-blue-200/60 flex items-start gap-2">
+                      {selectedRequest.is_date_eligible !== false ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <Lock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <span className="font-bold text-slate-800 block">1. POS Approval Date:</span>
+                        <span className="text-[11px] text-slate-600">
+                          Mode: <strong>{selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}</strong>
+                        </span>
+                        {selectedRequest.is_date_eligible === false && (
+                          <span className="text-[11px] text-amber-800 block font-semibold mt-0.5">
+                            POS T1 requests can be approved from the next day (T+1).
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Condition 2: Admin Service/Vendor Wallet */}
+                    <div className="p-2.5 rounded-xl bg-white/80 border border-blue-200/60 flex items-start gap-2">
+                      {selectedRequest.is_balance_eligible !== false ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <span className="font-bold text-slate-800 block">2. Admin Wallet Balance:</span>
+                        <span className="text-[11px] text-slate-600">
+                          {selectedRequest.service || "Payout"} ({selectedRequest.vendor || "UrbanRupee"}) • Avail: <strong>₹{(selectedRequest.admin_available_balance ?? primaryPayoutWallet?.available_balance ?? 0).toLocaleString("en-IN")}</strong>
+                        </span>
+                        {selectedRequest.is_balance_eligible === false && (
+                          <span className="text-[11px] text-rose-700 block font-semibold mt-0.5">
+                            Low balance. Shortfall: ₹{(selectedRequest.shortfall_amount || 0).toLocaleString("en-IN")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Audit Trail for Past Actions */}
-                {(selectedRequest.status === "APPROVED" || selectedRequest.status === "REJECTED") && (
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Audit Trail &amp; Ledger Reference
+                {/* Bank UTR / Transaction Reference & OCR Advisory Card */}
+                <div className="p-4 rounded-2xl bg-white border-2 border-slate-200 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Receipt className="h-4 w-4 text-indigo-600" />
+                        Bank UTR / Transaction Reference <span className="text-rose-500">*</span>
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 text-[10px] font-black rounded border bg-slate-100 text-slate-700 border-slate-200">
+                      Mode: {selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}
                     </span>
-                    <div className="space-y-1.5">
-                      {selectedRequest.transaction_reference && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Transaction Reference:</span>
-                          <span className="font-mono font-bold text-emerald-700">{selectedRequest.transaction_reference}</span>
-                        </div>
+                  </div>
+
+                  {/* Card Details (Card Type & Card Last 4) */}
+                  {selectedRequest.card_type && (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-blue-700 block tracking-wider">
+                          Card Type
+                        </span>
+                        <span className="font-bold text-blue-950 text-sm">
+                          {selectedRequest.card_type}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block tracking-wider">
+                          Card Last 4
+                        </span>
+                        <span className="font-mono font-black text-slate-900 text-sm">
+                          {selectedRequest.card_last_4 ? `****${selectedRequest.card_last_4}` : (selectedRequest.card_last_4_masked || "N/A")}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Primary Reference ID with 1-click Copy */}
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                        Retailer Submitted Reference ID
+                      </span>
+                      <span className="font-mono font-black text-slate-950 text-base tracking-wide selection:bg-amber-200">
+                        {selectedRequest.payment_reference || "No Reference Provided"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {selectedRequest.payment_reference && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedRequest.payment_reference);
+                            setCopiedId(`drawer-ref-${selectedRequest.id}`);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                          title="Copy Bank UTR"
+                        >
+                          {copiedId === `drawer-ref-${selectedRequest.id}` ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              <span className="text-emerald-700 font-black">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5 text-slate-500" />
+                              <span>Copy UTR</span>
+                            </>
+                          )}
+                        </button>
                       )}
+                    </div>
+                  </div>
+
+                  {/* OCR Image Text Comparison Advisory (Info Only) */}
+                  <div className="pt-1">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                        <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                        Slip OCR Analysis <span className="text-[10px] font-normal text-slate-400">(Advisory / Info Only)</span>
+                      </span>
+                      {selectedRequest.slip_url && (
+                        <button
+                          onClick={() => runSlipOcr(selectedRequest.id || selectedRequest.topup_request_id)}
+                          disabled={ocrLoading}
+                          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          title="Re-scan slip with OCR"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${ocrLoading ? "animate-spin" : ""}`} />
+                          {ocrLoading ? "Scanning..." : "Re-scan"}
+                        </button>
+                      )}
+                    </div>
+
+                    {ocrLoading ? (
+                      <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-center gap-2.5 text-xs text-indigo-800">
+                        <RefreshCw className="h-4 w-4 animate-spin text-indigo-600 shrink-0" />
+                        <span className="font-semibold">Reading transaction reference from proof slip image...</span>
+                      </div>
+                    ) : ocrResult ? (
+                      ocrResult.is_match === true ? (
+                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs space-y-1">
+                          <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                            <span>Slip Reference Verified: MATCHED ✅</span>
+                          </div>
+                          <p className="text-[11px] text-emerald-700 pl-5.5">
+                            Detected on slip: <strong className="font-mono">{ocrResult.detected_reference || selectedRequest.payment_reference}</strong>
+                          </p>
+                        </div>
+                      ) : ocrResult.status === "MISMATCH" ? (
+                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                            <span>Slip Reference: Advisory Mismatch ⚠️</span>
+                          </div>
+                          <div className="text-[11px] text-amber-900 pl-5.5 space-y-0.5">
+                            <p>Entered ID: <strong className="font-mono">{selectedRequest.payment_reference}</strong></p>
+                            {ocrResult.detected_reference && (
+                              <p>Detected on slip: <strong className="font-mono text-slate-900">{ocrResult.detected_reference}</strong></p>
+                            )}
+                            <p className="text-[10.5px] text-amber-800 italic pt-1 border-t border-amber-200/60">
+                              ℹ️ Info only for Admin decision. Admin can decide whether to approve or reject.
+                            </p>
+                          </div>
+                        </div>
+                      ) : ocrResult.status === "NO_SLIP" ? (
+                        <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] text-slate-600">
+                          ℹ️ No payment proof slip attached to this request.
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] text-slate-600 space-y-0.5">
+                          <span className="font-bold block">ℹ️ Slip text could not be verified automatically.</span>
+                          <span className="text-[10.5px] text-slate-500">Please inspect the payment proof slip image manually below.</span>
+                        </div>
+                      )
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Slip Image Viewer */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <FileImage className="h-4 w-4 text-slate-500" />
+                      Payment Proof Slip
+                    </span>
+                    {selectedRequest.slip_url && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setZoomLevel((z) => Math.min(3, z + 0.25))}
+                          className="p-1 rounded hover:bg-slate-100 text-slate-600 cursor-pointer"
+                          title="Zoom In"
+                        >
+                          <ZoomIn className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.25))}
+                          className="p-1 rounded hover:bg-slate-100 text-slate-600 cursor-pointer"
+                          title="Zoom Out"
+                        >
+                          <ZoomOut className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setRotation((r) => (r + 90) % 360)}
+                          className="p-1 rounded hover:bg-slate-100 text-slate-600 cursor-pointer"
+                          title="Rotate"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setFullscreenImage(selectedRequest.slip_url || null)}
+                          className="p-1 rounded hover:bg-slate-100 text-slate-600 cursor-pointer"
+                          title="Fullscreen"
+                        >
+                          <Maximize2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedRequest.slip_url ? (
+                    <div className="bg-slate-900 rounded-2xl p-2 flex items-center justify-center overflow-hidden min-h-[220px] max-h-[340px] relative border border-slate-800">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedRequest.slip_url}
+                        alt="Payment Slip Proof"
+                        style={{
+                          transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
+                          transition: "transform 0.2s ease-in-out",
+                        }}
+                        className="max-h-[320px] max-w-full object-contain rounded-xl select-none"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-300 rounded-2xl text-slate-400">
+                      <FileImage className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="font-semibold">No payment proof image attached</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Retailer & Account Details */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Store className="h-4 w-4 text-slate-600" />
+                    Retailer Account Profile
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-500 text-[11px]">Retailer Name:</span>
+                      <p className="font-bold text-slate-900">{selectedRequest.retailer?.retailer_name || selectedRequest.retailer_name || "Unknown"}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-[11px]">Retailer Code:</span>
+                      <p className="font-mono font-bold text-amber-800">{selectedRequest.retailer?.retailer_code || selectedRequest.retailer_code || "N/A"}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-[11px]">Mobile Number:</span>
+                      <p className="font-medium text-slate-800">{selectedRequest.retailer?.mobile_number || selectedRequest.retailer_mobile || "N/A"}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 text-[11px]">Current Wallet Balance:</span>
+                      <p className="font-mono font-black text-emerald-700">
+                        ₹{(selectedRequest.retailer?.current_wallet_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amount & MDR Calculation */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                    Financial Summary
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Transaction Amount (Gross):</span>
+                      <span className="font-bold text-slate-900 font-mono">
+                        ₹{selectedRequest.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {(selectedRequest.charges || selectedRequest.mdr_charge || 0) > 0 && (
+                      <div className="flex items-center justify-between text-amber-800">
+                        <span>Total Deductions (MDR + GST):</span>
+                        <span className="font-mono font-bold">
+                          -₹{((selectedRequest.charges || selectedRequest.mdr_charge || 0) + (selectedRequest.gst_amount || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                      <span className="font-black text-slate-800">Received Amount (Net Credited):</span>
+                      <span className="font-mono font-black text-emerald-700 text-sm">
+                        ₹{(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Historical Audit Info if already Processed */}
+                {selectedRequest.status !== "PENDING" && (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                      Audit Trail
+                    </div>
+                    <div className="space-y-1.5 text-xs">
                       {selectedRequest.approved_by && (
                         <div className="flex items-center justify-between">
                           <span className="text-slate-500">Approved By:</span>
-                          <span className="font-bold text-slate-800">{selectedRequest.approved_by}</span>
+                          <span className="font-medium text-slate-700">{selectedRequest.approved_by}</span>
                         </div>
                       )}
                       {selectedRequest.approved_at && (
@@ -1418,16 +2384,10 @@ export default function AdminTopupRequestsPage() {
                           <span className="font-medium text-slate-700">{new Date(selectedRequest.approved_at).toLocaleString("en-IN")}</span>
                         </div>
                       )}
-                      {selectedRequest.rejected_by && (
+                      {selectedRequest.transaction_reference && (
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Rejected By:</span>
-                          <span className="font-bold text-rose-800">{selectedRequest.rejected_by}</span>
-                        </div>
-                      )}
-                      {selectedRequest.rejected_at && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Rejected At:</span>
-                          <span className="font-medium text-slate-700">{new Date(selectedRequest.rejected_at).toLocaleString("en-IN")}</span>
+                          <span className="text-slate-500">Transaction Ref:</span>
+                          <span className="font-mono font-bold text-emerald-700">{selectedRequest.transaction_reference}</span>
                         </div>
                       )}
                       {selectedRequest.rejection_reason && (
@@ -1442,10 +2402,10 @@ export default function AdminTopupRequestsPage() {
               </div>
 
               {/* Drawer Footer Actions */}
-              <div className="p-6 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-4">
+              <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-4">
                 <button
                   onClick={() => setDrawerOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all shadow-xs"
+                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all shadow-xs cursor-pointer"
                 >
                   Close
                 </button>
@@ -1454,19 +2414,44 @@ export default function AdminTopupRequestsPage() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setShowRejectModal(true)}
-                      className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs"
+                      className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       <XCircle className="h-4 w-4 text-rose-600" />
-                      Reject Request
+                      Reject
                     </button>
 
-                    <button
-                      onClick={() => setShowApproveModal(true)}
-                      className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Approve Received Amount (₹{(parseFloat(customApprovedAmount) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })})
-                    </button>
+                    {selectedRequest.can_approve === false ? (
+                      <div className="flex items-center gap-2">
+                        {selectedRequest.is_balance_eligible === false && (
+                          <button
+                            onClick={() => {
+                              if (primaryPayoutWallet) openFundModalForWallet(primaryPayoutWallet);
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                            Add Fund
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled
+                          className="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-400 border border-slate-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-not-allowed shadow-none"
+                          title={selectedRequest.approval_block_reason || "Approval blocked by policy"}
+                        >
+                          <Lock className="h-4 w-4 text-slate-400" />
+                          Approve Blocked
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowApproveModal(true)}
+                        className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Approve (₹{(parseFloat(customApprovedAmount) || selectedRequest.requested_amount).toLocaleString("en-IN")})
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1475,7 +2460,7 @@ export default function AdminTopupRequestsPage() {
         </div>
       )}
 
-      {/* ── Approval Modal ── */}
+      {/* ── Single Approval Confirmation Modal ── */}
       {showApproveModal && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowApproveModal(false)} />
@@ -1493,21 +2478,69 @@ export default function AdminTopupRequestsPage() {
             {/* Read-Only Transaction Breakdown */}
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Transaction Amount (Gross):</span>
-                <span className="font-black text-slate-900">
-                  ₹{selectedRequest.requested_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                <span className="text-slate-500 font-medium">Mapped Admin Wallet:</span>
+                <span className="font-bold text-slate-800">
+                  {selectedRequest.service || "Payout"} · {selectedRequest.vendor || "UrbanRupee"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Admin Available Balance:</span>
+                <span className="font-mono font-black text-emerald-700">
+                  ₹{(selectedRequest.admin_available_balance ?? primaryPayoutWallet?.available_balance ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-500">
                 <span>Payment Mode:</span>
                 <span className="font-bold text-slate-700">{selectedRequest.payment_mode || selectedRequest.payment_method || "POS - Instant"}</span>
               </div>
-              {(selectedRequest.charges || selectedRequest.mdr_charge || 0) > 0 && (
-                <div className="flex items-center justify-between text-amber-800">
-                  <span>MDR / Charges:</span>
-                  <span className="font-mono font-bold">
-                    -₹{((selectedRequest.charges || selectedRequest.mdr_charge || 0) + (selectedRequest.gst_amount || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              {selectedRequest.card_type && (
+                <div className="flex items-center justify-between text-slate-500">
+                  <span>Card Details:</span>
+                  <span className="font-bold text-blue-900 font-mono">
+                    {selectedRequest.card_type} {selectedRequest.card_last_4 ? `(****${selectedRequest.card_last_4})` : (selectedRequest.card_last_4_masked ? `(${selectedRequest.card_last_4_masked})` : "")}
                   </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t border-slate-200/80 pt-1.5">
+                <span className="text-slate-600 font-bold">Bank UTR / Ref ID:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-black text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200 text-xs">
+                    {selectedRequest.payment_reference || "None"}
+                  </span>
+                  {selectedRequest.payment_reference && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedRequest.payment_reference);
+                        setCopiedId(`modal-${selectedRequest.id}`);
+                        setTimeout(() => setCopiedId(null), 2000);
+                      }}
+                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                      title="Copy Bank UTR"
+                    >
+                      {copiedId === `modal-${selectedRequest.id}` ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {ocrResult && (
+                <div className="flex items-center justify-between border-t border-slate-200/80 pt-1.5 text-[11px]">
+                  <span className="text-slate-600 font-bold">Slip Match (Info Only):</span>
+                  {ocrResult.is_match === true ? (
+                    <span className="font-black text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Matched ✅
+                    </span>
+                  ) : ocrResult.status === "MISMATCH" ? (
+                    <span className="font-black text-amber-800 flex items-center gap-1" title={ocrResult.message}>
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Advisory Mismatch ⚠️
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 italic">Manual Slip Check</span>
+                  )}
                 </div>
               )}
             </div>
@@ -1517,9 +2550,6 @@ export default function AdminTopupRequestsPage() {
                 <label className="block text-slate-800 font-black mb-1">
                   Received Amount to Credit (INR) <span className="text-rose-500">*</span>
                 </label>
-                <p className="text-[11px] text-slate-500 mb-1.5">
-                  Only the Received Amount can be edited and approved for wallet credit.
-                </p>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-emerald-700 text-sm">₹</span>
                   <input
@@ -1532,63 +2562,32 @@ export default function AdminTopupRequestsPage() {
                 </div>
               </div>
 
-              {/* Quick Amount Preset Chips */}
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  {
-                    label: `Received (₹${(selectedRequest.received_amount || selectedRequest.requested_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })})`,
-                    val: selectedRequest.received_amount || selectedRequest.requested_amount
-                  },
-                  {
-                    label: `Gross (₹${selectedRequest.requested_amount.toLocaleString("en-IN")})`,
-                    val: selectedRequest.requested_amount
-                  },
-                  {
-                    label: "50%",
-                    val: (selectedRequest.received_amount || selectedRequest.requested_amount) * 0.5
-                  },
-                ].map((chip) => (
-                  <button
-                    key={chip.label}
-                    onClick={() => setCustomApprovedAmount(chip.val.toString())}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200"
-                  >
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Administrative Notes (Optional)</label>
+                <label className="block text-slate-700 font-bold mb-1">Admin Notes (Optional)</label>
                 <textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="e.g. Bank verified via SBI NetBanking UTR confirmation"
+                  placeholder="e.g. Approved via SP against Utkal Payout Operation Wallet"
                   className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500 h-16 resize-none"
                 />
               </div>
 
-              {/* Automated Email Notice */}
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
-                📧 <strong>Automated Retailer Email:</strong> Once confirmed, an email with full topup verification details, UTR reference, MDR deductions, and new wallet balance will be sent to the retailer.
-              </div>
-
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium">
-                ⚡ <strong>Atomic DB Lock:</strong> Approving will immediately lock the retailer wallet, add ₹{parseFloat(customApprovedAmount) || 0} to balance, and post a ledger entry.
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium leading-relaxed">
+                ⚡ <strong>Atomic SP Settlement:</strong> Deducts ₹{parseFloat(customApprovedAmount) || 0} from Admin <strong>{selectedRequest.service || "Payout"} ({selectedRequest.vendor || "Utkal"})</strong> wallet, credits retailer wallet, and posts ledger transaction.
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setShowApproveModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleApprove}
-                disabled={approving}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2"
+                disabled={approving || selectedRequest.can_approve === false}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
                 {approving && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 Confirm &amp; Credit Received Amount
@@ -1598,7 +2597,7 @@ export default function AdminTopupRequestsPage() {
         </div>
       )}
 
-      {/* ── Rejection Modal ── */}
+      {/* ── Single Rejection Modal ── */}
       {showRejectModal && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
@@ -1621,7 +2620,7 @@ export default function AdminTopupRequestsPage() {
                     <button
                       key={reason}
                       onClick={() => setRejectionReason(reason)}
-                      className={`w-full text-left p-2 rounded-xl border text-xs font-medium transition-all ${
+                      className={`w-full text-left p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
                         rejectionReason === reason
                           ? "bg-rose-50 border-rose-400 text-rose-800 font-bold"
                           : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
@@ -1644,24 +2643,118 @@ export default function AdminTopupRequestsPage() {
               </div>
 
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium">
-                ⚠️ Zero financial movement will be recorded. The retailer will be notified of this rejection reason.
+                ⚠️ Zero financial movement will be recorded.
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReject}
                 disabled={rejecting || !rejectionReason.trim()}
-                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
                 {rejecting && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 Reject Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Fund Modal for Admin Service + Vendor Wallet ── */}
+      {showAddFundModal && selectedWalletForFund && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAddFundModal(false)} />
+          <div className="relative z-10 w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Add Operational Funds</h3>
+                <p className="text-xs text-slate-500">
+                  {selectedWalletForFund.service_name} · {selectedWalletForFund.vendor_name} ({selectedWalletForFund.wallet_number})
+                </p>
+              </div>
+            </div>
+
+            {fundSuccessMsg && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-xs flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>{fundSuccessMsg}</span>
+              </div>
+            )}
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+              <div className="flex items-center justify-between text-slate-500">
+                <span>Current Available Balance:</span>
+                <span className="font-mono font-black text-slate-900 text-sm">
+                  ₹{selectedWalletForFund.available_balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-800 font-black mb-1">
+                  Fund Amount to Add (INR) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-amber-700 text-sm">₹</span>
+                  <input
+                    type="number"
+                    step="any"
+                    value={fundAmount}
+                    onChange={(e) => setFundAmount(e.target.value)}
+                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border-2 border-amber-300 rounded-xl text-base font-black text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-mono shadow-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Amount Chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {["10000", "25000", "50000", "100000", "250000"].map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => setFundAmount(val)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-200 cursor-pointer"
+                  >
+                    +₹{parseInt(val).toLocaleString("en-IN")}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Remarks / Reference</label>
+                <textarea
+                  value={fundRemarks}
+                  onChange={(e) => setFundRemarks(e.target.value)}
+                  placeholder="e.g. Bank transfer from HDFC Master Pool account"
+                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-amber-500 h-16 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowAddFundModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddFund}
+                disabled={addingFund || !fundAmount}
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              >
+                {addingFund && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                Add ₹{(parseFloat(fundAmount) || 0).toLocaleString("en-IN")}
               </button>
             </div>
           </div>
@@ -1676,7 +2769,7 @@ export default function AdminTopupRequestsPage() {
         >
           <button
             onClick={() => setFullscreenImage(null)}
-            className="absolute top-6 right-6 p-3 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors shadow-2xl"
+            className="absolute top-6 right-6 p-3 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors shadow-2xl cursor-pointer"
           >
             <X className="h-6 w-6" />
           </button>
@@ -1690,5 +2783,20 @@ export default function AdminTopupRequestsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminTopupRequestsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-slate-400 font-bold text-sm">Loading Top-Up Requests Console...</p>
+        </div>
+      }
+    >
+      <AdminTopupRequestsContent />
+    </Suspense>
   );
 }

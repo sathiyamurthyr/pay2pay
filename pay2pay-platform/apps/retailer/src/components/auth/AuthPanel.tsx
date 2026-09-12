@@ -388,29 +388,29 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
       document.cookie = `p2p_destination=${isBothTrue ? "DASHBOARD" : "ACCOUNT_UNDER_REVIEW"}; path=/; max-age=2592000; SameSite=Lax`;
       document.cookie = `p2p_account_access=${isBothTrue ? "ALLOWED" : "RESTRICTED"}; path=/; max-age=2592000; SameSite=Lax`;
 
-      // LocalStorage keys for client session hydration
-      localStorage.setItem("pay2pay_user_role", role);
-      localStorage.setItem("p2p_user_role", role);
-      localStorage.setItem("pay2pay_active_role", role);
-      localStorage.setItem("pay2pay_access_token", validToken);
-      localStorage.setItem("p2p_access_token", validToken);
-      localStorage.setItem("access_token", validToken);
-      localStorage.setItem("pay2pay_auth_token", validToken);
-      localStorage.setItem("pay2pay_user_data", JSON.stringify(normalizedUser));
-      localStorage.setItem("user_info", JSON.stringify(normalizedUser));
-      localStorage.setItem("p2p_session_start_time", String(Date.now()));
-      localStorage.setItem("p2p_session_last_active", String(Date.now()));
-      localStorage.removeItem("p2p_session_locked");
-      localStorage.removeItem("p2p_session_locked_at");
-
+      // Set retailer identifier cookies if resolved
       const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
       let rCode = normalizedUser.retailer_code || normalizedUser.code;
       if (!rCode || isUuid(rCode)) {
         rCode = normalizedUser.retailer_id || normalizedUser.public_id || normalizedUser.id || "";
       }
       if (rCode) {
-        localStorage.setItem("p2p_active_retailer_id", rCode);
-        localStorage.setItem("p2p_retailer_code", rCode);
+        document.cookie = `p2p_active_retailer_id=${rCode}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `p2p_retailer_code=${rCode}; path=/; max-age=2592000; SameSite=Lax`;
+      }
+
+      // Zero localStorage storage for auth/session per user directive ("dont store in local .")
+      try {
+        const authKeys = [
+          "pay2pay_user_role", "p2p_user_role", "pay2pay_active_role",
+          "pay2pay_access_token", "p2p_access_token", "access_token", "pay2pay_auth_token",
+          "pay2pay_user_data", "user_info", "p2p_session_start_time", "p2p_session_last_active",
+          "p2p_active_retailer_id", "p2p_retailer_code", "retailer_token", "token",
+          "p2p_session_locked", "p2p_session_locked_at"
+        ];
+        authKeys.forEach((k) => localStorage.removeItem(k));
+      } catch {
+        // Safe fallback
       }
     }
 
@@ -460,9 +460,10 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     try {
       const res = await fetch(`${API_BASE}/auth/enterprise/login-password`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mobile_number: mobileNumber,
+          mobile_number: mobileNumber.trim(),
           password,
           captcha_code: captchaInput,
           telemetry,
@@ -565,8 +566,9 @@ export const AuthPanel: React.FC<AuthPanelProps> = ({
     try {
       const res = await fetch(`${API_BASE}/auth/enterprise/login-otp/verify`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile_number: mobileNumber, otp_code: fullOtp, telemetry })
+        body: JSON.stringify({ mobile_number: mobileNumber.trim(), otp_code: fullOtp, telemetry })
       });
       const data = await res.json().catch(() => ({}));
       setLoading(false);

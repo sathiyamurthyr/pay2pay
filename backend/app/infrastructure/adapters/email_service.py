@@ -517,7 +517,10 @@ class EmailService:
         closing_balance: float,
         pdf_bytes: bytes,
         filename: str = "Pay2Pay_Statement.pdf",
-        is_admin: bool = False
+        is_admin: bool = False,
+        password_hint: Optional[str] = None,
+        password_formula: Optional[str] = None,
+        password_example: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Dispatches daily account statement email with password-protected PDF attachment.
@@ -538,17 +541,68 @@ class EmailService:
 
         subject = f"Pay2Pay Account Statement – {statement_date_str}"
 
+        # Build password instruction blocks for plain text and HTML
+        pwd_box_html = ""
+        pwd_text = ""
+        if password_formula or password_hint:
+            formula_val = password_formula or "First 4 characters of PAN (UPPERCASE) + Last 4 digits of Registered Mobile Number"
+            example_val = password_example or "If PAN is ABCDE1234F & Mobile is 9876543210 -> Password is ABCD3210"
+            hint_tr = f"""
+                  <tr>
+                    <td style="padding: 5px 0; color: #475569; vertical-align: top; width: 140px;"><strong>Password Pattern:</strong></td>
+                    <td style="padding: 5px 0; color: #0284c7; font-family: monospace; font-size: 13px; font-weight: bold; letter-spacing: 1px;">{password_hint}</td>
+                  </tr>
+            """ if password_hint else ""
+
+            pwd_box_html = f"""
+              <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <div style="font-size: 13px; font-weight: bold; color: #166534; margin-bottom: 8px; display: flex; align-items: center;">
+                  <span style="font-size: 16px; margin-right: 6px;">🔒</span> Password-Protected Statement Attached
+                </div>
+                <div style="font-size: 12px; color: #334155; line-height: 1.5; margin-bottom: 12px;">
+                  Your daily statement is encrypted for security. To open the attached PDF, enter your combination password:
+                </div>
+                <div style="background-color: #ffffff; border: 1px dashed #22c55e; border-radius: 6px; padding: 10px 14px; margin-bottom: 10px;">
+                  <div style="font-size: 10px; font-weight: 700; color: #15803d; text-transform: uppercase; letter-spacing: 0.5px;">Combination Formula:</div>
+                  <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-top: 2px;">
+                    {formula_val}
+                  </div>
+                </div>
+                <table style="width: 100%; font-size: 11.5px; color: #475569; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 4px 0; color: #475569; vertical-align: top; width: 140px;"><strong>Formula Example:</strong></td>
+                    <td style="padding: 4px 0; color: #1e293b;">{example_val}</td>
+                  </tr>
+                  {hint_tr}
+                </table>
+              </div>
+            """
+            pwd_text = f"""
+--------------------------------------------------
+PASSWORD PROTECTION DETAILS:
+Your statement PDF is password-protected for your security.
+Formula: {formula_val}
+Example: {example_val}
+{f"Your Password Pattern: {password_hint}" if password_hint else ""}
+--------------------------------------------------
+"""
+        else:
+            pwd_box_html = """
+              <div class="attachment-info">
+                📎 <strong>Protected Statement Attached:</strong> Your statement has been attached as a password-protected PDF.
+              </div>
+            """
+
         # Plain text exact body
         plain_body = f"""Dear {recipient_name},
 
-Please find attached your Pay2Pay Account Statement for
-{statement_date_str}.
+Please find attached your Pay2Pay Account Statement for {statement_date_str}.
 
 Opening Balance: ₹{opening_balance:,.2f}
 Total Credit: ₹{total_credit:,.2f}
 Total Debit: ₹{total_debit:,.2f}
 Closing Balance: ₹{closing_balance:,.2f}
-
+{pwd_text}
 This is a system-generated statement.
 
 Regards,
@@ -569,7 +623,7 @@ SUPER REX PRODUCTS PRIVATE LIMITED
             .logo {{ font-size: 24px; font-weight: 800; letter-spacing: 1px; }}
             .company {{ font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-top: 4px; }}
             .body-content {{ padding: 28px 24px; }}
-            .greeting {{ font-size: 15px; font-weight: 600; margin-bottom: 12px; }}
+            .greeting {{ font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #0f172a; }}
             .intro {{ font-size: 13px; color: #475569; line-height: 1.6; margin-bottom: 20px; }}
             .summary-box {{ background-color: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px; border: 1px solid #cbd5e1; }}
             .summary-row {{ display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed #cbd5e1; }}
@@ -609,9 +663,7 @@ SUPER REX PRODUCTS PRIVATE LIMITED
                   <span>₹{closing_balance:,.2f}</span>
                 </div>
               </div>
-              <div class="attachment-info">
-                📎 <strong>Protected Statement Attached:</strong> Your statement has been attached as a password-protected PDF.
-              </div>
+              {pwd_box_html}
               <p style="font-size: 11px; color: #94a3b8; margin: 0;">This is a system-generated statement.</p>
             </div>
             <div class="footer">
@@ -640,8 +692,8 @@ SUPER REX PRODUCTS PRIVATE LIMITED
             msg.attach(pdf_attachment)
 
         if not smtp_username or not smtp_password:
-            logger.info(f"[EMAIL SERVICE SIMULATED] Daily statement email for {recipient_email} | Closing: ₹{closing_balance:,.2f}")
-            return {"status": "SIMULATED", "delivered": True, "recipient": recipient_email}
+            print(f"[EMAIL SERVICE SIMULATED] Daily statement email for {recipient_email} | Closing: ₹{closing_balance:,.2f} (No SMTP credentials)")
+            return {"status": "SIMULATED", "delivered": False, "recipient": recipient_email, "detail": "SMTP credentials not configured."}
 
         try:
             with smtplib.SMTP(smtp_server, int(smtp_port), timeout=15.0) as server:
@@ -676,7 +728,10 @@ SUPER REX PRODUCTS PRIVATE LIMITED
         closing_balance: float,
         pdf_bytes: bytes,
         filename: str = "Pay2Pay_Statement.pdf",
-        is_admin: bool = False
+        is_admin: bool = False,
+        password_hint: Optional[str] = None,
+        password_formula: Optional[str] = None,
+        password_example: Optional[str] = None
     ) -> Dict[str, Any]:
         """Async wrapper for dispatching daily account statement email."""
         try:
@@ -695,7 +750,10 @@ SUPER REX PRODUCTS PRIVATE LIMITED
             closing_balance,
             pdf_bytes,
             filename,
-            is_admin
+            is_admin,
+            password_hint,
+            password_formula,
+            password_example
         )
 
     async def send_topup_approval_email(self, payload: Dict[str, Any]) -> Dict[str, Any]:

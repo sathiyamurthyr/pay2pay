@@ -320,12 +320,17 @@ class WhatsAppService:
         url: https://receipt.pay2pay.in/r/{{1}} -> {{1}} is view_id (or request_id)
         """
         clean_digits = "".join(filter(str.isdigit, str(mobile_number or "")))
-        if len(clean_digits) >= 10:
-            clean_mobile = clean_digits[-10:]
-        else:
-            clean_mobile = clean_digits
-
-        formatted_mobile = f"91{clean_mobile}" if len(clean_mobile) == 10 else clean_mobile
+        if len(clean_digits) < 10:
+            logger.warning(f"[WHATSAPP ADMIN TOPUP ALERT] Refusing to send: Invalid phone number '{mobile_number}' (< 10 digits).")
+            return {
+                "status": "FAILED",
+                "delivered": False,
+                "status_code": 400,
+                "recipient": str(mobile_number),
+                "detail": "Invalid recipient phone number: must be at least 10 digits."
+            }
+        clean_mobile = clean_digits[-10:]
+        formatted_mobile = f"91{clean_mobile}"
 
         try:
             amt_num = float(amount)
@@ -468,13 +473,18 @@ class WhatsAppService:
           Button:
             Receipt: https://receipt.pay2pay.in/r/{{1}}
         """
-        clean_mobile = "".join(filter(str.isdigit, str(mobile_number)))
-        if clean_mobile.startswith("91") and len(clean_mobile) == 12:
-            formatted_mobile = clean_mobile
-        elif len(clean_mobile) == 10:
-            formatted_mobile = f"91{clean_mobile}"
-        else:
-            formatted_mobile = clean_mobile
+        clean_digits = "".join(filter(str.isdigit, str(mobile_number or "")))
+        if len(clean_digits) < 10:
+            logger.warning(f"[WHATSAPP RETAILER STATUS ALERT] Refusing to send: Invalid phone number '{mobile_number}' (< 10 digits).")
+            return {
+                "status": "FAILED",
+                "delivered": False,
+                "status_code": 400,
+                "recipient": str(mobile_number),
+                "detail": "Invalid recipient phone number: must be at least 10 digits."
+            }
+        clean_mobile = clean_digits[-10:]
+        formatted_mobile = f"91{clean_mobile}"
 
         # Format numeric currencies
         try:

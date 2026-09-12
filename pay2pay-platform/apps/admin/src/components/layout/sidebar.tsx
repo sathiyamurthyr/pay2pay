@@ -10,7 +10,7 @@ import {
   Sliders, UploadCloud, Cpu, BookOpen, Wallet, Scale, Send, BarChart3, Activity,
   Ticket, Landmark, GitMerge, CheckSquare, Bell, Zap, Fingerprint, Volume2, Music,
   Globe, Sparkles, Search, X, PanelLeftClose, PanelLeftOpen, AlertTriangle, Layers,
-  Megaphone, Terminal, Star, Pin, MessageSquare, QrCode
+  Megaphone, Terminal, Star, Pin, MessageSquare, QrCode, RefreshCw
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -100,6 +100,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Terminal,
   Settings,
   CheckSquare,
+  RefreshCw,
 };
 
 // ─── ADMIN PORTAL MENU STRUCTURE (Strict Governance & Administration - Section 20) ───
@@ -130,6 +131,7 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Transactions",
     items: [
+      { label: "Status Update", href: "/operations/transaction-status-update", icon: RefreshCw, badge: "Pending" },
       { label: "All Transactions", href: "/admin/reports/transactions", icon: Receipt, badge: "Master" },
       { label: "Payout", href: "/admin/reports/payout-transactions", icon: ArrowLeftRight },
       { label: "DMT", href: "/retailer/dmt/reports", icon: Send },

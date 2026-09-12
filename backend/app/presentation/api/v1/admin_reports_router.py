@@ -122,12 +122,12 @@ SELECT
     pt.beneficiary_id,
     pt.tenant_id,
     pt.company_id,
-    -- Beneficiary details from beneficiary_master
+    -- Beneficiary details from beneficiary_master (single row lateral match to prevent cartesian duplicates)
     COALESCE(bm.account_holder_name, 'N/A') AS bene_name,
     COALESCE(bm.account_number, 'N/A') AS account_number,
     COALESCE(bm.ifsc_code, 'N/A') AS ifsc_code,
     COALESCE(bm.bank_name, 'N/A') AS bank_name,
-    -- Retailer details from retailer table
+    -- Retailer details from retailer table (single row lateral match)
     COALESCE(r.store_name, r.owner_name, r.retailer_code, 'Direct Merchant') AS retailer_name,
     r.retailer_code,
     -- Financials from transactions table
@@ -136,8 +136,22 @@ SELECT
     COALESCE(t_gst.gst, 0.00) AS tax,
     (COALESCE(t_amt.amount, 0.00) + COALESCE(t_chg.charge, 0.00) + COALESCE(t_gst.gst, 0.00)) AS net_amount
 FROM public.payout_transaction pt
-LEFT JOIN public.beneficiary_master bm ON (bm.public_id = pt.beneficiary_id OR bm.id = pt.beneficiary_master_ref_id)
-LEFT JOIN public.retailer r ON (r.public_id = pt.retailer_id)
+LEFT JOIN LATERAL (
+    SELECT bm_in.account_holder_name, bm_in.account_number, bm_in.ifsc_code, bm_in.bank_name
+    FROM public.beneficiary_master bm_in
+    WHERE (pt.beneficiary_master_ref_id IS NOT NULL AND bm_in.id = pt.beneficiary_master_ref_id)
+       OR (pt.beneficiary_id IS NOT NULL AND bm_in.public_id = pt.beneficiary_id)
+    ORDER BY CASE WHEN pt.beneficiary_master_ref_id IS NOT NULL AND bm_in.id = pt.beneficiary_master_ref_id THEN 0 ELSE 1 END
+    LIMIT 1
+) bm ON TRUE
+LEFT JOIN LATERAL (
+    SELECT r_in.store_name, r_in.owner_name, r_in.retailer_code
+    FROM public.retailer r_in
+    WHERE (pt.retailer_ref_id IS NOT NULL AND r_in.id = pt.retailer_ref_id)
+       OR (pt.retailer_id IS NOT NULL AND (r_in.public_id = pt.retailer_id OR r_in.retailer_code = pt.retailer_id::text))
+    ORDER BY CASE WHEN pt.retailer_ref_id IS NOT NULL AND r_in.id = pt.retailer_ref_id THEN 0 ELSE 1 END
+    LIMIT 1
+) r ON TRUE
 LEFT JOIN LATERAL (
     SELECT COALESCE(SUM(t.amount), 0.00) AS amount
     FROM public.transactions t
@@ -154,7 +168,7 @@ LEFT JOIN LATERAL (
     SELECT COALESCE(SUM(t.amount), 0.00) AS gst
     FROM public.transactions t
     WHERE t.txn_id = pt.transaction_number
-      AND UPPER(t.narration) = 'PAYOUT GST'
+      AND UPPER(t.narration) IN ('PAYOUT GST', 'GST')
 ) t_gst ON TRUE
 WHERE (pt.is_deleted IS NULL OR pt.is_deleted = FALSE);
 """
@@ -194,6 +208,63 @@ END;
 $$ LANGUAGE plpgsql;
 """
 
+TOP_RETAILERS_SP_DDL = """
+CREATE OR REPLACE FUNCTION sp_get_top_performing_retailers(
+    p_start_dt timestamptz DEFAULT NULL,
+    p_end_dt timestamptz DEFAULT NULL,
+    p_limit int DEFAULT 5
+)
+RETURNS TABLE (
+    retailer_code varchar,
+    retailer_name text,
+    transaction_count bigint,
+    total_volume numeric,
+    total_cr numeric,
+    total_dr numeric,
+    total_commission numeric,
+    successful_count bigint
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH scoped_txns AS (
+        SELECT 
+            t.txn_id,
+            t.amount,
+            t.entry_type,
+            t.status,
+            COALESCE(r.retailer_code, 'RET-' || SUBSTRING(t.retailer_id::text, 1, 6)) AS ret_code,
+            COALESCE(r.store_name, r.owner_name, t.retailer_name, 'Direct Retailer') AS ret_name
+        FROM public.transactions t
+        LEFT JOIN LATERAL (
+            SELECT r_in.retailer_code, r_in.store_name, r_in.owner_name, r_in.legal_name
+            FROM public.retailer r_in
+            WHERE r_in.public_id = t.retailer_id 
+               OR r_in.retailer_code = t.retailer_id::text
+               OR (t.retailer_ref_id IS NOT NULL AND r_in.id = t.retailer_ref_id)
+               OR (t.user_ref_id IS NOT NULL AND r_in.id = t.user_ref_id)
+            LIMIT 1
+        ) r ON TRUE
+        WHERE (p_start_dt IS NULL OR t.created_at >= p_start_dt)
+          AND (p_end_dt IS NULL OR t.created_at <= p_end_dt)
+          AND t.amount > 0
+    )
+    SELECT 
+        st.ret_code::varchar,
+        MAX(st.ret_name)::text,
+        COUNT(*)::bigint,
+        COALESCE(SUM(st.amount), 0.00)::numeric AS tot_vol,
+        COALESCE(SUM(CASE WHEN UPPER(st.entry_type) = 'CREDIT' THEN st.amount ELSE 0 END), 0.00)::numeric,
+        COALESCE(SUM(CASE WHEN UPPER(st.entry_type) = 'DEBIT' THEN st.amount ELSE 0 END), 0.00)::numeric,
+        0.00::numeric AS total_commission,
+        COUNT(CASE WHEN UPPER(st.status) IN ('SUCCESS', 'SETTLED', 'COMPLETED', 'LEDGER_POSTED') THEN 1 END)::bigint
+    FROM scoped_txns st
+    GROUP BY st.ret_code
+    ORDER BY tot_vol DESC
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql;
+"""
+
 _view_ensured = False
 
 async def ensure_payout_views(db: AsyncSession):
@@ -202,11 +273,59 @@ async def ensure_payout_views(db: AsyncSession):
         try:
             await db.execute(text(PAYOUT_VIEW_DDL))
             await db.execute(text(PAYOUT_SP_DDL))
+            await db.execute(text(TOP_RETAILERS_SP_DDL))
             await db.commit()
             _view_ensured = True
         except Exception:
             await db.rollback()
             _view_ensured = True
+
+
+@router.get("/top-retailers")
+async def get_top_performing_retailers(
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    limit: int = Query(5, ge=1, le=50),
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns top performing retailers ranked by real transaction volume from PostgreSQL."""
+    await ensure_payout_views(db)
+    start_dt, end_dt = parse_date_range(from_date, to_date)
+    try:
+        res = await db.execute(
+            text("SELECT * FROM sp_get_top_performing_retailers(:start_dt, :end_dt, :limit) ORDER BY total_volume DESC;"),
+            {"start_dt": start_dt, "end_dt": end_dt, "limit": limit}
+        )
+        rows = res.fetchall()
+        top_list = []
+        for r in rows:
+            m = r._mapping
+            vol = float(m["total_volume"] or 0.0)
+            cnt = int(m["transaction_count"] or 0)
+            succ = int(m["successful_count"] or 0)
+            top_list.append({
+                "code": str(m["retailer_code"] or ""),
+                "name": str(m["retailer_name"] or ""),
+                "count": cnt,
+                "volume": vol,
+                "cr": float(m["total_cr"] or 0.0),
+                "dr": float(m["total_dr"] or 0.0),
+                "commission": float(m["total_commission"] or 0.0),
+                "success": succ,
+                "success_rate": round((succ / cnt * 100.0), 1) if cnt > 0 else 100.0,
+            })
+        return {
+            "status": "SUCCESS",
+            "data": top_list,
+            "total": len(top_list)
+        }
+    except Exception as e:
+        return {
+            "status": "ERROR",
+            "message": str(e),
+            "data": []
+        }
+
 
 
 @router.get("/payout-transactions/summary")
@@ -1157,3 +1276,29 @@ async def export_daily_open_close_csv(
     output.seek(0)
     headers = {"Content-Disposition": f"attachment; filename=Daily_Open_Close_Report_{b_date}.csv"}
     return StreamingResponse(io.BytesIO(output.getvalue().encode("utf-8")), media_type="text/csv", headers=headers)
+
+
+# ── Webhook Audit Logs Report (queries public.view_payout_webhook_logs) ──
+@router.get("/payout-webhooks", summary="Admin Report: Payout Webhook Inbound Audit Logs")
+async def get_admin_payout_webhook_logs(
+    gateway: Optional[str] = Query(None, description="Filter by gateway code (e.g. URBANRUPEE, BULKPE)"),
+    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (SUCCESS, FAILED, PENDING)"),
+    search: Optional[str] = Query(None, description="Search by client_txn_id, vendor_tx_id, transaction_number, or retailer"),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns real-time vendor webhook callback records from database view public.view_payout_webhook_logs.
+    Includes request payload, response payload, vendor tx id, client order id, status, and retailer details.
+    """
+    from app.application.payout_callback_service import PayoutCallbackService
+    return await PayoutCallbackService.get_webhook_logs(
+        db=db,
+        gateway=gateway,
+        status=status_filter,
+        search=search,
+        limit=limit,
+        offset=offset
+    )
+

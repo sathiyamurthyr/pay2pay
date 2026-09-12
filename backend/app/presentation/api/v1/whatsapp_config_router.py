@@ -240,8 +240,9 @@ async def send_test_whatsapp_alert(
     dest_mobile = (req.test_mobile or "").strip()
     if not dest_mobile and cfg_row and cfg_row.get("out_admin_phone_numbers"):
         dest_mobile = cfg_row.get("out_admin_phone_numbers").split(",")[0].strip()
-    if not dest_mobile:
-        dest_mobile = "7013914767"
+    clean_digits = "".join(filter(str.isdigit, dest_mobile))
+    if len(clean_digits) < 10:
+        raise HTTPException(status_code=400, detail="A valid destination phone number (min 10 digits) is required.")
 
     now_str = datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M")
     req_id = req.request_id or f"TOP-TEST-{uuid.uuid4().hex[:6].upper()}"
@@ -290,8 +291,9 @@ async def send_test_retailer_whatsapp_alert(
     dest_mobile = (req.test_mobile or "").strip()
     if not dest_mobile and cfg_row and cfg_row.get("out_admin_phone_numbers"):
         dest_mobile = cfg_row.get("out_admin_phone_numbers").split(",")[0].strip()
-    if not dest_mobile:
-        dest_mobile = "7013914767"
+    clean_digits = "".join(filter(str.isdigit, dest_mobile))
+    if len(clean_digits) < 10:
+        raise HTTPException(status_code=400, detail="A valid destination phone number (min 10 digits) is required.")
 
     now_str = req.approved_date_time or datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M")
     req_id = req.request_id or "1000"

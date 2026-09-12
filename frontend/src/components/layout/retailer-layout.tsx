@@ -46,6 +46,7 @@ import LockIcon from "@mui/icons-material/Lock";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import PaletteIcon from "@mui/icons-material/Palette";
 import { useAuth } from "@/lib/auth";
+import apiClient from "@/lib/api";
 import { useRetailerStore, KpiTheme, THEME_CONFIGS } from "@/stores/use-retailer-store";
 import { useTheme } from "@/context/ThemeContext";
 import { retailerApi } from "@/services/retailer-api";
@@ -88,22 +89,20 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
   inFlightHeaderWalletPromise = (async () => {
     try {
       // Call /header-wallet with NO query params.
-      // The backend resolves the authenticated retailer from the JWT cookie (p2p_access_token).
+      // The backend resolves the authenticated retailer from the JWT cookie or Authorization header.
       // Zero localStorage reads — identity comes from the server session only.
-      const res = await fetch(`/api/v1/payout/dashboard/retailer/header-wallet`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const res = await apiClient.get(`/api/v1/payout/dashboard/retailer/header-wallet`);
+      const data = res.data;
       cachedHeaderWalletData = data;
       lastHeaderWalletFetchTime = Date.now();
 
-      // Sync into useRetailerStore in-memory state ONLY — NO localStorage write for balance
+      // Sync into useRetailerStore in-memory state ONLY — NO localStorage write
       const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
       const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
       const rInfo = data.retailer_info || data;
-      if (rInfo.retailer_code || data.retailer_code) {
-        // p2p_active_retailer_id is identity (used as fallback), NOT a balance cache
-        localStorage.setItem("p2p_active_retailer_id", rInfo.retailer_code || data.retailer_code);
-      }
+      const retCode = data.retailer_code || data.retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
+      const photoUrl = data.photo_url || data.avatar_url || rInfo.photo_url || rInfo.avatar_url || "";
+
       useRetailerStore.getState().updateWallet({
         mainBalance: bal,
         availableBalance: avail,
@@ -112,12 +111,15 @@ async function getCachedHeaderWalletData(forceRefresh = false): Promise<any> {
         todaySettlement: data.settlement_pending_amount || 0.0,
       });
       useRetailerStore.getState().updateOutlet({
-        code: rInfo.retailer_code || data.retailer_code || "",
-        name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || "Retailer Store",
-        ownerName: rInfo.owner_name || data.owner_name || "Retailer Partner",
-        status: "ACTIVE",
-        kycStatus: "VERIFIED",
-        approvalStatus: "APPROVED",
+        code: retCode || useRetailerStore.getState().outlet.code,
+        name: rInfo.company_name || rInfo.retailer_name || data.retailer_name || useRetailerStore.getState().outlet.name,
+        ownerName: rInfo.owner_name || data.owner_name || useRetailerStore.getState().outlet.ownerName,
+        avatar: photoUrl || useRetailerStore.getState().outlet.avatar,
+        photo_url: photoUrl || useRetailerStore.getState().outlet.photo_url,
+        status: (rInfo.status || data.status || (rInfo.approval_status === "ACTIVE" ? "ACTIVE" : undefined)) || useRetailerStore.getState().outlet.status,
+        kycStatus: (rInfo.kyc_status || data.kyc_status) || useRetailerStore.getState().outlet.kycStatus,
+        approvalStatus: (rInfo.approval_status || data.approval_status || (rInfo.approve_status ? "APPROVED" : undefined)) || useRetailerStore.getState().outlet.approvalStatus,
+        location: rInfo.location || data.location || useRetailerStore.getState().outlet.location,
       });
 
       return data;
@@ -228,16 +230,6 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
   const hasInitializedRef = useRef(false);
 
   const fetchProfileDetails = useCallback(async (force = false) => {
-    if (typeof window !== "undefined") {
-      const token =
-        localStorage.getItem("p2p_access_token") ||
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("pay2pay_access_token") ||
-        localStorage.getItem("pay2pay_auth_token") ||
-        localStorage.getItem("retailer_token");
-      if (!token) return;
-    }
-
     setProfileDetails((prev) => ({ ...prev, loading: true, error: false }));
     try {
       const data = await getCachedHeaderWalletData(force);
@@ -245,33 +237,20 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       if (rInfo.approval_status && typeof setApprovalStatus === "function") {
         setApprovalStatus(rInfo.approval_status as any);
       }
-      const isUuid = (val?: string | null) => Boolean(val && val.length === 36 && (val.match(/-/g) || []).length === 4);
-      let resolvedCode = rInfo.retailer_code && !isUuid(rInfo.retailer_code) ? rInfo.retailer_code : null;
-      if (!resolvedCode) {
-        resolvedCode = rInfo.retailer_id && !isUuid(rInfo.retailer_id) ? rInfo.retailer_id : null;
-      }
-      if (!resolvedCode && typeof window !== "undefined") {
-        const lsCode = localStorage.getItem("p2p_retailer_code") || localStorage.getItem("retailer_code");
-        if (lsCode && !isUuid(lsCode)) resolvedCode = lsCode;
-      }
-      if (!resolvedCode) {
-        resolvedCode = "RET-ACTIVE";
-      }
-
-      const storedOwner = typeof window !== "undefined" ? (localStorage.getItem("p2p_user_name") || localStorage.getItem("p2p_owner_name") || localStorage.getItem("pay2pay_user_name")) : "";
-      const storedStore = typeof window !== "undefined" ? (localStorage.getItem("p2p_store_name") || localStorage.getItem("pay2pay_store_name")) : "";
+      const resolvedCode = rInfo.retailer_code || data.retailer_code || rInfo.retailer_id || data.retailer_id || outlet.code || "";
+      const photoUrl = rInfo.photo_url || rInfo.avatar_url || data.photo_url || data.avatar_url || outlet.avatar || outlet.photo_url || "";
 
       setProfileDetails((prev) => ({
         ...prev,
-        owner_name: rInfo.owner_name || storedOwner || "Merchant Owner",
-        retailer_name: (rInfo.retailer_name && rInfo.retailer_name !== "Retailer Store") ? rInfo.retailer_name : (rInfo.company_name || rInfo.store_name || storedStore || "Merchant Store"),
+        owner_name: rInfo.owner_name || data.owner_name || outlet.ownerName || "",
+        retailer_name: rInfo.company_name || rInfo.retailer_name || data.company_name || data.retailer_name || outlet.name || "",
         retailer_code: resolvedCode,
-        photo_url: rInfo.photo_url || rInfo.avatar_url || data.photo_url || `/api/v1/retailer/profile/photo-image?user_type_ref_id=2&user_ref_id=${userRefId}`,
-        approval_status: rInfo.approval_status || "ACTIVE",
-        kyc_status: rInfo.kyc_status || "VERIFIED",
-        location: rInfo.location || "India",
+        photo_url: photoUrl,
+        approval_status: rInfo.approval_status || data.approval_status || (rInfo.approve_status ? "ACTIVE" : "") || outlet.approvalStatus || "",
+        kyc_status: rInfo.kyc_status || data.kyc_status || outlet.kycStatus || "",
+        location: rInfo.location || data.location || outlet.location || "",
         last_login_at: data.quick_stats?.last_login_at || data.last_login_at || null,
-        plan_name: rInfo.plan_name || "Merchant Portal",
+        plan_name: rInfo.plan_name || data.plan_name || "",
         loading: false,
         error: false,
       }));
@@ -279,7 +258,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn("Profile details fetch error:", err);
       setProfileDetails((prev) => ({ ...prev, loading: false, error: true }));
     }
-  }, [setApprovalStatus]);
+  }, [setApprovalStatus, outlet.code, outlet.avatar, outlet.photo_url, outlet.ownerName, outlet.name, outlet.location, outlet.approvalStatus, outlet.kycStatus]);
 
   useEffect(() => {
     if (!isAuthenticatedSession) return;
@@ -877,14 +856,14 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               src={profileDetails.photo_url || outlet.avatar || undefined}
               sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px", border: "1.5px solid #3B82F6" }}
             >
-              {outlet.ownerName.charAt(0)}
+              {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "").charAt(0).toUpperCase()}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#F8FAFC", fontSize: "12px", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {outlet.ownerName}
+                {profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "—"}
               </Typography>
               <Typography variant="caption" sx={{ fontSize: "10px", color: "#4ADE80", fontWeight: 700, display: "block" }}>
-                ● Online Retailer ({outlet.code})
+                ● Online Retailer {profileDetails.retailer_code || outlet.code ? `(${profileDetails.retailer_code || outlet.code})` : ""}
               </Typography>
             </Box>
           </Paper>
@@ -895,7 +874,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             src={profileDetails.photo_url || outlet.avatar || undefined}
             sx={{ bgcolor: "#2563EB", width: 34, height: 34, fontWeight: 900, fontSize: "13px", border: "1.5px solid #3B82F6" }}
           >
-            {outlet.ownerName.charAt(0)}
+            {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "").charAt(0).toUpperCase()}
           </Avatar>
         </Box>
       )}
@@ -1289,7 +1268,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
             <Tooltip title="View Retailer Profile Info">
               <IconButton onClick={(e) => setProfileAnchor(e.currentTarget)} size="small" sx={{ p: 0.25 }}>
                 <Avatar
-                  src={profileDetails.photo_url || undefined}
+                  src={profileDetails.photo_url || outlet.avatar || undefined}
                   sx={{
                     bgcolor: "#1E3A8A",
                     width: { xs: 30, sm: 34 },
@@ -1300,7 +1279,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     boxShadow: "0 2px 6px rgba(30,58,138,0.25)",
                   }}
                 >
-                  {(profileDetails.owner_name || outlet.ownerName || "R").charAt(0).toUpperCase()}
+                  {(profileDetails.owner_name || profileDetails.retailer_name || outlet.ownerName || outlet.name || "").charAt(0).toUpperCase()}
                 </Avatar>
               </IconButton>
             </Tooltip>
@@ -1330,7 +1309,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
               {/* Top Row: Avatar + Name & Badges */}
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
                 <Avatar
-                  src={profileDetails.photo_url || undefined}
+                  src={profileDetails.photo_url || outlet.avatar || undefined}
                   sx={{
                     width: 48,
                     height: 48,
@@ -1343,15 +1322,11 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                     flexShrink: 0,
                   }}
                 >
-                  {(profileDetails.retailer_name || profileDetails.owner_name || "S").charAt(0).toUpperCase()}
+                  {(profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "").charAt(0).toUpperCase()}
                 </Avatar>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontSize: "16px", fontWeight: 800, color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", lineHeight: 1.2 }}>
-                    {(profileDetails.retailer_name && profileDetails.retailer_name !== "Retailer Store" && profileDetails.retailer_name !== "System Admin User")
-                      ? profileDetails.retailer_name
-                      : (profileDetails.owner_name && profileDetails.owner_name !== "System Admin User")
-                      ? profileDetails.owner_name
-                      : (outlet.name && outlet.name !== "Retailer Store" ? outlet.name : "Pay2Pay Store")}
+                    {profileDetails.retailer_name || profileDetails.owner_name || outlet.name || outlet.ownerName || "—"}
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
                     {profileDetails.plan_name && (
@@ -1408,9 +1383,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Retailer ID</Typography>
                   <Chip
                     label={
-                      (profileDetails.retailer_code && !profileDetails.retailer_code.includes("-000") && !profileDetails.retailer_code.startsWith("1072b5d2") && profileDetails.retailer_code.length <= 15)
-                        ? profileDetails.retailer_code
-                        : (outlet.code || profileDetails.retailer_code || "—")
+                      profileDetails.retailer_code || outlet.code || "—"
                     }
                     size="small"
                     sx={{
@@ -1427,18 +1400,19 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Merchant Outlet</Typography>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 700, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {(profileDetails.retailer_name && profileDetails.retailer_name !== "Retailer Store") ? profileDetails.retailer_name : (outlet.name && outlet.name !== "Retailer Store" ? outlet.name : "Sathus Pay Store")}
+                    {profileDetails.retailer_name || outlet.name || "—"}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Account Approval</Typography>
                   {(() => {
-                    const isAppr = profileDetails.approval_status === "ACTIVE" || profileDetails.approval_status === "APPROVED" || isApproved;
+                    const statusVal = profileDetails.approval_status || outlet.approvalStatus || (isApproved ? "APPROVED" : "PENDING");
+                    const isAppr = statusVal.toUpperCase() === "ACTIVE" || statusVal.toUpperCase() === "APPROVED";
                     return (
                       <Chip
                         icon={isAppr ? <ShieldIcon sx={{ "&&": { color: effectiveTheme === "dark" ? "#4ADE80" : "#16A34A", fontSize: 12 } }} /> : <LockIcon sx={{ "&&": { color: effectiveTheme === "dark" ? "#FBBF24" : "#D97706", fontSize: 12 } }} />}
-                        label={profileDetails.approval_status ? (isAppr ? "Approved & Active" : profileDetails.approval_status) : (isApproved ? "Approved & Active" : "Pending Admin Review")}
+                        label={statusVal}
                         size="small"
                         sx={{
                           backgroundColor: isAppr ? (effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7") : (effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7"),
@@ -1456,11 +1430,12 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>KYC Status</Typography>
                   {(() => {
-                    const isKyc = profileDetails.kyc_status === "VERIFIED" || (isApproved && profileDetails.kyc_status !== "PENDING");
+                    const kycVal = profileDetails.kyc_status || outlet.kycStatus || (isApproved ? "VERIFIED" : "PENDING");
+                    const isKyc = kycVal.toUpperCase() === "VERIFIED" || kycVal.toUpperCase() === "APPROVED";
                     return (
                       <Chip
                         icon={<ShieldIcon sx={{ "&&": { color: isKyc ? (effectiveTheme === "dark" ? "#4ADE80" : "#16A34A") : (effectiveTheme === "dark" ? "#FBBF24" : "#D97706"), fontSize: 12 } }} />}
-                        label={profileDetails.kyc_status ? (profileDetails.kyc_status === "VERIFIED" ? "KYC Verified" : profileDetails.kyc_status) : (isApproved ? "KYC Verified" : "Pending Review")}
+                        label={kycVal}
                         size="small"
                         sx={{
                           backgroundColor: isKyc ? (effectiveTheme === "dark" ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7") : (effectiveTheme === "dark" ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7"),
@@ -1478,7 +1453,7 @@ export const RetailerLayout: React.FC<{ children: React.ReactNode }> = ({ childr
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#94A3B8" : "#64748B", fontWeight: 600 }}>Location</Typography>
                   <Typography variant="caption" sx={{ fontSize: "12px", color: effectiveTheme === "dark" ? "#F8FAFC" : "#0F172A", fontWeight: 600, textAlign: "right", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {profileDetails.location || outlet.location || "Chennai, TN"}
+                    {profileDetails.location || outlet.location || "—"}
                   </Typography>
                 </Box>
 

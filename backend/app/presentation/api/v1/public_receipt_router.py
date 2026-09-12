@@ -222,6 +222,14 @@ async def get_public_receipt(
                 except Exception:
                     pass
 
+            is_approved = st_raw in ("APPROVED", "COMPLETED", "SUCCESS")
+            is_pending = st_raw in ("PENDING", "UNDER_REVIEW")
+
+            net_credit = float(topup_req.received_amount or topup_req.approved_amount or topup_req.requested_amount) if is_approved else float(topup_req.requested_amount)
+            req_amt = float(topup_req.requested_amount)
+            charges_val = float(topup_req.charges or topup_req.mdr_charge or 0.0)
+            gst_val = float(topup_req.gst_amount or 0.0)
+
             clean_sig = str(clean_token).replace("-", "").upper()[-8:]
             return {
                 "valid": True,
@@ -232,11 +240,14 @@ async def get_public_receipt(
                 "certifications": "NPCI IMPS Switch Certified · ISO 27001:2022 · 256-Bit SSL Encrypted",
                 "status": st_norm,
                 "statusText": st_text,
-                "amount": float(topup_req.requested_amount),
-                "charges": float(topup_req.charges or 0.0),
-                "gst": float(topup_req.gst_amount or 0.0),
-                "totalPaid": float(topup_req.requested_amount),
-                "transactionId": topup_req.topup_request_id,
+                "amount": net_credit,
+                "requestedAmount": req_amt,
+                "approvedAmount": float(topup_req.approved_amount or net_credit),
+                "walletCredit": net_credit,
+                "charges": charges_val,
+                "gst": gst_val,
+                "totalPaid": req_amt,
+                "transactionId": topup_req.transaction_reference or topup_req.topup_request_id,
                 "utr": topup_req.payment_reference or topup_req.transaction_reference or "N/A",
                 "channel": topup_req.payment_method or "POS - Instant",
                 "date": date_formatted,
@@ -244,7 +255,7 @@ async def get_public_receipt(
                 "customerMobile": ret_mob,
                 "retailerName": f"{ret_name} ({ret_code})" if ret_code else ret_name,
                 "retailerMobile": ret_mob,
-                "beneficiaryName": "Pay2Pay Wallet Treasury",
+                "beneficiaryName": f"{ret_name} (Wallet)" if ret_name else "Retailer Primary Wallet",
                 "beneficiaryBank": "Pay2Pay Reserve Bank Account",
                 "beneficiaryIfsc": "P2P0000CBS",
                 "beneficiaryAccount": f"Wallet A/C: {ret_code}" if ret_code else "Retailer Primary Wallet",
@@ -252,8 +263,13 @@ async def get_public_receipt(
                 "downloadUrl": f"https://receipt.pay2pay.in/r/{clean_token}",
                 "proofSlipUrl": slip_link,
                 "isTopup": True,
+                "isPendingApproval": is_pending,
+                "isApproved": is_approved,
                 "receiptType": "TOPUP_REQUEST",
                 "topupRequestId": topup_req.topup_request_id or clean_token,
+                "cardType": getattr(topup_req, "card_type", None) or (topup_req.metadata_json or {}).get("card_type"),
+                "cardLast4": getattr(topup_req, "card_last_4", None) or (topup_req.metadata_json or {}).get("card_last_4"),
+                "cardLast4Masked": f"****{getattr(topup_req, 'card_last_4', None) or (topup_req.metadata_json or {}).get('card_last_4')}" if (getattr(topup_req, "card_last_4", None) or (topup_req.metadata_json or {}).get("card_last_4")) else None,
                 "adminApprovalUrl": f"https://admin.pay2pay.in/operations/topup-requests?requestId={topup_req.topup_request_id or clean_token}"
             }
     except Exception as e:

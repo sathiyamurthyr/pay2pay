@@ -19,10 +19,13 @@ export interface RetailerOutlet {
   approvalStatus: "APPROVED" | "PENDING" | "REJECTED" | "UNDER_REVIEW";
   soundboxActive: boolean;
   soundboxLang: "hi" | "en" | "ta";
+  avatar?: string;
+  photo_url?: string;
 }
 
 export interface WalletState {
   mainBalance: number;
+  availableBalance: number;
   commissionBalance: number;
   todayMargin: number;
   todayTxnCount: number;
@@ -156,6 +159,7 @@ interface RetailerStoreState {
   kpiTheme: KpiTheme;
   // Actions
   setSyncing: (syncing: boolean) => void;
+  updateOutlet: (part: Partial<RetailerOutlet>) => void;
   updateWallet: (part: Partial<WalletState>) => void;
   setWalletBalance: (balance: number) => void;
   debitWallet: (amount: number) => number;
@@ -183,16 +187,18 @@ const getInitialApprovalStatus = (): "APPROVED" | "PENDING" | "REJECTED" | "UNDE
 const getInitialOutlet = (): RetailerOutlet => ({
   id: "",
   code: "",
-  name: "Retailer Store",
-  ownerName: "Retailer Partner",
+  name: "",
+  ownerName: "",
   mobile: "",
   email: "",
-  location: "India",
+  location: "",
   status: "ACTIVE",
   kycStatus: "VERIFIED",
   approvalStatus: "APPROVED",
   soundboxActive: true,
   soundboxLang: "en",
+  avatar: "",
+  photo_url: "",
 });
 
 
@@ -213,6 +219,7 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
     outlet: getInitialOutlet(),
     wallet: {
       mainBalance: 0.00, // Always starts at 0; syncBalance() or WalletSyncProvider populates live value
+      availableBalance: 0.00,
       commissionBalance: 0.00,
       todayMargin: 0.00,
       todayTxnCount: 0,
@@ -278,6 +285,16 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             : bal;
 
         // In-memory only — NO localStorage write
+        const rInfo = rawData.retailer_info || rawData;
+        const retCode = rawData.retailer_code || rawData.retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
+        const photoUrl = rawData.photo_url || rawData.avatar_url || rInfo.photo_url || rInfo.avatar_url || "";
+        const storeName = rawData.company_name || rawData.retailer_name || rInfo.company_name || rInfo.retailer_name || "";
+        const ownerName = rawData.owner_name || rInfo.owner_name || "";
+        const location = rawData.location || rInfo.location || "";
+        const approvalStatus = rawData.approval_status || rInfo.approval_status || (rawData.approve_status ? "APPROVED" : undefined);
+        const kycStatus = rawData.kyc_status || rInfo.kyc_status;
+        const status = rawData.status || rInfo.status || (approvalStatus === "ACTIVE" || approvalStatus === "APPROVED" ? "ACTIVE" : undefined);
+
         set((state) => ({
           wallet: {
             ...state.wallet,
@@ -286,6 +303,18 @@ export const useRetailerStore = create<RetailerStoreState>((set, get) => {
             commissionBalance: rawData.todays_commission ?? state.wallet.commissionBalance,
             todayMargin: rawData.todays_commission ?? state.wallet.todayMargin,
             todaySettlement: rawData.settlement_pending_amount ?? state.wallet.todaySettlement,
+          },
+          outlet: {
+            ...state.outlet,
+            code: retCode || state.outlet.code,
+            name: storeName || state.outlet.name,
+            ownerName: ownerName || state.outlet.ownerName,
+            avatar: photoUrl || state.outlet.avatar,
+            photo_url: photoUrl || state.outlet.photo_url,
+            location: location || state.outlet.location,
+            approvalStatus: (approvalStatus as any) || state.outlet.approvalStatus,
+            kycStatus: (kycStatus as any) || state.outlet.kycStatus,
+            status: (status as any) || state.outlet.status,
           },
         }));
       } catch (err) {

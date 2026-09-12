@@ -28,10 +28,10 @@ const DEFAULT_USER_TYPES = [
   { code: "AUDIT_VIEWER", name: "Audit Viewer", description: "Read-only audit & reports access" },
 ];
 
-export default function UsersPage() {
+export default function UsersPage({ initialOpenModal = false }: { initialOpenModal?: boolean } = {}) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(initialOpenModal);
   const [formData, setFormData] = useState({
     email: "", username: "", password: "", full_name: "", phone: "", user_type: "PLATFORM_ADMIN", role_ids: [] as string[],
   });

@@ -12,6 +12,7 @@ import json
 import logging
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,13 +61,99 @@ async def initiate_urbanrupee_payout(req: UrbanRupeeInitiateRequest):
     return res
 
 
+from app.application.urbanrupee_status_poller_service import UrbanRupeeStatusPollerService
+
+
 @router.post("/status", summary="Check Status of an UrbanRupee Payout")
-async def check_urbanrupee_status(req: UrbanRupeeStatusRequest):
+async def check_urbanrupee_status(
+    req: UrbanRupeeStatusRequest,
+    db: AsyncSession = Depends(get_db)
+):
     """
     Polls the real-time status of a payout transaction from UrbanRupee.
+    Updates the payout record in the database before responding, and automatically
+    triggers wallet reversal for the retailer if the status is FAILED.
     """
-    res = await UrbanRupeeApiClient.check_status(merchant_ref=req.orderid)
-    return res
+    status_res = await UrbanRupeeApiClient.check_status(merchant_ref=req.orderid)
+    raw_res = status_res.get("raw_response") if isinstance(status_res.get("raw_response"), dict) else {}
+
+    # Synchronize database state and execute automatic reversal if failed
+    callback_payload = {
+        "orderid": req.orderid,
+        "client_txn_id": req.orderid,
+        **raw_res
+    }
+
+    cb_res = await PayoutCallbackService.process_callback(
+        db=db,
+        vendor_hint="urbanrupee",
+        payload=callback_payload,
+        query_params={}
+    )
+
+    return {
+        "status": cb_res.get("payout_status", status_res.get("status")),
+        "orderid": req.orderid,
+        "transaction_number": cb_res.get("transaction_number"),
+        "is_reversed": cb_res.get("is_reversed", False),
+        "is_matched": cb_res.get("is_matched", False),
+        "utr": cb_res.get("utr") or status_res.get("utr"),
+        "message": cb_res.get("message") or status_res.get("message"),
+        "gateway_response": status_res,
+        "reconciliation_result": cb_res
+    }
+
+
+@router.post("/check-pending", summary="Run Automated Status Polling Cycle for Pending Payouts")
+async def trigger_check_pending_payouts(
+    limit: int = Query(50, ge=1, le=100, description="Max pending records to process"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Manually or programmatically triggers the 5-minute status poller cycle for PENDING payouts.
+    Only processes if UrbanRupee priority is configured as 1.
+    Reverses failed payouts to retailer wallets and records UTR for successful payouts.
+    """
+    report = await UrbanRupeeStatusPollerService.poll_pending_urbanrupee_payouts(db=db, max_records=limit)
+    return report
+
+
+@router.get("/pending", summary="View All Pending Payout Transactions")
+async def list_pending_payout_transactions(
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves real-time list of pending payout transactions from PostgreSQL View:
+    public.view_pending_payout_transactions.
+    """
+    from sqlalchemy import text
+    query = text("""
+        SELECT 
+            transaction_number,
+            order_id,
+            gateway_reference,
+            bank_reference,
+            vendor_name,
+            status,
+            amount,
+            net_debit,
+            retailer_id,
+            retailer_name,
+            retailer_code,
+            created_date,
+            processed_time
+        FROM public.view_pending_payout_transactions
+        ORDER BY created_date DESC
+        LIMIT :limit
+    """)
+    result = await db.execute(query, {"limit": limit})
+    rows = [dict(r) for r in result.mappings().all()]
+    return {
+        "status": "SUCCESS",
+        "total_pending": len(rows),
+        "transactions": rows
+    }
 
 
 @router.get("/balance", summary="Fetch Live UrbanRupee Payout Wallet Balance")
@@ -112,8 +199,4 @@ async def handle_urbanrupee_webhook(
         query_params=query_params
     )
 
-    return {
-        "status": True,
-        "message": "Webhook processed successfully",
-        "data": result
-    }
+    return JSONResponse(status_code=status.HTTP_200_OK, content=result)

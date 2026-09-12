@@ -31,6 +31,8 @@ export default function PublicReceiptPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isTopup, setIsTopup] = useState(false);
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
+  const [isAdminSource, setIsAdminSource] = useState(false);
   const [adminApprovalUrl, setAdminApprovalUrl] = useState("");
   const [countdown, setCountdown] = useState(2);
   const [showReceiptSlip, setShowReceiptSlip] = useState(false);
@@ -42,6 +44,8 @@ export default function PublicReceiptPage() {
     status: "SUCCESS",
     statusText: "TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED",
     amount: 100.0,
+    requestedAmount: 100.0,
+    walletCredit: 100.0,
     charges: 20.0,
     gst: 4.0,
     totalPaid: 124.0,
@@ -71,6 +75,19 @@ export default function PublicReceiptPage() {
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data && data.valid) {
+            // 1. Detect if the visitor came from an Admin notification link
+            // Admin template 1043386768499813 sends: ?source=admin_approval (or ?target=admin)
+            const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+            const adminQuery = Boolean(
+              searchParams && (
+                searchParams.get("source") === "admin_approval" ||
+                searchParams.get("source") === "admin" ||
+                searchParams.get("target") === "admin" ||
+                searchParams.get("role") === "admin"
+              )
+            );
+            setIsAdminSource(adminQuery);
+
             const isTopupReq = Boolean(
               data.isTopup === true ||
               data.receiptType === "TOPUP_REQUEST" ||
@@ -79,11 +96,18 @@ export default function PublicReceiptPage() {
               (data.statusText && data.statusText.includes("TOP-UP"))
             );
 
+            const reqIsPending = Boolean(
+              data.isPendingApproval === true ||
+              data.status === "PENDING" ||
+              data.status === "UNDER_REVIEW"
+            );
+
+            setIsTopup(isTopupReq);
+            setIsPendingApproval(reqIsPending);
+
             const adminBase = process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "https://admin.pay2pay.in";
             const reqId = data.topupRequestId || data.transactionId || token;
             const targetApprovalUrl = data.adminApprovalUrl || `${adminBase}/operations/topup-requests?requestId=${encodeURIComponent(reqId)}`;
-
-            setIsTopup(isTopupReq);
             setAdminApprovalUrl(targetApprovalUrl);
 
             setReceiptData({
@@ -94,9 +118,11 @@ export default function PublicReceiptPage() {
               status: data.status || "SUCCESS",
               statusText: data.statusText || "TRANSACTION SUCCESSFUL · REAL-TIME CBS SETTLED",
               amount: Number(data.amount) || 0,
+              requestedAmount: Number(data.requestedAmount || data.amount) || 0,
+              walletCredit: Number(data.walletCredit || data.amount) || 0,
               charges: Number(data.charges) || 0,
               gst: Number(data.gst) || 0,
-              totalPaid: Number(data.totalPaid) || 0,
+              totalPaid: Number(data.totalPaid || data.amount) || 0,
               transactionId: data.transactionId || "",
               utr: data.utr || "N/A",
               receiptToken: data.receiptToken || token,
@@ -137,9 +163,16 @@ export default function PublicReceiptPage() {
     };
   }, [token]);
 
-  // Auto-redirect effect to Admin Approval Console for Top-Up Requests
+  // Auto-redirect effect to Admin Approval Console ONLY for Admin alert with pending request:
+  // 1. Retailer raised topup request (isTopup is true)
+  // 2. Opened from WhatsApp Admin Alert (isAdminSource is true)
+  // 3. Request is strictly pending admin action (isPendingApproval is true)
+  // In ALL other cases (retailer clicking receipt, approved/rejected request, regular receipt):
+  // DO NOT REDIRECT! Render receipt directly!
   useEffect(() => {
-    if (!isTopup || showReceiptSlip || !adminApprovalUrl) return;
+    if (!isTopup || !isAdminSource || !isPendingApproval || showReceiptSlip || !adminApprovalUrl) {
+      return;
+    }
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
@@ -155,7 +188,7 @@ export default function PublicReceiptPage() {
     }, 750);
 
     return () => clearInterval(timer);
-  }, [isTopup, showReceiptSlip, adminApprovalUrl]);
+  }, [isTopup, isAdminSource, isPendingApproval, showReceiptSlip, adminApprovalUrl]);
 
   const handleCopyLink = () => {
     if (typeof window !== "undefined") {
@@ -264,7 +297,7 @@ export default function PublicReceiptPage() {
           <div className="animate-spin w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-sm font-bold text-slate-600">Verifying Digital Receipt...</p>
         </main>
-      ) : isTopup && !showReceiptSlip ? (
+      ) : (isTopup && isAdminSource && isPendingApproval && !showReceiptSlip) ? (
         <main className="w-full max-w-xl bg-gradient-to-b from-[#0D1527] to-[#0A0E1A] text-slate-100 rounded-3xl p-6 sm:p-8 shadow-2xl border border-blue-500/30 text-center my-6 relative overflow-hidden backdrop-blur-xl">
           {/* Ambient Glow */}
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
@@ -301,7 +334,7 @@ export default function PublicReceiptPage() {
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-400 font-medium">Requested Amount</span>
-              <span className="font-black text-emerald-400 text-sm">₹{Number(receiptData.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+              <span className="font-black text-emerald-400 text-sm">₹{Number(receiptData.requestedAmount || receiptData.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-400 font-medium">Status</span>
@@ -352,7 +385,7 @@ export default function PublicReceiptPage() {
         </main>
       ) : (
         <>
-          {isTopup && (
+          {isTopup && isAdminSource && isPendingApproval && (
             <div className="w-full max-w-xl mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-blue-900/50 to-indigo-900/50 border border-blue-500/40 flex items-center justify-between no-print shadow-lg">
               <div className="flex items-center gap-2 text-xs">
                 <ShieldCheck className="w-4 h-4 text-cyan-400" />
@@ -424,8 +457,14 @@ export default function PublicReceiptPage() {
         </div>
 
         {/* ── 2. SUCCESS STATUS HERO ── */}
-        <div className="my-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-center relative z-10">
-          <div className="inline-flex items-center gap-1.5 text-emerald-700 font-black text-xs sm:text-sm tracking-wide">
+        <div className={`my-4 p-3 rounded-2xl text-center relative z-10 border ${
+          receiptData.status === "FAILED"
+            ? "bg-rose-50 border-rose-200 text-rose-700"
+            : (receiptData.status === "PENDING" || isPendingApproval)
+            ? "bg-amber-50 border-amber-200 text-amber-700"
+            : "bg-emerald-50 border-emerald-200 text-emerald-700"
+        }`}>
+          <div className="inline-flex items-center gap-1.5 font-black text-xs sm:text-sm tracking-wide">
             <CheckCircle className="w-4 h-4 text-emerald-600" />
             <span>{receiptData.statusText}</span>
           </div>
@@ -433,7 +472,7 @@ export default function PublicReceiptPage() {
             ₹{receiptData.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </div>
           <p className="text-[11px] font-bold text-slate-500 mt-0.5">
-            Amount Credited to Beneficiary Account
+            {isTopup ? "Amount Credited to Retailer Wallet" : "Amount Credited to Beneficiary Account"}
           </p>
         </div>
 
@@ -469,10 +508,10 @@ export default function PublicReceiptPage() {
         <div className="bg-white rounded-2xl p-3.5 border border-slate-200 mb-4 space-y-3 relative z-10 text-left">
           <div>
             <p className="text-[10px] font-black text-blue-700 uppercase tracking-wider">
-              Retailer / Sender
+              {isTopup ? "Retailer Account" : "Retailer / Sender"}
             </p>
             <p className="text-xs sm:text-sm font-black text-slate-900">
-              {receiptData.retailerName} <span className="text-slate-500 font-semibold">({receiptData.retailerMobile})</span>
+              {receiptData.retailerName} {receiptData.retailerMobile ? <span className="text-slate-500 font-semibold">({receiptData.retailerMobile})</span> : null}
             </p>
           </div>
 
@@ -480,13 +519,13 @@ export default function PublicReceiptPage() {
 
           <div>
             <p className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">
-              Beneficiary Account Details
+              {isTopup ? "Beneficiary Wallet Account" : "Beneficiary Account Details"}
             </p>
             <p className="text-xs sm:text-sm font-black text-slate-900">
               {receiptData.beneficiaryName}
             </p>
             <p className="text-xs font-semibold text-slate-600 mt-0.5">
-              Bank: <span className="font-bold text-slate-900">{receiptData.beneficiaryBank}</span> · IFSC: <span className="font-mono font-bold text-slate-900">{receiptData.beneficiaryIfsc}</span>
+              Bank / Gateway: <span className="font-bold text-slate-900">{receiptData.beneficiaryBank}</span> · IFSC / Code: <span className="font-mono font-bold text-slate-900">{receiptData.beneficiaryIfsc}</span>
             </p>
             <p className="text-xs font-mono font-black text-slate-900 mt-0.5">
               A/C: {receiptData.beneficiaryAccount}
@@ -497,30 +536,32 @@ export default function PublicReceiptPage() {
         {/* ── 5. FINANCIAL BREAKDOWN ── */}
         <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200 mb-4 space-y-1.5 relative z-10 text-left">
           <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>Transfer Amount</span>
+            <span>{isTopup ? "Requested / Paid Amount" : "Transfer Amount"}</span>
             <span className="font-bold text-slate-900">
-              ₹{receiptData.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              ₹{Number(receiptData.totalPaid || receiptData.requestedAmount || receiptData.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>Convenience Fee</span>
+            <span>{isTopup ? "POS Fee / Charges" : "Convenience Fee"}</span>
             <span className="font-bold text-slate-900">
               ₹{receiptData.charges.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="flex items-center justify-between text-xs text-slate-600">
-            <span>GST (0%)</span>
-            <span className="font-bold text-slate-900">
-              ₹{receiptData.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
+          {receiptData.gst > 0 && (
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>GST</span>
+              <span className="font-bold text-slate-900">
+                ₹{receiptData.gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
 
           <div className="h-px bg-slate-300 my-1" />
 
           <div className="flex items-center justify-between text-sm font-black text-blue-900">
-            <span>TOTAL PAID</span>
+            <span>{isTopup ? "NET WALLET CREDIT" : "TOTAL PAID"}</span>
             <span className="text-base text-blue-700">
-              ₹{receiptData.totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              ₹{receiptData.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </span>
           </div>
         </div>

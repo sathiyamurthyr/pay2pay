@@ -39,8 +39,6 @@ logger = logging.getLogger("retailer_profile_router")
 
 router = APIRouter(prefix="/retailer/profile", tags=["Retailer Enterprise Profile"])
 
-DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
-
 # MPIN Secret Salt for secure HMAC-SHA256 hashing
 MPIN_SECRET_SALT = "PAY2PAY_ENTERPRISE_MPIN_SALT_KEY_v1_2026"
 
@@ -1518,8 +1516,6 @@ async def get_photo_image(
         if target_ident:
             v_conds.append(RetailerVerificationModel.retailer_id == str(target_ident))
             v_conds.append(RetailerVerificationModel.registration_id == str(target_ident))
-            if str(target_ident) == "RET-10928":
-                v_conds.append(RetailerVerificationModel.mobile_number.like("%9176669426%"))
         if clean_mobile and len(clean_mobile) == 10:
             v_conds.append(RetailerVerificationModel.mobile_number == clean_mobile)
             v_conds.append(RetailerVerificationModel.mobile_number == f"+91{clean_mobile}")
@@ -1636,6 +1632,7 @@ async def send_security_whatsapp_otp(
         draft = RegistrationDraftModel(
             registration_id=str(target_ident or uuid.uuid4().hex[:12].upper()),
             mobile_number=clean_mobile,
+            tenant_id=DEFAULT_TENANT_ID,  # Required NOT NULL; use platform default tenant
             status="SECURITY_VERIFICATION",
             draft_data={}
         )

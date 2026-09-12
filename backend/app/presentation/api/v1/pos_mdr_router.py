@@ -93,14 +93,31 @@ class ToggleServiceRequest(BaseModel):
 # PUBLIC / RETAILER ENDPOINTS
 # ==============================================================================
 
+CARD_TYPES_CONFIG = [
+    {"code": "VISA", "name": "VISA", "display_order": 1},
+    {"code": "MASTER", "name": "MASTER", "display_order": 2},
+    {"code": "RUPAY", "name": "RUPAY", "display_order": 3},
+    {"code": "AMEX / DINERS", "name": "AMEX / DINERS", "display_order": 4},
+]
+
+@router.get("/card-types")
+async def get_pos_card_types():
+    """
+    Returns dynamically configured POS Card Types for POS Settlement Top-Up:
+    VISA, MASTER, RUPAY, AMEX / DINERS.
+    """
+    return {"items": CARD_TYPES_CONFIG, "total": len(CARD_TYPES_CONFIG)}
+
+
 @router.get("/payment-modes")
 async def get_payment_modes(db: AsyncSession = Depends(get_db)):
     """
     Returns active allowed POS payment modes ordered by priority/display_order.
     If POS Top-Up is globally disabled, returns an empty list.
+    Also returns active card_types config for POS settlement flows.
     """
     modes = await PosMdrService.get_active_payment_modes(db)
-    return {"items": modes, "total": len(modes)}
+    return {"items": modes, "total": len(modes), "card_types": CARD_TYPES_CONFIG}
 
 
 @router.post("/calculate-mdr", response_model=CalculateMdrResponse)

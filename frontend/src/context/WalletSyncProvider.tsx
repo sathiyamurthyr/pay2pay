@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
-import axios from "axios";
+import apiClient from "@/lib/api";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 
 export interface WalletDataPayload {
@@ -23,6 +23,9 @@ export interface WalletDataPayload {
   unread_notifications_count: number;
   is_approved?: boolean;
   status?: string;
+  photo_url?: string;
+  avatar_url?: string;
+  retailer_info?: any;
 }
 
 interface WalletSyncContextType {
@@ -51,30 +54,32 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
       // Call /header-wallet with NO query params.
       // The backend resolves the authenticated retailer from the JWT cookie (p2p_access_token).
       // Zero localStorage reads — identity comes from the server session only.
-      const res = await axios.get<WalletDataPayload>("/api/v1/payout/dashboard/retailer/header-wallet");
+      const res = await apiClient.get<WalletDataPayload>("/api/v1/payout/dashboard/retailer/header-wallet");
       const data = res.data;
-
-      // If user is logged in as Super Admin / Admin, ensure approval flag is active
-      try {
-        const userStr = localStorage.getItem("user_info") || localStorage.getItem("user") || localStorage.getItem("auth_user");
-        if (userStr) {
-          const u = JSON.parse(userStr);
-          const role = (u.role || u.user_type || u.role_code || "").toUpperCase();
-          if (["SUPER_ADMIN", "ADMIN", "PLATFORM_ADMIN", "OPERATIONS_ADMIN", "FINANCE_ADMIN"].includes(role)) {
-            Object.assign(data, { is_approved: true, status: "ACTIVE" });
-          }
-        }
-      } catch {}
 
       // Sync balance into useRetailerStore (in-memory only — NO localStorage write)
       const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
       const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
+      const rInfo = (data as any).retailer_info || data;
+      const retCode = (data as any).retailer_code || (data as any).retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
+      const photoUrl = (data as any).photo_url || (data as any).avatar_url || rInfo.photo_url || rInfo.avatar_url || "";
+      const storeName = (data as any).company_name || (data as any).retailer_name || rInfo.company_name || rInfo.retailer_name || "";
+      const ownerName = (data as any).owner_name || rInfo.owner_name || "";
+
       useRetailerStore.getState().updateWallet({
         mainBalance: bal,
         availableBalance: avail,
         commissionBalance: data.todays_commission ?? 0.0,
         todayMargin: data.todays_commission ?? 0.0,
         todaySettlement: data.settlement_pending_amount ?? 0.0,
+      });
+
+      useRetailerStore.getState().updateOutlet({
+        code: retCode || useRetailerStore.getState().outlet.code,
+        name: storeName || useRetailerStore.getState().outlet.name,
+        ownerName: ownerName || useRetailerStore.getState().outlet.ownerName,
+        avatar: photoUrl || useRetailerStore.getState().outlet.avatar,
+        photo_url: photoUrl || useRetailerStore.getState().outlet.photo_url,
       });
 
       setWalletData(data);

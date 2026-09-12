@@ -15,7 +15,7 @@ Endpoints:
 import json
 import logging
 from typing import Dict, Any, Optional, Tuple
-from fastapi import APIRouter, Depends, Request, status, Response
+from fastapi import APIRouter, Depends, Request, status, Response, Query
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -67,7 +67,33 @@ async def get_callback_urls(request: Request):
     return PayoutCallbackService.get_all_callback_urls(base_url)
 
 
-# ── 2. UNIVERSAL AUTO-DETECT WEBHOOK & CALLBACK ──
+# ── 2. WEBHOOK AUDIT LOGS (FROM VIEW: public.view_payout_webhook_logs) ──
+@router.get("/webhook/logs", summary="Fetch Payout Webhook Received Logs from View")
+@router.get("/callback/logs", summary="Fetch Payout Callback Logs from View")
+async def get_payout_webhook_logs(
+    gateway: Optional[str] = Query(None, description="Filter by gateway code (e.g. URBANRUPEE, BULKPE)"),
+    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (SUCCESS, FAILED, PENDING)"),
+    search: Optional[str] = Query(None, description="Search client_txn_id, vendor_tx_id, transaction_number, retailer"),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves real-time incoming webhook audit logs queried directly from public.view_payout_webhook_logs.
+    Includes request payload, response payload, gateway reference, and status.
+    """
+    logs = await PayoutCallbackService.get_webhook_logs(
+        db=db,
+        gateway=gateway,
+        status=status_filter,
+        search=search,
+        limit=limit,
+        offset=offset
+    )
+    return logs
+
+
+# ── 3. UNIVERSAL AUTO-DETECT WEBHOOK & CALLBACK ──
 @router.post("/callback", summary="Universal Payout Callback Receiver (POST)")
 @router.post("/webhook", summary="Universal Payout Webhook Receiver (POST)")
 async def handle_universal_callback_post(
@@ -76,6 +102,7 @@ async def handle_universal_callback_post(
 ):
     """
     Universal POST endpoint for all payout vendors. Auto-detects the provider and payload format.
+    Always returns HTTP 200 after processing and recording in public.payout_webhook via SP.
     """
     payload, query_params = await extract_request_data(request)
     res = await PayoutCallbackService.process_callback(
@@ -84,7 +111,7 @@ async def handle_universal_callback_post(
         payload=payload,
         query_params=query_params
     )
-    return res
+    return JSONResponse(status_code=status.HTTP_200_OK, content=res)
 
 
 @router.get("/callback", summary="Universal Payout Callback Receiver (GET)")
@@ -128,9 +155,9 @@ async def handle_vendor_callback_post(
 
     # Some vendors (like WowPe legacy or Eko) expect standard plaintext or specific ACK format
     if vendor.lower() in ("wowpe", "eko"):
-        return {"status": "SUCCESS", "message": "Webhook processed successfully", "data": res}
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"status": "SUCCESS", "message": "Webhook processed successfully", "data": res})
 
-    return res
+    return JSONResponse(status_code=status.HTTP_200_OK, content=res)
 
 
 @router.get("/callback/{vendor}", summary="Vendor-Specific Payout Callback (GET)")

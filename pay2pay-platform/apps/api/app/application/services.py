@@ -180,7 +180,7 @@ class AuthService:
             )
         )
         res = await db.execute(stmt)
-        user = res.scalar_one_or_none()
+        user = res.scalars().first()
 
         if not user:
             # Check AuthUserModel (Retailers / Mobile users)
@@ -220,6 +220,10 @@ class AuthService:
                     requires_mfa=False,
                     user={
                         "public_id": str(auth_user.user_id),
+                        "id": str(auth_user.user_id),
+                        "user_ref_id": getattr(ret_obj, "retailer_ref_id", None) or 24,
+                        "user_type_ref_id": 2,
+                        "retailer_ref_id": getattr(ret_obj, "retailer_ref_id", None) or 24,
                         "email": auth_user.email or f"{clean_mob}@pay2pay.in",
                         "full_name": r_name,
                         "mobile_number": clean_mob,
@@ -272,7 +276,7 @@ class AuthService:
 
                     # Reload created user with relationships
                     res = await db.execute(stmt)
-                    user = res.scalar_one_or_none()
+                    user = res.scalars().first()
 
         if not user:
             raise UnauthorizedException("Invalid email/username or password")
@@ -304,7 +308,11 @@ class AuthService:
         # Update last login time
         user.last_login_at = datetime.now(timezone.utc)
 
-        roles = [ur.role.code for ur in user.user_roles]
+        roles = [ur.role.code for ur in user.user_roles if ur.role]
+        if not roles and user.user_type:
+            roles = [user.user_type]
+        elif user.user_type and user.user_type not in roles:
+            roles.append(user.user_type)
         company_id_str = str(user.company_id) if user.company_id else None
 
         access_token = create_access_token(
@@ -366,6 +374,7 @@ class AuthService:
             jti=jti
         )
 
+        admin_ref = getattr(user, "admin_user_ref_id", None) or getattr(user, "id", None) or 1
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
@@ -373,6 +382,9 @@ class AuthService:
             requires_mfa=False,
             user={
                 "public_id": str(user.public_id),
+                "id": str(user.public_id),
+                "user_ref_id": admin_ref,
+                "user_type_ref_id": 1,
                 "email": user.email,
                 "full_name": user.full_name,
                 "tenant_id": str(user.tenant_id),
@@ -581,7 +593,7 @@ class UserService:
         return user_data
 
     @staticmethod
-    async def list_users(db: AsyncSession, tenant_id: uuid.UUID) -> List[Dict[str, Any]]:
+    async def list_users(db: AsyncSession, tenant_id: Optional[uuid.UUID] = None) -> List[Dict[str, Any]]:
         stmt = text("SELECT sp_list_admin_users(:tenant_id)")
         res = await db.execute(stmt, {"tenant_id": tenant_id})
         users = res.scalar() or []
@@ -5549,8 +5561,11 @@ class EnterprisePayoutService:
         # Generate Bank UTR & RRN
         utr = f"UTR2026{random.randint(1000000000, 9999999999)}"
         rrn = f"RRN2026{random.randint(1000000000, 9999999999)}"
-        from app.core.transaction_id_generator import generate_transaction_number
-        ptxn_num = await generate_transaction_number(db, service_prefix="PO", model_class=PayoutTransactionModel)
+        # Generate payout transaction number via authoritative PostgreSQL SP
+        # SP format: <VENDOR_FIRST_CHAR> + 'PAY' + DDMMYYHH24MI + <5-digit-seq from payout_txn_seq>
+        # Uses gateway_code as vendor name → e.g. BULKPE→ BPAY..., CASHFREE→ CPAY...
+        from app.core.transaction_id_generator import generate_payout_txn_id_via_sp
+        ptxn_num = await generate_payout_txn_id_via_sp(db, vendor_name=req.gateway_code)
 
         ptxn = PayoutTransactionModel(
             public_id=uuid.uuid4(),
