@@ -42,7 +42,7 @@ interface TopupRequestItem {
   topup_request_id: string;
   requested_amount: number;
   approved_amount?: number;
-  currency: string;
+  currency?: string;
   payment_reference: string;
   payment_method: string;
   payment_mode?: string;
@@ -66,6 +66,15 @@ interface TopupRequestItem {
   gst_amount?: number;
   charges?: number;
   received_amount?: number;
+  card_type?: string;
+  card_last_4?: string;
+  card_last_4_masked?: string;
+}
+
+interface CardTypeOption {
+  code: string;
+  name: string;
+  display_order?: number;
 }
 
 interface PaymentModeOption {
@@ -77,12 +86,29 @@ interface PaymentModeOption {
   is_active?: boolean;
 }
 
+interface UpiVendorConfig {
+  vendor_id: string;
+  vendor_name: string;
+  vendor_code: string;
+  qr_image_url: string;
+  upi_id: string;
+  payee_name?: string;
+  company_mdr: number;
+  retailer_mdr: number;
+  qr_status: string;
+  vendor_status: string;
+}
+
 interface UpiQrData {
   request_id: string;
   amount: number;
   upi_id: string;
   payee_name: string;
   company_name: string;
+  vendor_name?: string;
+  vendor_code?: string;
+  retailer_mdr?: number;
+  static_qr_image_url?: string;
   upi_url: string;
   qr_data_url: string;
   expires_at: string;
@@ -125,6 +151,10 @@ export default function RetailerTopupRequestPage() {
   const [qrSecondsLeft, setQrSecondsLeft] = useState<number>(900);
   const [isQrExpired, setIsQrExpired] = useState<boolean>(false);
 
+  // Dynamic UPI Vendor Configuration from Admin
+  const [upiVendorConfig, setUpiVendorConfig] = useState<UpiVendorConfig | null>(null);
+  const [loadingUpiVendor, setLoadingUpiVendor] = useState<boolean>(true);
+
   // Screenshot Upload & OCR State
   const [upiSlipFile, setUpiSlipFile] = useState<File | null>(null);
   const [upiSlipPreview, setUpiSlipPreview] = useState<string | null>(null);
@@ -160,6 +190,9 @@ export default function RetailerTopupRequestPage() {
 
   // ── POS Settlement States (Existing Workflow) ─────────────────────────────────
   const [paymentModes, setPaymentModes] = useState<PaymentModeOption[]>([]);
+  const [cardTypes, setCardTypes] = useState<CardTypeOption[]>([]);
+  const [selectedCardType, setSelectedCardType] = useState<string>("");
+  const [cardLast4, setCardLast4] = useState<string>("");
   const [requestedAmount, setRequestedAmount] = useState<string>("");
   const [paymentReference, setPaymentReference] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split("T")[0]);
@@ -228,9 +261,9 @@ export default function RetailerTopupRequestPage() {
     return () => clearInterval(interval);
   }, [upiStep, upiQrData]);
 
-  // Load POS Payment Modes
+  // Load POS Payment Modes & Dynamic Card Types from Existing Backend Config
   useEffect(() => {
-    const fetchPaymentModes = async () => {
+    const fetchPaymentModesAndCardTypes = async () => {
       try {
         const res = await api.get("/api/v1/pos/payment-modes");
         const items = res.data?.items || [];
@@ -241,12 +274,54 @@ export default function RetailerTopupRequestPage() {
             return exists ? prev : items[0].code;
           });
         }
+        if (res.data?.card_types && Array.isArray(res.data.card_types) && res.data.card_types.length > 0) {
+          setCardTypes(res.data.card_types);
+        } else {
+          const cardRes = await api.get("/api/v1/pos/card-types");
+          if (cardRes.data?.items && Array.isArray(cardRes.data.items)) {
+            setCardTypes(cardRes.data.items);
+          }
+        }
       } catch (err) {
         console.warn("Failed to load payment modes dynamically:", err);
+        try {
+          const cardRes = await api.get("/api/v1/pos/card-types");
+          if (cardRes.data?.items && Array.isArray(cardRes.data.items)) {
+            setCardTypes(cardRes.data.items);
+          }
+        } catch (cardErr) {
+          console.warn("Failed to load card types:", cardErr);
+        }
       }
     };
-    fetchPaymentModes();
+    fetchPaymentModesAndCardTypes();
   }, []);
+
+  // ── Dynamic UPI Vendor Configuration (Admin Controlled) ─────────────────────
+  useEffect(() => {
+    let isMounted = true;
+    const loadUpiConfig = async () => {
+      try {
+        setLoadingUpiVendor(true);
+        const res = await api.get("/api/v1/upi/vendor-config");
+        if (isMounted) {
+          if (res.data?.success && res.data?.data) {
+            setUpiVendorConfig(res.data.data);
+          } else {
+            setUpiVendorConfig(null);
+          }
+        }
+      } catch (err) {
+        if (isMounted) setUpiVendorConfig(null);
+      } finally {
+        if (isMounted) setLoadingUpiVendor(false);
+      }
+    };
+    loadUpiConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, [topupMode]);
 
   // POS MDR Calculation
   useEffect(() => {
@@ -493,6 +568,10 @@ export default function RetailerTopupRequestPage() {
     try {
       setSubmittingUpi(true);
 
+      const upiMdrPct = upiVendorConfig?.retailer_mdr ?? 0;
+      const calcMdrCharge = Math.round((amt * (upiMdrPct / 100)) * 100) / 100;
+      const calcReceivedAmt = Math.max(0, Math.round((amt - calcMdrCharge) * 100) / 100);
+
       const payload = {
         requested_amount: amt,
         payment_reference: verifiedUtr.trim(),
@@ -509,7 +588,10 @@ export default function RetailerTopupRequestPage() {
         payer_name: verifiedPayerName.trim() || undefined,
         payer_upi_id: verifiedUpiId.trim() || undefined,
         qr_request_id: upiQrData?.request_id,
-        ocr_extracted_data: ocrData || undefined
+        ocr_extracted_data: ocrData || undefined,
+        mdr_charge: calcMdrCharge,
+        charges: calcMdrCharge,
+        received_amount: calcReceivedAmt
       };
 
       let userRefId: any = null;
@@ -556,7 +638,9 @@ export default function RetailerTopupRequestPage() {
         slip_url: uploadedUpiSlip.slip_url,
         status: "PENDING",
         submitted_at: new Date().toISOString(),
-        received_amount: amt
+        received_amount: calcReceivedAmt,
+        mdr_charge: calcMdrCharge,
+        charges: calcMdrCharge
       };
       setMyRequests((prev) => [newClaim, ...prev.filter(r => r.topup_request_id !== newReqId)]);
 
@@ -648,6 +732,16 @@ export default function RetailerTopupRequestPage() {
       return;
     }
 
+    if (!selectedCardType) {
+      setErrorMessage("Please select a Card Type (VISA, MASTER, RUPAY, AMEX / DINERS).");
+      return;
+    }
+
+    if (cardLast4 && cardLast4.length !== 4) {
+      setErrorMessage("Card Last 4 Digits must contain exactly 4 digits if entered.");
+      return;
+    }
+
     if (!paymentReference.trim()) {
       setErrorMessage("Please provide the Bank Reference / UTR Number from your payment receipt.");
       return;
@@ -665,6 +759,8 @@ export default function RetailerTopupRequestPage() {
         payment_reference: paymentReference.trim(),
         payment_method: paymentMethod,
         payment_mode: paymentMethod,
+        card_type: selectedCardType,
+        card_last_4: cardLast4 ? cardLast4 : undefined,
         payment_date: paymentDate ? new Date(paymentDate).toISOString() : undefined,
         slip_id: uploadedPosSlipData?.slip_id,
         slip_url: uploadedPosSlipData?.slip_url,
@@ -712,6 +808,9 @@ export default function RetailerTopupRequestPage() {
         payment_reference: paymentReference.trim(),
         payment_method: paymentMethod,
         payment_mode: paymentMethod,
+        card_type: selectedCardType,
+        card_last_4: cardLast4 || undefined,
+        card_last_4_masked: cardLast4 ? `****${cardLast4}` : undefined,
         payment_date: paymentDate ? new Date(paymentDate).toISOString() : new Date().toISOString(),
         slip_id: uploadedPosSlipData?.slip_id,
         slip_url: uploadedPosSlipData?.slip_url,
@@ -726,6 +825,8 @@ export default function RetailerTopupRequestPage() {
 
       setRequestedAmount("");
       setPaymentReference("");
+      setSelectedCardType("");
+      setCardLast4("");
       setRetailerRemarks("");
       setPosSlipFile(null);
       setPosSlipPreview(null);
@@ -841,11 +942,6 @@ export default function RetailerTopupRequestPage() {
         >
           <QrCode className="h-4 w-4" />
           <span>UPI Top-Up (Dynamic QR)</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold uppercase ${
-            topupMode === "UPI" ? "bg-slate-950/20 text-slate-950" : "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-          }`}>
-            0% Fee
-          </span>
         </button>
 
         <button
@@ -971,22 +1067,107 @@ export default function RetailerTopupRequestPage() {
                     </div>
                   </div>
 
-                  {/* Features Banner */}
-                  <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs text-slate-400">
-                    <div className="flex items-center gap-2 text-slate-300 font-semibold">
-                      <ShieldCheck className="h-4 w-4 text-amber-400" />
-                      <span>Zero Processing Fees (0% MDR)</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Instant verification with any UPI app including Google Pay, PhonePe, Paytm, BHIM, CRED and Amazon Pay.
-                    </p>
-                  </div>
+                  {/* ── Dynamic UPI MDR Live Breakdown Card (Referenced from POS Settlement tab) ── */}
+                  {(() => {
+                    const upiAmtNum = parseFloat(upiAmount || "0");
+                    const upiMdrPct = upiVendorConfig?.retailer_mdr ?? 0;
+                    const upiMdrAmount = upiAmtNum > 0 ? Math.round((upiAmtNum * (upiMdrPct / 100)) * 100) / 100 : 0;
+                    const upiReceivedAmount = upiAmtNum > 0 ? Math.max(0, Math.round((upiAmtNum - upiMdrAmount) * 100) / 100) : 0;
+
+                    if (!loadingUpiVendor && (!upiVendorConfig || upiVendorConfig.vendor_status !== "ACTIVE" || upiVendorConfig.qr_status !== "ENABLED")) {
+                      return (
+                        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                          <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <h5 className="text-xs font-bold text-amber-300">UPI Top-Up Service Unavailable</h5>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                              UPI Top-Up is currently disabled by administrator. Please use POS Settlement or contact support.
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (upiAmtNum > 0 && upiVendorConfig) {
+                      return (
+                        <div className="rounded-2xl border border-amber-500/20 bg-slate-950/90 p-4.5 space-y-3.5 shadow-xl relative overflow-hidden">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                            <span className="text-xs font-bold text-white flex items-center gap-2">
+                              <Calculator className="h-4 w-4 text-amber-400" />
+                              Live Fee & Settlement Breakdown
+                            </span>
+                            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono font-bold uppercase tracking-wider">
+                              {upiVendorConfig.vendor_name}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-y-2 text-xs">
+                            <span className="text-slate-400">Payment Mode</span>
+                            <span className="text-right font-semibold text-white">
+                              UPI Top-Up ({upiVendorConfig.vendor_name})
+                            </span>
+
+                            <span className="text-slate-400">Transaction Amount</span>
+                            <span className="text-right font-black text-amber-400">
+                              ₹{upiAmtNum.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+
+                            <span className="text-slate-400">MDR ({upiMdrPct}%)</span>
+                            <span className="text-right font-semibold text-amber-300">
+                              ₹{upiMdrAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+
+                            <span className="text-slate-400">Charges</span>
+                            <span className="text-right font-semibold text-slate-300">
+                              ₹{upiMdrAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+
+                            <div className="col-span-2 pt-3 mt-1 border-t border-slate-800/80 flex items-center justify-between">
+                              <div>
+                                <span className="text-xs font-bold text-white block">Received Amount</span>
+                                <span className="text-[10px] text-emerald-400/80">Credited to Retailer Wallet</span>
+                              </div>
+                              <span className="text-xl font-black text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">
+                                ₹{upiReceivedAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs text-slate-400">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-slate-300 font-semibold">
+                            <ShieldCheck className="h-4 w-4 text-amber-400" />
+                            <span>Configured MDR: {upiMdrPct}%</span>
+                          </div>
+                          {upiVendorConfig && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono font-medium">
+                              {upiVendorConfig.vendor_name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Instant verification with any UPI app including Google Pay, PhonePe, Paytm, BHIM, CRED and Amazon Pay.
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   {/* Generate QR Button */}
                   <button
                     type="button"
                     onClick={handleGenerateUpiQr}
-                    disabled={generatingQr || !upiAmount || parseFloat(upiAmount) < 100}
+                    disabled={
+                      generatingQr ||
+                      !upiAmount ||
+                      parseFloat(upiAmount) < 100 ||
+                      !upiVendorConfig ||
+                      upiVendorConfig.vendor_status !== "ACTIVE" ||
+                      upiVendorConfig.qr_status !== "ENABLED"
+                    }
                     className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm rounded-2xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {generatingQr ? (
@@ -1730,6 +1911,51 @@ export default function RetailerTopupRequestPage() {
                   </div>
                 )}
 
+                {/* ── POS Card Details (Card Type & Card Last 4 Digits) ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                  {/* Card Type */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                      <span>Card Type <span className="text-amber-400">*</span></span>
+                      <span className="text-[10px] text-slate-400 font-normal">Select Card</span>
+                    </label>
+                    <select
+                      value={selectedCardType}
+                      onChange={(e) => setSelectedCardType(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all cursor-pointer"
+                      required
+                    >
+                      <option value="" disabled className="text-slate-500">-- Select Card Type --</option>
+                      {cardTypes.map((c) => (
+                        <option key={c.code} value={c.code} className="bg-slate-900 text-white font-semibold">
+                          {c.name || c.code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Card Last 4 Digits (Optional) */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                      <span>Card Last 4 Digits</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      placeholder="e.g. 4521"
+                      value={cardLast4}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        setCardLast4(val);
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl text-xs font-mono font-bold text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all tracking-wider"
+                    />
+                  </div>
+                </div>
+
                 {/* Bank Reference */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-300">
@@ -1861,9 +2087,9 @@ export default function RetailerTopupRequestPage() {
               <p className="text-xs text-slate-400 mt-0.5">Live status of your submitted UPI & POS requests</p>
             </div>
             <button
-              onClick={fetchMyTopups}
+              onClick={() => fetchMyTopups()}
               disabled={loadingRequests}
-              className="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition-colors inline-flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             >
               <RefreshCw className={`h-3 w-3 ${loadingRequests ? "animate-spin text-amber-400" : ""}`} />
               Refresh
@@ -1919,15 +2145,29 @@ export default function RetailerTopupRequestPage() {
                         </div>
                       </td>
 
-                      {/* Payment Mode */}
+                      {/* Payment Mode & Card Info */}
                       <td className="py-3 px-3 font-medium text-slate-300">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-mono border ${
-                          (item.payment_mode || item.payment_method || "").toUpperCase().includes("UPI")
-                            ? "bg-amber-500/10 text-amber-300 border-amber-500/30 font-semibold"
-                            : "bg-amber-500/10 text-amber-400 border-amber-500/20 font-semibold"
-                        }`}>
-                          {item.payment_mode || item.payment_method}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-mono border w-fit ${
+                            (item.payment_mode || item.payment_method || "").toUpperCase().includes("UPI")
+                              ? "bg-amber-500/10 text-amber-300 border-amber-500/30 font-semibold"
+                              : "bg-amber-500/10 text-amber-400 border-amber-500/20 font-semibold"
+                          }`}>
+                            {item.payment_mode || item.payment_method}
+                          </span>
+                          {item.card_type && (
+                            <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold">
+                                {item.card_type}
+                              </span>
+                              {(item.card_last_4 || item.card_last_4_masked) && (
+                                <span className="text-slate-400 font-bold">
+                                  {item.card_last_4 ? `****${item.card_last_4}` : item.card_last_4_masked}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Requested Amount */}

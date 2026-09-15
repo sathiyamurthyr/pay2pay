@@ -12,12 +12,13 @@ from typing import Optional, Dict, Any, Union
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 
 from app.core.database import get_db
 from app.application.bulkpe_payout_engine import BulkPePayoutEngine
 from app.infrastructure.db.payout_workflow_models import PayoutWorkflowTransactionModel
-from app.infrastructure.db.models import RetailerWalletModel
+from app.infrastructure.db.models import RetailerWalletModel, RetailerModel, RetailerContactModel, AdminUserModel
+from app.infrastructure.db.customer_models import CustomerModel
 
 router = APIRouter(prefix="/payout/bulkpe", tags=["BulkPe Payout Engine"])
 
@@ -33,9 +34,13 @@ class InitiateBulkPePayoutRequest(BaseModel):
     user_type_ref_id: Optional[int] = Field(2, description="Standard User Type Reference ID (BIGINT)")
     retailer_ref_id: Optional[int] = Field(None, description="Alternative Retailer Reference ID (BIGINT)")
     retailer_id: Optional[Union[uuid.UUID, str]] = Field(None, description="Retailer ID")
+    retailer_code: Optional[str] = Field(None, description="Retailer Code (e.g. P2P-R815722)")
+    mobile: Optional[str] = Field(None, description="Retailer Mobile Number")
     tenant_id: Optional[Union[uuid.UUID, str]] = Field(None, description="Tenant ID")
     amount: float = Field(..., gt=0, description="Payout Transfer Amount")
-    mpin: str = Field(..., description="Customer Security MPIN")
+    mpin: Optional[str] = Field(None, description="Customer or Retailer Security MPIN")
+    customer_pin: Optional[str] = Field(None, description="Alternative field for Security MPIN")
+    pin: Optional[str] = Field(None, description="Alternative field for Security MPIN")
     mode: str = Field("IMPS", description="Transfer Mode (IMPS, NEFT, RTGS, UPI)")
     idempotency_key: Optional[str] = Field(None, description="Unique Idempotency Key")
 
@@ -50,23 +55,136 @@ async def initiate_bulkpe_payout(
     Initiates a BulkPe Payout transaction with full ACID wallet debit, dynamic pricing,
     security MPIN validation, and automatic reversal engine on failures.
     """
-    from app.infrastructure.db.models import RetailerModel
-
+    import re
     ret_obj = None
 
-    # 1. Attempt JWT auth token/cookie context resolution
-    try:
-        from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
-        ctx = await resolve_retailer_context(request, req.retailer_id, db=db)
-        if ctx and ctx.get("public_id"):
-            stmt = select(RetailerModel).where(RetailerModel.public_id == ctx.get("public_id"), RetailerModel.is_deleted == False)
-            ret_obj = (await db.execute(stmt)).scalars().first()
-    except Exception:
-        pass
+    # 1. Attempt JWT auth token / cookie context resolution
+    auth_header = request.headers.get("authorization", "") if request else ""
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "").strip()
+    if not token and request and request.cookies:
+        token = (
+            request.cookies.get("p2p_access_token") or
+            request.cookies.get("pay2pay_access_token") or
+            request.cookies.get("pay2pay_auth_token") or
+            request.cookies.get("access_token") or
+            request.cookies.get("token")
+        )
 
-    # 2. Direct indexed BIGINT resolution via user_ref_id / retailer_ref_id
+    token_payload = {}
+    if token and len(token) >= 10:
+        try:
+            from app.core.security import decode_access_token
+            token_payload = decode_access_token(token) or {}
+        except Exception:
+            pass
+
+    # Direct match from token claims
+    if token_payload and db:
+        r_id_claim = token_payload.get("retailer_id")
+        if r_id_claim:
+            try:
+                r_uuid = uuid.UUID(str(r_id_claim))
+                stmt = select(RetailerModel).where(RetailerModel.public_id == r_uuid, RetailerModel.is_deleted == False)
+                ret_obj = (await db.execute(stmt)).scalars().first()
+            except Exception:
+                pass
+
+        if not ret_obj and token_payload.get("retailer_code"):
+            stmt = select(RetailerModel).where(RetailerModel.retailer_code == str(token_payload["retailer_code"]).strip().upper(), RetailerModel.is_deleted == False)
+            ret_obj = (await db.execute(stmt)).scalars().first()
+
+        if not ret_obj and token_payload.get("retailer_ref_id"):
+            try:
+                ref_int = int(token_payload["retailer_ref_id"])
+                stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == ref_int, RetailerModel.is_deleted == False)
+                ret_obj = (await db.execute(stmt)).scalars().first()
+            except Exception:
+                pass
+
+        if not ret_obj and token_payload.get("sub"):
+            try:
+                sub_uuid = uuid.UUID(str(token_payload["sub"]))
+                stmt = select(RetailerModel).where(RetailerModel.public_id == sub_uuid, RetailerModel.is_deleted == False)
+                ret_obj = (await db.execute(stmt)).scalars().first()
+                if not ret_obj:
+                    adm_chk = (await db.execute(select(AdminUserModel).where(AdminUserModel.public_id == sub_uuid, AdminUserModel.is_deleted == False))).scalars().first()
+                    if adm_chk and adm_chk.phone:
+                        clean_mob = re.sub(r"\D", "", str(adm_chk.phone))[-10:]
+                        stmt = (
+                            select(RetailerModel)
+                            .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                            .where(
+                                RetailerContactModel.mobile.in_([clean_mob, f"+91{clean_mob}", f"91{clean_mob}"]),
+                                RetailerModel.is_deleted == False,
+                                RetailerContactModel.is_deleted == False
+                            )
+                        )
+                        ret_obj = (await db.execute(stmt)).scalars().first()
+            except Exception:
+                pass
+
+        if not ret_obj and token_payload.get("mobile"):
+            clean_mob = re.sub(r"\D", "", str(token_payload["mobile"]))[-10:]
+            stmt = (
+                select(RetailerModel)
+                .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                .where(
+                    RetailerContactModel.mobile.in_([clean_mob, f"+91{clean_mob}", f"91{clean_mob}"]),
+                    RetailerModel.is_deleted == False,
+                    RetailerContactModel.is_deleted == False
+                )
+            )
+            ret_obj = (await db.execute(stmt)).scalars().first()
+
+    # 2. Context resolution via resolve_retailer_context
     if not ret_obj:
-        eff_ref_id = req.user_ref_id or req.retailer_ref_id or request.headers.get("x-user-ref-id")
+        try:
+            from app.presentation.api.v1.retailer_dashboard_router import resolve_retailer_context
+            target_id = req.retailer_id or getattr(req, "retailer_code", None)
+            ctx = await resolve_retailer_context(request, target_id, db=db)
+            if ctx:
+                if ctx.get("public_id"):
+                    try:
+                        p_uuid = uuid.UUID(str(ctx["public_id"]))
+                        stmt = select(RetailerModel).where(RetailerModel.public_id == p_uuid, RetailerModel.is_deleted == False)
+                        ret_obj = (await db.execute(stmt)).scalars().first()
+                    except Exception:
+                        pass
+                if not ret_obj and ctx.get("retailer_code"):
+                    stmt = select(RetailerModel).where(RetailerModel.retailer_code == str(ctx["retailer_code"]).strip().upper(), RetailerModel.is_deleted == False)
+                    ret_obj = (await db.execute(stmt)).scalars().first()
+                if not ret_obj and ctx.get("retailer_ref_id"):
+                    try:
+                        stmt = select(RetailerModel).where(RetailerModel.retailer_ref_id == int(ctx["retailer_ref_id"]), RetailerModel.is_deleted == False)
+                        ret_obj = (await db.execute(stmt)).scalars().first()
+                    except Exception:
+                        pass
+                if not ret_obj and ctx.get("mobile"):
+                    clean_mob = re.sub(r"\D", "", str(ctx["mobile"]))[-10:]
+                    stmt = (
+                        select(RetailerModel)
+                        .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                        .where(
+                            RetailerContactModel.mobile.in_([clean_mob, f"+91{clean_mob}", f"91{clean_mob}"]),
+                            RetailerModel.is_deleted == False,
+                            RetailerContactModel.is_deleted == False
+                        )
+                    )
+                    ret_obj = (await db.execute(stmt)).scalars().first()
+        except Exception:
+            pass
+
+    # 3. Direct indexed BIGINT resolution via user_ref_id / retailer_ref_id
+    if not ret_obj:
+        eff_ref_id = (
+            req.user_ref_id or
+            req.retailer_ref_id or
+            (request.headers.get("x-user-ref-id") if request else None) or
+            (request.headers.get("x-retailer-ref-id") if request else None) or
+            (request.cookies.get("user_ref_id") if request else None)
+        )
         if eff_ref_id:
             try:
                 ref_int = int(eff_ref_id)
@@ -75,20 +193,118 @@ async def initiate_bulkpe_payout(
             except (ValueError, TypeError):
                 pass
 
-    # 3. Resolution via retailer identifier (UUID, retailer_code)
+    # 4. Resolution via retailer identifier (UUID, retailer_code, mobile) from req, headers, or cookies
     if not ret_obj:
-        ret_identifier = req.retailer_id or request.headers.get("x-retailer-code") or request.headers.get("x-retailer-id")
+        ret_identifier = (
+            req.retailer_id or
+            getattr(req, "retailer_code", None) or
+            (request.headers.get("x-retailer-code") if request else None) or
+            (request.headers.get("x-retailer-id") if request else None) or
+            (request.headers.get("x-retailer-uuid") if request else None) or
+            (request.cookies.get("p2p_active_retailer_id") if request else None) or
+            (request.cookies.get("p2p_retailer_code") if request else None) or
+            (request.cookies.get("retailer_id") if request else None) or
+            (request.cookies.get("retailer_code") if request else None)
+        )
         if ret_identifier:
+            ident_str = str(ret_identifier).strip()
             try:
-                parsed_uuid = uuid.UUID(str(ret_identifier))
+                parsed_uuid = uuid.UUID(ident_str)
                 stmt = select(RetailerModel).where(RetailerModel.public_id == parsed_uuid, RetailerModel.is_deleted == False)
                 ret_obj = (await db.execute(stmt)).scalars().first()
             except Exception:
                 pass
 
-        if not ret_obj and ret_identifier:
-            stmt = select(RetailerModel).where(RetailerModel.retailer_code == str(ret_identifier).strip().upper(), RetailerModel.is_deleted == False)
-            ret_obj = (await db.execute(stmt)).scalars().first()
+            if not ret_obj:
+                stmt = select(RetailerModel).where(RetailerModel.retailer_code == ident_str.upper(), RetailerModel.is_deleted == False)
+                ret_obj = (await db.execute(stmt)).scalars().first()
+
+            if not ret_obj and len(re.sub(r"\D", "", ident_str)) >= 10:
+                clean_mob = re.sub(r"\D", "", ident_str)[-10:]
+                stmt = (
+                    select(RetailerModel)
+                    .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                    .where(
+                        RetailerContactModel.mobile.in_([clean_mob, f"+91{clean_mob}", f"91{clean_mob}"]),
+                        RetailerModel.is_deleted == False,
+                        RetailerContactModel.is_deleted == False
+                    )
+                )
+                ret_obj = (await db.execute(stmt)).scalars().first()
+
+    # 5. Customer introducing retailer lookup
+    if not ret_obj and req.customer_id:
+        try:
+            cust_ident = str(req.customer_id).strip()
+            conds = [CustomerModel.customer_number == cust_ident]
+            try:
+                c_uuid = uuid.UUID(cust_ident)
+                conds.append(CustomerModel.public_id == c_uuid)
+            except Exception:
+                pass
+            clean_digits = re.sub(r"\D", "", cust_ident)
+            if len(clean_digits) >= 10:
+                conds.append(CustomerModel.mobile_number == clean_digits[-10:])
+                conds.append(CustomerModel.mobile_number == f"+91{clean_digits[-10:]}")
+            cust_stmt = select(CustomerModel).where(or_(*conds), CustomerModel.is_deleted == False)
+            cust = (await db.execute(cust_stmt)).scalars().first()
+            if cust and cust.introduced_by_retailer_id:
+                stmt = select(RetailerModel).where(RetailerModel.public_id == cust.introduced_by_retailer_id, RetailerModel.is_deleted == False)
+                ret_obj = (await db.execute(stmt)).scalars().first()
+        except Exception:
+            pass
+
+    # 6. Fallback for single tenant active retailer
+    if not ret_obj:
+        raw_tenant = req.tenant_id or (request.headers.get("x-tenant-id") if request else None)
+        if raw_tenant:
+            try:
+                t_uuid = uuid.UUID(str(raw_tenant))
+                stmt = select(RetailerModel).where(RetailerModel.tenant_id == t_uuid, RetailerModel.is_deleted == False).order_by(RetailerModel.created_date.asc()).limit(1)
+                ret_obj = (await db.execute(stmt)).scalars().first()
+            except Exception:
+                pass
+
+    # 7. Final fallback: look up AuthUserModel / AdminUserModel by JWT sub to resolve mobile, then retailer
+    if not ret_obj and token_payload:
+        try:
+            sub_val = token_payload.get("sub") or token_payload.get("user_id") or ""
+            auth_mobile = None
+            if sub_val:
+                # Try: sub may be a 10-digit mobile number directly
+                clean_sub = re.sub(r"\D", "", str(sub_val))[-10:]
+                if len(clean_sub) == 10:
+                    auth_mobile = clean_sub
+                else:
+                    # Try by UUID sub from AdminUserModel
+                    try:
+                        sub_uuid = uuid.UUID(str(sub_val))
+                        adm = (await db.execute(select(AdminUserModel).where(AdminUserModel.public_id == sub_uuid, AdminUserModel.is_deleted == False))).scalars().first()
+                        if adm and adm.phone:
+                            auth_mobile = re.sub(r"\D", "", str(adm.phone))[-10:]
+                    except Exception:
+                        pass
+            # Additional: check x-mobile or x-phone headers
+            if not auth_mobile and request:
+                hdr_mob = request.headers.get("x-mobile") or request.headers.get("x-phone") or request.headers.get("x-retailer-mobile")
+                if hdr_mob:
+                    auth_mobile = re.sub(r"\D", "", str(hdr_mob))[-10:]
+            if not auth_mobile and req.mobile:
+                auth_mobile = re.sub(r"\D", "", str(req.mobile))[-10:]
+            if auth_mobile and len(auth_mobile) == 10:
+                mob_variants = [auth_mobile, f"+91{auth_mobile}", f"91{auth_mobile}"]
+                stmt = (
+                    select(RetailerModel)
+                    .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                    .where(
+                        RetailerContactModel.mobile.in_(mob_variants),
+                        RetailerModel.is_deleted == False,
+                        RetailerContactModel.is_deleted == False
+                    )
+                )
+                ret_obj = (await db.execute(stmt)).scalars().first()
+        except Exception:
+            pass
 
     if not ret_obj:
         raise HTTPException(
@@ -105,6 +321,13 @@ async def initiate_bulkpe_payout(
         except Exception:
             tenant_uuid = None
 
+    effective_mpin = req.mpin or req.customer_pin or req.pin
+    if not effective_mpin or not str(effective_mpin).strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Security MPIN is required."
+        )
+
     return await BulkPePayoutEngine.process_payout(
         db=db,
         customer_id=req.customer_id,
@@ -112,7 +335,7 @@ async def initiate_bulkpe_payout(
         retailer_id=retailer_uuid,
         tenant_id=tenant_uuid,
         amount=req.amount,
-        mpin=req.mpin,
+        mpin=str(effective_mpin).strip(),
         mode=req.mode,
         idempotency_key=req.idempotency_key,
         account_number=req.account_number,

@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { RetailerLayout } from "@/components/layout/retailer-layout";
 
-const DEV_BYPASS = process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+const DEV_BYPASS = false;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();

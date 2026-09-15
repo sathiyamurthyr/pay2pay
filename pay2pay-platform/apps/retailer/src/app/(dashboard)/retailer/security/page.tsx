@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Box, Typography, Paper, Stack, TextField, Button, Alert } from "@mui/material";
 import LockIcon from "@mui/icons-material/Lock";
 import ShieldIcon from "@mui/icons-material/Shield";
+import { apiClient } from "@/services/retailer-api";
 
 export default function RetailerSecurityPage() {
   const [pin, setPin] = useState("");
@@ -25,17 +26,21 @@ export default function RetailerSecurityPage() {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/v1/auth/security/pin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin }),
+      const res = await apiClient.post("/auth/security/pin/setup", {
+        pin,
+        confirm_pin: confirmPin,
       });
-      if (!res.ok) throw new Error("PIN update failed");
-      setMessage({ type: "success", text: "Security PIN updated successfully!" });
+      const data = res.data;
+      setMessage({ type: "success", text: data?.message || "Security PIN updated successfully!" });
       setPin("");
       setConfirmPin("");
-    } catch {
-      setMessage({ type: "error", text: "Failed to update Security PIN. Please try again." });
+    } catch (err: any) {
+      const errText =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to update Security PIN. Please try again.";
+      setMessage({ type: "error", text: typeof errText === "string" ? errText : JSON.stringify(errText) });
     } finally {
       setLoading(false);
     }

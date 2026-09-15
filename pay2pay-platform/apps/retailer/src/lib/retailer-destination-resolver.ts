@@ -236,35 +236,61 @@ export async function verifyAndRoutePostLogin(
   // 1. Synchronously persist credentials & role
   if (typeof window !== "undefined") {
     const role = "RETAILER";
+    // Token fallback: check cookies first (authoritative), then option param
+    const getCookieToken = (): string | null => {
+      try {
+        for (const c of document.cookie.split("; ")) {
+          if (c.startsWith("p2p_access_token=") || c.startsWith("pay2pay_access_token=") || c.startsWith("pay2pay_auth_token=")) {
+            const val = c.split("=").slice(1).join("=").trim();
+            if (val && val.length > 10) return val;
+          }
+        }
+      } catch (e) {}
+      return null;
+    };
     const validToken =
       options?.token ||
-      localStorage.getItem("pay2pay_access_token") ||
-      localStorage.getItem("p2p_access_token") ||
+      getCookieToken() ||
       `p2p_sess_${Date.now()}`;
     const user = options?.userData;
     const now = Date.now();
 
+    const domainAttr = typeof window !== "undefined" && window.location.hostname.endsWith("pay2pay.in") ? "; domain=.pay2pay.in" : "";
+    document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+    document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+    document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+    document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+    document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax${domainAttr}`;
+
     document.cookie = `p2p_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `pay2pay_user_role=${role}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `p2p_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `pay2pay_access_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
     document.cookie = `pay2pay_auth_token=${validToken}; path=/; max-age=2592000; SameSite=Lax`;
 
-    localStorage.setItem("pay2pay_user_role", role);
-    localStorage.setItem("pay2pay_access_token", validToken);
+    try {
+      if (validToken && !validToken.startsWith("p2p_sess_")) {
+        localStorage.setItem("p2p_access_token", validToken);
+        localStorage.setItem("pay2pay_access_token", validToken);
+        localStorage.setItem("token", validToken);
+      }
+      if (user) {
+        localStorage.setItem("user_info", JSON.stringify(user));
+        localStorage.setItem("pay2pay_user_data", JSON.stringify(user));
+        const rCode = user.retailer_code || user.code || user.retailer_id || user.public_id || user.id || "";
+        if (rCode) {
+          localStorage.setItem("p2p_active_retailer_id", rCode);
+          localStorage.setItem("p2p_retailer_code", rCode);
+          localStorage.setItem("retailer_id", rCode);
+        }
+      }
+    } catch {}
+
+    // p2p_session_start_time anchors the 24h absolute expiry in SessionSecurityProvider
     localStorage.setItem("p2p_session_start_time", String(now));
     localStorage.setItem("p2p_session_last_active", String(now));
     localStorage.removeItem("p2p_session_locked");
     localStorage.removeItem("p2p_session_locked_at");
-
-    if (user) {
-      localStorage.setItem("pay2pay_user_data", JSON.stringify(user));
-      localStorage.setItem("user_info", JSON.stringify(user));
-      const rCode = user.retailer_code || user.code || user.retailer_id || user.id || options?.mobile || "";
-      if (rCode) {
-        localStorage.setItem("p2p_active_retailer_id", rCode);
-        localStorage.setItem("p2p_retailer_code", rCode);
-      }
-    }
   }
 
   try {

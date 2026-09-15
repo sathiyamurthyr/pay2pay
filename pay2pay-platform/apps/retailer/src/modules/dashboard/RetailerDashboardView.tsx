@@ -196,29 +196,9 @@ export const RetailerDashboardView: React.FC = () => {
     setLoading(true);
     setHasLoaded(true);
     try {
-      // Build auth header from cookie or localStorage token
-      let authHeader: Record<string, string> = {};
-      if (typeof window !== "undefined") {
-        const cookies = document.cookie.split("; ");
-        const tokenCookie = cookies.find(
-          (row) =>
-            row.startsWith("p2p_access_token=") ||
-            row.startsWith("pay2pay_access_token=") ||
-            row.startsWith("pay2pay_auth_token=")
-        );
-        const token =
-          (tokenCookie ? tokenCookie.split("=").slice(1).join("=") : null) ||
-          localStorage.getItem("p2p_access_token") ||
-          localStorage.getItem("pay2pay_access_token") ||
-          localStorage.getItem("pay2pay_auth_token") ||
-          localStorage.getItem("access_token");
-        if (token && token.trim().length > 10) {
-          authHeader = { Authorization: `Bearer ${token.trim()}` };
-        }
-      }
-
+      // Auth is handled via cookies (credentials: "include") — no localStorage reads
       const fetchAuth = (url: string) =>
-        fetch(url, { credentials: "include", headers: { ...authHeader } });
+        fetch(url, { credentials: "include" });
 
       const baseUrl = `${getApiBaseUrl()}/payout/dashboard/retailer`;
       // Backend resolves the retailer from JWT – no localStorage identity reads needed
@@ -261,9 +241,24 @@ export const RetailerDashboardView: React.FC = () => {
     }
   }, [timeframe]);
 
-  // Auto-fetch immediately on mount and when timeframe changes
+  // Fetch once on mount; re-fetch only when the user explicitly changes the timeframe
+  const dashboardInitRef = React.useRef(false);
   useEffect(() => {
-    fetchDashboardData();
+    if (!dashboardInitRef.current) {
+      // First mount — always load
+      dashboardInitRef.current = true;
+      fetchDashboardData();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Explicit user-driven timeframe change re-fetches data
+  const prevTimeframeRef = React.useRef(timeframe);
+  useEffect(() => {
+    if (prevTimeframeRef.current !== timeframe) {
+      prevTimeframeRef.current = timeframe;
+      fetchDashboardData();
+    }
   }, [timeframe, fetchDashboardData]);
 
   // Real-time synchronization from NotificationCenter header component
@@ -320,7 +315,6 @@ export const RetailerDashboardView: React.FC = () => {
   const retailerCode =
     headerWallet?.retailer_code ||
     outlet.code ||
-    (typeof window !== "undefined" && localStorage.getItem("p2p_active_retailer_id")) ||
     "";
 
   const retailerName =
@@ -492,8 +486,11 @@ export const RetailerDashboardView: React.FC = () => {
 
             <Tooltip title="Refresh Dashboard & Metrics">
               <IconButton
-                onClick={fetchDashboardData}
-                disabled={loading}
+                onClick={() => {
+                  fetchDashboardData();
+                  syncBalance();
+                }}
+                disabled={loading || isSyncing}
                 sx={{
                   width: 36,
                   height: 36,
@@ -507,7 +504,7 @@ export const RetailerDashboardView: React.FC = () => {
                   },
                 }}
               >
-                <RefreshIcon sx={{ fontSize: 18, animation: loading ? "spin 1s linear infinite" : "none" }} />
+                <RefreshIcon sx={{ fontSize: 18, animation: (loading || isSyncing) ? "spin 1s linear infinite" : "none" }} />
               </IconButton>
             </Tooltip>
           </Box>

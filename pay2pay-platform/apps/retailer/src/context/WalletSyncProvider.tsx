@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback, Rea
 import apiClient from "@/lib/api";
 import { useRetailerStore } from "@/stores/use-retailer-store";
 
+import { getCachedHeaderWalletData } from "@/services/header-wallet-service";
+
 export interface WalletDataPayload {
   greeting: string;
   short_name: string;
@@ -45,43 +47,13 @@ export const triggerWalletSync = () => {
 
 export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [walletData, setWalletData] = useState<WalletDataPayload | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false); // No auto-loader on page load
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWalletData = useCallback(async () => {
+  const fetchWalletData = useCallback(async (force = false) => {
     setIsLoading(true);
     try {
-      // Call /header-wallet with NO query params.
-      // The backend resolves the authenticated retailer from the JWT cookie (p2p_access_token).
-      // Zero localStorage reads — identity comes from the server session only.
-      const res = await apiClient.get<WalletDataPayload>("/api/v1/payout/dashboard/retailer/header-wallet");
-      const data = res.data;
-
-      // Sync balance into useRetailerStore (in-memory only — NO localStorage write)
-      const bal = typeof data.wallet_balance === "number" ? data.wallet_balance : (data.wallet?.main_balance ?? 0.0);
-      const avail = typeof data.available_balance === "number" ? data.available_balance : bal;
-      const rInfo = (data as any).retailer_info || data;
-      const retCode = (data as any).retailer_code || (data as any).retailer_id || rInfo.retailer_code || rInfo.retailer_id || "";
-      const photoUrl = (data as any).photo_url || (data as any).avatar_url || rInfo.photo_url || rInfo.avatar_url || "";
-      const storeName = (data as any).company_name || (data as any).retailer_name || rInfo.company_name || rInfo.retailer_name || "";
-      const ownerName = (data as any).owner_name || rInfo.owner_name || "";
-
-      useRetailerStore.getState().updateWallet({
-        mainBalance: bal,
-        availableBalance: avail,
-        commissionBalance: data.todays_commission ?? 0.0,
-        todayMargin: data.todays_commission ?? 0.0,
-        todaySettlement: data.settlement_pending_amount ?? 0.0,
-      });
-
-      useRetailerStore.getState().updateOutlet({
-        code: retCode || useRetailerStore.getState().outlet.code,
-        name: storeName || useRetailerStore.getState().outlet.name,
-        ownerName: ownerName || useRetailerStore.getState().outlet.ownerName,
-        avatar: photoUrl || useRetailerStore.getState().outlet.avatar,
-        photo_url: photoUrl || useRetailerStore.getState().outlet.photo_url,
-      });
-
+      const data = await getCachedHeaderWalletData(force);
       setWalletData(data);
       setError(null);
     } catch (err: any) {
@@ -101,7 +73,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
   // Event listener for explicit transaction action refreshes
   useEffect(() => {
     const handleCustomUpdate = () => {
-      fetchWalletData();
+      fetchWalletData(true);
     };
 
     window.addEventListener("p2p_wallet_update", handleCustomUpdate);
@@ -114,7 +86,7 @@ export const WalletSyncProvider: React.FC<{ children: ReactNode }> = ({ children
         walletData,
         isLoading,
         error,
-        refreshWallet: fetchWalletData,
+        refreshWallet: () => fetchWalletData(true),
       }}
     >
       {children}

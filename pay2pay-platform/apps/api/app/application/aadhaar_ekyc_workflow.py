@@ -619,9 +619,9 @@ class AadhaarEkycWorkflowService:
                 registration_date=now_utc,
                 activation_date=now_utc,
                 last_active_date=now_utc,
-                mpin_enabled=True,
-                mpin_hash=_hash_mpin("1234", str(cust_uuid)),
-                mpin_created_at=now_utc,
+                mpin_enabled=False,
+                mpin_hash=None,
+                mpin_created_at=None,
                 created_date=now_utc,
                 updated_date=now_utc,
                 created_by="RETAILER",
@@ -631,22 +631,6 @@ class AadhaarEkycWorkflowService:
             )
             db.add(target_cust)
             await db.flush()
-
-            try:
-                cpin = CustomerPinModel(
-                    public_id=uuid.uuid4(),
-                    tenant_id=tenant_id,
-                    created_by="SYSTEM",
-                    customer_id=target_cust.public_id,
-                    hashed_pin=hashlib.sha256(b"1234").hexdigest(),
-                    pin_length=4,
-                    is_locked=False,
-                    failed_attempts=0,
-                    last_changed_at=now_utc
-                )
-                db.add(cpin)
-            except Exception as cp_err:
-                logger.warning(f"CustomerPinModel notice: {cp_err}")
 
             try:
                 cur_month = now_utc.strftime("%Y-%m")

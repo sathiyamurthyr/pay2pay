@@ -105,7 +105,16 @@ def set_auth_session_cookies(
     access_state = "ALLOWED" if (approve_status and active_status) else "RESTRICTED"
 
     host = request.headers.get("host", "").lower()
-    cookie_domain = ".pay2pay.in" if "pay2pay.in" in host else None
+    cookie_domain = None
+
+    # Clear any legacy cross-subdomain parent cookies that cause role collision
+    if "pay2pay.in" in host:
+        try:
+            response.delete_cookie(key="p2p_user_role", domain=".pay2pay.in", path="/")
+            response.delete_cookie(key="pay2pay_user_role", domain=".pay2pay.in", path="/")
+            response.delete_cookie(key="pay2pay_active_role", domain=".pay2pay.in", path="/")
+        except Exception:
+            pass
 
     # 1. Token cookies
     for key in ["p2p_access_token", "pay2pay_access_token", "pay2pay_auth_token"]:
@@ -707,9 +716,9 @@ async def login_with_password(
                         "current_step": 13,
                         "progress_percentage": 100,
                         "status": "COMPLETED",
-                        "redirect_url": "/dashboard"
+                        "redirect_url": "https://admin.pay2pay.in/admin/dashboard" if is_retailer_portal else "/admin/dashboard"
                     },
-                    "redirect_url": "/dashboard",
+                    "redirect_url": "https://admin.pay2pay.in/admin/dashboard" if is_retailer_portal else "/admin/dashboard",
                     "risk_assessment": risk_info,
                     "require_otp": False
                 }

@@ -131,6 +131,7 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Transactions",
     items: [
+      { label: "Consolidated Reconciliation", href: "/operations/reconciliation", icon: Scale, badge: "New" },
       { label: "Status Update", href: "/operations/transaction-status-update", icon: RefreshCw, badge: "Pending" },
       { label: "All Transactions", href: "/admin/reports/transactions", icon: Receipt, badge: "Master" },
       { label: "Payout", href: "/admin/reports/payout-transactions", icon: ArrowLeftRight },
@@ -173,6 +174,7 @@ const ADMIN_NAV: NavCategory[] = [
   {
     category: "Configuration",
     items: [
+      { label: "UPI Vendors", href: "/configuration/upi-vendors", icon: QrCode, badge: "New" },
       { label: "Charges", href: "/financial-config/approvals", icon: Scale },
       { label: "MDR", href: "/configuration/payout-slabs", icon: Layers },
       { label: "GST", href: "/financial-config/rules", icon: BookOpen },

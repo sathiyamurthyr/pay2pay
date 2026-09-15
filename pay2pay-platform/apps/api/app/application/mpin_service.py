@@ -221,6 +221,13 @@ class CustomerMpinService:
         Verifies customer MPIN for financial transactions.
         Applies rate-limiting locking after 5 failed attempts.
         """
+        clean_mpin = str(mpin).strip() if mpin else ""
+        if not clean_mpin:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="MPIN is required and cannot be empty."
+            )
+
         customer = await _find_customer(db, customer_id)
 
         if not customer:
@@ -230,20 +237,10 @@ class CustomerMpinService:
             )
 
         if not customer.mpin_enabled or not customer.mpin_hash:
-            now = datetime.now(timezone.utc)
-            hashed_input = _hash_mpin(mpin, str(customer.public_id))
-            customer.mpin_enabled = True
-            customer.mpin_hash = hashed_input
-            customer.mpin_created_at = now
-            customer.mpin_last_changed_at = now
-            customer.failed_attempts = 0
-            customer.is_locked = False
-            await db.commit()
-            return {
-                "status": "SUCCESS",
-                "message": "Customer MPIN initialized and verified.",
-                "customer_id": str(customer.public_id),
-            }
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="MPIN has not been configured for this customer account. Please complete MPIN setup before authenticating."
+            )
 
         if customer.is_locked:
             raise HTTPException(

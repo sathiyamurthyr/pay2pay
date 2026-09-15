@@ -8,7 +8,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
 import { tokens } from "@/design-system/tokens/design-tokens";
 import { useAuth } from "@/lib/auth";
-import { retailerApi } from "@/services/retailer-api";
+import { getCachedHeaderWalletData } from "@/services/header-wallet-service";
 
 export interface ProfileMenuProps {
   ownerName?: string;
@@ -32,19 +32,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       setDynamicPhoto(photoUrl);
       return;
     }
-    // Automatically load verified photo URL from profile API
-    const loadProfilePhoto = async () => {
-      try {
-        const res = await retailerApi.getProfile();
-        const pUrl = res?.data?.photo?.photo_url;
-        if (pUrl) {
-          setDynamicPhoto(pUrl);
-        }
-      } catch {
-        // Fallback to name avatar
+    getCachedHeaderWalletData().then((data) => {
+      const pUrl = data?.photo_url || data?.avatar_url || data?.retailer_info?.photo_url;
+      if (pUrl) {
+        setDynamicPhoto(pUrl);
       }
-    };
-    loadProfilePhoto();
+    }).catch(() => {});
   }, [photoUrl]);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {

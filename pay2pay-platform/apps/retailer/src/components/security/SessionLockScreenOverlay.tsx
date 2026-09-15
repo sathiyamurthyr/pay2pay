@@ -298,6 +298,18 @@ export const SessionLockScreenOverlay: React.FC = () => {
 
   // Authoritative Session Termination & Logout (Used for 3-attempt lockout and LOGOUT button)
   const handleLogout = () => {
+    // Step 1: Read role from cookie BEFORE clearing anything
+    // (localStorage no longer stores role — cookies are authoritative)
+    let rawRole = "RETAILER";
+    try {
+      const roleCookie = document.cookie.split("; ").find(
+        (c) => c.startsWith("p2p_user_role=") || c.startsWith("pay2pay_user_role=")
+      );
+      if (roleCookie) {
+        rawRole = roleCookie.split("=")[1]?.trim() || "RETAILER";
+      }
+    } catch {}
+
     try {
       const cookiesToClear = [
         "p2p_access_token",
@@ -305,6 +317,9 @@ export const SessionLockScreenOverlay: React.FC = () => {
         "pay2pay_auth_token",
         "p2p_user_role",
         "pay2pay_user_role",
+        "pay2pay_active_role",
+        "p2p_destination",
+        "p2p_account_access",
         "p2p_session_locked",
         "p2p_session_locked_at",
         "p2p_session_last_active",
@@ -315,22 +330,26 @@ export const SessionLockScreenOverlay: React.FC = () => {
         "token",
         "access_token",
         "p2p_active_retailer_id",
+        "p2p_retailer_code",
       ];
-      cookiesToClear.forEach((cookieName) => {
-        document.cookie = `${cookieName}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        try {
-          document.cookie = `${cookieName}=; path=/; domain=${window.location.hostname}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        } catch {}
+
+      const expiry = "expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
+      const rootDomain = ".pay2pay.in"; // Backend sets cookies on root domain
+
+      cookiesToClear.forEach((name) => {
+        // Clear on path only (localhost / dev)
+        document.cookie = `${name}=; path=/; ${expiry}`;
+        // Clear on current hostname
+        try { document.cookie = `${name}=; path=/; domain=${window.location.hostname}; ${expiry}`; } catch {}
+        // Clear on root domain (CRITICAL — backend sets cookies here)
+        try { document.cookie = `${name}=; path=/; domain=${rootDomain}; ${expiry}`; } catch {}
       });
-      localStorage.removeItem("pay2pay_access_token");
-      localStorage.removeItem("pay2pay_auth_token");
-      localStorage.removeItem("p2p_access_token");
+
+      // Clear session timing keys from localStorage
       localStorage.removeItem("p2p_session_locked");
       localStorage.removeItem("p2p_session_locked_at");
       localStorage.removeItem("p2p_session_last_active");
       localStorage.removeItem("p2p_session_start_time");
-      localStorage.removeItem("pay2pay_user_data");
-      localStorage.removeItem("user_info");
       sessionStorage.removeItem("p2p_workstation_failed_attempts");
 
       if ("BroadcastChannel" in window) {
@@ -341,27 +360,30 @@ export const SessionLockScreenOverlay: React.FC = () => {
         } catch {}
         try {
           const lockChannel = new BroadcastChannel("p2p_session_lock_channel");
-          lockChannel.postMessage({ type: "BROADCAST_TERMINATE", reason: "max_pin_attempts" });
+          lockChannel.postMessage({ type: "BROADCAST_TERMINATE", reason: "user_logout" });
           lockChannel.close();
         } catch {}
       }
 
+      // Call backend logout with credentials to invalidate the server-side session cookie
       fetch("/api/v1/auth/enterprise/logout", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ device_info: typeof navigator !== "undefined" ? navigator.userAgent : "Browser" }),
       }).catch(() => {});
-      fetch("/api/v1/auth/logout", { method: "POST" }).catch(() => {});
+      fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
     } catch (e) {}
 
+    // Use replace() not href — prevents back-button returning to the locked session
     try {
-      const rawRole = (typeof window !== "undefined" ? localStorage.getItem("p2p_user_role") : null) || "RETAILER";
       const portalConfig = resolvePortalRoute(rawRole);
-      window.location.href = portalConfig.login;
+      window.location.replace(portalConfig.login);
     } catch (e) {
-      window.location.href = "/retailer/login";
+      window.location.replace("/retailer/login");
     }
   };
+
 
   const isLight = effectiveTheme === "light";
 

@@ -2041,13 +2041,38 @@ async def change_mpin(
         )
         db.add(user_sec)
 
-    # 9. Update RetailerModel via Stored Procedure sp_update_retailer_mpin
-    ret_uuid = r_uuid or (target_uid if user_sec else None)
-    if ret_uuid:
+    # 9. Update RetailerModel via SQLAlchemy and Stored Procedure sp_update_retailer_mpin
+    ret_conds = []
+    if r_uuid:
+        ret_conds.append(RetailerModel.public_id == r_uuid)
+    if target_uid:
+        ret_conds.append(RetailerModel.public_id == target_uid)
+    if target_ident:
+        ret_conds.append(RetailerModel.retailer_code == str(target_ident).strip().upper())
+
+    ret_obj = None
+    if ret_conds:
+        ret_stmt = select(RetailerModel).where(or_(*ret_conds), RetailerModel.is_deleted == False)
+        ret_obj = (await db.execute(ret_stmt)).scalars().first()
+
+    if ret_obj:
+        ret_obj.mpin_hash = new_argon_hash
+        ret_obj.mpin_failed_attempts = 0
+        ret_obj.mpin_locked = False
+        ret_obj.updated_date = datetime.now(timezone.utc)
         try:
             await db.execute(
                 text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
-                {"rid": ret_uuid, "nh": new_argon_hash}
+                {"rid": ret_obj.public_id, "nh": new_argon_hash}
+            )
+        except Exception as sp_err:
+            logger.warning(f"Error executing sp_update_retailer_mpin: {sp_err}")
+    elif r_uuid or target_uid:
+        eff_rid = r_uuid or target_uid
+        try:
+            await db.execute(
+                text("SELECT public.sp_update_retailer_mpin(:rid, :nh, 'PROFILE_SECURITY')"),
+                {"rid": eff_rid, "nh": new_argon_hash}
             )
         except Exception as sp_err:
             logger.warning(f"Error executing sp_update_retailer_mpin: {sp_err}")
@@ -2064,7 +2089,7 @@ async def change_mpin(
     # 11. Update DraftModel if present
     if draft:
         cdata = dict(draft.draft_data or {})
-        cdata["mpin"] = req.new_pin
+        cdata.pop("mpin", None)
         cdata["mpin_hash"] = new_argon_hash
         cdata["last_pin_changed_at"] = datetime.now(timezone.utc).isoformat()
         draft.draft_data = cdata

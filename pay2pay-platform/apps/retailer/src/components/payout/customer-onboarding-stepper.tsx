@@ -86,8 +86,8 @@ export function CustomerOnboardingStepper({
   const [step3Loading, setStep3Loading] = useState(false);
 
   // Step 4: Transaction PIN
-  const [pin, setPin] = useState("1234");
-  const [confirmPin, setConfirmPin] = useState("1234");
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [step4Loading, setStep4Loading] = useState(false);
 

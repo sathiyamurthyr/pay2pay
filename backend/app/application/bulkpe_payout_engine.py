@@ -128,61 +128,108 @@ class BulkPePayoutEngine:
                 detail="Customer account is inactive."
             )
 
-        # 1.1 Strictly verify Security MPIN directly from the PostgreSQL Database
+        # 1.1 Strictly verify Security MPIN directly from PostgreSQL Database
+        from app.application.retailer_mpin_service import _hash_mpin as _hash_retailer_mpin
+        from app.application.mpin_service import _hash_mpin as _hash_cust_mpin
+        from app.core.security import verify_password
+        from app.infrastructure.db.models import RetailerModel
+        from app.infrastructure.db.session_security_models import UserSecuritySettingsModel
+
         mpin_verified = False
-        mpin_error_detail = None
+        clean_pin = str(mpin).strip()
 
-        # Check 1: Customer MPIN verification against customer.mpin_hash in DB
-        try:
-            await CustomerMPINService.verify_mpin(db, customer.public_id, mpin)
-            mpin_verified = True
-        except HTTPException as cust_err:
-            mpin_error_detail = cust_err.detail
-        except Exception as e:
-            mpin_error_detail = str(e)
+        # Check Retailer Operator
+        retailer_stmt = select(RetailerModel).where(
+            RetailerModel.public_id == retailer_id,
+            RetailerModel.is_deleted == False
+        )
+        retailer_obj = (await db.execute(retailer_stmt)).scalars().first()
 
-        # Check 2: If customer MPIN check did not match, check Retailer Operator Security PIN in DB
-        if not mpin_verified and retailer_id:
-            try:
-                from app.infrastructure.db.session_security_models import UserSecuritySettingsModel
-                from app.core.security import verify_password
-                
-                ret_uuid = None
-                if isinstance(retailer_id, uuid.UUID):
-                    ret_uuid = retailer_id
-                elif isinstance(retailer_id, str):
+        if retailer_obj and retailer_obj.mpin_locked:
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail="Retailer MPIN is locked due to repeated failed attempts. Please contact Administrator to unlock."
+            )
+
+        # Check 1: Retailer Operator Security PIN in DB (Argon2, Bcrypt, SHA256, HMAC-SHA256)
+        if retailer_obj:
+            if retailer_obj.mpin_hash:
+                try:
+                    if verify_password(clean_pin, retailer_obj.mpin_hash):
+                        mpin_verified = True
+                except Exception:
+                    pass
+                if not mpin_verified:
                     try:
-                        ret_uuid = uuid.UUID(retailer_id)
+                        if _hash_retailer_mpin(clean_pin, str(retailer_obj.public_id)) == retailer_obj.mpin_hash:
+                            mpin_verified = True
                     except Exception:
                         pass
-                
-                stmt_sec = select(UserSecuritySettingsModel).where(
-                    UserSecuritySettingsModel.portal == "RETAILER"
-                )
-                if ret_uuid:
-                    stmt_sec = stmt_sec.where(
-                        or_(
-                            UserSecuritySettingsModel.user_id == ret_uuid,
-                            UserSecuritySettingsModel.user_id == uuid.UUID("00000000-0000-0000-0000-000000000000")
-                        )
+
+            # Check UserSecuritySettingsModel for this retailer
+            if not mpin_verified:
+                try:
+                    sec_stmt = select(UserSecuritySettingsModel).where(
+                        UserSecuritySettingsModel.user_id == retailer_obj.public_id,
+                        UserSecuritySettingsModel.portal == "RETAILER",
+                        UserSecuritySettingsModel.is_deleted == False
                     )
-                sec_settings = (await db.execute(stmt_sec)).scalars().all()
-                for sec in sec_settings:
-                    if sec.security_pin_hash:
-                        try:
-                            if verify_password(mpin, sec.security_pin_hash):
-                                mpin_verified = True
-                                break
-                        except Exception:
-                            pass
-            except Exception:
-                pass
+                    sec_settings = (await db.execute(sec_stmt)).scalars().all()
+                    for sec in sec_settings:
+                        if sec.security_pin_hash:
+                            try:
+                                if verify_password(clean_pin, sec.security_pin_hash):
+                                    mpin_verified = True
+                                    if not retailer_obj.mpin_hash:
+                                        retailer_obj.mpin_hash = sec.security_pin_hash
+                                    break
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+
+            if mpin_verified:
+                if retailer_obj.mpin_failed_attempts:
+                    retailer_obj.mpin_failed_attempts = 0
+
+        # Check 2: Customer MPIN verification against customer.mpin_hash in DB
+        if not mpin_verified and customer:
+            if customer.mpin_enabled and customer.mpin_hash:
+                if customer.is_locked:
+                    raise HTTPException(
+                        status_code=status.HTTP_423_LOCKED,
+                        detail="Customer MPIN is locked due to too many failed attempts."
+                    )
+                try:
+                    if _hash_cust_mpin(clean_pin, str(customer.public_id)) == customer.mpin_hash or verify_password(clean_pin, customer.mpin_hash):
+                        mpin_verified = True
+                        customer.failed_attempts = 0
+                except Exception:
+                    pass
 
         if not mpin_verified:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=mpin_error_detail or "Invalid Security MPIN. Please enter the valid PIN configured in the database."
-            )
+            if retailer_obj:
+                retailer_obj.mpin_failed_attempts = (retailer_obj.mpin_failed_attempts or 0) + 1
+                max_att = retailer_obj.mpin_max_attempts or 5
+                if retailer_obj.mpin_failed_attempts >= max_att:
+                    retailer_obj.mpin_locked = True
+                    retailer_obj.mpin_locked_at = datetime.now(timezone.utc)
+                    await db.commit()
+                    raise HTTPException(
+                        status_code=status.HTTP_423_LOCKED,
+                        detail="Maximum MPIN attempts exceeded. Retailer MPIN has been locked for security. Please contact Administrator to unlock."
+                    )
+                remaining = max_att - retailer_obj.mpin_failed_attempts
+                await db.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid Security MPIN. {remaining} attempt(s) remaining."
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid Security MPIN. Please enter the valid PIN configured in the database."
+                )
 
         # 1.2 Verify Beneficiary & Bank Account
         from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
