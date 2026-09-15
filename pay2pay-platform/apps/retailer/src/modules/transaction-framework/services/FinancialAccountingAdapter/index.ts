@@ -307,16 +307,18 @@ class FinancialAccountingService {
           localStorage.getItem("user") ||
           localStorage.getItem("auth_user") ||
           localStorage.getItem("pay2pay_user_data");
+        let mobile = "";
         if (userStr) {
           const u = JSON.parse(userStr);
           userRefId = u.user_ref_id || u.retailer_ref_id || u.ref_id || null;
           userTypeRefId = u.user_type_ref_id || 2;
           if (!retailerCode) {
-            retailerCode = u.retailer_code || u.code || "";
+            retailerCode = u.retailer_code || u.retailerCode || u.code || u.r_code || "";
           }
           if (!retailerPublicId) {
-            retailerPublicId = u.public_id || u.id || "";
+            retailerPublicId = u.public_id || u.id || u.retailer_id || u.retailerId || "";
           }
+          mobile = u.mobile_number || u.mobile || u.phone || "";
         }
       } catch {}
       if (!retailerCode) {
@@ -330,6 +332,9 @@ class FinancialAccountingService {
       }
       if (!retailerPublicId) {
         retailerPublicId = localStorage.getItem("p2p_retailer_public_id") || "";
+      }
+      if (!mobile) {
+        mobile = localStorage.getItem("p2p_mobile") || localStorage.getItem("retailer_mobile") || "";
       }
       if (!userRefId && !retailerCode) {
         userRefId = null;
@@ -357,6 +362,7 @@ class FinancialAccountingService {
         mode: mode,
         retailer_id: retailerPublicId || retailerCode || null,
         retailer_code: retailerCode || null,
+        mobile: mobile || null,
         user_ref_id: userRefId ? Number(userRefId) : null,
         user_type_ref_id: Number(userTypeRefId || 2),
         retailer_ref_id: userRefId ? Number(userRefId) : null,
@@ -371,6 +377,10 @@ class FinancialAccountingService {
       }
       if (retailerPublicId || retailerCode) {
         reqHeaders["x-retailer-id"] = retailerPublicId || retailerCode;
+      }
+      if (mobile) {
+        reqHeaders["x-mobile"] = mobile;
+        reqHeaders["x-phone"] = mobile;
       }
       if (userRefId) {
         reqHeaders["x-user-ref-id"] = String(userRefId);
@@ -392,7 +402,9 @@ class FinancialAccountingService {
         if (axiosErr.response) {
           const errData = axiosErr.response.data || {};
           let errMsg = "Payout service is temporarily unavailable. Please try again later.";
-          if (typeof errData.friendly_message === "string") {
+          if (typeof errData === "string") {
+            errMsg = errData;
+          } else if (typeof errData.friendly_message === "string") {
             errMsg = errData.friendly_message;
           } else if (typeof errData.customer_message === "string") {
             errMsg = errData.customer_message;
@@ -403,8 +415,8 @@ class FinancialAccountingService {
           } else if (errData.message) {
             errMsg = errData.message;
           }
-          const serverTxId = errData.transaction_number || errData.transaction_id || errData.data?.transaction_number || "";
-          const serverRefNo = errData.reference_number || errData.reference_no || errData.data?.reference_number || "";
+          const serverTxId = (typeof errData === "object" ? errData.transaction_number || errData.transaction_id || errData.data?.transaction_number : "") || "";
+          const serverRefNo = (typeof errData === "object" ? errData.reference_number || errData.reference_no || errData.data?.reference_number : "") || "";
           return this.failTransaction(serverTxId, serverRefNo, walletBefore, beneMonthlyBefore, errMsg);
         } else {
           // Direct raw fetch fallback

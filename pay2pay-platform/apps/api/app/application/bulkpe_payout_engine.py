@@ -132,7 +132,6 @@ class BulkPePayoutEngine:
         from app.application.retailer_mpin_service import _hash_mpin as _hash_retailer_mpin
         from app.application.mpin_service import _hash_mpin as _hash_cust_mpin
         from app.core.security import verify_password
-        from app.infrastructure.db.models import RetailerModel
         from app.infrastructure.db.session_security_models import UserSecuritySettingsModel
 
         mpin_verified = False
@@ -232,7 +231,7 @@ class BulkPePayoutEngine:
                 )
 
         # 1.2 Verify Beneficiary & Bank Account
-        from app.infrastructure.db.beneficiary_models import BeneficiaryModel, BeneficiaryBankAccountModel
+        from app.infrastructure.db.beneficiary_models import BeneficiaryBankAccountModel
         from app.infrastructure.db.epic014_models import BeneficiaryMasterModel
 
         bene_uuid = None

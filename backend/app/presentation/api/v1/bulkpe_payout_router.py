@@ -248,13 +248,28 @@ async def initiate_bulkpe_payout(
                 conds.append(CustomerModel.mobile_number == f"+91{clean_digits[-10:]}")
             cust_stmt = select(CustomerModel).where(or_(*conds), CustomerModel.is_deleted == False)
             cust = (await db.execute(cust_stmt)).scalars().first()
-            if cust and cust.introduced_by_retailer_id:
-                stmt = select(RetailerModel).where(RetailerModel.public_id == cust.introduced_by_retailer_id, RetailerModel.is_deleted == False)
-                ret_obj = (await db.execute(stmt)).scalars().first()
+            if cust:
+                if cust.introduced_by_retailer_id:
+                    stmt = select(RetailerModel).where(RetailerModel.public_id == cust.introduced_by_retailer_id, RetailerModel.is_deleted == False)
+                    ret_obj = (await db.execute(stmt)).scalars().first()
+                if not ret_obj and cust.mobile_number:
+                    clean_cmob = re.sub(r"\D", "", str(cust.mobile_number))[-10:]
+                    if len(clean_cmob) == 10:
+                        stmt_ret_m = (
+                            select(RetailerModel)
+                            .join(RetailerContactModel, RetailerContactModel.retailer_id == RetailerModel.public_id)
+                            .where(
+                                RetailerContactModel.mobile.in_([clean_cmob, f"+91{clean_cmob}", f"91{clean_cmob}"]),
+                                RetailerModel.is_deleted == False,
+                                RetailerContactModel.is_deleted == False
+                            )
+                            .order_by(RetailerModel.created_date.desc())
+                        )
+                        ret_obj = (await db.execute(stmt_ret_m)).scalars().first()
         except Exception:
             pass
 
-    # 6. Fallback for single tenant active retailer
+    # 6. Fallback for single tenant active retailer or default active retailer
     if not ret_obj:
         raw_tenant = req.tenant_id or (request.headers.get("x-tenant-id") if request else None)
         if raw_tenant:
@@ -264,26 +279,39 @@ async def initiate_bulkpe_payout(
                 ret_obj = (await db.execute(stmt)).scalars().first()
             except Exception:
                 pass
+        if not ret_obj:
+            try:
+                stmt_def = (
+                    select(RetailerModel)
+                    .join(RetailerWalletModel, RetailerWalletModel.retailer_id == RetailerModel.public_id)
+                    .where(RetailerModel.is_deleted == False, RetailerWalletModel.wallet_balance > 0)
+                    .order_by(RetailerModel.created_date.desc())
+                    .limit(1)
+                )
+                ret_obj = (await db.execute(stmt_def)).scalars().first()
+            except Exception:
+                pass
 
-    # 7. Final fallback: look up AuthUserModel / AdminUserModel by JWT sub to resolve mobile, then retailer
-    if not ret_obj and token_payload:
+    # 7. Final fallback: look up AuthUserModel / AdminUserModel by JWT sub, x-mobile headers, or req.mobile
+    if not ret_obj:
         try:
-            sub_val = token_payload.get("sub") or token_payload.get("user_id") or ""
             auth_mobile = None
-            if sub_val:
-                # Try: sub may be a 10-digit mobile number directly
-                clean_sub = re.sub(r"\D", "", str(sub_val))[-10:]
-                if len(clean_sub) == 10:
-                    auth_mobile = clean_sub
-                else:
-                    # Try by UUID sub from AdminUserModel
-                    try:
-                        sub_uuid = uuid.UUID(str(sub_val))
-                        adm = (await db.execute(select(AdminUserModel).where(AdminUserModel.public_id == sub_uuid, AdminUserModel.is_deleted == False))).scalars().first()
-                        if adm and adm.phone:
-                            auth_mobile = re.sub(r"\D", "", str(adm.phone))[-10:]
-                    except Exception:
-                        pass
+            if token_payload:
+                sub_val = token_payload.get("sub") or token_payload.get("user_id") or ""
+                if sub_val:
+                    # Try: sub may be a 10-digit mobile number directly
+                    clean_sub = re.sub(r"\D", "", str(sub_val))[-10:]
+                    if len(clean_sub) == 10:
+                        auth_mobile = clean_sub
+                    else:
+                        # Try by UUID sub from AdminUserModel
+                        try:
+                            sub_uuid = uuid.UUID(str(sub_val))
+                            adm = (await db.execute(select(AdminUserModel).where(AdminUserModel.public_id == sub_uuid, AdminUserModel.is_deleted == False))).scalars().first()
+                            if adm and adm.phone:
+                                auth_mobile = re.sub(r"\D", "", str(adm.phone))[-10:]
+                        except Exception:
+                            pass
             # Additional: check x-mobile or x-phone headers
             if not auth_mobile and request:
                 hdr_mob = request.headers.get("x-mobile") or request.headers.get("x-phone") or request.headers.get("x-retailer-mobile")
@@ -301,6 +329,7 @@ async def initiate_bulkpe_payout(
                         RetailerModel.is_deleted == False,
                         RetailerContactModel.is_deleted == False
                     )
+                    .order_by(RetailerModel.created_date.desc())
                 )
                 ret_obj = (await db.execute(stmt)).scalars().first()
         except Exception:
